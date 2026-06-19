@@ -89,6 +89,15 @@ class NeuralSurrogate:
             logger.info(message)
 
     def train_on_kernel(self, kernel: Any, perturbation: float = 1.0) -> None:
+        """Identify the surrogate response matrix by perturbing each coil.
+
+        Parameters
+        ----------
+        kernel
+            The Grad-Shafranov physics kernel to perturb and re-solve.
+        perturbation
+            Coil-current perturbation amplitude; must be finite and positive.
+        """
         self._log("[SOTA] Training Neural Surrogate on Physics Kernel...")
         solve_kernel(kernel)
         base_state = self.get_state(kernel)
@@ -108,6 +117,18 @@ class NeuralSurrogate:
         self._log("[SOTA] Surrogate Training Complete.")
 
     def get_state(self, kernel: Any) -> FloatArray:
+        """Extract the shape state ``[R_axis, Z_axis, R_xpoint, Z_xpoint]`` in metres.
+
+        Parameters
+        ----------
+        kernel
+            The solved physics kernel.
+
+        Returns
+        -------
+        FloatArray
+            The magnetic-axis and X-point coordinates, shape ``(4,)``.
+        """
         idx_max = int(np.argmax(kernel.Psi))
         iz, ir = np.unravel_index(idx_max, kernel.Psi.shape)
         r_ax = float(kernel.R[ir])
@@ -116,6 +137,20 @@ class NeuralSurrogate:
         return np.array([r_ax, z_ax, float(xp_pos[0]), float(xp_pos[1])], dtype=np.float64)
 
     def predict(self, current_state: AnyFloatArray, action_delta: AnyFloatArray) -> FloatArray:
+        """Predict the next shape state under a coil-current change.
+
+        Parameters
+        ----------
+        current_state
+            Current shape state.
+        action_delta
+            Coil-current increment.
+
+        Returns
+        -------
+        FloatArray
+            The linearly predicted next state ``state + B @ action``.
+        """
         return np.asarray(current_state, dtype=np.float64) + (self.B @ np.asarray(action_delta, dtype=np.float64))
 
 
@@ -159,6 +194,21 @@ class ModelPredictiveController:
         self.action_regularization = action_regularization
 
     def plan_trajectory(self, current_state: AnyFloatArray) -> FloatArray:
+        """Plan a coil-action trajectory minimising the tracking cost.
+
+        Optimises the action sequence over the prediction horizon against the
+        surrogate dynamics by gradient descent.
+
+        Parameters
+        ----------
+        current_state
+            The current shape state.
+
+        Returns
+        -------
+        FloatArray
+            The planned action sequence, shape ``(horizon, n_coils)``.
+        """
         n_coils = int(self.model.B.shape[1])
         planned_actions: FloatArray = np.zeros((self.horizon, n_coils), dtype=np.float64)
         state0 = np.asarray(current_state, dtype=np.float64).reshape(-1)
@@ -487,6 +537,43 @@ def run_sota_simulation(
     verbose: bool = True,
     kernel_factory: Callable[[str], Any] = FusionKernel,
 ) -> Dict[str, Any]:
+    """Run a closed-loop surrogate-MPC shape-control simulation.
+
+    Parameters
+    ----------
+    config_file
+        Optional kernel configuration path; defaults to the repository
+        ``iter_config.json``.
+    shot_length
+        Number of control steps.
+    prediction_horizon
+        MPC prediction horizon.
+    target_vector
+        Optional target shape state.
+    disturbance_start_step
+        Step at which the current disturbance begins.
+    disturbance_per_step_ma
+        Per-step current disturbance in MA.
+    current_target_bounds
+        Allowed plasma-current target range in MA.
+    action_limit
+        Per-step coil-action limit.
+    coil_current_limits
+        Coil-current bounds in kA-turn.
+    save_plot
+        Whether to save a results plot.
+    output_path
+        Output path for the results plot.
+    verbose
+        Whether to log progress.
+    kernel_factory
+        Factory building the physics kernel from a config path.
+
+    Returns
+    -------
+    Dict[str, Any]
+        The simulation history and final tracking metrics.
+    """
     if config_file is None:
         repo_root = Path(__file__).resolve().parents[3]
         config_file = str(repo_root / "iter_config.json")
