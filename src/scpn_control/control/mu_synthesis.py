@@ -421,9 +421,11 @@ class StructuredUncertainty:
         self.blocks = blocks
 
     def build_Delta_structure(self) -> list[tuple[int, str]]:
+        """Return the uncertainty structure as ``(size, block_type)`` per block."""
         return [(b.size, b.block_type) for b in self.blocks]
 
     def total_size(self) -> int:
+        """Total dimension of the block-diagonal uncertainty structure Δ."""
         return sum(b.size for b in self.blocks)
 
     def bound_matrix(self) -> FloatArray:
