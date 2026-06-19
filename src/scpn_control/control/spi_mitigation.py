@@ -200,6 +200,18 @@ class ShatteredPelletInjection:
 
     @staticmethod
     def estimate_z_eff(neon_quantity_mol: float) -> float:
+        """Estimate post-injection Z_eff for a neon-only shattered-pellet dose.
+
+        Parameters
+        ----------
+        neon_quantity_mol
+            Injected neon in moles.
+
+        Returns
+        -------
+        float
+            The effective charge after assimilation.
+        """
         return ShatteredPelletInjection.estimate_z_eff_cocktail(
             neon_quantity_mol=neon_quantity_mol,
             argon_quantity_mol=0.0,
@@ -240,6 +252,22 @@ class ShatteredPelletInjection:
         disturbance: float,
         action_bias: float = 0.0,
     ) -> dict[str, float]:
+        """Recommend an impurity-injection cocktail for a disruption risk.
+
+        Parameters
+        ----------
+        risk_score
+            Disruption risk in [0, 1]; must be finite.
+        disturbance
+            Disturbance amplitude; must be finite.
+        action_bias
+            Optional bias shifting the recommended dose; must be finite.
+
+        Returns
+        -------
+        dict[str, float]
+            Recommended neon, argon, and xenon quantities in moles.
+        """
         risk_raw = float(risk_score)
         dist_raw = float(disturbance)
         action_raw = float(action_bias)
@@ -302,6 +330,31 @@ class ShatteredPelletInjection:
         dt_s: float = 1e-5,
         verbose: bool = True,
     ) -> Any:
+        """Inject a shattered-pellet impurity cocktail and simulate the response.
+
+        Parameters
+        ----------
+        neon_quantity_mol
+            Injected neon in moles; must be non-negative.
+        argon_quantity_mol
+            Injected argon in moles; must be non-negative.
+        xenon_quantity_mol
+            Injected xenon in moles; must be non-negative.
+        return_diagnostics
+            Whether to return the detailed time-resolved diagnostics.
+        duration_s
+            Simulated mitigation duration in seconds.
+        dt_s
+            Simulation time step in seconds.
+        verbose
+            Whether to log progress.
+
+        Returns
+        -------
+        Any
+            The mitigation summary, or detailed diagnostics when
+            ``return_diagnostics`` is set.
+        """
         neon = require_non_negative_float("neon_quantity_mol", neon_quantity_mol)
         argon = require_non_negative_float("argon_quantity_mol", argon_quantity_mol)
         xenon = require_non_negative_float("xenon_quantity_mol", xenon_quantity_mol)
@@ -466,6 +519,8 @@ def run_spi_mitigation(
 
 
 def run_spi_test() -> dict[str, Any]:
+    """Run the default shattered-pellet-injection mitigation demonstration."""
+
     return run_spi_mitigation(save_plot=True, verbose=True)
 
 
