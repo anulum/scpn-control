@@ -52,10 +52,12 @@ except ImportError:
 
 
 def has_jax() -> bool:
+    """Return whether JAX is importable in this environment."""
     return _HAS_JAX
 
 
 def has_jax_gpu() -> bool:
+    """Return whether JAX is available and reports a GPU device."""
     if not _HAS_JAX:
         return False
     try:
