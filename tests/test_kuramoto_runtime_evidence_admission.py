@@ -196,7 +196,7 @@ class TestPayloadFieldValidation:
         with pytest.raises(ValueError, match="alpha must be finite"):
             _validate_kuramoto_runtime_payload(payload, require_deployment_claim=False)
 
-    def test_rejects_unparseable_string_alpha(self):
+    def test_rejects_unparsable_string_alpha(self):
         payload = _reseal({**_valid_deployment_payload(), "alpha": "not_a_float"})
         with pytest.raises(ValueError, match="alpha must be finite"):
             _validate_kuramoto_runtime_payload(payload, require_deployment_claim=False)
