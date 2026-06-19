@@ -353,14 +353,17 @@ class NeuroSymbolicController:
 
     @property
     def runtime_backend_name(self) -> str:
+        """Name of the active controller runtime backend."""
         return self._runtime_backend
 
     @property
     def runtime_profile_name(self) -> str:
+        """Name of the active controller runtime profile."""
         return self._runtime_profile
 
     @property
     def marking(self) -> list[float]:
+        """Current Petri-net marking as a list of per-place token densities."""
         return cast(list[float], self._marking.tolist())
 
     @marking.setter
