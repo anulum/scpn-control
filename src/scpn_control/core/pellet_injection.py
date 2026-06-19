@@ -184,7 +184,7 @@ class PelletTrajectory:
         ------
         ValueError
             If ``rho`` is not a strictly increasing grid in [0, 1] or the
-            profiles are mis-shaped or negative.
+            profiles have the wrong shape or are negative.
         """
         rho = np.asarray(rho, dtype=float)
         if rho.ndim != 1 or rho.size < 2:

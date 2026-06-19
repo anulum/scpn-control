@@ -246,7 +246,7 @@ class ParticleTransportModel:
         Raises
         ------
         ValueError
-            If profiles are mis-shaped or negative, or ``dt`` is not finite and
+            If profiles have the wrong shape or are negative, or ``dt`` is not finite and
             positive.
         """
         ne_arr = self._validate_profile(ne, "ne")
