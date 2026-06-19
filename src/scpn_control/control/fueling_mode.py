@@ -33,6 +33,26 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 @dataclass(frozen=True)
 class FuelingSimResult:
+    """Outcome of an ITER density-control fuelling simulation.
+
+    Attributes
+    ----------
+    final_density
+        Plasma density at the end of the run (normalised units).
+    final_abs_error
+        Absolute density-tracking error at the final step.
+    rmse
+        Root-mean-square density-tracking error over the run.
+    steps
+        Number of simulation steps performed.
+    dt_s
+        Time step in seconds.
+    history_density
+        Per-step density trajectory.
+    history_command
+        Per-step fuelling-command trajectory.
+    """
+
     final_density: float
     final_abs_error: float
     rmse: float
@@ -112,6 +132,22 @@ class IcePelletFuelingController:
         self.integrator = 0.0
 
     def step(self, density: float, k: int, dt_s: float) -> tuple[float, float]:
+        """Advance the hybrid PI/SNN fuelling controller one step.
+
+        Parameters
+        ----------
+        density
+            The measured plasma density (normalised units).
+        k
+            The current step index.
+        dt_s
+            Time step in seconds.
+
+        Returns
+        -------
+        tuple[float, float]
+            The clipped fuelling command and the density-tracking error.
+        """
         error = self.target_density - float(density)
         self.integrator += error * dt_s
         self.integrator = float(np.clip(self.integrator, -0.5, 0.5))
@@ -141,6 +177,29 @@ def simulate_iter_density_control(
     steps: int = 3000,
     dt_s: float = 1e-3,
 ) -> FuelingSimResult:
+    """Simulate closed-loop ITER density control with the fuelling controller.
+
+    Parameters
+    ----------
+    target_density
+        Density setpoint (normalised units); must be finite and positive.
+    initial_density
+        Density at the start of the run.
+    steps
+        Number of simulation steps; must be at least 8.
+    dt_s
+        Time step in seconds.
+
+    Returns
+    -------
+    FuelingSimResult
+        The final density, error metrics, and recorded trajectories.
+
+    Raises
+    ------
+    ValueError
+        If ``steps`` is below 8 or ``target_density`` is non-positive.
+    """
     steps = int(steps)
     if steps < 8:
         raise ValueError("steps must be >= 8.")
