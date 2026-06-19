@@ -19,7 +19,7 @@ import re
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path, PurePosixPath, PureWindowsPath
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 ManifestKind = Literal["real", "synthetic"]
 
@@ -285,7 +285,7 @@ def _optional_int(payload: dict[str, Any], key: str) -> int | None:
         return None
     if isinstance(value, bool) or not isinstance(value, int):
         raise RealDataManifestError(f"{key} must be an integer when present")
-    return cast(int, value)
+    return value
 
 
 def _resolve_local_artifact(uri: str, manifest_path: Path) -> Path:

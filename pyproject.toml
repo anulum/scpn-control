@@ -139,6 +139,20 @@ ignore_missing_imports = true
 module = ["jax", "jax.*"]
 no_implicit_reexport = false
 
+# JAX transforms (jax.jit, jax.checkpoint, …) are untyped, so decorating a
+# function with them yields an untyped callable that trips
+# disallow_untyped_decorators. The jnp-traced bodies are deliberately untyped
+# (see the JAX typing convention); relax only the decorator check for the
+# jax-traced modules.
+[[tool.mypy.overrides]]
+module = [
+    "scpn_control.core.jax_solvers",
+    "scpn_control.core.jax_neural_equilibrium",
+    "scpn_control.core.jax_gs_solver",
+    "scpn_control.control.jax_traceable_runtime",
+]
+disallow_untyped_decorators = false
+
 [[tool.mypy.overrides]]
 module = ["validation", "validation.*"]
 ignore_errors = true

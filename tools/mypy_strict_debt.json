@@ -1,6 +1,6 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
-  "mypy_version": "mypy 1.20.0 (compiled: yes)",
+  "mypy_version": "mypy 2.1.0 (compiled: yes)",
   "total": 0,
   "per_module": {}
 }

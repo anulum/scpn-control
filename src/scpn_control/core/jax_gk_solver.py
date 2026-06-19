@@ -46,8 +46,8 @@ try:
 
     _HAS_JAX = True
 except ImportError:
-    jax = None  # type: ignore[assignment]
-    jnp = None  # type: ignore[assignment]
+    jax = None
+    jnp = None
     _HAS_JAX = False
 
 _E_CHARGE = 1.602176634e-19  # C
@@ -856,7 +856,7 @@ def _jax_backend_metadata() -> dict[str, str | bool]:
     device_kind = str(getattr(devices[0], "device_kind", backend)).lower() if devices else backend
     dtype = str(jnp.asarray(1.0).dtype)
     try:
-        x64_enabled = bool(jax.config.read("jax_enable_x64"))  # type: ignore[no-untyped-call]
+        x64_enabled = bool(jax.config.read("jax_enable_x64"))
     except Exception:
         x64_enabled = dtype == "float64"
     return {

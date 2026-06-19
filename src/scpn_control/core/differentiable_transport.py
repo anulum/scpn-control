@@ -34,13 +34,13 @@ from scpn_control.core import jax_solvers as _jax_solvers
 try:
     import jax
 
-    jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
+    jax.config.update("jax_enable_x64", True)
     import jax.numpy as jnp
 
     _HAS_JAX = True
 except ImportError:
-    jax = None  # type: ignore[assignment]
-    jnp = None  # type: ignore[assignment]
+    jax = None
+    jnp = None
     _HAS_JAX = False
 
 CHANNEL_COUNT = 4
@@ -269,7 +269,7 @@ def transport_runtime_metadata() -> TransportRuntimeMetadata:
         jaxlib_version=jaxlib_version,
         jax_default_backend=str(jax.default_backend()),
         jax_devices=tuple(str(device) for device in jax.devices()),
-        jax_enable_x64=bool(jax.config.read("jax_enable_x64")),  # type: ignore[no-untyped-call]
+        jax_enable_x64=bool(jax.config.read("jax_enable_x64")),
     )
 
 

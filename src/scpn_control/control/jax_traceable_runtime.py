@@ -22,8 +22,8 @@ try:
 
     _HAS_JAX = True
 except ImportError:
-    jax = None  # type: ignore[assignment]
-    jnp = None  # type: ignore[assignment]
+    jax = None
+    jnp = None
     _HAS_JAX = False
 
 try:
@@ -31,7 +31,7 @@ try:
 
     _HAS_TORCH = True  # pragma: no cover
 except ImportError:
-    torch = None  # type: ignore[assignment]
+    torch = None
     _HAS_TORCH = False
 
 

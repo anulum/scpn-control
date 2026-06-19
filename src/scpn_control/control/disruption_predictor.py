@@ -37,9 +37,9 @@ try:
     import torch.nn as nn  # pragma: no cover
     import torch.optim as optim  # pragma: no cover
 except ImportError:  # pragma: no cover - optional dependency path
-    torch = None  # type: ignore[assignment]
-    nn = None  # type: ignore[assignment]
-    optim = None  # type: ignore[assignment]
+    torch = None
+    nn = None
+    optim = None
 
 import logging
 
@@ -674,7 +674,7 @@ def _model_risk_samples(  # pragma: no cover - requires torch
 # --- AI: TRANSFORMER MODEL ---
 if torch is not None:  # pragma: no cover
 
-    class DisruptionTransformer(nn.Module):
+    class DisruptionTransformer(nn.Module):  # type: ignore[misc]
         """Transformer encoder for disruption prediction with MC dropout.
 
         Architecture follows Kates-Harbeck et al. 2019, Nature 568, 526 (FRNN)

@@ -47,9 +47,9 @@ try:
 
     _HAS_JAX = True
 except ImportError:
-    jax = None  # type: ignore[assignment]
-    jnp = None  # type: ignore[assignment]
-    lax = None  # type: ignore[assignment]
+    jax = None
+    jnp = None
+    lax = None
     _HAS_JAX = False
 
 

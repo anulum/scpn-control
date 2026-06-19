@@ -38,8 +38,8 @@ try:
     SC_NEUROCORE_HOLONOMIC_AVAILABLE = True
 except ImportError:
     SC_NEUROCORE_HOLONOMIC_AVAILABLE = False
-    L4_CellularAdapter = None  # type: ignore[assignment,misc]
-    L5_OrganismalAdapter = None  # type: ignore[assignment,misc]
+    L4_CellularAdapter = None
+    L5_OrganismalAdapter = None
 
 
 @dataclass(frozen=True)

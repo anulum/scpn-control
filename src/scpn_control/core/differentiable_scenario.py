@@ -56,8 +56,8 @@ try:
 
     _HAS_JAX = True
 except ImportError:
-    jax = None  # type: ignore[assignment]
-    jnp = None  # type: ignore[assignment]
+    jax = None
+    jnp = None
     _HAS_JAX = False
 
 _EQUILIBRIUM_PARAM_COUNT = 2
@@ -499,9 +499,7 @@ def scenario_campaign_metadata(
         flux_grid_shape=(int(z_axis.size), int(r_axis.size)),
         dt=float(dt),
         gradient_tolerance=tolerance_value,
-        jax_enable_x64=bool(
-            _HAS_JAX and jax is not None and jax.config.read("jax_enable_x64")  # type: ignore[no-untyped-call]
-        ),
+        jax_enable_x64=bool(_HAS_JAX and jax is not None and jax.config.read("jax_enable_x64")),
         equilibrium_params=tuple(float(value) for value in params),
         inputs_sha256=inputs_digest,
     )
