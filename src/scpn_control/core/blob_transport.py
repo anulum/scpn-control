@@ -173,6 +173,20 @@ class BlobDynamics:
 
 @dataclass
 class BlobPopulation:
+    """A statistically generated ensemble of SOL filaments (blobs).
+
+    Attributes
+    ----------
+    sizes
+        Cross-field blob sizes in metres, one per blob.
+    amplitudes
+        Peak density amplitudes, one per blob.
+    velocities
+        Radial blob velocities in m/s, one per blob.
+    birth_times
+        Cumulative blob arrival times in seconds (Poisson process).
+    """
+
     sizes: AnyFloatArray
     amplitudes: AnyFloatArray
     velocities: AnyFloatArray
@@ -203,6 +217,27 @@ class BlobEnsemble:
         waiting_time_mean: float,
         rng: np.random.Generator,
     ) -> BlobPopulation:
+        """Sample a blob ensemble with log-normal amplitudes and Poisson arrivals.
+
+        Parameters
+        ----------
+        delta_b_mean
+            Mean blob size in metres; must be positive.
+        delta_b_sigma
+            Blob-size standard deviation in metres; must be non-negative.
+        amplitude_mean
+            Mean blob amplitude; must be positive.
+        waiting_time_mean
+            Mean inter-arrival time in seconds (exponential); must be positive.
+        rng
+            NumPy random generator for reproducible sampling.
+
+        Returns
+        -------
+        BlobPopulation
+            The sampled blob sizes, amplitudes, radial velocities, and birth
+            times.
+        """
         delta_b_mean = _finite_scalar("delta_b_mean", delta_b_mean, positive=True)
         delta_b_sigma = _finite_scalar("delta_b_sigma", delta_b_sigma, nonnegative=True)
         amplitude_mean = _finite_scalar("amplitude_mean", amplitude_mean, positive=True)
@@ -248,6 +283,8 @@ class BlobEnsemble:
 
 
 class SOLBlobProfile:
+    """Scrape-off-layer density profile under blob-enhanced transport."""
+
     @staticmethod
     def radial_density(r: AnyFloatArray, Gamma_blob: float, D_perp: float, lambda_n: float) -> FloatArray:
         """SOL density profile with blob-enhanced transport.
@@ -274,6 +311,23 @@ class SOLBlobProfile:
 
     @staticmethod
     def wall_flux(r_wall: float, Gamma_blob: float, lambda_n: float) -> float:
+        """Particle flux reaching the wall at radius ``r_wall``.
+
+        Parameters
+        ----------
+        r_wall
+            Wall distance from the separatrix in metres; must be non-negative.
+        Gamma_blob
+            Blob-driven particle flux at the separatrix in m⁻² s⁻¹; must be
+            non-negative.
+        lambda_n
+            Unperturbed SOL density e-folding length in metres; must be positive.
+
+        Returns
+        -------
+        float
+            The wall particle flux in m⁻² s⁻¹.
+        """
         r_wall = _finite_scalar("r_wall", r_wall, nonnegative=True)
         Gamma_blob = _finite_scalar("Gamma_blob", Gamma_blob, nonnegative=True)
         lambda_n = _finite_scalar("lambda_n", lambda_n, positive=True)
@@ -283,6 +337,22 @@ class SOLBlobProfile:
 
 @dataclass
 class BlobEvent:
+    """A single detected blob event in a probe signal.
+
+    Attributes
+    ----------
+    start_idx
+        Sample index where the event crosses the threshold.
+    end_idx
+        Sample index where the event returns to the mean.
+    peak_amplitude
+        Peak signal amplitude of the event, in signal units.
+    duration
+        Event duration in seconds.
+    size_estimate
+        Estimated blob size in metres.
+    """
+
     start_idx: int
     end_idx: int
     peak_amplitude: float
@@ -313,6 +383,25 @@ class BlobDetector:
     """
 
     def detect_blobs(self, signal: AnyFloatArray, dt: float = 1e-6, threshold: float = 2.5) -> list[BlobEvent]:
+        """Detect blob events by threshold crossings on a normalised signal.
+
+        An event starts when the signal exceeds ``threshold`` standard deviations
+        above the mean and ends when it returns to the mean.
+
+        Parameters
+        ----------
+        signal
+            Probe time series (e.g. ion-saturation current).
+        dt
+            Sample spacing in seconds; must be positive.
+        threshold
+            Detection threshold in standard deviations; must be positive.
+
+        Returns
+        -------
+        list[BlobEvent]
+            The detected blob events (empty when the signal has zero variance).
+        """
         signal = _finite_1d_array("signal", signal)
         dt = _finite_scalar("dt", dt, positive=True)
         threshold = _finite_scalar("threshold", threshold, positive=True)
@@ -351,6 +440,23 @@ class BlobDetector:
         return events
 
     def conditional_average(self, signal: AnyFloatArray, events: list[BlobEvent], window: int = 50) -> FloatArray:
+        """Conditionally average the signal around detected blob events.
+
+        Parameters
+        ----------
+        signal
+            The probe time series the events were detected in.
+        events
+            The detected blob events.
+        window
+            Half-width of the averaging window in samples; must be non-negative.
+
+        Returns
+        -------
+        FloatArray
+            The conditionally averaged waveform of length ``2*window + 1``
+            (zeros when no event fits a full window).
+        """
         signal = _finite_1d_array("signal", signal)
         if window < 0:
             raise ValueError("window must be non-negative")
