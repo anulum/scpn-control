@@ -77,6 +77,7 @@ class GKSpecies:
 
     @property
     def mass_kg(self) -> float:
+        """Species mass in kilograms."""
         return self.mass_amu * _M_PROTON
 
     @property
@@ -95,12 +96,50 @@ class GKSpecies:
 
 
 def deuterium_ion(T_keV: float = 8.0, n_19: float = 10.0, R_L_T: float = 6.9, R_L_n: float = 2.2) -> GKSpecies:
+    """Construct a deuterium main-ion species for gyrokinetic input.
+
+    Parameters
+    ----------
+    T_keV
+        Temperature in keV.
+    n_19
+        Density in 10¹⁹ m⁻³.
+    R_L_T
+        Normalised temperature gradient ``R / L_T``.
+    R_L_n
+        Normalised density gradient ``R / L_n``.
+
+    Returns
+    -------
+    GKSpecies
+        The deuterium-ion species (mass 2 amu, charge +1).
+    """
     return GKSpecies(mass_amu=2.0, charge_e=1.0, temperature_keV=T_keV, density_19=n_19, R_L_T=R_L_T, R_L_n=R_L_n)
 
 
 def electron(
     T_keV: float = 8.0, n_19: float = 10.0, R_L_T: float = 6.9, R_L_n: float = 2.2, adiabatic: bool = True
 ) -> GKSpecies:
+    """Construct an electron species for gyrokinetic input.
+
+    Parameters
+    ----------
+    T_keV
+        Temperature in keV.
+    n_19
+        Density in 10¹⁹ m⁻³.
+    R_L_T
+        Normalised temperature gradient ``R / L_T``.
+    R_L_n
+        Normalised density gradient ``R / L_n``.
+    adiabatic
+        Whether to treat the electrons as adiabatic.
+
+    Returns
+    -------
+    GKSpecies
+        The electron species (mass ``m_e/m_p`` amu, charge -1).
+    """
     mass_amu = _M_ELECTRON / _M_PROTON
     return GKSpecies(
         mass_amu=mass_amu,
@@ -139,6 +178,7 @@ class VelocityGrid:
 
     @property
     def n_total(self) -> int:
+        """Total number of velocity-space grid points (energy × lambda)."""
         return self.n_energy * self.n_lambda
 
 
