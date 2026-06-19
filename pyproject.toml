@@ -113,31 +113,56 @@ warn_return_any = true
 warn_unused_configs = true
 check_untyped_defs = true
 disallow_untyped_defs = true
-ignore_missing_imports = true
 files = [
     "src/scpn_control/",
 ]
 
+# Third-party scientific packages that do not ship type information (no
+# py.typed, no stubs on typeshed). Each is enumerated explicitly rather than
+# relaxing import resolution globally, so a new untyped dependency surfaces as a
+# review decision instead of being silently silenced. numpy, click and pydantic
+# are intentionally absent: they ship py.typed and are checked strictly.
 [[tool.mypy.overrides]]
-module = ["matplotlib", "matplotlib.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["torch", "torch.*"]
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = ["scipy", "scipy.*"]
+module = [
+    "matplotlib", "matplotlib.*",
+    "torch", "torch.*",
+    "scipy", "scipy.*",
+    "osqp",
+    "z3",
+    "h5py",
+    "websockets",
+    "jaxlib",
+    "optuna",
+    "casadi",
+    "acados_template",
+    "omas",
+    "qualikiz_tools",
+]
 ignore_missing_imports = true
 
 # JAX ships py.typed but its top-level __init__ does not list every public
 # symbol (e.g. jax.checkpoint) in __all__.  Do not impose our strict
 # no_implicit_reexport on the third-party package; allow its implicit
 # re-exports so jax.checkpoint resolves under both the configured gate and a
-# whole-package --strict run.
+# whole-package --strict run. JAX is an optional dependency, so also tolerate it
+# being absent from the type-check environment.
 [[tool.mypy.overrides]]
 module = ["jax", "jax.*"]
 no_implicit_reexport = false
+ignore_missing_imports = true
+
+# Optional native/sibling components imported behind guards: the Rust extension
+# (built by maturin, absent in the type-check env), sibling GOTM repositories,
+# and optional first-party integrations whose modules ship separately.
+[[tool.mypy.overrides]]
+module = [
+    "scpn_control_rs",
+    "sc_neurocore", "sc_neurocore.*",
+    "director_module",
+    "scpn_control.core.global_design_scanner",
+    "scpn_control.io.imas_connector",
+]
+ignore_missing_imports = true
 
 # JAX transforms (jax.jit, jax.checkpoint, …) are untyped, so decorating a
 # function with them yields an untyped callable that trips
