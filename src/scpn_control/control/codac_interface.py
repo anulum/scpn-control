@@ -364,9 +364,11 @@ class CODACInterface:
         self._step_k = 0
 
     def define_input_channels(self) -> list[EPICSChannel]:
+        """Return the EPICS input (process-variable) channels read each cycle."""
         return list(self._input_channels)
 
     def define_output_channels(self) -> list[EPICSChannel]:
+        """Return the EPICS output (actuator) channels written each cycle."""
         return list(self._output_channels)
 
     def pack_observation(self, pv_values: Mapping[str, float]) -> ControlObservation:
@@ -565,6 +567,7 @@ class CycleTimer:
         self._elapsed_ns: int = 0
 
     def start_cycle(self) -> None:
+        """Mark the start of a control cycle for jitter measurement."""
         self._start_ns = time.perf_counter_ns()
 
     def end_cycle(self) -> float:
