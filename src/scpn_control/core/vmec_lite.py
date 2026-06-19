@@ -66,6 +66,24 @@ def _profile_array(
 
 @dataclass
 class VMECResult:
+    """Converged VMEC-lite equilibrium solution.
+
+    Attributes
+    ----------
+    R_mn
+        Fourier coefficients of the major-radius surface geometry.
+    Z_mn
+        Fourier coefficients of the vertical surface geometry.
+    B_mn
+        Fourier coefficients of the magnetic-field strength.
+    force_residual
+        Final MHD force-balance residual.
+    iterations
+        Number of iterations performed.
+    converged
+        Whether the force residual met the convergence tolerance.
+    """
+
     R_mn: AnyFloatArray
     Z_mn: AnyFloatArray
     B_mn: AnyFloatArray
@@ -437,6 +455,8 @@ class VMECLiteSolver:
 
 
 class AxisymmetricTokamakBoundary:
+    """Low-order Fourier boundary for a shaped axisymmetric tokamak."""
+
     @staticmethod
     def from_parameters(
         R0: float, a: float, kappa: float, delta: float
@@ -470,6 +490,8 @@ class AxisymmetricTokamakBoundary:
 
 
 class StellaratorBoundary:
+    """Fourier boundary presets for stellarator configurations."""
+
     @staticmethod
     def w7x_standard() -> tuple[dict[tuple[int, int], float], dict[tuple[int, int], float]]:
         """W7-X standard configuration boundary.
