@@ -391,7 +391,9 @@ class MonteCarloEnsemble:
             p = GuidingCenterOrbit(4.0, 2, self.E_birth_keV, pitch, R_init, Z_init)
             self.particles.append(p)
 
-    def follow(self, B_field: Callable[..., tuple[float, float, float]], n_bounces: int = 10, dt: float = 1e-7) -> EnsembleResult:
+    def follow(
+        self, B_field: Callable[..., tuple[float, float, float]], n_bounces: int = 10, dt: float = 1e-7
+    ) -> EnsembleResult:
         if not self.particles:
             raise ValueError("particles must be initialised before follow")
         if isinstance(n_bounces, bool) or int(n_bounces) != n_bounces or n_bounces <= 0:

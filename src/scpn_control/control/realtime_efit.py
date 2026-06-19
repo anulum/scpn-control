@@ -266,7 +266,9 @@ class DiagnosticResponse:
         self.R = R_grid
         self.Z = Z_grid
 
-    def simulate_measurements(self, psi: AnyFloatArray, coil_currents: AnyFloatArray) -> dict[str, float | AnyFloatArray]:
+    def simulate_measurements(
+        self, psi: AnyFloatArray, coil_currents: AnyFloatArray
+    ) -> dict[str, float | AnyFloatArray]:
         """Generate synthetic measurements from a given psi field."""
 
         from scipy.interpolate import RegularGridInterpolator

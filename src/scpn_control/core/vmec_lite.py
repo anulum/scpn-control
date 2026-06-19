@@ -49,7 +49,9 @@ def _finite_float(name: str, value: float) -> float:
     return scalar
 
 
-def _profile_array(name: str, values: AnyFloatArray, *, nonnegative: bool = False, positive: bool = False) -> FloatArray:
+def _profile_array(
+    name: str, values: AnyFloatArray, *, nonnegative: bool = False, positive: bool = False
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
@@ -282,7 +284,9 @@ class SpectralBasis:
 
         self.n_modes = len(self.mn_modes)
 
-    def evaluate(self, coeffs_mn: AnyFloatArray, theta: AnyFloatArray, zeta: AnyFloatArray, is_sin: bool = False) -> AnyFloatArray:
+    def evaluate(
+        self, coeffs_mn: AnyFloatArray, theta: AnyFloatArray, zeta: AnyFloatArray, is_sin: bool = False
+    ) -> AnyFloatArray:
         """Evaluate spectral expansion at (θ, ζ) grid points.
 
         Hirshman & Whitson 1983, Eq. 1–2:

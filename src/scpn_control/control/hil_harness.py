@@ -1021,7 +1021,9 @@ class HILDemoRunner:
             ow = np.asarray(controller.output_weights, dtype=np.float64)
             self.output_weights = ow[: self.n_outputs, : self.n_neurons]
 
-    def _lif_step(self, state: AnyFloatArray, inputs: AnyFloatArray, dt_s: float = 0.001) -> tuple[AnyFloatArray, AnyFloatArray]:
+    def _lif_step(
+        self, state: AnyFloatArray, inputs: AnyFloatArray, dt_s: float = 0.001
+    ) -> tuple[AnyFloatArray, AnyFloatArray]:
         """Leaky Integrate-and-Fire neuron update."""
         tau = 0.02  # 20ms membrane time constant
         threshold = 1.0

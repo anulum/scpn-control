@@ -104,7 +104,9 @@ class ScenarioOptimizer:
     Offline trajectory design.
     """
 
-    def __init__(self, plant_model: Callable[..., AnyFloatArray], target_state: AnyFloatArray, T_total: float, dt: float = 0.5):
+    def __init__(
+        self, plant_model: Callable[..., AnyFloatArray], target_state: AnyFloatArray, T_total: float, dt: float = 0.5
+    ):
         self.plant_model = plant_model
         self.target_state = target_state
         self.T_total = T_total

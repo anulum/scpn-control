@@ -34,7 +34,6 @@ from numpy.typing import NDArray
 from scipy import sparse
 
 
-
 class _NodeKind(Enum):
     PLACE = auto()
     TRANSITION = auto()

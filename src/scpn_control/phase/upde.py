@@ -53,7 +53,6 @@ except ImportError:
     HAS_RUST_UPDE = False
 
 
-
 @dataclass
 class UPDESystem:
     """Multi-layer UPDE driven by a KnmSpec."""

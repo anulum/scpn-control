@@ -31,7 +31,9 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
     return scalar
 
 
-def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...], *, nonnegative: bool = False) -> FloatArray:
+def _profile_array(
+    name: str, values: AnyFloatArray, shape: tuple[int, ...], *, nonnegative: bool = False
+) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.shape != shape:
         raise ValueError(f"{name} must match rho shape")

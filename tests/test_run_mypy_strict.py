@@ -216,9 +216,7 @@ def test_main_passes_when_debt_within_baseline(
     assert rms.main([]) == 0
 
 
-def test_main_fails_on_regression(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
-) -> None:
+def test_main_fails_on_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None) -> None:
     """Debt above the baseline fails the ratchet."""
 
     ledger_path = _point_ledger_at(tmp_path, monkeypatch)
@@ -267,9 +265,7 @@ def test_main_update_baseline_allows_increase_with_flag(
     assert json.loads(ledger_path.read_text())["total"] == 3
 
 
-def test_main_fails_on_unparseable_probe(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_main_fails_on_unparseable_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """An unparseable strict probe is a hard failure, not a silent pass."""
 
     monkeypatch.setattr(rms, "run_configured_mypy", lambda: (0, "Success: no issues found\n"))
@@ -279,9 +275,7 @@ def test_main_fails_on_unparseable_probe(
     assert rms.main([]) == 2
 
 
-def test_main_skip_configured_gate_runs_only_ratchet(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_main_skip_configured_gate_runs_only_ratchet(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """``--skip-configured-gate`` bypasses the gate and runs the ratchet."""
 
     def _explode() -> tuple[int, str]:

@@ -303,7 +303,14 @@ class TransportInputNormalizer:
 
     @staticmethod
     def from_profiles(
-        Te: AnyFloatArray, Ti: AnyFloatArray, ne: AnyFloatArray, q: AnyFloatArray, R0: float, a: float, B0: float, r: AnyFloatArray
+        Te: AnyFloatArray,
+        Ti: AnyFloatArray,
+        ne: AnyFloatArray,
+        q: AnyFloatArray,
+        R0: float,
+        a: float,
+        B0: float,
+        r: AnyFloatArray,
     ) -> FloatArray:
         """
         Convert physical profiles into the 10 dimensionless QLKNN inputs.
@@ -453,7 +460,9 @@ class NeuralTransportTrainer:
             return np.asarray(1.0 - np.tanh(x) ** 2)
         return np.ones_like(x)
 
-    def train(self, X: AnyFloatArray, y: AnyFloatArray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2) -> dict[str, Any]:
+    def train(
+        self, X: AnyFloatArray, y: AnyFloatArray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2
+    ) -> dict[str, Any]:
         """Train a QLKNN surrogate by gradient descent with clipping.
 
         Parameters

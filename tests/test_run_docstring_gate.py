@@ -187,9 +187,7 @@ def test_main_passes_when_debt_within_baseline(
     assert rdg.main([]) == 0
 
 
-def test_main_fails_on_regression(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None
-) -> None:
+def test_main_fails_on_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None) -> None:
     """Debt above the baseline fails the ratchet."""
 
     ledger_path = _point_ledger_at(tmp_path, monkeypatch)
@@ -237,9 +235,7 @@ def test_main_update_baseline_allows_increase_with_flag(
     assert json.loads(ledger_path.read_text())["total"] == 3
 
 
-def test_main_fails_on_unparseable_probe(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_main_fails_on_unparseable_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A ruff probe that cannot run is a hard failure, not a silent pass."""
 
     def _explode() -> list[dict[str, object]]:
