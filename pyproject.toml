@@ -205,6 +205,7 @@ fail_under = 93
 exclude_lines = [
     "pragma: no cover",
     "if __name__",
+    "if TYPE_CHECKING:",
     "raise NotImplementedError",
     "if.+HAS_TORCH",
     "if.+HAS_SC_NEUROCORE",

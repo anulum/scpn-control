@@ -67,11 +67,11 @@ import numpy as np
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+    sys.path.insert(0, str(_REPO_ROOT))  # pragma: no cover - bootstrap; repo root already on path under editable install/PYTHONPATH
 
 try:
     _VERSION = version("scpn-control")
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover - package is installed in every supported run context
     _VERSION = "0.0.0.dev"
 
 if TYPE_CHECKING:
@@ -275,10 +275,10 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
         return timings_ns
 
     def _percentile(sorted_values: list[float], frac: float) -> float:
-        if not sorted_values:
+        if not sorted_values:  # pragma: no cover - defensive; benchmark computes statistics.mean first, so the sample is never empty here
             return 0.0
         idx = int(len(sorted_values) * frac)
-        if idx >= len(sorted_values):
+        if idx >= len(sorted_values):  # pragma: no cover - defensive clamp; callers only pass frac=0.95 so int(n*frac) < n
             idx = len(sorted_values) - 1
         return float(sorted_values[idx]) / 1000.0
 
