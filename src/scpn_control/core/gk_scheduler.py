@@ -179,5 +179,6 @@ class GKScheduler:
         )
 
     def reset(self) -> None:
+        """Reset the scheduler step counter and cached previous chi_i."""
         self._step = 0
         self._prev_chi_i = None

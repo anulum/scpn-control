@@ -804,6 +804,7 @@ class NonlinearGKSolver:
         return Q_i, Q_e
 
     def phi_rms(self, state: NonlinearGKState) -> float:
+        """RMS amplitude of the electrostatic potential φ over the state."""
         return float(np.sqrt(np.mean(np.abs(state.phi) ** 2)))
 
     def zonal_rms(self, state: NonlinearGKState) -> float:

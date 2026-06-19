@@ -103,6 +103,7 @@ class LyapunovGuard:
         self._consecutive = 0
 
     def reset(self) -> None:
+        """Clear the Lyapunov-value buffer and consecutive-violation counter."""
         self._v_buffer.clear()
         self._consecutive = 0
 

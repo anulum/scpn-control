@@ -13,14 +13,14 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-from __future__ import annotations
-
 """Core solver and plant model.
 
 Unlike the upstream core/__init__.py, this does NOT eagerly import
 equilibrium_3d, gpu_runtime, gyro_swin_surrogate, or pretrained_surrogates.
 Only the minimal FusionKernel is loaded.
 """
+
+from __future__ import annotations
 
 try:
     from scpn_control.core._rust_compat import RUST_BACKEND, FusionKernel

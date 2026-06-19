@@ -251,6 +251,18 @@ class SimpleNeuralNet:
         self.b2 = np.zeros((1, output_size))
 
     def forward(self, x: AnyFloatArray) -> FloatArray:
+        """Forward pass of the two-layer tanh surrogate network.
+
+        Parameters
+        ----------
+        x
+            Input batch of shape ``(batch, input)``.
+
+        Returns
+        -------
+        FloatArray
+            The tanh-bounded action output in ``[-1, 1]``.
+        """
         # x shape: (batch, input)
         self.z1 = np.dot(x, self.W1) + self.b1
         self.a1 = np.tanh(self.z1)  # Activation

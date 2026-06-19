@@ -276,6 +276,27 @@ class GlobalPsiDriver:
     mode: str = "external"
 
     def resolve(self, theta: FloatArray, psi_external: float | None) -> float:
+        """Resolve the reference phase for the configured coupling mode.
+
+        Parameters
+        ----------
+        theta
+            The current oscillator phases.
+        psi_external
+            The externally supplied reference phase, required (and must be
+            finite) when ``mode == "external"``.
+
+        Returns
+        -------
+        float
+            The resolved reference phase.
+
+        Raises
+        ------
+        ValueError
+            If ``mode == "external"`` and ``psi_external`` is missing or
+            non-finite.
+        """
         if self.mode == "external":
             if psi_external is None:
                 raise ValueError("psi_external required when mode='external'")

@@ -183,6 +183,7 @@ class AdaptiveKnmEngine:
 
     @property
     def K_current(self) -> NDArray[np.float64]:
+        """A copy of the current adaptive inter-layer coupling matrix K."""
         return self._K_current.copy()
 
     @property

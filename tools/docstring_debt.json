@@ -7,25 +7,6 @@
     "D104",
     "D106"
   ],
-  "total": 18,
-  "per_module": {
-    "scpn_control.control.federated_disruption": 1,
-    "scpn_control.control.nmpc_controller": 1,
-    "scpn_control.control.tokamak_digital_twin": 1,
-    "scpn_control.core.__init__": 1,
-    "scpn_control.core.gk_eigenvalue": 1,
-    "scpn_control.core.gk_nonlinear": 1,
-    "scpn_control.core.gk_ood_detector": 1,
-    "scpn_control.core.gk_scheduler": 1,
-    "scpn_control.core.jax_gk_solver": 1,
-    "scpn_control.core.jax_gs_solver": 1,
-    "scpn_control.core.jax_neural_equilibrium": 1,
-    "scpn_control.core.sol_model": 1,
-    "scpn_control.phase.adaptive_knm": 1,
-    "scpn_control.phase.knm": 1,
-    "scpn_control.phase.kuramoto": 1,
-    "scpn_control.phase.lyapunov_guard": 1,
-    "scpn_control.phase.ws_phase_stream": 1,
-    "scpn_control.scpn.formal_verification": 1
-  }
+  "total": 0,
+  "per_module": {}
 }

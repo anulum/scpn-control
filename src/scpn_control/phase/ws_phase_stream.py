@@ -816,6 +816,8 @@ def load_websocket_runtime_evidence(
 
 
 def main() -> None:
+    """Run the SCPN phase-sync WebSocket stream-server CLI."""
+
     import argparse
 
     parser = argparse.ArgumentParser(description="SCPN Phase Sync WebSocket Stream")

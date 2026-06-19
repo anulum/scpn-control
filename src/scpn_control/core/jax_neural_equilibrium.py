@@ -50,6 +50,7 @@ except ImportError:
 
 
 def has_jax() -> bool:
+    """Return whether JAX is importable in this environment."""
     return _HAS_JAX
 
 

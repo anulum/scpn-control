@@ -39,6 +39,22 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 @dataclass
 class SOLSolution:
+    """Scrape-off-layer two-point-model solution.
+
+    Attributes
+    ----------
+    T_upstream_eV
+        Upstream electron temperature in eV.
+    T_target_eV
+        Divertor-target electron temperature in eV.
+    n_target_19
+        Target electron density in 10¹⁹ m⁻³.
+    q_parallel_MW_m2
+        Parallel heat flux in MW/m².
+    lambda_q_mm
+        Heat-flux decay width in mm.
+    """
+
     T_upstream_eV: float
     T_target_eV: float
     n_target_19: float

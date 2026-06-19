@@ -392,6 +392,7 @@ class MachineClient:
                 raise ValueError(f"{name} must contain binary disruption labels 0 or 1")
 
     def get_data_size(self) -> int:
+        """Number of local training samples held by this federated client."""
         return int(self.X_train.shape[0])
 
     def local_train(

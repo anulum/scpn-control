@@ -1669,6 +1669,20 @@ class NonlinearMPC:
         return dU
 
     def linearize(self, x0: AnyFloatArray, u0: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
+        """Linearise the plant about an operating point.
+
+        Parameters
+        ----------
+        x0
+            The state about which to linearise.
+        u0
+            The input about which to linearise.
+
+        Returns
+        -------
+        tuple[FloatArray, FloatArray]
+            The state and input Jacobians ``(A, B)``.
+        """
         return self._linearize(x0, u0)
 
     def compute_cost(self, x_traj: AnyFloatArray, u_traj: AnyFloatArray, x_ref: AnyFloatArray) -> float:

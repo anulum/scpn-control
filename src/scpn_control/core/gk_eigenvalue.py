@@ -75,6 +75,7 @@ class LinearGKResult:
 
     @property
     def gamma_max(self) -> float:
+        """Maximum linear growth rate γ over the spectrum (0 if empty)."""
         if len(self.gamma) == 0:
             return 0.0
         return float(np.max(self.gamma))

@@ -144,6 +144,19 @@ class OODDetector:
         return float(np.sqrt(diff @ self._cov_inv @ diff))
 
     def check_mahalanobis(self, x: NDArray[np.float64]) -> OODResult:
+        """Classify a point as in- or out-of-distribution by Mahalanobis distance.
+
+        Parameters
+        ----------
+        x
+            The query point in the gyrokinetic input space.
+
+        Returns
+        -------
+        OODResult
+            The Mahalanobis distance, the OOD flag (distance above threshold),
+            and a normalised confidence.
+        """
         d_m = self.mahalanobis_distance(x)
         is_ood = d_m > self.mahalanobis_threshold
         confidence = min(d_m / self.mahalanobis_threshold, 1.0) if self.mahalanobis_threshold > 0 else 0.0

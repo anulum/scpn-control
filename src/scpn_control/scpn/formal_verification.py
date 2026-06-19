@@ -75,6 +75,7 @@ class ReachabilityReport:
 
     @property
     def reachable_count(self) -> int:
+        """Number of distinct reachable states found by the analysis."""
         return len(self.reachable_states)
 
 

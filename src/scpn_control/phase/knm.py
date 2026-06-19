@@ -98,6 +98,7 @@ class KnmSpec:
 
     @property
     def L(self) -> int:
+        """Number of layers L (first dimension of the coupling matrix K)."""
         return int(np.asarray(self.K).shape[0])
 
 
