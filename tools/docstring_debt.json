@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 368,
+  "total": 359,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -72,7 +72,6 @@
     "scpn_control.core.marfe": 7,
     "scpn_control.core.momentum_transport": 4,
     "scpn_control.core.neural_equilibrium": 6,
-    "scpn_control.core.neural_turbulence": 9,
     "scpn_control.core.orbit_following": 7,
     "scpn_control.core.plasma_wall_interaction": 7,
     "scpn_control.core.runaway_electrons": 5,

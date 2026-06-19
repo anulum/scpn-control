@@ -270,11 +270,27 @@ class QLKNNSurrogate:
         return np.asarray(out)
 
     def load_weights(self, path: str) -> None:
+        """Load weights and biases from a NumPy ``.npz`` archive.
+
+        Parameters
+        ----------
+        path
+            Path to an ``.npz`` file with arrays ``w{i}`` and ``b{i}`` for each
+            layer ``i``.
+        """
         data = np.load(path, allow_pickle=True)
         self.weights = [data[f"w{i}"] for i in range(len(self.weights))]
         self.biases = [data[f"b{i}"] for i in range(len(self.biases))]
 
     def save_weights(self, path: str) -> None:
+        """Save weights and biases to a NumPy ``.npz`` archive.
+
+        Parameters
+        ----------
+        path
+            Destination ``.npz`` path; each layer is stored as ``w{i}`` and
+            ``b{i}``.
+        """
         arrays: dict[str, Any] = {}
         for i, (w, b) in enumerate(zip(self.weights, self.biases)):
             arrays[f"w{i}"] = w
@@ -283,6 +299,8 @@ class QLKNNSurrogate:
 
 
 class TransportInputNormalizer:
+    """Convert physical plasma profiles into the 10 dimensionless QLKNN inputs."""
+
     @staticmethod
     def from_profiles(
         Te: AnyFloatArray, Ti: AnyFloatArray, ne: AnyFloatArray, q: AnyFloatArray, R0: float, a: float, B0: float, r: AnyFloatArray
@@ -350,6 +368,8 @@ class TransportInputNormalizer:
 
 
 class TrainingDataGenerator:
+    """Synthetic training-data generator for the QLKNN flux surrogate."""
+
     @staticmethod
     def generate_parameter_scan(n_samples: int, rng: np.random.RandomState | None = None) -> FloatArray:
         """Uniform random sampling in 10D QLKNN parameter space."""
@@ -422,6 +442,8 @@ class TrainingDataGenerator:
 
 
 class NeuralTransportTrainer:
+    """Backpropagation trainer for the QLKNN gyro-Bohm flux surrogate."""
+
     def _activate_deriv(self, x: AnyFloatArray, activation: str) -> FloatArray:
         if activation == "elu":
             return np.where(x > 0, 1.0, np.exp(x))
@@ -432,6 +454,26 @@ class NeuralTransportTrainer:
         return np.ones_like(x)
 
     def train(self, X: AnyFloatArray, y: AnyFloatArray, epochs: int = 200, lr: float = 1e-3, val_frac: float = 0.2) -> dict[str, Any]:
+        """Train a QLKNN surrogate by gradient descent with clipping.
+
+        Parameters
+        ----------
+        X
+            Input samples, shape ``(n_samples, 10)`` of QLKNN inputs.
+        y
+            Target gyro-Bohm fluxes, shape ``(n_samples, 3)``.
+        epochs
+            Number of training epochs.
+        lr
+            Learning rate.
+        val_frac
+            Fraction of samples held out for validation.
+
+        Returns
+        -------
+        dict[str, Any]
+            Training history with ``"train_loss"`` and ``"val_loss"`` lists.
+        """
         n_samples = X.shape[0]
         n_val = max(int(n_samples * val_frac), 1)
 
@@ -489,12 +531,32 @@ class NeuralTransportTrainer:
 
 @dataclass
 class TransportFluxes:
+    """Dimensional turbulent transport fluxes on a radial grid.
+
+    Attributes
+    ----------
+    Q_i_W_m2
+        Ion heat flux in W/m².
+    Q_e_W_m2
+        Electron heat flux in W/m².
+    Gamma_e_inv_m2_s
+        Electron particle flux in m⁻² s⁻¹.
+    """
+
     Q_i_W_m2: AnyFloatArray
     Q_e_W_m2: AnyFloatArray
     Gamma_e_inv_m2_s: AnyFloatArray
 
 
 class QLKNNTransportModel:
+    """QLKNN surrogate transport model mapping profiles to dimensional fluxes.
+
+    Parameters
+    ----------
+    surrogate
+        The trained gyro-Bohm flux surrogate network.
+    """
+
     def __init__(self, surrogate: QLKNNSurrogate):
         self.surrogate = surrogate
         self.normalizer = TransportInputNormalizer()
@@ -510,6 +572,35 @@ class QLKNNTransportModel:
         B0: float,
         r: AnyFloatArray,
     ) -> TransportFluxes:
+        """Predict dimensional turbulent fluxes from physical profiles.
+
+        Normalises the profiles to QLKNN inputs, evaluates the surrogate for
+        gyro-Bohm fluxes, then de-normalises with the local gyro-Bohm unit.
+
+        Parameters
+        ----------
+        Te
+            Electron-temperature profile in keV.
+        Ti
+            Ion-temperature profile in keV.
+        ne
+            Electron-density profile in 10¹⁹ m⁻³.
+        q
+            Safety-factor profile (dimensionless).
+        R0
+            Major radius in metres.
+        a
+            Minor radius in metres.
+        B0
+            Toroidal field on axis in tesla.
+        r
+            Strictly increasing minor-radius grid in metres.
+
+        Returns
+        -------
+        TransportFluxes
+            The ion and electron heat fluxes and the electron particle flux.
+        """
         inputs = self.normalizer.from_profiles(Te, Ti, ne, q, R0, a, B0, r)
 
         # Predict gyro-Bohm fluxes
