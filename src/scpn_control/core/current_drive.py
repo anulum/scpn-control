@@ -521,6 +521,18 @@ class LHCDSource:
         self.eta_cd = _require_nonnegative_scalar("eta_cd", eta_cd)
 
     def P_absorbed(self, rho: AnyFloatArray) -> AnyFloatArray:
+        """Absorbed LHCD power-density profile.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+
+        Returns
+        -------
+        AnyFloatArray
+            Absorbed power density in W/m³, Gaussian-deposited about ``rho_dep``.
+        """
         return _normalised_radial_deposition(rho, self.P_lh_MW * 1e6, self.rho_dep, self.sigma_rho)
 
     def j_cd(self, rho: AnyFloatArray, ne_19: AnyFloatArray, Te_keV: AnyFloatArray) -> AnyFloatArray:
@@ -542,6 +554,13 @@ class CurrentDriveMix:
         self.a = _require_positive_scalar("a", a)  # minor radius [m]
 
     def add_source(self, source: ECCDSource | NBISource | LHCDSource) -> None:
+        """Add a current-drive source to the mix.
+
+        Parameters
+        ----------
+        source
+            An ECCD, NBI, or LHCD source.
+        """
         self.sources.append(source)
 
     def total_j_cd(
@@ -551,6 +570,24 @@ class CurrentDriveMix:
         Te: AnyFloatArray,
         Ti: AnyFloatArray,
     ) -> AnyFloatArray:
+        """Sum the driven current density over all sources.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+        ne
+            Electron-density profile in 10¹⁹ m⁻³.
+        Te
+            Electron-temperature profile in keV.
+        Ti
+            Ion-temperature profile in keV (used by NBI sources).
+
+        Returns
+        -------
+        AnyFloatArray
+            The total driven current-density profile in A/m².
+        """
         rho_arr, ne_arr, te_arr, ti_arr = _require_current_drive_profiles(rho, ne, Te, Ti)
         assert ti_arr is not None
         j_tot = np.zeros_like(rho_arr, dtype=float)
@@ -562,6 +599,18 @@ class CurrentDriveMix:
         return j_tot
 
     def total_heating_power(self, rho: AnyFloatArray) -> AnyFloatArray:
+        """Sum the absorbed heating-power density over all sources.
+
+        Parameters
+        ----------
+        rho
+            Normalised-radius grid.
+
+        Returns
+        -------
+        AnyFloatArray
+            The total absorbed power-density profile in W/m³.
+        """
         rho_arr = _require_current_drive_grid(rho)
         p_tot = np.zeros_like(rho_arr, dtype=float)
         for src in self.sources:
