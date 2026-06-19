@@ -92,10 +92,12 @@ class TokamakConfig:
 
     @property
     def aspect_ratio(self) -> float:
+        """Aspect ratio ``R0 / a`` (major over minor radius)."""
         return self.R0 / self.a
 
     @property
     def epsilon(self) -> float:
+        """Inverse aspect ratio ``a / R0``."""
         return self.a / self.R0
 
     # ── Named presets ─────────────────────────────────────────────────

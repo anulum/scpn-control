@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 38,
+  "total": 36,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.director_interface": 2,
@@ -30,7 +30,6 @@
     "scpn_control.core.jax_neural_equilibrium": 1,
     "scpn_control.core.jax_solvers": 2,
     "scpn_control.core.sol_model": 1,
-    "scpn_control.core.tokamak_config": 2,
     "scpn_control.phase.adaptive_knm": 1,
     "scpn_control.phase.knm": 1,
     "scpn_control.phase.kuramoto": 1,
