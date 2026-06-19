@@ -296,15 +296,46 @@ class TGLFNativeSolver(GKSolverBase):
                 self.config.n_ky_etg = 8
 
     def is_available(self) -> bool:
+        """Return whether the native solver is available (always ``True``)."""
         return True
 
     def prepare_input(self, params: GKLocalParams) -> Path:
+        """Unsupported for the native solver; use :meth:`run_from_params`.
+
+        Raises
+        ------
+        NotImplementedError
+            Always; the native model has no external input deck.
+        """
         raise NotImplementedError("Native solver; use run_from_params()")
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
+        """Unsupported for the native solver; use :meth:`run_from_params`.
+
+        Raises
+        ------
+        NotImplementedError
+            Always; the native model takes parameters, not an input file.
+        """
         raise NotImplementedError("Native solver; use run_from_params()")
 
     def run_from_params(self, params: GKLocalParams, *, timeout_s: float = 30.0) -> GKOutput:
+        """Run the native TGLF model and return a standard GK output.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters.
+        timeout_s
+            Accepted for interface compatibility; the native solve is bounded
+            internally.
+
+        Returns
+        -------
+        GKOutput
+            Transport diffusivities, growth rate, real frequency, dominant mode,
+            and convergence flag.
+        """
         r = self.solve(params)
         return GKOutput(
             chi_i=r.chi_i,
@@ -319,6 +350,18 @@ class TGLFNativeSolver(GKSolverBase):
         )
 
     def solve(self, params: GKLocalParams) -> TGLFNativeResult:
+        """Compute the native TGLF-equivalent quasilinear transport result.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters.
+
+        Returns
+        -------
+        TGLFNativeResult
+            The SAT-model transport fluxes, growth rates, and mode spectrum.
+        """
         cfg = self.config
 
         ion = deuterium_ion(
