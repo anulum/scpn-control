@@ -37,7 +37,8 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
+
+from scpn_control._typing import AnyFloatArray
 
 try:
     import jax
@@ -85,13 +86,13 @@ def _resolve_use_jax(
 
 
 def _jacobi_gs_step_np(
-    psi: NDArray,
-    source: NDArray,
-    R_interior: NDArray,
+    psi: AnyFloatArray,
+    source: AnyFloatArray,
+    R_interior: AnyFloatArray,
     dR: float,
     dZ: float,
     omega_j: float,
-) -> NDArray:
+) -> AnyFloatArray:
     """Single damped Jacobi step for GS* with toroidal 1/R stencil (NumPy)."""
     dR2 = dR * dR
     dZ2 = dZ * dZ
@@ -112,20 +113,20 @@ def _jacobi_gs_step_np(
 
 
 def _compute_source_np(
-    psi: NDArray,
-    R_grid: NDArray,
+    psi: AnyFloatArray,
+    R_grid: AnyFloatArray,
     mu0: float,
     Ip_target: float,
     beta_mix: float,
     dR: float,
     dZ: float,
-) -> NDArray:
+) -> AnyFloatArray:
     """Compute GS RHS = -μ₀ R J_φ from L-mode profiles (NumPy)."""
-    psi_axis = np.max(psi[1:-1, 1:-1])
+    psi_axis = float(np.max(psi[1:-1, 1:-1]))
     psi_bdry = 0.0  # Dirichlet ψ=0 on boundary
     denom = psi_bdry - psi_axis
     if abs(denom) < 1e-9:
-        denom = np.sign(denom) * 1e-9 if denom != 0 else 1e-9
+        denom = float(np.sign(denom)) * 1e-9 if denom != 0 else 1e-9
 
     psi_norm = (psi - psi_axis) / denom
     psi_norm = np.clip(psi_norm, 0.0, 1.0)
@@ -142,7 +143,7 @@ def _compute_source_np(
     scale = Ip_target / max(abs(I_current), 1e-9)
     J_phi = J_raw * scale
 
-    result: NDArray = -mu0 * R_grid * J_phi
+    result: AnyFloatArray = -mu0 * R_grid * J_phi
     return result
 
 
@@ -160,7 +161,7 @@ def gs_solve_np(
     alpha: float = 0.1,
     omega_j: float = 0.667,
     beta_mix: float = 0.5,
-) -> NDArray:
+) -> AnyFloatArray:
     """Fixed-boundary GS solve via Picard iteration (NumPy fallback).
 
     Returns psi on the (NZ, NR) grid with zero Dirichlet boundary.
@@ -176,7 +177,7 @@ def gs_solve_np(
     # Gaussian seed
     R_center = 0.5 * (R_min + R_max)
     dist_sq = (RR - R_center) ** 2
-    psi = np.exp(-dist_sq / 0.5) * 0.01
+    psi: AnyFloatArray = np.exp(-dist_sq / 0.5) * 0.01
     psi[0, :] = 0.0
     psi[-1, :] = 0.0
     psi[:, 0] = 0.0
@@ -189,7 +190,7 @@ def gs_solve_np(
             psi_elliptic = _jacobi_gs_step_np(psi_elliptic, source, R_interior, dR, dZ, omega_j)
         psi = (1.0 - alpha) * psi + alpha * psi_elliptic
 
-    result: NDArray = psi
+    result: AnyFloatArray = psi
     return result
 
 
@@ -318,7 +319,7 @@ def jax_gs_solve(
     use_jax: bool = True,
     allow_numpy_fallback: bool = False,
     allow_legacy_numpy_fallback: bool = False,
-) -> NDArray:
+) -> AnyFloatArray:
     """Fixed-boundary Grad-Shafranov equilibrium solve.
 
     Picard iteration with damped Jacobi inner sweeps. When JAX is
@@ -396,8 +397,8 @@ def jax_gs_solve(
 
 
 def jax_gs_solve_from_grid(
-    R_grid: NDArray,
-    psi_init: NDArray,
+    R_grid: AnyFloatArray,
+    psi_init: AnyFloatArray,
     dR: float,
     dZ: float,
     Ip_target: float = 1e6,
@@ -407,7 +408,7 @@ def jax_gs_solve_from_grid(
     alpha: float = 0.1,
     omega_j: float = 0.667,
     beta_mix: float = 0.5,
-) -> NDArray:
+) -> AnyFloatArray:
     """GS solve on a pre-existing grid. JAX-only, differentiable.
 
     Parameters

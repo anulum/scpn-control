@@ -35,7 +35,8 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
+
+from scpn_control._typing import AnyFloatArray
 
 try:
     import jax
@@ -96,12 +97,12 @@ def load_weights_as_jax(
 
 
 def numpy_weights_to_jax(
-    weights: list[NDArray],
-    biases: list[NDArray],
-    pca_mean: NDArray,
-    pca_components: NDArray,
-    input_mean: NDArray,
-    input_std: NDArray,
+    weights: list[AnyFloatArray],
+    biases: list[AnyFloatArray],
+    pca_mean: AnyFloatArray,
+    pca_components: AnyFloatArray,
+    input_mean: AnyFloatArray,
+    input_std: AnyFloatArray,
 ) -> tuple[JAXWeights, JAXPCAParams, JAXNormParams]:
     """Convert NumPy weight arrays to JAX-compatible tuples."""
     if not _HAS_JAX:
@@ -174,9 +175,9 @@ if _HAS_JAX:
 
 
 def jax_mlp_forward(
-    x: NDArray,
+    x: AnyFloatArray,
     mlp_weights: JAXWeights,
-) -> NDArray:
+) -> AnyFloatArray:
     """MLP forward pass with JAX acceleration.
 
     Parameters
@@ -192,9 +193,9 @@ def jax_mlp_forward(
 
 
 def jax_pca_inverse(
-    coeffs: NDArray,
+    coeffs: AnyFloatArray,
     pca_params: JAXPCAParams,
-) -> NDArray:
+) -> AnyFloatArray:
     """PCA inverse transform with JAX acceleration."""
     if not _HAS_JAX:
         raise RuntimeError("JAX not available")
@@ -208,12 +209,12 @@ def jax_pca_inverse(
 
 
 def jax_neural_eq_predict(
-    features: NDArray,
+    features: AnyFloatArray,
     mlp_weights: JAXWeights,
     pca_params: JAXPCAParams,
     norm_params: JAXNormParams,
     grid_shape: tuple[int, int] = (129, 129),
-) -> NDArray:
+) -> AnyFloatArray:
     """Predict psi(R,Z) from input features using JAX-accelerated pipeline.
 
     Parameters
@@ -250,12 +251,12 @@ def jax_neural_eq_predict(
 
 
 def jax_neural_eq_predict_batched(
-    features_batch: NDArray,
+    features_batch: AnyFloatArray,
     mlp_weights: JAXWeights,
     pca_params: JAXPCAParams,
     norm_params: JAXNormParams,
     grid_shape: tuple[int, int] = (129, 129),
-) -> NDArray:
+) -> AnyFloatArray:
     """Batched equilibrium prediction via jax.vmap.
 
     Parameters

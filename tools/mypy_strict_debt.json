@@ -1,12 +1,10 @@
 {
   "schema": "scpn-control.mypy-strict-debt.v1",
   "mypy_version": "mypy 1.20.0 (compiled: yes)",
-  "total": 249,
+  "total": 221,
   "per_module": {
     "scpn_control.control.nmpc_controller": 147,
     "scpn_control.core.differentiable_transport": 44,
-    "scpn_control.core.jax_gs_solver": 14,
-    "scpn_control.core.jax_neural_equilibrium": 14,
     "scpn_control.core.jax_solvers": 30
   }
 }

@@ -226,7 +226,9 @@ module = [
     "scpn_control.core._rust_compat",
     "scpn_control.core.differentiable_scenario",
     "scpn_control.core.jax_gk_nonlinear",
-    "scpn_control.core.jax_gk_solver"
+    "scpn_control.core.jax_gk_solver",
+    "scpn_control.core.jax_gs_solver",
+    "scpn_control.core.jax_neural_equilibrium"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true
