@@ -39,6 +39,24 @@ _VALID_MACHINES = {"NSTX-U", "SPARC"}
 
 @dataclass(frozen=True)
 class TelemetryPacket:
+    """A single digital-twin telemetry sample.
+
+    Attributes
+    ----------
+    t_ms
+        Timestamp in milliseconds.
+    machine
+        Source device name (``"NSTX-U"`` or ``"SPARC"``).
+    ip_ma
+        Plasma current in MA.
+    beta_n
+        Normalised beta.
+    q95
+        Edge safety factor q95.
+    density_1e19
+        Line-averaged density in 10¹⁹ m⁻³.
+    """
+
     t_ms: int
     machine: str
     ip_ma: float
@@ -104,6 +122,24 @@ def generate_emulated_stream(
     dt_ms: int = 5,
     seed: int = 42,
 ) -> list[TelemetryPacket]:
+    """Generate a synthetic telemetry stream for a device.
+
+    Parameters
+    ----------
+    machine
+        Device name (``"NSTX-U"`` or ``"SPARC"``).
+    samples
+        Number of telemetry packets to generate.
+    dt_ms
+        Sample spacing in milliseconds.
+    seed
+        Random seed for reproducibility.
+
+    Returns
+    -------
+    list[TelemetryPacket]
+        The emulated telemetry packets.
+    """
     machine_key = _normalize_machine(machine)
 
     rng = np.random.default_rng(int(seed))
@@ -155,6 +191,14 @@ class RealtimeTwinHook:
         self.controller = _build_snn_planner()
 
     def ingest(self, packet: TelemetryPacket) -> None:
+        """Append a telemetry packet to the rolling buffer.
+
+        Parameters
+        ----------
+        packet
+            The telemetry packet to ingest; the buffer is capped at
+            ``max_buffer``.
+        """
         self.buffer.append(packet)
         if len(self.buffer) > self.max_buffer:
             self.buffer = self.buffer[-self.max_buffer :]
@@ -170,6 +214,23 @@ class RealtimeTwinHook:
         )
 
     def scenario_plan(self, *, horizon: int = 24) -> dict[str, float | bool]:
+        """Produce a forward scenario plan from the buffered telemetry.
+
+        Parameters
+        ----------
+        horizon
+            Planning horizon in samples; must be at least 4.
+
+        Returns
+        -------
+        dict[str, float | bool]
+            The projected risk metrics and mitigation recommendation.
+
+        Raises
+        ------
+        RuntimeError
+            If no telemetry has been ingested.
+        """
         if not self.buffer:
             raise RuntimeError("No telemetry packets ingested.")
         horizon = int(horizon)

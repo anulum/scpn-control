@@ -7,12 +7,11 @@
     "D104",
     "D106"
   ],
-  "total": 82,
+  "total": 78,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.burn_controller": 3,
     "scpn_control.control.codac_interface": 3,
-    "scpn_control.control.digital_twin_ingest": 4,
     "scpn_control.control.director_interface": 2,
     "scpn_control.control.federated_disruption": 1,
     "scpn_control.control.fueling_mode": 3,
