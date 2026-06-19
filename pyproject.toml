@@ -223,7 +223,10 @@ module = [
     "scpn_control.control.neuro_cybernetic_controller",
     "scpn_control.control.tokamak_flight_sim",
     "scpn_control.control.nengo_snn_wrapper",
-    "scpn_control.core._rust_compat"
+    "scpn_control.core._rust_compat",
+    "scpn_control.core.differentiable_scenario",
+    "scpn_control.core.jax_gk_nonlinear",
+    "scpn_control.core.jax_gk_solver"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true
@@ -246,6 +249,15 @@ ignore_missing_imports = true
 [[tool.mypy.overrides]]
 module = ["scipy", "scipy.*"]
 ignore_missing_imports = true
+
+# JAX ships py.typed but its top-level __init__ does not list every public
+# symbol (e.g. jax.checkpoint) in __all__.  Do not impose our strict
+# no_implicit_reexport on the third-party package; allow its implicit
+# re-exports so jax.checkpoint resolves under both the configured gate and a
+# whole-package --strict run.
+[[tool.mypy.overrides]]
+module = ["jax", "jax.*"]
+no_implicit_reexport = false
 
 [[tool.mypy.overrides]]
 module = ["validation", "validation.*"]

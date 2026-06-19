@@ -25,10 +25,12 @@ import platform
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.gk_eigenvalue import EigenMode, LinearGKResult, solve_linear_gk
 from scpn_control.core.gk_geometry import circular_geometry
 from scpn_control.core.gk_species import (
@@ -180,7 +182,7 @@ def _build_response_matrix_single_ky(
     return full_real, full_imag, R_ion_real
 
 
-def _solve_eigenvalue_from_matrix(full_real: Any, full_imag: Any) -> tuple[float, float, str, np.ndarray | None]:
+def _solve_eigenvalue_from_matrix(full_real: Any, full_imag: Any) -> tuple[float, float, str, AnyFloatArray | None]:
     """Extract most unstable eigenmode from the response matrix (NumPy)."""
     full_matrix = np.asarray(full_real) + 1j * np.asarray(full_imag)
 
@@ -391,14 +393,15 @@ def _build_local_dispersion_payload(
         qn_denom = jnp.maximum((1.0 - gamma0) + adiabatic, 1.0e-10)
         return qn_denom, jnp.ravel(fj_grid), jnp.ravel(ws_grid), jnp.ravel(wd_grid)
 
-    return cast(tuple[Any, Any, Any, Any], jax.vmap(_single)(k_y_all))
+    result: tuple[Any, Any, Any, Any] = jax.vmap(_single)(k_y_all)
+    return result
 
 
 def _solve_local_dispersion_from_payload(
     qn_denom: float,
-    fj: np.ndarray,
-    ws_v: np.ndarray,
-    wd_v: np.ndarray,
+    fj: npt.NDArray[Any],
+    ws_v: npt.NDArray[Any],
+    wd_v: npt.NDArray[Any],
     nu_eff: float,
 ) -> tuple[float, float]:
     """Solve the same scalar local dispersion relation as the native path."""
@@ -566,7 +569,7 @@ def gk_stiffness_chi_i_profile_jax(
     nu_star: float = 0.01,
     n_ky_ion: int = 8,
     n_theta: int = 32,
-) -> np.ndarray:
+) -> FloatArray:
     """Map JAX GK stiffness into a bounded ion heat diffusivity profile.
 
     The closure is intentionally conservative: it uses the existing
@@ -853,7 +856,7 @@ def _jax_backend_metadata() -> dict[str, str | bool]:
     device_kind = str(getattr(devices[0], "device_kind", backend)).lower() if devices else backend
     dtype = str(jnp.asarray(1.0).dtype)
     try:
-        x64_enabled = bool(jax.config.read("jax_enable_x64"))
+        x64_enabled = bool(jax.config.read("jax_enable_x64"))  # type: ignore[no-untyped-call]
     except Exception:
         x64_enabled = dtype == "float64"
     return {

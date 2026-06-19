@@ -40,6 +40,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.differentiable_transport import (
     CHANNEL_COUNT,
     _equilibrium_weighted_rollout_tracking_loss_jax,
@@ -73,10 +74,10 @@ class DifferentiableScenarioGradient:
     """Gradients of the coupled scenario loss for controller tuning."""
 
     loss: float
-    equilibrium_param_gradient: np.ndarray
-    source_gradient: np.ndarray
-    radial_weights: np.ndarray
-    final_profiles: np.ndarray
+    equilibrium_param_gradient: FloatArray
+    source_gradient: FloatArray
+    radial_weights: FloatArray
+    final_profiles: FloatArray
 
 
 @dataclass(frozen=True)
@@ -134,21 +135,21 @@ def _canonical_sha256(value: Any) -> str:
     return hashlib.sha256(blob).hexdigest()
 
 
-def _validate_equilibrium_params(equilibrium_params: Any) -> np.ndarray:
+def _validate_equilibrium_params(equilibrium_params: Any) -> FloatArray:
     params = np.asarray(equilibrium_params, dtype=float)
     if params.shape != (_EQUILIBRIUM_PARAM_COUNT,) or not np.all(np.isfinite(params)):
         raise ValueError(f"equilibrium_params must be a finite vector with shape ({_EQUILIBRIUM_PARAM_COUNT},)")
     return params
 
 
-def _validate_flux_axis(name: str, values: Any) -> np.ndarray:
+def _validate_flux_axis(name: str, values: Any) -> FloatArray:
     axis = np.asarray(values, dtype=float)
     if axis.ndim != 1 or axis.size < 3 or not np.all(np.isfinite(axis)):
         raise ValueError(f"{name} must be a finite one-dimensional axis with at least three points")
     return axis
 
 
-def scenario_equilibrium_flux(equilibrium_params: Any, r_grid: Any, z_grid: Any) -> np.ndarray:
+def scenario_equilibrium_flux(equilibrium_params: Any, r_grid: Any, z_grid: Any) -> FloatArray:
     """Sample the analytic Solov'ev flux ``c1 R^4/8 + c2 Z^2`` on the control grid.
 
     Returns a ``(n_z, n_r)`` flux map; ``equilibrium_params`` is ``(c1, c2)``.
@@ -359,7 +360,7 @@ def audit_differentiable_scenario_gradient(
     source_array = np.asarray(source_sequence, dtype=float)
     indices = _scenario_audit_indices(source_array.shape, sample_indices)
 
-    def forward(param_vec: np.ndarray, sources: np.ndarray) -> float:
+    def forward(param_vec: AnyFloatArray, sources: AnyFloatArray) -> float:
         return float(
             differentiable_scenario_loss(
                 param_vec,
@@ -498,7 +499,9 @@ def scenario_campaign_metadata(
         flux_grid_shape=(int(z_axis.size), int(r_axis.size)),
         dt=float(dt),
         gradient_tolerance=tolerance_value,
-        jax_enable_x64=bool(_HAS_JAX and jax is not None and jax.config.read("jax_enable_x64")),
+        jax_enable_x64=bool(
+            _HAS_JAX and jax is not None and jax.config.read("jax_enable_x64")  # type: ignore[no-untyped-call]
+        ),
         equilibrium_params=tuple(float(value) for value in params),
         inputs_sha256=inputs_digest,
     )
