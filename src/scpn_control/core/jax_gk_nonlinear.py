@@ -39,6 +39,7 @@ except ImportError:
 
 
 def jax_available() -> bool:
+    """Return whether JAX is importable in this environment."""
     return _HAS_JAX
 
 
@@ -372,6 +373,27 @@ class JaxNonlinearGKSolver:
     # ------------------------------------------------------------------
 
     def run(self, state: NonlinearGKState | None = None) -> NonlinearGKResult:
+        """Run the nonlinear gyrokinetic solver, JAX-accelerated when available.
+
+        Falls back to the NumPy solver when JAX is unavailable, unless the
+        legacy fallback is disabled.
+
+        Parameters
+        ----------
+        state
+            Optional initial solver state; a fresh state is initialised when
+            ``None``.
+
+        Returns
+        -------
+        NonlinearGKResult
+            The nonlinear gyrokinetic solution.
+
+        Raises
+        ------
+        RuntimeError
+            If JAX is unavailable and the NumPy fallback is disabled.
+        """
         if not _HAS_JAX:
             if not self._allow_numpy_fallback:
                 raise RuntimeError(
