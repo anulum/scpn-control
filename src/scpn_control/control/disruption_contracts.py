@@ -49,6 +49,22 @@ def synthetic_disruption_signal(
     disturbance: float,
     window: int = 220,
 ) -> tuple[NDArray[np.float64], dict[str, float]]:
+    """Generate a synthetic pre-disruption diagnostic signal with an ELM burst.
+
+    Parameters
+    ----------
+    rng
+        Random generator for reproducible noise and phase.
+    disturbance
+        Disturbance amplitude scaling the ELM burst.
+    window
+        Number of time samples.
+
+    Returns
+    -------
+    tuple[NDArray[np.float64], dict[str, float]]
+        The signal trace and a mapping of derived toroidal observables.
+    """
     t = np.linspace(0.0, 1.0, int(window), dtype=np.float64)
     base = 0.68 + 0.10 * np.sin(2.0 * np.pi * 2.4 * t + rng.uniform(-0.4, 0.4))
     elm = disturbance * (0.30 * np.exp(-(((t - 0.78) / 0.10) ** 2)))
@@ -73,6 +89,24 @@ def mcnp_lite_tbr(
     be_multiplier_fraction: float,
     reflector_albedo: float,
 ) -> tuple[float, float]:
+    """Lightweight tritium-breeding-ratio estimate for a blanket configuration.
+
+    Parameters
+    ----------
+    base_tbr
+        Baseline tritium breeding ratio; must be positive.
+    li6_enrichment
+        Lithium-6 enrichment fraction.
+    be_multiplier_fraction
+        Beryllium neutron-multiplier fraction.
+    reflector_albedo
+        Reflector albedo fraction.
+
+    Returns
+    -------
+    tuple[float, float]
+        The adjusted tritium breeding ratio and its estimated uncertainty.
+    """
     base_tbr = require_positive_float("base_tbr", base_tbr)
     li6_enrichment = require_finite_float("li6_enrichment", li6_enrichment)
     be_multiplier_fraction = require_finite_float("be_multiplier_fraction", be_multiplier_fraction)
@@ -96,6 +130,26 @@ def impurity_transport_response(
     disturbance: float,
     seed_shift: int,
 ) -> dict[str, float]:
+    """Simulate the impurity-transport response to mitigation gas injection.
+
+    Parameters
+    ----------
+    neon_quantity_mol
+        Injected neon in moles.
+    argon_quantity_mol
+        Injected argon in moles.
+    xenon_quantity_mol
+        Injected xenon in moles.
+    disturbance
+        Disturbance amplitude.
+    seed_shift
+        Integer offset applied to the random seed.
+
+    Returns
+    -------
+    dict[str, float]
+        Radiated-fraction and impurity-response metrics.
+    """
     n_steps = 240
     dt = 1.25e-4
     t = np.arange(n_steps, dtype=np.float64) * dt
@@ -143,6 +197,26 @@ def post_disruption_halo_runaway(
     mitigation_strength: float,
     zeff_eff: float,
 ) -> dict[str, float]:
+    """Evolve post-disruption halo current and runaway-electron generation.
+
+    Parameters
+    ----------
+    pre_current_ma
+        Pre-disruption plasma current in MA.
+    tau_cq_s
+        Current-quench time constant in seconds.
+    disturbance
+        Disturbance amplitude.
+    mitigation_strength
+        Mitigation effectiveness in [0, 1].
+    zeff_eff
+        Effective charge during the quench.
+
+    Returns
+    -------
+    dict[str, float]
+        Peak halo-current fraction, runaway current, and related metrics.
+    """
     dt = 1.0e-4
     steps = 320
     ip = float(pre_current_ma)
@@ -192,6 +266,25 @@ def run_disruption_episode(
     base_tbr: float,
     explorer: GlobalDesignExplorer,
 ) -> dict[str, float | bool]:
+    """Run one synthetic disruption episode through the RL agent and explorer.
+
+    Parameters
+    ----------
+    rng
+        Random generator for the episode draw.
+    rl_agent
+        The fusion RL agent scoring disruption risk and actions.
+    base_tbr
+        Baseline tritium breeding ratio; must be positive.
+    explorer
+        The global design explorer evaluated for the episode.
+
+    Returns
+    -------
+    dict[str, float | bool]
+        Episode metrics including the risk before and after mitigation and the
+        mitigation outcome.
+    """
     base_tbr = require_positive_float("base_tbr", base_tbr)
     disturbance = float(rng.uniform(0.0, 1.0))
     pre_energy_mj = float(rng.uniform(240.0, 420.0))
