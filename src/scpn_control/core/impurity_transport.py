@@ -91,6 +91,20 @@ def _uniform_axis_to_edge_rho_grid(rho: AnyFloatArray) -> FloatArray:
 
 @dataclass
 class ImpuritySpecies:
+    """An impurity species for transport modelling.
+
+    Attributes
+    ----------
+    element
+        Element symbol (e.g. ``"W"``, ``"Ne"``).
+    Z_nucleus
+        Nuclear charge number.
+    mass_amu
+        Atomic mass in amu.
+    source_rate
+        Edge source rate in particles/s.
+    """
+
     element: str
     Z_nucleus: int
     mass_amu: float
@@ -248,6 +262,21 @@ def total_radiated_power(
 
 
 def tungsten_accumulation_diagnostic(n_W: AnyFloatArray, ne: AnyFloatArray) -> dict[str, Any]:
+    """Assess core tungsten accumulation from density profiles.
+
+    Parameters
+    ----------
+    n_W
+        Tungsten density profile in m⁻³ (core to edge).
+    ne
+        Electron density profile in m⁻³ on the same grid.
+
+    Returns
+    -------
+    dict[str, Any]
+        Core and edge tungsten concentration, the peaking factor, and a
+        ``"danger_level"`` of ``"safe"``, ``"warning"``, or ``"critical"``.
+    """
     c_W_core = float(n_W[0] / max(ne[0], 1e-6))
     c_W_edge = float(n_W[-1] / max(ne[-1], 1e-6))
 
@@ -264,6 +293,20 @@ def tungsten_accumulation_diagnostic(n_W: AnyFloatArray, ne: AnyFloatArray) -> d
 
 
 class ImpurityTransportSolver:
+    """Radial impurity-transport solver with diffusion and neoclassical pinch.
+
+    Parameters
+    ----------
+    rho
+        Normalised-radius grid (resampled to an edge grid).
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres.
+    species
+        The impurity species to transport.
+    """
+
     def __init__(self, rho: AnyFloatArray, R0: float, a: float, species: list[ImpuritySpecies]):
         self.rho = _uniform_axis_to_edge_rho_grid(rho)
         self.R0 = float(R0)
