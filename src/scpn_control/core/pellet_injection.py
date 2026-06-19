@@ -44,6 +44,22 @@ def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...], *, 
 
 @dataclass
 class PelletParams:
+    """Cryogenic fuel-pellet launch parameters.
+
+    Attributes
+    ----------
+    r_p_mm
+        Pellet radius in millimetres; must be positive.
+    v_p_m_s
+        Pellet injection speed in m/s; must be positive.
+    M_p
+        Atomic mass of the pellet species in amu (2.0 for deuterium).
+    injection_side
+        Launch side, ``"HFS"`` (high-field) or ``"LFS"`` (low-field).
+    injection_angle_deg
+        Injection angle relative to the midplane in degrees.
+    """
+
     r_p_mm: float  # [mm]
     v_p_m_s: float  # [m/s]
     M_p: float = 2.0
@@ -61,6 +77,20 @@ class PelletParams:
 
 @dataclass
 class PelletResult:
+    """Outcome of a pellet ablation/deposition simulation.
+
+    Attributes
+    ----------
+    penetration_depth
+        Normalised radius ``rho`` at which the pellet was fully ablated.
+    deposition_profile
+        Particle deposition density per radial cell in m⁻³, drift-shifted.
+    total_particles
+        Total particles deposited into the plasma.
+    drift_displacement
+        ∇B drift displacement of the deposition in normalised radius.
+    """
+
     penetration_depth: float
     deposition_profile: AnyFloatArray
     total_particles: float
@@ -69,6 +99,16 @@ class PelletResult:
 
 @dataclass
 class PelletInjectionCommand:
+    """Command to launch a pellet at a scheduled time.
+
+    Attributes
+    ----------
+    inject_time
+        Scheduled injection time in seconds.
+    pellet_params
+        The pellet launch parameters.
+    """
+
     inject_time: float
     pellet_params: PelletParams
 
@@ -88,6 +128,24 @@ def ngs_ablation_rate(r_p: float, ne: float, Te_eV: float, M_p: float) -> float:
 
 
 class PelletTrajectory:
+    """Radial pellet trajectory with neutral-gas-shielding ablation and ∇B drift.
+
+    Integrates the Parks-Turnbull NGS ablation rate along an inward radial path,
+    depositing the ablated particles and applying a ∇B drift shift of the
+    deposition profile (Pegourie 2005, Plasma Phys. Control. Fusion 47, 17).
+
+    Parameters
+    ----------
+    params
+        The pellet launch parameters.
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres; must be positive and below ``R0``.
+    B0
+        Toroidal field on axis in tesla; must be positive.
+    """
+
     def __init__(self, params: PelletParams, R0: float, a: float, B0: float):
         self.params = params
         self.R0 = _finite_scalar("R0", R0, positive=True)
@@ -102,6 +160,30 @@ class PelletTrajectory:
         self.N_initial = volume_m3 * self.n_solid
 
     def simulate(self, rho: AnyFloatArray, ne: AnyFloatArray, Te_eV: AnyFloatArray) -> PelletResult:
+        """Integrate ablation and deposition along the inward radial path.
+
+        Parameters
+        ----------
+        rho
+            Strictly increasing normalised-radius grid in [0, 1], shape
+            ``(n_rho,)`` with at least two points.
+        ne
+            Electron-density profile in 10¹⁹ m⁻³ on ``rho``; non-negative.
+        Te_eV
+            Electron-temperature profile in eV on ``rho``; non-negative.
+
+        Returns
+        -------
+        PelletResult
+            The penetration depth, drift-shifted deposition profile, deposited
+            particle count, and drift displacement.
+
+        Raises
+        ------
+        ValueError
+            If ``rho`` is not a strictly increasing grid in [0, 1] or the
+            profiles are mis-shaped or negative.
+        """
         rho = np.asarray(rho, dtype=float)
         if rho.ndim != 1 or rho.size < 2:
             raise ValueError("rho must be a one-dimensional grid with at least two points")
@@ -197,6 +279,16 @@ class PelletTrajectory:
 
 
 class PelletFuelingController:
+    """Pellet-pacing controller maintaining a volume-averaged density target.
+
+    Parameters
+    ----------
+    target_density
+        Target volume-averaged electron density in 10¹⁹ m⁻³; must be positive.
+    pellet_params
+        The pellet launch parameters used for each injection.
+    """
+
     def __init__(self, target_density: float, pellet_params: PelletParams):
         self.target_density = _finite_scalar("target_density", target_density, positive=True)
         self.pellet_params = pellet_params
@@ -207,6 +299,25 @@ class PelletFuelingController:
         self.last_injection = -100.0
 
     def required_frequency(self, ne_current: float, tau_p: float, V_plasma: float) -> float:
+        """Pellet frequency that sustains the target density inventory.
+
+        From the particle balance ``dN/dt = -N/τ_p + f N_pellet`` at the target,
+        ``f = N_target / (τ_p N_pellet)``.
+
+        Parameters
+        ----------
+        ne_current
+            Current volume-averaged density in 10¹⁹ m⁻³; must be non-negative.
+        tau_p
+            Particle confinement time in seconds; must be positive.
+        V_plasma
+            Plasma volume in m³; must be positive.
+
+        Returns
+        -------
+        float
+            The required injection frequency in Hz.
+        """
         _finite_scalar("ne_current", ne_current, nonnegative=True)
         tau_p = _finite_scalar("tau_p", tau_p, positive=True)
         V_plasma = _finite_scalar("V_plasma", V_plasma, positive=True)
@@ -221,6 +332,27 @@ class PelletFuelingController:
     def step(
         self, ne_profile: AnyFloatArray, Te_profile: AnyFloatArray, dt: float, V_plasma: float
     ) -> PelletInjectionCommand | None:
+        """Advance the controller clock and decide whether to inject.
+
+        A pellet is scheduled when the mean density falls below 95% of target and
+        the time since the last injection exceeds the required pacing period.
+
+        Parameters
+        ----------
+        ne_profile
+            Electron-density profile in 10¹⁹ m⁻³; non-empty and non-negative.
+        Te_profile
+            Electron-temperature profile in eV, same shape as ``ne_profile``.
+        dt
+            Time step in seconds; must be positive.
+        V_plasma
+            Plasma volume in m³; must be positive.
+
+        Returns
+        -------
+        PelletInjectionCommand or None
+            A launch command when an injection is due, otherwise ``None``.
+        """
         ne_profile = np.asarray(ne_profile, dtype=float)
         if ne_profile.ndim != 1 or ne_profile.size == 0:
             raise ValueError("ne_profile must be a non-empty one-dimensional array")
