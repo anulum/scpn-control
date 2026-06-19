@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 396,
+  "total": 386,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -70,7 +70,6 @@
     "scpn_control.core.jax_solvers": 2,
     "scpn_control.core.kinetic_efit": 7,
     "scpn_control.core.lh_transition": 6,
-    "scpn_control.core.locked_mode": 10,
     "scpn_control.core.marfe": 7,
     "scpn_control.core.momentum_transport": 4,
     "scpn_control.core.neural_equilibrium": 6,

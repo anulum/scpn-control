@@ -57,6 +57,20 @@ def _require_mode_numbers(m: int, n: int) -> tuple[int, int]:
 
 
 class ErrorFieldSpectrum:
+    """Error-field harmonic spectrum ``b_mn`` for a tokamak.
+
+    Holds the resonant error-field components in tesla, seeded from intrinsic
+    estimates (La Haye 2006, §II) and adjustable by coil misalignment or active
+    correction.
+
+    Parameters
+    ----------
+    B0
+        Toroidal field on axis in tesla; must be positive.
+    n_corrections
+        Number of active correction coils; must be non-negative.
+    """
+
     def __init__(self, B0: float, n_corrections: int = 0):
         self.B0 = _require_positive("B0", B0)
         if n_corrections < 0:
@@ -69,6 +83,18 @@ class ErrorFieldSpectrum:
         self.B_mn_components[(3, 2)] = 5e-5 * B0
 
     def set_coil_misalignment(self, delta_R_mm: float, delta_Z_mm: float) -> None:
+        """Set the (2,1) and (3,2) error fields from a coil centroid shift.
+
+        The error-field amplitude scales linearly with the displacement
+        magnitude (La Haye 2006, §II).
+
+        Parameters
+        ----------
+        delta_R_mm
+            Radial coil misalignment in millimetres; must be non-negative.
+        delta_Z_mm
+            Vertical coil misalignment in millimetres; must be non-negative.
+        """
         if delta_R_mm < 0.0 or delta_Z_mm < 0.0:
             raise ValueError("misalignment magnitudes must be non-negative")
         shift_mag = math.sqrt(delta_R_mm**2 + delta_Z_mm**2) / 1000.0
@@ -78,10 +104,43 @@ class ErrorFieldSpectrum:
         self.B_mn_components[(3, 2)] = 0.005 * self.B0 * shift_mag
 
     def B_mn(self, m: int, n: int) -> float:
+        """Return the (m, n) error-field component in tesla.
+
+        Parameters
+        ----------
+        m
+            Poloidal mode number; must be positive.
+        n
+            Toroidal mode number; must be positive.
+
+        Returns
+        -------
+        float
+            The error-field amplitude in tesla (0.0 if the harmonic is absent).
+        """
         _require_mode_numbers(m, n)
         return self.B_mn_components.get((m, n), 0.0)
 
     def corrected_B_mn(self, m: int, n: int, I_correction: float) -> float:
+        """Return the (m, n) error field after active-coil correction.
+
+        Applies a first-order linear reduction proportional to the correction
+        current, floored at zero.
+
+        Parameters
+        ----------
+        m
+            Poloidal mode number.
+        n
+            Toroidal mode number.
+        I_correction
+            Correction-coil current in amperes; must be non-negative.
+
+        Returns
+        -------
+        float
+            The corrected error-field amplitude in tesla.
+        """
         I_correction = _require_nonnegative("I_correction", I_correction)
         B_raw = self.B_mn(m, n)
         # First-order linear correction from an active coil of effective area ~1 m².
@@ -109,12 +168,36 @@ class ResonantFieldAmplification:
         return 1.0 / (1.0 - self.beta_N / self.beta_N_nowall)
 
     def resonant_field(self, B_err: float) -> float:
+        """Amplified resonant field at the rational surface.
+
+        Parameters
+        ----------
+        B_err
+            Applied error-field amplitude in tesla; must be non-negative.
+
+        Returns
+        -------
+        float
+            The resonant field in tesla, ``B_err`` times the RFA factor.
+        """
         B_err = _require_nonnegative("B_err", B_err)
         return B_err * self.amplification_factor()
 
 
 @dataclass
 class RotationEvolution:
+    """Toroidal-rotation evolution under electromagnetic braking.
+
+    Attributes
+    ----------
+    omega_trace
+        Toroidal angular-rotation trace in rad/s, one sample per step.
+    locked
+        ``True`` if the mode locked within the simulated steps.
+    lock_time
+        Time of locking in seconds, or ``-1`` if the mode did not lock.
+    """
+
     omega_trace: FloatArray
     locked: bool
     lock_time: float
@@ -235,6 +318,19 @@ class ModeLocking:
 
 @dataclass
 class IslandGrowth:
+    """Locked-island width evolution from the Modified Rutherford Equation.
+
+    Attributes
+    ----------
+    w_trace
+        Island half-width trace in metres, one sample per step.
+    overlap_time
+        Time at which the island exceeds the stochastic-overlap threshold in
+        seconds, or ``-1`` if never reached.
+    stochastic
+        ``True`` if island overlap (stochastic field) was reached.
+    """
+
     w_trace: FloatArray
     overlap_time: float
     stochastic: bool
@@ -294,6 +390,23 @@ class LockedModeIsland:
 
 @dataclass
 class ChainResult:
+    """Outcome of the error-field-to-disruption chain.
+
+    Attributes
+    ----------
+    lock_time
+        Mode-locking time in seconds, or ``-1`` if no lock occurred.
+    island_width_at_tq
+        Island half-width at the thermal-quench trigger in metres.
+    tq_trigger_time
+        Thermal-quench trigger time in seconds, or ``-1`` if no disruption.
+    disruption
+        ``True`` if the chain reached a disruption.
+    warning_time_ms
+        Warning time between island overlap and quench in milliseconds, or
+        ``-1`` if no disruption.
+    """
+
     lock_time: float
     island_width_at_tq: float
     tq_trigger_time: float
@@ -302,10 +415,39 @@ class ChainResult:
 
 
 class ErrorFieldToDisruptionChain:
+    """Full error-field → RFA → locking → island-growth → disruption chain.
+
+    Parameters
+    ----------
+    config
+        Machine and plasma parameters (``R0``, ``a``, ``B0``, ``Ip_MA``,
+        ``beta_N``, ``beta_N_nowall``); missing keys fall back to ITER-like
+        defaults.
+    """
+
     def __init__(self, config: dict[str, float]):
         self.config = config
 
     def run(self, B_err_n1: float, omega_phi_0: float) -> ChainResult:
+        """Run the chain from an applied n=1 error field to disruption.
+
+        Amplifies the error field (RFA), evolves the rotation to locking, then
+        grows the locked island until stochastic overlap triggers a thermal
+        quench. Short-circuits to a non-disruptive result if locking or island
+        overlap is not reached.
+
+        Parameters
+        ----------
+        B_err_n1
+            Applied n=1 error-field amplitude in tesla.
+        omega_phi_0
+            Initial toroidal angular rotation in rad/s.
+
+        Returns
+        -------
+        ChainResult
+            The locking time, island width, and disruption outcome.
+        """
         R0 = self.config.get("R0", 6.2)
         a = self.config.get("a", 2.0)
         B0 = self.config.get("B0", 5.3)
