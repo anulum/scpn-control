@@ -229,7 +229,8 @@ module = [
     "scpn_control.core.jax_gk_solver",
     "scpn_control.core.jax_gs_solver",
     "scpn_control.core.jax_neural_equilibrium",
-    "scpn_control.core.jax_solvers"
+    "scpn_control.core.jax_solvers",
+    "scpn_control.core.differentiable_transport"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true

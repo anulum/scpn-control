@@ -28,12 +28,13 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core import jax_solvers as _jax_solvers
 
 try:
     import jax
 
-    jax.config.update("jax_enable_x64", True)
+    jax.config.update("jax_enable_x64", True)  # type: ignore[no-untyped-call]
     import jax.numpy as jnp
 
     _HAS_JAX = True
@@ -52,9 +53,9 @@ class EquilibriumWeightedTransportGradient:
     """JAX gradient of equilibrium-weighted transport tracking loss."""
 
     loss: float
-    chi_gradient: np.ndarray
-    equilibrium_gradient: np.ndarray
-    radial_weights: np.ndarray
+    chi_gradient: FloatArray
+    equilibrium_gradient: FloatArray
+    radial_weights: FloatArray
 
 
 @dataclass(frozen=True)
@@ -62,20 +63,20 @@ class EquilibriumWeightedTransportRolloutGradient:
     """JAX gradient of equilibrium-weighted multi-step transport rollout loss."""
 
     loss: float
-    source_gradient: np.ndarray
-    equilibrium_gradient: np.ndarray
-    radial_weights: np.ndarray
-    final_profiles: np.ndarray
+    source_gradient: FloatArray
+    equilibrium_gradient: FloatArray
+    radial_weights: FloatArray
+    final_profiles: FloatArray
 
 
 @dataclass(frozen=True)
 class GyrokineticTransportClosureResult:
     """Reduced gyrokinetic closure profiles for differentiable transport."""
 
-    chi_e: np.ndarray
-    chi_i: np.ndarray
-    d_e: np.ndarray
-    channel_weights: np.ndarray
+    chi_e: FloatArray
+    chi_i: FloatArray
+    d_e: FloatArray
+    channel_weights: FloatArray
     source: str
     weights_checksum: str | None
 
@@ -85,8 +86,8 @@ class TransportParameterGradients:
     """JAX gradients of transport tracking loss for tunable transport inputs."""
 
     loss: float
-    chi_gradient: np.ndarray
-    source_gradient: np.ndarray
+    chi_gradient: FloatArray
+    source_gradient: FloatArray
 
 
 @dataclass(frozen=True)
@@ -94,8 +95,8 @@ class TransportRolloutSourceGradients:
     """JAX gradients of multi-step transport loss for source schedules."""
 
     loss: float
-    source_gradient: np.ndarray
-    final_profiles: np.ndarray
+    source_gradient: FloatArray
+    final_profiles: FloatArray
 
 
 @dataclass(frozen=True)
@@ -268,7 +269,7 @@ def transport_runtime_metadata() -> TransportRuntimeMetadata:
         jaxlib_version=jaxlib_version,
         jax_default_backend=str(jax.default_backend()),
         jax_devices=tuple(str(device) for device in jax.devices()),
-        jax_enable_x64=bool(jax.config.read("jax_enable_x64")),
+        jax_enable_x64=bool(jax.config.read("jax_enable_x64")),  # type: ignore[no-untyped-call]
     )
 
 
@@ -296,7 +297,7 @@ def _validate_optional_sha256(name: str, value: str | None) -> str | None:
     return value.lower()
 
 
-def _as_float_array(name: str, value: Any) -> np.ndarray:
+def _as_float_array(name: str, value: Any) -> FloatArray:
     array = np.asarray(value, dtype=float)
     if not np.all(np.isfinite(array)):
         raise ValueError(f"{name} must contain only finite values")
@@ -313,7 +314,7 @@ def _validate_transport_inputs(
     *,
     target_profiles: Any | None = None,
     weights: Any | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray | None, FloatArray | None]:
     profile_array = _as_float_array("profiles", profiles)
     chi_array = _as_float_array("chi", chi)
     source_array = _as_float_array("sources", sources)
@@ -358,7 +359,7 @@ def _validate_transport_inputs(
     return profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array
 
 
-def _closure_profile(name: str, value: Any) -> np.ndarray:
+def _closure_profile(name: str, value: Any) -> FloatArray:
     arr = _as_float_array(name, value)
     if arr.ndim != 1 or arr.size < 3:
         raise ValueError(f"{name} must be a one-dimensional profile with at least three points")
@@ -367,7 +368,7 @@ def _closure_profile(name: str, value: Any) -> np.ndarray:
     return arr
 
 
-def _closure_channel_weights(name: str, value: Any, n_rho: int) -> np.ndarray:
+def _closure_channel_weights(name: str, value: Any, n_rho: int) -> FloatArray:
     channel_weights = _as_float_array(name, value)
     if channel_weights.shape != (3, n_rho):
         raise ValueError(f"{name} must have shape (3, n_rho)")
@@ -384,7 +385,7 @@ def _three_channel_transport_coefficients_from_closure(
     closure_name: str,
     impurity_diffusivity_fraction: float,
     chi_floor: float,
-) -> np.ndarray:
+) -> FloatArray:
     fraction = float(impurity_diffusivity_fraction)
     floor = float(chi_floor)
     if not np.isfinite(fraction) or fraction < 0.0 or fraction > 1.0:
@@ -415,7 +416,7 @@ def transport_coefficients_from_neural_closure(
     *,
     impurity_diffusivity_fraction: float = 1.0,
     chi_floor: float = 0.0,
-) -> np.ndarray:
+) -> FloatArray:
     """Map a neural transport closure into four facade coefficient channels.
 
     The facade channel order is electron temperature, ion temperature, electron
@@ -479,7 +480,7 @@ def transport_coefficients_from_gyrokinetic_closure(
     *,
     impurity_diffusivity_fraction: float = 1.0,
     chi_floor: float = 0.0,
-) -> np.ndarray:
+) -> FloatArray:
     """Map a reduced gyrokinetic closure into four facade channels."""
     return _three_channel_transport_coefficients_from_closure(
         closure,
@@ -1024,13 +1025,13 @@ def _resolve_use_jax(
 
 
 def _transport_step_numpy(
-    profiles: np.ndarray,
-    chi: np.ndarray,
-    sources: np.ndarray,
-    rho: np.ndarray,
+    profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    sources: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
-) -> np.ndarray:
+    edge_values: AnyFloatArray,
+) -> FloatArray:
     drho = float(rho[1] - rho[0])
     return np.stack(
         [
@@ -1083,7 +1084,7 @@ def _validate_transport_rollout_inputs(
     *,
     target_history: Any | None = None,
     weights: Any | None = None,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray | None, np.ndarray | None]:
+) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray | None, FloatArray | None]:
     profile_array = _as_float_array("initial_profiles", initial_profiles)
     chi_array = _as_float_array("chi", chi)
     source_array = _as_float_array("source_sequence", source_sequence)
@@ -1128,15 +1129,15 @@ def _validate_transport_rollout_inputs(
 
 
 def _transport_rollout_numpy(
-    initial_profiles: np.ndarray,
-    chi: np.ndarray,
-    source_sequence: np.ndarray,
-    rho: np.ndarray,
+    initial_profiles: AnyFloatArray,
+    chi: AnyFloatArray,
+    source_sequence: AnyFloatArray,
+    rho: AnyFloatArray,
     dt: float,
-    edge_values: np.ndarray,
-) -> np.ndarray:
+    edge_values: AnyFloatArray,
+) -> FloatArray:
     current = initial_profiles
-    history: list[np.ndarray] = []
+    history: list[FloatArray] = []
     for source_step in source_sequence:
         current = _transport_step_numpy(current, chi, source_step, rho, dt, edge_values)
         history.append(current)
@@ -1614,14 +1615,14 @@ def equilibrium_weighted_transport_rollout_source_gradient(
     )
 
 
-def _validate_equilibrium_psi(equilibrium_psi: Any) -> np.ndarray:
+def _validate_equilibrium_psi(equilibrium_psi: Any) -> FloatArray:
     psi = _as_float_array("equilibrium_psi", equilibrium_psi)
     if psi.ndim != 2 or min(psi.shape) < 3:
         raise ValueError("equilibrium_psi must be a finite two-dimensional flux map with both dimensions >= 3")
     return psi
 
 
-def equilibrium_radial_weights(equilibrium_psi: Any, n_rho: int) -> np.ndarray:
+def equilibrium_radial_weights(equilibrium_psi: Any, n_rho: int) -> FloatArray:
     """Return positive mean-one radial weights from a Grad-Shafranov flux map."""
     psi = _validate_equilibrium_psi(equilibrium_psi)
     if isinstance(n_rho, bool) or int(n_rho) != n_rho or int(n_rho) < 3:
@@ -1849,7 +1850,7 @@ def transport_loss_gradient(
     edge_values: Any,
     *,
     weights: Any | None = None,
-) -> tuple[float, np.ndarray]:
+) -> tuple[float, FloatArray]:
     """Return the tracking loss and JAX gradient with respect to ``chi``."""
     if not _HAS_JAX or jax is None or jnp is None:
         raise RuntimeError("transport_loss_gradient requires JAX")
@@ -1950,7 +1951,7 @@ def transport_parameter_gradients(
 
 
 def _gradient_audit_indices(
-    shape: tuple[int, int],
+    shape: tuple[int, ...],
     sample_indices: Any | None,
 ) -> tuple[tuple[int, int], ...]:
     if sample_indices is None:
@@ -1973,7 +1974,7 @@ def _gradient_audit_indices(
 
 def _central_difference_parameter(
     base_loss: float,
-    parameter_array: np.ndarray,
+    parameter_array: AnyFloatArray,
     index: tuple[int, int],
     epsilon: float,
     loss_fn: Any,
@@ -2045,7 +2046,7 @@ def audit_transport_parameter_gradients(
         weight_array = np.ones(CHANNEL_COUNT)
     indices = _gradient_audit_indices(chi_array.shape, sample_indices)
 
-    def loss_for_chi(candidate: np.ndarray) -> float:
+    def loss_for_chi(candidate: AnyFloatArray) -> float:
         return float(
             transport_tracking_loss(
                 profile_array,
@@ -2060,7 +2061,7 @@ def audit_transport_parameter_gradients(
             )
         )
 
-    def loss_for_sources(candidate: np.ndarray) -> float:
+    def loss_for_sources(candidate: AnyFloatArray) -> float:
         return float(
             transport_tracking_loss(
                 profile_array,
