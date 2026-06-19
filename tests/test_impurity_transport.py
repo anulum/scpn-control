@@ -271,3 +271,162 @@ def test_transport_solver_rejects_nonuniform_radial_grid():
 
     with pytest.raises(ValueError, match="uniform"):
         ImpurityTransportSolver(np.array([0.0, 0.1, 0.4, 1.0]), 6.2, 2.0, species)
+
+
+def test_cooling_curve_accepts_scalar_temperature():
+    """A scalar T_e is promoted to a length-1 profile before evaluation."""
+    L = CoolingCurve("W").L_z(1500.0)
+
+    assert L.shape == (1,)
+    assert L[0] > 1e-32
+
+
+def test_cooling_curve_carbon_and_neon_peak_at_cited_temperatures():
+    """C and Ne radiate most strongly near their cited line-radiation peaks.
+
+    Post et al. 1977, At. Data Nucl. Data Tables 20, 397: C peaks near 10 eV,
+    Ne near 50 eV. Each curve must exceed its own far-off-peak value.
+    """
+    carbon = CoolingCurve("C")
+    assert carbon.L_z(np.array([10.0]))[0] > carbon.L_z(np.array([2000.0]))[0]
+
+    neon = CoolingCurve("Ne")
+    assert neon.L_z(np.array([50.0]))[0] > neon.L_z(np.array([5000.0]))[0]
+
+
+def test_radiation_grid_rejects_single_point():
+    """A radial grid with fewer than two points cannot define a profile."""
+    with pytest.raises(ValueError, match="at least two points"):
+        total_radiated_power(np.array([1e20]), {"W": np.array([1e16])}, np.array([1500.0]), np.array([0.5]), 6.2, 2.0)
+
+
+def test_radiation_grid_rejects_nonfinite_rho():
+    rho = np.array([0.0, np.nan, 1.0])
+    with pytest.raises(ValueError, match="finite"):
+        total_radiated_power(np.full(3, 1e20), {"W": np.full(3, 1e16)}, np.full(3, 1500.0), rho, 6.2, 2.0)
+
+
+def test_radiation_grid_rejects_rho_outside_unit_interval():
+    rho = np.array([0.0, 0.5, 1.5])
+    with pytest.raises(ValueError, match=r"\[0, 1\]"):
+        total_radiated_power(np.full(3, 1e20), {"W": np.full(3, 1e16)}, np.full(3, 1500.0), rho, 6.2, 2.0)
+
+
+def test_total_radiated_power_rejects_density_shape_mismatch():
+    rho = np.linspace(0.0, 1.0, 5)
+    with pytest.raises(ValueError, match="ne must match rho shape"):
+        total_radiated_power(np.full(4, 1e20), {}, np.full(5, 1500.0), rho, 6.2, 2.0)
+
+
+def test_total_radiated_power_rejects_temperature_shape_mismatch():
+    rho = np.linspace(0.0, 1.0, 5)
+    with pytest.raises(ValueError, match="Te_eV must match rho shape"):
+        total_radiated_power(np.full(5, 1e20), {}, np.full(4, 1500.0), rho, 6.2, 2.0)
+
+
+def test_total_radiated_power_rejects_nonpositive_geometry():
+    rho = np.linspace(0.0, 1.0, 5)
+    ne = np.full(5, 1e20)
+    Te = np.full(5, 1500.0)
+    with pytest.raises(ValueError, match="R0 must be finite and positive"):
+        total_radiated_power(ne, {}, Te, rho, 0.0, 2.0)
+    with pytest.raises(ValueError, match="a must be finite and positive"):
+        total_radiated_power(ne, {}, Te, rho, 6.2, -1.0)
+
+
+def _valid_neoclassical_inputs(n: int = 24):
+    rho = np.linspace(0.0, 1.0, n)
+    ne = np.full(n, 1e20)
+    Te = np.full(n, 2000.0)
+    Ti = np.full(n, 2000.0)
+    q = np.full(n, 1.5)
+    eps = 0.3 * rho + 0.05
+    return rho, ne, Te, Ti, q, eps
+
+
+def test_neoclassical_rejects_nonfinite_safety_factor():
+    """A finite-valued profile validator rejects a NaN in q."""
+    rho, ne, Te, Ti, q, eps = _valid_neoclassical_inputs()
+    q = q.copy()
+    q[3] = np.nan
+    with pytest.raises(ValueError, match="q must contain only finite values"):
+        neoclassical_impurity_pinch(74, ne, Te, Ti, q, rho, 6.2, 2.0, eps)
+
+
+def test_neoclassical_rejects_negative_density():
+    rho, ne, Te, Ti, q, eps = _valid_neoclassical_inputs()
+    ne = ne.copy()
+    ne[2] = -1e19
+    with pytest.raises(ValueError, match="ne must be non-negative"):
+        neoclassical_impurity_pinch(74, ne, Te, Ti, q, rho, 6.2, 2.0, eps)
+
+
+def test_neoclassical_rejects_temperature_shape_mismatch():
+    rho, ne, Te, Ti, q, eps = _valid_neoclassical_inputs(24)
+    with pytest.raises(ValueError, match="Te_eV must match rho shape"):
+        neoclassical_impurity_pinch(74, ne, np.full(23, 2000.0), Ti, q, rho, 6.2, 2.0, eps)
+
+
+def test_neoclassical_rejects_ion_temperature_shape_mismatch():
+    rho, ne, Te, Ti, q, eps = _valid_neoclassical_inputs(24)
+    with pytest.raises(ValueError, match="Ti_eV must match rho shape"):
+        neoclassical_impurity_pinch(74, ne, Te, np.full(23, 2000.0), q, rho, 6.2, 2.0, eps)
+
+
+def test_neoclassical_rejects_nonpositive_charge_and_geometry():
+    rho, ne, Te, Ti, q, eps = _valid_neoclassical_inputs()
+    with pytest.raises(ValueError, match="Z must be positive"):
+        neoclassical_impurity_pinch(0, ne, Te, Ti, q, rho, 6.2, 2.0, eps)
+    with pytest.raises(ValueError, match="R0 must be finite and positive"):
+        neoclassical_impurity_pinch(74, ne, Te, Ti, q, rho, -1.0, 2.0, eps)
+    with pytest.raises(ValueError, match="a must be finite and positive"):
+        neoclassical_impurity_pinch(74, ne, Te, Ti, q, rho, 6.2, 0.0, eps)
+
+
+def test_transport_solver_rejects_nonpositive_geometry():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    rho = np.linspace(0.0, 1.0, 16)
+    with pytest.raises(ValueError, match="R0 must be finite and positive"):
+        ImpurityTransportSolver(rho, 0.0, 2.0, species)
+    with pytest.raises(ValueError, match="a must be finite and positive"):
+        ImpurityTransportSolver(rho, 6.2, -1.0, species)
+
+
+def test_transport_solver_rejects_grid_not_spanning_axis_to_edge():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    with pytest.raises(ValueError, match="magnetic axis"):
+        ImpurityTransportSolver(np.linspace(0.1, 1.0, 16), 6.2, 2.0, species)
+    with pytest.raises(ValueError, match="plasma edge"):
+        ImpurityTransportSolver(np.linspace(0.0, 0.9, 16), 6.2, 2.0, species)
+
+
+def test_transport_solver_step_rejects_profile_shape_mismatch():
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    solver = ImpurityTransportSolver(np.linspace(0.0, 1.0, 16), 6.2, 2.0, species)
+    good = np.ones(16)
+    bad = np.ones(15)
+    with pytest.raises(ValueError, match="ne must match rho shape"):
+        solver.step(1e-3, bad * 1e20, good * 2000.0, good * 2000.0, 0.5, {})
+    with pytest.raises(ValueError, match="Te_eV must match rho shape"):
+        solver.step(1e-3, good * 1e20, bad * 2000.0, good * 2000.0, 0.5, {})
+    with pytest.raises(ValueError, match="Ti_eV must match rho shape"):
+        solver.step(1e-3, good * 1e20, good * 2000.0, bad * 2000.0, 0.5, {})
+
+
+def test_transport_solver_step_handles_outward_pinch():
+    """A positive pinch velocity drives the outward upwind-convection branch.
+
+    The complementary inward branch is covered by ``test_transport_solver_negative_pinch``;
+    here V > 0 selects the opposite stencil, and the advanced density must stay
+    finite and non-negative.
+    """
+    species = [ImpuritySpecies("W", 74, 183.8)]
+    solver = ImpurityTransportSolver(np.linspace(0.0, 1.0, 16), 6.2, 2.0, species)
+    solver.n_z["W"] = np.full(16, 1e16)
+    profile = np.ones(16)
+    outward = {"W": np.full(16, 0.5)}
+
+    result = solver.step(1e-4, profile * 1e20, profile * 2000.0, profile * 2000.0, 0.5, outward)
+
+    assert np.all(np.isfinite(result["W"]))
+    assert np.all(result["W"] >= 0.0)
