@@ -431,6 +431,8 @@ jobs:
         run: ruff format --check src/scpn_control/ tests/
       - name: Documentation coverage
         run: python tools/check_docs_coverage.py
+      - name: Public-API docstring coverage
+        run: python tools/run_docstring_gate.py
 
   # ─── Job 12: Python security scan (Bandit) ───
   python-security:

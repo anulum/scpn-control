@@ -68,6 +68,7 @@ def _build_checks(
         )
     if not skip_mypy:
         checks.append(("mypy strict", [sys.executable, "tools/run_mypy_strict.py"]))
+    checks.append(("docstring coverage", [sys.executable, "tools/run_docstring_gate.py"]))
     return checks
 
 
