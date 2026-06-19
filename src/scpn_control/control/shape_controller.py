@@ -45,6 +45,22 @@ _XPOINT_WEIGHT = 5.0
 
 @dataclass
 class ShapeTarget:
+    """Target plasma-shape descriptors for shape control.
+
+    Attributes
+    ----------
+    isoflux_points
+        ``(R, Z)`` points in metres that should share the boundary flux value.
+    gap_points
+        Gap control points as ``(R, Z, n_R, n_Z)`` (position and outward normal).
+    gap_targets
+        Target gap distances in metres, one per gap point.
+    xpoint_target
+        Optional target X-point ``(R, Z)`` in metres.
+    strike_point_targets
+        Optional target strike-point ``(R, Z)`` positions in metres.
+    """
+
     isoflux_points: list[tuple[float, float]]
     gap_points: list[tuple[float, float, float, float]]  # (R, Z, n_R, n_Z)
     gap_targets: list[float]
@@ -54,6 +70,22 @@ class ShapeTarget:
 
 @dataclass
 class ShapeControlResult:
+    """Shape-control performance metrics for one evaluation.
+
+    Attributes
+    ----------
+    isoflux_error
+        RMS isoflux flux-matching error.
+    gap_errors
+        Per-gap distance errors in metres.
+    min_gap
+        Smallest plasma-wall gap in metres.
+    xpoint_error
+        X-point position error in metres (0 if no X-point target).
+    strike_point_errors
+        Per-strike-point position errors in metres.
+    """
+
     isoflux_error: float
     gap_errors: AnyFloatArray
     min_gap: float
@@ -95,9 +127,15 @@ class ShapeJacobian:
         self.J = rng.standard_normal((self.n_errors, coil_set.n_coils)) * 1e-4
 
     def compute(self) -> FloatArray:
+        """Return the shape Jacobian ``∂e_shape / ∂I_coils``."""
         return self.J
 
     def update(self, state: dict[str, Any]) -> None:
+        """Refresh the Jacobian from the latest plasma state.
+
+        The test Jacobian is static, so this is a no-op; a Grad-Shafranov-backed
+        implementation would re-derive the columns from ``state``.
+        """
         pass
 
 
@@ -164,6 +202,18 @@ class PlasmaShapeController:
         return np.asarray(I_next - coil_currents)
 
     def evaluate_performance(self, psi: AnyFloatArray) -> ShapeControlResult:
+        """Evaluate shape-control errors for a flux map.
+
+        Parameters
+        ----------
+        psi
+            Poloidal-flux map on the equilibrium grid.
+
+        Returns
+        -------
+        ShapeControlResult
+            Isoflux, gap, X-point, and strike-point errors and the minimum gap.
+        """
         e_shape = self._compute_shape_error(psi)
 
         idx1 = self.jacobian.n_isoflux
