@@ -31,11 +31,11 @@ K_{nm} (off-diagonal): inter-layer bidirectional causality
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
+from typing import Any, Sequence
 
 import numpy as np
-from numpy.typing import NDArray
 
+from scpn_control._typing import FloatArray
 from scpn_control.phase.knm import KnmSpec
 from scpn_control.phase.kuramoto import (
     lyapunov_exponent,
@@ -52,7 +52,6 @@ try:
 except ImportError:
     HAS_RUST_UPDE = False
 
-FloatArray = NDArray[np.float64]
 
 
 @dataclass
@@ -73,7 +72,7 @@ class UPDESystem:
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
         K_override: FloatArray | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Advance all L layers by one Euler step.
 
         Parameters
@@ -272,7 +271,7 @@ class UPDESystem:
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
         K_override: FloatArray | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run n_steps and return trajectory of per-layer R and global R."""
         R_layer_hist = []
         R_global_hist = []
@@ -307,7 +306,7 @@ class UPDESystem:
         actuation_gain: float = 1.0,
         pac_gamma: float = 0.0,
         K_override: FloatArray | None = None,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Run n_steps with Lyapunov tracking.
 
         Returns R histories, V histories, and per-layer + global λ.

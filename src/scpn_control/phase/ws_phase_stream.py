@@ -262,7 +262,7 @@ class PhaseStreamServer:
     allow_insecure_remote: bool = False
     allowed_origins: tuple[str, ...] = ()
     allowed_actions: tuple[str, ...] = _DEFAULT_ALLOWED_ACTIONS
-    _clients: set = field(default_factory=set, init=False, repr=False)
+    _clients: set[Any] = field(default_factory=set, init=False, repr=False)
     _client_windows: dict[Any, tuple[float, float]] = field(default_factory=dict, init=False, repr=False)
     _peer_windows: dict[str, tuple[float, float]] = field(default_factory=dict, init=False, repr=False)
     _runtime_counters: dict[str, int] = field(default_factory=dict, init=False, repr=False)

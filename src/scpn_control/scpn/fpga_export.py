@@ -28,8 +28,7 @@ import math
 import textwrap
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
 from .compiler import CompiledNet
@@ -750,7 +749,7 @@ def compile_to_vhdl(compiled_net: CompiledNet, config: FPGAConfig) -> str:
     return "\n".join(parts)
 
 
-def estimate_resources(compiled_net: CompiledNet, config: FPGAConfig) -> dict:
+def estimate_resources(compiled_net: CompiledNet, config: FPGAConfig) -> dict[str, float]:
     """Estimate FPGA resource usage for the compiled net.
 
     Returns dict with keys: lut_count, ff_count, bram_blocks, estimated_fmax_mhz.

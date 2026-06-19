@@ -30,10 +30,10 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
-from numpy.typing import NDArray
+
+from scpn_control._typing import FloatArray
 
 logger = logging.getLogger(__name__)
-FloatArray = NDArray[np.float64]
 KURAMOTO_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.kuramoto-runtime-evidence.v1"
 KURAMOTO_RUNTIME_EVIDENCE_BOUNDED = "bounded_python_timestep_evidence_only"
 KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED = "qualified_kuramoto_runtime_evidence"
@@ -321,7 +321,7 @@ def kuramoto_sakaguchi_step(
     psi_driver: float | None = None,
     psi_mode: str = "external",
     wrap: bool = True,
-) -> dict:
+) -> dict[str, Any]:
     """Single Euler step of mean-field Kuramoto-Sakaguchi + global driver.
 
     dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)

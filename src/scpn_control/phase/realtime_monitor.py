@@ -36,17 +36,16 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
+from scpn_control._typing import FloatArray
 from scpn_control.phase.adaptive_knm import AdaptiveKnmEngine, DiagnosticSnapshot
 from scpn_control.phase.knm import OMEGA_N_16, build_knm_paper27
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
 from scpn_control.phase.plasma_knm import build_knm_plasma, plasma_omega
 from scpn_control.phase.upde import UPDESystem
-
-FloatArray = NDArray[np.float64]
 
 
 def _validate_monitor_domains(
@@ -77,7 +76,7 @@ class TrajectoryRecorder:
     latency_us: list[float] = field(default_factory=list)
     Psi_global: list[float] = field(default_factory=list)
 
-    def record(self, snap: dict) -> None:
+    def record(self, snap: dict[str, Any]) -> None:
         self.R_global.append(snap["R_global"])
         self.R_layer.append(snap["R_layer"])
         self.V_global.append(snap["V_global"])
@@ -201,7 +200,7 @@ class RealtimeMonitor:
         q95: float = 3.0,
         disruption_risk: float = 0.0,
         mirnov_rms: float = 0.0,
-    ) -> dict:
+    ) -> dict[str, Any]:
         """Advance one UPDE step and return dashboard snapshot."""
         if not np.isfinite(self.psi_driver):
             raise ValueError("psi_driver must be finite")

@@ -25,9 +25,10 @@ from __future__ import annotations
 import hashlib
 import math
 from dataclasses import dataclass
-from typing import Mapping, Sequence, TypedDict
+from typing import Any, Mapping, Sequence, TypedDict
 
 import numpy as np
+import numpy.typing as npt
 
 SCALE_FLOOR = 1e-12  # prevent division-by-zero in feature extraction
 CONTROL_ERROR_CLAMP = 1.0  # symmetric saturation for normalized error
@@ -529,7 +530,7 @@ def check_marking_conservation(
 
 def check_deadlock(
     marking: list[float],
-    incidence_matrix: np.ndarray,
+    incidence_matrix: npt.NDArray[Any],
     is_terminal: bool = False,
 ) -> LogicInvariantViolation | None:
     """Detect if the net is in a non-terminal deadlock state.

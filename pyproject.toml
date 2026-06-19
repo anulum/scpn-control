@@ -195,7 +195,15 @@ module = [
     "scpn_control.control.realtime_efit",
     "scpn_control.control.volt_second_manager",
     "scpn_control.control.rzip_model",
-    "scpn_control.control.rwm_feedback"
+    "scpn_control.control.rwm_feedback",
+    "scpn_control.phase.adaptive_knm",
+    "scpn_control.phase.kuramoto",
+    "scpn_control.phase.lyapunov_guard",
+    "scpn_control.phase.realtime_monitor",
+    "scpn_control.phase.upde",
+    "scpn_control.phase.ws_phase_stream",
+    "scpn_control.scpn.contracts",
+    "scpn_control.scpn.fpga_export"
 ]
 disallow_any_generics = true
 disallow_subclassing_any = true

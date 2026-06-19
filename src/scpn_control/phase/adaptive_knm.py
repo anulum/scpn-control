@@ -186,7 +186,7 @@ class AdaptiveKnmEngine:
         return self._K_current.copy()
 
     @property
-    def adaptation_summary(self) -> dict:
+    def adaptation_summary(self) -> dict[str, float]:
         """Snapshot of engine state for dashboard export."""
         diff = self._K_current - self._baseline
         return {

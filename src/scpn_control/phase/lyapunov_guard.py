@@ -37,12 +37,11 @@ from collections import deque
 from dataclasses import dataclass
 
 import numpy as np
-from numpy.typing import NDArray
 
+from scpn_control._typing import FloatArray
 from scpn_control.phase.kuramoto import lyapunov_exponent, lyapunov_v
 
 logger = logging.getLogger(__name__)
-FloatArray = NDArray[np.float64]
 
 
 @dataclass(frozen=True)
@@ -166,7 +165,7 @@ class LyapunovGuard:
             consecutive_violations=0 if approved else 1,
         )
 
-    def to_director_ai_dict(self, verdict: LyapunovVerdict) -> dict:
+    def to_director_ai_dict(self, verdict: LyapunovVerdict) -> dict[str, str | float | bool]:
         """Export verdict in DIRECTOR_AI AuditLogger format."""
         return {
             "query": "lyapunov_stability_check",
