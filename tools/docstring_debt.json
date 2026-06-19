@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 160,
+  "total": 155,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.burn_controller": 3,
@@ -36,7 +36,6 @@
     "scpn_control.control.torax_hybrid_loop": 2,
     "scpn_control.core.__init__": 1,
     "scpn_control.core.current_drive": 4,
-    "scpn_control.core.gk_cgyro": 5,
     "scpn_control.core.gk_corrector": 4,
     "scpn_control.core.gk_eigenvalue": 1,
     "scpn_control.core.gk_gene": 4,

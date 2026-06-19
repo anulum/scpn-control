@@ -26,6 +26,19 @@ _logger = logging.getLogger(__name__)
 
 
 def generate_cgyro_input(params: GKLocalParams) -> str:
+    """Render a CGYRO ``input.cgyro`` deck from local GK parameters.
+
+    Parameters
+    ----------
+    params
+        Local gyrokinetic input parameters.
+
+    Returns
+    -------
+    str
+        The CGYRO input-deck text.
+    """
+
     R0_over_a = params.R0 / max(params.a, 0.01)
     return f"""\
 # CGYRO input.cgyro
@@ -59,6 +72,20 @@ N_RADIAL=1
 
 
 def parse_cgyro_output(run_dir: Path) -> GKOutput:
+    """Parse a CGYRO run directory into a standard GK output.
+
+    Parameters
+    ----------
+    run_dir
+        Directory containing the CGYRO ``out.cgyro.freq`` output.
+
+    Returns
+    -------
+    GKOutput
+        The parsed growth rate, real frequency, and diffusivities; a
+        non-converged output when the file is missing or unreadable.
+    """
+
     out_file = run_dir / "out.cgyro.freq"
     if out_file.exists():
         try:
@@ -102,15 +129,51 @@ class CGYROSolver(GKSolverBase):
         self.allow_legacy_fallback = bool(allow_legacy_fallback)
 
     def is_available(self) -> bool:
+        """Return whether the CGYRO binary is on the PATH."""
         return shutil.which(self.binary) is not None
 
     def prepare_input(self, params: GKLocalParams) -> Path:
+        """Write the CGYRO input deck and return its working directory.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters.
+
+        Returns
+        -------
+        Path
+            The working directory containing ``input.cgyro``.
+        """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="cgyro_"))
         base.mkdir(parents=True, exist_ok=True)
         (base / "input.cgyro").write_text(generate_cgyro_input(params))
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
+        """Execute CGYRO on a prepared input directory.
+
+        Fails closed when the binary is unavailable, the run fails, or the output
+        is non-converged, unless the explicit legacy fallback is enabled.
+
+        Parameters
+        ----------
+        input_path
+            Working directory holding ``input.cgyro``.
+        timeout_s
+            Subprocess timeout in seconds.
+
+        Returns
+        -------
+        GKOutput
+            The parsed CGYRO result.
+
+        Raises
+        ------
+        RuntimeError
+            If CGYRO is unavailable, fails, or returns non-converged output and
+            the legacy fallback is disabled.
+        """
         if not self.is_available():
             if not self.allow_fallback:
                 raise RuntimeError(
