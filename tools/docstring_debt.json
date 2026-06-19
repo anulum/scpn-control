@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 342,
+  "total": 327,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -88,7 +88,6 @@
     "scpn_control.phase.lyapunov_guard": 1,
     "scpn_control.phase.realtime_monitor": 4,
     "scpn_control.phase.ws_phase_stream": 1,
-    "scpn_control.scpn.__init__": 15,
     "scpn_control.scpn.compiler": 2,
     "scpn_control.scpn.controller": 3,
     "scpn_control.scpn.formal_verification": 1,
