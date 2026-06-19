@@ -107,6 +107,22 @@ class PeelingBallooningBoundary:
 
 @dataclass
 class ELMCrashResult:
+    """Outcome of a single ELM crash applied to the pedestal.
+
+    Attributes
+    ----------
+    delta_W_MJ
+        Energy expelled by the crash in MJ.
+    T_ped_post
+        Post-crash pedestal temperature (same unit as the input).
+    n_ped_post
+        Post-crash pedestal density (same unit as the input).
+    peak_heat_flux_MW_m2
+        Peak divertor heat flux during the crash in MW/m².
+    duration_ms
+        Crash duration in milliseconds.
+    """
+
     delta_W_MJ: float
     T_ped_post: float
     n_ped_post: float
@@ -160,6 +176,27 @@ class ELMCrashModel:
     def apply_to_profiles(
         self, rho: AnyFloatArray, Te: AnyFloatArray, ne: AnyFloatArray, rho_ped: float
     ) -> tuple[AnyFloatArray, AnyFloatArray]:
+        """Drop the pedestal region of the Te and ne profiles by the crash factor.
+
+        Outside the pedestal top (``rho >= rho_ped``) both profiles are scaled by
+        ``√(1 − f_elm_fraction)``.
+
+        Parameters
+        ----------
+        rho
+            Sorted normalised-radius grid, shape ``(n,)``.
+        Te
+            Electron-temperature profile on ``rho``; positive.
+        ne
+            Electron-density profile on ``rho``; positive.
+        rho_ped
+            Pedestal-top normalised radius; must lie within the grid.
+
+        Returns
+        -------
+        tuple of AnyFloatArray
+            The post-crash ``(Te, ne)`` profiles.
+        """
         if rho.ndim != 1 or Te.ndim != 1 or ne.ndim != 1:
             raise ValueError("rho, Te, and ne must be one-dimensional")
         if not (len(rho) == len(Te) == len(ne)):
@@ -200,6 +237,20 @@ class Type3ELMCrashModel(ELMCrashModel):
 
 @dataclass
 class ELMEvent:
+    """A single ELM crash event in a control cycle.
+
+    Attributes
+    ----------
+    time
+        Event time in seconds.
+    delta_W_MJ
+        Energy expelled by the crash in MJ.
+    f_elm_Hz
+        Instantaneous ELM frequency in Hz.
+    crash_type
+        ELM type label (e.g. ``"Type I"``).
+    """
+
     time: float
     delta_W_MJ: float
     f_elm_Hz: float
@@ -257,13 +308,49 @@ class RMPSuppression:
         return float(w_mn / dr_mn)
 
     def suppressed(self, sigma_chir: float) -> bool:
+        """Return whether RMP suppresses ELMs (σ_Chirikov > 1).
+
+        Parameters
+        ----------
+        sigma_chir
+            Chirikov overlap parameter at the pedestal.
+
+        Returns
+        -------
+        bool
+            ``True`` when the islands overlap and ELMs are suppressed.
+        """
         return sigma_chir > 1.0
 
     def pedestal_transport_enhancement(self, sigma_chir: float) -> float:
+        """Pedestal transport enhancement factor from RMP stochasticity.
+
+        Parameters
+        ----------
+        sigma_chir
+            Chirikov overlap parameter.
+
+        Returns
+        -------
+        float
+            Multiplicative transport enhancement (1.0 below overlap).
+        """
         alpha = 2.0
         return 1.0 + alpha * max(0.0, sigma_chir - 1.0)
 
     def density_pump_out(self, sigma_chir: float) -> float:
+        """Fractional pedestal density pump-out under RMP.
+
+        Parameters
+        ----------
+        sigma_chir
+            Chirikov overlap parameter.
+
+        Returns
+        -------
+        float
+            Fractional density reduction (0.2 above overlap, 0.0 otherwise).
+        """
         if sigma_chir > 1.0:
             return 0.2
         return 0.0
@@ -293,6 +380,30 @@ class ELMCycler:
     def step(
         self, dt: float, alpha_edge: float, j_edge: float, s_edge: float, T_ped: float, n_ped: float, W_ped: float
     ) -> ELMEvent | None:
+        """Advance the pedestal clock and trigger an ELM if peeling-ballooning unstable.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds; must be positive.
+        alpha_edge
+            Normalised edge pressure gradient; must be non-negative.
+        j_edge
+            Edge current density; must be non-negative.
+        s_edge
+            Edge magnetic shear; must be non-negative.
+        T_ped
+            Pedestal temperature passed to the crash model.
+        n_ped
+            Pedestal density passed to the crash model.
+        W_ped
+            Pedestal stored energy in MJ.
+
+        Returns
+        -------
+        ELMEvent or None
+            The crash event when the boundary is unstable, otherwise ``None``.
+        """
         if dt <= 0.0:
             raise ValueError("dt must be positive")
         if alpha_edge < 0.0 or j_edge < 0.0 or s_edge < 0.0:
