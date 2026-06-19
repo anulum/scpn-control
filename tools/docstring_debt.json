@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 411,
+  "total": 396,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -45,7 +45,6 @@
     "scpn_control.core.alfven_eigenmodes": 6,
     "scpn_control.core.blob_transport": 7,
     "scpn_control.core.current_drive": 4,
-    "scpn_control.core.disruption_sequence": 15,
     "scpn_control.core.elm_model": 7,
     "scpn_control.core.eped_pedestal": 5,
     "scpn_control.core.gk_cgyro": 5,

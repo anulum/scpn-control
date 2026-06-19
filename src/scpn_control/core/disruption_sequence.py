@@ -20,6 +20,30 @@ from scpn_control.core.runaway_electrons import RunawayEvolution, RunawayParams
 
 @dataclass
 class DisruptionConfig:
+    """Pre-disruption machine and plasma state for a disruption simulation.
+
+    Attributes
+    ----------
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres (must be smaller than ``R0``).
+    B0
+        Toroidal field on axis in tesla.
+    kappa
+        Plasma elongation (dimensionless).
+    Ip_MA
+        Pre-disruption plasma current in MA.
+    W_th_MJ
+        Thermal stored energy in MJ.
+    Te_pre_keV
+        Pre-disruption electron temperature in keV.
+    ne_pre_20
+        Pre-disruption electron density in 10²⁰ m⁻³.
+    dBr_over_B_trigger
+        Radial magnetic-perturbation fraction δB_r/B that triggers the quench.
+    """
+
     R0: float
     a: float
     B0: float
@@ -46,6 +70,18 @@ class DisruptionConfig:
 
 @dataclass
 class TQResult:
+    """Thermal-quench phase outputs.
+
+    Attributes
+    ----------
+    tau_tq_ms
+        Thermal-quench timescale in milliseconds.
+    post_tq_Te_eV
+        Residual electron temperature after the quench in eV.
+    heat_load_MJ_m2
+        Peak first-wall heat load in MJ/m².
+    """
+
     tau_tq_ms: float
     post_tq_Te_eV: float
     heat_load_MJ_m2: float
@@ -53,6 +89,18 @@ class TQResult:
 
 @dataclass
 class CQResult:
+    """Current-quench phase outputs.
+
+    Attributes
+    ----------
+    cq_duration_ms
+        Current-quench timescale (L/R) in milliseconds.
+    Ip_trace
+        Plasma-current trace in MA over the simulated steps.
+    E_par_trace
+        Induced parallel electric-field trace in V/m.
+    """
+
     cq_duration_ms: float
     Ip_trace: FloatArray
     E_par_trace: FloatArray
@@ -60,6 +108,18 @@ class CQResult:
 
 @dataclass
 class REResult:
+    """Runaway-electron beam phase outputs.
+
+    Attributes
+    ----------
+    I_RE_MA
+        Runaway-electron beam current in MA.
+    W_RE_MJ
+        Runaway-electron beam energy in MJ.
+    wall_heat_load_MJ_m2
+        Localised termination heat load on the wall in MJ/m².
+    """
+
     I_RE_MA: float
     W_RE_MJ: float
     wall_heat_load_MJ_m2: float
@@ -67,6 +127,22 @@ class REResult:
 
 @dataclass
 class HaloResult:
+    """Halo-current phase outputs.
+
+    Attributes
+    ----------
+    f_halo
+        Halo-current fraction of the initial plasma current.
+    tpf
+        Toroidal peaking factor of the halo current.
+    F_z_MN
+        Vertical halo force on the vessel in MN.
+    F_sideways_MN
+        Sideways halo force on the vessel in MN.
+    within_iter_limits
+        ``True`` if ``f_halo × TPF`` stays below the ITER 0.75 limit.
+    """
+
     f_halo: float
     tpf: float
     F_z_MN: float
@@ -76,6 +152,26 @@ class HaloResult:
 
 @dataclass
 class DisruptionResult:
+    """Aggregate outputs of a full four-phase disruption sequence.
+
+    Attributes
+    ----------
+    tq_result
+        Thermal-quench phase result.
+    cq_result
+        Current-quench phase result.
+    re_result
+        Runaway-electron phase result.
+    halo_result
+        Halo-current phase result.
+    total_duration_ms
+        Combined thermal- plus current-quench duration in milliseconds.
+    wall_heat_load_MJ_m2
+        Combined thermal-quench and runaway termination wall load in MJ/m².
+    vessel_force_MN
+        Vertical vessel force in MN.
+    """
+
     tq_result: TQResult
     cq_result: CQResult
     re_result: REResult
@@ -97,6 +193,22 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 
 class ThermalQuench:
+    """Stochastic thermal-quench model (Rechester-Rosenbluth transport).
+
+    Parameters
+    ----------
+    W_th_MJ
+        Thermal stored energy in MJ.
+    a
+        Minor radius in metres.
+    R0
+        Major radius in metres.
+    q
+        Edge safety factor (dimensionless).
+    B0
+        Toroidal field on axis in tesla.
+    """
+
     def __init__(self, W_th_MJ: float, a: float, R0: float, q: float, B0: float):
         self.W_th_MJ = W_th_MJ
         self.a = a
@@ -153,6 +265,22 @@ class ThermalQuench:
 
 
 class CurrentQuench:
+    """L/R current-quench model with Spitzer post-quench resistivity.
+
+    Parameters
+    ----------
+    Ip_MA
+        Pre-quench plasma current in MA.
+    L_plasma_uH
+        Plasma self-inductance in microhenries.
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    kappa
+        Plasma elongation (dimensionless).
+    """
+
     def __init__(self, Ip_MA: float, L_plasma_uH: float, R0: float, a: float, kappa: float = 1.0):
         self.Ip_MA = Ip_MA
         self.L_plasma_H = L_plasma_uH * 1e-6
@@ -181,6 +309,24 @@ class CurrentQuench:
         return self.L_plasma_H / (2.0 * math.pi * self.R0) * abs(dIp_dt)
 
     def evolve(self, Te_post_tq_eV: float, Z_eff: float, dt: float, n_steps: int) -> CQResult:
+        """Integrate the exponential current decay and the induced field.
+
+        Parameters
+        ----------
+        Te_post_tq_eV
+            Post-thermal-quench electron temperature in eV.
+        Z_eff
+            Effective charge of the post-quench plasma.
+        dt
+            Time step in seconds.
+        n_steps
+            Number of time steps.
+
+        Returns
+        -------
+        CQResult
+            The quench duration and the current and electric-field traces.
+        """
         tau_cq_ms = self.cq_timescale(Te_post_tq_eV, Z_eff)
         tau_cq_s = tau_cq_ms / 1000.0
 
@@ -198,6 +344,14 @@ class CurrentQuench:
 
 
 class REBeamPhase:
+    """Runaway-electron beam current, energy, and termination heat load.
+
+    Parameters
+    ----------
+    re_evolution
+        The runaway-electron avalanche/seed evolution model.
+    """
+
     def __init__(self, re_evolution: RunawayEvolution):
         self.re = re_evolution
 
@@ -215,12 +369,40 @@ class REBeamPhase:
         return W_J / 1e6
 
     def termination_heat_load(self, W_RE_MJ: float, A_deposition_m2: float) -> float:
+        """Localised wall heat load when the runaway beam terminates.
+
+        Parameters
+        ----------
+        W_RE_MJ
+            Runaway beam energy in MJ.
+        A_deposition_m2
+            Deposition footprint area in m².
+
+        Returns
+        -------
+        float
+            Heat load in MJ/m² (``inf`` for a non-positive area).
+        """
         if A_deposition_m2 <= 0.0:
             return float("inf")
         return W_RE_MJ / A_deposition_m2
 
 
 class HaloCurrentModel:
+    """Halo-current fractions and vessel forces during a vertical displacement.
+
+    Parameters
+    ----------
+    Ip_MA
+        Pre-disruption plasma current in MA.
+    R0
+        Major radius in metres.
+    B0
+        Toroidal field on axis in tesla.
+    kappa
+        Plasma elongation (dimensionless).
+    """
+
     def __init__(self, Ip_MA: float, R0: float, B0: float, kappa: float):
         self.Ip_MA = Ip_MA
         self.R0 = R0
@@ -257,12 +439,37 @@ class HaloCurrentModel:
 
 
 class DisruptionSequence:
+    """Four-phase disruption simulation: TQ, CQ, runaway beam, and halo forces.
+
+    Parameters
+    ----------
+    config
+        The pre-disruption machine and plasma state.
+    """
+
     def __init__(self, config: DisruptionConfig):
         self.config = config
         self.V_plasma = 2.0 * math.pi**2 * config.R0 * config.a**2 * config.kappa
         self.A_wall = 4.0 * math.pi**2 * config.R0 * config.a * config.kappa  # approx
 
     def run(self, spi_density_target: float | None = None) -> DisruptionResult:
+        """Simulate the full disruption sequence end to end.
+
+        Runs the thermal quench, current quench, runaway-electron evolution
+        driven by the induced field, and halo-current forces in turn.
+
+        Parameters
+        ----------
+        spi_density_target
+            Optional shattered-pellet-injection target density in 10²⁰ m⁻³; when
+            given it sets the post-quench density and dilutes ``Z_eff`` to 1.0.
+
+        Returns
+        -------
+        DisruptionResult
+            The combined per-phase results and the aggregate wall load,
+            duration, and vessel force.
+        """
         # Phase 1: TQ
         tq = ThermalQuench(self.config.W_th_MJ, self.config.a, self.config.R0, 3.0, self.config.B0)
         tau_tq_s = tq.quench_timescale(self.config.dBr_over_B_trigger, self.config.Te_pre_keV)
@@ -339,4 +546,16 @@ class DisruptionSequence:
         return DisruptionResult(tq_res, cq_res, re_res, halo_res, tot_dur, tot_heat, F_z)
 
     def with_mitigation(self, spi_density_target: float) -> DisruptionResult:
+        """Run the sequence with shattered-pellet-injection mitigation.
+
+        Parameters
+        ----------
+        spi_density_target
+            SPI target density in 10²⁰ m⁻³.
+
+        Returns
+        -------
+        DisruptionResult
+            The mitigated disruption result.
+        """
         return self.run(spi_density_target)
