@@ -313,6 +313,18 @@ class SimpleMLP:
             self.biases.append(np.zeros(layer_sizes[i + 1]))
 
     def forward(self, x: AnyFloatArray) -> AnyFloatArray:
+        """Forward pass through the ReLU MLP.
+
+        Parameters
+        ----------
+        x
+            Input batch, shape ``(batch, n_in)``.
+
+        Returns
+        -------
+        AnyFloatArray
+            The network output, shape ``(batch, n_out)``.
+        """
         h = x
         for i, (W, b) in enumerate(zip(self.weights, self.biases)):
             h = h @ W + b
@@ -321,6 +333,7 @@ class SimpleMLP:
         return h
 
     def predict(self, x: AnyFloatArray) -> AnyFloatArray:
+        """Return the forward-pass output for ``x`` (alias of :meth:`forward`)."""
         return self.forward(x)
 
 
@@ -337,6 +350,19 @@ class MinimalPCA:
         self.explained_variance_ratio_: AnyFloatArray | None = None
 
     def fit(self, X: AnyFloatArray) -> "MinimalPCA":
+        """Fit the PCA basis to the data via SVD.
+
+        Parameters
+        ----------
+        X
+            Data matrix, shape ``(n_samples, n_features)``.
+
+        Returns
+        -------
+        MinimalPCA
+            This estimator, with mean, components, and explained-variance ratio
+            populated.
+        """
         self.mean_ = X.mean(axis=0)
         X_centered = X - self.mean_
         U, S, Vt = np.linalg.svd(X_centered, full_matrices=False)
@@ -346,14 +372,39 @@ class MinimalPCA:
         return self
 
     def transform(self, X: AnyFloatArray) -> FloatArray:
+        """Project data onto the fitted principal components.
+
+        Parameters
+        ----------
+        X
+            Data matrix, shape ``(n_samples, n_features)``.
+
+        Returns
+        -------
+        FloatArray
+            The reduced representation, shape ``(n_samples, n_components)``.
+        """
         assert self.mean_ is not None and self.components_ is not None
         return np.asarray((X - self.mean_) @ self.components_.T)
 
     def inverse_transform(self, Z: AnyFloatArray) -> FloatArray:
+        """Reconstruct data from its principal-component representation.
+
+        Parameters
+        ----------
+        Z
+            Reduced representation, shape ``(n_samples, n_components)``.
+
+        Returns
+        -------
+        FloatArray
+            The reconstructed data, shape ``(n_samples, n_features)``.
+        """
         assert self.mean_ is not None and self.components_ is not None
         return np.asarray(Z @ self.components_ + self.mean_)
 
     def fit_transform(self, X: AnyFloatArray) -> FloatArray:
+        """Fit the PCA basis and return the reduced representation of ``X``."""
         self.fit(X)
         return self.transform(X)
 
