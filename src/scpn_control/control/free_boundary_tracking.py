@@ -1039,6 +1039,19 @@ class FreeBoundaryTrackingController:
         return self._observe_snapshot().effective
 
     def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:  # pragma: no cover
+        """Identify the shape-response matrix by perturbing each coil current.
+
+        Parameters
+        ----------
+        perturbation
+            Coil-current perturbation amplitude; defaults to the configured
+            identification perturbation. Must be finite and positive.
+
+        Returns
+        -------
+        FloatArray
+            The ``∂observation / ∂I_coil`` response matrix.
+        """
         p = self.identification_perturbation if perturbation is None else float(perturbation)
         if not np.isfinite(p) or p <= 0.0:
             raise ValueError("perturbation must be finite and > 0.")
@@ -1143,6 +1156,21 @@ class FreeBoundaryTrackingController:
         *,
         metrics: dict[str, Any] | None = None,
     ) -> FloatArray:
+        """Compute the coil-current correction toward the shape targets.
+
+        Parameters
+        ----------
+        observation
+            Current shape-observation vector (must match the target shape).
+        metrics
+            Optional precomputed objective metrics; evaluated from
+            ``observation`` when omitted.
+
+        Returns
+        -------
+        FloatArray
+            The coil-current correction vector.
+        """
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         if obs.shape != self.target_vector.shape:
             raise ValueError("observation must match the free-boundary target vector shape.")
@@ -1211,6 +1239,18 @@ class FreeBoundaryTrackingController:
         return metrics_after, true_metrics_after, supervisor_after, max_abs_actuator_lag, fallback_active
 
     def evaluate_objectives(self, observation: AnyFloatArray) -> dict[str, Any]:
+        """Evaluate shape-tracking objective metrics for an observation.
+
+        Parameters
+        ----------
+        observation
+            The shape-observation vector.
+
+        Returns
+        -------
+        dict[str, Any]
+            Tracking-error norms and shape diagnostics (RMS, max abs, X-point).
+        """
         obs = np.asarray(observation, dtype=np.float64).reshape(-1)
         error = self.target_vector - obs
         metrics: dict[str, Any] = {
@@ -1272,6 +1312,22 @@ class FreeBoundaryTrackingController:
         max_abs_coil_current: float,
         max_abs_actuator_lag: float,
     ) -> dict[str, Any]:
+        """Apply the supervisory limit checks to the tracking metrics.
+
+        Parameters
+        ----------
+        metrics
+            Objective metrics from :meth:`evaluate_objectives`.
+        max_abs_coil_current
+            Coil-current limit for the supervisor.
+        max_abs_actuator_lag
+            Actuator-lag limit for the supervisor.
+
+        Returns
+        -------
+        dict[str, Any]
+            The supervisory verdict and per-limit flags.
+        """
         metric_map = {
             "tracking_error_norm": metrics.get("tracking_error_norm"),
             "shape_rms": metrics.get("shape_rms"),
@@ -1330,6 +1386,25 @@ class FreeBoundaryTrackingController:
         disturbance_callback: Callable[[Any, CoilSet, int], None] | None = None,
         stop_on_convergence: bool = False,
     ) -> dict[str, Any]:
+        """Run a closed-loop free-boundary shape-tracking shot.
+
+        Parameters
+        ----------
+        shot_steps
+            Number of control steps; must be at least 1.
+        gain
+            Correction gain; must be finite and positive.
+        disturbance_callback
+            Optional callback ``(state, coils, step) -> None`` injecting
+            disturbances each step.
+        stop_on_convergence
+            Whether to stop early once the tracking error converges.
+
+        Returns
+        -------
+        dict[str, Any]
+            The shot history and final tracking metrics.
+        """
         steps = int(shot_steps)
         if steps < 1:
             raise ValueError("shot_steps must be >= 1.")
