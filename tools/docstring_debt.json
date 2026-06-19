@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 42,
+  "total": 40,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.director_interface": 2,
@@ -37,7 +37,6 @@
     "scpn_control.phase.lyapunov_guard": 1,
     "scpn_control.phase.ws_phase_stream": 1,
     "scpn_control.scpn.compiler": 2,
-    "scpn_control.scpn.formal_verification": 1,
-    "scpn_control.scpn.geometry_neutral_replay": 2
+    "scpn_control.scpn.formal_verification": 1
   }
 }

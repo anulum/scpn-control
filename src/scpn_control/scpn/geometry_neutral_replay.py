@@ -1006,6 +1006,18 @@ def load_geometry_neutral_replay_evidence(
 
 
 def render_markdown(report: Mapping[str, Any]) -> str:
+    """Render a geometry-neutral-replay report as a Markdown document.
+
+    Parameters
+    ----------
+    report
+        The benchmark report mapping produced by the replay run.
+
+    Returns
+    -------
+    str
+        The Markdown report text.
+    """
     bench = report["geometry_neutral_replay"]
     metrics = bench["metrics"]
     lines = [
@@ -1053,6 +1065,18 @@ def render_geometry_neutral_markdown(report: Mapping[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the geometry-neutral stellarator replay benchmark CLI.
+
+    Parameters
+    ----------
+    argv
+        Command-line arguments; defaults to ``sys.argv`` when ``None``.
+
+    Returns
+    -------
+    int
+        Process exit code (non-zero on a strict-mode failure).
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--steps", type=int, default=12)
     parser.add_argument("--seed", type=int, default=314159)
