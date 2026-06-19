@@ -265,8 +265,8 @@ def test_main_update_baseline_allows_increase_with_flag(
     assert json.loads(ledger_path.read_text())["total"] == 3
 
 
-def test_main_fails_on_unparseable_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """An unparseable strict probe is a hard failure, not a silent pass."""
+def test_main_fails_on_unparsable_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An unparsable strict probe is a hard failure, not a silent pass."""
 
     monkeypatch.setattr(rms, "run_configured_mypy", lambda: (0, "Success: no issues found\n"))
     monkeypatch.setattr(rms, "run_strict_probe", lambda: "mypy: fatal internal error\n")
