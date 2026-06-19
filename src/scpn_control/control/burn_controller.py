@@ -503,6 +503,28 @@ class BurnController:
         self.last_P_aux = P_aux_max_MW / 2.0
 
     def step(self, Q_meas: float, T_meas_keV: float, P_alpha_MW: float, dt: float) -> float:
+        """Advance the burn-temperature PI controller one step.
+
+        Suppresses auxiliary heating above 30 keV to prevent alpha runaway
+        (Mitarai & Muraoka 1999).
+
+        Parameters
+        ----------
+        Q_meas
+            Measured fusion gain; must be non-negative.
+        T_meas_keV
+            Measured ion temperature in keV; must be non-negative.
+        P_alpha_MW
+            Alpha-heating power in MW; must be non-negative.
+        dt
+            Time step in seconds; must be positive.
+
+        Returns
+        -------
+        float
+            The commanded auxiliary heating power in MW, clipped to
+            ``[0, P_aux_max]``.
+        """
         _require_nonnegative_scalar("Q_meas", Q_meas)
         T_meas_keV = _require_nonnegative_scalar("T_meas_keV", T_meas_keV)
         _require_nonnegative_scalar("P_alpha_MW", P_alpha_MW)
@@ -531,6 +553,22 @@ class BurnController:
 
 @dataclass
 class BurnPoint:
+    """A candidate burn operating point from a temperature scan.
+
+    Attributes
+    ----------
+    Te_keV
+        Electron temperature in keV.
+    P_alpha_MW
+        Alpha-heating power in MW.
+    P_loss_MW
+        Energy-loss power in MW.
+    Q
+        Fusion gain at this point.
+    stable
+        Whether the point is thermally stable.
+    """
+
     Te_keV: float
     P_alpha_MW: float
     P_loss_MW: float
@@ -539,6 +577,14 @@ class BurnPoint:
 
 
 class SubignitedBurnPoint:
+    """Sub-ignited burn operating-point finder via 0-D power balance.
+
+    Parameters
+    ----------
+    alpha_heating
+        The alpha-heating model providing the geometry and P_α(T).
+    """
+
     def __init__(self, alpha_heating: AlphaHeating):
         self.alpha = alpha_heating
         self.stability = BurnStabilityAnalysis(alpha_heating)
