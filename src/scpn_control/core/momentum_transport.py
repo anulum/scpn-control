@@ -246,12 +246,31 @@ def _nonnegative_profile_or_scalar(
 
 
 class RotationDiagnostics:
+    """Toroidal-rotation diagnostics: Mach number and RWM stabilisation."""
+
     @staticmethod
     def mach_number(
         omega_phi: AnyFloatArray,
         Ti_keV: AnyFloatArray,
         R0: float,
     ) -> FloatArray:
+        """Toroidal sonic Mach number ``|v_phi| / c_s``.
+
+        Parameters
+        ----------
+        omega_phi
+            Toroidal angular-rotation profile in rad/s.
+        Ti_keV
+            Ion-temperature profile in keV (same shape as ``omega_phi``); must
+            be positive.
+        R0
+            Major radius in metres; must be positive.
+
+        Returns
+        -------
+        FloatArray
+            The sonic Mach-number profile.
+        """
         omega_phi = _finite_array("omega_phi", omega_phi)
         Ti_keV = _finite_array("Ti_keV", Ti_keV)
         _require_equal_shape("omega_phi and Ti_keV", omega_phi, Ti_keV)
@@ -271,6 +290,22 @@ class RotationDiagnostics:
         omega_phi: AnyFloatArray,
         tau_wall: float,
     ) -> bool:
+        """Whether the rotation satisfies the RWM wall-stabilisation criterion.
+
+        Applies the ``ω τ_wall > O(1)`` condition (Bondeson & Ward 1994).
+
+        Parameters
+        ----------
+        omega_phi
+            Toroidal angular-rotation profile in rad/s; must be non-empty.
+        tau_wall
+            Resistive-wall time in seconds; must be positive.
+
+        Returns
+        -------
+        bool
+            ``True`` when the core rotation stabilises the resistive-wall mode.
+        """
         omega_phi = _finite_array("omega_phi", omega_phi)
         if omega_phi.size == 0:
             raise ValueError("omega_phi must not be empty")
@@ -282,6 +317,22 @@ class RotationDiagnostics:
 
 
 class MomentumTransportSolver:
+    """Toroidal angular-momentum transport solver with a Prandtl closure.
+
+    Parameters
+    ----------
+    rho
+        Normalised-radius grid (resampled to an edge grid).
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres; must be positive.
+    B0
+        Toroidal field on axis in tesla; must be positive.
+    prandtl
+        Momentum Prandtl number ``χ_φ / χ_i`` (Peeters 2011).
+    """
+
     def __init__(
         self,
         rho: AnyFloatArray,
