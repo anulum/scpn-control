@@ -37,6 +37,20 @@ _predict_disruption_risk = cast(_PredictRiskFn, predict_disruption_risk)
 
 @dataclass(frozen=True)
 class ToraxPlasmaState:
+    """Reduced plasma state exchanged with the TORAX transport solver.
+
+    Attributes
+    ----------
+    beta_n
+        Normalised beta.
+    q95
+        Edge safety factor q95.
+    li3
+        Internal inductance li(3).
+    w_thermal_mj
+        Thermal stored energy in MJ.
+    """
+
     beta_n: float
     q95: float
     li3: float
@@ -45,6 +59,26 @@ class ToraxPlasmaState:
 
 @dataclass(frozen=True)
 class ToraxHybridCampaignResult:
+    """Summary of a TORAX-coupled hybrid-control campaign.
+
+    Attributes
+    ----------
+    episodes
+        Number of episodes run.
+    steps_per_episode
+        Control steps per episode.
+    disruption_avoidance_rate
+        Fraction of episodes that avoided disruption.
+    torax_parity_pct
+        Agreement with the TORAX reference as a percentage.
+    p95_loop_latency_ms
+        95th-percentile control-loop latency in milliseconds.
+    mean_risk
+        Mean disruption risk over the campaign.
+    passes_thresholds
+        Whether all acceptance thresholds were met.
+    """
+
     episodes: int
     steps_per_episode: int
     disruption_avoidance_rate: float
