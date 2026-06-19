@@ -75,6 +75,22 @@ def _ordered_heating_scan(name: str, values: AnyFloatArray) -> FloatArray:
 
 @dataclass
 class PredatorPreyResult:
+    """Time traces from a predator-prey L–H transition simulation.
+
+    Attributes
+    ----------
+    epsilon_trace
+        Turbulence-intensity trace, one sample per step.
+    V_ZF_trace
+        Zonal-flow shear trace, one sample per step.
+    p_trace
+        Pressure-gradient trace, one sample per step.
+    time
+        Time grid in seconds.
+    regime
+        Final confinement regime label (e.g. ``"L"``, ``"I-phase"``, ``"H"``).
+    """
+
     epsilon_trace: AnyFloatArray
     V_ZF_trace: AnyFloatArray
     p_trace: AnyFloatArray
@@ -100,6 +116,18 @@ class PredatorPreyModel:
         self.gamma_damp = _finite_scalar("gamma_damp", gamma_damp, positive=True)
 
     def confinement_time(self, epsilon: float) -> float:
+        """Energy confinement time degraded by turbulence intensity.
+
+        Parameters
+        ----------
+        epsilon
+            Turbulence-intensity level; must be non-negative.
+
+        Returns
+        -------
+        float
+            Confinement time ``τ_E0 / (1 + C ε)`` in seconds.
+        """
         # τ_E = τ_E0 / (1 + C·ε); degradation with turbulence level.
         epsilon = _finite_scalar("epsilon", epsilon, nonnegative=True)
         tau_E0 = 1.0  # s, normalisation
@@ -117,6 +145,22 @@ class PredatorPreyModel:
         return float(self.alpha3 * eps_star)
 
     def step(self, state: AnyFloatArray, dt: float, Q_heating: float) -> FloatArray:
+        """Advance the predator-prey state one explicit Euler step.
+
+        Parameters
+        ----------
+        state
+            Three-element state ``[epsilon, V_ZF, pressure]``; non-negative.
+        dt
+            Time step in seconds; must be positive.
+        Q_heating
+            Heating power source term; must be non-negative.
+
+        Returns
+        -------
+        FloatArray
+            The updated ``[epsilon, V_ZF, pressure]`` state, floored at zero.
+        """
         state = np.asarray(state, dtype=float)
         if state.shape != (3,):
             raise ValueError("state must contain epsilon, V_ZF, and pressure")
@@ -136,6 +180,22 @@ class PredatorPreyModel:
         return np.maximum(state + np.array([d_eps, d_V, d_p]) * dt, 0.0)
 
     def evolve(self, Q_heating: float, t_span: tuple[float, float], dt: float) -> PredatorPreyResult:
+        """Integrate the predator-prey model over a time span.
+
+        Parameters
+        ----------
+        Q_heating
+            Constant heating power; must be non-negative.
+        t_span
+            ``(t_start, t_end)`` in seconds with ``t_end > t_start``.
+        dt
+            Time step in seconds; must be positive and at most the span.
+
+        Returns
+        -------
+        PredatorPreyResult
+            The turbulence, zonal-flow, and pressure traces and the final regime.
+        """
         Q_heating = _finite_scalar("Q_heating", Q_heating, nonnegative=True)
         dt = _finite_scalar("dt", dt, positive=True)
         if len(t_span) != 2:
@@ -170,6 +230,14 @@ class PredatorPreyModel:
 
 
 class LHTrigger:
+    """L→H transition power-threshold finder for the predator-prey model.
+
+    Parameters
+    ----------
+    model
+        The predator-prey turbulence model to probe.
+    """
+
     def __init__(self, model: PredatorPreyModel):
         self.model = model
 
@@ -304,6 +372,16 @@ class IPhaseFrequency:
 
 
 class LHTransitionController:
+    """Heating-power controller that drives and holds the L→H transition.
+
+    Parameters
+    ----------
+    model
+        The predator-prey turbulence model.
+    Q_target
+        Target heating power; must be non-negative.
+    """
+
     def __init__(self, model: PredatorPreyModel, Q_target: float):
         self.model = model
         self.Q_target = _finite_scalar("Q_target", Q_target, nonnegative=True)
