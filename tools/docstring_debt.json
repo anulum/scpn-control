@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 192,
+  "total": 186,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -16,7 +16,6 @@
     "scpn_control.control.digital_twin_ingest": 4,
     "scpn_control.control.director_interface": 2,
     "scpn_control.control.disruption_contracts": 5,
-    "scpn_control.control.disruption_predictor": 6,
     "scpn_control.control.federated_disruption": 1,
     "scpn_control.control.free_boundary_tracking": 5,
     "scpn_control.control.fueling_mode": 3,

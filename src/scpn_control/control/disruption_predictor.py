@@ -461,6 +461,21 @@ class HybridAnomalyDetector:
         self.initialized = False
 
     def score(self, signal: Any, toroidal_observables: dict[str, float] | None = None) -> dict[str, Any]:
+        """Combine the supervised risk with an online novelty (anomaly) score.
+
+        Parameters
+        ----------
+        signal
+            The diagnostic signal scored by the supervised predictor.
+        toroidal_observables
+            Optional toroidal observables passed to the supervised predictor.
+
+        Returns
+        -------
+        dict[str, Any]
+            A mapping with the supervised disruption risk, the EMA-based
+            unsupervised novelty score, and the running signal statistics.
+        """
         supervised = predict_disruption_risk(signal, toroidal_observables)
         value = float(supervised)
 
@@ -566,6 +581,8 @@ def _repo_root() -> Path:
 
 
 def default_model_path() -> Path:
+    """Return the default trained-model artifact path."""
+
     return _repo_root() / "artifacts" / DEFAULT_MODEL_FILENAME
 
 
@@ -704,6 +721,18 @@ if torch is not None:  # pragma: no cover
             self.sigmoid = nn.Sigmoid()
 
         def forward(self, src: Any) -> Any:
+            """Forward pass of the disruption transformer.
+
+            Parameters
+            ----------
+            src
+                Input sequence batch, shape ``(batch, seq_len, n_features)``.
+
+            Returns
+            -------
+            Any
+                The per-sequence disruption score tensor.
+            """
             if src.ndim != 3:
                 raise ValueError(f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}.")
             if src.shape[1] < 1:
@@ -728,6 +757,8 @@ if torch is not None:  # pragma: no cover
 else:  # pragma: no cover - only used without torch installed
 
     class DisruptionTransformer:  # type: ignore[no-redef]
+        """Fallback stub used when torch is unavailable."""
+
         def __init__(self) -> None:
             raise RuntimeError("Torch is required for DisruptionTransformer.")
 
@@ -740,6 +771,33 @@ def train_predictor(  # pragma: no cover - requires torch+matplotlib
     seed: int = 42,
     save_plot: bool = True,
 ) -> tuple[Any, dict[str, Any]]:
+    """Train a disruption-transformer predictor on synthetic shot sequences.
+
+    Parameters
+    ----------
+    seq_len
+        Input sequence length.
+    n_shots
+        Number of synthetic shots to generate.
+    epochs
+        Training epochs.
+    model_path
+        Optional output path for the trained model.
+    seed
+        Random seed.
+    save_plot
+        Whether to save a training-curve plot.
+
+    Returns
+    -------
+    tuple[Any, dict[str, Any]]
+        The trained model and a training-history/metrics mapping.
+
+    Raises
+    ------
+    RuntimeError
+        If torch is unavailable.
+    """
     if torch is None or optim is None:
         raise RuntimeError("Torch is required for train_predictor().")
 
@@ -836,6 +894,36 @@ def load_or_train_predictor(
     allow_fallback: bool = False,
     allow_legacy_fallback: bool = False,
 ) -> tuple[Any, dict[str, Any]]:
+    """Load a trained predictor, training one if missing.
+
+    Parameters
+    ----------
+    model_path
+        Optional path to a saved model.
+    seq_len
+        Input sequence length.
+    force_retrain
+        Retrain even when a saved model exists.
+    train_kwargs
+        Optional keyword arguments forwarded to :func:`train_predictor`.
+    train_if_missing
+        Train a new model when none is found.
+    allow_fallback
+        Permit the legacy deterministic fallback (requires
+        ``allow_legacy_fallback``).
+    allow_legacy_fallback
+        Enable the legacy deterministic fallback path.
+
+    Returns
+    -------
+    tuple[Any, dict[str, Any]]
+        The model and its metadata mapping.
+
+    Raises
+    ------
+    ValueError
+        If ``allow_fallback`` is set without ``allow_legacy_fallback``.
+    """
     if allow_fallback and not allow_legacy_fallback:
         raise ValueError(
             "allow_fallback=True requires allow_legacy_fallback=True; "
