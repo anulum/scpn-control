@@ -27,6 +27,22 @@ _C_RHO: float = 0.1
 
 @dataclass
 class SawtoothEvent:
+    """A single sawtooth crash event.
+
+    Attributes
+    ----------
+    crash_time
+        Time of the crash in seconds.
+    rho_1
+        Normalised radius of the q=1 surface.
+    rho_mix
+        Kadomtsev mixing radius in normalised radius.
+    T_drop
+        Central-temperature drop fraction across the crash.
+    seed_energy
+        Free energy released, available to seed NTMs.
+    """
+
     crash_time: float
     rho_1: float
     rho_mix: float
@@ -197,6 +213,16 @@ def porcelli_trigger(
 
 
 class SawtoothMonitor:
+    """Tracks the q=1 surface and the Porcelli sawtooth-crash trigger.
+
+    Parameters
+    ----------
+    rho
+        Normalised-radius grid.
+    s_crit
+        Critical magnetic shear at the q=1 surface for the trigger.
+    """
+
     def __init__(self, rho: AnyFloatArray, s_crit: float = 0.1):
         if rho.ndim != 1:
             raise ValueError("rho must be one-dimensional")
@@ -374,6 +400,26 @@ class SawtoothCycler:
         T: AnyFloatArray,
         n: AnyFloatArray,
     ) -> SawtoothEvent | None:
+        """Advance the sawtooth cycle one step and fire a crash if triggered.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds.
+        q
+            Safety-factor profile.
+        shear
+            Magnetic-shear profile.
+        T
+            Temperature profile.
+        n
+            Density profile.
+
+        Returns
+        -------
+        SawtoothEvent or None
+            The crash event when the Porcelli trigger fires, otherwise ``None``.
+        """
         self.time += dt
 
         fired = self.monitor.check_trigger(
