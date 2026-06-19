@@ -57,6 +57,20 @@ def _require_positive_profile(name: str, values: AnyFloatArray, shape: tuple[int
 
 @dataclass
 class AlfvenGap:
+    """A toroidicity-induced gap in the shear Alfvén continuum.
+
+    Attributes
+    ----------
+    rho_location
+        Normalised radius of the gap.
+    omega_lower
+        Lower gap frequency in rad/s.
+    omega_upper
+        Upper gap frequency in rad/s.
+    m_coupling
+        Lower poloidal mode number of the coupled pair.
+    """
+
     rho_location: float
     omega_lower: float
     omega_upper: float
@@ -102,6 +116,18 @@ class AlfvenContinuum:
         self.v_A = self.B0 / np.sqrt(_MU_0 * self.rho_mass)
 
     def alfven_speed(self, rho_eval: float) -> float:
+        """Alfvén speed interpolated at a normalised radius.
+
+        Parameters
+        ----------
+        rho_eval
+            Normalised radius within the continuum grid.
+
+        Returns
+        -------
+        float
+            The local Alfvén speed in m/s.
+        """
         if not np.isfinite(rho_eval) or rho_eval < self.rho[0] or rho_eval > self.rho[-1]:
             raise ValueError("rho_eval must be finite and within the continuum grid")
         return float(np.interp(rho_eval, self.rho, self.v_A))
@@ -184,6 +210,7 @@ class TAEMode:
         return self.v_A / (2.0 * self.q * self.R0)
 
     def frequency_kHz(self) -> float:
+        """TAE frequency in kilohertz (``frequency() / 2π`` in kHz)."""
         return self.frequency() / (2.0 * np.pi * 1e3)
 
     def electron_landau_damping(self) -> float:
@@ -239,6 +266,20 @@ class FastParticleDrive:
         self.v_fast = np.sqrt(2.0 * E_J / self.m_fast)
 
     def beta_fast(self, ne_20: float, B0: float) -> float:
+        """Fast-particle beta fraction.
+
+        Parameters
+        ----------
+        ne_20
+            Electron density in 10²⁰ m⁻³; must be positive.
+        B0
+            Toroidal field on axis in tesla; must be positive.
+
+        Returns
+        -------
+        float
+            The fast-particle beta.
+        """
         ne_20 = _require_positive_scalar("ne_20", ne_20)
         B0 = _require_positive_scalar("B0", B0)
         n_e = ne_20 * 1e20
@@ -284,6 +325,26 @@ class FastParticleDrive:
 
 @dataclass
 class TAEStabilityResult:
+    """Stability verdict for one toroidal Alfvén eigenmode.
+
+    Attributes
+    ----------
+    n
+        Toroidal mode number.
+    m
+        Dominant poloidal mode number.
+    frequency_kHz
+        Mode frequency in kilohertz.
+    gamma_drive
+        Fast-particle drive growth rate in s⁻¹.
+    gamma_damp
+        Electron Landau damping rate in s⁻¹.
+    gamma_net
+        Net growth rate ``gamma_drive - gamma_damp`` in s⁻¹.
+    unstable
+        ``True`` when the net growth rate is positive.
+    """
+
     n: int
     m: int
     frequency_kHz: float
@@ -313,6 +374,21 @@ class AlfvenStabilityAnalysis:
         self.T_e_keV = _require_positive_scalar("T_e_keV", T_e_keV)
 
     def tae_stability(self, n_range: range = range(1, 6)) -> list[TAEStabilityResult]:
+        """Assess TAE stability across a range of toroidal mode numbers.
+
+        For each continuum gap, balances fast-particle drive against electron
+        Landau damping.
+
+        Parameters
+        ----------
+        n_range
+            Toroidal mode numbers to evaluate.
+
+        Returns
+        -------
+        list[TAEStabilityResult]
+            One stability result per mode found in the gaps.
+        """
         results: list[TAEStabilityResult] = []
         for n in n_range:
             gaps = self.continuum.find_gaps(n)
