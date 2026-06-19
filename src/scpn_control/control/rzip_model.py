@@ -194,6 +194,35 @@ def save_rzip_calibration_evidence(evidence: RZIPCalibrationEvidence, path: str 
 
 
 class RZIPModel:
+    """Rigid-plasma (RZIP) vertical-displacement response and circuit model.
+
+    Assembles the linear state space ``x = [Z, dZ/dt, I_1, …, I_n]`` coupling
+    the vertical plasma motion to the passive vessel and active-coil currents,
+    where the destabilising force constant is ``K = n_index μ₀ I_p² / (4π R0)``.
+
+    Parameters
+    ----------
+    R0
+        Major radius in metres; must be finite and positive.
+    a
+        Minor radius in metres; must be finite, positive, and below ``R0``.
+    kappa
+        Plasma elongation (dimensionless); must be positive.
+    Ip_MA
+        Plasma current in MA; must be positive.
+    B0
+        Toroidal field on axis in tesla; must be positive.
+    n_index
+        Field decay index (dimensionless); ``n < 0`` is vertically unstable.
+    vessel
+        Conducting-vessel model supplying element inductances and resistances.
+    active_coils
+        Optional active control coils appended to the circuit.
+    vertical_inertia_kg
+        Effective vertical inertia of the bounded RZIP plant in kg; must be
+        positive.
+    """
+
     def __init__(
         self,
         R0: float,
@@ -252,6 +281,23 @@ class RZIPModel:
     def build_state_space(
         self,
     ) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
+        """Assemble the linear state-space matrices of the RZIP plant.
+
+        States are ``[Z, dZ/dt, I_1, …, I_n_circuits]`` and inputs are the
+        active-coil voltages.
+
+        Returns
+        -------
+        tuple of NDArray[np.float64]
+            The ``(A, B, C, D)`` matrices: ``A`` is ``(n_states, n_states)``,
+            ``B`` is ``(n_states, n_coils)``, ``C`` selects ``Z`` as the output,
+            and ``D`` is zero.
+
+        Raises
+        ------
+        ValueError
+            If the circuit inductance matrix is singular.
+        """
         # x = [Z, dZ/dt, I_1, ..., I_n]
         n_states = 2 + self.n_circuits
         n_inputs = self.n_coils
@@ -316,22 +362,50 @@ class RZIPModel:
         return A, B, C, D
 
     def vertical_growth_rate(self) -> float:
+        """Largest real eigenvalue of the open-loop plant (growth rate).
+
+        Returns
+        -------
+        float
+            The vertical instability growth rate in s⁻¹ (negative if stable).
+        """
         A, _, _, _ = self.build_state_space()
         eigvals = np.linalg.eigvals(A)
         return float(np.max(np.real(eigvals)))
 
     def vertical_growth_time(self) -> float:
+        """Vertical-instability e-folding time.
+
+        Returns
+        -------
+        float
+            The growth time in milliseconds (``inf`` if the plant is stable).
+        """
         gamma = self.vertical_growth_rate()
         if gamma <= 0.0:
             return float("inf")
         return 1000.0 / gamma  # in ms
 
     def stability_margin(self) -> float:
+        """Passive vertical-stability margin.
+
+        Returns
+        -------
+        float
+            The field decay index ``n_index``; positive values are passively
+            stable, the marginal point being ``n_index = 0``.
+        """
         # Distance from marginality (n_index = 0 typically)
         return float(self.n_index)
 
 
 class VerticalStabilityAnalysis:
+    """Field-based decay-index and feedback-gain stability diagnostics.
+
+    Static helpers that compute the vertical-field decay index from a poloidal
+    field map and the controller bounds for delayed RZIP stabilisation.
+    """
+
     @staticmethod
     def _differentiate_radial(field: NDArray[np.float64], r_axis: NDArray[np.float64]) -> NDArray[np.float64]:
         derivative = np.empty_like(field, dtype=float)
@@ -420,6 +494,21 @@ class VerticalStabilityAnalysis:
 
     @staticmethod
     def passive_stability_margin(n_index: float, tau_wall: float) -> float:
+        """Passive vertical-stability margin set by the field decay index.
+
+        Parameters
+        ----------
+        n_index
+            Field decay index (dimensionless); must be finite.
+        tau_wall
+            Wall vertical-stabilisation time constant in seconds; must be
+            positive.
+
+        Returns
+        -------
+        float
+            The decay index ``n_index`` (the passive margin proxy).
+        """
         if not np.isfinite(n_index):
             raise ValueError("n_index must be finite.")
         if not np.isfinite(tau_wall) or tau_wall <= 0.0:
@@ -454,6 +543,24 @@ class VerticalStabilityAnalysis:
 
 
 class RZIPController:
+    """LQR vertical-position controller for the RZIP plant.
+
+    Solves the continuous-time algebraic Riccati equation for the optimal gain
+    weighting position (``Kp``) and velocity (``Kd``), falling back to zero gain
+    when SciPy is unavailable or the Riccati solve fails.
+
+    Parameters
+    ----------
+    rzip
+        The RZIP plant model providing the state space.
+    Kp
+        Position state-cost weight (dimensionless); floored at 1.0, must be
+        non-negative.
+    Kd
+        Velocity state-cost weight (dimensionless); floored at 1.0, must be
+        non-negative.
+    """
+
     def __init__(self, rzip: RZIPModel, Kp: float, Kd: float):
         self.rzip = rzip
         if not np.isfinite(Kp) or Kp < 0.0:
@@ -482,6 +589,24 @@ class RZIPController:
             self.K_gain = np.zeros((B.shape[1], A.shape[1]))
 
     def step(self, dZ_measured: float, dt: float) -> NDArray[np.float64]:
+        """Compute the active-coil voltage command for one control cycle.
+
+        Estimates the vertical velocity from successive position measurements and
+        applies the LQR law ``u = -K x`` with coil and wall currents assumed zero
+        (no observer).
+
+        Parameters
+        ----------
+        dZ_measured
+            Measured vertical displacement in metres; must be finite.
+        dt
+            Control time step in seconds; must be positive.
+
+        Returns
+        -------
+        NDArray[np.float64]
+            The commanded active-coil voltages in volts, shape ``(n_coils,)``.
+        """
         if not np.isfinite(dZ_measured):
             raise ValueError("dZ_measured must be finite.")
         if not np.isfinite(dt) or dt <= 0.0:
@@ -502,6 +627,14 @@ class RZIPController:
         return np.asarray(V_coils)
 
     def closed_loop_eigenvalues(self) -> NDArray[np.float64]:
+        """Eigenvalues of the LQR closed-loop system matrix ``A - B K``.
+
+        Returns
+        -------
+        NDArray[np.float64]
+            The complex closed-loop eigenvalues; negative real parts indicate a
+            stabilised vertical mode.
+        """
         A, B, C, D = self.rzip.build_state_space()
         A_cl = A - B @ self.K_gain
         return np.linalg.eigvals(A_cl)
