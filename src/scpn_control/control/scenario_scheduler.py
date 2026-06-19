@@ -23,6 +23,20 @@ from scpn_control._typing import AnyFloatArray, FloatArray
 
 @dataclass
 class ScenarioWaveform:
+    """A named time-series waveform with interpolated lookup.
+
+    Attributes
+    ----------
+    name
+        Waveform identifier (e.g. ``"Ip"``, ``"P_aux"``).
+    times
+        Knot times in seconds, monotonically increasing.
+    values
+        Waveform values at the knot times.
+    interp_kind
+        Interpolation kind (default linear with flat extrapolation).
+    """
+
     name: str
     times: AnyFloatArray
     values: AnyFloatArray
@@ -35,6 +49,14 @@ class ScenarioWaveform:
 
 
 class ScenarioSchedule:
+    """A collection of named waveforms defining a full discharge scenario.
+
+    Parameters
+    ----------
+    waveforms
+        Mapping of waveform name to :class:`ScenarioWaveform`.
+    """
+
     def __init__(self, waveforms: dict[str, ScenarioWaveform]):
         self.waveforms = waveforms
 
@@ -162,6 +184,8 @@ class ScenarioOptimizer:
 
 
 def iter_15ma_baseline() -> ScenarioSchedule:
+    """Return the ITER 15 MA inductive baseline scenario schedule."""
+
     times = np.array([0, 10, 30, 60, 400, 430, 480], dtype=float)
     ip_vals = np.array([0.5, 5.0, 10.0, 15.0, 15.0, 10.0, 2.0])
     p_nbi = np.array([0.0, 0.0, 10.0, 33.0, 33.0, 10.0, 0.0])
@@ -179,6 +203,8 @@ def iter_15ma_baseline() -> ScenarioSchedule:
 
 
 def nstx_u_1ma_standard() -> ScenarioSchedule:
+    """Return the NSTX-U 1 MA standard scenario schedule."""
+
     times = np.array([0.0, 0.2, 0.5, 1.5, 1.8, 2.0])
     ip_vals = np.array([0.1, 0.5, 1.0, 1.0, 0.5, 0.1])
     p_aux = np.array([0.0, 2.0, 8.0, 8.0, 2.0, 0.0])
