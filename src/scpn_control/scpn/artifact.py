@@ -52,6 +52,18 @@ FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "lean4", "z3"}
 
 @dataclass
 class FixedPoint:
+    """Fixed-point number format of the packed weights.
+
+    Attributes
+    ----------
+    data_width
+        Total word width in bits.
+    fraction_bits
+        Number of fractional bits.
+    signed
+        Whether the format is signed (two's complement).
+    """
+
     data_width: int
     fraction_bits: int
     signed: bool
@@ -59,6 +71,18 @@ class FixedPoint:
 
 @dataclass
 class SeedPolicy:
+    """Deterministic random-seed policy for reproducible firing.
+
+    Attributes
+    ----------
+    id
+        Seed-policy identifier.
+    hash_fn
+        Name of the hash function used to derive seeds.
+    rng_family
+        Random-number-generator family.
+    """
+
     id: str
     hash_fn: str
     rng_family: str
@@ -66,6 +90,18 @@ class SeedPolicy:
 
 @dataclass
 class CompilerInfo:
+    """Provenance of the compiler that produced the artifact.
+
+    Attributes
+    ----------
+    name
+        Compiler name.
+    version
+        Compiler version string.
+    git_sha
+        Git commit SHA of the compiler build.
+    """
+
     name: str
     version: str
     git_sha: str
@@ -73,6 +109,32 @@ class CompilerInfo:
 
 @dataclass
 class ArtifactMeta:
+    """Metadata header of a controller artifact.
+
+    Attributes
+    ----------
+    artifact_version
+        Artifact schema version.
+    name
+        Human-readable controller name.
+    dt_control_s
+        Control time step in seconds.
+    stream_length
+        Number of stochastic stream words per weight.
+    fixed_point
+        Fixed-point format of the packed weights.
+    firing_mode
+        Transition firing mode.
+    seed_policy
+        Deterministic seed policy.
+    created_utc
+        Creation timestamp in UTC ISO-8601.
+    compiler
+        Compiler provenance.
+    notes
+        Optional free-text notes.
+    """
+
     artifact_version: str
     name: str
     dt_control_s: float
@@ -87,12 +149,38 @@ class ArtifactMeta:
 
 @dataclass
 class PlaceSpec:
+    """A Petri-net place.
+
+    Attributes
+    ----------
+    id
+        Place index.
+    name
+        Place name.
+    """
+
     id: int
     name: str
 
 
 @dataclass
 class TransitionSpec:
+    """A Petri-net transition with its firing threshold.
+
+    Attributes
+    ----------
+    id
+        Transition index.
+    name
+        Transition name.
+    threshold
+        Firing threshold on the weighted input.
+    margin
+        Optional hysteresis margin around the threshold.
+    delay_ticks
+        Firing delay in control ticks.
+    """
+
     id: int
     name: str
     threshold: float
@@ -102,24 +190,66 @@ class TransitionSpec:
 
 @dataclass
 class Topology:
+    """Petri-net topology: places and transitions.
+
+    Attributes
+    ----------
+    places
+        The network places.
+    transitions
+        The network transitions.
+    """
+
     places: List[PlaceSpec]
     transitions: List[TransitionSpec]
 
 
 @dataclass
 class WeightMatrix:
+    """Dense row-major weight matrix.
+
+    Attributes
+    ----------
+    shape
+        ``[rows, cols]`` of the matrix.
+    data
+        Row-major matrix entries.
+    """
+
     shape: List[int]  # [rows, cols]
     data: List[float]  # row-major
 
 
 @dataclass
 class PackedWeights:
+    """Bit-packed stochastic weight tensor.
+
+    Attributes
+    ----------
+    shape
+        ``[rows, cols, words]`` of the packed tensor.
+    data_u64
+        Packed 64-bit words.
+    """
+
     shape: List[int]  # [rows, cols, words]
     data_u64: List[int]
 
 
 @dataclass
 class PackedWeightsGroup:
+    """Packed input and optional output weight streams.
+
+    Attributes
+    ----------
+    words_per_stream
+        Number of 64-bit words per stochastic stream.
+    w_in_packed
+        Packed input weights.
+    w_out_packed
+        Optional packed output weights.
+    """
+
     words_per_stream: int
     w_in_packed: PackedWeights
     w_out_packed: PackedWeights | None = None
@@ -127,6 +257,18 @@ class PackedWeightsGroup:
 
 @dataclass
 class Weights:
+    """Controller weights in dense and optional packed form.
+
+    Attributes
+    ----------
+    w_in
+        Dense input weight matrix.
+    w_out
+        Dense output weight matrix.
+    packed
+        Optional bit-packed stochastic weights.
+    """
+
     w_in: WeightMatrix
     w_out: WeightMatrix
     packed: PackedWeightsGroup | None = None
@@ -134,6 +276,20 @@ class Weights:
 
 @dataclass
 class ActionReadout:
+    """Differential readout mapping two places to one action.
+
+    Attributes
+    ----------
+    id
+        Action index.
+    name
+        Action name.
+    pos_place
+        Place contributing the positive term.
+    neg_place
+        Place contributing the negative term.
+    """
+
     id: int
     name: str
     pos_place: int
@@ -142,6 +298,20 @@ class ActionReadout:
 
 @dataclass
 class Readout:
+    """Action readout layer with per-action scaling and limits.
+
+    Attributes
+    ----------
+    actions
+        The differential action readouts.
+    gains
+        Per-action output gain.
+    abs_max
+        Per-action absolute output limit.
+    slew_per_s
+        Per-action slew-rate limit in units per second.
+    """
+
     actions: List[ActionReadout]
     gains: List[float]
     abs_max: List[float]
@@ -150,6 +320,22 @@ class Readout:
 
 @dataclass
 class PlaceInjection:
+    """Mapping of an external signal into a place marking.
+
+    Attributes
+    ----------
+    place_id
+        Target place index.
+    source
+        Name of the external input signal.
+    scale
+        Multiplicative scale applied to the source.
+    offset
+        Additive offset applied after scaling.
+    clamp_0_1
+        Whether the result is clamped to [0, 1].
+    """
+
     place_id: int
     source: str
     scale: float
@@ -159,6 +345,16 @@ class PlaceInjection:
 
 @dataclass
 class InitialState:
+    """Initial marking and external input injections.
+
+    Attributes
+    ----------
+    marking
+        Initial token marking per place.
+    place_injections
+        External-signal injections into places.
+    """
+
     marking: List[float]
     place_injections: List[PlaceInjection]
 
@@ -211,10 +407,12 @@ class Artifact:
 
     @property
     def nP(self) -> int:
+        """Number of places in the topology."""
         return len(self.topology.places)
 
     @property
     def nT(self) -> int:
+        """Number of transitions in the topology."""
         return len(self.topology.transitions)
 
 
