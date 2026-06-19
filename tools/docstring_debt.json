@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 316,
+  "total": 308,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -39,7 +39,6 @@
     "scpn_control.control.tokamak_digital_twin": 1,
     "scpn_control.control.tokamak_flight_sim": 3,
     "scpn_control.control.torax_hybrid_loop": 2,
-    "scpn_control.control.volt_second_manager": 8,
     "scpn_control.core.__init__": 1,
     "scpn_control.core.alfven_eigenmodes": 6,
     "scpn_control.core.blob_transport": 7,

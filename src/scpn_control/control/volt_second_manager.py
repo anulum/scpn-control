@@ -91,6 +91,21 @@ def _strict_rho(values: NDArray[np.float64]) -> NDArray[np.float64]:
 
 @dataclass
 class FluxStatus:
+    """Instantaneous volt-second consumption status.
+
+    Attributes
+    ----------
+    flux_consumed_Vs
+        Volt-seconds consumed so far.
+    flux_remaining_Vs
+        Volt-seconds remaining in the budget.
+    estimated_remaining_time_s
+        Estimated time to budget exhaustion at the current loop voltage, in
+        seconds.
+    fraction_consumed
+        Fraction of the total budget consumed.
+    """
+
     flux_consumed_Vs: float
     flux_remaining_Vs: float
     estimated_remaining_time_s: float
@@ -99,6 +114,24 @@ class FluxStatus:
 
 @dataclass
 class FluxReport:
+    """Per-phase decomposition of scenario volt-second consumption.
+
+    Attributes
+    ----------
+    ramp_flux
+        Volt-seconds consumed during the current ramp-up.
+    flat_top_flux
+        Volt-seconds consumed during flat-top.
+    ramp_down_flux
+        Volt-seconds consumed (net) during ramp-down.
+    total_flux
+        Total volt-seconds consumed across the scenario.
+    within_budget
+        ``True`` if the total stays within the available budget.
+    margin_Vs
+        Volt-second margin (budget minus total); negative if over budget.
+    """
+
     ramp_flux: float
     flat_top_flux: float
     ramp_down_flux: float
@@ -379,6 +412,20 @@ class FluxBudget:
         return C_EJIMA * MU_0 * R0_m * (Ip_MA * 1e6)
 
     def remaining_flux(self, Ip_MA: float, ramp_flux: float) -> float:
+        """Volt-seconds left after inductive and ramp consumption.
+
+        Parameters
+        ----------
+        Ip_MA
+            Plasma current in MA.
+        ramp_flux
+            Volt-seconds already consumed during ramp-up; must be non-negative.
+
+        Returns
+        -------
+        float
+            Remaining volt-seconds, floored at zero.
+        """
         ramp_flux = _finite_scalar("ramp_flux", ramp_flux, nonnegative=True)
         ind = self.inductive_flux(Ip_MA)
         consumed = ind + ramp_flux
@@ -398,11 +445,38 @@ class FluxBudget:
 
 
 class VoltSecondOptimizer:
+    """Current-ramp planner that respects the volt-second budget.
+
+    Parameters
+    ----------
+    flux_budget
+        The available flux budget.
+    transport_model
+        Optional transport model used to refine the ramp; the linear default
+        ramp does not use it.
+    """
+
     def __init__(self, flux_budget: FluxBudget, transport_model: Callable[..., Any] | None = None):
         self.budget = flux_budget
         self.transport_model = transport_model
 
     def optimize_ramp(self, Ip_target_MA: float, t_ramp_max: float, n_segments: int = 10) -> NDArray[np.float64]:
+        """Plan a current ramp to the target over the allowed ramp time.
+
+        Parameters
+        ----------
+        Ip_target_MA
+            Target plasma current in MA; must be non-negative.
+        t_ramp_max
+            Maximum ramp duration in seconds; must be positive.
+        n_segments
+            Number of ramp samples; must be at least 2.
+
+        Returns
+        -------
+        NDArray[np.float64]
+            The plasma-current trace in MA, shape ``(n_segments,)``.
+        """
         Ip_target_MA = _finite_scalar("Ip_target_MA", Ip_target_MA, nonnegative=True)
         t_ramp_max = _finite_scalar("t_ramp_max", t_ramp_max, positive=True)
         n_segments = _positive_int("n_segments", n_segments, minimum=2)
@@ -412,6 +486,8 @@ class VoltSecondOptimizer:
 
 
 class BootstrapCurrentEstimate:
+    """Bootstrap-current proxy from pressure-gradient profiles."""
+
     @staticmethod
     def from_profiles(
         ne: NDArray[np.float64],
@@ -450,6 +526,14 @@ class BootstrapCurrentEstimate:
 
 
 class FluxConsumptionMonitor:
+    """Online volt-second consumption tracker integrating the loop voltage.
+
+    Parameters
+    ----------
+    flux_budget
+        The available flux budget against which consumption is tracked.
+    """
+
     def __init__(self, flux_budget: FluxBudget):
         self.budget = flux_budget
         self.consumed = 0.0
@@ -478,6 +562,14 @@ class FluxConsumptionMonitor:
 
 
 class ScenarioFluxAnalysis:
+    """Per-phase volt-second budget analysis of a full scenario.
+
+    Parameters
+    ----------
+    flux_budget
+        The available flux budget.
+    """
+
     def __init__(self, flux_budget: FluxBudget):
         self.budget = flux_budget
 
