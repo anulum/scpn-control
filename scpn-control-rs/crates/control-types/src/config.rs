@@ -8,10 +8,33 @@
 
 use crate::error::FusionResult;
 use crate::state::Grid2D;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::fs::File;
 use std::io::Read;
 use std::path::Path;
+
+/// Minimum grid points per axis: a finite-difference grid needs at least two
+/// nodes per axis so the spacing `(max - min) / (n - 1)` is well defined.
+/// `Grid2D::new` computes `n - 1` on `usize`, so a resolution of 0 underflows
+/// (panic) and 1 divides by zero — both are rejected here at deserialisation so
+/// an untrusted config never reaches grid construction with a degenerate axis.
+const MIN_GRID_RESOLUTION: usize = 2;
+
+/// Deserialise and validate `grid_resolution`, rejecting any axis below
+/// [`MIN_GRID_RESOLUTION`] with a serde error rather than letting a degenerate
+/// value panic later in `Grid2D::new`.
+fn deserialize_grid_resolution<'de, D>(deserializer: D) -> Result<[usize; 2], D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let resolution = <[usize; 2]>::deserialize(deserializer)?;
+    if resolution[0] < MIN_GRID_RESOLUTION || resolution[1] < MIN_GRID_RESOLUTION {
+        return Err(serde::de::Error::custom(format!(
+            "grid_resolution components must each be >= {MIN_GRID_RESOLUTION}, got {resolution:?}"
+        )));
+    }
+    Ok(resolution)
+}
 
 /// Top-level reactor configuration.
 /// Maps 1:1 to iter_config.json schema.
@@ -19,6 +42,7 @@ use std::path::Path;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReactorConfig {
     pub reactor_name: String,
+    #[serde(deserialize_with = "deserialize_grid_resolution")]
     pub grid_resolution: [usize; 2],
     pub dimensions: GridDimensions,
     pub physics: PhysicsParams,
@@ -193,5 +217,52 @@ mod tests {
         assert_eq!(cfg.reactor_name, cfg2.reactor_name);
         assert_eq!(cfg.grid_resolution, cfg2.grid_resolution);
         assert_eq!(cfg.coils.len(), cfg2.coils.len());
+    }
+
+    fn config_json_with_resolution(resolution: &str) -> String {
+        format!(
+            r#"{{
+                "reactor_name": "fuzz",
+                "grid_resolution": {resolution},
+                "dimensions": {{"R_min": 2.0, "R_max": 10.0, "Z_min": -6.0, "Z_max": 6.0}},
+                "physics": {{"plasma_current_target": 15.0, "vacuum_permeability": 1.0}},
+                "coils": [],
+                "solver": {{"max_iterations": 1000, "convergence_threshold": 1e-4}}
+            }}"#
+        )
+    }
+
+    /// Regression for the fuzz crash (Fuzz nightly run 27815219303): a config
+    /// with `grid_resolution = [0, 165]` reached `Grid2D::new`, where `nr - 1`
+    /// underflowed on `usize` and panicked. A degenerate axis must now be
+    /// rejected at deserialisation with an error, never panic.
+    #[test]
+    fn test_rejects_degenerate_grid_resolution() {
+        for resolution in ["[0, 165]", "[165, 0]", "[1, 165]", "[165, 1]", "[0, 0]"] {
+            let json = config_json_with_resolution(resolution);
+            let parsed = serde_json::from_str::<ReactorConfig>(&json);
+            assert!(
+                parsed.is_err(),
+                "grid_resolution {resolution} must be rejected, not accepted"
+            );
+            let message = parsed.unwrap_err().to_string();
+            assert!(
+                message.contains("grid_resolution"),
+                "error should name grid_resolution, got: {message}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_accepts_minimal_grid_resolution_and_builds_grid() {
+        let json = config_json_with_resolution("[2, 2]");
+        let cfg = serde_json::from_str::<ReactorConfig>(&json).expect("res >= 2 must parse");
+        assert_eq!(cfg.grid_resolution, [2, 2]);
+        // The smallest valid grid constructs without panicking and has finite spacing.
+        let grid = cfg.create_grid();
+        assert_eq!(grid.nr, 2);
+        assert_eq!(grid.nz, 2);
+        assert!(grid.dr.is_finite() && grid.dr > 0.0);
+        assert!(grid.dz.is_finite() && grid.dz > 0.0);
     }
 }
