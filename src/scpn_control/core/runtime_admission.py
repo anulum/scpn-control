@@ -57,9 +57,11 @@ class RuntimeAdmissionRequest:
 
     @property
     def requested_cores(self) -> tuple[int, int, int, int]:
+        """The requested CPU cores ``(snn, z3, net, hb)`` for pinning."""
         return (self.core_snn, self.core_z3, self.core_net, self.core_hb)
 
     def as_dict(self) -> dict[str, object]:
+        """Return the runtime-admission request as a JSON-serialisable mapping."""
         return {
             "execution_backend": self.execution_backend,
             "pacing_mode": self.pacing_mode,
@@ -100,6 +102,7 @@ class RuntimeAdmissionProbe:
     native_snapshot: Mapping[str, object] | None = None
 
     def as_dict(self) -> dict[str, object]:
+        """Return the runtime-environment snapshot as a JSON-serialisable mapping."""
         return {
             "generated_ns": self.generated_ns,
             "platform_system": self.platform_system,
