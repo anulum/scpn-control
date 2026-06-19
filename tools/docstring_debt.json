@@ -7,7 +7,7 @@
     "D104",
     "D106"
   ],
-  "total": 292,
+  "total": 285,
   "per_module": {
     "scpn_control.control.advanced_soc_fusion_learning": 6,
     "scpn_control.control.analytic_solver": 2,
@@ -76,7 +76,6 @@
     "scpn_control.core.rust_engine": 7,
     "scpn_control.core.sawtooth": 3,
     "scpn_control.core.sol_model": 1,
-    "scpn_control.core.tearing_mode_coupling": 7,
     "scpn_control.core.tokamak_config": 2,
     "scpn_control.core.vmec_lite": 3,
     "scpn_control.phase.adaptive_knm": 1,

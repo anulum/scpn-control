@@ -76,6 +76,22 @@ def _profile_axis(name: str, values: AnyFloatArray) -> FloatArray:
 
 @dataclass
 class CoupledResult:
+    """Time traces from a coupled two-mode tearing evolution.
+
+    Attributes
+    ----------
+    w1_trace
+        Island half-width of the first mode in metres, per step.
+    w2_trace
+        Island half-width of the second mode in metres, per step.
+    chirikov_trace
+        Chirikov overlap parameter σ per step.
+    overlap_time
+        Time at which the islands overlap (σ > 1) in seconds, or ``-1`` if never.
+    disruption
+        ``True`` if island overlap triggered a disruption.
+    """
+
     w1_trace: AnyFloatArray
     w2_trace: AnyFloatArray
     chirikov_trace: AnyFloatArray
@@ -284,6 +300,14 @@ class CoupledTearingModes:
 
 
 class SawtoothNTMSeeding:
+    """Sawtooth-crash seeding of neoclassical tearing modes.
+
+    Parameters
+    ----------
+    sawtooth_cycler
+        Optional sawtooth-cycle model; ``None`` uses the analytic seed scaling.
+    """
+
     def __init__(self, sawtooth_cycler: SawtoothCycler | None):
         self.st = sawtooth_cycler
 
@@ -298,6 +322,22 @@ class SawtoothNTMSeeding:
         return 0.05 * math.sqrt(crash_energy_MJ)
 
     def seed_probability(self, crash_energy: float, threshold: float) -> float:
+        """Probability that a sawtooth crash seeds an NTM.
+
+        Zero below the threshold crash energy, then ``1 − exp(−(E − E_th))``.
+
+        Parameters
+        ----------
+        crash_energy
+            Sawtooth crash free energy; must be non-negative.
+        threshold
+            Seeding threshold energy; must be non-negative.
+
+        Returns
+        -------
+        float
+            Seeding probability in [0, 1].
+        """
         crash_energy = _finite_scalar("crash_energy", crash_energy, nonnegative=True)
         threshold = _finite_scalar("threshold", threshold, nonnegative=True)
         if crash_energy < threshold:
@@ -308,11 +348,31 @@ class SawtoothNTMSeeding:
 
 @dataclass
 class DisruptionPath:
+    """Outcome of a seeded-NTM disruption-path assessment.
+
+    Attributes
+    ----------
+    warning_time_ms
+        Time from seeding to island overlap in milliseconds, or ``-1`` if no
+        disruption occurred.
+    avoidable
+        ``True`` if removing the bootstrap drive (ideal ECCD) prevents the
+        disruption.
+    """
+
     warning_time_ms: float
     avoidable: bool
 
 
 class DisruptionTriggerAssessment:
+    """Assess whether a seeded NTM drives a disruption and if ECCD avoids it.
+
+    Parameters
+    ----------
+    coupled
+        The coupled two-mode tearing model.
+    """
+
     def __init__(self, coupled: CoupledTearingModes):
         self.coupled = coupled
 
@@ -323,6 +383,28 @@ class DisruptionTriggerAssessment:
         omega_phi: float,
         seed_energy: float,  # noqa: ARG002
     ) -> DisruptionPath:
+        """Evolve a seeded NTM and test ECCD avoidance.
+
+        Seeds an island from the crash energy, evolves the coupled modes, then
+        re-runs with the bootstrap drive zeroed to test avoidability.
+
+        Parameters
+        ----------
+        j_bs
+            Bootstrap current density at the rational surface; must be
+            non-negative.
+        j_phi
+            Total toroidal current density; must be positive.
+        omega_phi
+            Toroidal rotation frequency in rad/s; must be positive.
+        seed_energy
+            Sawtooth seed energy; must be non-negative.
+
+        Returns
+        -------
+        DisruptionPath
+            The warning time and whether the disruption is ECCD-avoidable.
+        """
         j_bs = _finite_scalar("j_bs", j_bs, nonnegative=True)
         j_phi = _finite_scalar("j_phi", j_phi, positive=True)
         _finite_scalar("omega_phi", omega_phi, positive=True)
@@ -349,6 +431,8 @@ class DisruptionTriggerAssessment:
 
 
 class TearingModeStabilityMap:
+    """Heuristic NTM stability map over the beta_N–internal-inductance plane."""
+
     def scan_beta_li(self, beta_N_range: AnyFloatArray, li_range: AnyFloatArray) -> FloatArray:
         """Heuristic stability map: beta_N × l_i > 3.0 → unstable.
 
