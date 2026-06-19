@@ -37,6 +37,8 @@ GAIN_REGULARISATION: float = 1e-6
 
 
 class FaultType(Enum):
+    """Actuator and sensor fault categories."""
+
     STUCK_ACTUATOR = auto()
     OPEN_CIRCUIT_ACTUATOR = auto()
     SENSOR_DROPOUT = auto()
@@ -46,6 +48,22 @@ class FaultType(Enum):
 
 @dataclass
 class FaultReport:
+    """A detected fault flagged by the FDI monitor.
+
+    Attributes
+    ----------
+    component_index
+        Index of the faulted actuator or sensor.
+    is_sensor
+        ``True`` if the faulted component is a sensor, ``False`` for an actuator.
+    fault_type
+        The detected fault category.
+    confidence
+        Detection confidence in [0, 1].
+    time_detected
+        Time of detection in seconds.
+    """
+
     component_index: int
     is_sensor: bool
     fault_type: FaultType
@@ -165,6 +183,20 @@ class ReconfigurableController:
         return np.asarray(K)
 
     def handle_actuator_fault(self, coil_index: int, fault_type: FaultType, stuck_val: float = 0.0) -> None:
+        """Reconfigure the controller around a faulted actuator coil.
+
+        Zeroes the coil's Jacobian column and recomputes the control gain;
+        records the held value for a stuck actuator.
+
+        Parameters
+        ----------
+        coil_index
+            Index of the faulted coil.
+        fault_type
+            The actuator fault category.
+        stuck_val
+            Held output value for a stuck actuator.
+        """
         if coil_index in self.faulted_coils:
             return
 
@@ -177,6 +209,24 @@ class ReconfigurableController:
         self.K = self._compute_gain()
 
     def handle_sensor_fault(self, sensor_index: int, fault_type: FaultType) -> None:
+        """Reconfigure the controller around a faulted sensor.
+
+        Zeroes the sensor's weighting and recomputes the control gain.
+
+        Parameters
+        ----------
+        sensor_index
+            Index of the faulted sensor.
+        fault_type
+            The sensor fault category (dropout, drift, or noise increase).
+
+        Raises
+        ------
+        IndexError
+            If ``sensor_index`` is outside the configured sensor range.
+        ValueError
+            If ``fault_type`` is not a sensor fault.
+        """
         if sensor_index < 0 or sensor_index >= self.n_sensors:
             raise IndexError("sensor_index outside configured sensor range")
         if fault_type not in {
@@ -229,6 +279,20 @@ class ReconfigurableController:
 
 
 class FaultInjector:
+    """Inject a fault into actuator/sensor signals after a trigger time.
+
+    Parameters
+    ----------
+    fault_time
+        Time at which the fault begins, in seconds.
+    component_index
+        Index of the component to corrupt.
+    fault_type
+        The fault category to inject.
+    severity
+        Fault severity scale (e.g. drift rate).
+    """
+
     def __init__(self, fault_time: float, component_index: int, fault_type: FaultType, severity: float = 1.0):
         self.fault_time = fault_time
         self.component_index = component_index
@@ -236,6 +300,20 @@ class FaultInjector:
         self.severity = severity
 
     def inject(self, t: float, signals: AnyFloatArray) -> AnyFloatArray:
+        """Return the signal vector with the configured fault applied.
+
+        Parameters
+        ----------
+        t
+            Current time in seconds; the fault applies once ``t >= fault_time``.
+        signals
+            The clean signal vector.
+
+        Returns
+        -------
+        AnyFloatArray
+            The signals with the fault applied (unchanged before the fault time).
+        """
         if t < self.fault_time:
             return signals
 
