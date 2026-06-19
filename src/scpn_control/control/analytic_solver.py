@@ -228,6 +228,19 @@ class AnalyticEquilibriumSolver:
         return np.asarray(currents, dtype=np.float64)
 
     def apply_currents(self, currents: AnyFloatArray) -> None:
+        """Set the kernel coil currents from a current vector.
+
+        Parameters
+        ----------
+        currents
+            Coil currents, one per kernel coil; must be finite and match the
+            coil count.
+
+        Raises
+        ------
+        ValueError
+            If the length mismatches the coils or any value is non-finite.
+        """
         arr = np.asarray(currents, dtype=np.float64).reshape(-1)
         coils = self.kernel.cfg.get("coils", [])
         if arr.size != len(coils):
@@ -242,6 +255,22 @@ class AnalyticEquilibriumSolver:
         currents: AnyFloatArray,
         output_path: str | None = None,
     ) -> str:
+        """Apply coil currents and save the resulting kernel config to JSON.
+
+        Parameters
+        ----------
+        currents
+            Coil currents to apply (see :meth:`apply_currents`).
+        output_path
+            Destination JSON path; defaults to
+            ``validation/iter_analytic_config.json`` under the repo root.
+            Preserved metadata keys in an existing file are retained.
+
+        Returns
+        -------
+        str
+            The path to the written configuration file.
+        """
         self.apply_currents(currents)
         if output_path is None:
             repo_root = Path(__file__).resolve().parents[3]
