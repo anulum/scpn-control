@@ -73,6 +73,8 @@ def _ordered_nonnegative_array(name: str, values: AnyFloatArray) -> FloatArray:
 
 
 class DetachmentState(Enum):
+    """Divertor detachment regime classification."""
+
     ATTACHED = auto()
     PARTIALLY_DETACHED = auto()
     FULLY_DETACHED = auto()
@@ -80,6 +82,20 @@ class DetachmentState(Enum):
 
 
 class RadiationFrontModel:
+    """Impurity radiation-front position and detachment-degree model.
+
+    Parameters
+    ----------
+    impurity
+        Seeding impurity species symbol.
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres; must be positive and below ``R0``.
+    q95
+        Edge safety factor q95; must be positive.
+    """
+
     def __init__(self, impurity: str, R0: float, a: float, q95: float):
         self.impurity = impurity
         self.R0 = _finite_scalar("R0", R0, positive=True)
@@ -189,6 +205,29 @@ class DetachmentController:
     def step(
         self, T_t_measured: float, n_t_measured: float, P_rad_measured: float, rho_front: float, dt: float
     ) -> float:
+        """Compute the impurity seeding-rate command for one control cycle.
+
+        PI control on the target-temperature error, with a hard seeding cutback
+        when the radiation front reaches the X-point (MARFE risk).
+
+        Parameters
+        ----------
+        T_t_measured
+            Measured divertor target temperature in eV; must be positive.
+        n_t_measured
+            Measured target density in 10¹⁹ m⁻³; must be positive.
+        P_rad_measured
+            Measured radiated power in MW; must be non-negative.
+        rho_front
+            Radiation-front position in [0, 1] (0 = target, 1 = X-point).
+        dt
+            Control time step in seconds; must be positive.
+
+        Returns
+        -------
+        float
+            The commanded impurity seeding rate (non-negative).
+        """
         T_t_measured = _finite_scalar("T_t_measured", T_t_measured, positive=True)
         _finite_scalar("n_t_measured", n_t_measured, positive=True)
         _finite_scalar("P_rad_measured", P_rad_measured, nonnegative=True)
@@ -213,6 +252,24 @@ class DetachmentController:
 
 @dataclass
 class DetachmentPoint:
+    """One steady-state point on the detachment bifurcation scan.
+
+    Attributes
+    ----------
+    seeding_rate
+        Impurity seeding rate at this point.
+    T_target
+        Divertor target temperature in eV.
+    n_target
+        Divertor target density in 10¹⁹ m⁻³.
+    DOD
+        Degree of detachment.
+    P_rad_frac
+        Radiated power fraction.
+    state
+        The detachment regime at this point.
+    """
+
     seeding_rate: float
     T_target: float
     n_target: float
@@ -264,6 +321,22 @@ class DetachmentBifurcation:
         return DetachmentPoint(seeding_rate, T_t, res.n_target_19, dod, f_rad, state)
 
     def scan_seeding(self, seeding_range: AnyFloatArray, P_SOL_MW: float, n_u_19: float) -> list[DetachmentPoint]:
+        """Scan steady-state detachment across a range of seeding rates.
+
+        Parameters
+        ----------
+        seeding_range
+            Strictly increasing non-negative seeding rates.
+        P_SOL_MW
+            Scrape-off-layer power in MW; must be positive.
+        n_u_19
+            Upstream density in 10¹⁹ m⁻³; must be positive.
+
+        Returns
+        -------
+        list[DetachmentPoint]
+            One steady-state detachment point per seeding rate.
+        """
         seeding_range = _ordered_nonnegative_array("seeding_range", seeding_range)
         return [self._steady_state_target(sr, P_SOL_MW, n_u_19) for sr in seeding_range]
 
@@ -285,11 +358,37 @@ class DetachmentBifurcation:
 
 
 class MultiImpuritySeeding:
+    """Coordinator running one detachment controller per impurity species.
+
+    Parameters
+    ----------
+    impurities
+        Impurity species symbols to seed.
+    controllers
+        Per-impurity detachment controllers keyed by species symbol.
+    """
+
     def __init__(self, impurities: list[str], controllers: dict[str, DetachmentController]):
         self.impurities = impurities
         self.controllers = controllers
 
     def step(self, diagnostics: dict[str, float], dt: float) -> dict[str, float]:
+        """Compute per-impurity seeding rates from a diagnostics frame.
+
+        Parameters
+        ----------
+        diagnostics
+            Diagnostic values (``T_target_eV``, ``n_target_19``, ``P_rad_MW``,
+            ``rho_front``); defaults are used for absent keys.
+        dt
+            Control time step in seconds; must be positive.
+
+        Returns
+        -------
+        dict[str, float]
+            Seeding rate per impurity species (0.0 for species without a
+            controller).
+        """
         dt = _finite_scalar("dt", dt, positive=True)
         T_t = _finite_scalar("T_target_eV", diagnostics.get("T_target_eV", 20.0), positive=True)
         n_t = _finite_scalar("n_target_19", diagnostics.get("n_target_19", 10.0), positive=True)
