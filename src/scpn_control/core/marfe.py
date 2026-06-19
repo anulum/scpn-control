@@ -78,6 +78,22 @@ def _front_temperature_state(values: AnyFloatArray, expected_size: int) -> Float
 
 
 class RadiationCondensation:
+    """Radiation-condensation (MARFE precursor) instability model.
+
+    Evaluates the local thermal-radiative instability growth rate and the
+    critical density from the impurity cooling curve (Drake 1987, Phys. Fluids
+    30, 2429).
+
+    Parameters
+    ----------
+    impurity
+        Impurity species symbol for the cooling curve.
+    ne_20
+        Electron density in 10²⁰ m⁻³; must be positive.
+    f_imp
+        Impurity fraction relative to electron density, in (0, 1].
+    """
+
     def __init__(self, impurity: str, ne_20: float, f_imp: float):
         self.impurity = impurity
         self.ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
@@ -154,6 +170,26 @@ class RadiationCondensation:
 
 
 class MARFEFrontModel:
+    """1-D parallel heat-front model of MARFE formation along a field line.
+
+    Integrates ``(3/2) n ∂_t T = κ_∥ ∂_s² T − n_e n_Z L_Z(T) + q_⊥`` on a
+    field-aligned grid from the core boundary to the X-point, where impurity
+    radiation can condense into a cold front.
+
+    Parameters
+    ----------
+    L_par
+        Parallel connection length in metres; must be positive.
+    kappa_par
+        Parallel heat conductivity in W m⁻¹ eV⁻¹; must be positive.
+    q_perp
+        Perpendicular heat input per unit volume; must be non-negative.
+    impurity
+        Impurity species symbol for the cooling curve.
+    f_imp
+        Impurity fraction relative to electron density, in (0, 1].
+    """
+
     def __init__(self, L_par: float, kappa_par: float, q_perp: float, impurity: str, f_imp: float):
         self.L_par = _finite_scalar("L_par", L_par, positive=True)
         self.kappa_par = _finite_scalar("kappa_par", kappa_par, positive=True)
@@ -168,6 +204,21 @@ class MARFEFrontModel:
         self.curve = CoolingCurve(impurity)
 
     def step(self, dt: float, ne_20: float) -> FloatArray:
+        """Advance the front temperature one implicit diffusion step.
+
+        Parameters
+        ----------
+        dt
+            Time step in seconds; must be positive.
+        ne_20
+            Electron density in 10²⁰ m⁻³; must be positive.
+
+        Returns
+        -------
+        FloatArray
+            The updated parallel temperature profile in eV, shape ``(n_s,)``,
+            floored at 1 eV.
+        """
         import scipy.linalg
 
         dt = _finite_scalar("dt", dt, positive=True)
@@ -215,6 +266,18 @@ class MARFEFrontModel:
         return self.T
 
     def equilibrium(self, ne_20: float) -> FloatArray:
+        """Relax the front to steady state over a fixed number of steps.
+
+        Parameters
+        ----------
+        ne_20
+            Electron density in 10²⁰ m⁻³; must be positive.
+
+        Returns
+        -------
+        FloatArray
+            The relaxed parallel temperature profile in eV, shape ``(n_s,)``.
+        """
         ne_20 = _finite_scalar("ne_20", ne_20, positive=True)
         for _ in range(1000):
             self.step(1e-4, ne_20)
@@ -232,6 +295,8 @@ class MARFEFrontModel:
 
 
 class DensityLimitPredictor:
+    """Greenwald and heuristic MARFE-onset density limits."""
+
     @staticmethod
     def greenwald_limit(Ip_MA: float, a: float) -> float:
         """
@@ -261,6 +326,20 @@ class DensityLimitPredictor:
 
 
 class MARFEStabilityDiagram:
+    """MARFE stability map over the density–SOL-power plane for a device.
+
+    Parameters
+    ----------
+    R0
+        Major radius in metres; must be positive.
+    a
+        Minor radius in metres; must be positive and below ``R0``.
+    q95
+        Edge safety factor q95; must be positive.
+    impurity
+        Impurity species symbol for the cooling curve.
+    """
+
     _REFERENCE_CONNECTION_LENGTH_M = math.pi * 3.0 * 6.2
 
     def __init__(self, R0: float, a: float, q95: float, impurity: str):
@@ -277,6 +356,21 @@ class MARFEStabilityDiagram:
         return float(math.pi * self.q95 * self.R0)
 
     def scan_density_power(self, ne_range: AnyFloatArray, P_SOL_range: AnyFloatArray) -> FloatArray:
+        """Map MARFE stability over a density and SOL-power grid.
+
+        Parameters
+        ----------
+        ne_range
+            Strictly increasing electron densities in 10²⁰ m⁻³.
+        P_SOL_range
+            Strictly increasing scrape-off-layer powers in MW.
+
+        Returns
+        -------
+        FloatArray
+            A ``(len(ne_range), len(P_SOL_range))`` map: ``+1`` where the plasma
+            is MARFE-stable and ``-1`` where MARFE onset is predicted.
+        """
         ne_range = _ordered_positive_array("ne_range", ne_range)
         P_SOL_range = _ordered_positive_array("P_SOL_range", P_SOL_range)
         result = np.zeros((len(ne_range), len(P_SOL_range)))
