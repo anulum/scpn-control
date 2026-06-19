@@ -26,6 +26,18 @@ _logger = logging.getLogger(__name__)
 
 
 def generate_gs2_input(params: GKLocalParams) -> str:
+    """Render a GS2 ``gs2.in`` deck from local GK parameters.
+
+    Parameters
+    ----------
+    params
+        Local gyrokinetic input parameters.
+
+    Returns
+    -------
+    str
+        The GS2 input-deck text.
+    """
     R0_over_a = params.R0 / max(params.a, 0.01)
     return f"""\
 &theta_grid_eik_knobs
@@ -124,15 +136,51 @@ class GS2Solver(GKSolverBase):
         self.allow_legacy_fallback = bool(allow_legacy_fallback)
 
     def is_available(self) -> bool:
+        """Return whether the GS2 binary is on the PATH."""
         return shutil.which(self.binary) is not None
 
     def prepare_input(self, params: GKLocalParams) -> Path:
+        """Write the GS2 ``gs2.in`` deck and return its working directory.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters.
+
+        Returns
+        -------
+        Path
+            The working directory containing ``gs2.in``.
+        """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="gs2_"))
         base.mkdir(parents=True, exist_ok=True)
         (base / "gs2.in").write_text(generate_gs2_input(params))
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
+        """Execute GS2 on a prepared input directory.
+
+        Fails closed when the binary is unavailable, the run fails, or the output
+        is non-converged, unless the explicit legacy fallback is enabled.
+
+        Parameters
+        ----------
+        input_path
+            Working directory holding ``gs2.in``.
+        timeout_s
+            Subprocess timeout in seconds.
+
+        Returns
+        -------
+        GKOutput
+            The parsed GS2 result.
+
+        Raises
+        ------
+        RuntimeError
+            If GS2 is unavailable, fails, or returns non-converged output and the
+            legacy fallback is disabled.
+        """
         if not self.is_available():
             if not self.allow_fallback:
                 raise RuntimeError(
