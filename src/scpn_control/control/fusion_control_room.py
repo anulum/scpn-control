@@ -151,6 +151,18 @@ class DiagnosticSystem:
         self._rng = rng
 
     def measure_position(self, true_z: float) -> float:
+        """Return a noisy measurement of the vertical position.
+
+        Parameters
+        ----------
+        true_z
+            The true vertical position in metres.
+
+        Returns
+        -------
+        float
+            The measured position with additive Gaussian sensor noise.
+        """
         return float(true_z + self._rng.normal(0.0, 0.05))
 
 
@@ -162,6 +174,19 @@ class NeuralController:
         self.prev_error = 0.0
 
     def compute_action(self, measured_z: float) -> tuple[float, float]:
+        """Compute the vertical-stabilisation actuator forces from a measurement.
+
+        Parameters
+        ----------
+        measured_z
+            The measured vertical position in metres.
+
+        Returns
+        -------
+        tuple[float, float]
+            The two opposing actuator force magnitudes; one is zero depending on
+            the sign of the PID output.
+        """
         kp = 5.0
         ki = 0.1
         kd = 8.0

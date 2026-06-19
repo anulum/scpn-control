@@ -7,12 +7,11 @@
     "D104",
     "D106"
   ],
-  "total": 24,
+  "total": 22,
   "per_module": {
     "scpn_control.control.analytic_solver": 2,
     "scpn_control.control.director_interface": 2,
     "scpn_control.control.federated_disruption": 1,
-    "scpn_control.control.fusion_control_room": 2,
     "scpn_control.control.nmpc_controller": 1,
     "scpn_control.control.tokamak_digital_twin": 1,
     "scpn_control.core.__init__": 1,
