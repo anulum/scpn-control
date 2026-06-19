@@ -210,6 +210,21 @@ class IsoFluxController:
             logger.info(message)
 
     def pid_step(self, pid: Dict[str, float], error: float) -> float:
+        """Advance a PID controller one step and return its output.
+
+        Parameters
+        ----------
+        pid
+            Mutable PID state with ``Kp``, ``Ki``, ``Kd`` gains plus the running
+            ``err_sum`` and ``last_err`` accumulators (updated in place).
+        error
+            The current tracking error.
+
+        Returns
+        -------
+        float
+            The PID control output.
+        """
         pid["err_sum"] += error
         d_err = error - pid["last_err"]
         pid["last_err"] = error
@@ -227,6 +242,27 @@ class IsoFluxController:
         save_plot: bool = True,
         output_path: str = "Tokamak_Flight_Report.png",
     ) -> Dict[str, Any]:
+        """Run the closed-loop current-ramp / divertor-formation shot.
+
+        Parameters
+        ----------
+        shot_duration
+            Number of simulation steps; must be at least 1.
+        save_plot
+            Whether to render the flight-report figure.
+        output_path
+            File path for the rendered report.
+
+        Returns
+        -------
+        Dict[str, Any]
+            The shot summary and recorded trajectory history.
+
+        Raises
+        ------
+        ValueError
+            If ``shot_duration`` is less than 1.
+        """
         steps = int(shot_duration)
         if steps < 1:
             raise ValueError("shot_duration must be >= 1.")
@@ -371,6 +407,19 @@ class IsoFluxController:
         self,
         output_path: str = "Tokamak_Flight_Report.png",
     ) -> Tuple[bool, str | None]:
+        """Render the flight-report figure to a file.
+
+        Parameters
+        ----------
+        output_path
+            Destination path for the PNG figure.
+
+        Returns
+        -------
+        Tuple[bool, str | None]
+            ``(success, error_message)``; the message is ``None`` on success and
+            describes the failure (e.g. missing matplotlib) otherwise.
+        """
         try:
             import matplotlib.pyplot as plt
         except ImportError as exc:
