@@ -251,14 +251,17 @@ class NeuroCyberneticEngine:
 
     @property
     def transport_backend(self) -> str:
+        """Name of the active multicast transport backend."""
         return self._transport.backend
 
     @property
     def is_running(self) -> bool:
+        """Whether the control-engine loop is currently running."""
         return bool(self._running)
 
     @property
     def is_native_backend(self) -> bool:
+        """Whether the native Rust worker pool is active."""
         return self._native_pool is not None
 
     @property
@@ -325,6 +328,25 @@ class NeuroCyberneticEngine:
         heartbeat_port: int = 0,
         heartbeat_timeout_ms: int = 3,
     ) -> None:
+        """Configure the UDP multicast transport for state publishing.
+
+        Parameters
+        ----------
+        endpoint
+            Multicast group address.
+        port
+            Multicast port, 1–65535.
+        ttl
+            Multicast time-to-live, 1–255.
+        max_queue
+            Publisher backpressure queue depth, 1–4096.
+        backend
+            Transport backend name (e.g. ``"std"``).
+        heartbeat_port
+            Heartbeat UDP port; 0 disables the heartbeat.
+        heartbeat_timeout_ms
+            Heartbeat timeout in milliseconds, 1–120000.
+        """
         self._transport = _TransportSettings(
             endpoint=str(endpoint),
             port=_coerce_int("port", port, minimum=1, maximum=65535),
@@ -488,9 +510,28 @@ class NeuroCyberneticEngine:
         raise ValueError(f"gyro-Bohm constraint payload is missing required coefficient in {source}")
 
     def set_max_publish_failures(self, max_failures: int) -> None:
+        """Set the tolerated consecutive publish failures before halting.
+
+        Parameters
+        ----------
+        max_failures
+            Maximum consecutive publish failures, 0–1000000.
+        """
         self._max_publish_failures = _coerce_int("max_publish_failures", max_failures, minimum=0, maximum=1_000_000)
 
     def set_state_sampler(self, sampler: Callable[[], tuple[float, float]]) -> None:
+        """Install the callable that samples the live ``(R, Z)`` plant state.
+
+        Parameters
+        ----------
+        sampler
+            Zero-argument callable returning the measured ``(R, Z)`` position.
+
+        Raises
+        ------
+        TypeError
+            If ``sampler`` is not callable.
+        """
         if not callable(sampler):
             raise TypeError("sampler must be callable")
         self._state_sampler = sampler
@@ -1074,6 +1115,15 @@ class NeuroCyberneticEngine:
         return self.extract_slab_telemetry()
 
     def extract_slab_telemetry(self) -> dict[str, Any]:
+        """Return a snapshot of engine, transport, and bridge telemetry.
+
+        Returns
+        -------
+        dict[str, Any]
+            Running state, transport backend, target position, bridge payload
+            and heartbeat status, ITPA constraints, and any recorded runtime
+            admission and native-pool telemetry.
+        """
         bridge = self._bridge
         payload: dict[str, Any] = {
             "running": bool(self._running),
