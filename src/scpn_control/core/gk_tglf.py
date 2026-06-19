@@ -188,9 +188,22 @@ class TGLFSolver(GKSolverBase):
         self.work_dir = work_dir
 
     def is_available(self) -> bool:
+        """Return whether the TGLF binary is on the PATH."""
         return shutil.which(self.binary) is not None
 
     def prepare_input(self, params: GKLocalParams) -> Path:
+        """Write the TGLF ``input.tglf`` deck and return its working directory.
+
+        Parameters
+        ----------
+        params
+            Local gyrokinetic input parameters.
+
+        Returns
+        -------
+        Path
+            The working directory containing ``input.tglf``.
+        """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="tglf_"))
         base.mkdir(parents=True, exist_ok=True)
         input_file = base / "input.tglf"
@@ -198,6 +211,29 @@ class TGLFSolver(GKSolverBase):
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:
+        """Execute TGLF on a prepared input directory.
+
+        Fails closed when the binary is unavailable, the run fails, or the output
+        is non-converged, unless the explicit legacy fallback is enabled.
+
+        Parameters
+        ----------
+        input_path
+            Working directory holding ``input.tglf``.
+        timeout_s
+            Subprocess timeout in seconds.
+
+        Returns
+        -------
+        GKOutput
+            The parsed TGLF result.
+
+        Raises
+        ------
+        RuntimeError
+            If TGLF is unavailable, fails, or returns non-converged output and
+            the legacy fallback is disabled.
+        """
         if not self.is_available():
             raise TGLFExecutionError(f"TGLF binary '{self.binary}' is not available on PATH")
 
