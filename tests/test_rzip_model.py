@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 import json
-from dataclasses import replace
+from dataclasses import asdict, replace
 
 import numpy as np
 import pytest
@@ -17,6 +17,8 @@ from scpn_control.control.rzip_model import (
     RZIPCalibrationEvidence,
     RZIPController,
     RZIPModel,
+    VerticalStabilityAnalysis,
+    _evidence_payload_digest,
     assert_rzip_facility_claim_admissible,
     rzip_calibration_evidence,
     save_rzip_calibration_evidence,
@@ -497,6 +499,231 @@ def test_vertical_stability_analysis_rejects_nonrectilinear_grids() -> None:
 
     with pytest.raises(ValueError, match="rectilinear"):
         VerticalStabilityAnalysis.compute_n_index(psi, R, Z, R0=2.5)
+
+
+class _NanGrowthRZIP:
+    """Plant stub whose vertical growth rate is non-finite."""
+
+    M_eff = 1.0
+
+    @staticmethod
+    def vertical_growth_rate() -> float:
+        return float("nan")
+
+    @staticmethod
+    def vertical_growth_time() -> float:
+        return 1.0
+
+
+def _facility_evidence(simple_vessel):
+    rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
+    gamma = rzip.vertical_growth_rate()
+    return rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_rzip_symmetric_wall_case",
+        wall_time_constant_s=0.01,
+        reference_growth_rate_s_inv=gamma,
+        growth_rate_relative_tolerance=0.02,
+    )
+
+
+def test_calibration_evidence_rejects_blank_model_id(simple_vessel):
+    rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
+    with pytest.raises(ValueError, match="model_id must be a non-empty string"):
+        rzip_calibration_evidence(
+            rzip,
+            source="local_regression_reference",
+            source_id="case",
+            wall_time_constant_s=0.01,
+            model_id="   ",
+        )
+
+
+def test_calibration_evidence_rejects_non_finite_growth_rate():
+    with pytest.raises(ValueError, match="RZIP growth rate must be finite"):
+        rzip_calibration_evidence(
+            _NanGrowthRZIP(),
+            source="local_regression_reference",
+            source_id="case",
+            wall_time_constant_s=0.01,
+        )
+
+
+def test_calibration_evidence_flags_external_source_without_comparison(simple_vessel):
+    rzip = RZIPModel(R0=2.0, a=0.5, kappa=1.7, Ip_MA=1.0, B0=1.0, n_index=-1.0, vessel=simple_vessel)
+    evidence = rzip_calibration_evidence(
+        rzip,
+        source="external_code_benchmark",
+        source_id="reference_without_reference_growth_rate",
+        wall_time_constant_s=0.01,
+    )
+    assert evidence.facility_claim_allowed is False
+    assert "comparison is missing" in evidence.claim_status
+
+
+def test_facility_admission_rejects_non_evidence_object():
+    with pytest.raises(ValueError, match="must be RZIPCalibrationEvidence"):
+        assert_rzip_facility_claim_admissible({"not": "evidence"})
+
+
+def test_facility_admission_rejects_unsupported_schema_version(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), schema_version=99)
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_rejects_blank_source_id(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), source_id="   ")
+    with pytest.raises(ValueError, match="non-empty source_id"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_rejects_blank_model_id(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), model_id="   ")
+    with pytest.raises(ValueError, match="non-empty model_id"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_requires_reference_growth_rate(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), reference_growth_rate_s_inv=None)
+    with pytest.raises(ValueError, match="requires a reference growth rate"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_requires_finite_comparison_error(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), growth_rate_relative_error=None)
+    with pytest.raises(ValueError, match="finite growth-rate comparison error"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_requires_finite_model_growth_rate(simple_vessel):
+    tampered = replace(_facility_evidence(simple_vessel), growth_rate_s_inv=float("nan"))
+    with pytest.raises(ValueError, match="finite model growth rate"):
+        assert_rzip_facility_claim_admissible(tampered)
+
+
+def test_facility_admission_rejects_resealed_disallowed_claim(simple_vessel):
+    # Re-seal a payload whose facility flag is forced False while every other
+    # admission gate (including the digest) still passes, isolating the final guard.
+    admitted = _facility_evidence(simple_vessel)
+    forced = replace(admitted, facility_claim_allowed=False)
+    resealed = replace(forced, evidence_payload_sha256=_evidence_payload_digest(asdict(forced)))
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_rzip_facility_claim_admissible(resealed)
+
+
+def _flux_grid(target_n: float = 0.72, r0: float = 2.0, b_axis: float = 3.1):
+    r_axis = np.linspace(1.4, 2.6, 121)
+    z_axis = np.linspace(-0.35, 0.35, 41)
+    rr, zz = np.meshgrid(r_axis, z_axis)
+    psi = b_axis * ((1.0 + target_n) * rr**2 / 2.0 - target_n * rr**3 / (3.0 * r0))
+    return psi, r_axis, z_axis
+
+
+def test_compute_n_index_accepts_one_dimensional_axes():
+    psi, r_axis, z_axis = _flux_grid()
+    result = VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 2.0)
+    assert result == pytest.approx(0.72, rel=2e-3, abs=2e-3)
+
+
+def test_compute_n_index_rejects_one_dimensional_axis_size_mismatch():
+    psi = np.ones((4, 5), dtype=float)
+    with pytest.raises(ValueError, match="must match psi shape"):
+        VerticalStabilityAnalysis.compute_n_index(psi, np.linspace(1.0, 2.0, 9), np.linspace(-1.0, 1.0, 4), 1.5)
+
+
+def test_compute_n_index_rejects_axes_that_are_not_axes_or_grids():
+    psi = np.ones((5, 9), dtype=float)
+    bad = np.ones((3, 3), dtype=float)
+    with pytest.raises(ValueError, match="1-D axes or rectilinear 2-D grids"):
+        VerticalStabilityAnalysis.compute_n_index(psi, bad, bad, 2.0)
+
+
+def test_compute_n_index_rejects_too_few_grid_points():
+    psi = np.ones((2, 5), dtype=float)
+    with pytest.raises(ValueError, match="at least three R and Z points"):
+        VerticalStabilityAnalysis.compute_n_index(psi, np.linspace(1.0, 2.0, 5), np.array([-0.5, 0.5]), 1.5)
+
+
+def test_compute_n_index_rejects_non_finite_axes():
+    psi = np.ones((3, 3), dtype=float)
+    r_axis = np.array([2.0, 2.5, np.nan])
+    z_axis = np.array([-0.5, 0.0, 0.5])
+    with pytest.raises(ValueError, match="R/Z axes must be finite"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 2.2)
+
+
+def test_compute_n_index_rejects_non_increasing_axes():
+    psi = np.ones((3, 3), dtype=float)
+    r_axis = np.array([2.0, 2.0, 3.0])
+    z_axis = np.array([-0.5, 0.0, 0.5])
+    with pytest.raises(ValueError, match="strictly increasing"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 2.5)
+
+
+def test_compute_n_index_rejects_non_positive_radius_axis():
+    psi = np.ones((3, 3), dtype=float)
+    r_axis = np.array([-1.0, 0.0, 1.0])
+    z_axis = np.array([-0.5, 0.0, 0.5])
+    with pytest.raises(ValueError, match="R axis must be positive"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 0.5)
+
+
+def test_compute_n_index_rejects_non_two_dimensional_psi():
+    with pytest.raises(ValueError, match="psi must be a 2-D"):
+        VerticalStabilityAnalysis.compute_n_index(np.ones(5), np.linspace(1.0, 2.0, 5), np.linspace(-1.0, 1.0, 5), 1.5)
+
+
+def test_compute_n_index_rejects_non_finite_psi():
+    psi = np.ones((3, 3), dtype=float)
+    psi[1, 1] = np.inf
+    with pytest.raises(ValueError, match="psi grid must be finite"):
+        VerticalStabilityAnalysis.compute_n_index(psi, np.array([1.0, 2.0, 3.0]), np.array([-1.0, 0.0, 1.0]), 2.0)
+
+
+@pytest.mark.parametrize("r0", [0.0, float("nan"), -1.0])
+def test_compute_n_index_rejects_non_physical_r0(r0):
+    psi, r_axis, z_axis = _flux_grid()
+    with pytest.raises(ValueError, match="R0 must be finite and positive"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, r0)
+
+
+def test_compute_n_index_rejects_r0_outside_grid():
+    psi, r_axis, z_axis = _flux_grid()
+    with pytest.raises(ValueError, match="R0 must lie inside the R grid"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 100.0)
+
+
+def test_required_feedback_gain_returns_zero_for_marginal_growth():
+    assert VerticalStabilityAnalysis.required_feedback_gain(gamma=0.0, tau_wall=0.01, tau_controller=1e-4) == 0.0
+
+
+def test_controller_falls_back_to_zero_gain_when_riccati_fails(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _boom(*_args, **_kwargs):
+        raise np.linalg.LinAlgError("forced Riccati failure")
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _boom)
+    elements = [
+        VesselElement(R=2.0, Z=0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+        VesselElement(R=2.0, Z=-0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
+    ]
+    rzip = RZIPModel(
+        R0=2.0,
+        a=0.5,
+        kappa=1.7,
+        Ip_MA=1.0,
+        B0=1.0,
+        n_index=-0.5,
+        vessel=VesselModel(elements),
+        active_coils=active_coils,
+    )
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+    A, B, _C, _D = rzip.build_state_space()
+    assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])
+    assert np.all(ctrl.K_gain == 0.0)
 
 
 def test_rzip_controller_step_is_antisymmetric_for_vertical_error(active_coils):
