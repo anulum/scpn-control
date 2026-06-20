@@ -245,7 +245,10 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:
         return _torchscript_rollout, _torchscript_rollout_batch
     assert torch is not None
 
-    def _rollout_impl(
+    # torch.jit.script compiles the following bodies to TorchScript IR; the
+    # torchscript backend tests exercise them, but coverage.py cannot observe
+    # JIT-compiled execution, so the kernel bodies are marked no cover.
+    def _rollout_impl(  # pragma: no cover
         cmd: torch.Tensor,
         initial_state: float,
         alpha: float,
@@ -261,7 +264,7 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:
             out[i] = state
         return out
 
-    def _rollout_batch_impl(
+    def _rollout_batch_impl(  # pragma: no cover
         cmd: torch.Tensor,
         initial_state: torch.Tensor,
         alpha: float,

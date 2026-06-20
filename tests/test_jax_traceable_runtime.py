@@ -392,3 +392,18 @@ class TestValidateTraceableBackendParity:
             backends=["numpy"],
         )
         assert "numpy" in reports
+
+
+# ── Coverage completion: backend-set resolver guards ────────────────
+
+
+def test_resolve_backend_set_rejects_unavailable_backend(monkeypatch):
+    monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_JAX", False)
+    monkeypatch.setattr("scpn_control.control.jax_traceable_runtime._HAS_TORCH", False)
+    with pytest.raises(ValueError, match="is not available on this host"):
+        _resolve_backend_set(["jax"])
+
+
+def test_resolve_backend_set_rejects_empty_explicit_list():
+    with pytest.raises(ValueError, match="at least one backend when provided"):
+        _resolve_backend_set([])
