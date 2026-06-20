@@ -157,9 +157,32 @@ def test_repository_mdsplus_acquisition_spec_loads() -> None:
     assert [signal.name for signal in request.signals] == ["plasma_current", "normalised_beta"]
 
 
-def test_cli_acquire_mdsplus_reports_missing_optional_dependency(runner, tmp_path: Path) -> None:
+def _force_mdsplus_client_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Make both MDSplus client imports fail without disturbing other imports.
+
+    The local environment may have the ``mdsthin`` compatibility client
+    installed (per the install-all-optional-deps policy), in which case
+    ``_import_mdsplus`` succeeds and acquisition proceeds to a live-connection
+    attempt. Forcing both client imports to fail exercises the documented
+    missing-dependency contract deterministically while still driving the real
+    ``_import_mdsplus`` fallback chain.
+    """
+    real_import = mdsplus_acquisition.importlib.import_module
+
+    def fake_import(name: str, *args: Any, **kwargs: Any) -> Any:
+        if name in {"MDSplus", "mdsthin.MDSplus"}:
+            raise ImportError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(mdsplus_acquisition.importlib, "import_module", fake_import)
+
+
+def test_cli_acquire_mdsplus_reports_missing_optional_dependency(
+    runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from scpn_control.cli import main
 
+    _force_mdsplus_client_absent(monkeypatch)
     signal = json.dumps({"name": "plasma_current", "node": "\\\\IP", "units": "A", "timebase": "time_s"})
     result = runner.invoke(
         main,
@@ -200,9 +223,10 @@ def test_import_mdsplus_falls_back_to_mdsthin_compat(monkeypatch) -> None:
     assert mdsplus_acquisition._import_mdsplus() is compat
 
 
-def test_cli_acquire_mdsplus_accepts_spec_json(runner, tmp_path: Path) -> None:
+def test_cli_acquire_mdsplus_accepts_spec_json(runner, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scpn_control.cli import main
 
+    _force_mdsplus_client_absent(monkeypatch)
     spec_path = tmp_path / "shot_163303_mdsplus.json"
     spec_path.write_text(
         json.dumps(

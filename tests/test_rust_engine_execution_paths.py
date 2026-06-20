@@ -94,7 +94,12 @@ def test_hardware_loop_takes_min_of_steps_and_runtime_budget(bridge: type["_Fake
     assert result["steps"] <= 2
 
 
-def test_native_only_backend_without_bridge_fails_closed() -> None:
+def test_native_only_backend_without_bridge_fails_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    # The fail-closed guard fires only when the native controller pool is
+    # unavailable; force that precondition so the test is independent of whether
+    # ``scpn_control_rs`` is installed in the running environment.
+    monkeypatch.setattr(rust_engine, "_NATIVE_CONTROLLER_AVAILABLE", False)
+    monkeypatch.setattr(rust_engine, "_NativeSpikingControllerPool", None)
     with pytest.raises(RuntimeError, match="native controller bridge is not available"):
         _engine().execute_hardware_loop(steps=1, execution_backend="native", runtime_admission_policy="off")
 
@@ -303,6 +308,13 @@ def bridge(monkeypatch: pytest.MonkeyPatch) -> type[_FakeBridge]:
     monkeypatch.setattr(rust_engine, "RustUdpTransportBridge", _FakeBridge)
     monkeypatch.setattr(rust_engine, "RustSnnController", _FakeSnn)
     monkeypatch.setattr(rust_engine, "RustPIDController", _FakePID)
+    # Pin the orchestrated Python hybrid path. The optional ``scpn_control_rs``
+    # native controller pool is importable in some environments (a local
+    # maturin build) but absent in others (CI), which would otherwise route
+    # these loop-edge tests through the native handoff and bypass the stubbed
+    # bridge. The native handoff is covered separately via a stubbed pool.
+    monkeypatch.setattr(rust_engine, "_NATIVE_CONTROLLER_AVAILABLE", False)
+    monkeypatch.setattr(rust_engine, "_NativeSpikingControllerPool", None)
     return _FakeBridge
 
 
