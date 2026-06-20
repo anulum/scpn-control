@@ -24,6 +24,7 @@ import numpy as np
 import pytest
 
 from scpn_control.control.fusion_sota_mpc import (
+    HAS_MPL,
     ModelPredictiveController,
     NeuralSurrogate,
     run_sota_simulation,
@@ -228,6 +229,7 @@ def test_run_sota_simulation_explicit_target_vector() -> None:
     assert np.isfinite(summary["mean_tracking_error"])
 
 
+@pytest.mark.skipif(not HAS_MPL, reason="requires matplotlib (optional viz dependency)")
 def test_run_sota_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     out = tmp_path / "results.png"
     with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_sota_mpc"):
@@ -245,6 +247,7 @@ def test_run_sota_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptur
     assert "SOTA Analysis saved" in caplog.text
 
 
+@pytest.mark.skipif(not HAS_MPL, reason="requires matplotlib (optional viz dependency)")
 def test_run_sota_simulation_reports_plot_failure(tmp_path: Path) -> None:
     # The parent directory does not exist, so savefig raises an OSError the
     # plotting helper must catch and surface as plot_error.
