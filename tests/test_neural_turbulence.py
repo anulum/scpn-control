@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -24,6 +25,14 @@ from scpn_control.core.neural_turbulence import (
     cross_validate_neural_turbulence,
     neural_turbulence_claim_evidence,
     save_neural_turbulence_claim_evidence,
+    _finite_nonnegative,
+    _finite_nonnegative_or_none,
+    _finite_positive_or_none,
+    _finite_scalar,
+    _non_empty_text,
+    _profile_array,
+    _unit_interval,
+    _unit_interval_or_none,
 )
 
 
@@ -299,3 +308,210 @@ def test_neural_turbulence_reference_admission_requires_matching_weights(tmp_pat
             weights_path=weights,
             reference_artifact_path=artifact,
         )
+
+
+def test_reference_admission_requires_weights_path(tmp_path):
+    validation = cross_validate_neural_turbulence(QLKNNSurrogate(hidden_layers=[16], pretrained=True), n_samples=32)
+    artifact = tmp_path / "reference.json"
+    artifact.write_text(json.dumps(_reference_artifact("a" * 64)), encoding="utf-8")
+    with pytest.raises(ValueError, match="requires the exact neural-turbulence weights_path"):
+        neural_turbulence_claim_evidence(
+            validation,
+            source="documented_public_reference",
+            source_id="tests/test_neural_turbulence.py::missing_weights",
+            reference_artifact_path=artifact,
+        )
+
+
+def test_reference_admission_rejects_artifact_that_fails_strict_validation(tmp_path):
+    model = QLKNNSurrogate(hidden_layers=[16, 8], pretrained=True)
+    weights = tmp_path / "weights.npz"
+    model.save_weights(str(weights))
+    validation = cross_validate_neural_turbulence(model, n_samples=32)
+    weights_sha = hashlib.sha256(weights.read_bytes()).hexdigest()
+    bad = _reference_artifact(weights_sha)
+    bad["metrics"]["Q_i_rmse_gB"] = 5.0  # exceeds the declared tolerance → validator fails
+    artifact = tmp_path / "reference.json"
+    artifact.write_text(json.dumps(bad), encoding="utf-8")
+    with pytest.raises(ValueError, match="failed strict validation"):
+        neural_turbulence_claim_evidence(
+            validation,
+            source="documented_public_reference",
+            source_id="tests/test_neural_turbulence.py::strict_fail",
+            weights_path=weights,
+            reference_artifact_path=artifact,
+        )
+
+
+def test_claim_evidence_requires_positive_local_sample_count():
+    with pytest.raises(ValueError, match="positive n_samples"):
+        neural_turbulence_claim_evidence(
+            {"n_samples": 0},
+            source="synthetic_regression_reference",
+            source_id="tests/test_neural_turbulence.py::no_samples",
+        )
+
+
+def test_claim_evidence_rejects_missing_weights_file(tmp_path):
+    validation = cross_validate_neural_turbulence(QLKNNSurrogate(hidden_layers=[16], pretrained=True), n_samples=32)
+    with pytest.raises(FileNotFoundError, match="weights not found"):
+        neural_turbulence_claim_evidence(
+            validation,
+            source="synthetic_regression_reference",
+            source_id="tests/test_neural_turbulence.py::no_weights_file",
+            weights_path=tmp_path / "absent.npz",
+        )
+
+
+def test_claim_evidence_rejects_blank_identity_text(tmp_path):
+    validation = cross_validate_neural_turbulence(QLKNNSurrogate(hidden_layers=[16], pretrained=True), n_samples=32)
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        neural_turbulence_claim_evidence(
+            validation,
+            source="synthetic_regression_reference",
+            source_id="   ",
+        )
+
+
+def test_assert_admissible_rejects_wrong_type_and_schema():
+    with pytest.raises(ValueError, match="must be NeuralTurbulenceClaimEvidence"):
+        assert_neural_turbulence_quantitative_claim_admissible({"not": "evidence"})
+
+
+def test_save_claim_evidence_rejects_wrong_type(tmp_path):
+    with pytest.raises(ValueError, match="must be NeuralTurbulenceClaimEvidence"):
+        save_neural_turbulence_claim_evidence({"not": "evidence"}, tmp_path / "x.json")
+
+
+# ── Numeric / profile validation helpers ─────────────────────────────
+
+
+@pytest.mark.parametrize("value", ["", "   ", 5, None])
+def test_non_empty_text_rejects_blank_or_non_string(value):
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", value)
+
+
+@pytest.mark.parametrize("value", [True, "x", [1.0]])
+def test_finite_nonnegative_or_none_rejects_non_numeric(value):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _finite_nonnegative_or_none("metric", value)
+
+
+@pytest.mark.parametrize("value", [-1.0, float("inf"), float("nan")])
+def test_finite_nonnegative_or_none_rejects_negative_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _finite_nonnegative_or_none("metric", value)
+
+
+def test_finite_nonnegative_or_none_passes_through_none():
+    assert _finite_nonnegative_or_none("metric", None) is None
+
+
+@pytest.mark.parametrize("value", [True, "x"])
+def test_finite_positive_or_none_rejects_non_numeric(value):
+    with pytest.raises(ValueError, match="finite and positive"):
+        _finite_positive_or_none("metric", value)
+
+
+@pytest.mark.parametrize("value", [0.0, -1.0, float("inf")])
+def test_finite_positive_or_none_rejects_non_positive_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and positive"):
+        _finite_positive_or_none("metric", value)
+
+
+@pytest.mark.parametrize("value", [True, "x"])
+def test_unit_interval_or_none_rejects_non_numeric(value):
+    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
+        _unit_interval_or_none("score", value)
+
+
+@pytest.mark.parametrize("value", [-0.1, 1.1, float("nan")])
+def test_unit_interval_or_none_rejects_out_of_range(value):
+    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
+        _unit_interval_or_none("score", value)
+
+
+def test_finite_nonnegative_requires_present_value():
+    with pytest.raises(ValueError, match="must be present"):
+        _finite_nonnegative("metric", None)
+
+
+def test_unit_interval_requires_present_value():
+    with pytest.raises(ValueError, match="must be present"):
+        _unit_interval("score", None)
+
+
+def test_finite_scalar_rejects_non_finite():
+    with pytest.raises(ValueError, match="must be finite"):
+        _finite_scalar("scalar", float("inf"))
+
+
+def test_profile_array_rejects_wrong_dimensions_and_size():
+    with pytest.raises(ValueError, match="one-dimensional profile with at least two points"):
+        _profile_array("p", [[1.0, 2.0], [3.0, 4.0]])
+    with pytest.raises(ValueError, match="one-dimensional profile with at least two points"):
+        _profile_array("p", [1.0])
+
+
+def test_profile_array_rejects_non_finite_values():
+    with pytest.raises(ValueError, match="only finite values"):
+        _profile_array("p", [1.0, np.inf])
+
+
+def test_profile_array_positive_with_boundary_zero_rejects_interior_and_negative_edge():
+    with pytest.raises(ValueError, match="positive in the interior and non-negative at the boundary"):
+        _profile_array("p", [1.0, 0.0, 1.0], positive=True, allow_last_zero=True)
+    with pytest.raises(ValueError, match="positive in the interior and non-negative at the boundary"):
+        _profile_array("p", [1.0, 2.0, -1.0], positive=True, allow_last_zero=True)
+
+
+def test_profile_array_strictly_positive_rejects_non_positive():
+    with pytest.raises(ValueError, match="positive everywhere"):
+        _profile_array("p", [1.0, 0.0], positive=True)
+
+
+def test_from_profiles_rejects_minor_radius_not_smaller_than_major():
+    norm = TransportInputNormalizer()
+    r = np.linspace(0.1, 2.0, 5)
+    Te = np.ones_like(r) * 10.0
+    Ti = np.ones_like(r) * 10.0
+    ne = np.ones_like(r) * 5.0
+    q = np.ones_like(r) * 2.0
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        norm.from_profiles(Te, Ti, ne, q, R0=2.0, a=2.0, B0=5.3, r=r)
+
+
+def test_activation_unknown_passes_through_for_forward_and_derivative():
+    model = QLKNNSurrogate(hidden_layers=[8], activation="linear", pretrained=False)
+    x = np.ones((3, 10))
+    out = model.forward(x)
+    assert out.shape == (3, 3)
+    deriv = model._activate_deriv(np.array([1.0, -1.0, 0.0]))
+    assert np.allclose(deriv, 1.0)
+
+
+def test_cross_validate_requires_minimum_sample_count():
+    with pytest.raises(ValueError, match="at least 8"):
+        cross_validate_neural_turbulence(n_samples=4)
+
+
+def test_cross_validate_rejects_non_finite_surrogate_output():
+    class _NonFiniteSurrogate:
+        def forward(self, inputs):
+            return np.full((inputs.shape[0], 3), np.nan)
+
+    with pytest.raises(RuntimeError, match="invalid local benchmark outputs"):
+        cross_validate_neural_turbulence(_NonFiniteSurrogate(), n_samples=16)
+
+
+def test_assert_admissible_rejects_unsupported_schema_version():
+    validation = cross_validate_neural_turbulence(QLKNNSurrogate(hidden_layers=[16], pretrained=True), n_samples=32)
+    evidence = neural_turbulence_claim_evidence(
+        validation,
+        source="synthetic_regression_reference",
+        source_id="tests/test_neural_turbulence.py::schema_guard",
+    )
+    tampered = replace(evidence, schema_version="neural-turbulence-claim.v0")
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_neural_turbulence_quantitative_claim_admissible(tampered)
