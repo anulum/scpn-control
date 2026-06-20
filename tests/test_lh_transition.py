@@ -4,7 +4,10 @@
 # Contact: protoscience@anulum.li
 from __future__ import annotations
 
+from types import SimpleNamespace
+
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from scpn_control.core.lh_transition import (
@@ -216,3 +219,58 @@ def test_transition_controller_rejects_nonphysical_inputs():
         ctrl.step(epsilon_measured=1e5, Q_current=-1.0, dt=0.1)
     with pytest.raises(ValueError, match="dt"):
         ctrl.step(epsilon_measured=1e5, Q_current=10.0, dt=0.0)
+
+
+def test_find_threshold_rejects_negative_heating_scan() -> None:
+    trigger = LHTrigger(PredatorPreyModel())
+    with pytest.raises(ValueError, match="values must be non-negative"):
+        trigger.find_threshold(np.array([-1.0, 0.0, 1.0]))
+
+
+def test_find_threshold_returns_first_h_mode_heating(monkeypatch: pytest.MonkeyPatch) -> None:
+    trigger = LHTrigger(PredatorPreyModel())
+
+    def fake_evolve(Q_heating: float, t_span: tuple[float, float], dt: float) -> SimpleNamespace:
+        return SimpleNamespace(regime="H_MODE" if Q_heating >= 2.0 else "L_MODE")
+
+    monkeypatch.setattr(trigger.model, "evolve", fake_evolve)
+    threshold = trigger.find_threshold(np.array([1.0, 2.0, 3.0]))
+    assert threshold == 2.0
+
+
+@pytest.mark.parametrize(
+    ("state", "match"),
+    [
+        (np.array([1.0, 1.0]), "state must contain epsilon, V_ZF, and pressure"),
+        (np.array([np.nan, 1.0, 1.0]), "state values must be finite"),
+    ],
+)
+def test_step_rejects_invalid_state(state: npt.NDArray[np.float64], match: str) -> None:
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match=match):
+        model.step(state, dt=1.0e-3, Q_heating=1.0)
+
+
+def test_evolve_rejects_malformed_time_span() -> None:
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match="t_span must contain start and end times"):
+        model.evolve(Q_heating=1.0, t_span=(0.0, 1.0, 2.0), dt=1.0e-3)  # type: ignore[arg-type]
+
+
+def test_evolve_rejects_step_larger_than_duration() -> None:
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match="dt must not exceed the evolution duration"):
+        model.evolve(Q_heating=1.0, t_span=(0.0, 1.0), dt=2.0)
+
+
+def test_evolve_rejects_too_few_steps() -> None:
+    model = PredatorPreyModel()
+    with pytest.raises(ValueError, match="evolution must contain at least two steps"):
+        model.evolve(Q_heating=1.0, t_span=(0.0, 1.0), dt=0.6)
+
+
+def test_low_density_branch_rejects_nonfinite_density() -> None:
+    with pytest.raises(ValueError, match="ne_19 must be finite"):
+        MartinThreshold.power_threshold_with_low_density_branch_MW(
+            ne_19=np.nan, B_T=2.0, S_m2=100.0, I_p_MA=15.0, a_m=2.0
+        )
