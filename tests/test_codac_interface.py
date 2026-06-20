@@ -289,7 +289,7 @@ def test_require_finite_nonnegative_rejects_bool():
         _require_finite_nonnegative("metric", True)
 
 
-def test_require_finite_nonnegative_rejects_unparseable_string():
+def test_require_finite_nonnegative_rejects_unparsable_string():
     with pytest.raises(ValueError, match="finite non-negative"):
         _require_finite_nonnegative("metric", "not-a-number")
 
