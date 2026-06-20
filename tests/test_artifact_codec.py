@@ -35,6 +35,10 @@ from scpn_control.scpn.artifact import (
     WeightMatrix,
     Weights,
     _decode_u64_compact,
+    _formal_report_relative_path,
+    _validate,
+    _validate_formal_verification,
+    _verify_formal_report_digest,
     compute_artifact_payload_sha256,
     decode_u64_compact,
     encode_u64_compact,
@@ -43,11 +47,13 @@ from scpn_control.scpn.artifact import (
     save_artifact,
     validate_safety_critical_artifact,
 )
+import scpn_control.scpn.artifact as artifact_module
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.structure import StochasticPetriNet
 from scpn_control.scpn.z3_model_checking import (
     Z3FormalVerificationReport,
     Z3ModelCheckingReport,
+    build_blocked_z3_formal_report_payload,
     build_z3_formal_report_payload,
 )
 from scpn_control.scpn.lean_verification import (
@@ -1143,3 +1149,334 @@ class TestArtifactValidationContract:
 
         assert payload["meta"]["notes"] == "validation memo"
         assert "data_u64" in payload["weights"]["packed"]["w_in_packed"]
+
+
+# ── Self-contained validator-branch contracts (manual artifact, no compiler) ──
+#
+# These exercise the validation, serialisation and report-digest branches that
+# the compiler-built fixtures above skip (the compiled artifact carries no
+# packed weights and no proof report on disk), constructed entirely from the
+# pure-dataclass ``_manual_artifact`` so they hold under any environment.
+
+
+def _lean_evidence_dict() -> dict[str, object]:
+    proof_assumptions = [
+        "bounded actuator command interval from exported artifact readout limits",
+        "bounded SNN marking interval [0, 1] from compiled artifact topology",
+    ]
+    return {
+        "required": True,
+        "status": "pass",
+        "backend": "lean4",
+        "solver": "Lean 4.13.0",
+        "max_depth": 0,
+        "checked_specs": ["pid.actuator_saturation", "snn.marking_bounds"],
+        "artifact_sha256": "a" * 64,
+        "report_sha256": "c" * 64,
+        "claim_boundary": "bounded Lean proof over compiled controller envelope and exported artifact hash",
+        "report_uri": "validation/reports/scpn_lean4_formal.json",
+        "generated_utc": "2026-06-02T00:00:00Z",
+        "lean_version": "4.13.0",
+        "lakefile_sha256": "d" * 64,
+        "proof_source_sha256": "e" * 64,
+        "theorem_names": [
+            "ScpnControl.PID.actuatorSaturationPreserved",
+            "ScpnControl.SNN.markingBoundsPreserved",
+        ],
+        "theorem_modules": ["ScpnControl.PID", "ScpnControl.SNN"],
+        "proved_contracts": ["pid.actuator_saturation", "snn.marking_bounds"],
+        "module_paths": [
+            "src/scpn_control/control/pid_controller.py",
+            "src/scpn_control/scpn/controller.py",
+        ],
+        "safety_case_ids": ["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
+        "proof_assumptions": proof_assumptions,
+        "assumption_sha256": compute_assumption_sha256(proof_assumptions),
+    }
+
+
+def _lean_evidence() -> FormalVerificationEvidence:
+    return FormalVerificationEvidence(**_lean_evidence_dict())
+
+
+def test_save_serialises_lean_optional_fields_and_notes(tmp_path: Path) -> None:
+    artifact = _manual_artifact()
+    artifact.meta.notes = "operator commissioning notes"
+    artifact.formal_verification = _lean_evidence()
+    out = tmp_path / "lean_full.scpnctl.json"
+
+    save_artifact(artifact, out)
+    payload = json.loads(out.read_text(encoding="utf-8"))
+
+    assert payload["meta"]["notes"] == "operator commissioning notes"
+    fv = payload["formal_verification"]
+    for field in (
+        "lean_version",
+        "lakefile_sha256",
+        "proof_source_sha256",
+        "theorem_names",
+        "theorem_modules",
+        "proved_contracts",
+        "module_paths",
+        "safety_case_ids",
+        "proof_assumptions",
+        "assumption_sha256",
+    ):
+        assert field in fv
+
+
+def test_save_serialises_counterexample_for_failed_evidence(tmp_path: Path) -> None:
+    artifact = _manual_artifact()
+    evidence = _passing_manual_evidence(artifact)
+    evidence.status = "fail"
+    evidence.counterexample_path = ["T0"]
+    evidence.counterexample_property = "marking_bounds"
+    artifact.formal_verification = evidence
+    out = tmp_path / "failed.scpnctl.json"
+
+    save_artifact(artifact, out)
+    fv = json.loads(out.read_text(encoding="utf-8"))["formal_verification"]
+
+    assert fv["counterexample_path"] == ["T0"]
+    assert fv["counterexample_property"] == "marking_bounds"
+
+
+def test_load_noncompact_packed_weights_roundtrip(tmp_path: Path) -> None:
+    artifact = _manual_artifact()
+    out = tmp_path / "noncompact.scpnctl.json"
+
+    save_artifact(artifact, out)  # default compact_packed=False emits raw data_u64
+    payload = json.loads(out.read_text(encoding="utf-8"))
+    assert "data_u64" in payload["weights"]["packed"]["w_in_packed"]
+    assert "data_u64" in payload["weights"]["packed"]["w_out_packed"]
+
+    loaded = load_artifact(out)
+    assert loaded.weights.packed is not None
+    assert loaded.weights.packed.w_in_packed.data_u64 == [2**64 - 1, 0]
+    assert loaded.weights.packed.w_out_packed is not None
+    assert loaded.weights.packed.w_out_packed.data_u64 == [0, 2**64 - 1]
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("required", "yes", "required must be a boolean"),
+        ("status", "maybe", "status must be"),
+        ("backend", "", "backend must be a non-empty string"),
+        ("backend", "coq", "backend must be one of"),
+        ("solver", "", "solver must be a non-empty string"),
+        ("max_depth", -1, "max_depth must be an integer"),
+        ("checked_specs", [], "checked_specs must be a non-empty list"),
+        ("checked_specs", ["ok", ""], "checked_specs must contain non-empty strings"),
+        ("artifact_sha256", "g" * 64, "artifact_sha256 must be a SHA-256"),
+        ("report_sha256", "z" * 64, "report_sha256 must be a SHA-256"),
+        ("claim_boundary", "", "claim_boundary must be a non-empty string"),
+        ("generated_utc", "", "generated_utc must be a non-empty string"),
+    ],
+)
+def test_validate_formal_verification_rejects_invalid_field(field: str, value: object, match: str) -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    setattr(evidence, field, value)
+    with pytest.raises(ArtifactValidationError, match=match):
+        _validate_formal_verification(evidence)
+
+
+def test_validate_rejects_empty_counterexample_path() -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.counterexample_path = []
+    with pytest.raises(ArtifactValidationError, match="counterexample_path must be a non-empty list"):
+        _validate_formal_verification(evidence)
+
+
+def test_validate_rejects_nonstring_counterexample_transition() -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.counterexample_path = [""]
+    with pytest.raises(ArtifactValidationError, match="counterexample_path must contain transition names"):
+        _validate_formal_verification(evidence)
+
+
+def test_validate_rejects_empty_counterexample_property() -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.counterexample_property = ""
+    with pytest.raises(ArtifactValidationError, match="counterexample_property must be non-empty"):
+        _validate_formal_verification(evidence)
+
+
+def test_validate_rejects_passing_evidence_carrying_counterexample() -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.counterexample_path = ["T0"]
+    evidence.counterexample_property = "marking_bounds"
+    with pytest.raises(ArtifactValidationError, match="passing evidence must not include a counterexample"):
+        _validate_formal_verification(evidence)
+
+
+def test_lean_rejects_checked_specs_missing_a_proved_contract() -> None:
+    evidence_dict = _lean_evidence_dict()
+    evidence_dict["checked_specs"] = ["pid.actuator_saturation"]
+    with pytest.raises(ArtifactValidationError, match="checked_specs must include every lean4 proved_contract"):
+        _validate_formal_verification(FormalVerificationEvidence(**evidence_dict))
+
+
+def test_lean_rejects_more_modules_than_theorems() -> None:
+    evidence_dict = _lean_evidence_dict()
+    evidence_dict["theorem_names"] = ["ScpnControl.PID.actuatorSaturationPreserved"]
+    with pytest.raises(ArtifactValidationError, match="theorem_modules cannot exceed theorem_names"):
+        _validate_formal_verification(FormalVerificationEvidence(**evidence_dict))
+
+
+def test_lean_rejects_empty_string_in_proved_contracts() -> None:
+    evidence_dict = _lean_evidence_dict()
+    evidence_dict["proved_contracts"] = ["pid.actuator_saturation", "snn.marking_bounds", ""]
+    with pytest.raises(ArtifactValidationError, match="proved_contracts must contain non-empty strings"):
+        _validate_formal_verification(FormalVerificationEvidence(**evidence_dict))
+
+
+def test_lean_rejects_duplicate_proved_contracts() -> None:
+    evidence_dict = _lean_evidence_dict()
+    evidence_dict["proved_contracts"] = ["pid.actuator_saturation", "pid.actuator_saturation"]
+    with pytest.raises(ArtifactValidationError, match="proved_contracts must not contain duplicates"):
+        _validate_formal_verification(FormalVerificationEvidence(**evidence_dict))
+
+
+def test_lean_rejects_unsafe_module_path() -> None:
+    evidence_dict = _lean_evidence_dict()
+    evidence_dict["module_paths"] = ["/etc/passwd", "src/scpn_control/scpn/controller.py"]
+    with pytest.raises(ArtifactValidationError, match="module_paths must contain safe relative paths"):
+        _validate_formal_verification(FormalVerificationEvidence(**evidence_dict))
+
+
+def test_formal_report_relative_path_is_none_without_uri() -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.report_uri = None
+    assert _formal_report_relative_path(evidence) is None
+
+
+def test_verify_report_digest_requires_uri(tmp_path: Path) -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.report_uri = None
+    with pytest.raises(ArtifactValidationError, match="requires formal_verification.report_uri"):
+        _verify_formal_report_digest(evidence, tmp_path)
+
+
+def test_verify_report_digest_rejects_missing_report_file(tmp_path: Path) -> None:
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.report_uri = "validation/reports/manual.json"
+    with pytest.raises(ArtifactValidationError, match="does not resolve to a report file"):
+        _verify_formal_report_digest(evidence, tmp_path)
+
+
+def test_verify_report_digest_rejects_path_escaping_root(tmp_path: Path) -> None:
+    root = tmp_path / "root"
+    (root / "validation" / "reports").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (root / "validation" / "reports" / "escape").symlink_to(outside, target_is_directory=True)
+
+    evidence = _passing_manual_evidence(_manual_artifact())
+    evidence.report_uri = "validation/reports/escape/report.json"
+    with pytest.raises(ArtifactValidationError, match="escapes formal_report_root"):
+        _verify_formal_report_digest(evidence, root)
+
+
+def test_safety_critical_requires_required_flag() -> None:
+    artifact = _manual_artifact()
+    evidence = _passing_manual_evidence(artifact)
+    evidence.required = False
+    artifact.formal_verification = evidence
+    with pytest.raises(ArtifactValidationError, match="required must be true"):
+        validate_safety_critical_artifact(artifact)
+
+
+def test_safety_critical_requires_report_uri() -> None:
+    artifact = _manual_artifact()
+    evidence = _passing_manual_evidence(artifact)
+    evidence.report_uri = None
+    artifact.formal_verification = evidence
+    with pytest.raises(ArtifactValidationError, match="requires formal_verification.report_uri"):
+        validate_safety_critical_artifact(artifact)
+
+
+def test_validate_rejects_non_integer_fraction_bits() -> None:
+    artifact = _manual_artifact()
+    artifact.meta.fixed_point.fraction_bits = 1.5  # type: ignore[assignment]
+    with pytest.raises(ArtifactValidationError, match="fraction_bits must be an integer"):
+        _validate(artifact)
+
+
+def test_decode_rejects_decompressed_payload_over_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    import base64
+    import zlib
+
+    monkeypatch.setattr(artifact_module, "MAX_DECOMPRESSED_BYTES", 8)
+    raw = b"\x00" * 9  # one byte over the patched ceiling, fully consumed (no tail)
+    payload = base64.b64encode(zlib.compress(raw)).decode("ascii")
+    with pytest.raises(ArtifactValidationError, match="exceeds configured limit"):
+        _decode_u64_compact({"encoding": "u64-le-zlib-base64", "data_u64_b64_zlib": payload, "count": None})
+
+
+def _z3_report_bound_artifact(tmp_path: Path, **overrides: object) -> tuple[Artifact, Path]:
+    root = tmp_path / "reports"
+    report_path = root / "validation" / "reports" / "scpn_z3_formal.json"
+    report_path.parent.mkdir(parents=True)
+    _write_valid_z3_report(report_path)
+    report_payload = json.loads(report_path.read_text(encoding="utf-8"))
+
+    artifact = _manual_artifact()
+    evidence = FormalVerificationEvidence(
+        required=True,
+        status="pass",
+        backend="z3",
+        solver=str(report_payload["solver"]),
+        max_depth=int(report_payload["max_depth"]),
+        checked_specs=list(report_payload["checked_specs"]),
+        artifact_sha256=compute_artifact_payload_sha256(artifact),
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        claim_boundary=(
+            f"bounded SMT proof through depth {report_payload['max_depth']} over compiled transition relation"
+        ),
+        report_uri="validation/reports/scpn_z3_formal.json",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    for key, value in overrides.items():
+        setattr(evidence, key, value)
+    artifact.formal_verification = evidence
+    return artifact, root
+
+
+def test_z3_report_digest_rejects_max_depth_mismatch(tmp_path: Path) -> None:
+    artifact, root = _z3_report_bound_artifact(tmp_path, max_depth=7)
+    with pytest.raises(ArtifactValidationError, match="max_depth does not match Z3 report"):
+        validate_safety_critical_artifact(artifact, formal_report_root=root)
+
+
+def test_z3_report_digest_rejects_solver_mismatch(tmp_path: Path) -> None:
+    artifact, root = _z3_report_bound_artifact(tmp_path, solver="foreign-smt 1.0")
+    with pytest.raises(ArtifactValidationError, match="solver does not match Z3 report"):
+        validate_safety_critical_artifact(artifact, formal_report_root=root)
+
+
+def test_z3_report_digest_rejects_status_mismatch(tmp_path: Path) -> None:
+    root = tmp_path / "reports"
+    report_path = root / "validation" / "reports" / "scpn_z3_formal.json"
+    report_path.parent.mkdir(parents=True)
+    report_payload = build_blocked_z3_formal_report_payload("z3-solver not importable in build")
+    report_path.write_text(json.dumps(report_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    artifact = _manual_artifact()
+    # A "pass" evidence claim pointing at a "blocked" report must fail closed on
+    # the status cross-check inside the report-digest verifier.
+    artifact.formal_verification = FormalVerificationEvidence(
+        required=True,
+        status="pass",
+        backend="z3",
+        solver="z3-solver 4.16.0",
+        max_depth=8,
+        checked_specs=["marking_bounds"],
+        artifact_sha256=compute_artifact_payload_sha256(artifact),
+        report_sha256=hashlib.sha256(report_path.read_bytes()).hexdigest(),
+        claim_boundary="bounded SMT proof through depth 8 over compiled transition relation",
+        report_uri="validation/reports/scpn_z3_formal.json",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    with pytest.raises(ArtifactValidationError, match="status does not match Z3 report"):
+        validate_safety_critical_artifact(artifact, formal_report_root=root)
