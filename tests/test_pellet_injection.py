@@ -184,3 +184,72 @@ def test_fueling_controller_and_pacing_reject_nonphysical_domains():
         pellet_pacing_elm_control(-1.0, 5.0, 20.0)
     with pytest.raises(ValueError, match="f_elm_natural_Hz"):
         pellet_pacing_elm_control(20.0, 0.0, 20.0)
+
+
+# ── Coverage completion: validators, trajectory branches, controller guards ──
+
+
+def test_trajectory_rejects_minor_radius_not_smaller_than_major():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        PelletTrajectory(params, R0=2.0, a=2.0, B0=5.3)
+
+
+def test_simulate_rejects_profile_shape_mismatch():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    rho = np.linspace(0.0, 1.0, 50)
+    with pytest.raises(ValueError, match="ne must match rho shape"):
+        traj.simulate(rho, np.ones(49), np.ones(50))
+
+
+def test_simulate_rejects_degenerate_or_non_finite_rho():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    with pytest.raises(ValueError, match="one-dimensional grid with at least two points"):
+        traj.simulate(np.array([0.5]), np.ones(1), np.ones(1))
+    with pytest.raises(ValueError, match="rho must contain only finite values"):
+        traj.simulate(np.array([0.0, np.nan]), np.ones(2), np.ones(2))
+
+
+def test_simulate_handles_grid_interior_to_unit_interval():
+    # rho spanning (0.1, 0.9) exercises both the idx==0 (inner) and idx>=len
+    # (outer) interpolation clamps as the pellet crosses the grid boundaries.
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0)
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    rho = np.linspace(0.1, 0.9, 20)
+    res = traj.simulate(rho, np.ones(20) * 1.0, np.ones(20) * 300.0)
+    assert res.deposition_profile.shape == rho.shape
+    assert np.all(np.isfinite(res.deposition_profile))
+
+
+def test_simulate_fully_ablates_small_pellet_in_hot_dense_plasma():
+    # A very small, slow pellet in a hot dense plasma is fully consumed, exercising
+    # the per-step mass clamp (dN > remaining) and the zeroed-radius branch.
+    params = PelletParams(r_p_mm=0.002, v_p_m_s=20.0)
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=5.3)
+    res = traj.simulate(np.linspace(0.0, 1.0, 40), np.ones(40) * 40.0, np.ones(40) * 2.0e5)
+    # The pellet is consumed entirely: deposited count == initial inventory.
+    assert res.total_particles == pytest.approx(traj.N_initial, rel=1e-9)
+
+
+def test_simulate_shifts_deposition_outward_for_lfs_drift():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0, injection_side="LFS")
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=0.5)
+    res = traj.simulate(np.linspace(0.0, 1.0, 50), np.ones(50) * 8.0, np.ones(50) * 8.0e4)
+    assert res.drift_displacement > 0.0
+
+
+def test_simulate_shifts_deposition_inward_for_hfs_drift():
+    params = PelletParams(r_p_mm=4.0, v_p_m_s=300.0, injection_side="HFS")
+    traj = PelletTrajectory(params, R0=6.2, a=2.0, B0=0.5)
+    res = traj.simulate(np.linspace(0.0, 1.0, 50), np.ones(50) * 8.0, np.ones(50) * 8.0e4)
+    assert res.drift_displacement < 0.0
+
+
+def test_fueling_controller_step_rejects_malformed_density_profile():
+    ctrl = PelletFuelingController(target_density=10.0, pellet_params=PelletParams(4.0, 300.0))
+    with pytest.raises(ValueError, match="ne_profile must be a non-empty one-dimensional array"):
+        ctrl.step(np.ones((2, 2)), np.ones((2, 2)), dt=0.1, V_plasma=800.0)
+    with pytest.raises(ValueError, match="ne_profile must contain only finite non-negative values"):
+        ctrl.step(np.array([1.0, -1.0, 1.0]), np.ones(3), dt=0.1, V_plasma=800.0)
