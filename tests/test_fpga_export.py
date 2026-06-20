@@ -416,3 +416,181 @@ class TestHDLExportEvidence:
                 controller_artifact_sha256="a" * 64,
                 target_part="xc7a35tcpg236-1",
             )
+
+
+def _base_evidence_payload(tmp_path) -> dict:
+    cnet = _compile_small_net()
+    cfg = FPGAConfig(target="xilinx", clock_mhz=125.0)
+    out = tmp_path / "proj"
+    export_bitstream_project(cnet, cfg, out)
+    evidence = hdl_export_evidence(
+        cnet,
+        cfg,
+        out,
+        controller_artifact_sha256="a" * 64,
+        target_part="xc7a35tcpg236-1",
+        generated_utc="2026-05-31T00:00:00Z",
+    )
+    return asdict(evidence)
+
+
+def _resign(payload: dict) -> dict:
+    from scpn_control.scpn.fpga_export import _payload_sha256
+
+    out = dict(payload)
+    out["payload_sha256"] = _payload_sha256(out)
+    return out
+
+
+def _qualified_evidence(tmp_path, *, uri: str, sha: str):
+    cnet = _compile_small_net()
+    cfg = FPGAConfig(target="xilinx", clock_mhz=100.0)
+    out = tmp_path / "proj"
+    export_bitstream_project(cnet, cfg, out)
+    return hdl_export_evidence(
+        cnet,
+        cfg,
+        out,
+        controller_artifact_sha256="a" * 64,
+        target_part="xc7a35tcpg236-1",
+        synthesis_toolchain="vivado",
+        synthesis_report_sha256=sha,
+        synthesis_report_uri=uri,
+        timing_slack_ns=1.0,
+        generated_utc="2026-05-31T00:00:00Z",
+        facility_claim_allowed=True,
+    )
+
+
+class TestHelperValidators:
+    def test_safe_relative_uri(self):
+        from scpn_control.scpn.fpga_export import _safe_relative_uri
+
+        with pytest.raises(ValueError, match="non-empty safe relative"):
+            _safe_relative_uri("x", "")
+        with pytest.raises(ValueError, match="safe relative path"):
+            _safe_relative_uri("x", "a//b")
+        with pytest.raises(ValueError, match="safe relative path"):
+            _safe_relative_uri("x", "../escape")
+
+    def test_require_finite_nonnegative(self):
+        from scpn_control.scpn.fpga_export import _require_finite_nonnegative
+
+        with pytest.raises(ValueError, match="finite non-negative"):
+            _require_finite_nonnegative("x", [1])
+        with pytest.raises(ValueError, match="finite non-negative"):
+            _require_finite_nonnegative("x", "abc")
+        with pytest.raises(ValueError, match="finite non-negative"):
+            _require_finite_nonnegative("x", -1.0)
+
+    def test_require_positive_integer(self):
+        from scpn_control.scpn.fpga_export import _require_positive_integer
+
+        with pytest.raises(ValueError, match="positive integer"):
+            _require_positive_integer("x", 0)
+
+
+class TestPayloadValidationRejections:
+    @pytest.mark.parametrize(
+        ("field", "value", "message"),
+        [
+            ("generated_utc", "2026-01-01T00:00:00", "ending in Z"),
+            ("controller_artifact_sha256", "bad", "controller_artifact_sha256 must be"),
+            ("target", "fpgaX", "target is unsupported"),
+            ("target_part", "  ", "target_part must be"),
+            ("clock_mhz", 0.0, "clock_mhz must be positive"),
+            ("lif_bit_width", 7, "lif_bit_width must be"),
+            ("hdl_format", "x", "hdl_format must be"),
+            ("hdl_sha256", "bad", "hdl_sha256 must be"),
+            ("estimated_fmax_mhz", 0.0, "estimated_fmax_mhz must be positive"),
+            ("project_sha256", "a" * 64, "project_sha256 does not match"),
+            ("synthesis_toolchain", "badtool", "synthesis_toolchain is unsupported"),
+            ("synthesis_report_sha256", "bad", "synthesis_report_sha256 must be null"),
+            ("synthesis_report_uri", 123, "must be null or a safe relative path"),
+            ("facility_claim_allowed", "yes", "facility_claim_allowed must be boolean"),
+            ("claim_status", "wrong-status", "claim_status does not match"),
+        ],
+    )
+    def test_rejects_field(self, tmp_path, field, value, message):
+        from scpn_control.scpn.fpga_export import _validate_hdl_export_payload
+
+        payload = _resign({**_base_evidence_payload(tmp_path), field: value})
+        with pytest.raises(ValueError, match=message):
+            _validate_hdl_export_payload(payload, require_facility_claim=False)
+
+    def test_rejects_bad_schema_version(self, tmp_path):
+        from scpn_control.scpn.fpga_export import _validate_hdl_export_payload
+
+        payload = _base_evidence_payload(tmp_path)
+        payload["schema_version"] = "wrong"
+        with pytest.raises(ValueError, match="schema_version is unsupported"):
+            _validate_hdl_export_payload(payload, require_facility_claim=False)
+
+    def test_rejects_bad_payload_digest_shape(self, tmp_path):
+        from scpn_control.scpn.fpga_export import _validate_hdl_export_payload
+
+        payload = _base_evidence_payload(tmp_path)
+        payload["payload_sha256"] = "bad"
+        with pytest.raises(ValueError, match="payload_sha256 must be a SHA-256"):
+            _validate_hdl_export_payload(payload, require_facility_claim=False)
+
+    def test_qualified_requires_timing_slack(self, tmp_path):
+        from scpn_control.scpn.fpga_export import _validate_hdl_export_payload
+
+        evidence = _qualified_evidence(tmp_path, uri="reports/x.rpt", sha="b" * 64)
+        payload = _resign({**asdict(evidence), "timing_slack_ns": None})
+        with pytest.raises(ValueError, match="non-negative timing slack"):
+            _validate_hdl_export_payload(payload, require_facility_claim=True)
+
+
+class TestSynthesisReportResolution:
+    def test_missing_report_file(self, tmp_path):
+        evidence = _qualified_evidence(tmp_path, uri="reports/x.rpt", sha="b" * 64)
+        with pytest.raises(ValueError, match="does not resolve to a file"):
+            assert_hdl_export_claim_admissible(evidence, artifact_root=tmp_path)
+
+    def test_report_sha_mismatch(self, tmp_path):
+        report = tmp_path / "reports" / "x.rpt"
+        report.parent.mkdir(parents=True)
+        report.write_text("synthesis data", encoding="utf-8")
+        evidence = _qualified_evidence(tmp_path, uri="reports/x.rpt", sha="b" * 64)
+        with pytest.raises(ValueError, match="does not match synthesis report bytes"):
+            assert_hdl_export_claim_admissible(evidence, artifact_root=tmp_path)
+
+    def test_report_uri_escaping_root_via_symlink(self, tmp_path):
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        root = tmp_path / "root"
+        root.mkdir()
+        (root / "link").symlink_to(outside, target_is_directory=True)
+        evidence = _qualified_evidence(root, uri="link/x.rpt", sha="b" * 64)
+        with pytest.raises(ValueError, match="escapes artifact_root"):
+            assert_hdl_export_claim_admissible(evidence, artifact_root=root)
+
+
+class TestEvidenceCreationAndPersistenceGuards:
+    def test_rejects_bad_controller_sha(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx")
+        out = tmp_path / "proj"
+        export_bitstream_project(cnet, cfg, out)
+        with pytest.raises(ValueError, match="controller_artifact_sha256 must be"):
+            hdl_export_evidence(cnet, cfg, out, controller_artifact_sha256="bad", target_part="x")
+
+    def test_rejects_empty_target_part(self, tmp_path):
+        cnet = _compile_small_net()
+        cfg = FPGAConfig(target="xilinx")
+        out = tmp_path / "proj"
+        export_bitstream_project(cnet, cfg, out)
+        with pytest.raises(ValueError, match="target_part must be"):
+            hdl_export_evidence(cnet, cfg, out, controller_artifact_sha256="a" * 64, target_part="  ")
+
+    def test_save_rejects_non_evidence(self):
+        with pytest.raises(ValueError, match="must be HDLExportEvidence"):
+            save_hdl_export_evidence(object(), "unused.json")  # type: ignore[arg-type]
+
+    def test_load_rejects_non_object_json(self, tmp_path):
+        path = tmp_path / "x.json"
+        path.write_text("[1, 2, 3]", encoding="utf-8")
+        with pytest.raises(ValueError, match="must be a JSON object"):
+            load_hdl_export_evidence(path)
