@@ -9,17 +9,22 @@ from __future__ import annotations
 
 import json
 from dataclasses import replace
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
 
+import scpn_control.core.integrated_scenario as integrated_scenario
 from scpn_control.core.integrated_scenario import (
     IntegratedScenarioSimulator,
     ScenarioConfig,
     _diffusion_step,
+    _exchange_for_module,
+    _finite_scalar,
     _gyro_bohm_chi,
     _spitzer_resistivity,
     audit_scenario_coupling,
+    enabled_scenario_modules,
     iter_baseline_scenario,
     nstx_u_scenario,
     save_scenario_coupling_report,
@@ -548,3 +553,175 @@ def test_scenario_coupling_audit_rejects_nonfinite_replay_profiles():
     assert audit.passed is False
     assert audit.metadata.all_profiles_finite is False
     assert any("profiles" in violation for violation in audit.violations)
+
+
+# ── Module-coupling, audit-violation and event-branch contracts ───────────────
+
+
+def _one_state():
+    """A single finite scenario state from a short minimal run, for unit checks."""
+    cfg = _minimal_config(P_aux_MW=0.5)
+    sim = IntegratedScenarioSimulator(cfg)
+    return sim.run()[-1], cfg
+
+
+def test_finite_scalar_rejects_non_finite_value():
+    with pytest.raises(ValueError, match="must be finite"):
+        _finite_scalar("test_field", float("nan"))
+
+
+def test_enabled_scenario_modules_lists_every_optional_lane():
+    cfg = replace(
+        _minimal_config(P_aux_MW=1.0),
+        P_eccd_MW=0.5,
+        P_nbi_MW=0.5,
+        include_sawteeth=True,
+        include_ntm=True,
+        include_sol=True,
+        include_elm=True,
+        include_stability=True,
+        include_phase_bridge=True,
+    )
+    modules = enabled_scenario_modules(cfg)
+    for lane in (
+        "auxiliary_heating",
+        "current_drive",
+        "sawtooth",
+        "ntm",
+        "sol",
+        "elm",
+        "mhd_stability",
+        "phase_bridge",
+    ):
+        assert lane in modules
+
+
+@pytest.mark.parametrize(
+    ("module", "expected_key"),
+    [
+        ("sol", "T_target_eV"),
+        ("mhd_stability", "beta_N"),
+        ("sawtooth", "n_crashes"),
+        ("ntm", "ntm_island_count"),
+        ("elm", "P_loss_W"),
+        ("auxiliary_heating", "P_aux_MW"),
+        ("phase_bridge", "phase_bridge_enabled"),
+        ("totally_unknown_module", "module_enabled"),
+    ],
+)
+def test_exchange_for_each_module_branch(module, expected_key):
+    state, cfg = _one_state()
+    exchange = _exchange_for_module(module, state, cfg)
+    assert exchange.module == module
+    assert expected_key in exchange.outputs
+
+
+def test_audit_rejects_empty_state_trace():
+    cfg = _minimal_config(P_aux_MW=0.5)
+    audit = audit_scenario_coupling([], cfg)
+    assert audit.passed is False
+    assert audit.metadata.n_steps == 0
+    assert audit.metadata.all_profiles_finite is False
+    assert any("must not be empty" in violation for violation in audit.violations)
+
+
+def test_audit_flags_current_deviation_beyond_tolerance():
+    state, cfg = _one_state()
+    deviated = replace(state, Ip_MA=cfg.Ip_MA + 10.0)
+    audit = audit_scenario_coupling([deviated], cfg)
+    assert any("current deviates" in violation for violation in audit.violations)
+
+
+def test_audit_flags_non_positive_thermal_energy():
+    state, cfg = _one_state()
+    audit = audit_scenario_coupling([replace(state, W_thermal=-1.0)], cfg)
+    assert any("thermal energy must remain positive" in violation for violation in audit.violations)
+
+
+def test_audit_flags_excessive_thermal_energy_step():
+    state, cfg = _one_state()
+    low = replace(state, time=0.0, W_thermal=1.0)
+    high = replace(state, time=cfg.dt, W_thermal=100.0)
+    audit = audit_scenario_coupling([low, high], cfg)
+    assert any("thermal-energy step change" in violation for violation in audit.violations)
+
+
+def test_audit_flags_non_positive_safety_factor():
+    state, cfg = _one_state()
+    bad_q = state.q.copy()
+    bad_q[-1] = 0.0
+    audit = audit_scenario_coupling([replace(state, q=bad_q)], cfg)
+    assert any("safety factor q must remain positive" in violation for violation in audit.violations)
+
+
+def test_audit_flags_non_positive_kinetic_profiles():
+    state, cfg = _one_state()
+    bad_te = state.Te.copy()
+    bad_te[0] = -0.1
+    audit = audit_scenario_coupling([replace(state, Te=bad_te)], cfg)
+    assert any("temperature and density profiles must remain positive" in violation for violation in audit.violations)
+
+
+def test_simulator_constructs_nbi_source_when_requested():
+    cfg = replace(_minimal_config(P_aux_MW=1.0), P_nbi_MW=2.0, E_nbi_keV=80.0)
+    sim = IntegratedScenarioSimulator(cfg)
+    assert sim.nbi is not None
+    assert sim.nbi in sim.cd_mix.sources
+
+
+def test_run_initialises_transport_solver_when_absent():
+    cfg = _minimal_config(P_aux_MW=0.0)
+    sim = IntegratedScenarioSimulator(cfg)
+    assert not hasattr(sim, "ts_solver")
+    states = sim.run()
+    assert hasattr(sim, "ts_solver")
+    assert len(states) >= 1
+
+
+def test_step_handles_sawtooth_crash_event(monkeypatch):
+    cfg = replace(
+        _minimal_config(P_aux_MW=2.0),
+        include_sawteeth=True,
+        include_ntm=False,
+        t_end=0.02,
+        dt=0.01,
+    )
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    # Seed an island so the crash-energy NTM-seeding branch executes.
+    sim._ntm_islands = {"2/1": SimpleNamespace(r_s=0.3 * cfg.a)}
+    crash = SimpleNamespace(crash_time=0.013, rho_mix=0.3, seed_energy=8.0e5)
+    monkeypatch.setattr(sim.sawtooth, "step", lambda *args, **kwargs: crash)
+
+    state = sim.step()
+
+    assert state.n_crashes >= 1
+    assert state.last_crash_time == pytest.approx(0.013)
+    assert "2/1" in sim.ntm_widths
+
+
+def test_ntm_step_flattens_wide_island(monkeypatch):
+    cfg = replace(_minimal_config(P_aux_MW=1.0), include_ntm=True, include_sawteeth=False)
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+
+    class _WideIsland:
+        def __init__(self, **kwargs):
+            pass
+
+        def evolve(self, *, w0, t_span, dt, **kwargs):
+            # Return an island half-width well above the flattening threshold.
+            return np.array([t_span[0], t_span[1]]), np.array([w0, 0.05])
+
+    monkeypatch.setattr(integrated_scenario, "NTMIslandDynamics", _WideIsland)
+    q_prof = np.linspace(1.0, 4.0, sim.nr)
+    # A non-uniform profile so flattening the island region produces a visible
+    # change (a uniform profile would be unchanged by averaging).
+    sim.ts_solver.Te = np.linspace(2.0, 0.5, sim.nr)
+    sim.ts_solver.Ti = np.linspace(1.8, 0.4, sim.nr)
+    te_before = sim.ts_solver.Te.copy()
+
+    sim._ntm_step(0.01, q_prof)
+
+    assert not np.array_equal(sim.ts_solver.Te, te_before)
+    assert any(width > integrated_scenario._W_FLAT for width in sim.ntm_widths.values())
