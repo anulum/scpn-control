@@ -367,3 +367,139 @@ def test_existing_feature_axis_spec_handles_stellarator_metrics() -> None:
     assert features["spread_too_high"] == pytest.approx(0.5)
     assert features["spread_too_low"] == 0.0
     assert features["effective_ripple"] == pytest.approx(0.004)
+
+
+# ── Coverage completion: contract validation rejection branches ──────
+
+
+def _valid_actuator() -> ActuatorChannel:
+    return ActuatorChannel(
+        name="helical_trim_A",
+        unit="A",
+        min_value=-1200.0,
+        max_value=1200.0,
+        slew_rate_per_s=4.0e5,
+        failure_mode="stuck_supported",
+    )
+
+
+def _valid_initial_frame() -> DiagnosticFrame:
+    return DiagnosticFrame(
+        step=0,
+        time_s=0.0,
+        channels=(
+            DiagnosticChannel(
+                name="fieldline_spread", value=0.04, unit="rad", sigma=0.002, provenance="public_synthetic"
+            ),
+        ),
+    )
+
+
+def _valid_replay_kwargs() -> dict:
+    return {
+        "name": "stellarator_replay",
+        "seed": 42,
+        "steps": 8,
+        "dt_s": 0.001,
+        "magnetic_configuration": MagneticConfiguration(
+            name="public_w7x_like",
+            device_class="stellarator",
+            field_periods=5,
+            coordinate_system="boozer_vmec_like",
+            reference="public synthetic fixture",
+        ),
+        "actuator_set": ActuatorSet(channels=(_valid_actuator(),)),
+        "objective": ControlObjective(
+            target_metrics={"fieldline_spread": 0.015},
+            weights={"fieldline_spread": 1.0},
+            constraints={"max_abs_current_A": 1200.0},
+        ),
+        "initial_frame": _valid_initial_frame(),
+        "fault_schedule": {3: {"helical_trim_A": "stuck"}},
+    }
+
+
+def test_require_finite_rejects_non_finite_field():
+    with pytest.raises(ValueError, match="must be finite"):
+        ActuatorChannel(name="t", unit="A", min_value=-1.0, max_value=1.0, slew_rate_per_s=float("inf"))
+
+
+def test_magnetic_configuration_rejects_non_positive_field_periods():
+    with pytest.raises(ValueError, match="field_periods must be >= 1"):
+        MagneticConfiguration(
+            name="cfg",
+            device_class="stellarator",
+            field_periods=0,
+            coordinate_system="boozer_vmec_like",
+            reference="public synthetic fixture",
+        )
+
+
+def test_actuator_channel_rejects_inverted_bounds_and_bad_slew_and_latency():
+    with pytest.raises(ValueError, match="max_value must be greater than min_value"):
+        ActuatorChannel(name="t", unit="A", min_value=1.0, max_value=1.0, slew_rate_per_s=1.0)
+    with pytest.raises(ValueError, match="slew_rate_per_s must be > 0"):
+        ActuatorChannel(name="t", unit="A", min_value=-1.0, max_value=1.0, slew_rate_per_s=0.0)
+    with pytest.raises(ValueError, match="latency_steps must be >= 0"):
+        ActuatorChannel(name="t", unit="A", min_value=-1.0, max_value=1.0, slew_rate_per_s=1.0, latency_steps=-1)
+
+
+def test_actuator_apply_slew_rejects_non_positive_dt():
+    actuator = ActuatorChannel(name="t", unit="A", min_value=-1.0, max_value=1.0, slew_rate_per_s=1.0)
+    with pytest.raises(ValueError, match="dt_s must be > 0"):
+        actuator.apply_slew(previous=0.0, requested=1.0, dt_s=0.0)
+
+
+def test_actuator_set_rejects_empty_channels():
+    with pytest.raises(ValueError, match="at least one channel"):
+        ActuatorSet(channels=())
+
+
+def test_diagnostic_channel_rejects_negative_sigma():
+    with pytest.raises(ValueError, match="sigma must be >= 0"):
+        DiagnosticChannel(name="m", value=0.0, unit="rad", sigma=-1.0, provenance="public_synthetic")
+
+
+def test_diagnostic_frame_rejects_negative_step_time_and_empty_channels():
+    channel = DiagnosticChannel(name="m", value=0.0, unit="rad", sigma=0.0, provenance="public_synthetic")
+    with pytest.raises(ValueError, match="step must be >= 0"):
+        DiagnosticFrame(step=-1, time_s=0.0, channels=(channel,))
+    with pytest.raises(ValueError, match="time_s must be >= 0"):
+        DiagnosticFrame(step=0, time_s=-1.0, channels=(channel,))
+    with pytest.raises(ValueError, match="at least one channel"):
+        DiagnosticFrame(step=0, time_s=0.0, channels=())
+
+
+def test_control_objective_rejects_empty_target_metrics_and_weights():
+    with pytest.raises(ValueError, match="target_metrics must not be empty"):
+        ControlObjective(target_metrics={}, weights={"x": 1.0}, constraints={})
+    with pytest.raises(ValueError, match="weights must not be empty"):
+        ControlObjective(target_metrics={"x": 1.0}, weights={}, constraints={})
+
+
+def test_replay_scenario_rejects_too_few_steps_and_non_positive_dt():
+    with pytest.raises(ValueError, match="steps must be >= 2"):
+        ReplayScenario(**(_valid_replay_kwargs() | {"steps": 1}))
+    with pytest.raises(ValueError, match="dt_s must be > 0"):
+        ReplayScenario(**(_valid_replay_kwargs() | {"dt_s": 0.0}))
+
+
+def test_replay_scenario_rejects_nonzero_initial_frame_time():
+    bad_frame = DiagnosticFrame(step=0, time_s=0.5, channels=_valid_initial_frame().channels)
+    with pytest.raises(ValueError, match="initial_frame time_s must be 0.0"):
+        ReplayScenario(**(_valid_replay_kwargs() | {"initial_frame": bad_frame}))
+
+
+def test_replay_scenario_rejects_non_positive_current_limit():
+    objective = ControlObjective(
+        target_metrics={"fieldline_spread": 0.015},
+        weights={"fieldline_spread": 1.0},
+        constraints={"max_abs_current_A": 0.0},
+    )
+    with pytest.raises(ValueError, match="max_abs_current_A must be > 0"):
+        ReplayScenario(**(_valid_replay_kwargs() | {"objective": objective}))
+
+
+def test_replay_scenario_rejects_fault_step_out_of_bounds():
+    with pytest.raises(ValueError, match="out of replay bounds"):
+        ReplayScenario(**(_valid_replay_kwargs() | {"fault_schedule": {99: {"helical_trim_A": "stuck"}}}))
