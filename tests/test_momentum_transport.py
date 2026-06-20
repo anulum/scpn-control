@@ -14,6 +14,11 @@ from scpn_control.core.momentum_transport import (
     PRANDTL_MOMENTUM,
     MomentumTransportSolver,
     RotationDiagnostics,
+    _finite_1d_grid,
+    _finite_array,
+    _finite_scalar,
+    _nonnegative_profile_or_scalar,
+    _uniform_axis_to_edge_rho_grid,
     exb_shearing_rate,
     intrinsic_rotation_torque,
     nbi_torque,
@@ -378,3 +383,61 @@ def test_momentum_solver_rejects_nonphysical_step_inputs() -> None:
     solver.omega_phi[2] = np.nan
     with pytest.raises(ValueError, match="omega_phi"):
         solver.step(0.1, chi_i, ne, Ti, torque, torque)
+
+
+def test_finite_scalar_rejects_negative_and_nonpositive() -> None:
+    with pytest.raises(ValueError, match="x must be non-negative"):
+        _finite_scalar("x", -1.0, nonnegative=True)
+    with pytest.raises(ValueError, match="x must be positive"):
+        _finite_scalar("x", 0.0, positive=True)
+
+
+def test_finite_array_rejects_nonpositive_element() -> None:
+    with pytest.raises(ValueError, match="x must be positive"):
+        _finite_array("x", np.array([1.0, -1.0]), positive=True)
+
+
+def test_finite_1d_grid_reports_required_minimum_size() -> None:
+    with pytest.raises(ValueError, match="at least 3 points"):
+        _finite_1d_grid("grid", np.array([1.0]), minimum_size=3)
+
+
+def test_uniform_grid_requires_axis_and_edge_anchors() -> None:
+    with pytest.raises(ValueError, match="rho must start at the magnetic axis"):
+        _uniform_axis_to_edge_rho_grid(np.array([0.1, 0.5, 1.0]))
+    with pytest.raises(ValueError, match="rho must end at the plasma edge"):
+        _uniform_axis_to_edge_rho_grid(np.array([0.0, 0.45, 0.9]))
+
+
+def test_intrinsic_rotation_torque_returns_gradient_scaled_profile() -> None:
+    grad_Ti = np.array([1.0, 2.0, 3.0])
+    torque = intrinsic_rotation_torque(grad_Ti, np.ones(3), R0=6.2, a=2.0)
+    np.testing.assert_allclose(torque, -1e-3 * grad_Ti)
+
+
+def test_nonnegative_profile_or_scalar_broadcasts_scalar() -> None:
+    out = _nonnegative_profile_or_scalar("damping", 2.0, (4,))
+    np.testing.assert_array_equal(out, np.full(4, 2.0))
+
+
+def test_mach_number_rejects_nonpositive_major_radius() -> None:
+    with pytest.raises(ValueError, match="R0 must be positive"):
+        RotationDiagnostics.mach_number(np.ones(5), np.ones(5), R0=0.0)
+
+
+def test_step_rejects_chi_profile_mismatched_with_grid() -> None:
+    solver = MomentumTransportSolver(np.linspace(0.0, 1.0, 50), R0=6.2, a=2.0, B0=5.3)
+    solver.omega_phi = np.zeros(49)  # match the misshaped inputs so the grid guard fires
+    short = np.ones(49)
+    with pytest.raises(ValueError, match="transport profiles must match the solver rho grid"):
+        solver.step(0.1, short, short, short, np.zeros(49), np.zeros(49))
+
+
+def test_step_rejects_corrupted_rho_grid() -> None:
+    solver = MomentumTransportSolver(np.linspace(0.0, 1.0, 50), R0=6.2, a=2.0, B0=5.3)
+    corrupted = solver.rho.copy()
+    corrupted[25] = corrupted[24]  # break strict monotonicity
+    solver.rho = corrupted
+    chi_i = np.ones(50)
+    with pytest.raises(ValueError, match="rho grid must remain finite and strictly increasing"):
+        solver.step(0.1, chi_i, np.ones(50) * 5.0, np.ones(50) * 5.0, np.zeros(50), np.zeros(50))
