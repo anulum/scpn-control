@@ -19,6 +19,7 @@ from scpn_control.control.density_controller import (
     FuelingOptimizer,
     KalmanDensityEstimator,
     ParticleTransportModel,
+    _non_empty_text,
     assert_density_control_facility_claim_admissible,
     density_control_claim_evidence,
     save_density_control_claim_evidence,
@@ -537,3 +538,76 @@ def test_density_control_claim_evidence_rejects_invalid_inputs():
             command=command,
             dt_requested_s=0.0,
         )
+
+
+def test_pellet_source_rejects_nonfinite_radius() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="radius_mm must be finite"):
+        model.pellet_source(speed_ms=200.0, radius_mm=math.nan)
+
+
+def test_pellet_source_rejects_nonfinite_launch_angle() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="launch_angle_deg must be finite"):
+        model.pellet_source(speed_ms=200.0, radius_mm=3.0, launch_angle_deg=math.inf)
+
+
+def test_pellet_source_rejects_nonpositive_b0() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="B0_T must be finite and positive"):
+        model.pellet_source(speed_ms=200.0, radius_mm=3.0, B0_T=0.0)
+
+
+def test_pellet_source_rejects_unknown_injection_side() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="injection_side must be 'HFS' or 'LFS'"):
+        model.pellet_source(speed_ms=200.0, radius_mm=3.0, injection_side="TOP")
+
+
+def test_pellet_source_rejects_nonpositive_density_profile() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    ne_profile = np.full(model.n_rho, 1.0e20)
+    ne_profile[3] = 0.0
+    with pytest.raises(ValueError, match="ne_profile must be positive"):
+        model.pellet_source(speed_ms=200.0, radius_mm=3.0, ne_profile=ne_profile)
+
+
+def test_pellet_source_rejects_negative_temperature_profile() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    te_profile = np.full(model.n_rho, 2000.0)
+    te_profile[5] = -1.0
+    with pytest.raises(ValueError, match="Te_eV_profile must be non-negative"):
+        model.pellet_source(speed_ms=200.0, radius_mm=3.0, Te_eV_profile=te_profile)
+
+
+def test_nbi_source_rejects_negative_power() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="NBI power_MW must be finite and non-negative"):
+        model.nbi_source(beam_energy_keV=100.0, power_MW=-1.0)
+
+
+def test_cryopump_sink_rejects_negative_edge_density() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="Cryopump ne_edge must be finite and non-negative"):
+        model.cryopump_sink(pump_speed=1.0, ne_edge=-1.0)
+
+
+def test_recycling_source_rejects_negative_outflux() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    with pytest.raises(ValueError, match="Recycling outflux must be finite and non-negative"):
+        model.recycling_source(outflux=-1.0)
+
+
+def test_step_rejects_negative_density() -> None:
+    model = ParticleTransportModel(n_rho=16)
+    ne = np.full(model.n_rho, 1.0e20)
+    ne[2] = -1.0
+    sources = np.zeros(model.n_rho)
+    with pytest.raises(ValueError, match="ne must be non-negative"):
+        model.step(ne, sources, dt=0.01)
+
+
+def test_non_empty_text_rejects_blank_string() -> None:
+    assert _non_empty_text("source_id", "  iter-12345  ") == "iter-12345"
+    with pytest.raises(ValueError, match="source_id must be a non-empty string"):
+        _non_empty_text("source_id", "   ")
