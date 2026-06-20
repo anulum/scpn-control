@@ -357,3 +357,209 @@ def test_nonlinear_jax_kinetic_electrons_em():
 
     assert result.final_state is not None
     assert result.final_state.A_par is not None
+
+
+# ---------------------------------------------------------------------------
+# Small numeric-edge branches
+# ---------------------------------------------------------------------------
+
+
+def test_solve_eigenvalue_linalg_error(monkeypatch):
+    """LinAlgError from np.linalg.eig falls back to a stable mode."""
+    import scpn_control.core.jax_gk_solver as mod
+
+    def _boom(_matrix):
+        raise np.linalg.LinAlgError("did not converge")
+
+    monkeypatch.setattr(mod.np.linalg, "eig", _boom)
+    gamma, omega_r, mode_type, phi = mod._solve_eigenvalue_from_matrix(np.eye(2), np.eye(2))
+    assert gamma == 0.0
+    assert omega_r == 0.0
+    assert mode_type == "stable"
+    assert phi is None
+
+
+def test_local_dispersion_breaks_on_vanishing_derivative():
+    """Zero form factors make the Newton derivative vanish, returning a stable root."""
+    from scpn_control.core.jax_gk_solver import _solve_local_dispersion_from_payload
+
+    gamma, omega_r = _solve_local_dispersion_from_payload(
+        qn_denom=1.0,
+        fj=np.zeros(3),
+        ws_v=np.ones(3),
+        wd_v=np.ones(3),
+        nu_eff=0.1,
+    )
+    assert gamma == 0.0
+    assert omega_r == 0.0
+
+
+def test_dist_version_unknown_package():
+    from scpn_control.core.jax_gk_solver import _dist_version
+
+    assert _dist_version("scpn-nonexistent-package-zzz") == "unknown"
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_solve_linear_gk_jax_zero_ky_returns_empty():
+    result = solve_linear_gk_jax(n_ky_ion=0)
+    assert result.k_y.size == 0
+    assert result.gamma.size == 0
+    assert result.mode_type == []
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_gk_stiffness_profile_validators():
+    rho = np.linspace(0.05, 1.0, 4)
+    with pytest.raises(ValueError, match="length >= 3"):
+        gk_stiffness_chi_i_profile_jax(R_L_Ti=6.0, rho=np.array([0.1, 0.2]))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        gk_stiffness_chi_i_profile_jax(R_L_Ti=6.0, rho=np.array([0.3, 0.2, 0.1]))
+    with pytest.raises(ValueError, match="base_chi_i must be non-negative"):
+        gk_stiffness_chi_i_profile_jax(R_L_Ti=6.0, rho=rho, base_chi_i=-1.0)
+    with pytest.raises(ValueError, match="stiffness_scale must be non-negative"):
+        gk_stiffness_chi_i_profile_jax(R_L_Ti=6.0, rho=rho, stiffness_scale=-1.0)
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_jax_backend_metadata_handles_config_read_failure(monkeypatch):
+    import scpn_control.core.jax_gk_solver as mod
+
+    def _boom(*_args, **_kwargs):
+        raise RuntimeError("config unavailable")
+
+    monkeypatch.setattr(mod.jax.config, "read", _boom)
+    meta = mod._jax_backend_metadata()
+    assert "x64_enabled" in meta
+    assert isinstance(meta["x64_enabled"], bool)
+
+
+# ---------------------------------------------------------------------------
+# JAX/native parity artifact machinery
+# ---------------------------------------------------------------------------
+
+_FAST_PARITY_KWARGS = {"n_ky_ion": 2, "n_theta": 8}
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_build_parity_artifact_full_run():
+    from scpn_control.core.jax_gk_solver import (
+        JAX_GK_PARITY_EVIDENCE_BOUNDARY,
+        JAX_GK_PARITY_SCHEMA_VERSION,
+        build_jax_gk_parity_artifact,
+    )
+
+    payload = build_jax_gk_parity_artifact(solver_kwargs=dict(_FAST_PARITY_KWARGS))
+    assert payload["schema_version"] == JAX_GK_PARITY_SCHEMA_VERSION
+    assert payload["case"] == "cyclone_base_case"
+    assert payload["evidence_boundary"] == JAX_GK_PARITY_EVIDENCE_BOUNDARY
+    assert payload["external_validation_required"] is True
+    assert payload["admitted_for_control"] is False
+    assert len(payload["payload_sha256"]) == 64
+    assert len(payload["solver_kwargs_sha256"]) == 64
+    assert payload["native_dominant_mode_type"]
+    assert payload["jax_dominant_mode_type"]
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_build_parity_artifact_other_cases_with_supplied_results():
+    from scpn_control.core.jax_gk_solver import build_jax_gk_parity_artifact
+
+    result = solve_linear_gk_jax(**_FAST_PARITY_KWARGS)
+    for case in ("tem_kinetic_electron", "stable_mode"):
+        payload = build_jax_gk_parity_artifact(
+            case=case,
+            native_result=result,
+            jax_result=result,
+            solver_kwargs=dict(_FAST_PARITY_KWARGS),
+        )
+        assert payload["case"] == case
+        assert payload["case_parameters"]["case"] == case
+        assert len(payload["case_acceptance"]["required_mode_types"]) >= 1
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_write_parity_artifact_to_directory(tmp_path):
+    from scpn_control.core.jax_gk_solver import write_jax_gk_parity_artifact
+
+    payload, path = write_jax_gk_parity_artifact(tmp_path, solver_kwargs=dict(_FAST_PARITY_KWARGS))
+    assert path.suffix == ".json"
+    assert path.is_file()
+    assert path.parent == tmp_path
+    import json
+
+    saved = json.loads(path.read_text(encoding="utf-8"))
+    assert saved["payload_sha256"] == payload["payload_sha256"]
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_build_parity_artifact_rejects_bad_inputs():
+    from scpn_control.core.jax_gk_solver import build_jax_gk_parity_artifact
+
+    with pytest.raises(ValueError, match="case must be one of"):
+        build_jax_gk_parity_artifact(case="nope")
+    with pytest.raises(ValueError, match="gamma_relative_tolerance"):
+        build_jax_gk_parity_artifact(gamma_relative_tolerance=0.0)
+    with pytest.raises(ValueError, match="omega_absolute_tolerance"):
+        build_jax_gk_parity_artifact(omega_absolute_tolerance=0.0)
+    with pytest.raises(ValueError, match="must be finite numeric"):
+        build_jax_gk_parity_artifact(solver_kwargs={"R0": "x"})
+    with pytest.raises(ValueError, match="positive integer"):
+        build_jax_gk_parity_artifact(solver_kwargs={"n_ky_ion": 0})
+    with pytest.raises(ValueError, match="must not be boolean"):
+        build_jax_gk_parity_artifact(solver_kwargs={"extra_flag": True})
+    with pytest.raises(ValueError, match="must be numeric"):
+        build_jax_gk_parity_artifact(solver_kwargs={"extra_obj": "not-a-number"})
+
+
+# ---------------------------------------------------------------------------
+# Parity helper validation branches (malformed result objects)
+# ---------------------------------------------------------------------------
+
+
+def _fake_result(gamma, omega_r, mode_type):
+    import types
+
+    return types.SimpleNamespace(gamma=np.asarray(gamma), omega_r=np.asarray(omega_r), mode_type=mode_type)
+
+
+def test_dominant_growth_and_frequency_rejects_malformed_results():
+    from scpn_control.core.jax_gk_solver import _dominant_growth_and_frequency
+
+    with pytest.raises(ValueError, match="matching one-dimensional"):
+        _dominant_growth_and_frequency(_fake_result([1.0, 2.0], [1.0], ["ITG", "TEM"]), "native_result")
+    with pytest.raises(ValueError, match="finite gamma"):
+        _dominant_growth_and_frequency(_fake_result([np.nan], [1.0], ["ITG"]), "native_result")
+
+
+def test_mode_type_spectrum_rejects_malformed_results():
+    from scpn_control.core.jax_gk_solver import _mode_type_spectrum
+
+    with pytest.raises(ValueError, match="non-empty one-dimensional"):
+        _mode_type_spectrum(_fake_result([], [], []), "native_result")
+    with pytest.raises(ValueError, match="one mode type per gamma"):
+        _mode_type_spectrum(_fake_result([1.0, 2.0], [1.0, 2.0], ["ITG"]), "native_result")
+    with pytest.raises(ValueError, match="mode types must be non-empty"):
+        _mode_type_spectrum(_fake_result([1.0], [1.0], [""]), "native_result")
+
+
+def test_dominant_mode_type_rejects_non_finite_gamma():
+    from scpn_control.core.jax_gk_solver import _dominant_mode_type
+
+    with pytest.raises(ValueError, match="finite gamma"):
+        _dominant_mode_type(_fake_result([np.nan], [1.0], ["ITG"]), "native_result")
+
+
+def test_parity_case_inputs_rejects_unknown_case():
+    from scpn_control.core.jax_gk_solver import _parity_case_inputs
+
+    run_kwargs = {"R0": 2.78, "a": 1.0, "B0": 2.0, "q": 1.4, "s_hat": 0.78, "n_ky_ion": 2, "n_theta": 8}
+    with pytest.raises(ValueError, match="case must be one of"):
+        _parity_case_inputs("unknown_case", run_kwargs)
+
+
+def test_safe_artifact_token_collapses_repeated_separators():
+    from scpn_control.core.jax_gk_solver import _safe_artifact_token
+
+    assert _safe_artifact_token("a -- b") == "a_b"
+    assert _safe_artifact_token("///") == "jax_gk_parity"
