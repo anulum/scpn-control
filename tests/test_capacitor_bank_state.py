@@ -24,6 +24,8 @@ from scpn_control.control.capacitor_bank_state import (
     PulseSpec,
     RLCRegime,
     WaveformName,
+    _sample_waveform,
+    _waveform_rms_squared_fraction,
     free_response,
 )
 from scpn_control.control.pulsed_scenario_scheduler_v2 import CapacitorBankTelemetry
@@ -292,3 +294,45 @@ def test_recharge_status_zero_power_returns_infinite_time_to_full() -> None:
     status = CapacitorBank(spec, initial_voltage_V=2_000.0).recharge_status(1.0)
     assert status["projected_voltage_V"] == pytest.approx(2_000.0)
     assert status["time_to_full_s"] == float("inf")
+
+
+def test_damping_ratio_matches_closed_form() -> None:
+    spec = _underdamped_spec()
+    assert spec.damping_ratio == pytest.approx(
+        0.5 * spec.series_resistance_ohm * math.sqrt(spec.capacitance_F / spec.inductance_H)
+    )
+    assert spec.regime is RLCRegime.UNDERDAMPED
+
+
+def test_telemetry_rejects_voltage_above_max() -> None:
+    bank = CapacitorBank(_underdamped_spec())
+    bank._v = bank._spec.voltage_max_V + 1.0
+    with pytest.raises(ValueError, match="bank voltage magnitude exceeds voltage_max_V"):
+        bank.telemetry()
+
+
+@pytest.mark.parametrize("n_steps", [0, 1.5])
+def test_discharge_rejects_invalid_step_count(n_steps: object) -> None:
+    bank = CapacitorBank(_underdamped_spec(), initial_voltage_V=1_000.0)
+    pulse = PulseSpec(peak_current_A=100.0, duration_s=1.0e-3, waveform="rect")
+    with pytest.raises(ValueError, match="n_steps must be a positive integer"):
+        bank.discharge(pulse, dt=1.0e-6, n_steps=cast(int, n_steps))
+
+
+@pytest.mark.parametrize("t", [-1.0e-6, 2.0e-3])
+def test_sample_waveform_is_zero_outside_pulse_window(t: float) -> None:
+    pulse = PulseSpec(peak_current_A=100.0, duration_s=1.0e-3, waveform="rect")
+    assert _sample_waveform(pulse, t) == 0.0
+
+
+def test_sample_waveform_rejects_unknown_waveform() -> None:
+    pulse = PulseSpec(peak_current_A=100.0, duration_s=1.0e-3, waveform="rect")
+    object.__setattr__(pulse, "waveform", "sawtooth")
+    with pytest.raises(ValueError, match="unknown waveform"):
+        _sample_waveform(pulse, 0.5e-3)
+
+
+def test_waveform_rms_squared_fraction_exp_decay_and_unknown() -> None:
+    assert _waveform_rms_squared_fraction("exp_decay") == pytest.approx(0.25 * (1.0 - math.exp(-10.0)))
+    with pytest.raises(ValueError, match="unknown waveform"):
+        _waveform_rms_squared_fraction(cast(WaveformName, "sawtooth"))
