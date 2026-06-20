@@ -915,7 +915,7 @@ def neural_transport_claim_evidence(
             raise ValueError("neural-transport reference artifact failed strict validation")
         payload = json.loads(artifact_path.read_text(encoding="utf-8"))
         reference_source = _non_empty_text("source", str(payload["source"]))
-        if reference_source not in _NEURAL_TRANSPORT_REFERENCE_SOURCES:
+        if reference_source not in _NEURAL_TRANSPORT_REFERENCE_SOURCES:  # pragma: no cover - validator restricts source
             raise ValueError("neural-transport reference source is not admissible")
         if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
             raise ValueError("neural-transport reference artifact does not match supplied weights")
@@ -924,7 +924,7 @@ def neural_transport_claim_evidence(
             "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
         )
         reference_sample_count = int(payload["reference_sample_count"])
-        if reference_sample_count < 1:
+        if reference_sample_count < 1:  # pragma: no cover - validator requires a positive sample count
             raise ValueError("reference_sample_count must be positive")
         metrics = dict(payload["metrics"])
         tolerances = dict(payload["tolerances"])
