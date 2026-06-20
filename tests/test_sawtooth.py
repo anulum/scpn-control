@@ -394,3 +394,35 @@ def test_monitor_check_trigger_shear_edge_cases():
     result = monitor.check_trigger(q, shear)
     # Should not crash regardless of the interpolation edge case
     assert isinstance(result, bool)
+
+
+# ── Coverage completion: monitor guards, crossings, porcelli/kadomtsev branches ──
+
+
+def test_monitor_rejects_empty_radial_grid():
+    with pytest.raises(ValueError, match="rho must not be empty"):
+        SawtoothMonitor(np.array([]))
+
+
+def test_find_q1_radius_rejects_two_dimensional_q():
+    monitor = SawtoothMonitor(np.linspace(0.0, 1.0, 4))
+    with pytest.raises(ValueError, match="q must be one-dimensional"):
+        monitor.find_q1_radius(np.ones((2, 2)))
+
+
+def test_find_q1_radius_returns_none_without_crossing():
+    monitor = SawtoothMonitor(np.linspace(0.0, 1.0, 10))
+    # q strictly below 1 everywhere: no q=1 crossing despite min < 1.
+    assert monitor.find_q1_radius(np.full(10, 0.5)) is None
+
+
+def test_porcelli_trigger_fires_on_resistive_internal_kink():
+    rho = np.linspace(0.0, 1.0, 50)
+    q = np.clip(1.0 + 0.8 * (rho - 0.4), 0.3, 5.0)
+    shear = np.gradient(q, rho) * rho / np.maximum(q, 1e-3)
+    T = np.linspace(10.0, 0.5, 50)
+    n = np.linspace(5.0, 0.5, 50)
+    # Large resistivity shrinks the resistive critical δW so the resistive
+    # internal-kink condition (rather than the ideal one) fires first.
+    params = PorcelliParams(B_T=2.0, B_pol=0.05, T_i_keV=10.0, eta=1.0, v_A=5e6)
+    assert porcelli_trigger(rho, T, n, q, shear, R0=3.0, a=1.0, params=params) is True
