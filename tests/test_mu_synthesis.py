@@ -10,10 +10,12 @@
 from __future__ import annotations
 
 import json
+from dataclasses import asdict, replace
 
 import numpy as np
 import pytest
 
+import scpn_control.control.mu_synthesis as mu
 from scpn_control.control.mu_synthesis import (
     MuSynthesisController,
     StructuredUncertainty,
@@ -381,3 +383,189 @@ def test_mu_reference_artifact_rejects_unit_mismatches() -> None:
             source_id="static-two-state-reference",
             reference_artifact=artifact,
         )
+
+
+# ── Validator-helper, claim-payload and numeric-guard branch contracts ────────
+
+
+def _bounded_evidence():
+    evidence = mu.MuSynthesisClaimEvidence(
+        schema_version=1,
+        source="repository_static_mu_regression",
+        source_id="sid",
+        model_id="mid",
+        state_dimension=2,
+        control_dimension=1,
+        output_dimension=1,
+        uncertainty_block_count=1,
+        uncertainty_total_size=1,
+        max_uncertainty_bound=0.5,
+        block_structure=[(1, "full")],
+        mu_peak_upper_bound=0.8,
+        robustness_margin=1.25,
+        controller_gain_frobenius_norm=2.0,
+        d_scalings=[1.0],
+        closed_loop_spectral_abscissa=-0.5,
+        static_dc_analysis_only=True,
+        reference_source=None,
+        reference_dataset_id=None,
+        reference_artifact_sha256=None,
+        reference_case_count=None,
+        mu_upper_bound_relative_error=None,
+        robustness_margin_abs_error=None,
+        controller_gain_relative_error=None,
+        d_scaling_relative_error=None,
+        closed_loop_spectral_abscissa_abs_error=None,
+        mu_upper_bound_relative_tolerance=0.05,
+        robustness_margin_abs_tolerance=0.05,
+        controller_gain_relative_tolerance=0.10,
+        d_scaling_relative_tolerance=0.10,
+        closed_loop_spectral_abscissa_abs_tolerance=0.05,
+        validated_claim_allowed=False,
+        claim_status="bounded_static_mu_evidence",
+    )
+    return mu._with_payload_digest(evidence)
+
+
+def _validated_evidence():
+    evidence = replace(
+        _bounded_evidence(),
+        source="documented_public_reference",
+        reference_source="public-ref",
+        reference_dataset_id="dataset-1",
+        reference_artifact_sha256="a" * 64,
+        reference_case_count=3,
+        mu_upper_bound_relative_error=0.01,
+        robustness_margin_abs_error=0.01,
+        controller_gain_relative_error=0.01,
+        d_scaling_relative_error=0.01,
+        closed_loop_spectral_abscissa_abs_error=0.01,
+        validated_claim_allowed=True,
+        claim_status="validated_static_mu_reference_matched",
+    )
+    return mu._with_payload_digest(evidence)
+
+
+def _reseal(payload):
+    payload["payload_sha256"] = mu._claim_payload_sha256(payload)
+    return payload
+
+
+def test_finite_scalar_rejects_non_finite():
+    with pytest.raises(ValueError, match="must be finite"):
+        mu._finite_scalar("x", float("nan"))
+
+
+@pytest.mark.parametrize(
+    ("fn_name", "value", "match"),
+    [
+        ("_positive_reference_scalar", float("inf"), "finite and positive"),
+        ("_positive_reference_scalar", True, "finite and positive"),
+        ("_nonnegative_reference_scalar", float("nan"), "finite and non-negative"),
+        ("_require_positive_claim_int", 0, "positive integer"),
+    ],
+)
+def test_reference_scalar_validators_reject(fn_name, value, match):
+    with pytest.raises(ValueError, match=match):
+        getattr(mu, fn_name)("field", value)
+
+
+def test_require_bool_rejects_non_bool():
+    with pytest.raises(ValueError, match="must be boolean"):
+        mu._require_bool("field", 1)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"block_structure": "notlist"}, "block_structure must be a list"),
+        ({"block_structure": []}, "length must match uncertainty_block_count"),
+        ({"block_structure": [(1, "full", 9)]}, "entries must be \\[size, block_type\\]"),
+        ({"block_structure": [(1, "bogus_type")]}, "block_type must be one of"),
+        ({"block_structure": [(2, "full")]}, "must sum to uncertainty_total_size"),
+    ],
+)
+def test_validate_claim_structure_rejects(overrides, match):
+    evidence = replace(_bounded_evidence(), **overrides)
+    with pytest.raises(ValueError, match=match):
+        mu._validate_claim_structure(evidence)
+
+
+def test_validate_payload_rejects_missing_field():
+    payload = asdict(_bounded_evidence())
+    del payload["source"]
+    with pytest.raises(ValueError, match="missing fields"):
+        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+
+
+def test_validate_payload_rejects_unsupported_field():
+    payload = asdict(_bounded_evidence())
+    payload["bogus_field"] = 1
+    with pytest.raises(ValueError, match="unsupported fields"):
+        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"schema_version": 2}, "schema_version is unsupported"),
+        ({"source": "unlisted_source"}, "source must be one of"),
+        ({"static_dc_analysis_only": False}, "must declare static_dc_analysis_only"),
+        ({"closed_loop_spectral_abscissa": float("inf")}, "closed_loop_spectral_abscissa must be finite"),
+        ({"closed_loop_spectral_abscissa": 0.1}, "must be negative"),
+        ({"d_scalings": [1.0, 2.0]}, "one positive value per uncertainty block"),
+        ({"claim_status": "wrong"}, "claim_status does not match"),
+        ({"reference_case_count": 5}, "cannot carry partial reference fields"),
+    ],
+)
+def test_validate_bounded_payload_rejects(overrides, match):
+    payload = asdict(replace(_bounded_evidence(), **overrides))
+    _reseal(payload)
+    with pytest.raises(ValueError, match=match):
+        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+
+
+def test_validate_validated_payload_rejects_non_validated_source():
+    payload = asdict(replace(_validated_evidence(), source="repository_static_mu_regression"))
+    _reseal(payload)
+    with pytest.raises(ValueError, match="require a validated source"):
+        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=True)
+
+
+def test_validate_validated_payload_rejects_metric_over_tolerance():
+    payload = asdict(replace(_validated_evidence(), mu_upper_bound_relative_error=0.5))
+    _reseal(payload)
+    with pytest.raises(ValueError, match="exceeds declared tolerance"):
+        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=True)
+
+
+def test_riccati_state_feedback_rejects_unstabilisable_plant():
+    A = np.array([[2.0, 0.0], [0.0, 3.0]], dtype=float)
+    B = np.array([[1.0], [0.0]], dtype=float)  # second unstable mode uncontrollable
+    C = np.eye(2)
+    with pytest.raises(RuntimeError, match="not stabilisable"):
+        mu._riccati_state_feedback(A, B, C)
+
+
+def test_closed_loop_dc_map_rejects_singular_system():
+    identity = np.eye(2)
+    with pytest.raises(RuntimeError, match="singular"):
+        mu._closed_loop_dc_uncertainty_map(identity, identity, identity, np.zeros((2, 2)), identity)
+
+
+def test_robustness_margin_infinite_for_nonpositive_mu_peak():
+    controller = MuSynthesisController(_plant(), _uncertainty())
+    controller.mu_peak = 0.0
+    assert controller.robustness_margin() == float("inf")
+
+
+def test_assert_validated_claim_rejects_non_evidence():
+    with pytest.raises(ValueError, match="must be MuSynthesisClaimEvidence"):
+        assert_mu_synthesis_validated_claim_admissible(object())  # type: ignore[arg-type]
+
+
+def test_load_claim_evidence_rejects_non_object(tmp_path):
+    path = tmp_path / "claim.json"
+    path.write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        load_mu_synthesis_claim_evidence(path)
