@@ -20,7 +20,46 @@ from scpn_control.control.burn_controller import (
     BurnStabilityAnalysis,
     SubignitedBurnPoint,
     save_burn_control_claim_evidence,
+    _extract_burn_reference_artifact,
+    _non_empty_text,
+    _nonnegative_reference_scalar,
+    _positive_reference_scalar,
+    _require_nonnegative_profile,
+    _sha256_text,
+    _weighted_average,
 )
+
+
+def _valid_burn_reference_artifact() -> dict:
+    return {
+        "source": "integrated_transport_benchmark",
+        "reference_dataset_id": "burn-integrated-transport-fixture-v1",
+        "reference_artifact_sha256": "b" * 64,
+        "reference_case_count": 3,
+        "units": {
+            "density": "m^-3",
+            "temperature": "keV",
+            "power": "MW",
+            "time": "s",
+            "reactivity": "m^3/s",
+            "triple_product": "m^-3 s keV",
+            "dimensionless": "1",
+        },
+        "metrics": {
+            "P_alpha_relative_error": 0.01,
+            "Q_abs_error": 0.05,
+            "lawson_margin_abs_error": 0.02,
+            "burn_fraction_relative_error": 0.03,
+            "reactivity_exponent_abs_error": 0.04,
+        },
+        "tolerances": {
+            "P_alpha_relative_error": 0.05,
+            "Q_abs_error": 0.2,
+            "lawson_margin_abs_error": 0.1,
+            "burn_fraction_relative_error": 0.1,
+            "reactivity_exponent_abs_error": 0.2,
+        },
+    }
 
 
 def test_zero_temperature():
@@ -339,3 +378,135 @@ def test_burn_reactor_claim_requires_reference_artifact() -> None:
             source_id="burn-integrated-transport-fixture-v1",
             reference_artifact=bad_artifact,
         )
+
+
+# ── Profile / scalar / text validation helpers ───────────────────────
+
+
+def test_require_nonnegative_profile_rejects_empty():
+    with pytest.raises(ValueError, match="must be non-empty"):
+        _require_nonnegative_profile("p", np.array([]))
+
+
+def test_non_empty_text_rejects_blank_and_non_string():
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", "   ")
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", 7)
+
+
+def test_weighted_average_returns_first_value_for_zero_weights():
+    # A single-point normalised rho [0.0] passes validation and zeroes the weights.
+    assert _weighted_average(np.array([5.0]), np.array([0.0])) == 5.0
+
+
+def test_sha256_text_rejects_non_digest():
+    with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
+        _sha256_text("digest", "abc")
+
+
+@pytest.mark.parametrize("value", [True, float("inf"), "x"])
+def test_positive_reference_scalar_rejects_non_numeric_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and positive"):
+        _positive_reference_scalar("metric", value)
+
+
+def test_positive_reference_scalar_rejects_non_positive():
+    with pytest.raises(ValueError, match="finite and positive"):
+        _positive_reference_scalar("metric", 0.0)
+
+
+@pytest.mark.parametrize("value", [True, float("nan"), "x"])
+def test_nonnegative_reference_scalar_rejects_non_numeric_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _nonnegative_reference_scalar("metric", value)
+
+
+def test_nonnegative_reference_scalar_rejects_negative():
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _nonnegative_reference_scalar("metric", -1.0)
+
+
+# ── Reference-artifact extraction rejection matrix ───────────────────
+
+
+def test_extract_burn_reference_artifact_none_returns_inactive():
+    assert _extract_burn_reference_artifact(None) == (None, False)
+
+
+def test_extract_burn_reference_artifact_rejects_non_dict():
+    with pytest.raises(ValueError, match="must be a dictionary"):
+        _extract_burn_reference_artifact(["not", "a", "dict"])
+
+
+def test_extract_burn_reference_artifact_rejects_inadmissible_source():
+    artifact = _valid_burn_reference_artifact()
+    artifact["source"] = "repository_burn_regression"  # bounded but not facility
+    with pytest.raises(ValueError, match="source must be one of"):
+        _extract_burn_reference_artifact(artifact)
+
+
+def test_extract_burn_reference_artifact_rejects_bad_units():
+    artifact = _valid_burn_reference_artifact()
+    artifact["units"] = dict(artifact["units"])
+    artifact["units"]["power"] = "W"
+    with pytest.raises(ValueError, match="units must declare burn-control unit contracts"):
+        _extract_burn_reference_artifact(artifact)
+
+
+@pytest.mark.parametrize("count", [0, -2, True])
+def test_extract_burn_reference_artifact_rejects_bad_case_count(count):
+    artifact = _valid_burn_reference_artifact()
+    artifact["reference_case_count"] = count
+    with pytest.raises(ValueError, match="reference_case_count must be a positive integer"):
+        _extract_burn_reference_artifact(artifact)
+
+
+def test_extract_burn_reference_artifact_rejects_non_dict_metric_blocks():
+    artifact = _valid_burn_reference_artifact()
+    artifact["tolerances"] = "not a dict"
+    with pytest.raises(ValueError, match="metrics and tolerances must be dictionaries"):
+        _extract_burn_reference_artifact(artifact)
+
+
+# ── Claim-evidence and admission guards ──────────────────────────────
+
+
+def test_claim_evidence_rejects_inadmissible_source():
+    alpha = AlphaHeating(R0=6.2, a=2.0, kappa=1.7)
+    controller = BurnController(Q_target=10.0, T_target_keV=20.0, P_aux_max_MW=73.0)
+    rho = np.linspace(0.0, 1.0, 16)
+    temp = np.full(rho.shape, 18.0)
+    with pytest.raises(ValueError, match="source must be one of"):
+        burn_control_claim_evidence(
+            alpha,
+            controller,
+            rho=rho,
+            ne_20=np.full(rho.shape, 0.95),
+            Te_keV=temp,
+            Ti_keV=temp,
+            tau_E_s=3.4,
+            P_aux_MW=45.0,
+            source="not_a_declared_source",
+            source_id="case",
+        )
+
+
+def test_assert_reactor_admissible_rejects_non_evidence_object():
+    with pytest.raises(ValueError, match="must be BurnControlClaimEvidence"):
+        assert_burn_control_reactor_claim_admissible({"not": "evidence"})
+
+
+def test_save_claim_evidence_rejects_non_evidence_object(tmp_path):
+    with pytest.raises(ValueError, match="must be BurnControlClaimEvidence"):
+        save_burn_control_claim_evidence({"not": "evidence"}, tmp_path / "x.json")
+
+
+def test_reactivity_exponent_returns_conservative_value_for_non_positive_reactivity(monkeypatch):
+    # A reactivity model returning non-positive <σv> must fall back to the
+    # conservative unstable exponent rather than take a logarithm of zero.
+    import scpn_control.control.burn_controller as burn_mod
+
+    monkeypatch.setattr(burn_mod, "bosch_hale_reactivity", lambda arr: np.zeros_like(np.asarray(arr, dtype=float)))
+    analysis = BurnStabilityAnalysis(AlphaHeating(R0=6.2, a=2.0))
+    assert analysis.reactivity_exponent(0.5) == 10.0
