@@ -960,3 +960,289 @@ class TestPedestalBoundary:
         mask = ts.rho >= 0.87
         assert np.all(np.isfinite(ts.Ti[mask]))
         assert np.all(np.isfinite(ts.Te[mask]))
+
+
+# ── 11. Module-level scalar/profile validators ───────────────────────
+
+
+class TestModuleValidators:
+    def test_finite_scalar_rejects_nonfinite_and_negative(self) -> None:
+        from scpn_control.core.integrated_transport_solver import _finite_scalar
+
+        with pytest.raises(ValueError, match="must be finite"):
+            _finite_scalar("x", float("inf"))
+        with pytest.raises(ValueError, match="must be non-negative"):
+            _finite_scalar("x", -1.0, nonnegative=True)
+
+    def test_normalised_radius_rejects_malformed_grids(self) -> None:
+        from scpn_control.core.integrated_transport_solver import _normalised_radius
+
+        with pytest.raises(ValueError, match="one-dimensional"):
+            _normalised_radius(np.zeros((2, 2)))
+        with pytest.raises(ValueError, match="one-dimensional"):
+            _normalised_radius(np.array([0.0]))
+        with pytest.raises(ValueError, match="finite"):
+            _normalised_radius(np.array([0.0, np.nan, 1.0]))
+        with pytest.raises(ValueError, match="normalised interval"):
+            _normalised_radius(np.array([0.0, 1.5]))
+        with pytest.raises(ValueError, match="strictly increasing"):
+            _normalised_radius(np.array([0.0, 0.5, 0.5, 1.0]))
+
+    def test_profile_array_rejects_shape_and_nonfinite(self) -> None:
+        from scpn_control.core.integrated_transport_solver import _profile_array
+
+        with pytest.raises(ValueError, match="match the rho grid shape"):
+            _profile_array("Te", np.zeros(3), (4,))
+        with pytest.raises(ValueError, match="finite values"):
+            _profile_array("Te", np.array([np.nan, 1.0]), (2,))
+
+
+class TestGyroBohmCoefficientLoader:
+    def test_load_from_scaling_parameters_nominal(self, tmp_path: Path) -> None:
+        p = tmp_path / "c_gB.json"
+        p.write_text(json.dumps({"scaling_parameters": {"c_gB_nominal": 0.27}}), encoding="utf-8")
+        assert _load_gyro_bohm_coefficient(p) == pytest.approx(0.27)
+
+    def test_missing_coefficient_key_falls_back_to_default(self, tmp_path: Path) -> None:
+        p = tmp_path / "no_key.json"
+        p.write_text(json.dumps({"unrelated": 1}), encoding="utf-8")
+        assert _load_gyro_bohm_coefficient(p) == pytest.approx(0.1)
+
+
+class TestSauterBootstrapInteriorSkips:
+    def test_skips_negligible_inverse_aspect_ratio(self) -> None:
+        rho = np.linspace(0.0, 1.0, 20)
+        Te = np.linspace(5.0, 0.1, 20)
+        Ti = Te.copy()
+        ne = np.linspace(8.0, 0.5, 20)
+        q = np.linspace(1.0, 4.0, 20)
+        j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=10.0, a=1.0e-6, B0=5.0)
+        assert np.allclose(j_bs, 0.0)
+
+    def test_skips_interior_cells_with_zero_density(self) -> None:
+        rho = np.linspace(0.0, 1.0, 20)
+        Te = np.linspace(5.0, 0.1, 20)
+        Ti = Te.copy()
+        ne = np.linspace(8.0, 0.5, 20)
+        ne[10] = 0.0
+        q = np.linspace(1.0, 4.0, 20)
+        j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
+        assert j_bs[10] == 0.0
+
+    def test_skips_cells_with_degenerate_radial_spacing(self) -> None:
+        rho = np.array([0.0, 0.5 - 1e-13, 0.5, 0.5 + 1e-13, 1.0])
+        Te = np.array([5.0, 4.0, 3.0, 2.0, 0.0])
+        Ti = Te.copy()
+        ne = np.array([8.0, 6.0, 4.0, 2.0, 0.5])
+        q = np.array([1.0, 2.0, 3.0, 3.5, 4.0])
+        j_bs = calculate_sauter_bootstrap_current_full(rho, Te, Ti, ne, q, R0=6.2, a=2.0, B0=5.3)
+        # Central cell has |rho[i+1]-rho[i-1]| below the 1e-12 gradient floor.
+        assert j_bs[2] == 0.0
+
+
+class TestRadialGridRestoration:
+    def test_restores_corrupted_same_shape_grid_in_place(self, solver: TransportSolver) -> None:
+        solver.rho = np.linspace(1.0, 0.0, solver.nr)  # decreasing, correct shape
+        restored = solver._ensure_valid_radial_grid()
+        assert restored == 1
+        np.testing.assert_allclose(solver.rho, np.linspace(0.0, 1.0, solver.nr))
+
+    def test_rebuilds_wrong_shape_grid(self, solver: TransportSolver) -> None:
+        solver.rho = np.zeros(4)
+        restored = solver._ensure_valid_radial_grid()
+        assert restored == 1
+        assert solver.rho.shape == (solver.nr,)
+
+    def test_raises_when_nr_below_two(self, solver: TransportSolver) -> None:
+        solver.nr = 1
+        solver.rho = np.array([0.0])
+        with pytest.raises(ValueError, match="nr must be at least 2"):
+            solver._ensure_valid_radial_grid()
+
+
+class TestChangHintonAdapter:
+    def test_defaults_when_neoclassical_absent(self, config_file: Path) -> None:
+        ts = TransportSolver(str(config_file))
+        ts.neoclassical_params = None
+        chi = ts.chang_hinton_chi_profile()
+        assert chi.shape == (ts.nr,)
+
+    def test_rebuilds_mismatched_q_profile(self, config_file: Path) -> None:
+        ts = TransportSolver(str(config_file))
+        ts.q_profile = np.array([1.0, 2.0])  # wrong shape, triggers rebuild
+        chi = ts.chang_hinton_chi_profile()
+        assert chi.shape == (ts.nr,)
+
+
+class TestBootstrapCurrentDispatch:
+    def test_sauter_path_with_neoclassical(self, solver: TransportSolver) -> None:
+        j_bs = solver.calculate_bootstrap_current(6.2, np.full(solver.nr, 0.5))
+        assert j_bs.shape == (solver.nr,)
+        assert np.all(np.isfinite(j_bs))
+
+    def test_fails_closed_without_neoclassical(self, config_file: Path) -> None:
+        ts = TransportSolver(str(config_file))
+        with pytest.raises(RuntimeError, match="neoclassical transport configuration is required for bootstrap"):
+            ts.calculate_bootstrap_current(6.2, np.full(ts.nr, 0.5))
+
+    def test_legacy_fallback_recomputes_geometry(self, config_file: Path) -> None:
+        ts = TransportSolver(
+            str(config_file),
+            allow_simplified_bootstrap_fallback=True,
+            allow_legacy_approximations=True,
+        )
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        j_bs = ts.calculate_bootstrap_current(0.0, np.full(ts.nr, 0.05))
+        assert j_bs[0] == 0.0
+        assert j_bs[-1] == 0.0
+        assert j_bs.shape == (ts.nr,)
+
+
+class TestGyroBohmExplicitCoefficient:
+    def test_uses_explicit_c_gb_from_params(self, solver: TransportSolver) -> None:
+        assert solver.neoclassical_params is not None
+        solver.neoclassical_params["c_gB"] = 0.2
+        chi = solver._gyro_bohm_chi()
+        assert chi.shape == (solver.nr,)
+        assert np.all(chi >= 0.01)
+
+
+class TestThomasInnerGuards:
+    def test_repairs_singular_and_nonfinite_inner_rows(self) -> None:
+        a = np.array([1.0, 1.0])
+        b = np.array([1e-31, 1e-31, 1e-31])
+        c = np.array([0.0, 0.0])
+        d = np.array([1.0, np.inf, 1.0])
+        x = TransportSolver._thomas_solve(a, b, c, d)
+        assert x.shape == (3,)
+        assert np.all(np.isfinite(x))
+
+
+class TestExternalGKDispatchAndFailure:
+    def _prepared_solver(self, config_file: Path) -> TransportSolver:
+        ts = TransportSolver(str(config_file), transport_model="external_gk")
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        return ts
+
+    def test_solver_execution_failure_fails_closed(self, config_file: Path) -> None:
+        from unittest.mock import MagicMock
+
+        ts = self._prepared_solver(config_file)
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.side_effect = RuntimeError("boom")
+        ts._gk_solver = mock_solver
+        with pytest.raises(RuntimeError, match="solver execution failed"):
+            ts._external_gk_transport(ts.neoclassical_params)
+
+    def test_update_transport_model_uses_valid_external_gk_fluxes(self, config_file: Path) -> None:
+        from unittest.mock import MagicMock
+
+        from scpn_control.core.gk_interface import GKOutput
+
+        ts = self._prepared_solver(config_file)
+        mock_solver = MagicMock()
+        mock_solver.run_from_params.return_value = GKOutput(chi_i=1.0, chi_e=0.8, D_e=0.1, converged=True)
+        ts._gk_solver = mock_solver
+        ts.update_transport_model(50.0)
+        assert np.all(np.isfinite(ts.chi_i))
+        assert np.all(np.isfinite(ts.chi_e))
+
+
+class TestConstantTransportFallback:
+    def test_update_transport_model_constant_fallback(self, config_file: Path) -> None:
+        ts = TransportSolver(
+            str(config_file),
+            allow_constant_transport_fallback=True,
+            allow_legacy_approximations=True,
+        )
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.update_transport_model(50.0)
+        assert np.all(np.isfinite(ts.chi_e))
+        assert np.all(np.isfinite(ts.chi_i))
+
+
+class TestHModePedestalSuccess:
+    def test_high_power_triggers_eped_pedestal_branch(self, config_file: Path) -> None:
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts.update_transport_model(500.0)
+        assert np.all(np.isfinite(ts.chi_e))
+        assert np.all(np.isfinite(ts.Te))
+
+    def test_high_power_eped_import_failure_uses_fallback_suppression(self, config_file: Path) -> None:
+        from unittest.mock import patch
+
+        ts = TransportSolver(str(config_file))
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        chi_turb_edge_before = ts.rho > 0.9
+        with patch.dict("sys.modules", {"scpn_control.core.eped_pedestal": None}):
+            ts.update_transport_model(500.0)
+        assert np.all(np.isfinite(ts.chi_e))
+        assert np.all(ts.chi_e[chi_turb_edge_before] > 0.0)
+
+
+class TestSpeciesAndBalanceDiagnostics:
+    def test_evolve_species_is_noop_in_single_ion_mode(self, solver: TransportSolver) -> None:
+        s_he, p_rad = solver._evolve_species(0.01)
+        assert np.all(s_he == 0.0)
+        assert np.all(p_rad == 0.0)
+        assert solver.particle_balance_error == 0.0
+
+    def test_balance_error_properties_return_floats(self, solver: TransportSolver) -> None:
+        assert isinstance(solver.energy_balance_error, float)
+        assert isinstance(solver.particle_balance_error, float)
+
+
+class TestProfileProjectionAndConfinement:
+    def test_map_profiles_to_2d_updates_jphi(self, solver: TransportSolver) -> None:
+        solver.map_profiles_to_2d()
+        assert solver.J_phi.shape == solver.Psi.shape
+        assert np.all(np.isfinite(solver.J_phi))
+
+    def test_confinement_time_is_infinite_for_zero_loss_power(self, solver: TransportSolver) -> None:
+        assert solver.compute_confinement_time(0.0) == float("inf")
+
+
+class TestSelfConsistentAndSteadyStateModes:
+    def test_run_self_consistent_converges_with_loose_tolerance(self, solver: TransportSolver) -> None:
+        result = solver.run_self_consistent(P_aux=50.0, n_inner=2, n_outer=2, dt=0.005, psi_tol=1e12)
+        assert result["converged"] is True
+        assert result["n_outer_converged"] == 1
+        assert "psi_residuals" in result
+        assert result["Ti_profile"].shape == (solver.nr,)
+
+    def test_run_self_consistent_exhausts_outer_iterations(self, solver: TransportSolver) -> None:
+        result = solver.run_self_consistent(P_aux=50.0, n_inner=1, n_outer=1, dt=0.005, psi_tol=1e-30)
+        assert result["converged"] is False
+        assert result["n_outer_converged"] == 1
+
+    def test_run_to_steady_state_self_consistent_delegates(self, solver: TransportSolver) -> None:
+        result = solver.run_to_steady_state(
+            P_aux=50.0,
+            self_consistent=True,
+            sc_n_inner=1,
+            sc_n_outer=1,
+            dt=0.005,
+            sc_psi_tol=1e12,
+        )
+        assert "psi_residuals" in result
+
+    def test_run_to_steady_state_adaptive_records_history(self, solver: TransportSolver) -> None:
+        result = solver.run_to_steady_state(P_aux=50.0, n_steps=2, dt=0.01, adaptive=True, tol=1e-3)
+        assert "dt_final" in result
+        assert len(result["dt_history"]) == 2
+        assert len(result["error_history"]) == 2
+        assert np.isfinite(result["dt_final"])
