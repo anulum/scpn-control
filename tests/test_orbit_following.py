@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import math
+from typing import Any
 
 import numpy as np
 import pytest
@@ -19,6 +20,9 @@ from scpn_control.core.orbit_following import (
     OrbitClassifier,
     assert_orbit_following_external_claim_admissible,
     SlowingDown,
+    _finite_scalar,
+    _non_empty_text,
+    _profile_array,
     banana_orbit_width,
     first_orbit_loss,
     orbit_following_claim_evidence,
@@ -435,3 +439,84 @@ def test_orbit_following_claim_evidence_rejects_invalid_claim_inputs():
             first_orbit_loss_fraction=loss,
             ensemble_result=EnsembleResult(0.1, np.zeros(50), 0.0, 1, 1, 1),
         )
+
+
+def test_finite_scalar_rejects_nonfinite_and_negative() -> None:
+    with pytest.raises(ValueError, match="x must be finite"):
+        _finite_scalar("x", math.inf)
+    with pytest.raises(ValueError, match="x must be non-negative"):
+        _finite_scalar("x", -1.0, nonnegative=True)
+
+
+def test_profile_array_rejects_empty_profile() -> None:
+    with pytest.raises(ValueError, match="must be a one-dimensional non-empty profile"):
+        _profile_array("rho", np.array([]))
+
+
+def test_non_empty_text_rejects_blank() -> None:
+    assert _non_empty_text("source", "  orbit-x  ") == "orbit-x"
+    with pytest.raises(ValueError, match="source must be a non-empty string"):
+        _non_empty_text("source", "   ")
+
+
+def _evidence_kwargs() -> dict[str, Any]:
+    return dict(
+        source="synthetic_regression_reference",
+        source_id="orbit-following-bounded-regression-v1",
+        geometry_source="repository large-aspect-ratio tokamak fixture",
+        particle_source="repository alpha-particle birth fixture",
+        collision_model="Stix slowing-down fixture",
+        loss_boundary_source="repository first-orbit wall boundary fixture",
+        q=2.0,
+        rho_L_m=0.05,
+        epsilon=0.25,
+        first_orbit_loss_fraction=0.1,
+    )
+
+
+def test_claim_evidence_rejects_out_of_range_reference_loss() -> None:
+    with pytest.raises(ValueError, match=r"reference_loss_fraction must stay within \[0, 1\]"):
+        orbit_following_claim_evidence(reference_loss_fraction=1.5, **_evidence_kwargs())
+
+
+def test_claim_evidence_rejects_unclassified_ensemble() -> None:
+    empty = EnsembleResult(
+        loss_fraction=0.0,
+        heating_profile=np.zeros(10),
+        current_drive=0.0,
+        n_passing=0,
+        n_trapped=0,
+        n_lost=0,
+    )
+    with pytest.raises(ValueError, match="must contain at least one classified particle"):
+        orbit_following_claim_evidence(ensemble_result=empty, **_evidence_kwargs())
+
+
+def test_eom_rejects_nonphysical_state() -> None:
+    orbit = GuidingCenterOrbit(4.0, 2, 3500.0, 0.0, 6.2, 0.0)
+    with pytest.raises(ValueError, match="orbit state must be finite with positive major radius"):
+        orbit._eom(np.array([-1.0, 0.0, 0.0, 0.0]), lambda R, Z: (1.0, 1.0, 1.0))
+
+
+def test_initialize_rejects_nonpositive_temperature() -> None:
+    ens = MonteCarloEnsemble(10, 3500.0, 6.2, 2.0, 5.3)
+    te = np.ones(10)
+    te[3] = 0.0
+    with pytest.raises(ValueError, match="Te_profile must be positive everywhere"):
+        ens.initialize(np.ones(10), te, np.linspace(0.0, 1.0, 10))
+
+
+def test_follow_counts_each_classified_outcome(monkeypatch: pytest.MonkeyPatch) -> None:
+    ens = MonteCarloEnsemble(4, 3500.0, 6.2, 2.0, 5.3)
+    ens.initialize(np.ones(4), np.ones(4), np.linspace(0.0, 1.0, 4))
+    outcomes = iter(["lost", "trapped", "passing", "lost"])
+    monkeypatch.setattr(OrbitClassifier, "classify", staticmethod(lambda *args, **kwargs: next(outcomes)))
+
+    def steady_b_field(R: float, Z: float) -> tuple[float, float, float]:
+        return (0.0, 1.0, 5.3 * 6.2 / R)
+
+    result = ens.follow(steady_b_field, n_bounces=1, dt=1.0e-7)
+    assert result.n_lost == 2
+    assert result.n_trapped == 1
+    assert result.n_passing == 1
+    assert result.loss_fraction == pytest.approx(0.5)
