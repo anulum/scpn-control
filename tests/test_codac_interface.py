@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import xml.etree.ElementTree as ET
+from dataclasses import asdict
 
 import pytest
 
@@ -26,6 +27,10 @@ from scpn_control.control.codac_interface import (
     codac_runtime_evidence,
     load_codac_runtime_evidence,
     save_codac_runtime_evidence,
+    _payload_sha256,
+    _percentile,
+    _require_finite_nonnegative,
+    _require_nonnegative_int,
 )
 
 
@@ -268,6 +273,222 @@ def test_codac_runtime_evidence_rejects_duplicate_json_key(tmp_path):
     path.write_text('{"schema_version": "x", "schema_version": "y"}', encoding="utf-8")
     with pytest.raises(ValueError, match="duplicate JSON key"):
         load_codac_runtime_evidence(path)
+
+
+# ── Numeric validation helpers ───────────────────────────────────────
+
+
+@pytest.mark.parametrize("value", [[1.0], {"a": 1}, None])
+def test_require_finite_nonnegative_rejects_non_numeric_types(value):
+    with pytest.raises(ValueError, match="finite non-negative"):
+        _require_finite_nonnegative("metric", value)
+
+
+def test_require_finite_nonnegative_rejects_bool():
+    with pytest.raises(ValueError, match="finite non-negative"):
+        _require_finite_nonnegative("metric", True)
+
+
+def test_require_finite_nonnegative_rejects_unparseable_string():
+    with pytest.raises(ValueError, match="finite non-negative"):
+        _require_finite_nonnegative("metric", "not-a-number")
+
+
+@pytest.mark.parametrize("value", [-1.0, float("inf"), float("nan")])
+def test_require_finite_nonnegative_rejects_negative_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite non-negative"):
+        _require_finite_nonnegative("metric", value)
+
+
+def test_require_finite_nonnegative_accepts_numeric_string():
+    assert _require_finite_nonnegative("metric", "410.5") == 410.5
+
+
+@pytest.mark.parametrize("value", [True, -1, 1.5, "3"])
+def test_require_nonnegative_int_rejects_bad_values(value):
+    with pytest.raises(ValueError, match="non-negative integer"):
+        _require_nonnegative_int("count", value)
+
+
+def test_percentile_single_sample_returns_only_value():
+    assert _percentile([5.0], 0.5) == 5.0
+
+
+def test_percentile_integer_position_returns_exact_element():
+    # q=0.5 over three samples lands exactly on index 1 (lo == hi).
+    assert _percentile([1.0, 2.0, 3.0], 0.5) == 2.0
+
+
+# ── Evidence payload validation (re-sealed tamper matrix) ─────────────
+
+
+def _sealed_payload(iface, **overrides):
+    """Build a valid facility-qualified payload, apply overrides, re-seal."""
+    evidence = codac_runtime_evidence(
+        iface,
+        controller_id="nsc-v0.19.2",
+        observed_cycle_us=[410.0, 420.0, 430.0, 440.0],
+        interlock_checks=2,
+        interlock_blocks=1,
+        facility_claim_allowed=True,
+    )
+    payload = asdict(evidence)
+    payload.update(overrides)
+    payload["payload_sha256"] = _payload_sha256(payload)
+    return payload
+
+
+def _load_payload(tmp_path, payload, **kwargs):
+    path = tmp_path / "codac-runtime-evidence.json"
+    path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    return load_codac_runtime_evidence(path, **kwargs)
+
+
+def test_payload_rejects_unsupported_schema_version(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, schema_version="codac-runtime-evidence.v0")
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_non_sha256_digest(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface)
+    payload["payload_sha256"] = "not-a-digest"
+    with pytest.raises(ValueError, match="payload_sha256 must be a SHA-256"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_timestamp_without_z(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, generated_utc="2026-05-24T00:00:00")
+    with pytest.raises(ValueError, match="ending in Z"):
+        _load_payload(tmp_path, payload)
+
+
+@pytest.mark.parametrize(
+    ("field", "match"),
+    [
+        ("controller_id", "controller_id must be non-empty"),
+        ("plant_system", "plant_system must be non-empty"),
+        ("pv_prefix", "pv_prefix must be non-empty"),
+    ],
+)
+def test_payload_rejects_blank_identity_fields(tmp_path, field, match):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, **{field: "   "})
+    with pytest.raises(ValueError, match=match):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_non_positive_cycle_hz(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, cycle_hz=0.0)
+    with pytest.raises(ValueError, match="cycle_hz must be positive"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_deadline_mismatch(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, deadline_us=123.0)
+    with pytest.raises(ValueError, match="deadline_us must equal"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_unordered_percentiles(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, observed_cycle_p50_us=500.0)
+    with pytest.raises(ValueError, match="percentiles must be ordered"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_channel_count_drift(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, input_channel_count=99)
+    with pytest.raises(ValueError, match="channel counts do not match"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_zero_interlock_pv_count(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, interlock_pv_count=0)
+    with pytest.raises(ValueError, match="at least one interlock PV"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_blocks_exceeding_checks(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, interlock_blocks=5, interlock_checks=2)
+    with pytest.raises(ValueError, match="interlock_blocks cannot exceed"):
+        _load_payload(tmp_path, payload)
+
+
+@pytest.mark.parametrize("field", ["epics_db_sha256", "opcua_nodeset_sha256"])
+def test_payload_rejects_non_sha256_export_digests(tmp_path, field):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, **{field: "not-a-digest"})
+    with pytest.raises(ValueError, match=f"{field} must be a SHA-256"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_non_boolean_facility_flag(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, facility_claim_allowed="yes")
+    with pytest.raises(ValueError, match="facility_claim_allowed must be boolean"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_claim_status_inconsistent_with_flag(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, claim_status="totally-wrong")
+    with pytest.raises(ValueError, match="claim_status does not match"):
+        _load_payload(tmp_path, payload)
+
+
+def test_payload_rejects_non_object_json(tmp_path):
+    path = tmp_path / "codac-runtime-evidence.json"
+    path.write_text("[1, 2, 3]", encoding="utf-8")
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        load_codac_runtime_evidence(path)
+
+
+# ── Builder argument guards ───────────────────────────────────────────
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"controller_id": "  "}, "controller_id must be non-empty"),
+        ({"plant_system": "  "}, "plant_system must be non-empty"),
+        ({"observed_cycle_us": []}, "at least one sample"),
+        ({"interlock_checks": 1, "interlock_blocks": 2}, "interlock_blocks cannot exceed"),
+    ],
+)
+def test_codac_runtime_evidence_builder_argument_guards(kwargs, match):
+    iface = _make_interface()
+    base = {
+        "controller_id": "nsc-v0.19.2",
+        "observed_cycle_us": [410.0, 420.0],
+        "interlock_checks": 2,
+        "interlock_blocks": 1,
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError, match=match):
+        codac_runtime_evidence(iface, **base)
+
+
+def test_codac_runtime_evidence_rejects_backpressure_for_facility_claim():
+    iface = _make_interface()
+    with pytest.raises(ValueError, match="backpressure events cannot support"):
+        codac_runtime_evidence(
+            iface,
+            controller_id="nsc-v0.19.2",
+            observed_cycle_us=[410.0, 420.0],
+            interlock_checks=2,
+            interlock_blocks=1,
+            backpressure_events=3,
+            facility_claim_allowed=True,
+        )
 
 
 # ── CycleTimer ────────────────────────────────────────────────────────
