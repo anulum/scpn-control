@@ -253,3 +253,111 @@ def test_all_states_return_to_idle_within_one_formal_cycle() -> None:
 
         assert state is PulsedScenarioState.IDLE
         assert len(visited) <= 9
+
+
+class TestSpecValidation:
+    def test_rejects_negative_field(self) -> None:
+        with pytest.raises(ValueError, match="must be non-negative"):
+            replace(_spec(), ramp_current_A=-1.0)
+
+    def test_rejects_nonpositive_tolerances(self) -> None:
+        with pytest.raises(ValueError, match="phase_tolerance_rad must be strictly positive"):
+            replace(_spec(), phase_tolerance_rad=0.0)
+        with pytest.raises(ValueError, match="spatial_tolerance_m must be strictly positive"):
+            replace(_spec(), spatial_tolerance_m=0.0)
+
+    def test_rejects_out_of_range_recharge_fraction(self) -> None:
+        with pytest.raises(ValueError, match=r"recharge_voltage_fraction must lie in \(0, 1\]"):
+            replace(_spec(), recharge_voltage_fraction=1.5)
+
+
+class TestTelemetryValidation:
+    def test_plasma_rejects_negatives(self) -> None:
+        with pytest.raises(ValueError, match="temperature_eV must be non-negative"):
+            _plasma(temperature_eV=-1.0)
+        with pytest.raises(ValueError, match="phase_lock_error_rad must be non-negative"):
+            _plasma(phase_lock_error_rad=-1.0)
+        with pytest.raises(ValueError, match="reference_error_m must be non-negative"):
+            _plasma(reference_error_m=-1.0)
+        with pytest.raises(ValueError, match="fusion_power_W must be non-negative"):
+            _plasma(fusion_power_W=-1.0)
+
+    def test_bank_validation(self) -> None:
+        with pytest.raises(ValueError, match="voltage_V must be non-negative"):
+            CapacitorBankTelemetry(voltage_V=-1.0, voltage_max_V=10.0, energy_J=1.0)
+        with pytest.raises(ValueError, match="voltage_max_V must be strictly positive"):
+            CapacitorBankTelemetry(voltage_V=1.0, voltage_max_V=0.0, energy_J=1.0)
+        with pytest.raises(ValueError, match="voltage_V must not exceed voltage_max_V"):
+            CapacitorBankTelemetry(voltage_V=20.0, voltage_max_V=10.0, energy_J=1.0)
+        with pytest.raises(ValueError, match="energy_J must be non-negative"):
+            CapacitorBankTelemetry(voltage_V=1.0, voltage_max_V=10.0, energy_J=-1.0)
+
+
+class TestManualTransitionAndTimestamp:
+    def test_transition_to_records_valid_adjacent_move(self) -> None:
+        scheduler = PulsedScenarioScheduler(_spec())
+        record = scheduler.transition_to(PulsedScenarioState.RAMP_UP, 0.5, "manual ramp")
+        assert record.to_state is PulsedScenarioState.RAMP_UP
+        assert scheduler.state is PulsedScenarioState.RAMP_UP
+        assert scheduler.audit_log[-1] is record
+
+    def test_transition_to_rejects_empty_reason(self) -> None:
+        scheduler = PulsedScenarioScheduler(_spec())
+        with pytest.raises(ValueError, match="reason must not be empty"):
+            scheduler.transition_to(PulsedScenarioState.RAMP_UP, 0.5, "   ")
+
+    def test_validate_timestamp_rejects_negative(self) -> None:
+        scheduler = PulsedScenarioScheduler(_spec())
+        with pytest.raises(ValueError, match="t_s must be non-negative"):
+            scheduler.step(-1.0, _plasma(), _bank())
+
+
+class TestGuardWaitingBranches:
+    def _step_in_state(self, state: PulsedScenarioState, plasma, bank):
+        scheduler = PulsedScenarioScheduler(_spec())
+        scheduler.state = state
+        return scheduler.step(1.0, plasma, bank)
+
+    def test_ramp_up_waits_for_ramp_current(self) -> None:
+        command = self._step_in_state(PulsedScenarioState.RAMP_UP, _plasma(coil_current_A=0.0), _bank())
+        assert command.transition is False
+        assert command.reason == "waiting for ramp current"
+
+    def test_flat_top_waits_for_temperature(self) -> None:
+        plasma = _plasma(phase_lock_error_rad=0.004, reference_error_m=0.001, temperature_eV=10.0)
+        command = self._step_in_state(PulsedScenarioState.FLAT_TOP, plasma, _bank())
+        assert command.transition is False
+        assert command.reason == "waiting for burn temperature"
+
+    def test_flat_top_waits_for_energy(self) -> None:
+        plasma = _plasma(phase_lock_error_rad=0.004, reference_error_m=0.001, temperature_eV=1.5e3)
+        command = self._step_in_state(PulsedScenarioState.FLAT_TOP, plasma, _bank(energy_J=50.0))
+        assert command.transition is False
+        assert command.reason == "waiting for burn energy"
+
+    def test_burn_waits_for_fusion_power(self) -> None:
+        command = self._step_in_state(PulsedScenarioState.BURN, _plasma(fusion_power_W=0.0), _bank())
+        assert command.transition is False
+        assert command.reason == "waiting for fusion power"
+
+    def test_expansion_waits_for_velocity(self) -> None:
+        command = self._step_in_state(PulsedScenarioState.EXPANSION, _plasma(radial_velocity_m_s=0.0), _bank())
+        assert command.transition is False
+        assert command.reason == "waiting for expansion velocity"
+
+    def test_recharge_waits_for_voltage(self) -> None:
+        command = self._step_in_state(PulsedScenarioState.RECHARGE, _plasma(), _bank(voltage_V=9_000.0))
+        assert command.transition is False
+        assert command.reason == "waiting for recharge voltage"
+
+    def test_cool_down_waits_for_cooldown(self) -> None:
+        command = self._step_in_state(PulsedScenarioState.COOL_DOWN, _plasma(temperature_eV=100.0), _bank())
+        assert command.transition is False
+        assert command.reason == "waiting for plasma cooldown"
+
+
+def test_finite_rejects_non_finite() -> None:
+    from scpn_control.control.pulsed_scenario_scheduler_v2 import _finite
+
+    with pytest.raises(ValueError, match="x must be finite"):
+        _finite("x", float("inf"))
