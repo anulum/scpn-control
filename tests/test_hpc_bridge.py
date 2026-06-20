@@ -974,7 +974,8 @@ def test_init_uses_package_local_candidate(monkeypatch, tmp_path):
     module_file = tmp_path / "hpc_bridge.py"
     module_file.write_text("# test module path\n", encoding="utf-8")
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
-    bin_lib = tmp_path / "bin" / "libscpn_solver.so"
+    lib_name = "scpn_solver.dll" if hpc_mod.platform.system() == "Windows" else "libscpn_solver.so"
+    bin_lib = tmp_path / "bin" / lib_name
     bin_lib.parent.mkdir()
     bin_lib.write_bytes(b"\x7fELF-not-a-real-library")
 
