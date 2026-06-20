@@ -195,8 +195,13 @@ class CompiledNet:
         if not _HAS_SC_NEUROCORE:
             raise RuntimeError("dense_forward requires sc_neurocore.  Use dense_forward_float for the numpy fallback.")
 
-        # v3.8.0+ path: VectorizedSCLayer handles encode+forward in one call
-        if _HAS_NEUROCORE_V3:
+        # v3.8.0+ path: VectorizedSCLayer handles encode+forward in one call.
+        # Blocked on sc-neurocore API drift (v3.15.34 removed get_backend and
+        # changed the VectorizedSCLayer/BitstreamEncoder constructors); restoring
+        # this path is delegated to sc-neurocore — see its docs/internal
+        # scpn_control_compiler_must_develop_todo (NEU-SCPN.1–4).  _HAS_NEUROCORE_V3
+        # is False against any current release, so this block is unreachable here.
+        if _HAS_NEUROCORE_V3:  # pragma: no cover
             encoder = BitstreamEncoder(length=self.bitstream_length, seed=self.seed + 1_000_000)
             layer = VectorizedSCLayer(W_packed, encoder, backend=get_backend())
             return np.asarray(layer.forward(input_probs), dtype=np.float64)
@@ -213,9 +218,9 @@ class CompiledNet:
             bits = generate_bernoulli_bitstream(p, self.bitstream_length, rng=rng)
             input_packed[j, :] = pack_bitstream(bits)
 
-        if hasattr(np, "bit_count"):
+        if hasattr(np, "bitwise_count"):
             anded = np.bitwise_and(W_packed, input_packed[np.newaxis, :, :])
-            ones = np.bit_count(anded).sum(axis=(1, 2), dtype=np.uint64)
+            ones = np.bitwise_count(anded).sum(axis=(1, 2), dtype=np.uint64)
             output[:] = ones.astype(np.float64) / self.bitstream_length
         else:
             for i in range(n_out):
