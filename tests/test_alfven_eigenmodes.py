@@ -349,3 +349,70 @@ def test_rsae_frequency_rejects_nonphysical_domain():
         rsae_frequency(q_min=1.1, n=0, m=1, v_A=1e7, R0=6.0)
     with pytest.raises(ValueError, match="T_i_keV must be finite and > 0"):
         rsae_frequency(q_min=1.1, n=1, m=1, v_A=1e7, R0=6.0, T_i_keV=0.0)
+
+
+def _continuum() -> AlfvenContinuum:
+    rho = np.linspace(0.0, 1.0, 50)
+    q = np.linspace(1.0, 3.0, 50)
+    ne = np.ones(50) * 5.0
+    return AlfvenContinuum(rho, q, ne, B0=5.3, R0=6.2)
+
+
+def test_continuum_rejects_short_rho_grid() -> None:
+    with pytest.raises(ValueError, match="at least two points"):
+        AlfvenContinuum(np.array([0.5]), np.array([1.0]), np.array([5.0]), B0=5.3, R0=6.2)
+
+
+def test_continuum_rejects_nonfinite_rho() -> None:
+    with pytest.raises(ValueError, match="rho must contain only finite values"):
+        AlfvenContinuum(np.array([np.nan, 1.0]), np.array([1.0, 2.0]), np.array([5.0, 5.0]), B0=5.3, R0=6.2)
+
+
+def test_continuum_rejects_mismatched_profile_shape() -> None:
+    rho = np.linspace(0.0, 1.0, 5)
+    with pytest.raises(ValueError, match=r"q must have shape \(5,\)"):
+        AlfvenContinuum(rho, np.ones(4), np.ones(5) * 5.0, B0=5.3, R0=6.2)
+
+
+def test_alfven_speed_rejects_out_of_grid_radius() -> None:
+    with pytest.raises(ValueError, match="rho_eval must be finite and within the continuum grid"):
+        _continuum().alfven_speed(2.0)
+
+
+def test_electron_landau_damping_rejects_nonpositive_temperature() -> None:
+    tae = TAEMode(n=1, q_rational=1.5, v_A=1.0e7, R0=6.0, T_e_keV=10.0)
+    tae.T_e_keV = -1.0
+    with pytest.raises(ValueError, match="T_e_keV must be positive for Landau damping"):
+        tae.electron_landau_damping()
+
+
+def test_electron_landau_damping_rejects_degenerate_thermal_speed() -> None:
+    # A positive but vanishingly small temperature yields a thermal speed below 1 m/s.
+    tae = TAEMode(n=1, q_rational=1.5, v_A=1.0e7, R0=6.0, T_e_keV=1.0e-50)
+    with pytest.raises(ValueError, match="invalid k_parallel or thermal speed for Landau damping"):
+        tae.electron_landau_damping()
+
+
+def test_critical_beta_fast_is_infinite_when_current_beta_vanishes(monkeypatch: pytest.MonkeyPatch) -> None:
+    analysis = AlfvenStabilityAnalysis(
+        _continuum(),
+        FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.05, m_fast_amu=4.0),
+    )
+    real_beta_fast = analysis.fast_params.beta_fast
+    # Vanish only the reference-density beta_fast(1.0, B0) probed for b_current, leaving
+    # the stability-scan drive (evaluated at the continuum density) non-zero.
+    monkeypatch.setattr(
+        analysis.fast_params,
+        "beta_fast",
+        lambda ne_20, B0: 0.0 if ne_20 == 1.0 else real_beta_fast(ne_20, B0),
+    )
+    assert analysis.critical_beta_fast(n=1) == float("inf")
+
+
+def test_alpha_particle_loss_rejects_nonfinite_growth_rate() -> None:
+    analysis = AlfvenStabilityAnalysis(
+        _continuum(),
+        FastParticleDrive(E_fast_keV=3500.0, n_fast_frac=0.05, m_fast_amu=4.0),
+    )
+    with pytest.raises(ValueError, match="gamma_net must be finite"):
+        analysis.alpha_particle_loss_estimate(np.nan)
