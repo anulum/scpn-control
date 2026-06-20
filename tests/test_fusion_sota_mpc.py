@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -225,6 +226,40 @@ def test_run_sota_simulation_explicit_target_vector() -> None:
     )
     assert summary["steps"] == 8
     assert np.isfinite(summary["mean_tracking_error"])
+
+
+def test_run_sota_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    out = tmp_path / "results.png"
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_sota_mpc"):
+        summary = run_sota_simulation(
+            config_file="dummy.json",
+            shot_length=6,
+            save_plot=True,
+            output_path=str(out),
+            verbose=True,
+            kernel_factory=_DummyKernel,
+        )
+    assert summary["plot_saved"] is True
+    assert summary["plot_error"] is None
+    assert out.exists()
+    assert "SOTA Analysis saved" in caplog.text
+
+
+def test_run_sota_simulation_reports_plot_failure(tmp_path: Path) -> None:
+    # The parent directory does not exist, so savefig raises an OSError the
+    # plotting helper must catch and surface as plot_error.
+    bad = tmp_path / "missing_dir" / "results.png"
+    summary = run_sota_simulation(
+        config_file="dummy.json",
+        shot_length=6,
+        save_plot=True,
+        output_path=str(bad),
+        verbose=False,
+        kernel_factory=_DummyKernel,
+    )
+    assert summary["plot_saved"] is False
+    assert summary["plot_error"]
+    assert not bad.exists()
 
 
 def test_run_sota_simulation_verbose_prints_output(caplog) -> None:

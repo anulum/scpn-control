@@ -228,6 +228,159 @@ def test_ten_tick_campaign_yields_expected_scheduler_and_action_pairs() -> None:
     assert observed == expected
 
 
+def test_all_false_burn_action_mask_is_rejected() -> None:
+    with pytest.raises(ValueError, match="at least one burn action component"):
+        PulsedShotMPCAdapter(
+            _mpc(),
+            _scheduler(),
+            _bank(),
+            burn_action_mask=np.array([False, False]),
+        )
+
+
+def test_invalid_pulse_waveform_is_rejected() -> None:
+    with pytest.raises(ValueError, match="pulse_waveform must be one of"):
+        PulsedShotMPCAdapter(
+            _mpc(),
+            _scheduler(),
+            _bank(),
+            pulse_waveform="triangle",  # type: ignore[arg-type]
+        )
+
+
+def test_step_rejects_misshaped_state() -> None:
+    adapter = PulsedShotMPCAdapter(_mpc(), _scheduler(), _bank())
+    with pytest.raises(ValueError, match="state must be finite and match MPC target"):
+        adapter.step(np.array([5.0, 1.0, 0.0]))
+
+
+def test_step_rejects_nonfinite_state() -> None:
+    adapter = PulsedShotMPCAdapter(_mpc(), _scheduler(), _bank())
+    with pytest.raises(ValueError, match="state must be finite and match MPC target"):
+        adapter.step(np.array([np.nan, 1.0]))
+
+
+def test_step_rejects_misshaped_ref() -> None:
+    adapter = PulsedShotMPCAdapter(_mpc(), _scheduler(), _bank())
+    with pytest.raises(ValueError, match="ref must be finite and match MPC target"):
+        adapter.step(np.array([5.0, 1.0]), np.array([6.0, 0.0, 0.0]))
+
+
+def test_step_rejects_nonfinite_planned_action(monkeypatch: pytest.MonkeyPatch) -> None:
+    adapter = PulsedShotMPCAdapter(_mpc(), _scheduler(PulsedScenarioState.BURN), _bank())
+    monkeypatch.setattr(
+        adapter.nmpc,
+        "plan_trajectory",
+        lambda _state: np.array([np.nan, 0.0], dtype=np.float64),
+    )
+    with pytest.raises(ValueError, match="MPC action must be finite and match safe_action"):
+        adapter.step(np.array([5.0, 1.0]), np.array([6.0, 0.0]))
+
+
+def test_burn_with_zero_demand_reports_no_burn_demand() -> None:
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.BURN),
+        _bank(initial_voltage_V=10.0, resistance_ohm=0.01),
+        burn_action_mask=np.array([True, True]),
+    )
+    # state == ref drives the planned action to zero, so no pulse is demanded.
+    action = adapter.step(np.array([6.0, 0.0]), np.array([6.0, 0.0]))
+    decision = adapter.explain_last_decision()
+
+    assert np.array_equal(action, np.zeros(2))
+    assert decision["bank_feasibility"] == "no burn demand"
+    assert decision["bank_feasible"] is True
+    assert decision["safe_action_applied"] is False
+    # constraint_slack falls back to the full bank energy when no pulse is demanded.
+    assert decision["constraint_slack"] == pytest.approx(adapter.bank.state.energy_J)
+
+
+def test_burn_with_bank_guard_disabled_admits_without_feasibility_check() -> None:
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.BURN),
+        _bank(initial_voltage_V=0.0, resistance_ohm=1.0),
+        burn_action_mask=np.array([True, True]),
+        refuse_burn_when_uncharged=False,
+    )
+    action = adapter.step(np.array([5.0, 1.0]), np.array([6.0, 0.0]))
+    decision = adapter.explain_last_decision()
+
+    # The bank is fully discharged, yet the action is admitted because the guard is off.
+    assert not np.array_equal(action, np.zeros(2))
+    assert decision["bank_feasibility"] == "bank guard disabled by policy"
+    assert decision["safe_action_applied"] is False
+    assert decision["bank_feasible"] is True
+
+
+@pytest.mark.parametrize(
+    "context",
+    [
+        "burn",
+        {"state": "burn"},
+    ],
+)
+def test_scheduler_state_resolves_string_and_mapping_context(context: object) -> None:
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.IDLE),
+        _bank(initial_voltage_V=10.0, resistance_ohm=0.01),
+        burn_action_mask=np.array([True, True]),
+    )
+    adapter.step(
+        np.array([5.0, 1.0]),
+        np.array([6.0, 0.0]),
+        context=context,
+        pulse=PulseSpec(peak_current_A=0.5, duration_s=0.001),
+    )
+    decision = adapter.explain_last_decision()
+    assert decision["scheduler_state"] == PulsedScenarioState.BURN.value
+
+
+def test_scheduler_state_falls_back_to_scheduler_for_stateless_context() -> None:
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.FLAT_TOP),
+        _bank(),
+        burn_action_mask=np.array([True, False]),
+    )
+    # An opaque object without a usable ``state`` attribute falls back to scheduler.state.
+    adapter.step(np.array([5.0, 1.0]), np.array([6.0, 0.0]), context=object())
+    decision = adapter.explain_last_decision()
+    assert decision["scheduler_state"] == PulsedScenarioState.FLAT_TOP.value
+    assert decision["burn_components_masked"] is True
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("mpc_objective", float("inf"), "mpc_objective must be finite"),
+        ("constraint_slack", float("nan"), "constraint_slack must be finite"),
+        ("peak_current_A", -1.0, "peak_current_A must be finite and non-negative"),
+    ],
+)
+def test_decision_evidence_rejects_nonfinite_fields(field: str, value: float, match: str) -> None:
+    adapter = PulsedShotMPCAdapter(_mpc(), _scheduler(), _bank(), burn_action_mask=np.array([True, True]))
+    kwargs: dict[str, object] = dict(
+        action=np.zeros(2, dtype=np.float64),
+        safe_action=np.zeros(2, dtype=np.float64),
+        burn_action_mask=np.array([True, True]),
+        mpc_objective=1.0,
+        constraint_slack=2.0,
+        scheduler_state="burn",
+        bank_feasibility="ok",
+        reason="test",
+        bank_feasible=True,
+        safe_action_applied=False,
+        burn_components_masked=False,
+        peak_current_A=0.5,
+    )
+    kwargs[field] = value
+    with pytest.raises(ValueError, match=match):
+        adapter._decision_evidence(**kwargs)  # type: ignore[arg-type]
+
+
 def _advance_scheduler_for_expected_state(
     scheduler: PulsedScenarioScheduler,
     expected_state: PulsedScenarioState,
