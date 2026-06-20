@@ -13,9 +13,11 @@ import pytest
 from scpn_control.core.locked_mode import (
     ErrorFieldSpectrum,
     ErrorFieldToDisruptionChain,
+    IslandGrowth,
     LockedModeIsland,
     ModeLocking,
     ResonantFieldAmplification,
+    RotationEvolution,
 )
 
 
@@ -231,3 +233,65 @@ def test_chain_no_locking():
     res = chain.run(B_err_n1=1e-7, omega_phi_0=1e4)
     assert not res.disruption
     assert res.lock_time == -1.0
+
+
+def test_error_field_spectrum_rejects_negative_corrections() -> None:
+    with pytest.raises(ValueError, match="n_corrections must be non-negative"):
+        ErrorFieldSpectrum(B0=5.3, n_corrections=-1)
+
+
+def test_mode_locking_rejects_aspect_ratio_violation() -> None:
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        ModeLocking(R0=1.0, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=100.0)
+
+
+def test_evolve_rotation_rejects_nonpositive_steps() -> None:
+    locker = ModeLocking(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0, omega_phi_0=100.0)
+    with pytest.raises(ValueError, match="n_steps must be positive"):
+        locker.evolve_rotation(B_res=0.0, r_s=1.0, tau_visc=0.1, dt=1.0e-3, n_steps=0)
+
+
+def test_locked_mode_island_rejects_aspect_ratio_violation() -> None:
+    with pytest.raises(ValueError, match="a must be smaller than R0"):
+        LockedModeIsland(r_s=1.0, m=2, n=1, a=2.0, R0=1.0, delta_prime=-1.0)
+
+
+def test_locked_mode_island_rejects_nonfinite_delta_prime() -> None:
+    with pytest.raises(ValueError, match="delta_prime must be finite"):
+        LockedModeIsland(r_s=1.0, m=2, n=1, a=2.0, R0=6.2, delta_prime=np.inf)
+
+
+def test_island_grow_rejects_nonpositive_steps() -> None:
+    island = LockedModeIsland(r_s=1.0, m=2, n=1, a=2.0, R0=6.2, delta_prime=-1.0)
+    with pytest.raises(ValueError, match="n_steps must be positive"):
+        island.grow(w0=1.0e-3, eta=1.0e-7, dt=1.0e-3, n_steps=0)
+
+
+def test_chain_returns_nondisruptive_when_locking_consumes_all_steps(monkeypatch: pytest.MonkeyPatch) -> None:
+    # lock_time 2.5 s with the chain's internal dt=1e-3 and n_steps=2000 leaves no
+    # steps for island growth (steps_left <= 0), so the chain short-circuits.
+    monkeypatch.setattr(
+        ModeLocking,
+        "evolve_rotation",
+        lambda self, *args, **kwargs: RotationEvolution(np.zeros(1), True, 2.5),
+    )
+    result = ErrorFieldToDisruptionChain({}).run(B_err_n1=1.0e-3, omega_phi_0=100.0)
+    assert result.disruption is False
+    assert result.lock_time == 2.5
+    assert result.tq_trigger_time == -1.0
+
+
+def test_chain_returns_nondisruptive_when_island_does_not_reach_overlap(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        ModeLocking,
+        "evolve_rotation",
+        lambda self, *args, **kwargs: RotationEvolution(np.zeros(1), True, 0.0),
+    )
+    monkeypatch.setattr(
+        LockedModeIsland,
+        "grow",
+        lambda self, *args, **kwargs: IslandGrowth(np.array([1.0e-3]), 0.0, False),
+    )
+    result = ErrorFieldToDisruptionChain({}).run(B_err_n1=1.0e-3, omega_phi_0=100.0)
+    assert result.disruption is False
+    assert result.island_width_at_tq == pytest.approx(1.0e-3)
