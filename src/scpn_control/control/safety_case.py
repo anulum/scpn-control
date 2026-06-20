@@ -555,7 +555,7 @@ def controller_safety_case_evidence(
     except ArtifactValidationError as exc:
         raise ValueError(f"safety-critical controller artifact is not admissible: {exc}") from exc
     formal = controller_artifact.formal_verification
-    if formal is None:
+    if formal is None:  # pragma: no cover - validate_safety_critical_artifact above already rejects formal=None
         raise ValueError("safety-critical controller artifact is missing formal verification evidence")
     controller_sha256 = compute_artifact_payload_sha256(controller_artifact)
     _require_same_controller_binding(controller_sha256, transport_evidence, digital_twin_evidence)
