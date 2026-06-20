@@ -821,3 +821,215 @@ def test_env_solver_path_external_opt_in_preserves_absolute_library_policy(monke
     resolved = _validate_solver_library_path(str(candidate), source="SCPN_SOLVER_LIB")
 
     assert resolved == str(candidate.resolve())
+
+
+# ── Build-helper, signature-variant and native-path contracts ─────────────────
+
+
+class _Sym:
+    """Placeholder native symbol that accepts argtypes/restype assignment."""
+
+
+class _FakeNativeLib:
+    def __init__(self, names: tuple[str, ...]) -> None:
+        for name in names:
+            setattr(self, name, _Sym())
+
+
+def _bridge_with_lib(lib: object) -> HPCBridge:
+    bridge = HPCBridge.__new__(HPCBridge)
+    bridge.lib = lib
+    bridge._destroy_symbol = None
+    bridge._has_converged_api = False
+    bridge._has_boundary_api = False
+    return bridge
+
+
+def test_is_relative_to_distinguishes_nested_and_unrelated_paths():
+    assert hpc_mod._is_relative_to(Path("/alpha/beta"), Path("/alpha")) is True
+    assert hpc_mod._is_relative_to(Path("/alpha/beta"), Path("/gamma")) is False
+
+
+def test_native_build_environment_includes_system_root(monkeypatch, tmp_path):
+    monkeypatch.setenv("SystemRoot", "C:\\Windows")
+    env = hpc_mod._native_build_environment(tmp_path)
+    assert env["SystemRoot"] == "C:\\Windows"
+    assert env["TMPDIR"] == str(tmp_path)
+
+
+def test_native_build_compiler_rejects_relative_path(monkeypatch):
+    monkeypatch.setattr(hpc_mod.shutil, "which", lambda name: "g++")
+    assert hpc_mod._native_build_compiler() is None
+
+
+def test_native_build_compiler_rejects_unresolvable_path(monkeypatch):
+    monkeypatch.setattr(hpc_mod.shutil, "which", lambda name: "/nonexistent/dir/g++")
+    assert hpc_mod._native_build_compiler() is None
+
+
+def test_native_build_compiler_rejects_non_file(monkeypatch, tmp_path):
+    directory = tmp_path / "compiler_dir"
+    directory.mkdir()
+    monkeypatch.setattr(hpc_mod.shutil, "which", lambda name: str(directory))
+    assert hpc_mod._native_build_compiler() is None
+
+
+def test_prepare_native_output_path_removes_stale_temp(tmp_path):
+    out = tmp_path / "libscpn_solver.so"
+    stale = tmp_path / f".{out.name}.build.{os.getpid()}"
+    stale.write_text("stale", encoding="utf-8")
+    result = hpc_mod._prepare_native_output_path(tmp_path, out)
+    assert result == stale
+    assert not stale.exists()
+
+
+def test_prepare_native_output_path_rejects_unremovable_temp(tmp_path):
+    out = tmp_path / "libscpn_solver.so"
+    stale = tmp_path / f".{out.name}.build.{os.getpid()}"
+    stale.mkdir()
+    (stale / "child").write_text("x", encoding="utf-8")
+    assert hpc_mod._prepare_native_output_path(tmp_path, out) is None
+
+
+def test_verify_solver_source_handles_unreadable_source(monkeypatch, tmp_path):
+    src = tmp_path / "solver.cpp"
+    src.write_bytes(b"code")
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"solver.cpp": {"sha256": "a" * 64}}), encoding="utf-8")
+
+    def _raise_read_bytes(self):
+        raise OSError("unreadable")
+
+    monkeypatch.setattr(Path, "read_bytes", _raise_read_bytes)
+    assert hpc_mod._verify_solver_source(src, manifest) is False
+
+
+def test_release_native_solver_tolerates_destroy_error():
+    class _Lib:
+        def destroy(self, ptr):
+            raise OSError("native cleanup failed")
+
+    state = {"solver_ptr": 99, "loaded": True, "lib": _Lib(), "destroy_symbol": "destroy"}
+    hpc_mod._release_native_solver(state)
+    assert state["solver_ptr"] is None
+
+
+def test_setup_signatures_full_lib_enables_all_apis():
+    bridge = _bridge_with_lib(
+        _FakeNativeLib(("create_solver", "run_step", "run_step_converged", "set_boundary_dirichlet", "destroy_solver"))
+    )
+    bridge._setup_signatures()
+    assert bridge._has_converged_api is True
+    assert bridge._has_boundary_api is True
+    assert bridge._destroy_symbol == "destroy_solver"
+
+
+def test_setup_signatures_minimal_lib_disables_optional_apis():
+    bridge = _bridge_with_lib(_FakeNativeLib(("create_solver", "run_step")))
+    bridge._setup_signatures()
+    assert bridge._has_converged_api is False
+    assert bridge._has_boundary_api is False
+    assert bridge._destroy_symbol is None
+
+
+def test_setup_signatures_uses_delete_solver_alias():
+    bridge = _bridge_with_lib(_FakeNativeLib(("create_solver", "run_step", "delete_solver")))
+    bridge._setup_signatures()
+    assert bridge._destroy_symbol == "delete_solver"
+
+
+def test_initialize_noop_when_not_loaded():
+    bridge = _make_bridge()
+    bridge.loaded = False
+    bridge.solver_ptr = None
+    bridge.initialize(2, 3, (2.0, 10.0), (-5.0, 5.0))
+    assert bridge.solver_ptr is None
+
+
+def test_solve_into_returns_none_when_not_loaded():
+    bridge = _make_bridge()
+    bridge.loaded = False
+    assert bridge.solve_into(np.zeros((3, 2)), np.zeros((3, 2))) is None
+
+
+def test_solve_until_converged_returns_none_when_not_loaded():
+    bridge = _make_bridge()
+    bridge.loaded = False
+    assert bridge.solve_until_converged(np.zeros((3, 2))) is None
+
+
+def test_solve_until_converged_into_returns_none_when_not_loaded():
+    bridge = _make_bridge()
+    bridge.loaded = False
+    assert bridge.solve_until_converged_into(np.zeros((3, 2)), np.zeros((3, 2))) is None
+
+
+def test_sync_cleanup_state_without_armed_state():
+    bridge = HPCBridge.__new__(HPCBridge)
+    bridge._sync_cleanup_state()  # no _cleanup_state attribute → early return
+
+
+def test_init_uses_package_local_candidate(monkeypatch, tmp_path):
+    monkeypatch.delenv("SCPN_SOLVER_LIB", raising=False)
+    module_file = tmp_path / "hpc_bridge.py"
+    module_file.write_text("# test module path\n", encoding="utf-8")
+    monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
+    bin_lib = tmp_path / "bin" / "libscpn_solver.so"
+    bin_lib.parent.mkdir()
+    bin_lib.write_bytes(b"\x7fELF-not-a-real-library")
+
+    def _raise_cdll(path):
+        raise OSError("not a valid shared object")
+
+    monkeypatch.setattr(hpc_mod.ctypes, "CDLL", _raise_cdll)
+    bridge = HPCBridge()
+    assert bridge.is_available() is False
+    assert bridge.lib_path == str(bin_lib)
+
+
+def test_compile_cpp_returns_none_when_windows_temp_unavailable(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    _write_solver_source(tmp_path, monkeypatch)
+    monkeypatch.setattr(hpc_mod.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(hpc_mod, "_prepare_native_output_path", lambda out_dir, out: None)
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_tolerates_cleanup_error_on_failed_build(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    def _failed_run(*args, **kwargs):
+        raise hpc_mod.subprocess.CalledProcessError(1, "g++")
+
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _failed_run)
+
+    def _raise_unlink(self, *args, **kwargs):
+        raise OSError("temp locked")
+
+    monkeypatch.setattr(Path, "unlink", _raise_unlink)
+    assert hpc_mod.compile_cpp() is None
+
+
+def test_compile_cpp_returns_none_when_publication_fails(monkeypatch, tmp_path):
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    _write_solver_source(tmp_path, monkeypatch)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    temp_out = bin_dir / "temp_build.so"
+    monkeypatch.setattr(hpc_mod, "_prepare_native_output_path", lambda out_dir, out: temp_out)
+
+    def _ok_run(*args, **kwargs):
+        temp_out.write_bytes(b"compiled-library")
+        return None
+
+    monkeypatch.setattr(hpc_mod.subprocess, "run", _ok_run)
+
+    def _raise_replace(src, dst):
+        raise OSError("cannot publish")
+
+    monkeypatch.setattr(hpc_mod.os, "replace", _raise_replace)
+    assert hpc_mod.compile_cpp() is None
