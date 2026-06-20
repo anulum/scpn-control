@@ -66,6 +66,24 @@ def _kernel_report() -> dict[str, Any]:
     )
 
 
+def _center_default_unavailable_report() -> dict[str, Any]:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+    )
+
+    return cast(
+        dict[str, Any],
+        run_quantum_disruption_bridge(
+            _control_features(),
+            config=QuantumDisruptionBridgeConfig(
+                allow_center_defaults=True,
+                quantum_module="missing.quantum.backend",
+            ),
+        ),
+    )
+
+
 def test_quantum_disruption_bridge_import_does_not_import_quantum_package() -> None:
     sys.modules.pop("scpn_quantum_control", None)
     module = importlib.import_module("scpn_control.control.quantum_disruption_bridge")
@@ -1058,3 +1076,314 @@ def test_quantum_disruption_dependency_contract_rejects_policy_and_digest_shape(
     digest_shape["contract_sha256"] = "bad"
     with pytest.raises(ValueError, match="contract_sha256 must be"):
         validate_quantum_disruption_dependency_contract(digest_shape)
+
+
+def test_quantum_disruption_numeric_helpers_cover_edge_branches() -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        _amplitude_encode,
+        _jsonable,
+        _risk_band,
+        normalize_iter_features,
+        quantum_disruption_kernel_matrix,
+    )
+
+    with pytest.raises(ValueError, match="raw_iter_features must be finite"):
+        normalize_iter_features([0.5] * 10 + [math.inf])
+
+    single = quantum_disruption_kernel_matrix(
+        _control_features(),
+        config=QuantumDisruptionBridgeConfig(allow_center_defaults=True),
+    )
+    assert single["samples_a_count"] == 1
+    assert np.asarray(single["kernel_matrix"]).shape == (1, 1)
+
+    encoded = _amplitude_encode(np.zeros(11, dtype=np.float64))
+    assert encoded[0] == 1.0
+    assert float(np.linalg.norm(encoded)) == pytest.approx(1.0)
+
+    assert _risk_band(0.1) == "low"
+    assert _risk_band(0.5) == "elevated"
+    assert _risk_band(0.9) == "high"
+
+    assert _jsonable(np.array([1.0, 2.0])) == [1.0, 2.0]
+    assert _jsonable(np.float64(1.5)) == 1.5
+    assert _jsonable(np.int64(3)) == 3
+
+
+def test_quantum_disruption_backend_attestation_helper_guards() -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        _build_backend_contract_attestation,
+        quantum_disruption_dependency_contract,
+    )
+
+    contract = quantum_disruption_dependency_contract()
+
+    with pytest.raises(RuntimeError, match="requires a module"):
+        _build_backend_contract_attestation(module=None, expected_contract=contract, status="available")
+
+    drifted_expected = {**contract, "contract_sha256": "a" * 64}
+    module = types.SimpleNamespace(
+        scpn_control_bridge_dependency_contract=quantum_disruption_dependency_contract,
+    )
+    with pytest.raises(RuntimeError, match="backend contract mismatch"):
+        _build_backend_contract_attestation(
+            module=module,
+            expected_contract=drifted_expected,
+            status="available",
+        )
+
+
+def test_quantum_disruption_bridge_fails_closed_on_non_callable_contract_factory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        run_quantum_disruption_bridge,
+    )
+
+    real_import = importlib.import_module
+
+    def guarded_import(name: str, package: str | None = None) -> types.ModuleType:
+        if name == "scpn_quantum_control.control.q_disruption_iter":
+            return cast(
+                types.ModuleType,
+                types.SimpleNamespace(
+                    QuantumDisruptionClassifier=type(
+                        "FakeClassifier",
+                        (),
+                        {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.4},
+                    ),
+                    scpn_control_bridge_dependency_contract=123,
+                ),
+            )
+        return real_import(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", guarded_import)
+
+    with pytest.raises(RuntimeError, match="contract factory is not callable"):
+        run_quantum_disruption_bridge(
+            _control_features(),
+            extra_iter_features=_extra_iter_features(),
+            config=QuantumDisruptionBridgeConfig(seed=19),
+        )
+
+
+def test_quantum_disruption_matched_attestation_rejects_status_inconsistency(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        quantum_disruption_dependency_contract,
+        run_quantum_disruption_bridge,
+        validate_quantum_disruption_bridge_report,
+    )
+
+    real_import = importlib.import_module
+
+    def guarded_import(name: str, package: str | None = None) -> types.ModuleType:
+        if name == "scpn_quantum_control.control.q_disruption_iter":
+            return cast(
+                types.ModuleType,
+                types.SimpleNamespace(
+                    QuantumDisruptionClassifier=type(
+                        "FakeClassifier",
+                        (),
+                        {"__init__": lambda self, seed: None, "predict": lambda self, features: 0.55},
+                    ),
+                    scpn_control_bridge_dependency_contract=quantum_disruption_dependency_contract,
+                ),
+            )
+        return real_import(name, package)
+
+    monkeypatch.setattr(importlib, "import_module", guarded_import)
+    report = run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(seed=21),
+    )
+    assert report["backend_contract_attestation"]["status"] == "matched"
+
+    not_validated = deepcopy(report)
+    not_validated["backend_contract_attestation"] = {
+        **report["backend_contract_attestation"],
+        "backend_contract_validated": False,
+    }
+    with pytest.raises(ValueError, match="matched status must be validated"):
+        validate_quantum_disruption_bridge_report(not_validated)
+
+    observed_mismatch = deepcopy(report)
+    observed_mismatch["backend_contract_attestation"] = {
+        **report["backend_contract_attestation"],
+        "observed_contract_sha256": "a" * 64,
+    }
+    with pytest.raises(ValueError, match="observed_contract_sha256 mismatch"):
+        validate_quantum_disruption_bridge_report(observed_mismatch)
+
+
+def test_quantum_disruption_attestation_reasons_must_be_non_empty_strings() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+    tampered = deepcopy(report)
+    tampered["backend_contract_attestation"] = {
+        **report["backend_contract_attestation"],
+        "reasons": [""],
+    }
+    with pytest.raises(ValueError, match="attestation reasons must be non-empty strings"):
+        validate_quantum_disruption_bridge_report(tampered)
+
+
+def test_quantum_disruption_advisory_decision_reason_completeness() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+
+    empty_reason = deepcopy(report)
+    empty_reason["advisory_decision"] = {**report["advisory_decision"], "reasons": [""]}
+    with pytest.raises(ValueError, match="advisory_decision reasons must be non-empty"):
+        validate_quantum_disruption_bridge_report(empty_reason)
+
+    missing_backend = deepcopy(report)
+    missing_backend["advisory_decision"] = {
+        **report["advisory_decision"],
+        "reasons": [
+            "advisory_only",
+            "external_validation_required",
+            "control_admission_blocked",
+            "quantum_score_unavailable",
+        ],
+    }
+    with pytest.raises(ValueError, match="must record quantum_backend_unavailable"):
+        validate_quantum_disruption_bridge_report(missing_backend)
+
+    missing_contract = deepcopy(report)
+    missing_contract["advisory_decision"] = {
+        **report["advisory_decision"],
+        "reasons": [
+            "advisory_only",
+            "external_validation_required",
+            "control_admission_blocked",
+            "quantum_score_unavailable",
+            "quantum_backend_unavailable",
+        ],
+    }
+    with pytest.raises(ValueError, match="must record backend_contract_not_validated"):
+        validate_quantum_disruption_bridge_report(missing_contract)
+
+
+def test_quantum_disruption_admission_evidence_reason_and_shape_guards() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+
+    bad_defaults = deepcopy(report)
+    bad_defaults["admission_evidence"] = {**report["admission_evidence"], "defaults_used": [123]}
+    with pytest.raises(ValueError, match="admission_evidence defaults_used must be a list of strings"):
+        validate_quantum_disruption_bridge_report(bad_defaults)
+
+    empty_reason = deepcopy(report)
+    empty_reason["admission_evidence"] = {**report["admission_evidence"], "reasons": [""]}
+    with pytest.raises(ValueError, match="admission_evidence reasons must be non-empty"):
+        validate_quantum_disruption_bridge_report(empty_reason)
+
+    missing_backend = deepcopy(report)
+    missing_backend["admission_evidence"] = {
+        **report["admission_evidence"],
+        "reasons": ["external_validation_required", "control_admission_blocked"],
+    }
+    with pytest.raises(ValueError, match="must record quantum_backend_unavailable"):
+        validate_quantum_disruption_bridge_report(missing_backend)
+
+    bad_external = deepcopy(report)
+    bad_external["admission_evidence"] = {
+        **report["admission_evidence"],
+        "required_external_evidence": [""],
+    }
+    with pytest.raises(ValueError, match="required_external_evidence must be strings"):
+        validate_quantum_disruption_bridge_report(bad_external)
+
+
+def test_quantum_disruption_admission_evidence_requires_center_default_reason() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _center_default_unavailable_report()
+    assert report["admission_evidence"]["defaults_used"]
+    tampered = deepcopy(report)
+    tampered["admission_evidence"] = {
+        **report["admission_evidence"],
+        "reasons": [
+            "external_validation_required",
+            "control_admission_blocked",
+            "quantum_backend_unavailable",
+        ],
+    }
+    with pytest.raises(ValueError, match="must record center_defaults_used"):
+        validate_quantum_disruption_bridge_report(tampered)
+
+
+def test_quantum_disruption_feature_mapping_normalisation_and_shape_guards() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+
+    mismatched = deepcopy(report)
+    mismatched["feature_mapping"] = {**report["feature_mapping"], "normalized_iter_features": [0.0] * 11}
+    with pytest.raises(ValueError, match="do not match raw features"):
+        validate_quantum_disruption_bridge_report(mismatched)
+
+    bad_defaults = deepcopy(report)
+    bad_defaults["feature_mapping"] = {**report["feature_mapping"], "defaults_used": [123]}
+    with pytest.raises(ValueError, match="feature_mapping defaults_used must be a list of strings"):
+        validate_quantum_disruption_bridge_report(bad_defaults)
+
+
+def test_quantum_disruption_bridge_report_rejects_status_and_digest_shape() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+
+    advisory_without_backend = deepcopy(report)
+    advisory_without_backend["status"] = "advisory"
+    with pytest.raises(ValueError, match="advisory status requires quantum_available"):
+        validate_quantum_disruption_bridge_report(advisory_without_backend)
+
+    bad_digest = deepcopy(report)
+    bad_digest["payload_sha256"] = "bad"
+    with pytest.raises(ValueError, match="payload_sha256 must be a SHA-256"):
+        validate_quantum_disruption_bridge_report(bad_digest)
+
+
+def test_quantum_disruption_bridge_report_rejects_certificate_field_tampering() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_bridge_report
+
+    report = _unavailable_report()
+    cases: tuple[tuple[str, object, str], ...] = (
+        ("report_schema_version", "bad", "report_schema_version mismatch"),
+        ("quantum_backend_owner", "other", "quantum_backend_owner is unsupported"),
+        ("dependency_contract_schema_version", "bad", "dependency_contract_schema_version mismatch"),
+        ("advisory_decision_sha256", "bad", "advisory_decision_sha256 must be a SHA-256"),
+        ("advisory_decision_sha256", "a" * 64, "advisory_decision_sha256 mismatch"),
+        ("required_downstream_policy", "blocked", "required_downstream_policy must be strings"),
+        ("claim_boundary_sha256", "a" * 64, "claim_boundary_sha256 mismatch"),
+        ("certificate_sha256", "a" * 64, "certificate_sha256 mismatch"),
+    )
+
+    for key, value, message in cases:
+        tampered = deepcopy(report)
+        tampered["report_certificate"] = {**report["report_certificate"], key: value}
+        with pytest.raises(ValueError, match=message):
+            validate_quantum_disruption_bridge_report(tampered)
+
+
+def test_quantum_disruption_kernel_certificate_rejects_bridge_only_field() -> None:
+    from scpn_control.control.quantum_disruption_bridge import validate_quantum_disruption_kernel_report
+
+    report = _kernel_report()
+    tampered = deepcopy(report)
+    tampered["report_certificate"] = {
+        **report["report_certificate"],
+        "advisory_decision_sha256": "a" * 64,
+    }
+    with pytest.raises(ValueError, match="advisory_decision_sha256 is bridge-only"):
+        validate_quantum_disruption_kernel_report(tampered)
