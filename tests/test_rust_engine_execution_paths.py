@@ -34,7 +34,7 @@ def _engine() -> NeuroCyberneticEngine:
 # ── small helpers and property accessors ──────────────────────────────
 
 
-def test_coerce_telemetry_int_falls_back_on_unparseable_value() -> None:
+def test_coerce_telemetry_int_falls_back_on_unparsable_value() -> None:
     assert _coerce_telemetry_int(None, default=4) == 4
     assert _coerce_telemetry_int([1, 2], default=9) == 9  # non-SupportsInt → default
     assert _coerce_telemetry_int("12") == 12
