@@ -17,6 +17,7 @@ import ssl
 import sys
 import time
 from dataclasses import asdict
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -24,6 +25,7 @@ import pytest
 import scpn_control.phase.ws_phase_stream as ws_phase_stream
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 from scpn_control.phase.ws_phase_stream import (
+    WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY,
     PhaseStreamServer,
     assert_websocket_runtime_claim_admissible,
     load_websocket_runtime_evidence,
@@ -1232,3 +1234,296 @@ class TestPhaseStreamServer:
         )
         with pytest.raises(ValueError, match="duplicate JSON key"):
             load_websocket_runtime_evidence(duplicate_path)
+
+
+# ── Helper-validator, runtime-evidence and handler-edge contracts ─────────────
+
+
+_CONFIG_KEYS = (
+    "bind_host",
+    "uses_tls",
+    "require_client_auth",
+    "api_key_configured",
+    "api_key_min_bytes",
+    "require_tls",
+    "allow_query_token_auth",
+    "allow_insecure_remote",
+    "command_rate_limit",
+    "command_rate_window_s",
+    "max_payload_bytes",
+    "client_send_timeout_s",
+    "max_clients",
+    "max_client_write_buffer_bytes",
+    "allowed_actions",
+    "allowed_origins",
+)
+
+
+def _local_evidence_dict():
+    server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
+    return asdict(websocket_runtime_evidence(server, deployment_id="deploy-local"))
+
+
+def _qualified_evidence_dict():
+    server = PhaseStreamServer(
+        monitor=_make_monitor(),
+        api_key="x" * 32,
+        require_client_auth=True,
+        require_tls=True,
+    )
+    evidence = websocket_runtime_evidence(
+        server,
+        deployment_id="deploy-qualified",
+        uses_tls=True,
+        facility_claim_allowed=True,
+        counters={
+            "auth_successes": 3,
+            "command_frames": 5,
+            "broadcast_frames": 7,
+            "peak_connected_clients": 2,
+        },
+    )
+    return asdict(evidence)
+
+
+def _reseal_payload(payload):
+    payload["payload_sha256"] = ws_phase_stream._payload_sha256(payload)
+    return payload
+
+
+def _reseal_config_and_payload(payload):
+    config = {key: payload[key] for key in _CONFIG_KEYS}
+    config["allowed_actions"] = tuple(payload["allowed_actions"])
+    config["allowed_origins"] = tuple(payload["allowed_origins"])
+    payload["config_sha256"] = ws_phase_stream._runtime_config_sha256(config)
+    payload["payload_sha256"] = ws_phase_stream._payload_sha256(payload)
+    return payload
+
+
+def test_payload_size_bytes_handles_non_text_message():
+    assert ws_phase_stream._payload_size_bytes(12345) == len("12345".encode("utf-8"))
+
+
+def test_websocket_peer_accepts_string_remote():
+    assert ws_phase_stream._websocket_peer(SimpleNamespace(remote_address="10.0.0.5")) == "10.0.0.5"
+
+
+def test_websocket_peer_falls_back_to_unknown():
+    assert ws_phase_stream._websocket_peer(SimpleNamespace(remote_address=None)) == "unknown"
+
+
+def test_utc_now_is_z_suffixed():
+    assert ws_phase_stream._utc_now().endswith("Z")
+
+
+@pytest.mark.parametrize(
+    ("fn_name", "arg", "match"),
+    [
+        ("_require_nonnegative_int", -1, "non-negative integer"),
+        ("_require_positive_int", 0, "positive integer"),
+        ("_require_finite_positive", object(), "finite positive"),
+        ("_require_finite_positive", "not-a-number", "finite positive"),
+        ("_require_finite_positive", -1.0, "finite positive"),
+    ],
+)
+def test_scalar_validators_reject_bad_values(fn_name, arg, match):
+    with pytest.raises(ValueError, match=match):
+        getattr(ws_phase_stream, fn_name)("field", arg)
+
+
+def test_tuple_of_nonempty_strings_rejects_non_sequence():
+    with pytest.raises(ValueError, match="must be a list or tuple"):
+        ws_phase_stream._tuple_of_nonempty_strings("field", 5)
+
+
+def test_tuple_of_nonempty_strings_rejects_blank_entry():
+    with pytest.raises(ValueError, match="non-empty strings"):
+        ws_phase_stream._tuple_of_nonempty_strings("field", ["ok", "  "])
+
+
+def test_server_rejects_empty_api_key():
+    with pytest.raises(ValueError, match="api_key must be non-empty"):
+        PhaseStreamServer(monitor=_make_monitor(), api_key="")
+
+
+def test_runtime_evidence_rejects_non_server():
+    with pytest.raises(ValueError, match="server must be PhaseStreamServer"):
+        websocket_runtime_evidence(object(), deployment_id="d")  # type: ignore[arg-type]
+
+
+def test_runtime_evidence_rejects_blank_deployment_id():
+    server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
+    with pytest.raises(ValueError, match="deployment_id must be non-empty"):
+        websocket_runtime_evidence(server, deployment_id="  ")
+
+
+def test_runtime_evidence_rejects_blank_bind_host():
+    server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
+    with pytest.raises(ValueError, match="bind_host must be non-empty"):
+        websocket_runtime_evidence(server, deployment_id="d", bind_host="  ")
+
+
+def test_runtime_evidence_rejects_non_bool_uses_tls():
+    server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
+    with pytest.raises(ValueError, match="uses_tls must be boolean"):
+        websocket_runtime_evidence(server, deployment_id="d", uses_tls="yes")  # type: ignore[arg-type]
+
+
+def test_save_evidence_rejects_non_evidence(tmp_path):
+    with pytest.raises(ValueError, match="evidence must be WebSocketRuntimeEvidence"):
+        save_websocket_runtime_evidence({"not": "evidence"}, tmp_path / "e.json")  # type: ignore[arg-type]
+
+
+def test_load_evidence_rejects_non_object(tmp_path):
+    path = tmp_path / "e.json"
+    path.write_text("[]", encoding="utf-8")
+    with pytest.raises(ValueError, match="must be a JSON object"):
+        load_websocket_runtime_evidence(path)
+
+
+def test_validate_runtime_payload_rejects_non_sha_digest():
+    payload = _local_evidence_dict()
+    payload["payload_sha256"] = "not-a-digest"
+    with pytest.raises(ValueError, match="payload_sha256 must be a SHA-256"):
+        ws_phase_stream._validate_websocket_runtime_payload(payload, require_facility_claim=False)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "match"),
+    [
+        ("schema_version", "bad", "schema_version is unsupported"),
+        ("generated_utc", "2026-01-01T00:00:00", "generated_utc must be a UTC timestamp"),
+        ("deployment_id", "  ", "deployment_id must be non-empty"),
+        ("bind_host", "  ", "bind_host must be non-empty"),
+        ("uses_tls", "x", "uses_tls must be boolean"),
+        ("allowed_actions", ["bogus_action"], "known WebSocket commands"),
+        ("config_sha256", "z", "config_sha256 must be a SHA-256"),
+        ("config_sha256", "a" * 64, "config_sha256 does not match"),
+    ],
+)
+def test_validate_runtime_payload_rejects_field(field, value, match):
+    payload = _local_evidence_dict()
+    payload[field] = value
+    _reseal_payload(payload)
+    with pytest.raises(ValueError, match=match):
+        ws_phase_stream._validate_websocket_runtime_payload(payload, require_facility_claim=False)
+
+
+def test_validate_runtime_payload_rejects_claim_status_mismatch():
+    payload = _qualified_evidence_dict()
+    payload["claim_status"] = WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
+    _reseal_payload(payload)
+    with pytest.raises(ValueError, match="claim_status does not match"):
+        ws_phase_stream._validate_websocket_runtime_payload(payload, require_facility_claim=False)
+
+
+@pytest.mark.parametrize(
+    ("overrides", "match"),
+    [
+        ({"require_client_auth": False}, "requires authenticated clients"),
+        ({"api_key_configured": False}, "requires authenticated clients"),
+        ({"api_key_min_bytes": 8}, "hardened API-key policy"),
+        ({"uses_tls": False}, "requires TLS"),
+        ({"require_tls": False}, "requires TLS enforcement"),
+        ({"allow_query_token_auth": True}, "forbids query-token"),
+        ({"allow_insecure_remote": True}, "forbids insecure remote"),
+        ({"max_payload_bytes": 70000}, "payload cap"),
+        ({"auth_successes": 0}, "at least one authenticated session"),
+        ({"command_frames": 0}, "observed authenticated commands"),
+        ({"broadcast_frames": 0}, "observed broadcast frames"),
+        ({"peak_connected_clients": 0}, "observed client connectivity"),
+        ({"backpressure_disconnects": 1}, "cannot contain backpressure"),
+    ],
+)
+def test_qualified_runtime_evidence_rejects(overrides, match):
+    payload = _qualified_evidence_dict()
+    payload.update(overrides)
+    _reseal_config_and_payload(payload)
+    with pytest.raises(ValueError, match=match):
+        ws_phase_stream._validate_websocket_runtime_payload(payload, require_facility_claim=True)
+
+
+def test_close_client_without_close_method():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
+        await server._close_client(SimpleNamespace(), code=1000, reason="x")
+
+    asyncio.run(_run())
+
+
+def test_handler_breaks_when_oversized_payload_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        ws = _DeadSendWS(["x" * (server.max_payload_bytes + 10)], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_handler_breaks_when_rate_limit_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456", command_rate_limit=1)
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        msg = json.dumps({"action": "set_psi", "value": 0.5})
+        ws = _DeadSendWS([msg, msg], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_tick_loop_reraises_cancelled_error():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16, tick_interval_s=0.001)
+
+        class _CancelWS(_FakeWS):
+            async def send(self, data):
+                raise asyncio.CancelledError
+
+        server._clients.add(_CancelWS())
+        server._running = True
+        with pytest.raises(asyncio.CancelledError):
+            await server._tick_loop()
+
+    asyncio.run(_run())
+
+
+def test_tick_loop_logs_and_continues_on_send_exception():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16, tick_interval_s=0.001)
+
+        class _ExcWS(_FakeWS):
+            async def send(self, data):
+                raise ValueError("boom")
+
+        server._clients.add(_ExcWS())
+        server._running = True
+
+        async def _stop():
+            await asyncio.sleep(0.03)
+            server._running = False
+
+        await asyncio.gather(server._tick_loop(), _stop())
+
+    asyncio.run(_run())
+
+
+def test_main_builds_tls_context(monkeypatch, tmp_path):
+    cert = tmp_path / "cert.pem"
+    key = tmp_path / "key.pem"
+    cert.write_text("cert", encoding="utf-8")
+    key.write_text("key", encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["scpn-ws", "--tls-cert", str(cert), "--tls-key", str(key)])
+    monkeypatch.setattr(ssl.SSLContext, "load_cert_chain", lambda self, *a, **k: None)
+    monkeypatch.setattr(ws_phase_stream.PhaseStreamServer, "serve_sync", lambda self, **k: None)
+    ws_phase_stream.main()
