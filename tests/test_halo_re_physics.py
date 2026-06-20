@@ -12,6 +12,8 @@ import json
 import numpy as np
 import pytest
 
+from dataclasses import replace
+
 from scpn_control.control.halo_re_physics import (
     DisruptionMitigationClaimEvidence,
     HaloCurrentModel,
@@ -22,6 +24,10 @@ from scpn_control.control.halo_re_physics import (
     disruption_mitigation_claim_evidence,
     run_disruption_ensemble,
     save_disruption_mitigation_claim_evidence,
+    _finite_nonnegative_or_none,
+    _finite_positive_or_none,
+    _finite_unit_interval,
+    _non_empty_text,
 )
 
 
@@ -427,3 +433,108 @@ class TestREGuardPaths:
         m = RunawayElectronModel(n_e=1e20, T_e_keV=0.1)
         rate = m._dreicer_rate(1e-10, 0.1)
         assert rate == 0.0
+
+
+# ── Coverage completion: helpers, simulate guards, verbose, evidence ──
+
+
+def _bounded_evidence():
+    report = run_disruption_ensemble(ensemble_runs=4, seed=8)
+    evidence = disruption_mitigation_claim_evidence(
+        report,
+        source="documented_public_reference",
+        source_id="tests/test_halo_re_physics.py::bounded",
+        ensemble_seed=8,
+    )
+    return report, evidence
+
+
+def test_non_empty_text_rejects_blank_and_non_string():
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", "   ")
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", 5)
+
+
+def test_finite_nonnegative_or_none_handles_none_and_rejects_bad():
+    assert _finite_nonnegative_or_none("metric", None) is None
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _finite_nonnegative_or_none("metric", True)
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _finite_nonnegative_or_none("metric", -1.0)
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _finite_nonnegative_or_none("metric", float("nan"))
+
+
+def test_finite_positive_or_none_handles_none_and_rejects_bad():
+    assert _finite_positive_or_none("metric", None) is None
+    with pytest.raises(ValueError, match="finite and positive"):
+        _finite_positive_or_none("metric", "x")
+    with pytest.raises(ValueError, match="finite and positive"):
+        _finite_positive_or_none("metric", 0.0)
+
+
+def test_finite_unit_interval_rejects_out_of_range():
+    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
+        _finite_unit_interval("score", 1.5)
+    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
+        _finite_unit_interval("score", float("nan"))
+
+
+def test_simulate_rejects_timestep_larger_than_duration():
+    model = RunawayElectronModel()
+    with pytest.raises(ValueError, match="must be <= duration_s"):
+        model.simulate(duration_s=0.05, dt_s=0.1)
+
+
+def test_simulate_rejects_seed_fraction_out_of_range():
+    model = RunawayElectronModel()
+    with pytest.raises(ValueError, match=r"seed_re_fraction must be in \(0, 1\]"):
+        model.simulate(seed_re_fraction=2.0)
+
+
+def test_run_disruption_ensemble_verbose_logging():
+    report = run_disruption_ensemble(ensemble_runs=2, seed=3, verbose=True)
+    assert report.ensemble_runs == 2
+
+
+def test_claim_evidence_rejects_non_report_object():
+    with pytest.raises(ValueError, match="must be DisruptionMitigationReport"):
+        disruption_mitigation_claim_evidence(
+            {"not": "report"}, source="documented_public_reference", source_id="case", ensemble_seed=1
+        )
+
+
+def test_claim_evidence_rejects_non_positive_ensemble_runs():
+    report, _ = _bounded_evidence()
+    with pytest.raises(ValueError, match="ensemble_runs must be positive"):
+        disruption_mitigation_claim_evidence(
+            replace(report, ensemble_runs=0),
+            source="documented_public_reference",
+            source_id="case",
+            ensemble_seed=1,
+        )
+
+
+def test_claim_evidence_requires_present_mean_tpf_product():
+    report, _ = _bounded_evidence()
+    with pytest.raises(ValueError, match="mean_tpf_product must be present"):
+        disruption_mitigation_claim_evidence(
+            replace(report, mean_tpf_product=None),
+            source="documented_public_reference",
+            source_id="case",
+            ensemble_seed=1,
+        )
+
+
+def test_assert_admissible_rejects_non_evidence_and_bad_schema():
+    with pytest.raises(ValueError, match="must be DisruptionMitigationClaimEvidence"):
+        assert_disruption_mitigation_claim_admissible({"not": "evidence"})
+    _, evidence = _bounded_evidence()
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_disruption_mitigation_claim_admissible(replace(evidence, schema_version=999))
+
+
+def test_save_claim_evidence_rejects_non_evidence(tmp_path):
+    with pytest.raises(ValueError, match="must be DisruptionMitigationClaimEvidence"):
+        save_disruption_mitigation_claim_evidence({"not": "evidence"}, tmp_path / "x.json")

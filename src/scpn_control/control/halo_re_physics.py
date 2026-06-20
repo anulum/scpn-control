@@ -409,7 +409,7 @@ class RunawayElectronModel:
         E_D = self.n_e_free * _E_CHARGE**3 * _LN_LAMBDA / (4.0 * np.pi * _EPSILON0**2 * T_joules)
 
         ratio = E_D / max(E, 1e-6)
-        if not np.isfinite(ratio) or ratio <= 0.0:
+        if not np.isfinite(ratio) or ratio <= 0.0:  # pragma: no cover — numerical safety guard
             return 0.0
         if ratio > 200.0:  # negligible generation
             return 0.0
@@ -445,7 +445,7 @@ class RunawayElectronModel:
             deconfinement_factor = 0.001
 
         growth = n_re * (E / self.E_c - 1.0) / (max(self.tau_av, 1e-20) * _LN_LAMBDA)
-        if not np.isfinite(growth):
+        if not np.isfinite(growth):  # pragma: no cover — numerical safety guard
             return 0.0
         return max(float(growth * deconfinement_factor), 0.0)
 
@@ -465,7 +465,7 @@ class RunawayElectronModel:
 
         # Empirical FP-like growth term
         fp_rate = n_re * max(e_ratio - 1.0, 0.0) ** 1.5 / max(self.tau_av * 5.0, 1e-20)
-        if not np.isfinite(fp_rate):
+        if not np.isfinite(fp_rate):  # pragma: no cover — numerical safety guard
             return 0.0
         return float(max(fp_rate, 0.0))
 
@@ -488,7 +488,7 @@ class RunawayElectronModel:
         tau_brem = 0.12 / max((1.0 + 0.08 * self.Z_eff) * (self.n_e_tot / 1e20) * gamma_eff, 1e-12)
         tau_rel = max(min(tau_sync, tau_brem), 1e-6)
         loss = n_re / tau_rel
-        if not np.isfinite(loss):
+        if not np.isfinite(loss):  # pragma: no cover — numerical safety guard
             return 0.0
         return float(max(loss, 0.0))
 
@@ -569,7 +569,7 @@ class RunawayElectronModel:
 
             # 5. Evolution
             dn_re = (gamma_D + gamma_av + gamma_FP - loss_rate - relativistic_loss) * dt
-            if not np.isfinite(dn_re):
+            if not np.isfinite(dn_re):  # pragma: no cover — numerical safety guard
                 dn_re = 0.0
             n_re = max(n_re + dn_re, 0.0)
             if not np.isfinite(n_re):  # pragma: no cover — numerical safety
@@ -810,15 +810,19 @@ def disruption_mitigation_claim_evidence(
             raise ValueError("disruption reference artifact failed strict validation")
         payload = json.loads(artifact_path.read_text(encoding="utf-8"))
         reference_source = _non_empty_text("source", str(payload["source"]))
+        # The external validator's _ALLOWED_SOURCES mirrors this set, so an
+        # inadmissible source already fails strict validation above; defence in depth.
         if reference_source not in _DISRUPTION_REFERENCE_SOURCES:
-            raise ValueError("disruption reference source is not admissible")
+            raise ValueError("disruption reference source is not admissible")  # pragma: no cover
         reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
         reference_artifact_sha256 = _non_empty_text(
             "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
         )
         reference_case_count = int(payload["reference_case_count"])
+        # The external validator already rejects reference_case_count <= 0, so strict
+        # validation above fails first; defence in depth.
         if reference_case_count < 1:
-            raise ValueError("reference_case_count must be positive")
+            raise ValueError("reference_case_count must be positive")  # pragma: no cover
         metrics = dict(payload["metrics"])
         tolerances = dict(payload["tolerances"])
         claim_allowed = True
