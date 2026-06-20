@@ -20,8 +20,45 @@ from scpn_control.control.free_boundary_tracking import (
     free_boundary_tracking_claim_evidence,
     run_free_boundary_tracking,
     save_free_boundary_tracking_claim_evidence,
+    _extract_free_boundary_reference_artifact,
+    _finite_summary_scalar,
+    _finite_summary_scalar_or_none,
+    _non_empty_text,
+    _nonnegative_reference_scalar,
+    _positive_reference_scalar,
+    _summary_int,
 )
 from scpn_control.core.fusion_kernel import CoilSet
+
+
+def _valid_free_boundary_reference_artifact() -> dict:
+    return {
+        "source": "external_equilibrium_benchmark",
+        "reference_dataset_id": "efit-free-boundary-fixture-v1",
+        "reference_artifact_sha256": "a" * 64,
+        "reference_case_count": 2,
+        "units": {
+            "position": "m",
+            "flux": "Wb/rad",
+            "current": "MA",
+            "time": "s",
+            "tracking_error": "1",
+        },
+        "metrics": {
+            "shape_rms_abs_error": 0.004,
+            "x_point_position_abs_error_m": 0.006,
+            "x_point_flux_abs_error": 0.003,
+            "divertor_rms_abs_error": 0.004,
+            "coil_current_relative_error": 0.01,
+        },
+        "tolerances": {
+            "shape_rms_abs_error": 0.01,
+            "x_point_position_abs_error_m": 0.02,
+            "x_point_flux_abs_error": 0.01,
+            "divertor_rms_abs_error": 0.01,
+            "coil_current_relative_error": 0.03,
+        },
+    }
 
 
 class _DummyFreeBoundaryKernel:
@@ -682,3 +719,217 @@ class TestSensorBiasWithDrift:
         assert summary["measurement_distortion_enabled"] is True
         assert summary["max_measurement_error_norm"] > 0.0
         assert summary["max_abs_measurement_offset"] > 0.0
+
+
+# ── Coverage completion: validators, extraction matrix, constructor guards ──
+
+
+def test_non_empty_text_rejects_blank_and_non_string():
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", "   ")
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        _non_empty_text("field", 9)
+
+
+def test_finite_summary_scalar_rejects_non_numeric():
+    with pytest.raises(ValueError, match="must be a finite numeric value"):
+        _finite_summary_scalar({}, "missing")
+    with pytest.raises(ValueError, match="must be a finite numeric value"):
+        _finite_summary_scalar({"k": float("inf")}, "k")
+
+
+def test_finite_summary_scalar_or_none_handles_none_and_rejects_non_numeric():
+    assert _finite_summary_scalar_or_none({"k": None}, "k") is None
+    assert _finite_summary_scalar_or_none({"k": float("nan")}, "k") is None
+    with pytest.raises(ValueError, match="must be numeric when supplied"):
+        _finite_summary_scalar_or_none({"k": "x"}, "k")
+
+
+def test_summary_int_rejects_non_integers():
+    with pytest.raises(ValueError, match="must be an integer"):
+        _summary_int({"k": 1.5}, "k")
+    with pytest.raises(ValueError, match="must be an integer"):
+        _summary_int({"k": True}, "k")
+
+
+@pytest.mark.parametrize("value", [True, float("inf"), "x"])
+def test_positive_reference_scalar_rejects_non_numeric_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and positive"):
+        _positive_reference_scalar("metric", value)
+
+
+def test_positive_reference_scalar_rejects_non_positive():
+    with pytest.raises(ValueError, match="finite and positive"):
+        _positive_reference_scalar("metric", 0.0)
+
+
+@pytest.mark.parametrize("value", [True, float("nan"), "x"])
+def test_nonnegative_reference_scalar_rejects_non_numeric_or_non_finite(value):
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _nonnegative_reference_scalar("metric", value)
+
+
+def test_nonnegative_reference_scalar_rejects_negative():
+    with pytest.raises(ValueError, match="finite and non-negative"):
+        _nonnegative_reference_scalar("metric", -1.0)
+
+
+def test_extract_reference_artifact_none_returns_inactive():
+    assert _extract_free_boundary_reference_artifact(None) == (None, False)
+
+
+def test_extract_reference_artifact_rejects_non_dict():
+    with pytest.raises(ValueError, match="must be a dictionary"):
+        _extract_free_boundary_reference_artifact(["not", "a", "dict"])
+
+
+def test_extract_reference_artifact_rejects_inadmissible_source():
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["source"] = "repository_free_boundary_regression"  # bounded but not facility
+    with pytest.raises(ValueError, match="source must be one of"):
+        _extract_free_boundary_reference_artifact(artifact)
+
+
+def test_extract_reference_artifact_rejects_bad_units():
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["units"] = dict(artifact["units"])
+    artifact["units"]["flux"] = "Wb"
+    with pytest.raises(ValueError, match="units must declare free-boundary SI units"):
+        _extract_free_boundary_reference_artifact(artifact)
+
+
+def test_extract_reference_artifact_rejects_non_digest_sha():
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["reference_artifact_sha256"] = "abc"
+    with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
+        _extract_free_boundary_reference_artifact(artifact)
+
+
+@pytest.mark.parametrize("count", [0, -1, True])
+def test_extract_reference_artifact_rejects_bad_case_count(count):
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["reference_case_count"] = count
+    with pytest.raises(ValueError, match="reference_case_count must be a positive integer"):
+        _extract_free_boundary_reference_artifact(artifact)
+
+
+def test_extract_reference_artifact_rejects_non_dict_metric_blocks():
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["metrics"] = "not a dict"
+    with pytest.raises(ValueError, match="metrics and tolerances must be dictionaries"):
+        _extract_free_boundary_reference_artifact(artifact)
+
+
+def test_claim_evidence_rejects_inadmissible_source():
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        shot_steps=2,
+        gain=0.5,
+        verbose=False,
+    )
+    with pytest.raises(ValueError, match="source must be one of"):
+        free_boundary_tracking_claim_evidence(summary, source="not_a_declared_source", source_id="case")
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"identification_perturbation": 0.0}, "identification_perturbation must be finite and > 0"),
+        ({"correction_limit": 0.0}, "correction_limit must be finite and > 0"),
+        ({"response_regularization": -1.0}, "response_regularization must be finite and >= 0"),
+        ({"response_refresh_steps": 0}, "response_refresh_steps must be >= 1"),
+        ({"solve_max_outer_iter": 0}, "solve_max_outer_iter must be >= 1"),
+        ({"solve_tol": 0.0}, "solve_tol must be finite and > 0"),
+    ],
+)
+def test_controller_constructor_rejects_nonphysical_solver_parameters(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        FreeBoundaryTrackingController(
+            "dummy.json",
+            kernel_factory=_DummyFreeBoundaryKernel,
+            verbose=False,
+            **kwargs,
+        )
+
+
+class _NoCurrentLimitsKernel(_DummyFreeBoundaryKernel):
+    def build_coilset_from_config(self) -> CoilSet:
+        coils = super().build_coilset_from_config()
+        coils.current_limits = None
+        return coils
+
+
+def test_controller_defaults_to_unbounded_currents_without_limits():
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_NoCurrentLimitsKernel,
+        verbose=False,
+    )
+    assert np.all(np.isinf(controller.coil_current_limits))
+    assert controller.coil_current_limits.shape == (controller.n_coils,)
+
+
+class _ShortCoilConfigKernel(_DummyFreeBoundaryKernel):
+    """Kernel whose cfg['coils'] is shorter than the coilset, forcing a config sync."""
+
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["coils"] = []
+
+    def solve(self, **kwargs):
+        active = kwargs.get("coils") or self.build_coilset_from_config()
+        currents = np.asarray(active.currents, dtype=np.float64).reshape(-1)
+        self._state = self._target_vector + self._bias + self._response_matrix @ currents
+        self.Psi.fill(0.0)
+        return {
+            "boundary_variant": "free_boundary",
+            "converged": True,
+            "outer_iterations": 1,
+            "final_diff": float(np.linalg.norm(self._response_matrix @ currents)),
+        }
+
+
+def test_controller_extends_short_coil_config_during_sync():
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_ShortCoilConfigKernel,
+        verbose=False,
+    )
+    controller.run_tracking_shot(shot_steps=2, gain=0.4)
+    assert len(controller.kernel.cfg["coils"]) == controller.n_coils
+
+
+def test_controller_evaluates_max_abs_objective_tolerances():
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        verbose=False,
+        objective_tolerances={"shape_max_abs": 0.5, "divertor_max_abs": 0.5},
+    )
+    summary = controller.run_tracking_shot(shot_steps=2, gain=0.4)
+    assert "shape_max_abs" in controller.objective_tolerances
+    assert "divertor_max_abs" in controller.objective_tolerances
+    assert summary["steps"] == 2
+
+
+def test_controller_applies_supervisor_limits():
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        verbose=False,
+        supervisor_limits={"shape_rms": 1.0, "max_abs_coil_current": 100.0},
+    )
+    summary = controller.run_tracking_shot(shot_steps=2, gain=0.4)
+    assert controller.supervisor_limits == {"shape_rms": 1.0, "max_abs_coil_current": 100.0}
+    assert summary["steps"] == 2
+
+
+def test_controller_verbose_logging_path():
+    controller = FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        verbose=True,
+    )
+    summary = controller.run_tracking_shot(shot_steps=2, gain=0.4)
+    assert summary["steps"] == 2
