@@ -8,9 +8,11 @@
 
 """Tests for scpn_control.control.analytic_solver."""
 
+from pathlib import Path
+from typing import Any, Callable
+
 import numpy as np
 import pytest
-from pathlib import Path
 
 from scpn_control.control.analytic_solver import AnalyticEquilibriumSolver
 
@@ -391,3 +393,107 @@ class TestRunAnalyticSolver:
         )
         assert summary["target_r_m"] == 5.0
         assert summary["ip_target_ma"] == 10.0
+
+
+class _BadRGridKernel(FakeKernel):
+    def __init__(self, config_path: str) -> None:
+        super().__init__(config_path)
+        self.R = np.linspace(4.0, 8.5, 2)  # fewer than 3 points
+
+
+class _BadZGridKernel(FakeKernel):
+    def __init__(self, config_path: str) -> None:
+        super().__init__(config_path)
+        self.Z = np.array([], dtype=np.float64)  # empty Z grid
+
+
+def _solver_with(kernel_factory: Callable[[str], Any], tmp_path: Path) -> AnalyticEquilibriumSolver:
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text("{}")
+    return AnalyticEquilibriumSolver(str(cfg), kernel_factory=kernel_factory, verbose=False)
+
+
+def test_compute_coil_efficiencies_rejects_short_r_grid(tmp_path: Path) -> None:
+    solver = _solver_with(_BadRGridKernel, tmp_path)
+    with pytest.raises(ValueError, match="kernel R grid must be finite with at least 3 points"):
+        solver.compute_coil_efficiencies(target_R=6.2, target_Z=0.0)
+
+
+def test_compute_coil_efficiencies_rejects_empty_z_grid(tmp_path: Path) -> None:
+    solver = _solver_with(_BadZGridKernel, tmp_path)
+    with pytest.raises(ValueError, match="kernel Z grid must be finite with at least 1 point"):
+        solver.compute_coil_efficiencies(target_R=6.2, target_Z=0.0)
+
+
+def test_solve_coil_currents_rejects_nonfinite_influence(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    solver = _solver_with(FakeKernel, tmp_path)
+    monkeypatch.setattr(
+        solver,
+        "compute_coil_efficiencies",
+        lambda *args, **kwargs: np.array([np.nan, 0.0, 0.0], dtype=np.float64),
+    )
+    with pytest.raises(ValueError, match="coil influence matrix must contain only finite values"):
+        solver.solve_coil_currents(target_Bv=-1.0, target_R=6.2)
+
+
+def _patch_config_existence(monkeypatch: pytest.MonkeyPatch, *, preferred: bool, fallback: bool) -> None:
+    real_exists = Path.exists
+
+    def fake_exists(self: Path) -> bool:
+        name = str(self)
+        if name.endswith("iter_genetic_temp.json"):
+            return preferred
+        if name.endswith("iter_validated_config.json"):
+            return fallback
+        return real_exists(self)
+
+    monkeypatch.setattr(Path, "exists", fake_exists)
+
+
+def test_run_resolves_preferred_default_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_config_existence(monkeypatch, preferred=True, fallback=False)
+    summary = run_analytic_solver(
+        config_path=None,
+        save_config=False,
+        verbose=False,
+        kernel_factory=FakeKernel,
+    )
+    assert np.isfinite(summary["required_bv_t"])
+
+
+def test_run_uses_legacy_fallback_when_enabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_config_existence(monkeypatch, preferred=False, fallback=True)
+    summary = run_analytic_solver(
+        config_path=None,
+        allow_config_fallback=True,
+        allow_legacy_config_fallback=True,
+        save_config=False,
+        verbose=False,
+        kernel_factory=FakeKernel,
+    )
+    assert np.isfinite(summary["required_bv_t"])
+
+
+def test_run_raises_when_enabled_fallback_is_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_config_existence(monkeypatch, preferred=False, fallback=False)
+    with pytest.raises(FileNotFoundError, match="no validated config exists"):
+        run_analytic_solver(
+            config_path=None,
+            allow_config_fallback=True,
+            allow_legacy_config_fallback=True,
+            save_config=False,
+            verbose=False,
+            kernel_factory=FakeKernel,
+        )
+
+
+def test_run_raises_when_default_config_missing_without_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    _patch_config_existence(monkeypatch, preferred=False, fallback=False)
+    with pytest.raises(FileNotFoundError, match="Default analytic configuration is missing"):
+        run_analytic_solver(
+            config_path=None,
+            allow_config_fallback=False,
+            save_config=False,
+            verbose=False,
+            kernel_factory=FakeKernel,
+        )
