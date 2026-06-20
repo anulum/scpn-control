@@ -628,7 +628,7 @@ class NeuroCyberneticEngine:
         else:
             if steps is not None and steps < 0:
                 raise ValueError("steps must be non-negative")
-            if runtime_steps is not None and runtime_steps < 0:
+            if runtime_steps is not None and runtime_steps < 0:  # pragma: no cover - non-negative by construction
                 runtime_steps = 0
             if steps is None:
                 max_iterations = runtime_steps
