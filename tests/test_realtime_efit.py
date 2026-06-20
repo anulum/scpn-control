@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import numpy as np
 import pytest
@@ -21,7 +22,11 @@ from scpn_control.control.realtime_efit import (
     MU0,
     MagneticDiagnostics,
     RealtimeEFIT,
+    ReconstructionResult,
     ShapeParams,
+    _finite_float,
+    _relative_array_error,
+    _trapezoid_integral,
     assert_efit_lite_facility_claim_admissible,
     efit_lite_claim_evidence,
     save_efit_lite_claim_evidence,
@@ -32,6 +37,17 @@ def create_mock_diagnostics() -> MagneticDiagnostics:
     flux_loops = [(2.0, 1.0), (3.0, 1.5), (4.0, 1.0)]
     b_probes = [(2.0, 1.0, "R"), (2.0, 1.0, "Z"), (4.0, 1.0, "R")]
     return MagneticDiagnostics(flux_loops, b_probes, rogowski_radius=3.0)
+
+
+def _solovev_efit_and_result() -> tuple[RealtimeEFIT, ReconstructionResult]:
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 33)
+    Z = np.linspace(-3.0, 3.0, 33)
+    efit = RealtimeEFIT(diag, R, Z)
+    res = efit.reconstruct(
+        {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
+    )
+    return efit, res
 
 
 def test_simulate_measurements():
@@ -280,3 +296,213 @@ def test_find_lcfs_extracts_elliptical_boundary():
     np.testing.assert_allclose(np.ptp(lcfs[:, 0]), 2.0 * a, rtol=0.2, atol=0.2)
     np.testing.assert_allclose(np.ptp(lcfs[:, 1]), 2.0 * kappa * a, rtol=0.2, atol=0.2)
     assert np.all(np.isfinite(lcfs))
+
+
+# ── Trapezoidal integration helper ───────────────────────────────────
+
+
+def test_trapezoid_integral_rejects_non_one_dimensional_grid():
+    with pytest.raises(ValueError, match="grid must be one-dimensional"):
+        _trapezoid_integral(np.ones(3), np.ones((2, 2)))
+
+
+def test_trapezoid_integral_rejects_length_mismatch():
+    with pytest.raises(ValueError, match="values and grid lengths must match"):
+        _trapezoid_integral(np.ones(3), np.array([0.0, 1.0]))
+
+
+def test_trapezoid_integral_returns_zero_for_degenerate_grid():
+    result = _trapezoid_integral(np.ones(1), np.array([0.0]))
+    assert result.shape == ()
+    assert float(result) == 0.0
+
+
+# ── Numeric / array validation helpers ───────────────────────────────
+
+
+def test_finite_float_rejects_non_finite_and_sign_violations():
+    with pytest.raises(ValueError, match="must be finite"):
+        _finite_float("x", float("inf"))
+    with pytest.raises(ValueError, match="must be positive"):
+        _finite_float("x", 0.0, positive=True)
+    with pytest.raises(ValueError, match="must be non-negative"):
+        _finite_float("x", -1.0, nonnegative=True)
+
+
+def test_relative_array_error_rejects_non_finite_reference():
+    with pytest.raises(ValueError, match="reference must be finite"):
+        _relative_array_error("psi", np.ones((2, 2)), np.array([[1.0, np.inf], [1.0, 1.0]]))
+
+
+# ── Claim-evidence builder guards ────────────────────────────────────
+
+
+def test_claim_evidence_rejects_blank_model_id():
+    efit, res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="model_id must be a non-empty string"):
+        efit_lite_claim_evidence(
+            res,
+            efit.diagnostics,
+            source="synthetic_regression_reference",
+            source_id="case",
+            diagnostic_source="synthetic",
+            model_id="   ",
+        )
+
+
+def test_claim_evidence_rejects_non_two_dimensional_psi():
+    efit, res = _solovev_efit_and_result()
+    tampered = replace(res, psi=np.ones((2, 2)))
+    with pytest.raises(ValueError, match="two-dimensional grid with both dimensions"):
+        efit_lite_claim_evidence(
+            tampered,
+            efit.diagnostics,
+            source="synthetic_regression_reference",
+            source_id="case",
+            diagnostic_source="synthetic",
+        )
+
+
+def test_claim_evidence_rejects_non_finite_psi():
+    efit, res = _solovev_efit_and_result()
+    psi = res.psi.copy()
+    psi[0, 0] = np.nan
+    tampered = replace(res, psi=psi)
+    with pytest.raises(ValueError, match="result.psi must be finite"):
+        efit_lite_claim_evidence(
+            tampered,
+            efit.diagnostics,
+            source="synthetic_regression_reference",
+            source_id="case",
+            diagnostic_source="synthetic",
+        )
+
+
+def test_claim_evidence_rejects_non_positive_iteration_count():
+    efit, res = _solovev_efit_and_result()
+    tampered = replace(res, n_iterations=0)
+    with pytest.raises(ValueError, match="n_iterations must be positive"):
+        efit_lite_claim_evidence(
+            tampered,
+            efit.diagnostics,
+            source="synthetic_regression_reference",
+            source_id="case",
+            diagnostic_source="synthetic",
+        )
+
+
+def test_claim_evidence_flags_external_source_without_complete_comparison():
+    efit, res = _solovev_efit_and_result()
+    evidence = efit_lite_claim_evidence(
+        res,
+        efit.diagnostics,
+        source="efit_reference",
+        source_id="reference_without_comparison",
+        diagnostic_source="reference diagnostics",
+    )
+    assert evidence.facility_claim_allowed is False
+    assert "comparison is missing" in evidence.claim_status
+
+
+def test_facility_admission_rejects_non_evidence_object():
+    with pytest.raises(ValueError, match="must be EFITLiteClaimEvidence"):
+        assert_efit_lite_facility_claim_admissible({"not": "evidence"})
+
+
+def test_facility_admission_rejects_unsupported_schema_version():
+    efit, res = _solovev_efit_and_result()
+    evidence = efit_lite_claim_evidence(
+        res,
+        efit.diagnostics,
+        source="synthetic_regression_reference",
+        source_id="case",
+        diagnostic_source="synthetic",
+    )
+    tampered = replace(evidence, schema_version=99)
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_efit_lite_facility_claim_admissible(tampered)
+
+
+# ── DiagnosticResponse guards ────────────────────────────────────────
+
+
+def test_simulate_measurements_rejects_psi_shape_mismatch():
+    efit, _res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="psi shape must match the diagnostic R/Z grid"):
+        efit.response.simulate_measurements(np.ones((3, 3)), np.zeros(5))
+
+
+def test_simulate_measurements_rejects_non_finite_psi():
+    efit, _res = _solovev_efit_and_result()
+    psi = np.zeros((efit.nR, efit.nZ))
+    psi[0, 0] = np.inf
+    with pytest.raises(ValueError, match="psi must be finite"):
+        efit.response.simulate_measurements(psi, np.zeros(5))
+
+
+# ── Grad-Shafranov solver guards ─────────────────────────────────────
+
+
+def test_gs_solver_rejects_non_one_dimensional_coefficients():
+    efit, _res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="source coefficients must be one-dimensional"):
+        efit._solve_gs_with_sources(np.ones((2, 2)), np.ones(1))
+
+
+def test_gs_solver_rejects_empty_coefficients():
+    efit, _res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="source coefficient arrays must be non-empty"):
+        efit._solve_gs_with_sources(np.array([]), np.array([1.0]))
+
+
+def test_gs_solver_rejects_non_finite_coefficients():
+    efit, _res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="source coefficients must be finite"):
+        efit._solve_gs_with_sources(np.array([np.nan]), np.array([1.0]))
+
+
+def test_gs_solver_rejects_too_few_grid_points():
+    diag = create_mock_diagnostics()
+    efit = RealtimeEFIT(diag, np.linspace(2.0, 4.0, 2), np.linspace(-1.0, 1.0, 5))
+    with pytest.raises(ValueError, match="at least three R and Z points"):
+        efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
+
+
+def test_gs_solver_rejects_non_uniform_spacing():
+    diag = create_mock_diagnostics()
+    efit = RealtimeEFIT(diag, np.array([2.0, 2.5, 5.0]), np.linspace(-1.0, 1.0, 3))
+    with pytest.raises(ValueError, match="uniform R/Z spacing"):
+        efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
+
+
+def test_gs_solver_raises_when_solve_produces_non_finite_flux(monkeypatch):
+    import scipy.sparse.linalg
+
+    diag = create_mock_diagnostics()
+    efit = RealtimeEFIT(diag, np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
+    monkeypatch.setattr(scipy.sparse.linalg, "spsolve", lambda *_a, **_k: np.array([np.nan, np.nan]))
+    with pytest.raises(RuntimeError, match="non-finite flux"):
+        efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
+
+
+# ── LCFS tracing guards ──────────────────────────────────────────────
+
+
+def test_find_lcfs_rejects_psi_shape_mismatch():
+    efit, _res = _solovev_efit_and_result()
+    with pytest.raises(ValueError, match="psi shape must match the EFIT R/Z grid"):
+        efit.find_lcfs(np.ones((3, 3)))
+
+
+def test_find_lcfs_rejects_non_finite_psi():
+    efit, _res = _solovev_efit_and_result()
+    psi = np.zeros((efit.nR, efit.nZ))
+    psi[0, 0] = np.nan
+    with pytest.raises(ValueError, match="psi must be finite"):
+        efit.find_lcfs(psi)
+
+
+def test_find_lcfs_returns_empty_for_non_positive_flux():
+    efit, _res = _solovev_efit_and_result()
+    lcfs = efit.find_lcfs(np.zeros((efit.nR, efit.nZ)))
+    assert lcfs.shape == (0, 2)
