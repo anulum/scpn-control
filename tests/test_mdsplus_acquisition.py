@@ -14,11 +14,13 @@ from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from click.testing import CliRunner
 
 from scpn_control.core.mdsplus_acquisition import (
     MDSplusSignalSpec,
+    _validate_signal_specs,
     acquire_mdsplus_shot,
     load_mdsplus_acquisition_request,
 )
@@ -206,6 +208,116 @@ def test_cli_acquire_mdsplus_reports_missing_optional_dependency(
     payload = json.loads(result.output)
     assert payload["status"] == "fail"
     assert "MDSplus" in payload["error"]
+
+
+def _valid_signal() -> dict[str, str]:
+    return {"name": "plasma_current", "node": "\\\\IP", "units": "A", "timebase": "time_s"}
+
+
+def _base_request() -> dict[str, Any]:
+    return {
+        "schema_version": "1.0",
+        "tree": "DIII-D",
+        "shot": 163303,
+        "source_uri": "mdsplus://DIII-D/163303",
+        "access_policy": "facility-approved",
+        "licence": "facility data policy",
+        "signals": [_valid_signal()],
+    }
+
+
+@pytest.mark.parametrize(
+    ("payload_text", "match"),
+    [
+        ("[]", "root must be a JSON object"),
+        (json.dumps({"schema_version": "2.0"}), "schema_version must be '1.0'"),
+        (json.dumps({"schema_version": "1.0", "signals": {}}), "requires a signals array"),
+        (json.dumps({"schema_version": "1.0", "signals": []}), "at least one signal"),
+    ],
+)
+def test_load_request_rejects_malformed_envelope(tmp_path: Path, payload_text: str, match: str) -> None:
+    spec_path = tmp_path / "request.json"
+    spec_path.write_text(payload_text, encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_mdsplus_acquisition_request(spec_path)
+
+
+@pytest.mark.parametrize(
+    ("mutate", "match"),
+    [
+        ({"signals": ["not-an-object"]}, "signal specification must be a JSON object"),
+        ({"tree": "   "}, "requires non-empty tree"),
+        ({"shot": "163303"}, "shot must be an integer"),
+        ({"shot": True}, "shot must be an integer"),
+    ],
+)
+def test_load_request_rejects_malformed_fields(tmp_path: Path, mutate: dict[str, Any], match: str) -> None:
+    payload = _base_request()
+    payload.update(mutate)
+    spec_path = tmp_path / "request.json"
+    spec_path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match=match):
+        load_mdsplus_acquisition_request(spec_path)
+
+
+@pytest.mark.parametrize(
+    ("signals", "match"),
+    [
+        ([MDSplusSignalSpec(name="  ", node="\\\\IP", units="A", timebase="t")], "name must not be empty"),
+        (
+            [
+                MDSplusSignalSpec(name="ip", node="\\\\IP", units="A", timebase="t"),
+                MDSplusSignalSpec(name="ip", node="\\\\IP2", units="A", timebase="t"),
+            ],
+            "duplicate MDSplus signal name: ip",
+        ),
+        ([MDSplusSignalSpec(name="ip", node="  ", units="A", timebase="t")], "requires a node path"),
+        ([MDSplusSignalSpec(name="ip", node="\\\\IP", units="  ", timebase="t")], "requires units"),
+        ([MDSplusSignalSpec(name="ip", node="\\\\IP", units="A", timebase="  ")], "requires a timebase"),
+    ],
+)
+def test_validate_signal_specs_rejects_invalid_specs(signals: list[MDSplusSignalSpec], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        _validate_signal_specs(signals)
+
+
+class _SingleArrayModule:
+    """Fake MDSplus module whose every node returns a fixed array."""
+
+    def __init__(self, array: npt.NDArray[np.float64]) -> None:
+        self._array = array
+
+    def Tree(self, tree: str, shot: int) -> Any:
+        array = self._array
+
+        class _Tree:
+            def getNode(self, node: str) -> Any:
+                return SimpleNamespace(data=lambda: array)
+
+        return _Tree()
+
+
+@pytest.mark.parametrize(
+    ("array", "match"),
+    [
+        (np.array([], dtype=np.float64), "returned an empty array"),
+        (np.array([1.0, np.nan], dtype=np.float64), "contains non-finite values"),
+    ],
+)
+def test_acquire_rejects_degenerate_signal_arrays(tmp_path: Path, array: npt.NDArray[np.float64], match: str) -> None:
+    with pytest.raises(ValueError, match=match):
+        acquire_mdsplus_shot(
+            tree="DIII-D",
+            shot=163303,
+            signals=[MDSplusSignalSpec(name="plasma_current", node="\\\\IP", units="A", timebase="time_s")],
+            output_npz=tmp_path / "shot.npz",
+            manifest_json=tmp_path / "shot.manifest.json",
+            mdsplus_module=_SingleArrayModule(array),
+            source_uri="mdsplus://DIII-D/163303",
+            access_policy="facility-approved",
+            licence="facility data policy",
+            retrieved_at="2026-05-18T01:30:00Z",
+        )
 
 
 def test_import_mdsplus_falls_back_to_mdsthin_compat(monkeypatch) -> None:
