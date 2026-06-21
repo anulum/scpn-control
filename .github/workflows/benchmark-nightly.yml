@@ -47,6 +47,20 @@ jobs:
           . .venv/bin/activate
           cd scpn-control-rs/crates/control-python
           python -m maturin develop --release
+      - name: Build acados + install casadi (optional MPC backends)
+        continue-on-error: true
+        run: |
+          . .venv/bin/activate
+          pip install casadi
+          git clone --depth 1 https://github.com/acados/acados.git "$RUNNER_TEMP/acados"
+          cd "$RUNNER_TEMP/acados"
+          git submodule update --init --recursive
+          cmake -S . -B build -DACADOS_WITH_OSQP=ON -DACADOS_PYTHON=ON -DBLASFEO_TARGET=GENERIC
+          cmake --build build --target install -j"$(nproc)"
+          pip install -e interfaces/acados_template
+          ACADOS_SOURCE_DIR="$RUNNER_TEMP/acados" bash -c 'echo y | python -c "from acados_template.utils import get_tera; get_tera()"'
+          echo "ACADOS_SOURCE_DIR=$RUNNER_TEMP/acados" >> "$GITHUB_ENV"
+          echo "LD_LIBRARY_PATH=$RUNNER_TEMP/acados/lib:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
       - name: Run benchmark suite
         run: |
           . .venv/bin/activate
