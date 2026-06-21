@@ -283,3 +283,10 @@ def test_ood_checks_reject_nonfinite_input(detector) -> None:
 
     with pytest.raises(ValueError, match="x"):
         detector.check(x)
+
+
+def test_check_ensemble_rejects_nonfinite_predictions() -> None:
+    """Ensemble predictions carrying a non-finite entry are rejected."""
+    detector = OODDetector()
+    with pytest.raises(ValueError, match="predictions must be finite"):
+        detector.check_ensemble(np.array([[1.0, 2.0, np.inf], [1.0, 2.0, 3.0]]))
