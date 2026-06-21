@@ -979,3 +979,39 @@ class TestJaxV019Parity:
         np.testing.assert_allclose(density, 0.0, atol=1e-5)
         np.testing.assert_allclose(momentum, 0.0, atol=1e-5)
         np.testing.assert_allclose(energy_moment, 0.0, atol=1e-5)
+
+
+class TestAmpereAndCollisionDispatch:
+    def test_ampere_solve_returns_zero_in_electrostatic_limit(self) -> None:
+        """ampere_solve short-circuits to a zero A_par field when electromagnetic=False."""
+        solver = NonlinearGKSolver(_FAST_CFG)  # electromagnetic defaults to False
+        state = solver.init_state()
+        a_par = solver.ampere_solve(state.f)
+        assert a_par.shape == (_FAST_CFG.n_kx, _FAST_CFG.n_ky, _FAST_CFG.n_theta)
+        assert np.all(a_par == 0.0)
+
+    def test_collide_dispatches_to_sugama_operator(self) -> None:
+        """collide() routes to the Sugama operator and differs from the Krook closure."""
+        cfg = NonlinearGKConfig(
+            n_kx=8,
+            n_ky=8,
+            n_theta=16,
+            n_vpar=8,
+            n_mu=4,
+            n_species=2,
+            collisions=True,
+            collision_model="sugama",
+            nu_collision=0.1,
+            dt=0.01,
+            n_steps=1,
+            save_interval=1,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state = solver.init_single_mode(kx_idx=0, ky_idx=1, amplitude=1e-2)
+        c_sugama = solver.collide(state.f[0])
+        c_krook = solver._collide_krook(state.f[0])
+        assert c_sugama.shape == state.f[0].shape
+        assert np.all(np.isfinite(c_sugama))
+        assert np.any(c_sugama != 0.0)
+        assert not np.allclose(c_sugama, c_krook)
