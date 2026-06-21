@@ -9,7 +9,6 @@
 from __future__ import annotations
 
 import os
-import resource
 import sys
 import types
 from typing import cast
@@ -260,14 +259,20 @@ class TestRuntimeProbeHelpers:
         monkeypatch.setattr(ra, "_resource", None)
         assert _memlock_limits() == ("unknown", "unknown")
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module is POSIX-only")
     def test_memlock_limits_unknown_on_getrlimit_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        import resource
+
         def _raise(_which: int) -> tuple[int, int]:
             raise OSError("rlimit unavailable")
 
         monkeypatch.setattr(resource, "getrlimit", _raise)
         assert _memlock_limits() == ("unknown", "unknown")
 
+    @pytest.mark.skipif(sys.platform == "win32", reason="resource module is POSIX-only")
     def test_format_limit_reports_unlimited_for_infinity(self) -> None:
+        import resource
+
         assert _format_limit(resource.RLIM_INFINITY) == "unlimited"
 
     def test_limit_to_int_returns_none_for_unknown_string(self) -> None:
