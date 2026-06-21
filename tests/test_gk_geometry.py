@@ -211,3 +211,9 @@ def test_miller_geometry_returns_finite_positive_metric_contract() -> None:
     assert np.all(geom.B_mag > 0.0)
     assert np.all(geom.g_rr > 0.0)
     assert np.all(geom.g_tt > 0.0)
+
+
+def test_miller_geometry_rejects_nonpositive_n_theta() -> None:
+    """A non-positive n_theta is rejected as an invalid poloidal-grid count."""
+    with pytest.raises(ValueError, match="n_theta must be a positive integer"):
+        miller_geometry(R0=2.78, a=1.0, rho=0.5, kappa=1.7, q=1.4, s_hat=0.78, B0=2.0, n_theta=0, n_period=1)
