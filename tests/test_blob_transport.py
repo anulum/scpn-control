@@ -362,3 +362,31 @@ def test_blob_detector_rejects_nonphysical_event_parameters() -> None:
         det.conditional_average(np.ones((2, 2)), [], window=1)
     with pytest.raises(ValueError, match="event"):
         det.conditional_average(signal, [malformed_event], window=1)
+
+
+def test_blob_flux_rejects_negative_amplitude() -> None:
+    """A negative blob amplitude trips the non-negative array guard.
+
+    Sizes use the strictly-positive check; amplitudes, velocities and birth
+    times use the non-negative check, so a valid positive size with a negative
+    amplitude exercises the distinct non-negative branch.
+    """
+    ens = BlobEnsemble(BlobDynamics(R0=6.2, B0=5.3, Te_eV=20.0, Ti_eV=20.0, mi_amu=2.0), n_blobs=1)
+    pop = BlobPopulation(np.array([0.01]), np.array([-1.0]), np.array([100.0]), np.array([1.0]))
+
+    with pytest.raises(ValueError, match="must be non-negative"):
+        ens.radial_flux(pop)
+
+
+def test_conditional_average_rejects_non_integer_event_indices() -> None:
+    """Boolean event indices are rejected even though bool is an int subtype.
+
+    ``BlobEvent`` indices must be true integers; the validator explicitly
+    excludes ``bool`` so a truthy index cannot masquerade as a sample position.
+    """
+    det = BlobDetector()
+    signal = np.zeros(10)
+    bool_index_event = BlobEvent(start_idx=True, end_idx=4, peak_amplitude=1.0, duration=4e-6, size_estimate=0.004)
+
+    with pytest.raises(ValueError, match="event indices must be integers"):
+        det.conditional_average(signal, [bool_index_event], window=1)
