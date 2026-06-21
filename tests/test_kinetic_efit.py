@@ -230,6 +230,108 @@ def test_kinetic_efit_facility_admission_requires_matched_pressure_q_and_anisotr
     assert q_mismatch.facility_claim_allowed is False
 
 
+def test_claim_evidence_rejects_blank_text_nonfinite_tolerance_and_bad_profiles() -> None:
+    """Claim evidence fails closed on blank metadata, non-finite tolerance, bad fast-ions, bad profiles."""
+    import dataclasses as _dc
+
+    diag = reference_diagnostics()
+    kin = reference_kin_constraints()
+    fi = FastIonPressure(100.0, 0.1, 0.2)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    result = KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+    # Blank source rejected by the non-empty-text guard.
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            fi,
+            source="",
+            source_id="id",
+            diagnostic_source="d",
+            profile_source="p",
+            fast_ion_source="f",
+            mse_calibration_source="m",
+        )
+
+    # Non-finite tolerance rejected by the finiteness guard.
+    with pytest.raises(ValueError, match="must be finite"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            fi,
+            source="p_efit_reference",
+            source_id="id",
+            diagnostic_source="d",
+            profile_source="p",
+            fast_ion_source="f",
+            mse_calibration_source="m",
+            pressure_relative_tolerance=float("nan"),
+        )
+
+    # Non-physical fast-ion model rejected (zero energy).
+    with pytest.raises(ValueError, match="fast-ion evidence requires"):
+        kinetic_efit_claim_evidence(
+            result,
+            kin,
+            FastIonPressure(0.0, 0.1, 0.2),
+            source="p_efit_reference",
+            source_id="id",
+            diagnostic_source="d",
+            profile_source="p",
+            fast_ion_source="f",
+            mse_calibration_source="m",
+        )
+
+    # Non-finite reconstructed profile rejected.
+    bad_result = _dc.replace(result, q_profile=np.full(50, np.nan))
+    with pytest.raises(ValueError, match="non-empty finite one-dimensional"):
+        kinetic_efit_claim_evidence(
+            bad_result,
+            kin,
+            fi,
+            source="p_efit_reference",
+            source_id="id",
+            diagnostic_source="d",
+            profile_source="p",
+            fast_ion_source="f",
+            mse_calibration_source="m",
+        )
+
+
+def test_reconstruct_rejects_nonfinite_constraint_coordinates() -> None:
+    """A non-finite (R, Z) constraint coordinate fails the rho-mapping guard."""
+    diag = reference_diagnostics()
+    kin = KineticConstraints(
+        Te_points=[(6.0, 0.0, 10.0)],
+        ne_points=[(float("nan"), 0.0, 5.0)],
+        Ti_points=[(6.0, 0.0, 8.0)],
+        mse_points=[],
+    )
+    fi = FastIonPressure(100.0, 0.1, 0.0)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    with pytest.raises(ValueError, match="coordinates must be finite"):
+        KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+
+def test_reconstruct_rejects_negative_constraint_values() -> None:
+    """A negative measured constraint value fails the profile-value guard."""
+    diag = reference_diagnostics()
+    kin = KineticConstraints(
+        Te_points=[(6.0, 0.0, 10.0)],
+        ne_points=[(6.0, 0.0, -5.0)],
+        Ti_points=[(6.0, 0.0, 8.0)],
+        mse_points=[],
+    )
+    fi = FastIonPressure(100.0, 0.1, 0.0)
+    r_grid = np.linspace(4, 8, 33)
+    z_grid = np.linspace(-3, 3, 33)
+    with pytest.raises(ValueError, match="values must be finite and non-negative"):
+        KineticEFIT(diag, kin, fi, r_grid, z_grid).reconstruct({})
+
+
 def test_kinetic_efit_claim_evidence_rejects_invalid_reference_inputs():
     diag = reference_diagnostics()
     kin = reference_kin_constraints()
