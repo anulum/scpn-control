@@ -107,6 +107,27 @@ class TestBitflipFaults:
         obs = {"R_axis_m": 6.29, "Z_axis_m": -0.02}
         actions = ctrl.step(obs, k=0)
         assert "dI_PF3_A" in actions
+
+    @pytest.mark.skipif(not controller_mod._HAS_RUST_SCPN_RUNTIME, reason="requires the Rust SCPN sampling backend")
+    def test_step_with_rust_backend_bitflip(
+        self, tmp_path: Path, petri_net_std: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Rust sampling backend + fault injection exercises the rust-path bitflip RNG seed
+        # (the rust branch of the stochastic step); needs sc_n_passes>=2 and a non-zero binary
+        # margin so the stochastic sampler runs rather than the exact-threshold short-circuit.
+        monkeypatch.setenv("SCPN_ALLOW_CONTROLLER_FAULT_INJECTION", "1")
+        art_path = _artifact_custom(tmp_path, petri_net_std)
+        ctrl = _ctrl(
+            art_path,
+            runtime_backend="rust",
+            sc_n_passes=4,
+            sc_binary_margin=0.05,
+            sc_bitflip_rate=0.3,
+            allow_fault_injection=True,
+        )
+        obs = {"R_axis_m": 6.29, "Z_axis_m": -0.02}
+        actions = ctrl.step(obs, k=0)
+        assert "dI_PF3_A" in actions
         assert np.isfinite(actions["dI_PF3_A"])
 
 
