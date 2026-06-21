@@ -9,6 +9,8 @@
 # Tests for Director Interface and RuleBasedDirector fallback.
 
 import logging
+from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 import pytest
@@ -115,7 +117,7 @@ class TestDirectorInterface:
 class _MockKernel:
     """Minimal kernel stand-in for run_directed_mission."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.cfg = {
             "physics": {"plasma_current_target": 5.0},
             "coils": [{"current": 0.0} for _ in range(5)],
@@ -517,3 +519,85 @@ class TestDirectorInterfaceRunMission:
             allow_legacy_runtime_contract_fallback=True,
         )
         assert summary["steps"] == 5
+
+
+class _BadKernelCoilsNotList(_MockKernel):
+    """Kernel whose cfg['coils'] is not a list, violating the runtime contract."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.cfg["coils"] = "not-a-list"
+
+
+class _MockControllerCoilsNotList:
+    """Controller stand-in exposing a kernel with a non-list coils contract."""
+
+    def __init__(self, _config_path: str) -> None:
+        self.kernel = _BadKernelCoilsNotList()
+        self.brain_R = _MockBrain()
+        self.brain_Z = _MockBrain()
+
+    def initialize_brains(self, use_quantum: bool = True) -> None:
+        pass
+
+
+class TestDirectorRuntimeContractDegradedMode:
+    """Runtime-contract violations fail closed by default and break under fallback."""
+
+    @staticmethod
+    def _interface(factory: Callable[[str], Any]) -> DirectorInterface:
+        return DirectorInterface(
+            "mock.json",
+            controller_factory=factory,
+            allow_fallback=True,
+            allow_legacy_fallback=True,
+        )
+
+    def test_coils_not_list_is_fail_closed_by_default(self) -> None:
+        di = self._interface(_MockControllerCoilsNotList)
+        with pytest.raises(RuntimeError, match=r"cfg\['coils'\] must be a list"):
+            di.run_directed_mission(duration=5, save_plot=False, verbose=False)
+
+    def test_missing_cfg_breaks_under_explicit_fallback(self) -> None:
+        di = self._interface(_MockControllerNoCfg)
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=False,
+            verbose=False,
+            allow_runtime_contract_fallback=True,
+            allow_legacy_runtime_contract_fallback=True,
+        )
+        assert isinstance(summary, dict)
+
+    def test_bad_cfg_type_breaks_under_explicit_fallback(self) -> None:
+        di = self._interface(_MockControllerBadCfgType)
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=False,
+            verbose=False,
+            allow_runtime_contract_fallback=True,
+            allow_legacy_runtime_contract_fallback=True,
+        )
+        assert isinstance(summary, dict)
+
+    def test_missing_physics_breaks_under_explicit_fallback(self) -> None:
+        di = self._interface(_MockControllerNoPhysics)
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=False,
+            verbose=False,
+            allow_runtime_contract_fallback=True,
+            allow_legacy_runtime_contract_fallback=True,
+        )
+        assert isinstance(summary, dict)
+
+    def test_coils_not_list_breaks_under_explicit_fallback(self) -> None:
+        di = self._interface(_MockControllerCoilsNotList)
+        summary = di.run_directed_mission(
+            duration=5,
+            save_plot=False,
+            verbose=False,
+            allow_runtime_contract_fallback=True,
+            allow_legacy_runtime_contract_fallback=True,
+        )
+        assert isinstance(summary, dict)

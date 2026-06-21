@@ -35,7 +35,7 @@ import numpy as np
 try:
     from director_module import DirectorModule
 
-    DIRECTOR_AVAILABLE = True
+    DIRECTOR_AVAILABLE = True  # pragma: no cover - director_module is an optional sibling dependency
 except ImportError:  # pragma: no cover - optional dependency path
     DIRECTOR_AVAILABLE = False
     DirectorModule = None
@@ -124,7 +124,9 @@ class DirectorInterface:
         if director is not None:
             self.director = director
             self.director_backend = "injected"
-        elif DIRECTOR_AVAILABLE and DirectorModule is not None:
+        elif (
+            DIRECTOR_AVAILABLE and DirectorModule is not None
+        ):  # pragma: no cover - requires the optional director_module dependency
             self.director = DirectorModule(
                 entropy_threshold=float(entropy_threshold),
                 history_window=int(history_window),
