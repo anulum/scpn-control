@@ -488,7 +488,10 @@ def solve_eigenvalue_single_ky(
             d = _dispersion(omega)
             dd = _dispersion_deriv(omega)
             if abs(dd) < 1e-30:
-                break
+                # Defensive: a vanishing dispersion derivative is a degenerate,
+                # measure-zero condition that physical inputs do not reach; the
+                # guard prevents a division by zero in the Newton step below.
+                break  # pragma: no cover
             step = d / dd
             # Damped Newton to prevent overshoot
             if abs(step) > 2.0 * scale:

@@ -19,6 +19,7 @@ import pytest
 from scpn_control.core.gk_eigenvalue import (
     EigenMode,
     LinearGKResult,
+    _classify_mode,
     _drift_frequency,
     _kbm_drive,
     _mtm_drive,
@@ -27,8 +28,8 @@ from scpn_control.core.gk_eigenvalue import (
     solve_eigenvalue_single_ky,
     solve_linear_gk,
 )
-from scpn_control.core.gk_geometry import circular_geometry
-from scpn_control.core.gk_species import VelocityGrid, deuterium_ion, electron
+from scpn_control.core.gk_geometry import MillerGeometry, circular_geometry
+from scpn_control.core.gk_species import GKSpecies, VelocityGrid, deuterium_ion, electron
 
 
 @pytest.fixture
@@ -577,3 +578,144 @@ class TestMTMBranchSelection:
         )
         assert mode.electromagnetic is True
         assert mode.gamma >= 0.0
+
+
+def test_rejects_undersized_theta_grid(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """A theta grid with fewer than three points cannot resolve the flux tube."""
+    bad_geom = replace(cyclone_geometry, theta=np.array([0.0, 1.0]))
+    with pytest.raises(ValueError, match="at least 3 points"):
+        solve_eigenvalue_single_ky(k_y_rho_s=0.3, species_list=cyclone_species, geom=bad_geom, vgrid=small_vgrid)
+
+
+def test_rejects_nonpositive_energy_node_count(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """The energy quadrature must declare a positive node count."""
+    small_vgrid.n_energy = 0
+    with pytest.raises(ValueError, match="vgrid.n_energy must be positive"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_nonpositive_lambda_node_count(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """The pitch-angle quadrature must declare a positive node count."""
+    small_vgrid.n_lambda = 0
+    with pytest.raises(ValueError, match="vgrid.n_lambda must be positive"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_energy_node_count_mismatch(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """The energy node array length must match the declared node count."""
+    small_vgrid.energy = np.zeros(3)
+    with pytest.raises(ValueError, match="vgrid.energy must match vgrid.n_energy"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_lambda_node_count_mismatch(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """The pitch-angle node array length must match the declared node count."""
+    small_vgrid.lam = np.zeros(3)
+    with pytest.raises(ValueError, match="vgrid.lam must match vgrid.n_lambda"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_lambda_weight_shape_mismatch(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """Pitch-angle weights must share the shape of the pitch-angle nodes."""
+    small_vgrid.lambda_weights = np.zeros(5)
+    with pytest.raises(ValueError, match="vgrid.lambda_weights must match vgrid.lam"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_negative_energy_nodes(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """Energy nodes are kinetic energies and must be nonnegative."""
+    small_vgrid.energy = small_vgrid.energy.copy()
+    small_vgrid.energy[0] = -1.0
+    with pytest.raises(ValueError, match="vgrid.energy must be nonnegative"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_nonpositive_energy_weights(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """Energy quadrature weights must be strictly positive."""
+    small_vgrid.energy_weights = small_vgrid.energy_weights.copy()
+    small_vgrid.energy_weights[0] = 0.0
+    with pytest.raises(ValueError, match="vgrid.energy_weights must be positive"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_rejects_nonpositive_lambda_weights(
+    cyclone_geometry: MillerGeometry, cyclone_species: list[GKSpecies], small_vgrid: VelocityGrid
+) -> None:
+    """Pitch-angle quadrature weights must be strictly positive."""
+    small_vgrid.lambda_weights = small_vgrid.lambda_weights.copy()
+    small_vgrid.lambda_weights[0] = 0.0
+    with pytest.raises(ValueError, match="vgrid.lambda_weights must be positive"):
+        solve_eigenvalue_single_ky(
+            k_y_rho_s=0.3, species_list=cyclone_species, geom=cyclone_geometry, vgrid=small_vgrid
+        )
+
+
+def test_classify_mode_electromagnetic_mtm_branch() -> None:
+    """Low-k_y electron-direction propagation with collisional drive is an MTM."""
+    mode = _classify_mode(omega_r=1.0, k_y=0.3, electromagnetic=True, alpha_MHD=0.0, s_hat=1.0, beta_e=0.1, nu_e=0.1)
+    assert mode == "MTM"
+
+
+def test_classify_mode_electrostatic_etg_and_tem() -> None:
+    """Electron-direction modes are ETG above k_y rho_s = 2 and TEM below it."""
+    etg = _classify_mode(omega_r=1.0, k_y=3.0, electromagnetic=False, alpha_MHD=0.0, s_hat=1.0)
+    tem = _classify_mode(omega_r=1.0, k_y=1.0, electromagnetic=False, alpha_MHD=0.0, s_hat=1.0)
+    assert etg == "ETG"
+    assert tem == "TEM"
+
+
+def test_em_mtm_growth_branch_selected_for_electron_direction_mode() -> None:
+    """A low-k_y collisional electron-direction EM root selects the MTM branch.
+
+    With sub-critical KBM drive (alpha_MHD below s_hat) but a collisional,
+    electron-direction root at k_y rho_s < 0.5, the electromagnetic growth-rate
+    selection takes the MTM branch rather than the KBM branch.
+    """
+    geom = circular_geometry(R0=2.78, a=1.0, rho=0.5, q=3.0, s_hat=0.78, B0=2.0, n_theta=32, n_period=1)
+    vgrid = VelocityGrid(n_energy=4, n_lambda=6)
+    ion = deuterium_ion(T_keV=2.0, R_L_T=0.0, R_L_n=6.0)
+    e = electron(T_keV=2.0, R_L_T=12.0, R_L_n=6.0, adiabatic=False)
+    mode = solve_eigenvalue_single_ky(
+        k_y_rho_s=0.2,
+        species_list=[ion, e],
+        geom=geom,
+        vgrid=vgrid,
+        electromagnetic=True,
+        beta_e=0.08,
+        alpha_MHD=0.1,
+        s_hat=0.78,
+        nu_star=20.0,
+    )
+    assert mode.omega_r > 0.0
+    assert mode.mode_type == "MTM"
+    assert mode.gamma >= 0.0
