@@ -285,6 +285,34 @@ def test_rmp_chirikov_rejects_singular_or_negative_edge_shear() -> None:
         )
 
 
+def test_apply_to_profiles_rejects_multidimensional_and_empty_profiles() -> None:
+    """Profile crash application requires one-dimensional, non-empty Te/ne/rho arrays."""
+    crash = ELMCrashModel(f_elm_fraction=0.1)
+    two_d = np.ones((2, 3))
+    with pytest.raises(ValueError, match="one-dimensional"):
+        crash.apply_to_profiles(two_d, two_d, two_d, rho_ped=0.5)
+    empty = np.array([])
+    with pytest.raises(ValueError, match="must not be empty"):
+        crash.apply_to_profiles(empty, empty, empty, rho_ped=0.5)
+
+
+def test_chirikov_rejects_multidimensional_profiles() -> None:
+    """The Chirikov overlap requires one-dimensional q and rho profiles."""
+    rmp = RMPSuppression()
+    two_d = np.ones((2, 3))
+    with pytest.raises(ValueError, match="one-dimensional"):
+        rmp.chirikov_parameter(two_d, two_d, delta_B_r=0.01, B0=5.3, R0=6.2)
+
+
+def test_rmp_pedestal_transport_enhancement_scales_above_overlap() -> None:
+    """Transport enhancement is unity below island overlap and grows linearly above it."""
+    rmp = RMPSuppression()
+    assert rmp.pedestal_transport_enhancement(0.5) == pytest.approx(1.0)
+    assert rmp.pedestal_transport_enhancement(1.0) == pytest.approx(1.0)
+    # alpha = 2.0 → 1 + 2*(1.5 - 1.0) = 2.0
+    assert rmp.pedestal_transport_enhancement(1.5) == pytest.approx(2.0)
+
+
 def test_elm_power_balance_rejects_negative_sol_power() -> None:
     with pytest.raises(ValueError, match="P_SOL_MW"):
         elm_power_balance_frequency(P_SOL_MW=-1.0, W_ped_MJ=100.0, f_elm_fraction=0.1)
