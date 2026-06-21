@@ -138,7 +138,7 @@ class RustAcceleratedKernel:
         self.Psi = np.asarray(self._rust.get_psi())
         try:
             self.J_phi = np.asarray(self._rust.get_j_phi())
-        except AttributeError:
+        except AttributeError:  # pragma: no cover - defensive: native get_j_phi present in supported builds
             pass
 
         # Compute B-field from Psi (matching Python FusionKernel.compute_b_field)
@@ -289,7 +289,7 @@ def rust_bosch_hale_dt(t_kev: float) -> float:
     return float(bosch_hale_dt(float(t_kev)))  # pragma: no cover
 
 
-class RustSnnPool:
+class RustSnnPool:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
     """Python wrapper for Rust SpikingControllerPool (LIF neuron population).
 
     Falls back with ImportError if the Rust extension is not compiled.
@@ -325,7 +325,7 @@ class RustSnnPool:
         return f"RustSnnPool(n_neurons={self.n_neurons}, gain={self.gain})"
 
 
-class RustSnnController:
+class RustSnnController:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
     """Python wrapper for Rust NeuroCyberneticController (dual R+Z SNN pools).
 
     Falls back with ImportError if the Rust extension is not compiled.
@@ -588,7 +588,7 @@ class RustPIDController:
         return f"RustPIDController(mode={self._mode}, kp={self.kp}, ki={self.ki}, kd={self.kd})"
 
 
-class RustIsoFluxController:
+class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
     """Rust iso-flux controller (decoupled R + Z PID).
 
     Parameters
@@ -625,7 +625,7 @@ class RustIsoFluxController:
         return f"RustIsoFluxController(mode={self._mode}, target_r={self.target_r}, target_z={self.target_z})"
 
 
-class RustHInfController:
+class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
     """Rust H-infinity observer-based controller for vertical stability.
 
     Uses LQR-approximated gains for the 2-state VDE plant

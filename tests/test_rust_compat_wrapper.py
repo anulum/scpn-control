@@ -580,3 +580,18 @@ def test_rust_svd_optimal_correction_runs_via_available_backend() -> None:
     e = np.array([0.1, -0.2])
     delta = _rust_compat.rust_svd_optimal_correction(J, e, gain=0.8)
     np.testing.assert_allclose(delta, 0.8 * e, atol=1e-9)
+
+
+def test_rust_accelerated_kernel_vacuum_field_delegates_to_python(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    # calculate_vacuum_field has no PyO3 implementation; it delegates to the pure-Python
+    # FusionKernel regardless of the native backend, so it is coverable without rust.
+    cfg = tmp_path / "cfg.json"
+    _write_config(cfg)
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _DummyRustKernel, raising=False)
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+
+    vacuum = wrapper.calculate_vacuum_field()
+
+    assert vacuum is not None
