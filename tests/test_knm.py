@@ -75,3 +75,9 @@ class TestPaper27BuilderInvariants:
         assert K[1, 2] == pytest.approx(0.201)
         assert K[2, 3] == pytest.approx(0.252)
         assert K[3, 4] == pytest.approx(0.154)
+
+
+def test_rejects_nonfinite_zeta() -> None:
+    """A non-finite zeta entry is rejected before the non-negativity check."""
+    with pytest.raises(ValueError, match="zeta must contain only finite values"):
+        KnmSpec(K=np.eye(3), zeta=np.array([0.1, np.inf, 0.2]))
