@@ -45,13 +45,13 @@ _HAS_SC_NEUROCORE = False
 _HAS_NEUROCORE_V3 = False
 
 try:
-    from sc_neurocore import RNG as _SC_RNG
-    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream
-    from sc_neurocore.accel import sc_forward
-    from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
+    from sc_neurocore import RNG as _SC_RNG  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
+    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream  # pragma: no cover
+    from sc_neurocore.accel import sc_forward  # pragma: no cover
+    from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount  # pragma: no cover
 
-    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True
-    logger.info("sc_neurocore v3.16.0+ detected — sc_forward inference + Rust backend")
+    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True  # pragma: no cover
+    logger.info("sc_neurocore v3.16.0+ detected — sc_forward inference + Rust backend")  # pragma: no cover
 except ImportError:
     try:
         from sc_neurocore import RNG as _SC_RNG
@@ -199,37 +199,38 @@ class CompiledNet:
         # v3.16.0+ path: sc_forward runs the AND+popcount estimate over the
         # caller-owned packed weights on the fastest available backend (Rust, with
         # a bit-identical NumPy fallback for a fixed seed).
-        if _HAS_NEUROCORE_V3:
+        if _HAS_NEUROCORE_V3:  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
             return np.asarray(
                 sc_forward(W_packed, input_probs, length=self.bitstream_length, seed=self.seed + 1_000_000),
                 dtype=np.float64,
             )
 
-        # Legacy path: manual pack + AND + popcount
-        n_out, n_in, n_words = W_packed.shape
-        output = np.zeros(n_out, dtype=np.float64)
+        # Legacy path: manual pack + AND + popcount (sc_neurocore <3.16)
+        else:  # pragma: no cover - legacy sc_neurocore <3.16 path, uninstalled on CI
+            n_out, n_in, n_words = W_packed.shape
+            output = np.zeros(n_out, dtype=np.float64)
 
-        input_packed = np.zeros((n_in, n_words), dtype=np.uint64)
-        rng_seed = self.seed + 1_000_000
-        for j in range(n_in):
-            p = float(np.clip(input_probs[j], 0.0, 1.0))
-            rng = _SC_RNG(rng_seed + j)
-            bits = generate_bernoulli_bitstream(p, self.bitstream_length, rng=rng)
-            input_packed[j, :] = pack_bitstream(bits)
+            input_packed = np.zeros((n_in, n_words), dtype=np.uint64)
+            rng_seed = self.seed + 1_000_000
+            for j in range(n_in):
+                p = float(np.clip(input_probs[j], 0.0, 1.0))
+                rng = _SC_RNG(rng_seed + j)
+                bits = generate_bernoulli_bitstream(p, self.bitstream_length, rng=rng)
+                input_packed[j, :] = pack_bitstream(bits)
 
-        if hasattr(np, "bitwise_count"):
-            anded = np.bitwise_and(W_packed, input_packed[np.newaxis, :, :])
-            ones = np.bitwise_count(anded).sum(axis=(1, 2), dtype=np.uint64)
-            output[:] = ones.astype(np.float64) / self.bitstream_length
-        else:
-            for i in range(n_out):
-                total_ones = 0
-                for j in range(n_in):
-                    anded = vec_and(W_packed[i, j, :], input_packed[j, :])
-                    total_ones += int(vec_popcount(anded))
-                output[i] = total_ones / self.bitstream_length
+            if hasattr(np, "bitwise_count"):
+                anded = np.bitwise_and(W_packed, input_packed[np.newaxis, :, :])
+                ones = np.bitwise_count(anded).sum(axis=(1, 2), dtype=np.uint64)
+                output[:] = ones.astype(np.float64) / self.bitstream_length
+            else:
+                for i in range(n_out):
+                    total_ones = 0
+                    for j in range(n_in):
+                        anded = vec_and(W_packed[i, j, :], input_packed[j, :])
+                        total_ones += int(vec_popcount(anded))
+                    output[i] = total_ones / self.bitstream_length
 
-        return output
+            return output
 
     def dense_forward_float(
         self,
@@ -261,7 +262,7 @@ class CompiledNet:
             return np.asarray(np.clip(raw, 0.0, 1.0), dtype=np.float64)
 
         # Binary mode
-        if self.neurons:
+        if self.neurons:  # pragma: no cover - neurons populated only with sc_neurocore (uninstalled on CI)
             fired = np.zeros(self.n_transitions, dtype=np.float64)
             for i, neuron in enumerate(self.neurons):
                 neuron.reset_state()
