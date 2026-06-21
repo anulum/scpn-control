@@ -32,10 +32,10 @@ from typing import Any, Dict
 logger = logging.getLogger(__name__)
 
 try:
-    from sc_neurocore.adapters.holonomic.l4_cell import L4_CellularAdapter, L4_HolonomicParameters
-    from sc_neurocore.adapters.holonomic.l5_org import L5_HolonomicParameters, L5_OrganismalAdapter
+    from sc_neurocore.adapters.holonomic.l4_cell import L4_CellularAdapter, L4_HolonomicParameters  # pragma: no cover
+    from sc_neurocore.adapters.holonomic.l5_org import L5_HolonomicParameters, L5_OrganismalAdapter  # pragma: no cover
 
-    SC_NEUROCORE_HOLONOMIC_AVAILABLE = True
+    SC_NEUROCORE_HOLONOMIC_AVAILABLE = True  # pragma: no cover - sc_neurocore optional dep, absent on CI
 except ImportError:
     SC_NEUROCORE_HOLONOMIC_AVAILABLE = False
     L4_CellularAdapter = None
