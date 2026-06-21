@@ -229,6 +229,8 @@ def test_q_from_psi_rejects_invalid_flux_grid_domains():
         q_from_psi(rho[::-1], psi, R0=2.0, a=0.5, B0=1.0)
     with pytest.raises(ValueError, match="psi"):
         q_from_psi(rho, np.array([0.0, np.nan, 0.0, 0.0, 0.0]), R0=2.0, a=0.5, B0=1.0)
+    with pytest.raises(ValueError, match="matching shape"):
+        q_from_psi(rho, psi[:4], R0=2.0, a=0.5, B0=1.0)
     with pytest.raises(ValueError, match="B0"):
         q_from_psi(rho, psi, R0=2.0, a=0.5, B0=0.0)
 
@@ -275,6 +277,14 @@ def test_current_diffusion_step_rejects_invalid_time_and_profiles():
     bad_te[3] = -0.1
     with pytest.raises(ValueError, match="Te must contain finite positive values"):
         solver.step(1.0, bad_te, ne, 1.5, j, j)
+
+    with pytest.raises(ValueError, match="Te must have shape"):
+        solver.step(1.0, np.ones(15), ne, 1.5, j, j)
+
+    bad_jbs = j.copy()
+    bad_jbs[2] = np.inf
+    with pytest.raises(ValueError, match="j_bs must contain only finite values"):
+        solver.step(1.0, Te, ne, 1.5, bad_jbs, j)
 
     with pytest.raises(ValueError, match="j_cd must have shape"):
         solver.step(1.0, Te, ne, 1.5, j, np.zeros(15))
