@@ -32,10 +32,12 @@ logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
 
 try:
-    from sc_neurocore.neurons.stochastic_lif import StochasticLIFNeuron
-    from sc_neurocore.sources.quantum_entropy import QuantumEntropySource
+    # sc_neurocore is an optional dependency, uninstalled on the CI coverage job;
+    # the success-path imports below are therefore unreachable there.
+    from sc_neurocore.neurons.stochastic_lif import StochasticLIFNeuron  # pragma: no cover
+    from sc_neurocore.sources.quantum_entropy import QuantumEntropySource  # pragma: no cover
 
-    SC_NEUROCORE_AVAILABLE = True
+    SC_NEUROCORE_AVAILABLE = True  # pragma: no cover
 except ImportError:  # pragma: no cover - optional dependency path
     SC_NEUROCORE_AVAILABLE = False
     StochasticLIFNeuron = None
@@ -126,7 +128,7 @@ class SpikingControllerPool:
             self.history_pos.append(0)
             self.history_neg.append(0)
 
-        if SC_NEUROCORE_AVAILABLE:
+        if SC_NEUROCORE_AVAILABLE:  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
             self.backend = "sc_neurocore"
             self.q_source = (
                 QuantumEntropySource(n_qubits=4) if self.use_quantum and QuantumEntropySource is not None else None
@@ -202,7 +204,7 @@ class SpikingControllerPool:
         input_pos = max(0.0, float(error_signal)) * self._i_scale
         input_neg = max(0.0, -float(error_signal)) * self._i_scale
 
-        if self.backend == "sc_neurocore":
+        if self.backend == "sc_neurocore":  # pragma: no cover - sc_neurocore backend, uninstalled on CI
             spikes_pos = 0
             for neuron in self.pop_pos:
                 if neuron.step(self._i_bias + input_pos):

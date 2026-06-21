@@ -585,3 +585,100 @@ def test_controller_visualize_fails_closed_without_matplotlib(monkeypatch: pytes
 
     with pytest.raises(RuntimeError, match="matplotlib is required"):
         nc.visualize("Neuro control regression", verbose=False)
+
+
+@pytest.mark.parametrize("bad_threshold", [1.5, -0.1, float("nan"), float("inf")])
+def test_controller_rejects_out_of_range_safety_threshold(bad_threshold: float) -> None:
+    with pytest.raises(ValueError, match=r"safety_confidence_threshold must be finite in \[0.0, 1.0\]"):
+        controller_mod.NeuroCyberneticController(
+            "dummy.json",
+            kernel_factory=_DummyKernel,
+            safety_confidence_threshold=bad_threshold,
+        )
+
+
+@pytest.mark.parametrize("bad_steps", [0, -3])
+def test_controller_rejects_nonpositive_ramp_steps(bad_steps: int) -> None:
+    with pytest.raises(ValueError, match="safe_shutdown_ramp_steps must be >= 1"):
+        controller_mod.NeuroCyberneticController(
+            "dummy.json",
+            kernel_factory=_DummyKernel,
+            safe_shutdown_ramp_steps=bad_steps,
+        )
+
+
+def test_controller_overflow_trap_count_property_tracks_traps() -> None:
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        kernel_factory=_DummyKernel,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+    )
+    assert nc.overflow_trap_count == 0
+    nc._overflow_trap_count = 4
+    assert nc.overflow_trap_count == 4
+
+
+def test_controller_safety_is_active_reflects_fsm_state() -> None:
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        kernel_factory=_DummyKernel,
+    )
+    assert nc._safety_is_active() is False
+    nc._enter_safe_shutdown(reason="low_confidence")
+    assert nc._safety_is_active() is True
+
+
+def test_safe_command_latches_safe_shutdown_when_ramp_counter_exhausted() -> None:
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        kernel_factory=_DummyKernel,
+    )
+    nc.safety_state = controller_mod._SAFETY_STATE_SHUTDOWN_RAMP
+    nc._safe_shutdown_counter = 0
+
+    shaped = nc._safe_command(5.0)
+
+    assert shaped == 0.0
+    assert nc.safety_state == controller_mod._SAFETY_STATE_SAFE_SHUTDOWN
+
+
+def test_run_shot_reports_plot_saved_with_fake_matplotlib(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(controller_mod, "HAS_MPL", True)
+    monkeypatch.setattr(controller_mod, "plt", _FakePyplot())
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+    )
+
+    summary = nc.run_shot(save_plot=True, verbose=False)
+
+    assert summary["plot_saved"] is True
+    assert summary["plot_error"] is None
+
+
+def test_controller_visualize_logs_save_location_when_verbose(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setattr(controller_mod, "HAS_MPL", True)
+    monkeypatch.setattr(controller_mod, "plt", _FakePyplot())
+    nc = controller_mod.NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=4,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+    )
+    nc.run_shot(save_plot=False, verbose=False)
+    plot_path = tmp_path / "neuro_control_verbose.png"
+
+    with caplog.at_level(logging.INFO, logger=controller_mod.logger.name):
+        returned = nc.visualize("Neuro control regression", output_path=str(plot_path), verbose=True)
+
+    assert returned == str(plot_path)
+    assert any("Analysis saved" in record.message for record in caplog.records)
