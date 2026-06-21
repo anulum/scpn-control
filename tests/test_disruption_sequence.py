@@ -43,6 +43,9 @@ def test_disruption_config_rejects_nonphysical_domains():
     with pytest.raises(ValueError, match="dBr_over_B_trigger"):
         DisruptionConfig(**{**valid, "dBr_over_B_trigger": -1.0e-3})
 
+    with pytest.raises(ValueError, match="R0 must be finite"):
+        DisruptionConfig(**{**valid, "R0": float("inf")})
+
 
 def test_thermal_quench():
     tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
@@ -150,6 +153,17 @@ def test_tq_heat_zero_area():
     """Line 102: A_wall <= 0 returns inf heat deposition."""
     tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
     assert tq.heat_deposition(350.0, 0.0) == float("inf")
+
+
+def test_post_tq_temperature_rejects_nonphysical_time_and_temperature_domains() -> None:
+    """Residual-temperature cooling requires positive temperature and radiation times."""
+    tq = ThermalQuench(W_th_MJ=350.0, a=2.0, R0=6.2, q=3.0, B0=5.3)
+    with pytest.raises(ValueError, match="Te_pre_keV"):
+        tq.post_tq_temperature(Te_pre_keV=0.0, tau_tq_ms=0.1)
+    with pytest.raises(ValueError, match="tau_tq_ms"):
+        tq.post_tq_temperature(Te_pre_keV=20.0, tau_tq_ms=-1.0)
+    with pytest.raises(ValueError, match="tau_radiation_ms"):
+        tq.post_tq_temperature(Te_pre_keV=20.0, tau_tq_ms=0.1, tau_radiation_ms=0.0)
 
 
 def test_cq_induced_field():

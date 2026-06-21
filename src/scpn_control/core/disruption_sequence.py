@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 
 from scpn_control._typing import FloatArray
-from scpn_control.core.runaway_electrons import RunawayEvolution, RunawayParams
+from scpn_control.core.runaway_electrons import RunawayEvolution, RunawayParams, hot_tail_seed
 
 
 @dataclass
@@ -501,16 +501,9 @@ class DisruptionSequence:
         re_params = RunawayParams(ne_20, post_T / 1000.0, 0.0, Z_eff, self.config.B0, self.config.R0)
         re_model = RunawayEvolution(re_params)
 
-        # Initial seed from hot tail
-        seed = 1e10  # Fallback
-        try:
-            from scpn_control.core.runaway_electrons import hot_tail_seed
-
-            seed = hot_tail_seed(self.config.Te_pre_keV, post_T / 1000.0, ne_20, tau_tq_ms)
-        except ImportError:
-            pass
-
-        n_RE = seed
+        # Initial seed from the thermal-quench hot-tail mechanism
+        # (Smith et al. 2008, Phys. Plasmas 15, 072502).
+        n_RE = hot_tail_seed(self.config.Te_pre_keV, post_T / 1000.0, ne_20, tau_tq_ms)
 
         # Evolve REs using E_par from CQ
         for E_p in cq_res.E_par_trace:
