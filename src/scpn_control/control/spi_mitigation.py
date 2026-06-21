@@ -473,7 +473,7 @@ def run_spi_mitigation(
 
     plot_saved = False
     plot_error: str | None = None
-    if save_plot:
+    if save_plot and HAS_MPL:
         try:
             fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
             ax1.plot(t_arr, w_arr, "r-", linewidth=2)

@@ -260,18 +260,29 @@ def test_spi_assimilation_bounded() -> None:
     assert ETA_SPI_MAX == pytest.approx(0.90)
 
 
-def test_run_spi_test_saves_plot_and_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """The default demonstration writes its result plot and logs the saved path.
+def test_run_spi_test_runs_default_demonstration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default demonstration runs the mitigation with plotting enabled.
 
     ``run_spi_test`` is the convenience entry point that runs the mitigation with
-    plotting and verbose logging enabled; running it inside an isolated working
-    directory exercises the plot-save branch and the verbose save log.
+    ``save_plot=True`` and verbose logging.  Running it inside an isolated working
+    directory exercises that entry point and returns a populated summary.  The
+    plot is only written when matplotlib is installed (an optional ``viz`` extra),
+    so the saved-plot assertions are gated on that availability rather than
+    assuming the figure backend is present.
     """
+    from scpn_control.control import spi_mitigation
     from scpn_control.control.spi_mitigation import run_spi_test
 
     monkeypatch.chdir(tmp_path)
     summary = run_spi_test()
 
-    assert summary["plot_saved"] is True
-    assert summary["plot_error"] is None
-    assert (tmp_path / "SPI_Mitigation_Result.png").exists()
+    assert summary["plasma_energy_mj"] > 0.0
+    assert summary["samples"] > 0
+    assert isinstance(summary["plot_saved"], bool)
+    if spi_mitigation.HAS_MPL:
+        assert summary["plot_saved"] is True
+        assert summary["plot_error"] is None
+        assert (tmp_path / "SPI_Mitigation_Result.png").exists()
+    else:
+        assert summary["plot_saved"] is False
+        assert not (tmp_path / "SPI_Mitigation_Result.png").exists()
