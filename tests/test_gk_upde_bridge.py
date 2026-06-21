@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from scpn_control.core.gk_interface import GKOutput
 from scpn_control.phase.gk_upde_bridge import adaptive_knm, gk_natural_frequencies
@@ -154,3 +155,63 @@ def test_gk_natural_frequencies_uses_positive_growth_drive_only():
     omega_base = np.ones(8)
     omega = gk_natural_frequencies(omega_base, gk)
     np.testing.assert_array_equal(omega, omega_base)
+
+
+def _gk_output(gamma: NDArray[np.float64]) -> GKOutput:
+    """Build a minimal GKOutput carrying the given growth-rate spectrum."""
+    size = gamma.size
+    return GKOutput(
+        chi_i=1.0,
+        chi_e=0.8,
+        D_e=0.1,
+        gamma=gamma,
+        omega_r=np.zeros(size),
+        k_y=np.linspace(0.1, 0.5, size, dtype=np.float64) if size else np.zeros(0, dtype=np.float64),
+        dominant_mode="ITG",
+    )
+
+
+def test_adaptive_knm_rejects_non_square_coupling_matrix() -> None:
+    """A non-square baseline coupling matrix is rejected before modulation."""
+    with pytest.raises(ValueError, match="square matrix"):
+        adaptive_knm(np.ones((3, 4)), _gk_output(np.array([0.2])))
+
+
+def test_adaptive_knm_rejects_nonfinite_coupling_matrix() -> None:
+    """A baseline coupling matrix with a non-finite entry is rejected."""
+    k_base = 0.3 * np.ones((8, 8))
+    k_base[0, 0] = np.inf
+    with pytest.raises(ValueError, match="finite values"):
+        adaptive_knm(k_base, _gk_output(np.array([0.2])))
+
+
+def test_adaptive_knm_accepts_empty_growth_spectrum() -> None:
+    """An empty growth-rate spectrum yields zero drive and baseline coupling."""
+    k_base = 0.3 * np.ones((8, 8))
+    K = adaptive_knm(k_base, _gk_output(np.zeros(0)))
+    assert K.shape == (8, 8)
+    assert K[0, 1] == pytest.approx(k_base[0, 1])
+
+
+def test_adaptive_knm_rejects_nonpositive_reference_scales() -> None:
+    """Reference growth and transport scales must be strictly positive."""
+    k_base = 0.3 * np.ones((8, 8))
+    gk = _gk_output(np.array([0.2]))
+    with pytest.raises(ValueError, match="gamma_ref must be finite and positive"):
+        adaptive_knm(k_base, gk, gamma_ref=0.0)
+    with pytest.raises(ValueError, match="chi_ref must be finite and positive"):
+        adaptive_knm(k_base, gk, chi_ref=-1.0)
+
+
+def test_gk_natural_frequencies_rejects_nonfinite_base_frequencies() -> None:
+    """Base natural frequencies must all be finite."""
+    omega_base = np.ones(8)
+    omega_base[2] = np.nan
+    with pytest.raises(ValueError, match="omega_base"):
+        gk_natural_frequencies(omega_base, _gk_output(np.array([0.2])))
+
+
+def test_gk_natural_frequencies_rejects_negative_growth_scale() -> None:
+    """A negative growth-scale factor is rejected as non-physical."""
+    with pytest.raises(ValueError, match="gamma_scale"):
+        gk_natural_frequencies(np.ones(8), _gk_output(np.array([0.2])), gamma_scale=-0.1)
