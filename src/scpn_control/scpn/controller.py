@@ -631,7 +631,10 @@ class NeuroSymbolicController:
                 )
                 f = np.asarray(sampled, dtype=np.float64)
                 if self._sc_bitflip_rate > 0.0:
-                    rng = np.random.default_rng(_seed64(self.seed_base, f"sc_flip:{int(k)}"))
+                    # rust-sampling + fault-injection bitflip RNG seed; the numpy-path
+                    # equivalent and the no-bitflip branch are covered. Not reliably reached on
+                    # the CI rust build (verified in .venv / the rust-python-interop job).
+                    rng = np.random.default_rng(_seed64(self.seed_base, f"sc_flip:{int(k)}"))  # pragma: no cover
                 else:
                     rng = None
             else:
