@@ -16,9 +16,13 @@ antithetic sampling with odd passes, delayed transitions, and marking setter."""
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any
+
 import numpy as np
 import pytest
 
+import scpn_control.scpn.controller as controller_mod
 from scpn_control.scpn.artifact import load_artifact, save_artifact
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.controller import (
@@ -28,7 +32,7 @@ from scpn_control.scpn.controller import (
 )
 
 
-def _artifact_custom(tmp_path, petri_net_std, injection_config=None):
+def _artifact_custom(tmp_path: Path, petri_net_std: Any, injection_config: list[dict[str, Any]] | None = None) -> str:
     compiler = FusionCompiler(bitstream_length=64, seed=0)
     compiled = compiler.compile(petri_net_std)
     readout_config = {
@@ -57,9 +61,9 @@ def _artifact_custom(tmp_path, petri_net_std, injection_config=None):
     return str(path)
 
 
-def _ctrl(art_path, **kwargs):
+def _ctrl(art_path: str, **kwargs: Any) -> NeuroSymbolicController:
     art = load_artifact(art_path)
-    defaults = dict(
+    defaults: dict[str, Any] = dict(
         artifact=art,
         seed_base=42,
         targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
@@ -163,3 +167,55 @@ class TestPassthroughSources:
         ctrl = _ctrl(art_path)
         with pytest.raises(KeyError, match="passthrough"):
             ctrl.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, k=0)
+
+    def test_feature_dict_missing_key_raises_when_logging(self, tmp_path: Path, petri_net_std: Any) -> None:
+        injection_config = [
+            {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 2, "source": "x_Z_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 3, "source": "x_Z_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+            {"place_id": 4, "source": "ext_sensor", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+        ]
+        art_path = _artifact_custom(tmp_path, petri_net_std, injection_config=injection_config)
+        ctrl = _ctrl(art_path)
+        log_file = tmp_path / "feat.jsonl"
+        # The feature dict is built (and the passthrough key checked) before place
+        # injection whenever logging is requested.
+        with pytest.raises(KeyError, match="passthrough"):
+            ctrl.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, k=0, log_path=str(log_file), log_root=tmp_path)
+
+
+class TestRustBackendRequestWithoutRuntime:
+    def test_rust_request_falls_back_to_numpy_when_allowed(
+        self, tmp_path: Path, petri_net_std: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(controller_mod, "_HAS_RUST_SCPN_RUNTIME", False)
+        ctrl = _ctrl(
+            _artifact_custom(tmp_path, petri_net_std),
+            runtime_backend="rust",
+            allow_runtime_backend_fallback=True,
+            allow_legacy_runtime_backend_fallback=True,
+        )
+        assert ctrl._runtime_backend == "numpy"
+
+    def test_rust_request_raises_without_fallback(
+        self, tmp_path: Path, petri_net_std: Any, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(controller_mod, "_HAS_RUST_SCPN_RUNTIME", False)
+        with pytest.raises(RuntimeError, match="Rust SCPN runtime is unavailable"):
+            _ctrl(_artifact_custom(tmp_path, petri_net_std), runtime_backend="rust")
+
+
+class TestNonAntitheticSampling:
+    def test_numpy_binomial_path_without_antithetic(self, tmp_path: Path, petri_net_std: Any) -> None:
+        ctrl = _ctrl(
+            _artifact_custom(tmp_path, petri_net_std),
+            runtime_backend="numpy",
+            sc_n_passes=4,
+            sc_antithetic=False,
+            sc_binary_margin=0.05,
+        )
+        obs = {"R_axis_m": 6.27, "Z_axis_m": -0.03}
+        actions = ctrl.step(obs, k=0)
+        assert "dI_PF3_A" in actions
+        assert np.isfinite(actions["dI_PF3_A"])

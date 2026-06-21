@@ -11,6 +11,7 @@ triggered only when log_path is not None."""
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -20,7 +21,40 @@ from scpn_control.scpn.controller import (
     ControlScales,
     ControlTargets,
     NeuroSymbolicController,
+    _append_jsonl_record,
+    _resolve_jsonl_log_path,
 )
+
+
+class TestResolveJsonlLogPath:
+    def test_missing_log_root_is_rejected(self) -> None:
+        with pytest.raises(ValueError, match="log_root is required"):
+            _resolve_jsonl_log_path("audit.jsonl", None)
+
+    def test_nonexistent_log_root_is_rejected(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="must reference an existing directory"):
+            _resolve_jsonl_log_path("audit.jsonl", tmp_path / "missing")
+
+    def test_relative_log_path_is_anchored_under_root(self, tmp_path: Path) -> None:
+        resolved = _resolve_jsonl_log_path("audit.jsonl", tmp_path)
+        assert resolved == (tmp_path / "audit.jsonl").resolve(strict=False)
+
+    def test_non_jsonl_suffix_is_rejected(self, tmp_path: Path) -> None:
+        with pytest.raises(ValueError, match="must use a .jsonl suffix"):
+            _resolve_jsonl_log_path("audit.txt", tmp_path)
+
+    def test_existing_non_file_target_is_rejected(self, tmp_path: Path) -> None:
+        directory = tmp_path / "audit.jsonl"
+        directory.mkdir()
+        with pytest.raises(ValueError, match="must reference a regular file"):
+            _resolve_jsonl_log_path("audit.jsonl", tmp_path)
+
+
+class TestAppendJsonlRecord:
+    def test_unopenable_path_is_rejected(self, tmp_path: Path) -> None:
+        unreachable = tmp_path / "missing_dir" / "audit.jsonl"
+        with pytest.raises(ValueError, match="must reference a regular file"):
+            _append_jsonl_record(unreachable, {"k": 1})
 
 
 def _artifact_with_passthrough(tmp_path, petri_net_std):
