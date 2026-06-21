@@ -358,7 +358,7 @@ class JaxNonlinearGKSolver:
 
         if _HAS_JAX:
             rhs_ckpt = jax.checkpoint(rhs_full)
-        else:
+        else:  # pragma: no cover - this method only runs when _HAS_JAX is True
             rhs_ckpt = rhs_full
 
         k1 = rhs_ckpt(f)
