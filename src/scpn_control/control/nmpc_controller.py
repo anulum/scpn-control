@@ -1376,6 +1376,10 @@ class NonlinearMPC:
         model.u = u
         model.disc_dyn_expr = ca.vertcat(x_next, u)
         model.con_h_expr = u - u_last
+        # acados treats the initial stage separately: the slew-rate constraint at
+        # stage 0 (u_0 - u_prev) must be declared via con_h_expr_0, otherwise the
+        # solver has no h-constraint at stage 0 and setting lh/uh there fails.
+        model.con_h_expr_0 = u - u_last
 
         ocp = AcadosOcp()
         ocp.model = model
@@ -1416,11 +1420,17 @@ class NonlinearMPC:
         ocp.constraints.idxbx = np.arange(n_aug, dtype=int)
         ocp.constraints.lbx = np.r_[self.config.x_min, self.config.u_min]
         ocp.constraints.ubx = np.r_[self.config.x_max, self.config.u_max]
+        # Declare the stage-0 initial-state equality so acados allocates idxbx_0
+        # over all augmented states; the actual value is pinned at runtime via the
+        # stage-0 lbx/ubx update. Without x0 the solver has nbx_0=0 and rejects it.
+        ocp.constraints.x0 = np.r_[self.config.x_min, self.config.u_min].astype(float)
         ocp.constraints.idxbu = np.arange(self.nu, dtype=int)
         ocp.constraints.lbu = self.config.u_min.copy()
         ocp.constraints.ubu = self.config.u_max.copy()
         ocp.constraints.lh = -self.config.du_max.copy()
         ocp.constraints.uh = self.config.du_max.copy()
+        ocp.constraints.lh_0 = -self.config.du_max.copy()
+        ocp.constraints.uh_0 = self.config.du_max.copy()
         terminal_x_min = self.config.terminal_x_min if self.config.terminal_x_min is not None else self.config.x_min
         terminal_x_max = self.config.terminal_x_max if self.config.terminal_x_max is not None else self.config.x_max
         ocp.constraints.idxbx_e = np.arange(self.nx, dtype=int)
@@ -1490,8 +1500,16 @@ class NonlinearMPC:
     @staticmethod
     def _acados_set(solver: object, stage: int, field: str, value: AnyFloatArray) -> None:
         solver_api: Any = solver
+        array = np.asarray(value, dtype=np.float64)
         try:
-            solver_api.set(stage, field, np.asarray(value, dtype=np.float64))
+            # Real acados routes nonlinear-constraint bounds (h) through
+            # constraints_set; its set() rejects "lh"/"uh". Dispatch to
+            # constraints_set when the solver exposes it, falling back to set()
+            # for solvers/test doubles that accept bounds through set().
+            if field in ("lh", "uh") and hasattr(solver_api, "constraints_set"):
+                solver_api.constraints_set(stage, field, array)  # pragma: no cover - real acados only
+            else:
+                solver_api.set(stage, field, array)
         except Exception as exc:
             raise RuntimeError(f"acados backend failed while setting {field} at stage {stage}.") from exc
 
