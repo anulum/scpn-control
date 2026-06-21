@@ -25,6 +25,7 @@ Usage::
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import math
 import platform
@@ -110,13 +111,50 @@ def _measure(step: Callable[[int], object], *, iterations: int, warmup: int) -> 
     }
 
 
-def _pid_step(iterations: int, warmup: int) -> tuple[dict[str, Any], str]:
-    pid = RustPIDController(kp=1.0, ki=0.1, kd=0.05)
-    backend = "rust" if getattr(pid, "_mode", "fallback") == "rust" else "numpy"
-    return _measure(lambda i: pid.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup), backend
+def _module_available(name: str) -> bool:
+    return importlib.util.find_spec(name) is not None
 
 
-def _snn_numpy_step(iterations: int, warmup: int) -> dict[str, Any]:
+def _rust_symbol_available(symbol: str) -> bool:
+    try:
+        import scpn_control_rs
+    except ImportError:
+        return False
+    return hasattr(scpn_control_rs, symbol)
+
+
+def _entry(name: str, backend: str, stats: dict[str, Any] | None, status: str, note: str = "") -> dict[str, Any]:
+    return {"name": name, "backend": backend, "stats": stats, "status": status, "note": note}
+
+
+def _pid_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
+    pid_np = RustPIDController._PurePythonPID(1.0, 0.1, 0.05)
+    entries.append(
+        _entry(
+            "PID",
+            "numpy",
+            _measure(lambda i: pid_np.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup),
+            "measured",
+        )
+    )
+    if _rust_symbol_available("PyPIDController"):
+        pid_rs = RustPIDController(kp=1.0, ki=0.1, kd=0.05)
+        entries.append(
+            _entry(
+                "PID",
+                "rust",
+                _measure(lambda i: pid_rs.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup),
+                "measured",
+            )
+        )
+    else:
+        entries.append(_entry("PID", "rust", None, "unavailable: PyPIDController not built"))
+    return entries
+
+
+def _snn_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
     pool = SpikingControllerPool(
         n_neurons=64,
         gain=1.0,
@@ -124,55 +162,91 @@ def _snn_numpy_step(iterations: int, warmup: int) -> dict[str, Any]:
         allow_numpy_fallback=True,
         allow_legacy_numpy_fallback=True,
     )
-    return _measure(lambda i: pool.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup)
-
-
-def _snn_rust_step(iterations: int, warmup: int) -> dict[str, Any] | None:
-    try:
-        from scpn_control.core._rust_compat import RustSnnController
-    except ImportError:
-        return None
-    try:
-        snn = RustSnnController(target_r=6.2, target_z=0.0)
-    except ImportError:
-        return None
-    return _measure(
-        lambda i: snn.step(6.2 + 0.01 * math.sin(i * 0.01), 0.01 * math.cos(i * 0.01)),
-        iterations=iterations,
-        warmup=warmup,
+    entries.append(
+        _entry(
+            "SNN",
+            "numpy",
+            _measure(lambda i: pool.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup),
+            "measured",
+        )
     )
+    if _rust_symbol_available("PySnnController"):
+        from scpn_control.core._rust_compat import RustSnnController
+
+        snn = RustSnnController(target_r=6.2, target_z=0.0)
+        entries.append(
+            _entry(
+                "SNN",
+                "rust",
+                _measure(
+                    lambda i: snn.step(6.2 + 0.01 * math.sin(i * 0.01), 0.01 * math.cos(i * 0.01)),
+                    iterations=iterations,
+                    warmup=warmup,
+                ),
+                "measured",
+            )
+        )
+    else:
+        entries.append(_entry("SNN", "rust", None, "unavailable: PySnnController not built"))
+    return entries
 
 
-def _mpc_step(iterations: int, warmup: int) -> dict[str, Any]:
-    cfg = NMPCConfig(horizon=10, max_sqp_iter=3)
-    mpc = NonlinearMPC(_tokamak_plant, cfg)
-    # The internal pure-Python QP is ~10 ms/tick; cap the sample count so the
-    # millisecond-scale MPC row does not dominate CI wall time. The published
-    # microsecond MPC figure requires the compiled acados backend (absent here).
+def _mpc_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
+    # The internal pure-Python QP is ~20 ms/tick; cap the sample count so the
+    # millisecond-scale rows do not dominate wall time. nothing is left out: every
+    # QP backend is measured where its dependency is installed and explicitly
+    # marked unavailable otherwise.
     iterations = min(iterations, 500)
     warmup = min(warmup, 50)
     x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
     x_ref = np.array([5.0, 20.0, 3.0, 1.0, 5.0, 2.0])
     u_prev = np.array([10.0, 1.0, 1.0])
+    backend_dep = {"internal": None, "scipy": "scipy", "osqp": "osqp", "casadi": "casadi", "acados": "acados_template"}
+    entries: list[dict[str, Any]] = []
+    for qp, dep in backend_dep.items():
+        if dep is not None and not _module_available(dep):
+            entries.append(_entry("MPC (Np=10)", qp, None, f"unavailable: {dep} not installed"))
+            continue
+        mpc = NonlinearMPC(_tokamak_plant, NMPCConfig(horizon=10, max_sqp_iter=3, qp_backend=qp))
 
-    def _step(i: int) -> object:
-        # Real-time iteration (one linearisation + one QP per tick) is the scheme
-        # that runs in the kHz control loop, not the full multi-SQP solve.
-        ref = x_ref + 0.01 * math.sin(i * 0.01)
-        return mpc.step_rti(x0, ref, u_prev)
+        def _step(i: int, _mpc: NonlinearMPC = mpc) -> object:
+            # Real-time iteration (one linearisation + one QP per tick) is the
+            # scheme that runs in the kHz control loop, not the full multi-SQP solve.
+            return _mpc.step_rti(x0, x_ref + 0.01 * math.sin(i * 0.01), u_prev)
 
-    return _measure(_step, iterations=iterations, warmup=warmup)
+        entries.append(_entry("MPC (Np=10)", qp, _measure(_step, iterations=iterations, warmup=warmup), "measured"))
+    return entries
 
 
-def _h_infinity_step(iterations: int, warmup: int) -> dict[str, Any]:
+def _h_infinity_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
+    entries: list[dict[str, Any]] = []
     n = 3
-    a = -0.5 * np.eye(n)
-    b1 = np.eye(n)
-    b2 = np.eye(n)
-    c1 = np.eye(n)
-    c2 = np.eye(n)
-    ctrl = HInfinityController(A=a, B1=b1, B2=b2, C1=c1, C2=c2)
-    return _measure(lambda i: ctrl.step(math.sin(i * 0.01), 1.0e-3), iterations=iterations, warmup=warmup)
+    ctrl = HInfinityController(A=-0.5 * np.eye(n), B1=np.eye(n), B2=np.eye(n), C1=np.eye(n), C2=np.eye(n))
+    entries.append(
+        _entry(
+            "H-infinity",
+            "numpy",
+            _measure(lambda i: ctrl.step(math.sin(i * 0.01), 1.0e-3), iterations=iterations, warmup=warmup),
+            "measured",
+            "general state-space",
+        )
+    )
+    if _rust_symbol_available("PyHInfController"):
+        from scpn_control.core._rust_compat import RustHInfController
+
+        rust_ctrl = RustHInfController()
+        entries.append(
+            _entry(
+                "H-infinity",
+                "rust",
+                _measure(lambda i: rust_ctrl.step(math.sin(i * 0.01), 1.0e-3), iterations=iterations, warmup=warmup),
+                "measured",
+                "2-state VDE",
+            )
+        )
+    else:
+        entries.append(_entry("H-infinity", "rust", None, "unavailable: PyHInfController not built"))
+    return entries
 
 
 def _parse_args() -> argparse.Namespace:
@@ -198,17 +272,20 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
         f"Iterations: {payload['parameters']['iterations']} (warm-up "
         f"{payload['parameters']['warmup']}), platform: {payload['platform']['platform']}",
         "",
-        "| Controller | Backend | P50 (us) | P95 (us) | P99 (us) | Throughput (kHz) |",
-        "| --- | --- | ---: | ---: | ---: | ---: |",
+        "| Controller | Backend | P50 (us) | P95 (us) | P99 (us) | Throughput (kHz) | Note |",
+        "| --- | --- | ---: | ---: | ---: | ---: | --- |",
     ]
     for entry in payload["controllers"]:
         stats = entry["stats"]
+        note = entry.get("note") or entry.get("status", "")
         if stats is None:
-            lines.append(f"| {entry['name']} | {entry['backend']} | n/a | n/a | n/a | n/a |")
+            lines.append(
+                f"| {entry['name']} | {entry['backend']} | n/a | n/a | n/a | n/a | {entry.get('status', '')} |"
+            )
             continue
         lines.append(
             f"| {entry['name']} | {entry['backend']} | {stats['p50_us']:.1f} | "
-            f"{stats['p95_us']:.1f} | {stats['p99_us']:.1f} | {stats['throughput_khz']:.1f} |"
+            f"{stats['p95_us']:.1f} | {stats['p99_us']:.1f} | {stats['throughput_khz']:.1f} | {note} |"
         )
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -221,19 +298,11 @@ def main() -> int:
     if args.warmup < 0:
         raise SystemExit("--warmup must be >= 0")
 
-    pid_stats, pid_backend = _pid_step(args.iterations, args.warmup)
-    snn_rust = _snn_rust_step(args.iterations, args.warmup)
     controllers: list[dict[str, Any]] = [
-        {"name": "PID", "backend": pid_backend, "stats": pid_stats},
-        {"name": "SNN (NumPy)", "backend": "numpy", "stats": _snn_numpy_step(args.iterations, args.warmup)},
-        {
-            "name": "SNN (Rust)",
-            "backend": "rust",
-            "stats": snn_rust,
-            "status": "measured" if snn_rust is not None else "unavailable: rust SNN binding not built",
-        },
-        {"name": "MPC (Np=10)", "backend": "numpy", "stats": _mpc_step(args.iterations, args.warmup)},
-        {"name": "H-infinity", "backend": "numpy", "stats": _h_infinity_step(args.iterations, args.warmup)},
+        *_pid_entries(args.iterations, args.warmup),
+        *_snn_entries(args.iterations, args.warmup),
+        *_mpc_entries(args.iterations, args.warmup),
+        *_h_infinity_entries(args.iterations, args.warmup),
     ]
 
     payload = {

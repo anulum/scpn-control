@@ -3,76 +3,154 @@
     {
       "backend": "numpy",
       "name": "PID",
+      "note": "",
       "stats": {
-        "max_us": 5.726,
-        "mean_us": 0.313558,
-        "min_us": 0.284,
+        "max_us": 0.604,
+        "mean_us": 0.25632350000000004,
+        "min_us": 0.23,
         "n": 2000,
-        "p50_us": 0.304,
-        "p95_us": 0.342,
-        "p99_us": 0.405,
-        "throughput_khz": 3289.4736842105262
-      }
-    },
-    {
-      "backend": "numpy",
-      "name": "SNN (NumPy)",
-      "stats": {
-        "max_us": 71.018,
-        "mean_us": 18.4975405,
-        "min_us": 13.851,
-        "n": 2000,
-        "p50_us": 16.135,
-        "p95_us": 29.457,
-        "p99_us": 36.671,
-        "throughput_khz": 61.97706848466067
-      }
-    },
-    {
-      "backend": "rust",
-      "name": "SNN (Rust)",
-      "stats": {
-        "max_us": 11.845,
-        "mean_us": 0.6638335,
-        "min_us": 0.599,
-        "n": 2000,
-        "p50_us": 0.64,
-        "p95_us": 0.697,
-        "p99_us": 1.193,
-        "throughput_khz": 1562.5
+        "p50_us": 0.251,
+        "p95_us": 0.282,
+        "p99_us": 0.302,
+        "throughput_khz": 3984.06374501992
       },
       "status": "measured"
     },
     {
+      "backend": "rust",
+      "name": "PID",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: PyPIDController not built"
+    },
+    {
       "backend": "numpy",
-      "name": "MPC (Np=10)",
+      "name": "SNN",
+      "note": "",
       "stats": {
-        "max_us": 49635.513,
-        "mean_us": 18863.549772,
-        "min_us": 11361.689,
+        "max_us": 28.808,
+        "mean_us": 14.363485,
+        "min_us": 12.901,
+        "n": 2000,
+        "p50_us": 14.155,
+        "p95_us": 15.698,
+        "p99_us": 22.581,
+        "throughput_khz": 70.64641469445426
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "rust",
+      "name": "SNN",
+      "note": "",
+      "stats": {
+        "max_us": 23.625,
+        "mean_us": 0.6206745,
+        "min_us": 0.566,
+        "n": 2000,
+        "p50_us": 0.593,
+        "p95_us": 0.635,
+        "p99_us": 1.085,
+        "throughput_khz": 1686.3406408094436
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "internal",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 23430.462,
+        "mean_us": 13399.081022,
+        "min_us": 10746.204,
         "n": 500,
-        "p50_us": 19768.708,
-        "p95_us": 23907.615,
-        "p99_us": 35183.052,
-        "throughput_khz": 0.05058499523590515
-      }
+        "p50_us": 12247.656,
+        "p95_us": 21066.668,
+        "p99_us": 22638.682,
+        "throughput_khz": 0.08164827620893336
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "scipy",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 29281.479,
+        "mean_us": 21956.677693999998,
+        "min_us": 13330.347,
+        "n": 500,
+        "p50_us": 22331.42,
+        "p95_us": 23707.057,
+        "p99_us": 25160.877,
+        "throughput_khz": 0.04477995577531568
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "osqp",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 19446.052,
+        "mean_us": 13054.549232000001,
+        "min_us": 12096.697,
+        "n": 500,
+        "p50_us": 12957.156,
+        "p95_us": 14006.681,
+        "p99_us": 15880.24,
+        "throughput_khz": 0.07717742998540729
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "casadi",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: casadi not installed"
+    },
+    {
+      "backend": "acados",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: acados_template not installed"
     },
     {
       "backend": "numpy",
       "name": "H-infinity",
+      "note": "general state-space",
       "stats": {
-        "max_us": 58.138,
-        "mean_us": 24.508806,
-        "min_us": 22.987,
+        "max_us": 29.224,
+        "mean_us": 22.5674855,
+        "min_us": 22.058,
         "n": 2000,
-        "p50_us": 24.092,
-        "p95_us": 27.271,
-        "p99_us": 30.384,
-        "throughput_khz": 41.50755437489623
-      }
+        "p50_us": 22.336,
+        "p95_us": 23.533,
+        "p99_us": 26.095,
+        "throughput_khz": 44.770773638968485
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "rust",
+      "name": "H-infinity",
+      "note": "2-state VDE",
+      "stats": {
+        "max_us": 6.674,
+        "mean_us": 1.2149535,
+        "min_us": 1.154,
+        "n": 2000,
+        "p50_us": 1.206,
+        "p95_us": 1.248,
+        "p99_us": 1.293,
+        "throughput_khz": 829.1873963515754
+      },
+      "status": "measured"
     }
   ],
-  "generated_at": "2026-06-21T20:06:03.020669+00:00",
+  "generated_at": "2026-06-21T20:12:56.784274+00:00",
   "parameters": {
     "iterations": 2000,
     "warmup": 200
