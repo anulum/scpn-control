@@ -13,6 +13,8 @@
 # ──────────────────────────────────────────────────────────────────────
 """Tests for CoupledSandpileReactor, FusionAIAgent, and run_advanced_learning_sim."""
 
+from typing import cast
+
 import numpy as np
 import pytest
 
@@ -176,6 +178,14 @@ class TestFusionAIAgent:
             agent.learn((0, 0), 99, (0, 0), 1.0)
         with pytest.raises(ValueError, match="reward"):
             agent.learn((0, 0), 0, (0, 0), float("nan"))
+
+    def test_rejects_malformed_state_index(self) -> None:
+        """State indices must be a two-tuple inside the Q-table bounds."""
+        agent = FusionAIAgent()
+        with pytest.raises(ValueError, match="two state indices"):
+            agent.learn(cast("tuple[int, int]", (0,)), 0, (0, 0), 1.0)
+        with pytest.raises(ValueError, match="q_table bounds"):
+            agent.learn((99, 0), 0, (0, 0), 1.0)
 
     def test_rejects_invalid_alpha(self):
         with pytest.raises(ValueError, match="alpha"):
