@@ -331,6 +331,55 @@ def test_dw_dt_with_rho_theta_i_override():
     assert dw1 != dw2
 
 
+def test_find_rational_surfaces_rejects_multidimensional_profiles() -> None:
+    """Rational-surface search requires one-dimensional q and rho profiles."""
+    two_d = np.ones((2, 5))
+    with pytest.raises(ValueError, match="one-dimensional"):
+        find_rational_surfaces(two_d, two_d, a=1.0)
+
+
+def test_bootstrap_from_local_returns_zero_for_vanishing_poloidal_field() -> None:
+    """A vanishingly small toroidal field collapses B_pol below the floor, giving zero drive."""
+    j_bs = bootstrap_from_local(
+        ne_19=8.0,
+        Te_keV=5.0,
+        Ti_keV=5.0,
+        q=2.0,
+        rho=0.5,
+        R0=6.2,
+        a=2.0,
+        B0=1e-12,
+        z_eff=1.5,
+        dne_dr=-1.0,
+        dTe_dr=-1.0,
+        dTi_dr=-1.0,
+    )
+    assert j_bs == 0.0
+
+
+def test_dw_dt_returns_zero_below_seed_floor() -> None:
+    """An island narrower than the 1e-6 m numerical floor has no growth rate."""
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
+    assert ntm.dw_dt(1e-7, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7) == 0.0
+
+
+def test_dw_dt_applies_ggj_correction_with_pressure_gradient() -> None:
+    """A finite pressure gradient with B_pol adds the GGJ resistive-interchange term to Δ'."""
+    ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0, s_hat=1.5, q_s=2.0)
+    without_ggj = ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7)
+    with_ggj = ntm.dw_dt(
+        0.02,
+        j_bs=1e5,
+        j_phi=1e6,
+        j_cd=0.0,
+        eta=1e-7,
+        pressure_gradient=-5e4,
+        B_pol=0.3,
+    )
+    # The GGJ term shifts Δ', so the growth rate must change.
+    assert with_ggj != without_ggj
+
+
 def test_ntm_controller_deactivation():
     """NTMController deactivates when the island width drops below target."""
     ctrl = NTMController(w_onset=0.02, w_target=0.005)
