@@ -204,14 +204,15 @@ def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str,
 
 
 def predict_disruption_risk(signal: Any, toroidal_observables: dict[str, float] | None = None) -> float:
-    """Lightweight deterministic disruption risk estimator returning a value in [0, 1].
+    """Heuristic disruption-risk baseline returning a value in [0, 1].
 
-    Supplements the Transformer pathway by explicitly consuming toroidal
-    asymmetry observables from 3D diagnostics (n=1,2,3 mode amplitudes).
-
-    Feature weights tuned on synthetic DIII-D/JET validation shots; see
-    validation/reports/disruption_replay_pipeline_benchmark.md.
-    Logit bias: sigmoid(−4.0) ≈ 0.018, giving low base risk on zero features.
+    A transparent, deterministic fixed-weight logistic score over toroidal-asymmetry
+    observables (n=1,2,3 mode amplitudes) from 3D diagnostics. This is **not** a
+    model trained on a real disruption database: the feature weights and logit bias
+    below are hand-chosen by inspection (sanity-checked against synthetic DIII-D/JET
+    shots in validation/reports/disruption_replay_pipeline_benchmark.md), not fitted
+    by an optimiser. It supplements the Transformer pathway as an interpretable
+    baseline. Logit bias: sigmoid(−4.0) ≈ 0.018, giving low base risk on zero features.
     """
     features = build_disruption_feature_vector(signal, toroidal_observables)
     mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread = features
