@@ -124,6 +124,14 @@ class TestSPIFallback:
         with pytest.raises(ValueError, match="te_kev"):
             RustSPIMitigation(te_kev=float("nan"))
 
+    def test_constructs_with_valid_inputs(self) -> None:
+        # The other SPI tests bypass __init__ (object.__new__) or pass invalid args
+        # (raising before the import try); a real valid construction is needed to cover
+        # the __init__ rust/fallback try-block on the coverage gate.
+        spi = RustSPIMitigation(w_th_mj=300.0, ip_ma=15.0, te_kev=20.0)
+        assert isinstance(spi, RustSPIMitigation)
+        assert len(spi.run()) > 0
+
 
 # ─── Multigrid V-cycle fallback ───────────────────────────────────────
 
