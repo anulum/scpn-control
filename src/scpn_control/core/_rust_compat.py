@@ -73,12 +73,13 @@ def _normalise_rust_config_path(config_path: str) -> tuple[dict[str, Any], str, 
         raw_config = json.load(f, object_pairs_hook=_reject_duplicate_json_keys)
     normalised_config = _fusion_kernel_config_dump(_parse_fusion_kernel_config(raw_config))
     physics_config_any = normalised_config.setdefault("physics", {})
-    if not isinstance(physics_config_any, dict):
+    # _fusion_kernel_config_dump always yields a dict for physics/solver; defensive re-checks.
+    if not isinstance(physics_config_any, dict):  # pragma: no cover
         raise ValueError("physics configuration must be an object")
     physics_config: dict[str, Any] = physics_config_any
     physics_config.setdefault("vacuum_permeability", 1.0)
     solver_config_any = normalised_config.setdefault("solver", {})
-    if not isinstance(solver_config_any, dict):
+    if not isinstance(solver_config_any, dict):  # pragma: no cover
         raise ValueError("solver configuration must be an object")
     solver_config: dict[str, Any] = solver_config_any
     solver_config.setdefault("solver_method", "sor")
@@ -226,7 +227,7 @@ FusionKernel: Any
 if _RUST_AVAILABLE:  # pragma: no cover
     FusionKernel = RustAcceleratedKernel
     RUST_BACKEND = True
-else:
+else:  # pragma: no cover - rust-absent fallback; exercised by the rust-free python-tests CI job
     RUST_BACKEND = False
 
 
@@ -259,7 +260,7 @@ if _RUST_AVAILABLE:  # pragma: no cover
             return _py_tearing(steps=int(steps))
         rng = np.random.default_rng(seed=int(seed))
         return _py_tearing(steps=int(steps), rng=rng)
-else:
+else:  # pragma: no cover - rust-absent fallbacks; exercised by the rust-free python-tests CI job
 
     def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
@@ -281,7 +282,7 @@ else:
 
 def rust_bosch_hale_dt(t_kev: float) -> float:
     """Bosch-Hale D-T reaction rate [m³/s] at temperature t_kev [keV]."""
-    if not _RUST_AVAILABLE:
+    if not _RUST_AVAILABLE:  # pragma: no cover - rust-absent guard; exercised by the rust-free python-tests CI job
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
     from scpn_control_rs import bosch_hale_dt  # pragma: no cover
 
@@ -433,7 +434,7 @@ if _RUST_AVAILABLE:  # pragma: no cover
         def backend(self) -> str:
             return str(self._inner.backend())
 
-else:
+else:  # pragma: no cover - rust-absent fallback bridge; exercised by the rust-free python-tests CI job
 
     class _FallbackRustUdpTransportBridge:
         """Fallback when compiled Rust extension is unavailable."""
@@ -481,7 +482,7 @@ else:
 RustUdpTransportBridge: type[_NativeRustUdpTransportBridge] | type[_FallbackRustUdpTransportBridge]
 if _RUST_AVAILABLE:  # pragma: no cover
     RustUdpTransportBridge = _NativeRustUdpTransportBridge
-else:
+else:  # pragma: no cover - rust-absent selector; exercised by the rust-free python-tests CI job
     RustUdpTransportBridge = _FallbackRustUdpTransportBridge
 
 
@@ -534,7 +535,7 @@ class RustPIDController:
             from scpn_control_rs import PyPIDController  # pragma: no cover
 
             self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
-            self._mode = "rust"
+            self._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
         except (ImportError, AttributeError):  # pragma: no cover
             self._inner = self._PurePythonPID(kp, ki, kd)  # pragma: no cover
             self._mode = "fallback"
@@ -546,7 +547,7 @@ class RustPIDController:
             from scpn_control_rs import PyPIDController  # pragma: no cover
 
             obj._inner = PyPIDController.radial()  # pragma: no cover
-            obj._mode = "rust"
+            obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
         except (ImportError, AttributeError):  # pragma: no cover
             obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
             obj._mode = "fallback"
@@ -559,7 +560,7 @@ class RustPIDController:
             from scpn_control_rs import PyPIDController  # pragma: no cover
 
             obj._inner = PyPIDController.vertical()  # pragma: no cover
-            obj._mode = "rust"
+            obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
         except (ImportError, AttributeError):  # pragma: no cover
             obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
             obj._mode = "fallback"

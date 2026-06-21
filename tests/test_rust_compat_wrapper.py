@@ -493,3 +493,90 @@ def test_rust_spi_mitigation_rejects_nonphysical_initial_conditions() -> None:
 def test_python_svd_optimal_correction_rejects_incompatible_error_shape() -> None:
     with pytest.raises(ValueError, match="error length"):
         _rust_compat._python_svd_optimal_correction(np.eye(2), np.ones(3), gain=1.0)
+
+
+# ── Config normalisation helpers + fallback controller round-trips ────
+
+
+def test_remove_normalised_config_tolerates_missing_file() -> None:
+    # A missing temp path must be swallowed (FileNotFoundError is caught, no raise).
+    _rust_compat._remove_normalised_config("/nonexistent/scpn_rust_cfg.json")
+
+
+def test_normalise_rust_config_path_is_stable_for_canonical_config(tmp_path: Path) -> None:
+    raw = tmp_path / "raw.json"
+    _write_config(raw)
+    normalised, _path, cleanup = _rust_compat._normalise_rust_config_path(str(raw))
+    if cleanup is not None:
+        _rust_compat._remove_normalised_config(cleanup)
+
+    canonical = tmp_path / "canonical.json"
+    canonical.write_text(json.dumps(normalised), encoding="utf-8")
+    again, again_path, again_cleanup = _rust_compat._normalise_rust_config_path(str(canonical))
+
+    # Already-normalised input returns the source path unchanged, no temp file.
+    assert again_cleanup is None
+    assert again_path == str(canonical)
+    assert again == normalised
+
+
+def test_pure_python_pid_matches_textbook_form() -> None:
+    pid = _rust_compat.RustPIDController._PurePythonPID(2.0, 0.5, 0.1)
+    first = pid.step(1.0)
+    assert first == pytest.approx(2.0 * 1.0 + 0.5 * 1.0 + 0.1 * 1.0)
+    pid.reset()
+    assert pid.kp == pytest.approx(2.0)
+    assert pid.ki == pytest.approx(0.5)
+    assert pid.kd == pytest.approx(0.1)
+    assert pid.step(0.0) == pytest.approx(0.0)
+
+
+def test_rust_pid_controller_round_trip() -> None:
+    # PyPIDController is absent from the available build, so this exercises the
+    # fallback construction path and the delegating wrapper accessors.
+    pid = _rust_compat.RustPIDController(1.0, 0.1, 0.01)
+    assert np.isfinite(pid.step(0.5))
+    pid.reset()
+    assert np.isfinite(pid.kp) and np.isfinite(pid.ki) and np.isfinite(pid.kd)
+    assert "RustPIDController" in repr(pid)
+    assert "RustPIDController" in repr(_rust_compat.RustPIDController.radial())
+    assert "RustPIDController" in repr(_rust_compat.RustPIDController.vertical())
+
+
+@pytest.mark.skipif(not _HAS_SCPN_CONTROL_RS, reason="scpn_control_rs module not importable")
+def test_rust_isoflux_controller_accessors() -> None:
+    ctrl = _rust_compat.RustIsoFluxController(target_r=6.2, target_z=0.0)
+    u_r, u_z = ctrl.step(6.3, 0.1)
+    assert np.isfinite(u_r) and np.isfinite(u_z)
+    assert np.isfinite(ctrl.target_r)
+    assert np.isfinite(ctrl.target_z)
+    assert "RustIsoFluxController" in repr(ctrl)
+
+
+@pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
+def test_rust_hinf_controller_accessors() -> None:
+    ctrl = _rust_compat.RustHInfController(gamma_growth=100.0, damping=10.0, gamma=1.0, u_max=10.0, dt=1e-3)
+    assert np.isfinite(ctrl.step(0.5, 1e-3))
+    ctrl.reset()
+    assert np.isfinite(ctrl.gamma)
+    assert ctrl.u_max == pytest.approx(10.0)
+    assert "RustHInfController" in repr(ctrl)
+
+
+def test_rust_multigrid_vcycle_runs_via_available_backend() -> None:
+    nr, nz = 17, 17
+    source = np.ones((nz, nr))
+    psi_bc = np.zeros((nz, nr))
+    psi, residual, n_cycles, converged = _rust_compat.rust_multigrid_vcycle(
+        source, psi_bc, 1.0, 9.0, -5.0, 5.0, nr, nz, tol=1e-3, max_cycles=50
+    )
+    assert psi.shape == (nz, nr)
+    assert np.isfinite(residual)
+    assert isinstance(converged, bool)
+
+
+def test_rust_svd_optimal_correction_runs_via_available_backend() -> None:
+    J = np.eye(2)
+    e = np.array([0.1, -0.2])
+    delta = _rust_compat.rust_svd_optimal_correction(J, e, gain=0.8)
+    np.testing.assert_allclose(delta, 0.8 * e, atol=1e-9)
