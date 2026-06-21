@@ -17,6 +17,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
@@ -256,3 +258,20 @@ def test_spi_assimilation_bounded() -> None:
     assert 0.0 <= ETA_SPI_MIN <= ETA_SPI_MAX <= 1.0
     assert ETA_SPI_MIN == pytest.approx(0.60)
     assert ETA_SPI_MAX == pytest.approx(0.90)
+
+
+def test_run_spi_test_saves_plot_and_logs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The default demonstration writes its result plot and logs the saved path.
+
+    ``run_spi_test`` is the convenience entry point that runs the mitigation with
+    plotting and verbose logging enabled; running it inside an isolated working
+    directory exercises the plot-save branch and the verbose save log.
+    """
+    from scpn_control.control.spi_mitigation import run_spi_test
+
+    monkeypatch.chdir(tmp_path)
+    summary = run_spi_test()
+
+    assert summary["plot_saved"] is True
+    assert summary["plot_error"] is None
+    assert (tmp_path / "SPI_Mitigation_Result.png").exists()
