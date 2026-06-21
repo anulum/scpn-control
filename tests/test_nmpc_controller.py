@@ -2014,3 +2014,15 @@ def test_percentile_ms_helper_covers_edge_branches() -> None:
     assert nmpc_mod._percentile_ms([3.0], 0.95) == 3.0
     assert nmpc_mod._percentile_ms([1.0, 2.0, 3.0], 0.5) == 2.0
     assert nmpc_mod._percentile_ms([1.0, 2.0], 0.5) == pytest.approx(1.5)
+
+
+def test_casadi_backend_raises_without_casadi() -> None:
+    # casadi is an optional QP backend not installed in CI/.venv; selecting it must
+    # route through _solve_qp -> _solve_qp_casadi and fail closed with a clear ImportError.
+    cfg = NMPCConfig(horizon=3, max_sqp_iter=1, qp_backend="casadi")
+    nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
+    x0 = np.array([1.0, 1.0, 15.0, 1.0, 2.0, 1.0])
+    x_ref = np.array([5.0, 20.0, 3.0, 1.0, 5.0, 2.0])
+    u_prev = np.array([10.0, 1.0, 1.0])
+    with pytest.raises(ImportError, match="casadi"):
+        nmpc.step(x0, x_ref, u_prev)

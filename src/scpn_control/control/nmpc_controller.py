@@ -1290,6 +1290,18 @@ class NonlinearMPC:
         except ImportError as exc:
             raise ImportError("qp_backend='casadi' requires the optional casadi package.") from exc
 
+        return self._solve_qp_casadi_impl(ca, A_k, B_k, P_term, u_prev, x_ref)  # pragma: no cover
+
+    def _solve_qp_casadi_impl(  # pragma: no cover - casadi optional dep, absent on CI
+        self,
+        ca: Any,
+        A_k: list[FloatArray],
+        B_k: list[FloatArray],
+        P_term: AnyFloatArray,
+        u_prev: AnyFloatArray,
+        x_ref: AnyFloatArray,
+    ) -> FloatArray:
+        """Build and solve the CasADi Opti QP (requires the optional casadi package)."""
         n_dec = self.N * self.nu
         H, q = self._condensed_qp_terms(A_k, B_k, P_term, x_ref)
         opti = ca.Opti()
