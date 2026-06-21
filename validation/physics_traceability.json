@@ -569,6 +569,35 @@
       "external_validation_tracker_issue": 48
     },
     {
+      "component": "disruption-risk heuristic baseline",
+      "equation_contract": "predict_disruption_risk claims must declare that the score is a deterministic fixed-weight logistic combination of thermal-quench and toroidal-asymmetry features (n=1,2,3 mode amplitudes) with a hand-chosen logit bias, not a model trained or fitted on a real disruption database, and must declare the feature vector contract and the synthetic sanity-check provenance.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
+        "Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs)"
+      ],
+      "module_path": "src/scpn_control/control/disruption_predictor.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Train or fit on a real disruption database before any disruption-prediction facility claim",
+        "Until then keep the docstring and docs labelling it a heuristic baseline, not a trained model"
+      ],
+      "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
+      "validation_evidence": [
+        "tests/test_disruption_predictor.py heuristic feature-vector and bounded-output checks",
+        "validation/reports/disruption_replay_pipeline_benchmark.md synthetic sanity-check provenance"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_predictor.py",
+        "tests/test_disruption_predictor.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_predictor.py"
+      ],
+      "validity_domain": "Interpretable heuristic baseline for synthetic and bounded research use; not a trained model and excluded from facility-grade disruption-prediction claims.",
+      "external_validation_tracker_issue": 48
+    },
+    {
       "component": "kinetic EFIT pressure and q-profile coupling",
       "equation_contract": "Kinetic-EFIT coupling claims must declare Thomson or profile-derived electron density and temperature points, ion-temperature points, fast-ion pressure fraction, anisotropy sigma, MSE pitch-angle constraints when used, radial interpolation geometry, pressure-consistency residual, diagnostic/profile/fast-ion/MSE source provenance, matched pressure, q-profile, and anisotropy reference tolerances, and exclusion from facility-grade P-EFIT unless matched reference equilibria pass the fail-closed admission gate.",
       "fidelity_status": "bounded_model",
