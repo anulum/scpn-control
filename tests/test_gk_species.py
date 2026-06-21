@@ -263,3 +263,27 @@ def test_pitch_angle_operator_rejects_lambda_outside_local_trapped_passing_domai
     """Lambda grid must stay below the local trapped-passing boundary."""
     with pytest.raises(ValueError, match="trapped-passing"):
         pitch_angle_operator(3, np.array([0.0, 0.4, 0.75]), B_ratio=2.0)
+
+
+def test_pitch_angle_operator_rejects_lambda_outside_unit_interval() -> None:
+    """Lambda values are pitch ratios and must lie within [0, 1]."""
+    with pytest.raises(ValueError, match=r"within \[0, 1\]"):
+        pitch_angle_operator(3, np.array([-0.1, 0.5, 0.9]))
+    with pytest.raises(ValueError, match=r"within \[0, 1\]"):
+        pitch_angle_operator(3, np.array([0.0, 0.5, 1.5]))
+
+
+def test_pitch_angle_operator_skips_degenerate_grid_spacing() -> None:
+    """Sub-ULP grid spacing is skipped to avoid an unstable 1/h² coefficient.
+
+    A strictly increasing lambda grid built from sub-normal increments has an
+    interior mid-cell width below the 1e-30 floor; that node is left as a zero
+    row rather than producing a divergent finite-difference stencil.
+    """
+    lam = np.array([1e-320, 2e-320, 3e-320, 4e-320])
+    assert np.all(np.diff(lam) > 0.0)
+
+    operator = pitch_angle_operator(4, lam)
+
+    assert operator.shape == (4, 4)
+    assert np.all(operator[1] == 0.0)
