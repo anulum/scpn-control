@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import pytest
 
-from scpn_control.control import normalize_bounds, get_nengo_controller
+from scpn_control.control import get_nengo_controller, get_quantum_disruption_bridge, normalize_bounds
 
 
 class TestNormalizeBounds:
@@ -42,3 +42,11 @@ class TestGetNengoController:
         cls = get_nengo_controller()
         assert cls is not None
         assert hasattr(cls, "__init__")
+
+
+class TestGetQuantumDisruptionBridge:
+    def test_returns_module(self) -> None:
+        """The lazy getter imports and returns the disruption-bridge module."""
+        bridge = get_quantum_disruption_bridge()
+        assert bridge is not None
+        assert hasattr(bridge, "__name__")
