@@ -217,3 +217,21 @@ def test_fatigue_small_delta_t():
     trans = TransientThermalLoad(wall)
     cycles = trans.n_elm_cycles_to_fatigue(delta_T_K=50.0)
     assert cycles == 10000000
+
+
+def test_erosion_lifetime_finite_for_positive_net_rate() -> None:
+    """A positive net erosion rate gives a finite component lifetime in years."""
+    erosion = ErosionModel()
+    seconds_per_year = 365.25 * 24 * 3600
+    lifetime = erosion.lifetime_estimate(wall_thickness_mm=5.0, net_rate_m_s=1.0e-9)
+    assert lifetime == pytest.approx((5.0e-3) / (1.0e-9 * seconds_per_year))
+    assert lifetime > 0.0
+
+
+def test_transient_disruption_load_delegates_to_elm_load() -> None:
+    """The disruption-load wrapper returns the same peak temperature rise as elm_load."""
+    trans = TransientThermalLoad(WallThermalModel())
+    direct = trans.elm_load(delta_W_MJ=20.0, A_wet_m2=2.0, tau_IR_ms=1.0)
+    via_wrapper = trans.disruption_load(W_th_MJ=20.0, A_wet_m2=2.0, tau_TQ_ms=1.0)
+    assert via_wrapper == pytest.approx(direct)
+    assert via_wrapper > 0.0
