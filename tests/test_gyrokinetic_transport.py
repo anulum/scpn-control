@@ -400,3 +400,130 @@ def test_transport_model_eval_profile_rejects_unsorted_radius_grid():
 
     with pytest.raises(ValueError, match="rho must be strictly increasing"):
         model.evaluate_profile(rho, profiles)
+
+
+def _gk_params(*, R_L_Te: float = 1.0, epsilon: float = 0.1) -> GyrokineticsParams:
+    """Build a valid GyrokineticsParams, varying only the fields under test."""
+    return GyrokineticsParams(
+        R_L_Ti=1.0,
+        R_L_Te=R_L_Te,
+        R_L_ne=1.0,
+        q=1.5,
+        s_hat=1.0,
+        alpha_MHD=0.0,
+        Te_Ti=1.0,
+        Z_eff=1.5,
+        nu_star=0.1,
+        beta_e=0.01,
+        epsilon=epsilon,
+    )
+
+
+_SCALAR_PROFILES: dict[str, float] = {
+    "R0": 2.0,
+    "a": 0.5,
+    "B0": 5.0,
+    "q": 1.5,
+    "s_hat": 1.0,
+    "Te": 5.0,
+    "Ti": 5.0,
+    "ne": 5.0,
+    "dTe_dr": -50.0,
+    "dTi_dr": -50.0,
+    "dne_dr": -50.0,
+}
+
+
+def test_validate_params_rejects_inverse_aspect_ratio_above_unity() -> None:
+    """An inverse aspect ratio epsilon greater than one is non-physical."""
+    with pytest.raises(ValueError, match="epsilon must be <= 1"):
+        solve_dispersion(_gk_params(epsilon=1.5), 0.5)
+
+
+def test_etg_branch_is_stable_below_critical_gradient() -> None:
+    """The ETG mode is marginally stable when R/L_Te is below its threshold."""
+    gamma, omega_r, mode_type = solve_dispersion(_gk_params(R_L_Te=0.0), 0.5, etg_scale=True)
+    assert (gamma, omega_r, mode_type) == (0.0, 0.0, 0)
+
+
+def test_quasilinear_fluxes_reject_malformed_spectrum_arrays() -> None:
+    """Spectrum arrays must align in length and carry finite, positive entries."""
+    params = _gk_params()
+    with pytest.raises(ValueError, match="spectrum arrays must have matching lengths"):
+        quasilinear_fluxes(
+            params,
+            SpectrumResult(
+                k_y=np.array([0.1, 0.2, 0.3]),
+                gamma_linear=np.array([0.1, 0.2]),
+                omega_r=np.array([0.0, 0.0]),
+                mode_type=np.array([1, 1]),
+            ),
+        )
+    with pytest.raises(ValueError, match="k_y values must be finite and positive"):
+        quasilinear_fluxes(
+            params,
+            SpectrumResult(
+                k_y=np.array([0.1, -0.2]),
+                gamma_linear=np.array([0.1, 0.2]),
+                omega_r=np.array([0.0, 0.0]),
+                mode_type=np.array([1, 1]),
+            ),
+        )
+    with pytest.raises(ValueError, match="gamma_linear values must be finite"):
+        quasilinear_fluxes(
+            params,
+            SpectrumResult(
+                k_y=np.array([0.1, 0.2]),
+                gamma_linear=np.array([0.1, np.inf]),
+                omega_r=np.array([0.0, 0.0]),
+                mode_type=np.array([1, 1]),
+            ),
+        )
+    with pytest.raises(ValueError, match="omega_r values must be finite"):
+        quasilinear_fluxes(
+            params,
+            SpectrumResult(
+                k_y=np.array([0.1, 0.2]),
+                gamma_linear=np.array([0.1, 0.2]),
+                omega_r=np.array([0.0, np.nan]),
+                mode_type=np.array([1, 1]),
+            ),
+        )
+    with pytest.raises(ValueError, match="mode_type values must be 0, 1, 2, or 3"):
+        quasilinear_fluxes(
+            params,
+            SpectrumResult(
+                k_y=np.array([0.1, 0.2]),
+                gamma_linear=np.array([0.1, 0.2]),
+                omega_r=np.array([0.0, 0.0]),
+                mode_type=np.array([1, 5]),
+            ),
+        )
+
+
+def test_transport_model_evaluate_returns_axis_floor() -> None:
+    """Inside the magnetic axis boundary the model returns the small floor values."""
+    model = GyrokineticTransportModel()
+    chi_i, chi_e, D_e = model.evaluate(0.01, _SCALAR_PROFILES)
+    assert (chi_i, chi_e, D_e) == (0.01, 0.01, 0.01)
+
+
+def test_transport_model_eval_profile_rejects_out_of_range_radius_grid() -> None:
+    """A radius grid leaving the unit interval is rejected before evaluation."""
+    model = GyrokineticTransportModel()
+    rho = np.array([0.0, 0.5, 1.5])
+    profiles = {
+        "R0": np.full(3, 2.0),
+        "a": np.full(3, 0.5),
+        "B0": np.full(3, 5.0),
+        "q": np.full(3, 1.5),
+        "s_hat": np.full(3, 1.0),
+        "Te": np.linspace(5.0, 0.1, 3),
+        "Ti": np.linspace(5.0, 0.1, 3),
+        "ne": np.linspace(5.0, 0.1, 3),
+        "dTe_dr": np.full(3, -10.0),
+        "dTi_dr": np.full(3, -10.0),
+        "dne_dr": np.full(3, -10.0),
+    }
+    with pytest.raises(ValueError, match="finite one-dimensional profile"):
+        model.evaluate_profile(rho, profiles)
