@@ -127,3 +127,37 @@ def test_scaling_law_accepts_config_fields():
             epsilon=cfg.epsilon,
         )
         assert tau > 0.0
+
+
+def test_rejects_non_finite_scalar_field() -> None:
+    """Numeric tokamak fields must be finite."""
+    with pytest.raises(ValueError, match="tokamak scalar fields must be finite"):
+        TokamakConfig(
+            name="bad",
+            R0=float("inf"),
+            a=1.0,
+            B0=5.0,
+            Ip=10.0,
+            kappa=1.5,
+            delta=0.25,
+            n_e=8.0,
+            T_e=12.0,
+            P_aux=20.0,
+        )
+
+
+def test_rejects_blank_name() -> None:
+    """A blank configuration name is rejected after stripping."""
+    with pytest.raises(ValueError, match="name must be non-empty"):
+        TokamakConfig(
+            name="   ",
+            R0=3.0,
+            a=1.0,
+            B0=5.0,
+            Ip=10.0,
+            kappa=1.5,
+            delta=0.25,
+            n_e=8.0,
+            T_e=12.0,
+            P_aux=20.0,
+        )
