@@ -90,7 +90,7 @@ NeuralEquilibrium   IntegratedTransportSolver
            ↓
     SPIMitigation → CoilSet actuation
            ↓
-    Rust control cycle (5.05 µs P50 CI, PyO3)
+    Rust control cycle (~5 µs P50 CI, PyO3)
 ```
 
 ## Practical architecture framing

@@ -53,7 +53,7 @@ The differentiator is the architecture, not raw speed:
 ### Real-time budget
 
 Control compute is not the bottleneck. The native integrated control cycle runs
-in 5.05 µs P50 on CI (2.85 µs local) — comfortably under the 1–10 kHz real-time
+in ~5 µs P50 on CI (~3 µs local) — comfortably under the 1–10 kHz real-time
 band (100 µs–1 ms period). In a fielded loop the dominant latency is diagnostics
 acquisition, equilibrium reconstruction, and actuation, not the controller, so
 this is reported as *meeting the budget with margin*, not as a competitive speed
@@ -181,7 +181,7 @@ for scope and limitations.
 | SPARC equilibrium | 8 EFIT reference equilibria | < 5% flux error | Public GEQDSK files |
 | IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE | Published coefficients |
 | Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified | Simulation |
-| Control latency | `benchmark_native_handoff.py` (P50/P99) | 5.05 / 6.34 us native cycle | CI (EPYC 7763) + local |
+| Control latency | `benchmark_native_handoff.py` (P50/P99) | ~5 / ~6 us native cycle | CI (EPYC 7763) + local |
 | Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean | Simulation |
 
 > **Important:** "DIII-D shot replay" is validated against immutable repository

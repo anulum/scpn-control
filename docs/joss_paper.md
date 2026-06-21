@@ -41,7 +41,7 @@ out-of-distribution detection and online retraining, ten controllers (PID,
 MPC, $H_\infty$, $\mu$-synthesis, NMPC, SNN, safe RL, sliding-mode,
 gain-scheduled, fault-tolerant), disruption prediction with SPI mitigation,
 and a companion Rust backend (5 crates, PyO3 bindings) with a reproducible
-benchmark reporting a 5.05 µs P50 native integrated control cycle on the CI
+benchmark reporting a ~5 µs P50 native integrated control cycle on the CI
 runner (2.85 µs on the local workstation).
 
 The nonlinear gyrokinetic solver implements the Cyclone Base Case
@@ -148,7 +148,7 @@ The Python package is organised into four layers:
 
 The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
 provides PyO3 bindings for performance-critical paths. Its reproducible
-benchmark reports a 5.05 µs P50 native integrated control cycle on the CI runner
+benchmark reports a ~5 µs P50 native integrated control cycle on the CI runner
 (2.85 µs locally); production runtime claims remain subject to runtime-admission
 evidence.
 The workspace includes Rust test and clippy coverage.

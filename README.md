@@ -177,7 +177,7 @@ blocked until the required external artefacts exist.
 > behind pre/post-condition contracts checked on every control action, in a
 > runtime-selectable stack alongside PID, nonlinear MPC, and H∞ — no GPU required.
 > The control compute meets the 1–10 kHz real-time budget with margin (native
-> integrated control cycle 5.05 µs P50 on CI / 2.85 µs local, reproducible via
+> integrated control cycle ~5 µs P50 on CI / ~3 µs local, reproducible via
 > `scripts/benchmark_native_handoff.py`); in a fielded loop the bottleneck is
 > diagnostics, equilibrium reconstruction, and actuation, not the controller.
 > Benchmark methodology and per-backend tables: [benchmarks](docs/benchmarks.md).

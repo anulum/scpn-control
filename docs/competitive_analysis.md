@@ -16,7 +16,7 @@
 
 | Code | Control Freq | Step Latency | Language | Source |
 |------|-------------|-------------|----------|--------|
-| **scpn-control (Rust)** | **10--30 kHz** | **5.05 us P50 / 6.34 us P99** (native control cycle) | Rust + Python | CI native_handoff (EPYC 7763) |
+| **scpn-control (Rust)** | **10--30 kHz** | **~5 us P50** (native control cycle) | Rust + Python | CI native_handoff (EPYC 7763) |
 | DIII-D PCS (production) | 4--10 kHz (physics loops) | 100--250 us per physics cycle | C / Fortran | Penaflor 2024; Barr 2024 |
 | P-EFIT (GPU) | N/A (reconstruction) | 300--375 us per iter (129x129) | Fortran + CUDA | Sabbagh 2023 |
 | RT-GSFit | ~5 kHz | ~200 us | C++ | Tokamak Energy 2025 |
@@ -27,7 +27,7 @@
 
 > **Note on DIII-D:** The raw data-acquisition cycle runs at ~16.7 kHz (60 us),
 > but physics-level control algorithms include IO, diagnostics, state
-> estimation, and actuator paths. scpn-control's 5.05 us P50 is the integrated
+> estimation, and actuator paths. scpn-control's ~5 us P50 is the integrated
 > control cycle on a loopback-UDP campaign. It is not an end-to-end PCS-cycle
 > comparison on fielded plant hardware.
 
@@ -137,7 +137,7 @@
    plus pre/post-condition safety contracts checked on every action, across a
    runtime-selectable PID/MPC/H∞/SNN stack on one interface. No competing
    open-source fusion code has this path. Control compute is comfortably within
-   the 1–10 kHz real-time budget (native cycle 5.05 µs P50 CI), but that is a
+   the 1–10 kHz real-time budget (native cycle ~5 µs P50 CI), but that is a
    necessary-not-sufficient property — the fielded bottleneck is diagnostics,
    reconstruction, and actuation, not the controller.
 

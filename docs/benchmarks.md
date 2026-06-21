@@ -208,8 +208,8 @@ transport; 5000 steps × 7 repeats, P50/P99 µs):
 
 | Path | CI (EPYC 7763) | Local (i5-11600K) |
 | --- | ---: | ---: |
-| Python-orchestrated | 9.42 / 9.69 | 4.36 / 4.73 |
-| Native (Rust) | 5.05 / 6.34 | 2.85 / 3.41 |
+| Python-orchestrated | 9.36 / 10.45 | 4.36 / 4.73 |
+| Native (Rust) | 5.62 / 6.11 | 2.85 / 3.41 |
 
 **Per-controller step latency** (isolated step, every available backend; P50/P99
 µs). Backends whose dependency/binding is absent are listed so nothing is omitted:

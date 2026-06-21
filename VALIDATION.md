@@ -11,7 +11,7 @@
 | "DIII-D shot replay" | Synthetic mock shots | `tests/mock_diiid.py` | **Not real MDSplus data** |
 | SPARC equilibrium RMSE | Published GEQDSK design files | CFS public data | Design equilibria, not experimental |
 | IPB98(y,2) scaling | Published ITPA coefficients | Wesson, ITER Physics Basis | Coefficient comparison only |
-| Control cycle 5.05 µs P50 (native) | `benchmark_native_handoff.py` | CI (EPYC 7763) + local | Integrated cycle, not E2E plant loop |
+| Control cycle ~5 µs P50 (native) | `benchmark_native_handoff.py` | CI (EPYC 7763) + local | Integrated cycle, not E2E plant loop |
 | Neural equilibrium 0.39 ms | PCA+MLP vs Picard solver | Internal simulation | Not cross-validated against P-EFIT |
 | "Formal verification" | Runtime contract assertions | `scpn/contracts.py` | Not theorem-proved (no Coq/Lean) |
 | Disruption prediction | Synthetic training data | Internal generator | Not validated on real disruption DBs |

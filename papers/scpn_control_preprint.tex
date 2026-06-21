@@ -31,7 +31,7 @@ The contribution is this compilation-and-contract architecture and a
 runtime-selectable controller stack (PID, nonlinear MPC, $H_\infty$, SNN) sharing
 a single contract interface, rather than raw throughput. The control compute is
 comfortably within the 4--10~kHz real-time band (native integrated control cycle
-\SI{5.05}{\micro\second} P50 on the CI reference runner, reproducible;
+\SI{5.62}{\micro\second} P50 on the CI reference runner, reproducible;
 Section~\ref{sec:validation}); a fielded loop is bounded by diagnostics,
 equilibrium reconstruction, and actuation rather than the controller, so we report
 the latency as meeting the budget with margin, not as a competitive speed claim.
@@ -107,7 +107,7 @@ the compiled SNN is fast and neuromorphic-hardware-compatible.
         with a Gymnasium-compatible environment for RL benchmarking
         (Section~\ref{sec:control}).
   \item A CPU-only Rust-accelerated runtime whose control compute sits well
-        within the real-time budget (\SI{5.05}{\micro\second} P50 native
+        within the real-time budget (\SI{5.62}{\micro\second} P50 native
         integrated control cycle on the CI reference runner), with equilibrium
         models validated against DIII-D and SPARC at $<2\%$ RMSE
         (Section~\ref{sec:validation}).
