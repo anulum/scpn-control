@@ -27,7 +27,7 @@ from typing import Any
 try:
     import optuna
 
-    HAS_OPTUNA = True
+    HAS_OPTUNA = True  # pragma: no cover - optuna optional dep, uninstalled on CI
 except ImportError:
     HAS_OPTUNA = False
 
