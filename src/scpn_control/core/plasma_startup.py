@@ -76,14 +76,12 @@ def _positive_int(name: str, value: int) -> int:
     return value
 
 
-def _finite_1d(name: str, values: AnyFloatArray, *, nonnegative: bool = False) -> FloatArray:
+def _finite_1d(name: str, values: AnyFloatArray) -> FloatArray:
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be one-dimensional")
     if not np.all(np.isfinite(arr)):
         raise ValueError(f"{name} must contain only finite values")
-    if nonnegative and np.any(arr < 0.0):
-        raise ValueError(f"{name} must be non-negative")
     return arr
 
 

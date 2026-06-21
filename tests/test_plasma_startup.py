@@ -209,3 +209,23 @@ def test_startup_sequence_and_controller_reject_invalid_domains():
         ctrl.step(ne=0.0, Te=0.0, Ip=0.0, t=0.0, dt=0.0)
     with pytest.raises(ValueError, match="ne"):
         ctrl.step(ne=float("nan"), Te=0.0, Ip=0.0, t=0.0, dt=0.01)
+
+
+def test_paschen_curve_rejects_multidimensional_pressure_axis() -> None:
+    """The Paschen curve requires a one-dimensional pressure scan axis."""
+    pb = PaschenBreakdown("D2")
+    with pytest.raises(ValueError, match="p_range must be one-dimensional"):
+        pb.paschen_curve(np.ones((2, 3)), connection_length_m=100.0)
+
+
+def test_burn_through_condition_compares_ohmic_against_radiation() -> None:
+    """A clean low-density plasma burns through; a dense impure one does not."""
+    bt = BurnThrough(R0=6.2, a=2.0, B0=5.3, V_loop=15.0)
+    assert bt.burn_through_condition(Te_eV=10.0, ne_19=0.1, Ip_kA=200.0, f_imp=1e-4, impurity="C") is True
+    assert bt.burn_through_condition(Te_eV=5.0, ne_19=2.0, Ip_kA=50.0, f_imp=0.5, impurity="W") is False
+
+
+def test_critical_impurity_fraction_is_unity_when_cooling_curve_vanishes() -> None:
+    """An impurity with no tabulated cooling curve imposes no burn-through ceiling."""
+    bt = BurnThrough(R0=6.2, a=2.0, B0=5.3, V_loop=15.0)
+    assert bt.critical_impurity_fraction(Te_eV=10.0, ne_19=0.1, Ip_kA=100.0, impurity="He") == 1.0
