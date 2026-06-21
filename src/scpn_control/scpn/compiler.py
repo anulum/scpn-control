@@ -46,11 +46,12 @@ _HAS_NEUROCORE_V3 = False
 
 try:
     from sc_neurocore import RNG as _SC_RNG
-    from sc_neurocore import BitstreamEncoder, StochasticLIFNeuron, VectorizedSCLayer, generate_bernoulli_bitstream
-    from sc_neurocore.accel import get_backend
+    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream
+    from sc_neurocore.accel import sc_forward
+    from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
 
-    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True  # pragma: no cover
-    logger.info("sc_neurocore v3.8.0+ detected — VectorizedSCLayer + Rust backend")  # pragma: no cover
+    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True
+    logger.info("sc_neurocore v3.16.0+ detected — sc_forward inference + Rust backend")
 except ImportError:
     try:
         from sc_neurocore import RNG as _SC_RNG
@@ -58,7 +59,7 @@ except ImportError:
         from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount
 
         _HAS_SC_NEUROCORE = True
-        logger.info("sc_neurocore <3.8 detected — legacy bit-ops path")
+        logger.info("sc_neurocore <3.16 detected — legacy bit-ops path")
     except ImportError:
         logger.warning("sc_neurocore not installed — numpy float-path only")
 
@@ -195,16 +196,14 @@ class CompiledNet:
         if not _HAS_SC_NEUROCORE:
             raise RuntimeError("dense_forward requires sc_neurocore.  Use dense_forward_float for the numpy fallback.")
 
-        # v3.8.0+ path: VectorizedSCLayer handles encode+forward in one call.
-        # Blocked on sc-neurocore API drift (v3.15.34 removed get_backend and
-        # changed the VectorizedSCLayer/BitstreamEncoder constructors); restoring
-        # this path is delegated to sc-neurocore — see its docs/internal
-        # scpn_control_compiler_must_develop_todo (NEU-SCPN.1–4).  _HAS_NEUROCORE_V3
-        # is False against any current release, so this block is unreachable here.
-        if _HAS_NEUROCORE_V3:  # pragma: no cover
-            encoder = BitstreamEncoder(length=self.bitstream_length, seed=self.seed + 1_000_000)
-            layer = VectorizedSCLayer(W_packed, encoder, backend=get_backend())
-            return np.asarray(layer.forward(input_probs), dtype=np.float64)
+        # v3.16.0+ path: sc_forward runs the AND+popcount estimate over the
+        # caller-owned packed weights on the fastest available backend (Rust, with
+        # a bit-identical NumPy fallback for a fixed seed).
+        if _HAS_NEUROCORE_V3:
+            return np.asarray(
+                sc_forward(W_packed, input_probs, length=self.bitstream_length, seed=self.seed + 1_000_000),
+                dtype=np.float64,
+            )
 
         # Legacy path: manual pack + AND + popcount
         n_out, n_in, n_words = W_packed.shape

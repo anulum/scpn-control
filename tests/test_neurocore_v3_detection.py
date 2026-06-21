@@ -43,9 +43,10 @@ class TestNeurocore:
         assert backend is not None
 
     def test_dense_forward_v3_path(self) -> None:
-        """CompiledNet.dense_forward should use VectorizedSCLayer when v3 is available."""
+        """CompiledNet.dense_forward runs the v3 sc_forward path when available."""
         if not HAS_V3:
-            pytest.skip("sc-neurocore V3 (>=3.8.0) is not installed")
+            pytest.skip("sc-neurocore V3 (>=3.16.0) is not installed")
+        from scpn_control.scpn.compiler import FusionCompiler
         from scpn_control.scpn.structure import StochasticPetriNet
 
         net = StochasticPetriNet()
@@ -55,17 +56,16 @@ class TestNeurocore:
         net.add_arc("p0", "t0", weight=1.0)
         net.add_arc("t0", "p1", weight=1.0)
 
-        from scpn_control.scpn.compiler import FusionCompiler
-
-        compiled = FusionCompiler(net).compile()
+        compiled = FusionCompiler().compile(net)
+        assert compiled.W_in_packed is not None
 
         marking = np.array([1.0, 0.0])
-        result = compiled.dense_forward(marking)
-        assert result.shape == (2,)
+        result = compiled.dense_forward(compiled.W_in_packed, marking)
+        assert result.shape == (1,)
         assert np.all(np.isfinite(result))
 
     def test_v3_faster_than_float(self) -> None:
-        """VectorizedSCLayer path should not be slower than numpy float path."""
+        """The v3 sc_forward path should not be catastrophically slower than warm-up."""
         if not HAS_V3:
             pytest.skip("v3 path not available for speed comparison")
 
@@ -80,20 +80,21 @@ class TestNeurocore:
             net.add_arc(f"p{i}", f"t{i}", weight=1)
             net.add_arc(f"t{i}", f"p{(i + 1) % 8}", weight=1)
 
-        compiled = FusionCompiler(net).compile()
+        compiled = FusionCompiler().compile(net)
+        assert compiled.W_in_packed is not None
         marking = np.random.default_rng(42).random(8)
 
         # Warm-up (also serves as baseline)
         n_warmup = 10
         t_warmup = time.perf_counter()
         for _ in range(n_warmup):
-            compiled.dense_forward(marking)
+            compiled.dense_forward(compiled.W_in_packed, marking)
         warmup_elapsed = time.perf_counter() - t_warmup
 
         n = 500
         t0 = time.perf_counter()
         for _ in range(n):
-            compiled.dense_forward(marking)
+            compiled.dense_forward(compiled.W_in_packed, marking)
         elapsed = time.perf_counter() - t0
 
         per_call_warmup = warmup_elapsed / n_warmup
