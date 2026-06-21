@@ -26,6 +26,7 @@ from scpn_control.control.tokamak_digital_twin import (
     Plasma2D,
     SimpleNeuralNet,
     TokamakTopology,
+    _require_positive_float,
     _resolve_rng,
     _run_digital_twin_history_snapshots,
     run_digital_twin,
@@ -722,3 +723,21 @@ def test_history_snapshots_rejects_zero_step() -> None:
             save_plot=False,
             verbose=False,
         )
+
+
+def test_require_positive_float_rejects_non_positive() -> None:
+    with pytest.raises(ValueError, match="must be finite and > 0"):
+        _require_positive_float("dt", 0.0)
+
+
+def test_run_digital_twin_counts_actuator_saturation_under_large_drift() -> None:
+    # A large actuator drift accumulates bias beyond the [-1, 1] command range,
+    # forcing the saturation clip and incrementing the saturation counter.
+    summary = run_digital_twin(
+        time_steps=40,
+        seed=3,
+        save_plot=False,
+        verbose=False,
+        actuator_drift_std=5.0,
+    )
+    assert summary["actuator_saturation_count"] > 0

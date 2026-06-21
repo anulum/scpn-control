@@ -38,7 +38,7 @@ try:
         digital_twin_summary_to_ids,
     )
 
-    HAS_IMAS = True
+    HAS_IMAS = True  # pragma: no cover - imas IDS connector optional dep, not installed on CI
 except ImportError:
     HAS_IMAS = False
 
@@ -462,7 +462,7 @@ def run_digital_twin(
 
     plot_saved = False
     plot_error = None
-    if save_plot:
+    if save_plot and HAS_MPL:
         try:
             # --- VISUALIZATION ---
             fig = plt.figure(figsize=(15, 6))
