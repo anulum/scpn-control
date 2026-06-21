@@ -275,6 +275,88 @@ def test_vmec_lite_full_vmec_admission_requires_matched_references():
     assert mismatched_iota.full_vmec_claim_allowed is False
 
 
+def test_set_profiles_rejects_single_point_profile() -> None:
+    """A profile with fewer than two radial points cannot be interpolated onto the grid."""
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    with pytest.raises(ValueError, match="at least two points"):
+        solver.set_profiles(np.array([1.0e5]), np.array([0.8]))
+
+
+def test_axisymmetric_boundary_rejects_nonpositive_finite_major_radius() -> None:
+    """A finite but non-positive R0 is rejected before the shaped-boundary build."""
+    with pytest.raises(ValueError, match="R0 must be positive"):
+        AxisymmetricTokamakBoundary.from_parameters(R0=-1.0, a=2.0, kappa=1.7, delta=0.33)
+
+
+def test_vmec_lite_claim_evidence_rejects_blank_text_and_tampered_result() -> None:
+    """Claim evidence fails closed on blank provenance, non-finite arrays, and degenerate geometry."""
+    import dataclasses as _dc
+
+    solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
+    b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
+    solver.set_boundary(b_R, b_Z)
+    solver.set_profiles(np.zeros(11), np.linspace(1.0, 0.3, 11))
+    result = solver.solve(max_iter=500, tol=1e10)
+
+    text = {
+        "source_id": "id",
+        "geometry_source": "geo",
+        "profile_source": "prof",
+        "current_assumption": "curr",
+    }
+
+    # Blank source rejected by the non-empty-text guard.
+    with pytest.raises(ValueError, match="must be a non-empty string"):
+        vmec_lite_claim_evidence(
+            solver,
+            result,
+            source="",
+            source_id=text["source_id"],
+            geometry_source=text["geometry_source"],
+            profile_source=text["profile_source"],
+            current_assumption=text["current_assumption"],
+        )
+
+    # Non-finite spectral arrays rejected by the grid/finite guard.
+    bad_arrays = _dc.replace(result, R_mn=np.full_like(np.asarray(result.R_mn), np.nan))
+    with pytest.raises(ValueError, match="must be finite and match"):
+        vmec_lite_claim_evidence(
+            solver,
+            bad_arrays,
+            source="vmec_reference",
+            source_id=text["source_id"],
+            geometry_source=text["geometry_source"],
+            profile_source=text["profile_source"],
+            current_assumption=text["current_assumption"],
+        )
+
+    # Non-positive iteration count rejected.
+    bad_iter = _dc.replace(result, iterations=0)
+    with pytest.raises(ValueError, match="iterations must be positive"):
+        vmec_lite_claim_evidence(
+            solver,
+            bad_iter,
+            source="vmec_reference",
+            source_id=text["source_id"],
+            geometry_source=text["geometry_source"],
+            profile_source=text["profile_source"],
+            current_assumption=text["current_assumption"],
+        )
+
+    # Degenerate (zero) geometry collapses the sampled major radius to zero.
+    zeroed = _dc.replace(result, R_mn=np.zeros_like(np.asarray(result.R_mn)))
+    with pytest.raises(ValueError, match="positive sampled major radius"):
+        vmec_lite_claim_evidence(
+            solver,
+            zeroed,
+            source="vmec_reference",
+            source_id=text["source_id"],
+            geometry_source=text["geometry_source"],
+            profile_source=text["profile_source"],
+            current_assumption=text["current_assumption"],
+        )
+
+
 def test_vmec_lite_claim_evidence_rejects_invalid_claim_inputs():
     solver = VMECLiteSolver(n_s=11, m_pol=1, n_tor=0, n_fp=1)
     b_R, b_Z = AxisymmetricTokamakBoundary.from_parameters(R0=6.2, a=2.0, kappa=1.7, delta=0.33)
