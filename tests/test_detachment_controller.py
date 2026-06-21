@@ -223,10 +223,34 @@ def test_detachment_bifurcation_rejects_malformed_seeding_scan():
 
     with pytest.raises(ValueError, match="seeding_range"):
         bif.scan_seeding(np.array([]), P_SOL_MW=100.0, n_u_19=4.0)
+    with pytest.raises(ValueError, match="values must be finite"):
+        bif.scan_seeding(np.array([1.0, np.inf]), P_SOL_MW=100.0, n_u_19=4.0)
+    with pytest.raises(ValueError, match="values must be non-negative"):
+        bif.scan_seeding(np.array([-1.0, 2.0]), P_SOL_MW=100.0, n_u_19=4.0)
     with pytest.raises(ValueError, match="strictly increasing"):
         bif.scan_seeding(np.array([1.0, 1.0]), P_SOL_MW=100.0, n_u_19=4.0)
     with pytest.raises(ValueError, match="seeding_rate"):
         bif._steady_state_target(seeding_rate=-1.0, P_SOL_MW=100.0, n_u_19=4.0)
+
+
+def test_bifurcation_fully_detached_below_xpoint() -> None:
+    """Deep seeding with the front held below the X-point reaches FULLY_DETACHED.
+
+    The else branch in ``_steady_state_target`` requires T_t <= 5 eV
+    (detachment onset, Stangeby 2000, Ch. 16) while rho_front <= 0.8 keeps the
+    radiation front off the X-point so XPOINT_MARFE does not pre-empt it. Low
+    P_SOL with low upstream density gives a small front-drive
+    (seeding_rate * n_u / P_SOL) yet still a deep f_rad collapse of the target
+    temperature, landing the divertor on the detached branch.
+    """
+    sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.8)
+    bif = DetachmentBifurcation(sol, "Ne")
+
+    point = bif._steady_state_target(seeding_rate=9.5, P_SOL_MW=0.5, n_u_19=0.02)
+
+    assert point.T_target <= 5.0
+    assert bif.front_model.front_position(0.5, 0.02, 9.5) <= 0.8
+    assert point.state == DetachmentState.FULLY_DETACHED
 
 
 def test_multi_impurity_rejects_nonphysical_diagnostics():
