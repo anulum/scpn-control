@@ -31,6 +31,7 @@ from scpn_control.core.jax_solvers import (
     crank_nicolson_step,
     diffusion_rhs,
     has_jax,
+    has_jax_gpu,
     thomas_solve,
 )
 
@@ -40,6 +41,21 @@ jax_available = has_jax()
 
 class TestThomasSolveNumpy:
     """Verify NumPy Thomas solver against known tridiagonal systems."""
+
+    def test_vanishing_leading_pivot_is_floored(self) -> None:
+        """A zero leading diagonal entry is floored so forward elimination is finite.
+
+        The Thomas sweep divides by the running pivot ``m``; when the first
+        diagonal entry is zero the solver floors ``m`` to ``1e-30`` rather than
+        dividing by zero, keeping the eliminated coefficients finite.
+        """
+        a = np.array([1.0, 1.0])
+        b = np.array([0.0, 2.0, 2.0])
+        c = np.array([1.0, 1.0])
+        d = np.array([1.0, 2.0, 3.0])
+        x = _thomas_solve_np(a, b, c, d)
+        assert x.shape == (3,)
+        assert np.all(np.isfinite(x))
 
     def test_identity_system(self):
         """I x = d => x = d."""
@@ -148,6 +164,24 @@ class TestCrankNicolsonStep:
 @pytest.mark.skipif(not jax_available, reason="JAX not installed")
 class TestJaxParity:
     """Verify JAX implementations match NumPy within tolerance."""
+
+    def test_has_jax_gpu_reports_a_boolean(self) -> None:
+        """With JAX present the GPU probe queries devices and returns a bool."""
+        assert isinstance(has_jax_gpu(), bool)
+
+    def test_has_jax_gpu_returns_false_when_device_query_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A backend that fails to enumerate devices is treated as no GPU.
+
+        ``jax.devices()`` can raise when a configured accelerator backend cannot
+        be initialised; the probe swallows that and reports no GPU rather than
+        propagating the backend error.
+        """
+
+        def _raise() -> object:
+            raise RuntimeError("device backend unavailable")
+
+        monkeypatch.setattr("scpn_control.core.jax_solvers.jax.devices", _raise)
+        assert has_jax_gpu() is False
 
     def test_thomas_parity(self):
         n = 32
