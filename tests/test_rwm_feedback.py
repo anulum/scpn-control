@@ -400,3 +400,42 @@ def test_required_gain_rejects_invalid_controller_parameters():
             tau_controller=1e-4,
             M_coil=0.0,
         )
+
+
+def test_rwm_claim_evidence_rejects_blank_model_id() -> None:
+    """A blank model_id is rejected by the provenance guard."""
+    rwm = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.1, G_d=0.0, tau_controller=1.0e-4, M_coil=1.0)
+    with pytest.raises(ValueError, match="model_id must be a non-empty string"):
+        rwm_claim_evidence(rwm, ctrl, source="local_regression_reference", source_id="case", model_id="  ")
+
+
+def test_rwm_claim_evidence_marks_external_source_without_comparison() -> None:
+    """An external source without a quantitative reference is declared but not facility-admissible."""
+    rwm = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.1, G_d=0.0, tau_controller=1.0e-4, M_coil=1.0)
+    evidence = rwm_claim_evidence(rwm, ctrl, source="external_mhd_benchmark", source_id="declared_no_ref_case")
+    assert evidence.facility_claim_allowed is False
+    assert "comparison is missing" in evidence.claim_status
+
+
+def test_assert_rwm_facility_claim_rejects_wrong_type_and_schema() -> None:
+    """Facility admission fails closed on the wrong evidence type or an unsupported schema."""
+    import dataclasses as _dc
+
+    rwm = RWMPhysics(beta_n=3.0, beta_n_nowall=2.8, beta_n_wall=3.5, tau_wall=0.01)
+    ctrl = RWMFeedbackController(n_sensors=1, n_coils=1, G_p=1.1, G_d=0.0, tau_controller=1.0e-4, M_coil=1.0)
+    reference = ctrl.effective_growth_rate(rwm)
+    admitted = rwm_claim_evidence(
+        rwm,
+        ctrl,
+        source="external_mhd_benchmark",
+        source_id="schema_case",
+        reference_closed_loop_growth_rate_s_inv=reference + 0.01,
+        closed_loop_growth_rate_abs_tolerance=0.05,
+    )
+
+    with pytest.raises(ValueError, match="evidence must be RWMClaimEvidence"):
+        assert_rwm_facility_claim_admissible(object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_rwm_facility_claim_admissible(_dc.replace(admitted, schema_version=2))
