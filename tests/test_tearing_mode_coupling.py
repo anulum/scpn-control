@@ -266,3 +266,28 @@ def test_stability_map_rejects_invalid_scan_axes():
 
     with pytest.raises(ValueError, match="strictly increasing"):
         smap.scan_beta_li(np.array([1.0, 2.0]), np.array([1.0, 1.0]))
+
+
+def test_coupled_tearing_modes_rejects_nonfinite_radius() -> None:
+    """A non-finite rational-surface radius is rejected by the finiteness guard."""
+    with pytest.raises(ValueError, match="r_s1 must be finite"):
+        CoupledTearingModes((3, 2), (2, 1), float("nan"), 0.8, 2.0, 6.2, 5.3)
+
+
+def test_coupled_tearing_modes_rejects_non_tuple_mode() -> None:
+    """A non-tuple mode specifier is rejected as an (m, n) pair."""
+    with pytest.raises(ValueError, match=r"mode1 must be an \(m, n\) tuple"):
+        CoupledTearingModes([3, 2], (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)  # type: ignore[arg-type]
+
+
+def test_coupled_tearing_modes_rejects_wrong_length_mode() -> None:
+    """A mode tuple that is not exactly (m, n) is rejected."""
+    with pytest.raises(ValueError, match=r"mode1 must be an \(m, n\) tuple"):
+        CoupledTearingModes((3, 2, 1), (2, 1), 0.5, 0.8, 2.0, 6.2, 5.3)  # type: ignore[arg-type]
+
+
+def test_stability_map_rejects_negative_scan_axis() -> None:
+    """A negative beta_N scan coordinate is outside the physical stability-map domain."""
+    smap = TearingModeStabilityMap()
+    with pytest.raises(ValueError, match="beta_N_range must be non-negative"):
+        smap.scan_beta_li(np.array([-1.0, 2.0]), np.array([0.5, 1.5]))
