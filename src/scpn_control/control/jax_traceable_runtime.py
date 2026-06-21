@@ -236,7 +236,7 @@ _torchscript_rollout = None
 _torchscript_rollout_batch = None
 
 
-def _compile_torchscript_rollouts() -> tuple[Any, Any]:
+def _compile_torchscript_rollouts() -> tuple[Any, Any]:  # pragma: no cover - torch optional, absent on CI
     """Compile optional TorchScript kernels lazily to keep module import warning-clean."""
     global _torchscript_rollout, _torchscript_rollout_batch
     if not _HAS_TORCH:
