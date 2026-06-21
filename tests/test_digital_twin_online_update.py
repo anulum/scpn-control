@@ -17,6 +17,7 @@ import pytest
 from scpn_control.control.digital_twin_online_update import (
     BayesianUpdateConfig,
     BayesianUpdateResult,
+    ExternalSimulatorArtifact,
     TwinObservation,
     TwinParameterPrior,
     artifact_payload_sha256,
@@ -201,6 +202,55 @@ def test_digital_twin_update_evidence_requires_transp_tsc_and_improvement():
     assert evidence.improved_over_baseline
     assert len(evidence.observation_sha256) == 64
     assert_digital_twin_update_claim_admissible(evidence, observation, priors, result, artifacts)
+
+
+def _paired_artifacts() -> tuple[ExternalSimulatorArtifact, ...]:
+    return tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
+
+
+def _bounded_result(
+    observation: TwinObservation, *, best_loss: float = 0.2, evidence_kind: str = "bounded_online_update"
+) -> BayesianUpdateResult:
+    return BayesianUpdateResult(
+        best_parameters={"n_e": 1.0e20},
+        best_loss=best_loss,
+        baseline_loss=0.8,
+        evaluated_points=2,
+        loss_history=(0.8, 0.2),
+        source=observation.source,
+        evidence_kind=evidence_kind,
+    )
+
+
+def test_bayesian_update_requires_at_least_one_prior() -> None:
+    """Bayesian calibration needs a non-empty prior set to optimise over."""
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    with pytest.raises(ValueError, match="at least one parameter prior"):
+        bayesian_update_digital_twin(observation, ())
+
+
+def test_update_evidence_rejects_non_hex_formal_artifact_digest() -> None:
+    """A 64-character non-hexadecimal digest is rejected by the SHA-256 validator."""
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+    with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
+        digital_twin_update_evidence(
+            observation,
+            priors,
+            _bounded_result(observation),
+            _paired_artifacts(),
+            controller_formal_artifact_sha256="g" * 64,
+        )
+
+
+def test_update_evidence_rejects_negative_result_loss() -> None:
+    """A negative best loss fails the non-negativity guard on result accounting."""
+    observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
+    priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
+    with pytest.raises(ValueError, match="best_loss must be >= 0"):
+        digital_twin_update_evidence(
+            observation, priors, _bounded_result(observation, best_loss=-0.1), _paired_artifacts()
+        )
 
 
 def test_digital_twin_update_evidence_rejects_missing_simulator_and_non_improvement():
