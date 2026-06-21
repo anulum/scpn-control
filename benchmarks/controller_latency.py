@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
+from numpy.typing import NDArray
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src"
@@ -48,7 +49,7 @@ from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC  # noq
 from scpn_control.core._rust_compat import RustPIDController  # noqa: E402
 
 
-def _tokamak_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
+def _tokamak_plant(x: NDArray[np.floating[Any]], u: NDArray[np.floating[Any]]) -> NDArray[np.float64]:
     """Six-state tokamak dynamics used by the nonlinear MPC.
 
     State ``x = [Ip, beta_N, q95, li, T_axis, n_bar]``; control
@@ -65,7 +66,7 @@ def _tokamak_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
     if x[5] > 0.1:
         x_next[4] += dt * (2.0 * u[0] / x[5] - x[4]) * 0.5
     x_next[5] += dt * (u[2] - 0.5 * x[5])
-    return x_next
+    return x_next.astype(np.float64, copy=False)
 
 
 def _cpu_model() -> str:
