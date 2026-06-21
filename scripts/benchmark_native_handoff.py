@@ -80,6 +80,18 @@ class _UdpSink:
                 return
 
 
+def _cpu_model() -> str:
+    """Best-effort CPU model string for benchmark provenance."""
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or "unknown"
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Compare Python-orchestrated and Rust-native control execution.")
     parser.add_argument("--steps", type=int, default=5000)
@@ -288,6 +300,7 @@ def main() -> int:
             "python": sys.version,
             "platform": platform.platform(),
             "machine": platform.machine(),
+            "cpu_model": _cpu_model(),
         },
         "parameters": {
             "steps": args.steps,

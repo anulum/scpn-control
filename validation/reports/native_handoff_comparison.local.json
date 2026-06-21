@@ -1,48 +1,48 @@
 {
   "comparison": {
-    "active_cycle_speedup_p50": 1.712226908803769,
+    "active_cycle_speedup_p50": 1.5327759769659692,
     "native_drops_zero": true,
     "native_publish_failures_zero": true,
     "native_udp_sink_packets": 5000,
     "python_udp_sink_packets": 5000,
-    "wall_time_speedup": 1.0074837597764348
+    "wall_time_speedup": 1.0070210208235777
   },
-  "generated_at": "2026-06-21T20:05:19.769422+00:00",
+  "generated_at": "2026-06-21T20:05:51.078325+00:00",
   "latency_stats": {
     "native": {
-      "max_us": 5.8647082,
-      "mean_us": 5.125452114285714,
-      "min_us": 4.5843884,
+      "max_us": 3.4059856,
+      "mean_us": 2.928535228571429,
+      "min_us": 2.5425472,
       "n": 7,
-      "p50_us": 5.0818372,
-      "p95_us": 5.8647082,
-      "p99_us": 5.8647082,
+      "p50_us": 2.8469876,
+      "p95_us": 3.4059856,
+      "p99_us": 3.4059856,
       "samples_us": [
-        4.5843884,
-        4.6704859999999995,
-        4.9626168,
-        5.0818372,
-        5.2380596,
-        5.4760686,
-        5.8647082
+        2.5425472,
+        2.6865908,
+        2.7946999999999997,
+        2.8469876,
+        2.9053762,
+        3.3175592000000003,
+        3.4059856
       ]
     },
     "python": {
-      "max_us": 10.2691754,
-      "mean_us": 8.924327114285715,
-      "min_us": 8.211206,
+      "max_us": 4.728632800000001,
+      "mean_us": 4.3138013428571425,
+      "min_us": 3.865055,
       "n": 7,
-      "p50_us": 8.7012584,
-      "p95_us": 10.2691754,
-      "p99_us": 10.2691754,
+      "p50_us": 4.3637942,
+      "p95_us": 4.728632800000001,
+      "p99_us": 4.728632800000001,
       "samples_us": [
-        8.211206,
-        8.399034,
-        8.5588052,
-        8.7012584,
-        8.9855506,
-        9.3452602,
-        10.2691754
+        3.865055,
+        3.9734526,
+        4.0848974,
+        4.3637942,
+        4.4583178,
+        4.7224596000000005,
+        4.728632800000001
       ]
     }
   },
@@ -57,15 +57,16 @@
     "warmup": 2
   },
   "platform": {
+    "cpu_model": "11th Gen Intel(R) Core(TM) i5-11600K @ 3.90GHz",
     "machine": "x86_64",
-    "platform": "Linux-6.17.0-1018-azure-x86_64-with-glibc2.39",
-    "python": "3.12.13 (main, Mar  4 2026, 02:26:36) [GCC 13.3.0]"
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
   },
   "rows": [
     {
-      "avg_cycle_us": 10.2691754,
+      "avg_cycle_us": 4.0848974,
       "dropped": 0,
-      "effective_step_us": 185.40603659999988,
+      "effective_step_us": 166.26382740214467,
       "mode": "python",
       "name": "python",
       "native_last_acados_time_ns": null,
@@ -76,33 +77,33 @@
       "status": "completed",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9270301829999994
+      "wall_s": 0.8313191370107234
     },
     {
-      "avg_cycle_us": 5.8647082,
+      "avg_cycle_us": 2.5425472,
       "dropped": 0,
-      "effective_step_us": 184.0288092000037,
+      "effective_step_us": 165.10462439619005,
       "mode": "native",
       "name": "native",
-      "native_last_acados_time_ns": 40,
-      "native_last_cycle_ns": "4578",
-      "native_last_snn_time_ns": 761,
-      "native_total_cycle_ns": "29323541",
+      "native_last_acados_time_ns": 99,
+      "native_last_cycle_ns": "4211",
+      "native_last_snn_time_ns": 1487,
+      "native_total_cycle_ns": "12712736",
       "publish_failures": 0,
       "status": "normal",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9201440460000185
+      "wall_s": 0.8255231219809502
     }
   ],
   "schema": "scpn-control.native_handoff_comparison.v2",
   "summaries": {
     "native": {
-      "avg_cycle_us": 5.8647082,
+      "avg_cycle_us": 2.5425472,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 184.0288092000037,
-      "elapsed_s": 0.8762392140000088,
+      "effective_step_us": 165.10462439619005,
+      "elapsed_s": 0.7821834390051663,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -130,21 +131,21 @@
           "certificate_id": "",
           "certificate_schema_version": "",
           "channel_capacity": 2,
-          "checked": 54,
+          "checked": 46,
           "core_z3": 2,
           "dispatch_interval_steps": 30,
-          "dropped": 110,
-          "effective_verification_rate": 32.53012048192771,
+          "dropped": 118,
+          "effective_verification_rate": 27.710843373493976,
           "enabled": true,
           "failures": 0,
           "generated": 166,
-          "last_checked_step": 4770,
+          "last_checked_step": 4650,
           "last_failed_step": 0,
           "last_status": "safe",
           "max_depth": 4,
           "max_marking": 100,
           "mode": "async_drop",
-          "submitted": 56,
+          "submitted": 48,
           "sync_wait_count": 0,
           "sync_wait_max_ns": 0,
           "sync_wait_min_ns": 0,
@@ -154,9 +155,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 40,
-        "last_cycle_ns": "4578",
-        "last_snn_time_ns": 761,
+        "last_acados_time_ns": 99,
+        "last_cycle_ns": "4211",
+        "last_snn_time_ns": 1487,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -165,7 +166,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "29323541",
+        "total_cycle_ns": "12712736",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 55917
@@ -173,32 +174,38 @@
       "publish_failures": 0,
       "requested_execution_backend": "native",
       "runtime_admission": {
-        "errors": [
-          "requested cores outside current process affinity: [4]"
-        ],
+        "errors": [],
         "policy": "warn",
         "probe": {
           "affinity": [
             0,
             1,
             2,
-            3
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
           ],
-          "available_parallelism": 4,
-          "generated_ns": 1782072318849779505,
+          "available_parallelism": 12,
+          "generated_ns": 1782072350253186486,
           "governors": {
-            "1": null,
-            "2": null,
-            "3": null,
-            "4": null
+            "1": "powersave",
+            "2": "powersave",
+            "3": "powersave",
+            "4": "powersave"
           },
           "is_linux": true,
-          "kernel_release": "6.17.0-1018-azure",
-          "memlock_hard_bytes": 8388608,
-          "memlock_soft_bytes": 8388608,
+          "kernel_release": "6.17.0-35-generic",
+          "memlock_hard_bytes": 4178178048,
+          "memlock_soft_bytes": 4178178048,
           "native_snapshot": {
-            "available_parallelism": 4,
-            "kernel_release": "6.17.0-1018-azure",
+            "available_parallelism": 12,
+            "kernel_release": "6.17.0-35-generic",
             "pacing_mode": "sleep",
             "preempt_rt": false,
             "realtime_sysfs": null,
@@ -209,7 +216,7 @@
               4
             ],
             "requested_cores_distinct": true,
-            "requested_cores_in_range": false,
+            "requested_cores_in_range": true,
             "schema_version": "scpn-control.runtime-admission-native.v1",
             "spin_tick_admissible": true,
             "tick_interval_s": 0.0001
@@ -240,10 +247,9 @@
           "transport_backend": "std"
         },
         "schema_version": "scpn-control.runtime-admission.v1",
-        "status": "fail",
+        "status": "pass",
         "warnings": [
-          "CPU governor unavailable for cores [1, 2, 3, 4]",
-          "RLIMIT_MEMLOCK soft limit below runtime admission floor: 8388608 < 67108864",
+          "non-performance CPU governor observed on cores [1, 2, 3, 4]",
           "heartbeat dead-man switch is disabled"
         ]
       },
@@ -258,14 +264,14 @@
         "port": 55917
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9201440460000185
+      "wall_s": 0.8255231219809502
     },
     "python": {
-      "avg_cycle_us": 10.2691754,
+      "avg_cycle_us": 4.0848974,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 185.40603659999988,
-      "elapsed_s": 0.875969026000007,
+      "effective_step_us": 166.26382740214467,
+      "elapsed_s": 0.7803655159659684,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -278,32 +284,38 @@
       "publish_failures": 0,
       "requested_execution_backend": "python",
       "runtime_admission": {
-        "errors": [
-          "requested cores outside current process affinity: [4]"
-        ],
+        "errors": [],
         "policy": "warn",
         "probe": {
           "affinity": [
             0,
             1,
             2,
-            3
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
           ],
-          "available_parallelism": 4,
-          "generated_ns": 1782072310639106378,
+          "available_parallelism": 12,
+          "generated_ns": 1782072342660749563,
           "governors": {
-            "1": null,
-            "2": null,
-            "3": null,
-            "4": null
+            "1": "powersave",
+            "2": "powersave",
+            "3": "powersave",
+            "4": "powersave"
           },
           "is_linux": true,
-          "kernel_release": "6.17.0-1018-azure",
-          "memlock_hard_bytes": 8388608,
-          "memlock_soft_bytes": 8388608,
+          "kernel_release": "6.17.0-35-generic",
+          "memlock_hard_bytes": 4178178048,
+          "memlock_soft_bytes": 4178178048,
           "native_snapshot": {
-            "available_parallelism": 4,
-            "kernel_release": "6.17.0-1018-azure",
+            "available_parallelism": 12,
+            "kernel_release": "6.17.0-35-generic",
             "pacing_mode": "sleep",
             "preempt_rt": false,
             "realtime_sysfs": null,
@@ -314,7 +326,7 @@
               4
             ],
             "requested_cores_distinct": true,
-            "requested_cores_in_range": false,
+            "requested_cores_in_range": true,
             "schema_version": "scpn-control.runtime-admission-native.v1",
             "spin_tick_admissible": true,
             "tick_interval_s": 0.0001
@@ -345,23 +357,22 @@
           "transport_backend": "std"
         },
         "schema_version": "scpn-control.runtime-admission.v1",
-        "status": "fail",
+        "status": "pass",
         "warnings": [
-          "CPU governor unavailable for cores [1, 2, 3, 4]",
-          "RLIMIT_MEMLOCK soft limit below runtime admission floor: 8388608 < 67108864",
+          "non-performance CPU governor observed on cores [1, 2, 3, 4]",
           "heartbeat dead-man switch is disabled"
         ]
       },
       "snapshot": {
-        "acados_time_ns": 862,
-        "cycle_us": 7.785,
+        "acados_time_ns": 1334,
+        "cycle_us": 8.86,
         "heartbeat_expired": false,
         "measured_r": 6.2,
         "measured_z": 0.0,
         "publish_ok": true,
         "r_command": 0.0,
         "r_error": 0.0,
-        "snn_time_ns": 1393,
+        "snn_time_ns": 3428,
         "step": 4999,
         "z_command": 0.0,
         "z_error": 0.0
@@ -377,7 +388,7 @@
         "port": 55916
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9270301829999994
+      "wall_s": 0.8313191370107234
     }
   }
 }

@@ -1,11 +1,11 @@
 # Native handoff comparison
 
-Generated: 2026-06-21T20:05:19.769422+00:00
+Generated: 2026-06-21T20:05:51.078325+00:00
 
 | Backend | Status | Mode | Steps | Effective step us | Avg cycle us | Drops | Publish failures |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
-| python | completed | python | 5000 | 185.406 | 10.269 | 0 | 0 |
-| native | normal | native | 5000 | 184.029 | 5.865 | 0 | 0 |
+| python | completed | python | 5000 | 166.264 | 4.085 | 0 | 0 |
+| native | normal | native | 5000 | 165.105 | 2.543 | 0 | 0 |
 
 Native handoff wall-time speedup: 1.007x.
 

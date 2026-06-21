@@ -67,6 +67,18 @@ def _tokamak_plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
     return x_next
 
 
+def _cpu_model() -> str:
+    """Best-effort CPU model string for benchmark provenance."""
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as handle:
+            for line in handle:
+                if line.startswith("model name"):
+                    return line.split(":", 1)[1].strip()
+    except OSError:
+        pass
+    return platform.processor() or "unknown"
+
+
 def _percentile(ordered: list[float], q: float) -> float:
     """Nearest-rank percentile (q in [0, 1]) of a pre-sorted list."""
     if not ordered:
@@ -231,6 +243,7 @@ def main() -> int:
             "python": sys.version,
             "platform": platform.platform(),
             "machine": platform.machine(),
+            "cpu_model": _cpu_model(),
         },
         "parameters": {"iterations": args.iterations, "warmup": args.warmup},
         "controllers": controllers,

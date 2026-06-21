@@ -1,0 +1,86 @@
+{
+  "controllers": [
+    {
+      "backend": "numpy",
+      "name": "PID",
+      "stats": {
+        "max_us": 19.927,
+        "mean_us": 0.4737255,
+        "min_us": 0.401,
+        "n": 2000,
+        "p50_us": 0.451,
+        "p95_us": 0.501,
+        "p99_us": 0.532,
+        "throughput_khz": 2217.294900221729
+      }
+    },
+    {
+      "backend": "numpy",
+      "name": "SNN (NumPy)",
+      "stats": {
+        "max_us": 48.812,
+        "mean_us": 23.5129395,
+        "min_us": 21.25,
+        "n": 2000,
+        "p50_us": 23.093,
+        "p95_us": 24.637,
+        "p99_us": 41.437,
+        "throughput_khz": 43.30316546139523
+      }
+    },
+    {
+      "backend": "rust",
+      "name": "SNN (Rust)",
+      "stats": {
+        "max_us": 51.136,
+        "mean_us": 0.9264125,
+        "min_us": 0.831,
+        "n": 2000,
+        "p50_us": 0.872,
+        "p95_us": 0.922,
+        "p99_us": 0.992,
+        "throughput_khz": 1146.7889908256882
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "numpy",
+      "name": "MPC (Np=10)",
+      "stats": {
+        "max_us": 31108.073,
+        "mean_us": 23829.438162000002,
+        "min_us": 23025.68,
+        "n": 500,
+        "p50_us": 23754.614,
+        "p95_us": 24176.714,
+        "p99_us": 25543.092,
+        "throughput_khz": 0.0420970848021357
+      }
+    },
+    {
+      "backend": "numpy",
+      "name": "H-infinity",
+      "stats": {
+        "max_us": 110.597,
+        "mean_us": 29.142347,
+        "min_us": 27.331,
+        "n": 2000,
+        "p50_us": 28.243,
+        "p95_us": 31.179,
+        "p99_us": 49.954,
+        "throughput_khz": 35.407003505293346
+      }
+    }
+  ],
+  "generated_at": "2026-06-21T20:05:33.774435+00:00",
+  "parameters": {
+    "iterations": 2000,
+    "warmup": 200
+  },
+  "platform": {
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-1018-azure-x86_64-with-glibc2.39",
+    "python": "3.12.13 (main, Mar  4 2026, 02:26:36) [GCC 13.3.0]"
+  },
+  "schema": "scpn-control.controller_latency.v1"
+}

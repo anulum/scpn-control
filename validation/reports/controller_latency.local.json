@@ -1,0 +1,87 @@
+{
+  "controllers": [
+    {
+      "backend": "numpy",
+      "name": "PID",
+      "stats": {
+        "max_us": 5.726,
+        "mean_us": 0.313558,
+        "min_us": 0.284,
+        "n": 2000,
+        "p50_us": 0.304,
+        "p95_us": 0.342,
+        "p99_us": 0.405,
+        "throughput_khz": 3289.4736842105262
+      }
+    },
+    {
+      "backend": "numpy",
+      "name": "SNN (NumPy)",
+      "stats": {
+        "max_us": 71.018,
+        "mean_us": 18.4975405,
+        "min_us": 13.851,
+        "n": 2000,
+        "p50_us": 16.135,
+        "p95_us": 29.457,
+        "p99_us": 36.671,
+        "throughput_khz": 61.97706848466067
+      }
+    },
+    {
+      "backend": "rust",
+      "name": "SNN (Rust)",
+      "stats": {
+        "max_us": 11.845,
+        "mean_us": 0.6638335,
+        "min_us": 0.599,
+        "n": 2000,
+        "p50_us": 0.64,
+        "p95_us": 0.697,
+        "p99_us": 1.193,
+        "throughput_khz": 1562.5
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "numpy",
+      "name": "MPC (Np=10)",
+      "stats": {
+        "max_us": 49635.513,
+        "mean_us": 18863.549772,
+        "min_us": 11361.689,
+        "n": 500,
+        "p50_us": 19768.708,
+        "p95_us": 23907.615,
+        "p99_us": 35183.052,
+        "throughput_khz": 0.05058499523590515
+      }
+    },
+    {
+      "backend": "numpy",
+      "name": "H-infinity",
+      "stats": {
+        "max_us": 58.138,
+        "mean_us": 24.508806,
+        "min_us": 22.987,
+        "n": 2000,
+        "p50_us": 24.092,
+        "p95_us": 27.271,
+        "p99_us": 30.384,
+        "throughput_khz": 41.50755437489623
+      }
+    }
+  ],
+  "generated_at": "2026-06-21T20:06:03.020669+00:00",
+  "parameters": {
+    "iterations": 2000,
+    "warmup": 200
+  },
+  "platform": {
+    "cpu_model": "11th Gen Intel(R) Core(TM) i5-11600K @ 3.90GHz",
+    "machine": "x86_64",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
+    "python": "3.12.3 (main, Mar 23 2026, 19:04:32) [GCC 13.3.0]"
+  },
+  "schema": "scpn-control.controller_latency.v1"
+}
