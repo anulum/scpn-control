@@ -441,3 +441,17 @@ class TestPhysicsCitations:
         A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
         ctrl = HInfinityController(A, B1, B2, C1, C2)
         assert ctrl.gamma < HInfinityController._GAMMA_SEARCH_MAX
+
+
+def test_stability_margin_zero_for_unstable_closed_loop() -> None:
+    """The eigenvalue margin collapses to zero when the closed loop is unstable.
+
+    Removing the stabilising state feedback leaves the open-loop vertical
+    stability plant, which has a right-half-plane eigenvalue, so the margin is
+    reported as zero rather than a positive ratio.
+    """
+    A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
+    ctrl = HInfinityController(A, B1, B2, C1, C2)
+    ctrl.F = np.zeros_like(ctrl.F)
+    assert ctrl.is_stable is False
+    assert ctrl.stability_margin_db == 0.0
