@@ -379,3 +379,44 @@ def test_manifest_artifact_list_rejects_checksum_mismatch(tmp_path) -> None:
 
     with pytest.raises(RealDataManifestError, match="checksum mismatch"):
         load_real_data_manifest(manifest_path, verify_artifact=True)
+
+
+def test_synthetic_manifest_requires_seed_present() -> None:
+    """A synthetic manifest without a seed is rejected for non-reproducibility."""
+    payload = _synthetic_payload()
+    payload.pop("synthetic_seed")
+
+    with pytest.raises(RealDataManifestError, match="requires synthetic_seed"):
+        validate_real_data_manifest(payload)
+
+
+def test_verify_manifest_artifact_skips_root_escaping_symlink(tmp_path: Path) -> None:
+    """A relative artefact that resolves outside a candidate root is not served.
+
+    The artefact name is a symlink whose target escapes the manifests root; that
+    root is skipped, no in-tree root resolves it to a file, and verification
+    fails closed rather than following the symlink out of the evidence tree.
+    """
+    repo = tmp_path / "repo"
+    manifests_dir = repo / "evidence" / "manifests"
+    manifests_dir.mkdir(parents=True)
+    (repo / "pyproject.toml").write_text("[project]\nname = 'fixture'\n", encoding="utf-8")
+
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    leaked = outside / "leaked.bin"
+    leaked.write_bytes(b"secret")
+    (manifests_dir / "artifact.bin").symlink_to(leaked)
+
+    payload = _real_payload()
+    source = payload["source"]
+    assert isinstance(source, dict)
+    source["kind"] = "local_archive"
+    source["uri"] = "artifact.bin"
+
+    manifest = validate_real_data_manifest(payload)
+    manifest_path = manifests_dir / "m.json"
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    with pytest.raises(RealDataManifestError, match="artifact file not found"):
+        verify_manifest_artifact(manifest, manifest_path=manifest_path)
