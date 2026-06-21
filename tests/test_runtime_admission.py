@@ -8,14 +8,25 @@
 
 from __future__ import annotations
 
+import os
+import resource
 import sys
 import types
+from typing import cast
 
 import pytest
 
+import scpn_control.core.runtime_admission as ra
 from scpn_control.core.runtime_admission import (
     RuntimeAdmissionProbe,
     RuntimeAdmissionRequest,
+    _current_affinity,
+    _format_limit,
+    _limit_to_int,
+    _memlock_limits,
+    _native_runtime_snapshot,
+    _read_governors,
+    _scheduler_policy,
     collect_runtime_probe,
     evaluate_runtime_admission,
     normalise_runtime_admission_policy,
@@ -44,6 +55,14 @@ def _probe(**overrides: object) -> RuntimeAdmissionProbe:
     return RuntimeAdmissionProbe(**values)  # type: ignore[arg-type]
 
 
+def _errors(report: dict[str, object]) -> list[str]:
+    return cast(list[str], report["errors"])
+
+
+def _warnings(report: dict[str, object]) -> list[str]:
+    return cast(list[str], report["warnings"])
+
+
 def test_runtime_admission_require_fails_without_rt_evidence() -> None:
     request = RuntimeAdmissionRequest(
         execution_backend="native",
@@ -59,9 +78,9 @@ def test_runtime_admission_require_fails_without_rt_evidence() -> None:
     report = evaluate_runtime_admission(request, _probe())
 
     assert report["status"] == "fail"
-    assert any("PREEMPT_RT" in error for error in report["errors"])
-    assert any("real-time scheduler" in error for error in report["errors"])
-    assert any("heartbeat" in error for error in report["errors"])
+    assert any("PREEMPT_RT" in error for error in _errors(report))
+    assert any("real-time scheduler" in error for error in _errors(report))
+    assert any("heartbeat" in error for error in _errors(report))
     assert report["production_claim_allowed"] is False
 
 
@@ -99,8 +118,8 @@ def test_runtime_admission_rejects_duplicate_or_unavailable_cores() -> None:
     report = evaluate_runtime_admission(request, _probe())
 
     assert report["status"] == "fail"
-    assert any("distinct" in error for error in report["errors"])
-    assert any("outside current process affinity" in error for error in report["errors"])
+    assert any("distinct" in error for error in _errors(report))
+    assert any("outside current process affinity" in error for error in _errors(report))
 
 
 def test_runtime_admission_policy_normalisation_and_skip_record() -> None:
@@ -147,3 +166,124 @@ def test_runtime_probe_binds_native_snapshot_when_extension_exposes_it(monkeypat
     assert probe.native_snapshot is not None
     assert probe.native_snapshot["schema_version"] == "scpn-control.runtime-admission-native.v1"
     assert probe.native_snapshot["requested_cores"] == [4, 5, 6, 7]
+
+
+class TestEvaluateRuntimeAdmissionBranches:
+    def test_non_linux_probe_is_rejected(self) -> None:
+        report = evaluate_runtime_admission(RuntimeAdmissionRequest(), _probe(is_linux=False))
+        assert any("requires Linux" in error for error in _errors(report))
+
+    def test_negative_core_is_rejected(self) -> None:
+        request = RuntimeAdmissionRequest(core_snn=-1)
+        report = evaluate_runtime_admission(request, _probe(affinity=(-1, 2, 3, 4)))
+        assert any("non-negative" in error for error in _errors(report))
+
+    def test_spin_pacing_requires_small_tick_interval(self) -> None:
+        request = RuntimeAdmissionRequest(
+            pacing_mode="spin", execution_backend="native", native_backend_available=True, tick_interval_s=0.02
+        )
+        report = evaluate_runtime_admission(request, _probe())
+        assert any("tick_interval_s <= 0.01" in error for error in _errors(report))
+
+    def test_spin_pacing_rejects_python_backend(self) -> None:
+        request = RuntimeAdmissionRequest(
+            pacing_mode="spin", execution_backend="python", native_backend_available=True, tick_interval_s=0.005
+        )
+        report = evaluate_runtime_admission(request, _probe())
+        assert any("native execution backend" in error for error in _errors(report))
+
+    def test_spin_pacing_requires_native_bridge(self) -> None:
+        request = RuntimeAdmissionRequest(
+            pacing_mode="spin", execution_backend="native", native_backend_available=False, tick_interval_s=0.005
+        )
+        report = evaluate_runtime_admission(request, _probe())
+        assert any("native PyO3 controller bridge" in error for error in _errors(report))
+
+    def test_io_uring_transport_is_linux_only(self) -> None:
+        request = RuntimeAdmissionRequest(transport_backend="io_uring")
+        report = evaluate_runtime_admission(request, _probe(is_linux=False))
+        assert any("io-uring transport is Linux-only" in error for error in _errors(report))
+
+    def test_spin_pacing_warns_without_rt_kernel_and_scheduler(self) -> None:
+        request = RuntimeAdmissionRequest(
+            pacing_mode="spin",
+            execution_backend="native",
+            native_backend_available=True,
+            tick_interval_s=0.005,
+            require_preempt_rt=False,
+            require_realtime_scheduler=False,
+        )
+        report = evaluate_runtime_admission(request, _probe(preempt_rt=False, scheduler_policy="SCHED_OTHER"))
+        warnings = _warnings(report)
+        assert any("PREEMPT_RT" in warning for warning in warnings)
+        assert any("SCHED_FIFO/SCHED_RR" in warning for warning in warnings)
+
+    def test_unknown_governor_emits_warning(self) -> None:
+        probe = _probe(governors={1: None, 2: None, 3: None, 4: None})
+        report = evaluate_runtime_admission(RuntimeAdmissionRequest(), probe)
+        assert any("CPU governor unavailable" in warning for warning in _warnings(report))
+
+
+class TestRuntimeProbeHelpers:
+    def test_current_affinity_falls_back_when_getaffinity_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(_pid: int) -> set[int]:
+            raise OSError("affinity unavailable")
+
+        monkeypatch.setattr(os, "sched_getaffinity", _raise, raising=False)
+        affinity = _current_affinity()
+        assert affinity == tuple(range(os.cpu_count() or 1))
+
+    def test_read_governors_returns_none_for_unreadable_core(self) -> None:
+        governors = _read_governors([10_000_000])
+        assert governors == {10_000_000: None}
+
+    def test_scheduler_policy_unknown_without_getscheduler(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delattr(os, "sched_getscheduler", raising=False)
+        assert _scheduler_policy() == ("unknown", None)
+
+    def test_scheduler_policy_unknown_on_oserror(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(_pid: int) -> int:
+            raise OSError("no scheduler")
+
+        monkeypatch.setattr(os, "sched_getscheduler", _raise, raising=False)
+        assert _scheduler_policy() == ("unknown", None)
+
+    def test_scheduler_policy_priority_none_on_param_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(_pid: int) -> object:
+            raise OSError("no param")
+
+        monkeypatch.setattr(os, "sched_getparam", _raise, raising=False)
+        _label, priority = _scheduler_policy()
+        assert priority is None
+
+    def test_memlock_limits_unknown_without_resource_module(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(ra, "_resource", None)
+        assert _memlock_limits() == ("unknown", "unknown")
+
+    def test_memlock_limits_unknown_on_getrlimit_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        def _raise(_which: int) -> tuple[int, int]:
+            raise OSError("rlimit unavailable")
+
+        monkeypatch.setattr(resource, "getrlimit", _raise)
+        assert _memlock_limits() == ("unknown", "unknown")
+
+    def test_format_limit_reports_unlimited_for_infinity(self) -> None:
+        assert _format_limit(resource.RLIM_INFINITY) == "unlimited"
+
+    def test_limit_to_int_returns_none_for_unknown_string(self) -> None:
+        assert _limit_to_int("unknown") is None
+
+    def test_native_runtime_snapshot_none_when_extension_missing(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fake = types.ModuleType("scpn_control_rs")
+        monkeypatch.setitem(sys.modules, "scpn_control_rs", fake)
+        assert _native_runtime_snapshot(RuntimeAdmissionRequest()) is None
+
+    def test_native_runtime_snapshot_none_when_snapshot_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fake = types.ModuleType("scpn_control_rs")
+
+        def _raise(*_args: object, **_kwargs: object) -> object:
+            raise RuntimeError("native snapshot failed")
+
+        fake.runtime_admission_snapshot = _raise  # type: ignore[attr-defined]
+        monkeypatch.setitem(sys.modules, "scpn_control_rs", fake)
+        assert _native_runtime_snapshot(RuntimeAdmissionRequest()) is None

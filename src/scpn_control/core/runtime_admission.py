@@ -27,7 +27,7 @@ from pathlib import Path
 
 if sys.platform != "win32":
     import resource as _resource
-else:
+else:  # pragma: no cover - win32-only fallback; CI and dev hosts are Linux
     _resource = None  # type: ignore[assignment]
 
 RUNTIME_ADMISSION_SCHEMA_VERSION = "scpn-control.runtime-admission.v1"
