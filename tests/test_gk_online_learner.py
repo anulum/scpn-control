@@ -10,6 +10,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from numpy.typing import NDArray
+
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner, RetrainDecision
 
 
@@ -210,6 +212,15 @@ def test_add_sample_rejects_ood_score_above_admission_threshold():
         learner.add_sample(np.zeros(10), np.ones(3), ood_score=1.1)
 
 
+def test_add_sample_rejects_blank_source() -> None:
+    """An empty or whitespace-only provenance label is rejected."""
+    learner = OnlineLearner()
+    with pytest.raises(ValueError, match="source must be a non-empty string"):
+        learner.add_sample(np.zeros(10), np.ones(3), source="")
+    with pytest.raises(ValueError, match="source must be a non-empty string"):
+        learner.add_sample(np.zeros(10), np.ones(3), source="   ")
+
+
 def test_add_sample_records_source_and_ood_score():
     learner = OnlineLearner(config=LearnerConfig(max_ood_score=1.0))
     learner.add_sample(np.zeros(10), np.ones(3), ood_score=0.5, source="immutable_gk_campaign")
@@ -242,6 +253,46 @@ def test_try_retrain_rejects_invalid_current_weights_shape():
     }
     with pytest.raises(ValueError, match="current_weights\\['w1'\\] must have shape"):
         learner.try_retrain(current_weights=bad_weights)
+
+
+def _full_valid_weights() -> dict[str, NDArray[np.float64]]:
+    """A complete, correctly-shaped MLP weight snapshot."""
+    return {
+        "w1": np.zeros((10, 64)),
+        "b1": np.zeros(64),
+        "w2": np.zeros((64, 32)),
+        "b2": np.zeros(32),
+        "w3": np.zeros((32, 3)),
+        "b3": np.zeros(3),
+    }
+
+
+@pytest.mark.parametrize(
+    ("key", "bad_shape", "match"),
+    (
+        ("b1", (63,), r"current_weights\['b1'\] must have shape"),
+        ("w2", (64, 31), r"current_weights\['w2'\] must have shape"),
+        ("b2", (31,), r"current_weights\['b2'\] must have shape"),
+        ("w3", (31, 3), r"current_weights\['w3'\] must have shape"),
+        ("b3", (2,), r"current_weights\['b3'\] must have shape"),
+    ),
+)
+def test_try_retrain_rejects_each_weight_shape_individually(key: str, bad_shape: tuple[int, ...], match: str) -> None:
+    """Every per-array shape guard rejects independently, not only the first one."""
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(5, rng):
+        learner.add_sample(inp, tgt)
+    weights = _full_valid_weights()
+    weights[key] = np.zeros(bad_shape)
+    with pytest.raises(ValueError, match=match):
+        learner.try_retrain(current_weights=weights)
+
+
+def test_latest_decision_is_none_without_history() -> None:
+    """A fresh learner that never retrained exposes no decision."""
+    learner = OnlineLearner()
+    assert learner.latest_decision() is None
 
 
 def test_try_retrain_rejects_nonfinite_current_weights():
