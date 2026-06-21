@@ -207,6 +207,56 @@ def test_suppression_zero_epar():
     assert RunawayMitigationAssessment.required_density_for_suppression(E_par=-1.0, Z_eff=1.0) == 0.0
 
 
+def test_finite_float_rejects_non_numeric_input() -> None:
+    """A value that cannot be cast to float is reported as non-finite, not crashed."""
+    with pytest.raises(ValueError, match="ne_20 must be finite"):
+        coulomb_log("not-a-number", Te_keV=1.0)  # type: ignore[arg-type]
+
+
+def test_dreicer_rate_zero_for_negligible_field_ratio() -> None:
+    """A field far below the Dreicer field yields no seed generation (E_par/E_D < 1e-4)."""
+    from scpn_control.core.runaway_electrons import dreicer_field
+
+    ne_20, Te_keV = 1.0, 1.0
+    E_D = dreicer_field(ne_20, Te_keV)
+    tiny_field = E_D * 1e-6  # positive, but far below the Dreicer threshold
+    params = RunawayParams(ne_20=ne_20, Te_keV=Te_keV, E_par=tiny_field, Z_eff=1.5, B0=5.3, R0=6.2)
+    assert dreicer_generation_rate(params) == 0.0
+
+
+def test_maximum_re_energy_orbit_bound_when_synchrotron_inactive() -> None:
+    """When E_par <= E_c the synchrotron limit is inactive and the orbit-loss bound governs."""
+    mit = RunawayMitigationAssessment()
+    E_c = critical_field(ne_20=10.0, Te_keV=1.0)
+    # E_par well below E_c forces synchrotron_energy_limit -> 0.0, taking the orbit branch.
+    E_max = mit.maximum_re_energy(B0=5.3, R0=6.2, E_par=E_c * 1e-3, ne_20=10.0, Te_keV=1.0)
+    assert E_max > 0.0
+
+
+def test_finite_float_rejects_nan_input() -> None:
+    """A NaN that casts cleanly to float is still rejected by the finiteness guard."""
+    with pytest.raises(ValueError, match="ne_20 must be finite"):
+        coulomb_log(float("nan"), Te_keV=1.0)
+
+
+def test_nonnegative_float_rejects_negative_density() -> None:
+    """A negative runaway density is rejected by the non-negativity guard."""
+    params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=10.0, Z_eff=1.5, B0=5.3, R0=6.2)
+    with pytest.raises(ValueError, match="n_RE must be non-negative"):
+        avalanche_growth_rate(params, n_RE=-1.0)
+
+
+def test_dreicer_rate_zero_when_exponent_underflows() -> None:
+    """A field above the ratio floor but with a deeply negative exponent yields no seed."""
+    from scpn_control.core.runaway_electrons import dreicer_field
+
+    ne_20, Te_keV, Z_eff = 1.0, 1.0, 1.5
+    E_D = dreicer_field(ne_20, Te_keV)
+    # E_par/E_D = 5e-4 clears the 1e-4 ratio gate but drives the exponent below -500.
+    params = RunawayParams(ne_20=ne_20, Te_keV=Te_keV, E_par=E_D * 5e-4, Z_eff=Z_eff, B0=5.3, R0=6.2)
+    assert dreicer_generation_rate(params) == 0.0
+
+
 def test_runaway_electron_domains_reject_nonphysical_plasma_inputs():
     with pytest.raises(ValueError, match="ne_20"):
         coulomb_log(0.0, Te_keV=1.0)

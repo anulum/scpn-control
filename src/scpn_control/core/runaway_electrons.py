@@ -227,8 +227,10 @@ def avalanche_growth_rate(params: RunawayParams, n_RE: float) -> float:
     # Pitch-angle scattering correction factor F — R&P (1997), Eq. 15
     F = 1.0 - 1.0 / E_over_Ec + 4.0 * np.pi * (Z + 1.0) ** 2 / (3.0 * (Z + 1.0) * E_over_Ec**2)
 
-    # Guard: F <= 0 means the formula is outside its validity domain
-    if F <= 0.0:
+    # Guard: F <= 0 means the formula is outside its validity domain. With
+    # E_par > E_c enforced above, E_over_Ec > 1, so 1 - 1/E_over_Ec > 0 and the
+    # remaining term is positive — F is strictly positive and this never fires.
+    if F <= 0.0:  # pragma: no cover
         return 0.0
 
     rate = n_RE * (E_over_Ec - 1.0) / (tau_s * ln_lambda * np.sqrt(F))
