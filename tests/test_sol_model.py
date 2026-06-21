@@ -174,3 +174,9 @@ def test_two_point_sol_rejects_nonphysical_geometry_and_solve_inputs():
         sol.solve(P_SOL_MW=-1.0, n_u_19=4.0)
     with pytest.raises(ValueError, match="f_rad"):
         sol.solve(P_SOL_MW=100.0, n_u_19=4.0, f_rad=1.0)
+
+
+def test_peak_target_heat_flux_rejects_negative_power() -> None:
+    """A negative scrape-off-layer power is rejected by the non-negativity guard."""
+    with pytest.raises(ValueError, match="P_SOL_MW must be non-negative"):
+        peak_target_heat_flux(P_SOL_MW=-1.0, R0=6.2, lambda_q_m=0.001)

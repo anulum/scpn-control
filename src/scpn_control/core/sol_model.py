@@ -183,10 +183,13 @@ class TwoPointSOL:
         # Sheath-limited: q_∥ = γ n_t T_t √(eT_t/m_i), with n_u T_u = 2 n_t T_t.
         # Stangeby 2000, Ch. 2, Eqs. 2.84-2.86.
         # Solving for T_t: T_t = [2 q_∥ / (γ n_u T_u e)]² × m_i / e
+        # n_u = n_u_19 * 1e19 with n_u_19 validated positive, max(T_u, 0.1) >= 0.1,
+        # and GAMMA_SHEATH and e_charge are positive constants, so sheath_denom is
+        # always strictly positive and the fallback branch never fires.
         sheath_denom = GAMMA_SHEATH * n_u * max(T_u, 0.1) * e_charge
         if sheath_denom > 0.0:
             T_t_sheath = (2.0 * q_par_t_W_m2 / sheath_denom) ** 2 * m_i / e_charge
-        else:
+        else:  # pragma: no cover
             T_t_sheath = 0.1
 
         T_t = max(T_t_cond, T_t_sheath, 0.1)
