@@ -283,6 +283,19 @@ class TestUQClaimEvidence:
     def test_uq_claim_evidence_rejects_invalid_claim_inputs(self):
         result = quantify_uncertainty(ITER_SCENARIO, n_samples=32, seed=5)
 
+        with pytest.raises(ValueError, match="source must be a non-empty string"):
+            uq_claim_evidence(
+                ITER_SCENARIO,
+                result,
+                source="   ",
+                source_id="blank-source",
+                scenario_source="documented scenario",
+                prior_source="documented priors",
+                propagation_chain="documented chain",
+                sensitivity_source="documented sensitivities",
+                seed=5,
+            )
+
         with pytest.raises(ValueError, match="source must be one of"):
             uq_claim_evidence(
                 ITER_SCENARIO,
@@ -338,3 +351,17 @@ class TestUQClaimEvidence:
                 sensitivity_source="documented sensitivities",
                 seed=True,
             )
+
+
+def test_validate_scenario_rejects_nonfinite_required_field() -> None:
+    """A non-finite required scenario parameter fails the finiteness guard."""
+    bad = PlasmaScenario(**{**ITER_SCENARIO.__dict__, "I_p": np.inf})
+    with pytest.raises(ValueError, match="I_p must be finite"):
+        ipb98_tau_e(bad)
+
+
+def test_bosch_hale_reactivity_accepts_zero_dimensional_array() -> None:
+    """A 0-d temperature array is reshaped to 1-d before evaluation."""
+    reactivity = bosch_hale_reactivity(np.array(10.0))
+    value = float(np.asarray(reactivity).reshape(-1)[0])
+    assert value > 0.0

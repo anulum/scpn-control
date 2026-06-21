@@ -432,9 +432,9 @@ def fusion_power_from_tau(scenario: PlasmaScenario, tau_E: float) -> float:
     f_D = scenario.f_D
     f_T = scenario.f_T
     fuel_ion_fraction = scenario.fuel_ion_fraction
+    # _validate_scenario already enforces f_D + f_T > 0, so norm is strictly
+    # positive here and normalisation is always well defined.
     norm = f_D + f_T
-    if norm <= 0.0:
-        return 0.0
     f_D /= norm
     f_T /= norm
     n_fuel = fuel_ion_fraction * n_m3
