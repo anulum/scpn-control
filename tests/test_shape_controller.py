@@ -105,3 +105,19 @@ def test_shape_gap_positive():
     # All gap targets are 0.1 m; with zero gap error, min_gap = min(gap_targets) = 0.1
     assert res.min_gap > 0.0
     assert res.min_gap == pytest.approx(min(target.gap_targets))
+
+
+def test_shape_jacobian_update_is_noop_for_static_jacobian() -> None:
+    """The static test Jacobian ignores a state refresh.
+
+    ``ShapeJacobian.update`` is a documented no-op for the analytic test Jacobian;
+    a Grad-Shafranov-backed implementation would re-derive the columns, so after an
+    update the Jacobian must be unchanged.
+    """
+    target = iter_lower_single_null_target()
+    coils = CoilSet(n_coils=10)
+    ctrl = PlasmaShapeController(target, coils, kernel=None)
+    before = ctrl.jacobian.compute().copy()
+    ctrl.jacobian.update({"Ip": 1.0e6})
+    after = ctrl.jacobian.compute()
+    np.testing.assert_array_equal(before, after)
