@@ -149,3 +149,17 @@ class TestEvidenceWrappers:
         path.write_text(payload, encoding="utf-8")
         with pytest.raises(ValueError):
             load_geometry_neutral_replay_evidence(path)
+
+
+def test_package_dir_includes_lazy_public_exports() -> None:
+    """``dir(scpn_control)`` merges the module globals with the lazy ``__all__``.
+
+    The package exposes public names lazily, so ``__dir__`` must union the live
+    globals with the declared ``__all__`` to surface every public export to
+    interactive tools.
+    """
+    import scpn_control
+
+    listed = scpn_control.__dir__()
+    assert set(scpn_control.__all__).issubset(set(listed))
+    assert listed == sorted(set(listed))

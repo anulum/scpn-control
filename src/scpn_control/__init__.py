@@ -16,7 +16,7 @@ from typing import Any
 
 try:
     __version__ = version("scpn-control")
-except PackageNotFoundError:
+except PackageNotFoundError:  # pragma: no cover - only when run from an uninstalled source tree
     __version__ = "0.0.0.dev"
 
 __all__ = [
