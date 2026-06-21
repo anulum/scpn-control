@@ -25,9 +25,11 @@ import numpy as np
 import pytest
 
 from scpn_control.core.jax_gs_solver import (
+    _compute_source_np,
     gs_solve_np,
     has_jax,
     jax_gs_solve,
+    jax_gs_solve_from_grid,
 )
 
 jax_available = has_jax()
@@ -48,6 +50,22 @@ class TestGsSolveNumpy:
     def test_returns_correct_shape(self):
         psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
         assert psi.shape == (NZ, NR)
+
+    def test_source_term_regularises_degenerate_flux_normalisation(self) -> None:
+        """A flat (zero-axis) flux makes ψ_bdry − ψ_axis vanish; the source clamps it.
+
+        ``_compute_source_np`` normalises ψ by ``ψ_bdry − ψ_axis``; when the
+        interior flux is identically zero that denominator is zero, so the solver
+        floors it to ``1e-9`` to keep the normalised profile finite rather than
+        dividing by zero.
+        """
+        n = 5
+        psi = np.zeros((n, n))
+        r_axis = np.linspace(R_MIN, R_MAX, n)
+        r_grid = np.tile(r_axis, (n, 1))
+        source = _compute_source_np(psi, r_grid, MU0, IP_TARGET, beta_mix=0.5, dR=0.1, dZ=0.1)
+        assert source.shape == (n, n)
+        assert np.all(np.isfinite(source))
 
     def test_boundary_zero(self):
         psi = gs_solve_np(R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI)
@@ -163,6 +181,28 @@ class TestGsSolveJAX:
             R_MIN, R_MAX, Z_MIN, Z_MAX, NR, NZ, IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI, use_jax=True
         )
         assert psi.shape == (NZ, NR)
+
+    def test_jax_solve_from_grid_returns_finite_shaped_flux(self) -> None:
+        """The grid-level JAX entry point solves on a pre-built mesh.
+
+        ``jax_gs_solve_from_grid`` is the differentiable solver that takes an
+        already-assembled ``(NZ, NR)`` major-radius mesh and boundary-applied
+        initial flux instead of constructing the grid internally; it returns a
+        finite flux of the same shape.
+        """
+        r_axis = np.linspace(R_MIN, R_MAX, NR)
+        z_axis = np.linspace(Z_MIN, Z_MAX, NZ)
+        r_grid, _ = np.meshgrid(r_axis, z_axis)
+        psi_init = np.zeros((NZ, NR))
+        d_r = (R_MAX - R_MIN) / (NR - 1)
+        d_z = (Z_MAX - Z_MIN) / (NZ - 1)
+
+        psi = jax_gs_solve_from_grid(
+            r_grid, psi_init, d_r, d_z, Ip_target=IP_TARGET, n_picard=N_PICARD, n_jacobi=N_JACOBI
+        )
+
+        assert psi.shape == (NZ, NR)
+        assert np.all(np.isfinite(psi))
 
     def test_jax_boundary_zero(self):
         psi = jax_gs_solve(
