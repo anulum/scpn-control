@@ -27,7 +27,9 @@ from scpn_control.core.kinetic_efit import (
 
 
 def reference_diagnostics() -> MagneticDiagnostics:
-    return MagneticDiagnostics([(2.0, 1.0)], [(2.0, 1.0, "R")], rogowski_radius=3.0)
+    # Sensors inside the kinetic-EFIT reconstruction grid (R in [4, 8], Z in [-3, 3])
+    # so the real magnetic least-squares inverse can sample them.
+    return MagneticDiagnostics([(6.0, 1.0)], [(6.0, 1.0, "R")], rogowski_radius=6.0)
 
 
 def reference_kin_constraints() -> KineticConstraints:

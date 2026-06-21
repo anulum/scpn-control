@@ -34,9 +34,27 @@ from scpn_control.control.realtime_efit import (
 
 
 def create_mock_diagnostics() -> MagneticDiagnostics:
-    flux_loops = [(2.0, 1.0), (3.0, 1.5), (4.0, 1.0)]
-    b_probes = [(2.0, 1.0, "R"), (2.0, 1.0, "Z"), (4.0, 1.0, "R")]
-    return MagneticDiagnostics(flux_loops, b_probes, rogowski_radius=3.0)
+    # Sensor locations sit inside the reconstruction grids used below
+    # (R in [4.2, 8.2], Z in [-3, 3]) so the real inverse can sample them.
+    flux_loops = [(5.0, 1.0), (6.2, 1.5), (7.4, 1.0)]
+    b_probes = [(5.0, 1.0, "R"), (5.0, 1.0, "Z"), (7.4, 1.0, "R")]
+    return MagneticDiagnostics(flux_loops, b_probes, rogowski_radius=6.2)
+
+
+def _closure_case(
+    efit: RealtimeEFIT,
+    p_true: tuple[float, ...] = (2.0, -1.5, 0.4),
+    ff_true: tuple[float, ...] = (1.0, -0.6, 0.1),
+) -> tuple[dict[str, np.ndarray], np.ndarray, float]:
+    """Self-consistent diagnostics from a known equilibrium for closure-style tests.
+
+    Returns the synthetic ``measurements`` dict, the ground-truth flux map, and the
+    ground-truth plasma current derived from the same forward model.
+    """
+    psi_true = efit._solve_gs_with_sources(np.array(p_true[: efit.n_p_modes]), np.array(ff_true[: efit.n_ff_modes]))
+    meas = efit.response.simulate_measurements(psi_true, np.zeros(1))
+    ip_true = float(efit._diagnostic_vector(psi_true)[-1])
+    return meas, psi_true, ip_true
 
 
 def _solovev_efit_and_result() -> tuple[RealtimeEFIT, ReconstructionResult]:
@@ -44,9 +62,8 @@ def _solovev_efit_and_result() -> tuple[RealtimeEFIT, ReconstructionResult]:
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
     efit = RealtimeEFIT(diag, R, Z)
-    res = efit.reconstruct(
-        {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
-    )
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    res = efit.reconstruct(meas, mode="geometric")
     return efit, res
 
 
@@ -98,14 +115,17 @@ def test_reconstruction_solovev():
 
     efit = RealtimeEFIT(diag, R, Z)
 
-    meas = {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
+    meas, psi_true, ip_true = _closure_case(efit)
+    res = efit.reconstruct(meas, mode="geometric")
 
-    res = efit.reconstruct(meas)
-
-    # Check shape params
+    # Geometric macroscopic descriptors (mean major radius / half-width).
     assert np.isclose(res.shape.R0, 6.2)
     assert np.isclose(res.shape.a, 2.0)
-    assert res.shape.Ip_reconstructed == 15.0e6
+    # Real least-squares inverse recovers the flux map and Ip (no force-hack) with
+    # a near-zero weighted chi-squared on self-consistent diagnostics.
+    assert np.linalg.norm(res.psi - psi_true) / np.linalg.norm(psi_true) < 1.0e-4
+    assert res.chi_squared < 1.0e-3
+    assert res.shape.Ip_reconstructed == pytest.approx(ip_true, rel=1.0e-3)
     # CI variance across OS/VM classes can exceed 100 ms while preserving the
     # same reconstructed physics result.
     assert res.wall_time_ms < 150.0
@@ -117,8 +137,8 @@ def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path):
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
     efit = RealtimeEFIT(diag, R, Z)
-    meas = {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
-    res = efit.reconstruct(meas)
+    meas, _psi_true, ip_true = _closure_case(efit)
+    res = efit.reconstruct(meas, mode="geometric")
 
     evidence = efit_lite_claim_evidence(
         res,
@@ -135,7 +155,7 @@ def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path):
     assert evidence.grid_shape == res.psi.shape
     assert evidence.n_flux_loops == len(diag.flux_loops)
     assert evidence.n_b_probes == len(diag.b_probes)
-    assert evidence.ip_reconstructed_A == pytest.approx(15.0e6)
+    assert evidence.ip_reconstructed_A == pytest.approx(ip_true, rel=1.0e-3)
     assert evidence.psi_relative_error is None
     assert evidence.facility_claim_allowed is False
     assert evidence.claim_status.startswith("bounded synthetic EFIT-lite regression evidence")
@@ -148,8 +168,8 @@ def test_efit_lite_facility_admission_requires_matched_reference():
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
     efit = RealtimeEFIT(diag, R, Z)
-    meas = {"flux_loops": np.zeros(3), "b_probes": np.zeros(3), "Ip": 15.0e6, "coil_currents": np.zeros(5)}
-    res = efit.reconstruct(meas)
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    res = efit.reconstruct(meas, mode="geometric")
     reference_shape = ShapeParams(
         R0=res.shape.R0,
         a=res.shape.a,
@@ -475,12 +495,17 @@ def test_gs_solver_rejects_non_uniform_spacing():
         efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
 
 
-def test_gs_solver_raises_when_solve_produces_non_finite_flux(monkeypatch):
-    import scipy.sparse.linalg
-
+def test_gs_solver_raises_when_solve_produces_non_finite_flux():
     diag = create_mock_diagnostics()
     efit = RealtimeEFIT(diag, np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
-    monkeypatch.setattr(scipy.sparse.linalg, "spsolve", lambda *_a, **_k: np.array([np.nan, np.nan]))
+
+    class _NanLU:
+        def solve(self, rhs: np.ndarray) -> np.ndarray:
+            return np.full_like(np.asarray(rhs, dtype=float), np.nan)
+
+    # Inject a factorisation that returns a non-finite interior solution.
+    efit._gs_lu = _NanLU()
+    efit._gs_inner_shape = (efit.nR - 2, efit.nZ - 2)
     with pytest.raises(RuntimeError, match="non-finite flux"):
         efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
 
@@ -506,3 +531,104 @@ def test_find_lcfs_returns_empty_for_non_positive_flux():
     efit, _res = _solovev_efit_and_result()
     lcfs = efit.find_lcfs(np.zeros((efit.nR, efit.nZ)))
     assert lcfs.shape == (0, 2)
+
+
+# ── Real least-squares inverse: closure, noise, regularisation, guards ────────
+
+
+def _efit_33() -> RealtimeEFIT:
+    return RealtimeEFIT(create_mock_diagnostics(), np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
+
+
+def test_reconstruct_psi_n_closure_recovers_flux_and_iterates():
+    efit = _efit_33()
+    p_true = np.array([2.0, -1.5, 0.4])
+    ff_true = np.array([1.0, -0.6, 0.1])
+    x = efit._geometric_rho()[0]
+    psi = np.zeros((efit.nR, efit.nZ))
+    for _ in range(40):
+        srcs = efit._basis_sources(x)
+        src = sum(p_true[k] * srcs[k] for k in range(3)) + sum(ff_true[k] * srcs[3 + k] for k in range(3))
+        psi = efit._solve_source(src)
+        x = efit._normalized_flux(psi)
+    meas = efit.response.simulate_measurements(psi, np.zeros(1))
+
+    res = efit.reconstruct(meas, mode="psi_n")
+
+    assert np.linalg.norm(res.psi - psi) / np.linalg.norm(psi) < 1.0e-3
+    assert res.chi_squared < 1.0e-3
+    assert res.n_iterations > 1  # the Picard loop actually iterated
+
+
+def test_reconstruct_recovers_ip_under_measurement_noise():
+    efit = _efit_33()
+    meas, _psi_true, ip_true = _closure_case(efit)
+    rng = np.random.default_rng(0)
+    noisy = {
+        "flux_loops": meas["flux_loops"] * (1.0 + 0.01 * rng.standard_normal(meas["flux_loops"].shape)),
+        "b_probes": meas["b_probes"] * (1.0 + 0.01 * rng.standard_normal(meas["b_probes"].shape)),
+        "Ip": float(meas["Ip"]) * (1.0 + 0.01 * float(rng.standard_normal())),
+    }
+    res = efit.reconstruct(noisy, mode="geometric")
+    assert res.shape.Ip_reconstructed == pytest.approx(ip_true, rel=0.05)
+
+
+def test_reconstruct_regularisation_shrinks_coefficients():
+    efit = _efit_33()
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    weak = efit.reconstruct(meas, mode="geometric", regularization=1.0e-12)
+    strong = efit.reconstruct(meas, mode="geometric", regularization=1.0e3)
+    weak_norm = float(np.linalg.norm(np.r_[weak.p_prime_coeffs, weak.ff_prime_coeffs]))
+    strong_norm = float(np.linalg.norm(np.r_[strong.p_prime_coeffs, strong.ff_prime_coeffs]))
+    assert strong_norm <= weak_norm + 1.0e-9
+
+
+def test_reconstruct_rejects_invalid_mode():
+    efit = _efit_33()
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    with pytest.raises(ValueError, match="mode must be"):
+        efit.reconstruct(meas, mode="bad")
+
+
+def test_reconstruct_rejects_nonpositive_max_iter():
+    efit = _efit_33()
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    with pytest.raises(ValueError, match="max_iter"):
+        efit.reconstruct(meas, max_iter=0)
+
+
+def test_measurement_vector_pads_empty_groups():
+    efit = _efit_33()
+    d = efit._measurement_vector({"flux_loops": [], "b_probes": [], "Ip": 1.0e6})
+    assert d.shape[0] == len(efit.diagnostics.flux_loops) + len(efit.diagnostics.b_probes) + 1
+    assert d[-1] == 1.0e6
+
+
+def test_measurement_vector_rejects_wrong_length():
+    efit = _efit_33()
+    with pytest.raises(ValueError, match="flux_loops measurement length"):
+        efit._measurement_vector({"flux_loops": np.zeros(99)})
+    with pytest.raises(ValueError, match="b_probes measurement length"):
+        efit._measurement_vector({"b_probes": np.zeros(99)})
+
+
+def test_solve_source_rejects_shape_mismatch():
+    efit = _efit_33()
+    with pytest.raises(ValueError, match="source shape"):
+        efit._solve_source(np.zeros((2, 2)))
+
+
+def test_gs_factorization_rejects_bad_grid():
+    diag = create_mock_diagnostics()
+    with pytest.raises(ValueError, match="three R and Z"):
+        RealtimeEFIT(diag, np.array([1.0, 2.0]), np.linspace(-1.0, 1.0, 3))._gs_factorization()
+    with pytest.raises(ValueError, match="uniform R/Z"):
+        RealtimeEFIT(diag, np.array([1.0, 2.0, 4.0]), np.linspace(-1.0, 1.0, 3))._gs_factorization()
+
+
+def test_diagnostic_weights_handles_missing_probe_group():
+    diag = MagneticDiagnostics([(6.0, 0.0), (6.0, 1.0)], [], rogowski_radius=6.0)
+    efit = RealtimeEFIT(diag, np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
+    weights = efit._diagnostic_weights(np.array([0.1, 0.2, 1.0e6]), 2.0e-2)
+    assert weights.shape == (3,)
+    assert np.all(np.isfinite(weights))

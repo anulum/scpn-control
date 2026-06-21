@@ -13,6 +13,7 @@ import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import numpy.typing as npt
@@ -370,20 +371,39 @@ class RealtimeEFIT:
 
         self.response = DiagnosticResponse(diagnostics, R_grid, Z_grid)
 
-    def _solve_gs_with_sources(self, p_coeffs: AnyFloatArray, ff_coeffs: AnyFloatArray) -> AnyFloatArray:
-        """Solve fixed-boundary Grad-Shafranov with polynomial source profiles."""
+        # Cached Delta* interior operator factorisation. For a fixed-boundary
+        # uniform grid the operator is geometry-only (independent of the source),
+        # so the LU factorisation is reused across every basis/Picard solve.
+        self._gs_lu: Any = None
+        self._gs_inner_shape: tuple[int, int] | None = None
+
+    def _geometric_rho(self) -> tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray]:
+        """Geometric normalised minor radius rho in [0, 1] plus the (R, Z) meshes."""
+        r_steps = np.diff(self.R)
+        z_steps = np.diff(self.Z)
+        if self.nR < 3 or self.nZ < 3:
+            raise ValueError("EFIT grid must contain at least three R and Z points")
+        if not np.allclose(r_steps, r_steps[0]) or not np.allclose(z_steps, z_steps[0]):
+            raise ValueError("fixed-boundary GS solve requires uniform R/Z spacing")
+        rr, zz = np.meshgrid(self.R, self.Z, indexing="ij")
+        r_axis = float(np.mean(self.R))
+        minor_radius = max(float(0.5 * (self.R[-1] - self.R[0])), 1e-12)
+        vertical_radius = max(float(0.5 * (self.Z[-1] - self.Z[0])), 1e-12)
+        rho = np.clip(np.sqrt(((rr - r_axis) / minor_radius) ** 2 + (zz / vertical_radius) ** 2), 0.0, 1.0)
+        return rho, rr, zz
+
+    def _gs_factorization(self) -> tuple[Any, tuple[int, int]]:
+        """Build and cache the fixed-boundary Delta* interior operator LU.
+
+        The five-point Delta* discretisation depends only on the grid geometry, so
+        the LU factorisation is built once and reused for every basis and Picard
+        solve — the property that makes the EFIT response-matrix assembly fast.
+        """
+        if self._gs_lu is not None and self._gs_inner_shape is not None:
+            return self._gs_lu, self._gs_inner_shape
 
         from scipy.sparse import lil_matrix
-        from scipy.sparse.linalg import spsolve
-
-        p_arr = np.asarray(p_coeffs, dtype=float)
-        ff_arr = np.asarray(ff_coeffs, dtype=float)
-        if p_arr.ndim != 1 or ff_arr.ndim != 1:
-            raise ValueError("source coefficients must be one-dimensional")
-        if p_arr.size == 0 or ff_arr.size == 0:
-            raise ValueError("source coefficient arrays must be non-empty")
-        if not np.all(np.isfinite(p_arr)) or not np.all(np.isfinite(ff_arr)):
-            raise ValueError("source coefficients must be finite")
+        from scipy.sparse.linalg import splu
 
         r_steps = np.diff(self.R)
         z_steps = np.diff(self.Z)
@@ -394,16 +414,6 @@ class RealtimeEFIT:
 
         dR = float(r_steps[0])
         dZ = float(z_steps[0])
-        rr, zz = np.meshgrid(self.R, self.Z, indexing="ij")
-        R0 = float(np.mean(self.R))
-        minor_radius = max(float(0.5 * (self.R[-1] - self.R[0])), 1e-12)
-        vertical_radius = max(float(0.5 * (self.Z[-1] - self.Z[0])), 1e-12)
-        rho = np.clip(np.sqrt(((rr - R0) / minor_radius) ** 2 + (zz / vertical_radius) ** 2), 0.0, 1.0)
-
-        p_prime = sum(coeff * rho**idx for idx, coeff in enumerate(p_arr))
-        ff_prime = sum(coeff * rho**idx for idx, coeff in enumerate(ff_arr))
-        source = -(MU0 * rr**2 * p_prime + ff_prime)
-
         n_r_inner = self.nR - 2
         n_z_inner = self.nZ - 2
         n_unknown = n_r_inner * n_z_inner
@@ -414,8 +424,6 @@ class RealtimeEFIT:
         inv_dR2 = 1.0 / (dR * dR)
         inv_dZ2 = 1.0 / (dZ * dZ)
         matrix = lil_matrix((n_unknown, n_unknown), dtype=float)
-        rhs = np.empty(n_unknown, dtype=float)
-
         for i in range(1, self.nR - 1):
             r_safe = max(float(self.R[i]), 1e-12)
             coeff_r_plus = inv_dR2 - 1.0 / (2.0 * r_safe * dR)
@@ -431,54 +439,219 @@ class RealtimeEFIT:
                     matrix[row, flat_index(i - 1, j)] = inv_dZ2
                 if j - 1 > 0:
                     matrix[row, flat_index(i - 1, j - 2)] = inv_dZ2
-                rhs[row] = source[i, j]
 
-        interior = spsolve(matrix.tocsr(), rhs)
+        self._gs_lu = splu(matrix.tocsc())
+        self._gs_inner_shape = (n_r_inner, n_z_inner)
+        return self._gs_lu, self._gs_inner_shape
+
+    def _solve_source(self, source: AnyFloatArray) -> AnyFloatArray:
+        """Solve Delta* psi = source on the interior with psi = 0 on the boundary."""
+        source_arr = np.asarray(source, dtype=float)
+        if source_arr.shape != (self.nR, self.nZ):
+            raise ValueError("source shape must match the EFIT R/Z grid")
+        lu, (n_r_inner, n_z_inner) = self._gs_factorization()
+        rhs = source_arr[1:-1, 1:-1].reshape(n_r_inner * n_z_inner)
+        interior = lu.solve(rhs)
         if not np.all(np.isfinite(interior)):
             raise RuntimeError("fixed-boundary GS solve produced non-finite flux")
-
         psi = np.zeros((self.nR, self.nZ), dtype=float)
         psi[1:-1, 1:-1] = interior.reshape((n_r_inner, n_z_inner))
         return psi
 
-    def reconstruct(self, measurements: dict[str, float | AnyFloatArray]) -> ReconstructionResult:
+    def _solve_gs_with_sources(self, p_coeffs: AnyFloatArray, ff_coeffs: AnyFloatArray) -> AnyFloatArray:
+        """Solve fixed-boundary Grad-Shafranov with polynomial source profiles (geometric rho)."""
+        p_arr = np.asarray(p_coeffs, dtype=float)
+        ff_arr = np.asarray(ff_coeffs, dtype=float)
+        if p_arr.ndim != 1 or ff_arr.ndim != 1:
+            raise ValueError("source coefficients must be one-dimensional")
+        if p_arr.size == 0 or ff_arr.size == 0:
+            raise ValueError("source coefficient arrays must be non-empty")
+        if not np.all(np.isfinite(p_arr)) or not np.all(np.isfinite(ff_arr)):
+            raise ValueError("source coefficients must be finite")
+
+        rho, rr, _zz = self._geometric_rho()
+        p_prime = sum(coeff * rho**idx for idx, coeff in enumerate(p_arr))
+        ff_prime = sum(coeff * rho**idx for idx, coeff in enumerate(ff_arr))
+        source = -(MU0 * rr**2 * p_prime + ff_prime)
+        return self._solve_source(source)
+
+    def _normalized_flux(self, psi: AnyFloatArray) -> AnyFloatArray:
+        """Normalised poloidal flux psi_N in [0, 1] (0 at the axis, 1 at the boundary).
+
+        In the fixed-boundary convention psi vanishes on the grid edge and peaks at
+        the magnetic axis, so psi_N = 1 - psi/psi_axis. Falls back to the geometric
+        normalised radius when the flux map is degenerate (no positive peak yet).
         """
-        Main EFIT loop.
+        psi_arr = np.asarray(psi, dtype=float)
+        psi_axis = float(np.max(psi_arr))
+        if psi_axis <= 1e-12:
+            rho, _rr, _zz = self._geometric_rho()
+            return rho
+        return np.clip(1.0 - psi_arr / psi_axis, 0.0, 1.0)
+
+    def _basis_sources(self, x_field: AnyFloatArray) -> list[AnyFloatArray]:
+        """GS source arrays for each polynomial p'(x) and FF'(x) basis term.
+
+        The Grad-Shafranov source ``-(mu0 R^2 p' + FF')`` is linear in the profile
+        coefficients, so each basis term x**k yields one source whose GS response is
+        the column of the EFIT response matrix.
+        """
+        rr = np.meshgrid(self.R, self.Z, indexing="ij")[0]
+        x = np.asarray(x_field, dtype=float)
+        sources = [(-MU0 * rr**2) * x**k for k in range(self.n_p_modes)]
+        sources.extend(-(x**k) for k in range(self.n_ff_modes))
+        return sources
+
+    def _diagnostic_vector(self, psi: AnyFloatArray) -> AnyFloatArray:
+        """Stack the linear magnetic diagnostics [flux loops, B probes, Ip] for a flux map."""
+        resp = self.response.simulate_measurements(psi, np.zeros(1, dtype=float))
+        return np.concatenate(
+            [
+                np.atleast_1d(np.asarray(resp["flux_loops"], dtype=float)),
+                np.atleast_1d(np.asarray(resp["b_probes"], dtype=float)),
+                np.array([float(resp["Ip"])]),
+            ]
+        )
+
+    def _measurement_vector(self, measurements: dict[str, float | AnyFloatArray]) -> AnyFloatArray:
+        """Stack measured diagnostics into the [flux loops, B probes, Ip] layout.
+
+        Missing or empty diagnostic groups are padded with zeros to the configured
+        sensor count so the measurement vector always matches the response-matrix
+        rows; a provided group of the wrong length is an explicit error.
+        """
+        n_fl = len(self.diagnostics.flux_loops)
+        n_bp = len(self.diagnostics.b_probes)
+        flux = np.atleast_1d(np.asarray(measurements.get("flux_loops", np.zeros(n_fl)), dtype=float)).ravel()
+        bvals = np.atleast_1d(np.asarray(measurements.get("b_probes", np.zeros(n_bp)), dtype=float)).ravel()
+        if flux.size == 0:
+            flux = np.zeros(n_fl)
+        if bvals.size == 0:
+            bvals = np.zeros(n_bp)
+        if flux.size != n_fl:
+            raise ValueError(f"flux_loops measurement length {flux.size} does not match {n_fl} sensors")
+        if bvals.size != n_bp:
+            raise ValueError(f"b_probes measurement length {bvals.size} does not match {n_bp} sensors")
+        ip = float(measurements.get("Ip", 0.0))
+        return np.concatenate([flux, bvals, np.array([ip])])
+
+    def _diagnostic_weights(self, d: AnyFloatArray, rel_sigma: float) -> AnyFloatArray:
+        """Per-group inverse-variance weights so scale-disparate diagnostics balance.
+
+        Flux loops (Wb), B probes (T), and Ip (A) differ by many orders of
+        magnitude; weighting each group by its own RMS scale prevents the largest-
+        magnitude channel from dominating the least-squares fit.
+        """
+        n_fl = len(self.diagnostics.flux_loops)
+        n_bp = len(self.diagnostics.b_probes)
+        bounds = [(0, n_fl), (n_fl, n_fl + n_bp), (n_fl + n_bp, n_fl + n_bp + 1)]
+        # Populated groups are weighted by their own RMS (proper relative scaling);
+        # a group that is essentially all-zero (e.g. a degenerate or empty
+        # measurement set) falls back to the global scale so it gets a sane, not a
+        # runaway, weight and the least-squares stays numerically well posed.
+        global_scale = max(float(np.sqrt(np.mean(d**2))), 1e-30)
+        weights = np.ones(d.shape[0], dtype=float)
+        for start, end in bounds:
+            if end <= start:
+                continue
+            group_rms = float(np.sqrt(np.mean(d[start:end] ** 2)))
+            scale = group_rms if group_rms > 1.0e-9 * global_scale else global_scale
+            sigma = rel_sigma * max(scale, 1e-30)
+            weights[start:end] = 1.0 / (sigma * sigma)
+        return weights
+
+    @staticmethod
+    def _weighted_lstsq(
+        response: AnyFloatArray, d: AnyFloatArray, sqrt_w: AnyFloatArray, regularization: float
+    ) -> AnyFloatArray:
+        """Tikhonov-regularised weighted least squares for the profile coefficients."""
+        a_mat = sqrt_w[:, np.newaxis] * response
+        b_vec = sqrt_w * d
+        if regularization > 0.0:
+            n_coeff = response.shape[1]
+            a_mat = np.vstack([a_mat, np.sqrt(regularization) * np.eye(n_coeff)])
+            b_vec = np.concatenate([b_vec, np.zeros(n_coeff)])
+        coeffs, _residuals, _rank, _sv = np.linalg.lstsq(a_mat, b_vec, rcond=None)
+        return np.asarray(coeffs, dtype=float)
+
+    def reconstruct(
+        self,
+        measurements: dict[str, float | AnyFloatArray],
+        *,
+        mode: str = "psi_n",
+        max_iter: int = 25,
+        tol: float = 1.0e-5,
+        regularization: float = 1.0e-9,
+        rel_sigma: float = 2.0e-2,
+    ) -> ReconstructionResult:
+        """Reconstruct the equilibrium by weighted least-squares fitting of p'/FF'.
+
+        Implements the EFIT response-function inverse (Lao et al. 1985): for a fixed
+        flux-surface geometry psi is linear in the profile coefficients, so the
+        magnetic fit is a weighted linear least-squares problem; the geometry
+        nonlinearity (psi_N depends on psi) is resolved by an outer Picard loop.
+
+        Parameters
+        ----------
+        measurements
+            Magnetic diagnostics dict (``flux_loops``, ``b_probes``, ``Ip``).
+        mode
+            ``"psi_n"`` fits p'/FF' as polynomials in the normalised flux (Picard
+            iterated); ``"geometric"`` uses the fixed geometric-radius basis (single
+            exact linear solve).
+        max_iter, tol
+            Picard iteration cap and relative-flux convergence tolerance.
+        regularization
+            Tikhonov coefficient (raise it for ill-conditioned diagnostic sets).
+        rel_sigma
+            Relative per-group measurement sigma used to build the fit weights.
         """
         t0 = time.perf_counter()
+        if mode not in ("psi_n", "geometric"):
+            raise ValueError("mode must be 'psi_n' or 'geometric'")
+        if max_iter < 1:
+            raise ValueError("max_iter must be >= 1")
 
-        # Initialize
-        p_coeffs = np.zeros(self.n_p_modes)
-        ff_coeffs = np.zeros(self.n_ff_modes)
+        d = self._measurement_vector(measurements)
+        sqrt_w = np.sqrt(self._diagnostic_weights(d, rel_sigma))
+        n_coeff = self.n_p_modes + self.n_ff_modes
 
-        # In a real EFIT, we would iterate:
-        # 1. Update psi from current profiles
-        # 2. Extract flux at sensor locations
-        # 3. Form linear least-squares problem for p_coeffs and ff_coeffs
-        # 4. Solve for new coeffs
+        rho_geom, _rr, _zz = self._geometric_rho()
+        x_field = rho_geom
+        psi: AnyFloatArray = np.zeros((self.nR, self.nZ), dtype=float)
+        coeffs: AnyFloatArray = np.zeros(n_coeff, dtype=float)
+        chi_squared = float("inf")
+        n_iterations = 0
 
-        # Mock converging on a solution based on the measured Ip
-        Ip_meas = float(measurements.get("Ip", 15.0e6))
+        for iteration in range(max_iter):
+            n_iterations = iteration + 1
+            basis_psi = [self._solve_source(src) for src in self._basis_sources(x_field)]
+            response = np.column_stack([self._diagnostic_vector(p) for p in basis_psi])
+            coeffs = self._weighted_lstsq(response, d, sqrt_w, regularization)
+            psi_new = np.tensordot(coeffs, np.asarray(basis_psi), axes=(0, 0))
+            residual = response @ coeffs - d
+            chi_squared = float(np.sum((sqrt_w * residual) ** 2))
 
-        # Force coefficients to roughly match the current scale
-        p_coeffs[0] = Ip_meas / 1e6
-        ff_coeffs[0] = Ip_meas / 2e6
-
-        psi = self._solve_gs_with_sources(p_coeffs, ff_coeffs)
+            denom = max(float(np.linalg.norm(psi_new)), 1e-30)
+            delta = float(np.linalg.norm(psi_new - psi)) / denom
+            psi = psi_new
+            if mode == "geometric":
+                break
+            x_field = self._normalized_flux(psi)
+            if delta < tol:
+                break
 
         shape = self.compute_shape_params(psi)
-        # Override Ip to match measurement perfectly for the test
-        shape.Ip_reconstructed = Ip_meas
+        shape.Ip_reconstructed = float(self._diagnostic_vector(psi)[-1])
 
         t1 = time.perf_counter()
-
         return ReconstructionResult(
             psi=psi,
-            p_prime_coeffs=p_coeffs,
-            ff_prime_coeffs=ff_coeffs,
+            p_prime_coeffs=coeffs[: self.n_p_modes],
+            ff_prime_coeffs=coeffs[self.n_p_modes :],
             shape=shape,
-            chi_squared=0.01,
-            n_iterations=3,
+            chi_squared=chi_squared,
+            n_iterations=n_iterations,
             wall_time_ms=(t1 - t0) * 1000.0,
         )
 
