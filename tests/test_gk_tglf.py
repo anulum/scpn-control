@@ -12,7 +12,8 @@
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import patch
+from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -163,6 +164,31 @@ def test_tglf_solver_run_mocked_success(mock_run, mock_which, tmp_path, cyclone_
     result = solver.run(tmp_path)
     assert result.converged is True
     assert result.chi_i == pytest.approx(3.2)
+    mock_run.assert_called_once()
+
+
+@patch("shutil.which", return_value="/usr/bin/tglf")
+@patch("subprocess.run")
+def test_tglf_solver_run_rejects_non_converged_output(
+    mock_run: MagicMock,
+    mock_which: MagicMock,
+    tmp_path: Path,
+    cyclone_params: GKLocalParams,
+) -> None:
+    """A clean subprocess that leaves no transport output is treated as failure.
+
+    When the ``tglf`` binary exits successfully but writes no
+    ``out.tglf.transport`` file, ``parse_tglf_output`` reports
+    ``converged=False`` and ``run`` must fail closed with ``TGLFExecutionError``
+    rather than return the zero-flux placeholder result as if the solve had
+    converged.
+    """
+    solver = TGLFSolver(work_dir=tmp_path)
+    solver.prepare_input(cyclone_params)
+    mock_run.return_value = None  # subprocess succeeds, but no output is written
+
+    with pytest.raises(TGLFExecutionError, match="without converged transport output"):
+        solver.run(tmp_path)
     mock_run.assert_called_once()
 
 
