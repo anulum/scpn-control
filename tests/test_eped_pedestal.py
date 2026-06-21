@@ -288,6 +288,51 @@ def test_integrated_wrapper_rejects_invalid_inputs():
         model.predict(6.0, nu_star_e=-1.0)
 
 
+def test_shaping_factor_rejects_unphysical_triangularity() -> None:
+    """|δ| ≥ 1 leaves the physical triangularity interval and is rejected directly."""
+    with pytest.raises(ValueError, match="triangularity interval"):
+        _shaping_factor(1.7, 1.0)
+
+
+def test_eped_config_rejects_non_finite_scalar_field() -> None:
+    """A non-finite scalar field that slips past the positivity bound is still rejected."""
+    with pytest.raises(ValueError, match="must be finite"):
+        EPEDConfig(**{**vars(_iter_base()), "B0": float("inf")})
+
+
+def test_validate_eped_result_rejects_pedestal_width_at_or_above_unity() -> None:
+    """A pedestal width filling the whole minor radius is unphysical for profile generation."""
+    too_wide = EPEDResult(
+        delta_ped=1.5,
+        delta_ped_collisionless=1.5,
+        p_ped_kPa=35.0,
+        T_ped_keV=1.4,
+        n_ped_19=5.0,
+        beta_p_ped=2.1,
+        alpha_crit=1.2,
+    )
+    with pytest.raises(ValueError, match="delta_ped must remain below"):
+        PedestalProfileGenerator(too_wide)
+
+
+def test_integrated_wrapper_rejects_non_finite_geometry() -> None:
+    """The integrated wrapper's scalar guard rejects a non-finite major radius."""
+    with pytest.raises(ValueError, match="R0 must be finite"):
+        EpedPedestalModel(R0=float("inf"), a=2.0, B0=5.0, Ip_MA=10.0)
+
+
+def test_integrated_wrapper_predicts_pedestal_structure() -> None:
+    """A valid integrated-wrapper prediction returns positive pedestal width, T, and pressure."""
+    model = EpedPedestalModel(R0=6.2, a=2.0, B0=5.0, Ip_MA=10.0)
+    pred = model.predict(ne_ped_19=6.0)
+    assert pred.Delta_ped > 0.0
+    assert pred.T_ped_keV > 0.0
+    assert pred.p_ped_kPa > 0.0
+    # Collisionality narrows the pedestal relative to the collisionless solve.
+    pred_collisional = model.predict(ne_ped_19=6.0, nu_star_e=5.0)
+    assert pred_collisional.Delta_ped < pred.Delta_ped
+
+
 def test_eped_validation_point_rejects_nonphysical_records():
     """Validation records reject impossible provenance and pedestal quantities."""
     with pytest.raises(ValueError, match="machine"):
