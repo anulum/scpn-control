@@ -109,3 +109,24 @@ class TestVerifyBoundednessLiveness:
         net.add_arc("T1", "P1")
         with pytest.raises(RuntimeError, match="compiled"):
             net.verify_liveness()
+
+
+class TestUnseededPlaceCycle:
+    def test_strict_validation_reports_unseeded_place_cycle(self) -> None:
+        """A token-free place cycle is flagged under strict validation.
+
+        Places P1 and P2 form a cycle through transitions T1 and T2 with zero
+        initial tokens, so the cycle can never fire; strict validation lists it as
+        an unseeded place cycle and compilation fails closed.
+        """
+        net = StochasticPetriNet()
+        net.add_place("P1", initial_tokens=0.0)
+        net.add_place("P2", initial_tokens=0.0)
+        net.add_transition("T1")
+        net.add_transition("T2")
+        net.add_arc("P1", "T1")
+        net.add_arc("T1", "P2")
+        net.add_arc("P2", "T2")
+        net.add_arc("T2", "P1")
+        with pytest.raises(ValueError, match="unseeded_place_cycles"):
+            net.compile(strict_validation=True)

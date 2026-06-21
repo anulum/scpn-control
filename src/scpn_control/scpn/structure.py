@@ -224,7 +224,10 @@ class StochasticPetriNet:
                 in_cols.append(p_idx)
                 in_vals.append(w)
             else:
-                if is_inhibitor or w < 0.0:
+                # Defensive: add_arc rejects inhibitor arcs on Transition->Place
+                # edges and any non-positive weight, so a T->P edge reaching here
+                # can be neither an inhibitor nor negative-weight arc.
+                if is_inhibitor or w < 0.0:  # pragma: no cover
                     raise ValueError("Inhibitor arcs are only valid on Place->Transition edges.")
                 # Transition -> Place  => W_out[place_idx, transition_idx]
                 t_idx = self._transition_idx[src]
@@ -443,7 +446,8 @@ class StochasticPetriNet:
 
         _W_in = self.W_in
         _W_out = self.W_out
-        if _W_in is None or _W_out is None:
+        # Defensive: the _compiled guard above guarantees the matrices are set.
+        if _W_in is None or _W_out is None:  # pragma: no cover
             raise RuntimeError("Net must be compiled before verification.")
         W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
         W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
@@ -498,7 +502,8 @@ class StochasticPetriNet:
 
         _W_in = self.W_in
         _W_out = self.W_out
-        if _W_in is None or _W_out is None:
+        # Defensive: the _compiled guard above guarantees the matrices are set.
+        if _W_in is None or _W_out is None:  # pragma: no cover
             raise RuntimeError("Net must be compiled before verification.")
         W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
         W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
