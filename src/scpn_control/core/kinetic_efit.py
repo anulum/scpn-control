@@ -421,16 +421,28 @@ class KineticEFIT(RealtimeEFIT):
             dtype=float,
         )
 
-    def reconstruct(self, measurements: dict[str, Any]) -> KineticReconstructionResult:
+    def reconstruct(
+        self,
+        measurements: dict[str, Any],
+        *,
+        mode: str = "psi_n",
+        max_iter: int = 25,
+        tol: float = 1.0e-5,
+        regularization: float = 1.0e-9,
+        rel_sigma: float = 2.0e-2,
+    ) -> KineticReconstructionResult:
         """Reconstruct the equilibrium with kinetic and fast-ion constraints.
 
-        Runs the magnetic reconstruction, then folds in the kinetic pressure
-        profiles and the fast-ion pressure to produce a kinetic equilibrium.
+        Runs the magnetic least-squares reconstruction (forwarding the inverse
+        options to :meth:`RealtimeEFIT.reconstruct`), then folds in the kinetic
+        pressure profiles and the fast-ion pressure to produce a kinetic equilibrium.
 
         Parameters
         ----------
         measurements
             Magnetic and kinetic measurement payload for this reconstruction.
+        mode, max_iter, tol, regularization, rel_sigma
+            Magnetic-inverse options forwarded to the base EFIT reconstruction.
 
         Returns
         -------
@@ -438,7 +450,14 @@ class KineticEFIT(RealtimeEFIT):
             The kinetic reconstruction with pressure consistency, q-profile, and
             fast-ion beta and anisotropy.
         """
-        res_mag = super().reconstruct(measurements)
+        res_mag = super().reconstruct(
+            measurements,
+            mode=mode,
+            max_iter=max_iter,
+            tol=tol,
+            regularization=regularization,
+            rel_sigma=rel_sigma,
+        )
 
         rho_1d = np.linspace(0, 1, 50)
         ne_prof = self._profile_from_points("ne_points", self.kinetic.ne_points, rho_1d)
