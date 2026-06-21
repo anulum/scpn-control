@@ -60,7 +60,9 @@ def test_jax_collide_dispatches_to_sugama() -> None:
 
 def test_jax_run_with_explicit_kinetic_electrons() -> None:
     """The CFL estimate includes the electron drift scale for explicit kinetic electrons."""
-    solver = JaxNonlinearGKSolver(_config(kinetic_electrons=True, implicit_electrons=False))
+    # cfl_adapt=True is required for the CFL estimate to actually run and fold in the
+    # electron drift scale for explicit kinetic electrons (the adaptive branch).
+    solver = JaxNonlinearGKSolver(_config(kinetic_electrons=True, implicit_electrons=False, cfl_adapt=True))
 
     result = solver.run()
 
