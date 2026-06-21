@@ -265,6 +265,11 @@ def test_marfe_front_model_rejects_corrupted_temperature_state() -> None:
     with pytest.raises(ValueError, match="shape"):
         model.is_marfe()
 
+    model.T = np.full(model.n_s, 10.0)
+    model.T[3] = -1.0
+    with pytest.raises(ValueError, match="positive"):
+        model.is_marfe()
+
 
 @pytest.mark.parametrize(
     ("args", "message"),
