@@ -5,14 +5,14 @@
       "name": "PID",
       "note": "",
       "stats": {
-        "max_us": 0.604,
-        "mean_us": 0.25632350000000004,
-        "min_us": 0.23,
+        "max_us": 0.832,
+        "mean_us": 0.2764385,
+        "min_us": 0.224,
         "n": 2000,
-        "p50_us": 0.251,
-        "p95_us": 0.282,
-        "p99_us": 0.302,
-        "throughput_khz": 3984.06374501992
+        "p50_us": 0.248,
+        "p95_us": 0.445,
+        "p99_us": 0.562,
+        "throughput_khz": 4032.2580645161293
       },
       "status": "measured"
     },
@@ -28,14 +28,14 @@
       "name": "SNN",
       "note": "",
       "stats": {
-        "max_us": 28.808,
-        "mean_us": 14.363485,
-        "min_us": 12.901,
+        "max_us": 49.684,
+        "mean_us": 14.5030135,
+        "min_us": 11.486,
         "n": 2000,
-        "p50_us": 14.155,
-        "p95_us": 15.698,
-        "p99_us": 22.581,
-        "throughput_khz": 70.64641469445426
+        "p50_us": 13.287,
+        "p95_us": 22.922,
+        "p99_us": 26.557,
+        "throughput_khz": 75.26153383005945
       },
       "status": "measured"
     },
@@ -44,14 +44,14 @@
       "name": "SNN",
       "note": "",
       "stats": {
-        "max_us": 23.625,
-        "mean_us": 0.6206745,
-        "min_us": 0.566,
+        "max_us": 34.34,
+        "mean_us": 0.5863400000000001,
+        "min_us": 0.509,
         "n": 2000,
-        "p50_us": 0.593,
-        "p95_us": 0.635,
+        "p50_us": 0.556,
+        "p95_us": 0.6,
         "p99_us": 1.085,
-        "throughput_khz": 1686.3406408094436
+        "throughput_khz": 1798.5611510791366
       },
       "status": "measured"
     },
@@ -60,14 +60,14 @@
       "name": "MPC (Np=10)",
       "note": "",
       "stats": {
-        "max_us": 23430.462,
-        "mean_us": 13399.081022,
-        "min_us": 10746.204,
+        "max_us": 31143.698,
+        "mean_us": 11886.07776,
+        "min_us": 7291.865,
         "n": 500,
-        "p50_us": 12247.656,
-        "p95_us": 21066.668,
-        "p99_us": 22638.682,
-        "throughput_khz": 0.08164827620893336
+        "p50_us": 10459.71,
+        "p95_us": 18050.927,
+        "p99_us": 25058.164,
+        "throughput_khz": 0.09560494507017882
       },
       "status": "measured"
     },
@@ -76,14 +76,14 @@
       "name": "MPC (Np=10)",
       "note": "",
       "stats": {
-        "max_us": 29281.479,
-        "mean_us": 21956.677693999998,
-        "min_us": 13330.347,
+        "max_us": 26798.728,
+        "mean_us": 13446.229536,
+        "min_us": 10631.191,
         "n": 500,
-        "p50_us": 22331.42,
-        "p95_us": 23707.057,
-        "p99_us": 25160.877,
-        "throughput_khz": 0.04477995577531568
+        "p50_us": 12750.414,
+        "p95_us": 19548.107,
+        "p99_us": 21701.287,
+        "throughput_khz": 0.07842882591890742
       },
       "status": "measured"
     },
@@ -92,14 +92,14 @@
       "name": "MPC (Np=10)",
       "note": "",
       "stats": {
-        "max_us": 19446.052,
-        "mean_us": 13054.549232000001,
-        "min_us": 12096.697,
+        "max_us": 15940.692,
+        "mean_us": 9699.398324,
+        "min_us": 7598.969,
         "n": 500,
-        "p50_us": 12957.156,
-        "p95_us": 14006.681,
-        "p99_us": 15880.24,
-        "throughput_khz": 0.07717742998540729
+        "p50_us": 9202.401,
+        "p95_us": 13855.128,
+        "p99_us": 15622.378,
+        "throughput_khz": 0.10866729237293615
       },
       "status": "measured"
     },
@@ -107,29 +107,47 @@
       "backend": "casadi",
       "name": "MPC (Np=10)",
       "note": "",
-      "stats": null,
-      "status": "unavailable: casadi not installed"
+      "stats": {
+        "max_us": 92050.098,
+        "mean_us": 58664.527382,
+        "min_us": 43144.197,
+        "n": 500,
+        "p50_us": 54573.374,
+        "p95_us": 76801.315,
+        "p99_us": 88107.256,
+        "throughput_khz": 0.018323954095269976
+      },
+      "status": "measured"
     },
     {
       "backend": "acados",
       "name": "MPC (Np=10)",
       "note": "",
-      "stats": null,
-      "status": "unavailable: acados_template not installed"
+      "stats": {
+        "max_us": 11003.139,
+        "mean_us": 6495.76135,
+        "min_us": 4851.457,
+        "n": 500,
+        "p50_us": 6127.783,
+        "p95_us": 9617.933,
+        "p99_us": 10417.188,
+        "throughput_khz": 0.16319115738922216
+      },
+      "status": "measured"
     },
     {
       "backend": "numpy",
       "name": "H-infinity",
       "note": "general state-space",
       "stats": {
-        "max_us": 29.224,
-        "mean_us": 22.5674855,
-        "min_us": 22.058,
+        "max_us": 109.358,
+        "mean_us": 16.277372,
+        "min_us": 12.792,
         "n": 2000,
-        "p50_us": 22.336,
-        "p95_us": 23.533,
-        "p99_us": 26.095,
-        "throughput_khz": 44.770773638968485
+        "p50_us": 13.273,
+        "p95_us": 24.691,
+        "p99_us": 29.812,
+        "throughput_khz": 75.340917652377
       },
       "status": "measured"
     },
@@ -138,19 +156,19 @@
       "name": "H-infinity",
       "note": "2-state VDE",
       "stats": {
-        "max_us": 6.674,
-        "mean_us": 1.2149535,
-        "min_us": 1.154,
+        "max_us": 21.208,
+        "mean_us": 1.0953620000000002,
+        "min_us": 0.599,
         "n": 2000,
-        "p50_us": 1.206,
-        "p95_us": 1.248,
-        "p99_us": 1.293,
-        "throughput_khz": 829.1873963515754
+        "p50_us": 1.05,
+        "p95_us": 1.252,
+        "p99_us": 5.278,
+        "throughput_khz": 952.3809523809523
       },
       "status": "measured"
     }
   ],
-  "generated_at": "2026-06-21T20:12:56.784274+00:00",
+  "generated_at": "2026-06-21T21:11:34.295126+00:00",
   "parameters": {
     "iterations": 2000,
     "warmup": 200
