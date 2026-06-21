@@ -171,10 +171,13 @@ class ReconfigurableController:
         J_T_W = J.T @ self.W
         H = J_T_W @ J + self.lambda_reg * np.eye(self.n_coils)
 
+        # The Tikhonov term λI (λ = 1e-6 > 0) makes H = JᵀWJ + λI strictly positive
+        # definite for any finite J and W, so the inverse always exists; non-finite
+        # inputs yield NaNs rather than a LinAlgError. The guard stays as defence.
         try:
             H_inv = np.linalg.inv(H)
             K = H_inv @ J_T_W
-        except np.linalg.LinAlgError:
+        except np.linalg.LinAlgError:  # pragma: no cover
             K = np.zeros_like(J.T)
 
         for i in self.faulted_coils:

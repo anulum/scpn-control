@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.fault_tolerant_control import (
     FDIMonitor,
@@ -216,3 +217,28 @@ def test_fault_injector_before_fault_time():
     signals = np.array([1.0, 2.0, 3.0])
     result = inj.inject(t=3.0, signals=signals)
     np.testing.assert_array_equal(result, signals)
+
+
+def test_handle_sensor_fault_rejects_actuator_fault_type() -> None:
+    """handle_sensor_fault rejects a fault category that is not a sensor fault."""
+    ctrl = ReconfigurableController(None, np.eye(3), 3, 3)
+    with pytest.raises(ValueError, match="must describe a sensor fault"):
+        ctrl.handle_sensor_fault(0, FaultType.STUCK_ACTUATOR)
+
+
+def test_handle_sensor_fault_is_idempotent() -> None:
+    """Re-flagging an already-faulted sensor is a no-op."""
+    ctrl = ReconfigurableController(None, np.eye(3), 3, 3)
+    ctrl.handle_sensor_fault(1, FaultType.SENSOR_DROPOUT)
+    W_after_first = ctrl.W.copy()
+    ctrl.handle_sensor_fault(1, FaultType.SENSOR_DRIFT)
+    assert ctrl.sensor_fault_types[1] is FaultType.SENSOR_DROPOUT
+    np.testing.assert_array_equal(ctrl.W, W_after_first)
+
+
+def test_fault_injector_applies_sensor_dropout_after_fault_time() -> None:
+    """A sensor-dropout injection zeroes the targeted channel once the fault is active."""
+    inj = FaultInjector(fault_time=5.0, component_index=1, fault_type=FaultType.SENSOR_DROPOUT)
+    corrupted = inj.inject(t=6.0, signals=np.array([1.0, 2.0, 3.0]))
+    assert corrupted[1] == 0.0
+    assert corrupted[0] == 1.0 and corrupted[2] == 3.0
