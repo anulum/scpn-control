@@ -787,10 +787,14 @@ def assert_transport_differentiability_claim_admissible(
     if not np.isclose(evidence.gradient_tolerance, metadata.gradient_tolerance, rtol=1.0e-12, atol=1.0e-15):
         raise ValueError("transport differentiability evidence gradient_tolerance mismatch")
     _validate_optional_sha256("controller_formal_artifact_sha256", evidence.controller_formal_artifact_sha256)
-    if isinstance(audit, TransportRolloutGradientAudit):
+    # Defence-in-depth: _validate_transport_gradient_audit (called above) already
+    # enforces audit.passed == (max_abs_error <= tolerance), and a passed audit is
+    # required earlier, so these error-versus-tolerance re-checks cannot fire. They
+    # are retained as a redundant fail-closed guard but are unreachable for coverage.
+    if isinstance(audit, TransportRolloutGradientAudit):  # pragma: no cover
         if audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability rollout source-gradient error exceeds tolerance")
-    else:
+    else:  # pragma: no cover
         if audit.chi_max_abs_error > audit.tolerance or audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability parameter-gradient error exceeds tolerance")
     return evidence
@@ -850,7 +854,11 @@ def transport_full_fidelity_readiness_evidence(
     )
 
     blocked_reasons: list[str] = []
-    if (
+    # Defence-in-depth: _validate_transport_gradient_latency_report requires a JAX
+    # backend for each report and _assert_latency_report_matches_campaign requires
+    # the campaign backend to match, so by this point every backend is "jax". This
+    # block is a redundant fail-closed guard and cannot add the reason in practice.
+    if (  # pragma: no cover
         metadata.backend != "jax"
         or gradient_report.backend != "jax"
         or (rollout_report is not None and rollout_report.backend != "jax")
@@ -2040,7 +2048,10 @@ def audit_transport_parameter_gradients(
             weights=weights,
         )
     )
-    if target_array is None:
+    # Defence-in-depth: transport_parameter_gradients (called above) already rejects
+    # a missing target_profiles, so this re-check after input validation is a
+    # redundant fail-closed guard that cannot be reached.
+    if target_array is None:  # pragma: no cover
         raise ValueError("target_profiles is required")
     if weight_array is None:
         weight_array = np.ones(CHANNEL_COUNT)
