@@ -173,3 +173,29 @@ class TestTrainOnSparc:
 
         default_dir = REPO_ROOT / "validation" / "reference_data" / "sparc"
         assert default_dir.exists()
+
+    def test_default_sparc_dir_without_files_raises(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """sparc_dir=None resolves under REPO_ROOT; an empty default raises."""
+        import scpn_control.core.neural_equilibrium as neq
+
+        monkeypatch.setattr(neq, "REPO_ROOT", tmp_path)
+        with pytest.raises(FileNotFoundError, match="No GEQDSK"):
+            train_on_sparc(sparc_dir=None, save_path=tmp_path / "weights.npz")
+
+
+class TestFineTuneFromEfit:
+    def test_empty_geqdsk_paths_rejected_without_reference(self) -> None:
+        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(n_components=1, hidden_sizes=()))
+        with pytest.raises(FileNotFoundError, match="No GEQDSK/EQDSK files supplied"):
+            accel.fine_tune_from_efit_reconstructions([], require_reference_artifacts=False)
+
+    def test_fine_tune_without_reference_trains_from_geqdsk(self, sparc_files: list[Path]) -> None:
+        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(n_components=2, hidden_sizes=()))
+        result = accel.fine_tune_from_efit_reconstructions(
+            sparc_files[:1],
+            require_reference_artifacts=False,
+            n_perturbations=3,
+            seed=0,
+        )
+        assert result.n_samples > 0
+        assert accel.is_trained

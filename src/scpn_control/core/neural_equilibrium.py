@@ -679,7 +679,7 @@ class NeuralEquilibriumAccelerator:
                 # Linearly blend psi with a scale-dependent offset
                 # This simulates the effect of profile scaling on equilibrium
                 denom = eq.sibry - eq.simag
-                if abs(denom) < 1e-12:
+                if abs(denom) < 1e-12:  # pragma: no cover - real GEQDSK boundary flux differs from axis flux; defensive
                     denom = 1.0
                 psi_n = (psi_interp - eq.simag) / denom
 
@@ -826,7 +826,7 @@ class NeuralEquilibriumAccelerator:
                     val_gs += self._gs_residual_loss(psi_pred_flat, self.cfg.grid_shape)
                 val_gs /= len(X_val)
                 val_loss = val_mse + self.cfg.lambda_gs * val_gs
-            else:
+            else:  # pragma: no cover - the 70/15/15 split yields a non-empty val set for any trainable size (n>=3); defensive
                 val_loss = epoch_loss
 
             if val_loss < best_val_loss:
@@ -1086,7 +1086,8 @@ def neural_equilibrium_claim_evidence(
             raise ValueError("neural-equilibrium reference artifact failed strict validation")
         payload = json.loads(artifact_path.read_text(encoding="utf-8"))
         reference_source = _non_empty_text("source", str(payload["source"]))
-        if reference_source not in _NEURAL_EQUILIBRIUM_REFERENCE_SOURCES:
+        # validate_neural_equilibrium_reference already enforces source admissibility; defensive re-check.
+        if reference_source not in _NEURAL_EQUILIBRIUM_REFERENCE_SOURCES:  # pragma: no cover
             raise ValueError("neural-equilibrium reference source is not admissible")
         if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
             raise ValueError("neural-equilibrium reference artifact does not match supplied weights")
