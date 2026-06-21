@@ -14,6 +14,7 @@
 """Tests for federated learning framework (FedAvg / FedProx)."""
 
 import json
+from typing import Any
 
 import numpy as np
 import pytest
@@ -407,3 +408,87 @@ class TestMachineClientValidation:
 
         with pytest.raises(ValueError, match="Unknown machine"):
             MachineClient("TOKAMAK_X", np.zeros((10, 8)), np.zeros(10), np.zeros((5, 8)), np.zeros(5))
+
+
+class TestDifferentialPrivacyConfigValidation:
+    def test_rejects_delta_out_of_range(self) -> None:
+        with pytest.raises(ValueError, match=r"delta must be finite and in \(0, 1\)"):
+            DifferentialPrivacyConfig(delta=1.0)
+
+    def test_rejects_non_integer_seed(self) -> None:
+        non_integer_seed: Any = 1.5
+        with pytest.raises(ValueError, match="seed must be an integer"):
+            DifferentialPrivacyConfig(seed=non_integer_seed)
+
+
+class TestGaussianMechanismValidation:
+    def test_rejects_delta_out_of_range(self) -> None:
+        with pytest.raises(ValueError, match=r"delta must be finite and in \(0, 1\)"):
+            gaussian_mechanism_epsilon(1.0, 1.0)
+
+
+class TestFacilityDatasetContract:
+    def test_rejects_empty_sample_matrix(self) -> None:
+        with pytest.raises(ValueError, match="at least one sample"):
+            create_facility_clients_from_arrays(
+                {
+                    "DIII-D": {
+                        "X_train": np.zeros((0, N_FEATURES)),
+                        "y_train": np.zeros(0),
+                        "X_test": np.zeros((2, N_FEATURES)),
+                        "y_test": np.zeros(2),
+                    }
+                }
+            )
+
+    def test_rejects_label_count_mismatch(self) -> None:
+        with pytest.raises(ValueError, match="one label per sample"):
+            create_facility_clients_from_arrays(
+                {
+                    "DIII-D": {
+                        "X_train": np.zeros((4, N_FEATURES)),
+                        "y_train": np.zeros(3),
+                        "X_test": np.zeros((2, N_FEATURES)),
+                        "y_test": np.zeros(2),
+                    }
+                }
+            )
+
+    def test_rejects_empty_datasets(self) -> None:
+        with pytest.raises(ValueError, match="at least one facility"):
+            create_facility_clients_from_arrays({})
+
+    def test_rejects_missing_required_arrays(self) -> None:
+        with pytest.raises(ValueError, match="missing required arrays"):
+            create_facility_clients_from_arrays(
+                {
+                    "DIII-D": {
+                        "X_train": np.zeros((4, N_FEATURES)),
+                        "y_train": np.zeros(4),
+                        "X_test": np.zeros((2, N_FEATURES)),
+                    }
+                }
+            )
+
+
+class TestPrivacyAccountingEdges:
+    def test_privacy_summary_without_dp_config(self) -> None:
+        cfg = FederatedConfig(machines=["DIII-D", "JET"])
+        server = FederatedServer(cfg, seed=5)
+        assert server.privacy_summary() == {"epsilon": None, "delta": None, "rounds": 0}
+
+    def test_dp_round_clips_oversized_updates(self) -> None:
+        clients = create_machine_clients(
+            [
+                {"machine": "DIII-D", "n_train": 120, "n_test": 40},
+                {"machine": "JET", "n_train": 120, "n_test": 40},
+            ],
+            seed=7,
+        )
+        cfg = FederatedConfig(
+            machines=["DIII-D", "JET"],
+            dp_config=DifferentialPrivacyConfig(max_update_norm=1e-9, noise_multiplier=1.0, delta=1e-5, seed=2),
+        )
+        server = FederatedServer(cfg, seed=2)
+        result = server.run_round(clients)
+        assert result["privacy"].clipped_clients

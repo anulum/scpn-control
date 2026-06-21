@@ -715,7 +715,7 @@ def create_facility_clients_from_arrays(
     clients: list[MachineClient] = []
     seen: set[str] = set()
     for machine, payload in datasets.items():
-        if machine in seen:
+        if machine in seen:  # pragma: no cover - datasets is a dict with unique keys; defensive dedup
             raise ValueError(f"Duplicate facility {machine!r}")
         seen.add(machine)
         missing = {"X_train", "y_train", "X_test", "y_test"} - set(payload)
