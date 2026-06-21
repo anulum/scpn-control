@@ -60,6 +60,13 @@ jobs:
             --steps 5000 --repeats 7 --warmup 2 \
             --json-out artifacts/benchmarks/native_handoff_comparison.json \
             --markdown-out artifacts/benchmarks/native_handoff_comparison.md
+      - name: Per-controller step latency (P50/P95/P99, canonical)
+        run: |
+          . .venv/bin/activate
+          PYTHONPATH=$PWD/src python benchmarks/controller_latency.py \
+            --iterations 2000 --warmup 200 \
+            --json-out artifacts/benchmarks/controller_latency.json \
+            --markdown-out artifacts/benchmarks/controller_latency.md
       - name: Regression gate (evidence-only on hosted runner)
         run: |
           . .venv/bin/activate
