@@ -216,22 +216,25 @@ transport; 5000 steps × 7 repeats, P50/P99 µs):
 
 | Controller | Backend | CI (EPYC 7763) | Local (i5-11600K) |
 | --- | --- | ---: | ---: |
-| PID | numpy | 0.43 / 0.49 | 0.25 / 0.30 |
+| PID | numpy | 0.42 / 0.52 | 0.25 / 0.56 |
 | PID | rust | unavailable (PyPIDController not built) | unavailable |
-| SNN | numpy | 23.2 / 40.5 | 14.2 / 22.6 |
-| SNN | rust | 0.92 / 1.06 | 0.59 / 1.08 |
-| MPC (Np=10) | internal QP | 23741 / 25160 | 12248 / 22639 |
-| MPC (Np=10) | scipy | 26917 / 28245 | 22331 / 25161 |
-| MPC (Np=10) | osqp | 15896 / 16809 | 12957 / 15880 |
-| MPC (Np=10) | casadi | unavailable (not installed) | unavailable |
-| MPC (Np=10) | acados | unavailable (not installed) | unavailable |
-| H-infinity | numpy (general state-space) | 28.5 / 48.6 | 22.3 / 26.1 |
-| H-infinity | rust (2-state VDE) | 1.32 / 1.73 | 1.21 / 1.29 |
+| SNN | numpy | 23.90 / 43.14 | 13.29 / 26.56 |
+| SNN | rust | 0.88 / 0.99 | 0.56 / 1.08 |
+| MPC (Np=10) | acados | 10679 / 11393 | 6128 / 10417 |
+| MPC (Np=10) | osqp | 16846 / 18090 | 9202 / 15622 |
+| MPC (Np=10) | internal QP | 18847 / 25172 | 10460 / 25058 |
+| MPC (Np=10) | scipy | 23302 / 24416 | 12750 / 21701 |
+| MPC (Np=10) | casadi | 78887 / 82806 | 54573 / 88107 |
+| H-infinity | numpy (general state-space) | 29.43 / 53.42 | 13.27 / 29.81 |
+| H-infinity | rust (2-state VDE) | 1.39 / 1.49 | 1.05 / 5.28 |
 
-The MPC microsecond figure requires the compiled `acados` backend; with the
-pure-Python QP backends the real-time-iteration tick is in the millisecond range.
-That backend is not installed in CI or locally, so it is recorded as unavailable
-rather than estimated.
+All five MPC QP backends are now measured (acados is built in the
+benchmark-nightly workflow and locally). Every backend's real-time-iteration tick
+is millisecond-scale, with acados the fastest (≈10.7 ms CI / 6.1 ms local). The
+microsecond MPC regime is not reachable through the Python `step_rti` path with
+any QP backend: per-stage set/get marshalling across the Python↔C boundary
+dominates the tick. A microsecond MPC tick would require a non-Python (C/Rust)
+control loop, not merely a compiled QP solver.
 
 ## Capacitor-bank energy ledger
 

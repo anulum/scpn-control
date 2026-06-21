@@ -1,48 +1,48 @@
 {
   "comparison": {
-    "active_cycle_speedup_p50": 1.866226550919079,
+    "active_cycle_speedup_p50": 1.6658559612547168,
     "native_drops_zero": true,
     "native_publish_failures_zero": true,
     "native_udp_sink_packets": 5000,
     "python_udp_sink_packets": 5000,
-    "wall_time_speedup": 1.0233437941020924
+    "wall_time_speedup": 1.0241734957602167
   },
-  "generated_at": "2026-06-21T20:15:31.099725+00:00",
+  "generated_at": "2026-06-21T21:17:20.833247+00:00",
   "latency_stats": {
     "native": {
-      "max_us": 6.3437382,
-      "mean_us": 5.349318142857143,
-      "min_us": 4.8513158,
+      "max_us": 6.1123458,
+      "mean_us": 5.553348342857142,
+      "min_us": 4.6978926,
       "n": 7,
-      "p50_us": 5.0497928000000005,
-      "p95_us": 6.3437382,
-      "p99_us": 6.3437382,
+      "p50_us": 5.6188104,
+      "p95_us": 6.1123458,
+      "p99_us": 6.1123458,
       "samples_us": [
-        4.8513158,
-        4.8602858,
-        4.9672934,
-        5.0497928000000005,
-        5.257052,
-        6.115749,
-        6.3437382
+        4.6978926,
+        4.9879576,
+        5.510286600000001,
+        5.6188104,
+        5.9187392,
+        6.027406200000001,
+        6.1123458
       ]
     },
     "python": {
-      "max_us": 9.6923944,
-      "mean_us": 9.454440714285713,
-      "min_us": 9.3393536,
+      "max_us": 10.449054,
+      "mean_us": 9.3733086,
+      "min_us": 8.3242418,
       "n": 7,
-      "p50_us": 9.424057399999999,
-      "p95_us": 9.6923944,
-      "p99_us": 9.6923944,
+      "p50_us": 9.3601288,
+      "p95_us": 10.449054,
+      "p99_us": 10.449054,
       "samples_us": [
-        9.3393536,
-        9.342471999999999,
-        9.393425800000001,
-        9.424057399999999,
-        9.463138800000001,
-        9.526243000000001,
-        9.6923944
+        8.3242418,
+        8.6085456,
+        8.8503526,
+        9.3601288,
+        9.6189706,
+        10.4018668,
+        10.449054
       ]
     }
   },
@@ -64,9 +64,9 @@
   },
   "rows": [
     {
-      "avg_cycle_us": 9.6923944,
+      "avg_cycle_us": 8.8503526,
       "dropped": 0,
-      "effective_step_us": 185.27957119999883,
+      "effective_step_us": 184.03101320000133,
       "mode": "python",
       "name": "python",
       "native_last_acados_time_ns": null,
@@ -77,33 +77,33 @@
       "status": "completed",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9263978559999941
+      "wall_s": 0.9201550660000066
     },
     {
-      "avg_cycle_us": 5.257052,
+      "avg_cycle_us": 4.9879576,
       "dropped": 0,
-      "effective_step_us": 181.05310480000298,
+      "effective_step_us": 179.68734199999972,
       "mode": "native",
       "name": "native",
-      "native_last_acados_time_ns": 40,
-      "native_last_cycle_ns": "4208",
-      "native_last_snn_time_ns": 942,
-      "native_total_cycle_ns": "26285260",
+      "native_last_acados_time_ns": 30,
+      "native_last_cycle_ns": "5119",
+      "native_last_snn_time_ns": 621,
+      "native_total_cycle_ns": "24939788",
       "publish_failures": 0,
       "status": "normal",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9052655240000149
+      "wall_s": 0.8984367099999986
     }
   ],
   "schema": "scpn-control.native_handoff_comparison.v2",
   "summaries": {
     "native": {
-      "avg_cycle_us": 5.257052,
+      "avg_cycle_us": 4.9879576,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 181.05310480000298,
-      "elapsed_s": 0.8657022670000174,
+      "effective_step_us": 179.68734199999972,
+      "elapsed_s": 0.8568798670000035,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -131,11 +131,11 @@
           "certificate_id": "",
           "certificate_schema_version": "",
           "channel_capacity": 2,
-          "checked": 52,
+          "checked": 56,
           "core_z3": 2,
           "dispatch_interval_steps": 30,
-          "dropped": 113,
-          "effective_verification_rate": 31.325301204819276,
+          "dropped": 108,
+          "effective_verification_rate": 33.734939759036145,
           "enabled": true,
           "failures": 0,
           "generated": 166,
@@ -145,7 +145,7 @@
           "max_depth": 4,
           "max_marking": 100,
           "mode": "async_drop",
-          "submitted": 53,
+          "submitted": 58,
           "sync_wait_count": 0,
           "sync_wait_max_ns": 0,
           "sync_wait_min_ns": 0,
@@ -155,9 +155,9 @@
           "sync_wait_total_ns": 0
         },
         "heartbeat_enabled": false,
-        "last_acados_time_ns": 40,
-        "last_cycle_ns": "4208",
-        "last_snn_time_ns": 942,
+        "last_acados_time_ns": 30,
+        "last_cycle_ns": "5119",
+        "last_snn_time_ns": 621,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -166,7 +166,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "26285260",
+        "total_cycle_ns": "24939788",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 55917
@@ -186,7 +186,7 @@
             3
           ],
           "available_parallelism": 4,
-          "generated_ns": 1782072930195025897,
+          "generated_ns": 1782076639935312867,
           "governors": {
             "1": null,
             "2": null,
@@ -259,14 +259,14 @@
         "port": 55917
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9052655240000149
+      "wall_s": 0.8984367099999986
     },
     "python": {
-      "avg_cycle_us": 9.6923944,
+      "avg_cycle_us": 8.8503526,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 185.27957119999883,
-      "elapsed_s": 0.8752779600000054,
+      "effective_step_us": 184.03101320000133,
+      "elapsed_s": 0.8690947759999972,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -291,7 +291,7 @@
             3
           ],
           "available_parallelism": 4,
-          "generated_ns": 1782072921681101121,
+          "generated_ns": 1782076631626502842,
           "governors": {
             "1": null,
             "2": null,
@@ -354,8 +354,8 @@
         ]
       },
       "snapshot": {
-        "acados_time_ns": 1272,
-        "cycle_us": 8.727,
+        "acados_time_ns": 911,
+        "cycle_us": 12.172,
         "heartbeat_expired": false,
         "measured_r": 6.2,
         "measured_z": 0.0,
@@ -378,7 +378,7 @@
         "port": 55916
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9263978559999941
+      "wall_s": 0.9201550660000066
     }
   }
 }
