@@ -18,7 +18,7 @@ target-hardware, and deployment evidence that still needs admission.
 | Transport scaling sanity | IPB98(y,2)-style scaling checks | validation tooling | Bounded regression evidence |
 | H-inf outperforms PID | Controller comparison | `controller_comparison.py` | 30% reward improvement |
 | PPO/RL research baseline | Seeded training and comparison reports | RL benchmark tooling | Bounded research evidence |
-| Kernel latency | Rust kernel benchmark | Criterion and benchmark reports | 11.9 µs P50 bare kernel |
+| Control-cycle latency | `benchmark_native_handoff.py` | CI + local artifacts | 5.05 µs P50 native cycle (CI) |
 | Disruption prediction | Synthetic ROC analysis | disruption benchmark tooling | Synthetic-only evidence |
 | Physical Consistency | Energy balance diagnostic | `benchmark_transport.py` | Error < 1% (Internal) |
 | Native formal AOT certificate monitor | Digest-bound local-regression reports | `validation/validate_native_formal_certificate_evidence.py` | Admitted only inside declared benchmark context |
@@ -42,9 +42,10 @@ and safety-bound checks. Treat learning-controller comparisons as research
 baselines unless matched HIL, target-hardware, and measured-shot evidence exists.
 
 ### 4. Real-Time Latency
-The published 11.9 us figure is a bare Rust kernel measurement. It is not an
-end-to-end PCS-cycle claim. Deployment timing needs target hardware, IO,
-diagnostics, actuator, queue/backpressure, and HIL replay evidence.
+The published 5.05 us figure (CI) is the integrated native control cycle on a
+loopback-UDP campaign. It is not an end-to-end PCS-cycle claim. Deployment timing
+needs target hardware, IO, diagnostics, actuator, queue/backpressure, and HIL
+replay evidence.
 
 ### 5. Native Runtime Formal Evidence
 

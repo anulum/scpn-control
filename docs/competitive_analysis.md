@@ -16,7 +16,7 @@
 
 | Code | Control Freq | Step Latency | Language | Source |
 |------|-------------|-------------|----------|--------|
-| **scpn-control (Rust)** | **10--30 kHz** | **11.9 us P50 / 23.9 us P99** | Rust + Python | CI Criterion |
+| **scpn-control (Rust)** | **10--30 kHz** | **5.05 us P50 / 6.34 us P99** (native control cycle) | Rust + Python | CI native_handoff (EPYC 7763) |
 | DIII-D PCS (production) | 4--10 kHz (physics loops) | 100--250 us per physics cycle | C / Fortran | Penaflor 2024; Barr 2024 |
 | P-EFIT (GPU) | N/A (reconstruction) | 300--375 us per iter (129x129) | Fortran + CUDA | Sabbagh 2023 |
 | RT-GSFit | ~5 kHz | ~200 us | C++ | Tokamak Energy 2025 |
@@ -27,8 +27,9 @@
 
 > **Note on DIII-D:** The raw data-acquisition cycle runs at ~16.7 kHz (60 us),
 > but physics-level control algorithms include IO, diagnostics, state
-> estimation, and actuator paths. scpn-control's 11.9 us P50 is a bare kernel
-> measurement only. It is not an end-to-end PCS-cycle comparison.
+> estimation, and actuator paths. scpn-control's 5.05 us P50 is the integrated
+> control cycle on a loopback-UDP campaign. It is not an end-to-end PCS-cycle
+> comparison on fielded plant hardware.
 
 ## 2. Transport Simulation Speed
 
@@ -132,8 +133,9 @@
 
 ## 7. scpn-control Unique Position
 
-1. **Fastest open-source kernel step** — 11.9 µs P50 (Criterion-verified).
-   Bare kernel call, not a complete control cycle.
+1. **Microsecond control cycle** — 5.05 µs P50 native integrated control cycle
+   (CI), with the isolated Rust SNN controller at 0.92 µs P50. Full integrated
+   cycle (SNN + MPC handoff + formal check + transport), not a single kernel op.
 
 2. **Nonlinear delta-f GK + native TGLF-like approximation + 5 external GK interfaces +
    hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,

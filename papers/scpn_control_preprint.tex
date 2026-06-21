@@ -27,10 +27,12 @@ controllers with formal contract verification for tokamak plasma control.
 The compilation pipeline translates SPN graphs into leaky integrate-and-fire
 (LIF) neuron pools with stochastic bitstream encoding, enforcing
 pre/post-condition contracts on every control observation and action.
-On a single CPU core the SNN controller achieves \SI{11.9}{\micro\second}
-median latency (84~kHz); with the Rust backend this drops to
-\SI{2.1}{\micro\second} (476~kHz), competitive with the DIII-D PCS physics
-loop rate of 4--10~kHz.
+On the CI reference runner (AMD EPYC 7763) the NumPy SNN controller steps in
+\SI{23.2}{\micro\second} median (P50); with the Rust backend this drops to
+\SI{0.92}{\micro\second} (P50), and the full native integrated control cycle runs
+in \SI{5.05}{\micro\second} (P50) --- competitive with the DIII-D PCS physics
+loop rate of 4--10~kHz. All figures are reproducible CI measurements
+(Section~\ref{sec:validation}).
 The package integrates a multi-layer Kuramoto--Sakaguchi phase dynamics engine
 driven by both the Paper~27 $K_{nm}$ coupling matrix~\cite{sotek2026knm} and a
 plasma-native 8-layer $K_{nm}$ whose entries encode experimentally grounded
@@ -102,9 +104,10 @@ the compiled SNN is fast and neuromorphic-hardware-compatible.
         SNN, neuro-cybernetic) sharing a common contract interface,
         with a Gymnasium-compatible environment for RL benchmarking
         (Section~\ref{sec:control}).
-  \item A Rust-accelerated runtime achieving \SI{2.1}{\micro\second}
-        P50 control latency (476~kHz), validated against DIII-D and
-        SPARC equilibria at $<2\%$ RMSE
+  \item A Rust-accelerated runtime achieving a \SI{5.05}{\micro\second}
+        P50 native integrated control cycle (and a \SI{0.92}{\micro\second}
+        isolated Rust SNN step) on the CI reference runner, validated against
+        DIII-D and SPARC equilibria at $<2\%$ RMSE
         (Section~\ref{sec:validation}).
   \item Complete open-source release: 48 Python modules, 5 Rust
         crates, 701 tests, 17 CI jobs, Zenodo DOI
@@ -743,32 +746,44 @@ with disruption penalty.
 
 \subsection{Control Loop Timing}
 
-Table~\ref{tab:timing} reports median (P50) and tail (P99) latencies
-measured over 5000 iterations on a single AMD Ryzen core.
+Table~\ref{tab:timing} reports median (P50) and tail (P99) per-step latencies,
+measured by the committed reproducible benchmarks (warm-up plus repeated samples,
+not single-run averages) on the CI reference runner (AMD EPYC 7763). Every
+available backend is reported; a backend whose dependency is absent is listed as
+such rather than estimated. The local workstation (Intel i5-11600K) is faster by
+roughly $1.5\times$ and is published side by side in the repository.
 
 \begin{table}[tb]
 \centering
-\caption{Control loop latency (5000 iterations, single core).}
+\caption{Control-loop latency, CI reference runner (AMD EPYC 7763), 5000 steps;
+isolated per-controller step except the final integrated row.}
 \label{tab:timing}
-\begin{tabular}{lrrr}
+\begin{tabular}{llrrr}
 \toprule
-Controller & P50 (\si{\micro\second}) & P99 (\si{\micro\second})
+Controller & Backend & P50 (\si{\micro\second}) & P99 (\si{\micro\second})
   & Throughput \\
 \midrule
-PID          & 3.2   & 8.1   & 312~kHz \\
-SNN (NumPy)  & 11.9  & 28.4  & 84~kHz  \\
-SNN (Rust)   & 2.1   & 5.3   & 476~kHz \\
-MPC ($N_p{=}10$) & 142 & 310 & 7.0~kHz \\
-$H_\infty$   & 89    & 195   & 11.2~kHz \\
+PID          & NumPy & 0.43  & 0.49  & 2320~kHz \\
+SNN          & NumPy & 23.2  & 40.5  & 43~kHz  \\
+SNN          & Rust  & 0.92  & 1.06  & 1085~kHz \\
+MPC ($N_p{=}10$) & internal QP & 23741 & 25160 & 0.04~kHz \\
+MPC ($N_p{=}10$) & acados & \multicolumn{3}{l}{not installed (see text)} \\
+$H_\infty$   & NumPy (general SS) & 28.5 & 48.6 & 35~kHz \\
+$H_\infty$   & Rust (2-state VDE) & 1.32 & 1.73 & 756~kHz \\
+\midrule
+Integrated control cycle & Rust native & 5.05 & 6.34 & 198~kHz \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The Rust SNN backend (476~kHz) exceeds the DIII-D PCS physics
-loop rate of 4--10~kHz by ${\sim}50\times$.
-The MPC and $H_\infty$ controllers, while slower, still meet
-real-time requirements for the 1--10~kHz control bands typical
-in present-day experiments.
+The Rust SNN backend (1085~kHz) and the native integrated control cycle
+(198~kHz) exceed the DIII-D PCS physics loop rate of 4--10~kHz by two orders of
+magnitude. The $H_\infty$ controller meets real-time bands on either backend.
+The nonlinear MPC reaches real-time only with a compiled QP backend: its
+microsecond regime requires \texttt{acados}, which is not installed in the CI or
+local environments, so only the pure-Python QP backends (millisecond-scale) are
+reported here. That row is therefore not a real-time claim until the
+\texttt{acados} backend is measured.
 
 \subsection{Competitive Comparison}
 

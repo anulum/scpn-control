@@ -32,25 +32,27 @@ scpn-control addresses these with a different architecture.
 
 A standalone neuro-symbolic control engine that compiles Stochastic Petri Nets
 into spiking neural network controllers — with contract-based pre/post-condition
-checking, sub-ms kernel latency, and zero GPU dependency.
+checking, microsecond control-cycle latency, and zero GPU dependency.
 
-### 11.9 microsecond kernel step
+### Microsecond control cycle
 
-The Rust control kernel benchmarks at 11.9 µs P50 (Criterion-verified on
-GitHub Actions ubuntu-latest). This is a **single kernel step**, not a
-complete control cycle including I/O, diagnostics, and actuator commands.
+The native (Rust) integrated control cycle benchmarks at 5.05 µs P50 on the CI
+runner (AMD EPYC 7763) and 2.85 µs on the local workstation (Intel i5-11600K).
+This is the **full integrated control cycle** (SNN + MPC handoff + formal safety
+check + UDP transport), measured over 5000 steps × 7 repeats; it is not yet a
+fielded plant loop including diagnostics and actuator hardware.
 
 | Metric | scpn-control | DIII-D PCS | TORAX | ITER PCS |
 |--------|-------------|-----------|-------|----------|
-| Kernel step (P50) | **11.9 us** | 100--250 us (physics cycle) | ~ms (sim step) | 5--10 ms |
+| Control cycle (P50) | **5.05 us** (CI) / 2.85 us (local) | 100--250 us (physics cycle) | ~ms (sim step) | 5--10 ms |
 | Language | Rust + Python | C/Fortran | JAX | TBD |
 | GPU required | **No** | No | Yes | TBD |
 | Deployment | Research / Alpha | Production | Offline sim | Spec |
 
 > **Caveat:** DIII-D PCS timings include I/O, diagnostics, and actuator
-> commands within a full physics cycle. scpn-control's 11.9 µs is a bare
-> kernel call. A fair comparison would require equivalent end-to-end
-> measurement on comparable hardware.
+> commands over fielded hardware. scpn-control's 5.05 µs is the integrated
+> control cycle on a loopback-UDP campaign. A fair comparison would require
+> equivalent end-to-end measurement on comparable hardware.
 
 ### 0.39 ms neural equilibrium research path — without GPU
 
@@ -173,7 +175,7 @@ for scope and limitations.
 | SPARC equilibrium | 8 EFIT reference equilibria | < 5% flux error | Public GEQDSK files |
 | IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE | Published coefficients |
 | Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified | Simulation |
-| Control latency | Criterion benchmark (P50/P99) | 11.9 / 23.9 us | CI ubuntu-latest |
+| Control latency | `benchmark_native_handoff.py` (P50/P99) | 5.05 / 6.34 us native cycle | CI (EPYC 7763) + local |
 | Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean | Simulation |
 
 > **Important:** "DIII-D shot replay" is validated against immutable repository

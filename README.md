@@ -172,8 +172,13 @@ controller tuning, target-hardware latency evidence, and local or air-gapped
 physics debugging. The project deliberately keeps broader facility claims
 blocked until the required external artefacts exist.
 
-> **11.9 us P50 kernel step** (Criterion-verified, GitHub Actions ubuntu-latest).
-> This is a bare Rust kernel call, not a complete control cycle.
+> **5.05 µs P50 native control cycle** on the CI runner (AMD EPYC 7763),
+> **2.85 µs** on the local workstation (Intel i5-11600K). This is the full
+> integrated control cycle (SNN + MPC handoff + formal safety check + UDP
+> transport), measured over 5000 steps × 7 repeats; the Python-orchestrated path
+> is 9.42 µs (CI) / 4.36 µs (local). Per-controller and per-backend latencies are
+> in [benchmarks](docs/benchmarks.md); reproduce with
+> `python scripts/benchmark_native_handoff.py`.
 > See [competitive analysis](docs/competitive_analysis.md) for methodology and
 > [production readiness](docs/production_readiness.md) for deployment limits.
 >
@@ -595,10 +600,11 @@ git push --tags
   Petri-net reachability, temporal-logic, Z3-backed, certificate-bundle, and
   Lean proof-admission paths. Those reports are bounded software evidence, not
   facility safety certification.
-- **Benchmark comparisons are not apples-to-apples**: The 11.9 µs number is a
-  bare Rust kernel step. DIII-D PCS timings include I/O, diagnostics, and
-  actuator commands. A fair comparison requires equivalent end-to-end
-  measurement on comparable hardware. Publish E2E control-latency evidence with
+- **Benchmark comparisons are not apples-to-apples**: The ~5 µs figure is the
+  integrated control cycle on a loopback-UDP campaign, not a fielded plant loop.
+  DIII-D PCS timings include I/O, diagnostics, and actuator commands over real
+  hardware. A fair comparison requires equivalent end-to-end measurement on
+  comparable hardware. Publish E2E control-latency evidence with
   `benchmarks/e2e_control_latency.py --output-json ... --target-hardware-id ...
   --target-hardware-class ... --rt-kernel ...`; admitted reports must be
   schema-versioned and digest-bound, and unqualified local runs do not support

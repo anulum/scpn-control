@@ -25,10 +25,12 @@ it does not currently model 3D effects, edge/SOL physics, or complex
 pedestal-top stability (ELMs) beyond simple heuristic models.
 
 ### 4. What is the real-time latency of the control loop?
-The Rust-accelerated kernel achieves a median step latency of **11.9 µs** (P50)
-on modern hardware. The pure-Python fallback takes approximately 100 µs,
-while the JAX-accelerated solver can take up to 1 ms due to JIT compilation
-and dispatch overhead.
+The native (Rust) integrated control cycle has a median latency of **5.05 µs**
+(P50) on the CI runner (AMD EPYC 7763) and **2.85 µs** on the local workstation
+(Intel i5-11600K); the Python-orchestrated path is 9.42 µs (CI) / 4.36 µs (local).
+The isolated Rust SNN controller steps in 0.92 µs (P50, CI). The JAX-accelerated
+solver can take up to 1 ms due to JIT compilation and dispatch overhead. See
+[benchmarks](benchmarks.md) for the full per-controller and per-backend tables.
 
 ## Architecture & Development
 
