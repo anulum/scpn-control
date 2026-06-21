@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.phase.lyapunov_guard import LyapunovGuard, LyapunovVerdict
 
@@ -156,3 +157,10 @@ class TestTrajectoryRecorder:
         rec.record(snap)
         rec.clear()
         assert rec.n_ticks == 0
+
+
+def test_check_rejects_non_one_dimensional_phase_vector() -> None:
+    """The guard requires a non-empty 1-D phase vector per sample."""
+    guard = LyapunovGuard(window=10, dt=0.01)
+    with pytest.raises(ValueError, match="non-empty 1D phase vector"):
+        guard.check(np.zeros((2, 3)), 0.0)
