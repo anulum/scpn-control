@@ -7,6 +7,8 @@
 # SCPN Control — Multi-shot campaign orchestrator tests.
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from scpn_control.control.capacitor_bank_state import CapacitorBankSpec
@@ -256,3 +258,75 @@ def test_non_monotone_sample_marks_only_that_shot_failed() -> None:
 
     assert report["failed_count"] == 1
     assert report["shots"][0]["failure_reason"] == "t_s must be monotone"
+
+
+def test_sample_rejects_non_telemetry_plasma() -> None:
+    not_plasma: Any = object()
+    with pytest.raises(TypeError, match="plasma must be PulsedPlasmaTelemetry"):
+        CampaignShotSample(0.0, not_plasma)
+
+
+def test_sample_rejects_non_telemetry_bank() -> None:
+    not_bank: Any = object()
+    with pytest.raises(TypeError, match="bank must be CapacitorBankTelemetry or None"):
+        CampaignShotSample(0.0, _plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0), not_bank)
+
+
+def test_sample_rejects_negative_time() -> None:
+    with pytest.raises(ValueError, match="t_s must be non-negative"):
+        CampaignShotSample(-1.0, _plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0))
+
+
+def test_shot_plan_rejects_blank_shot_id() -> None:
+    sample = CampaignShotSample(0.0, _plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0))
+    with pytest.raises(ValueError, match="shot_id must not be empty"):
+        CampaignShotPlan(shot_id="   ", samples=(sample,), initial_bank_voltage_V=5000.0)
+
+
+def test_shot_plan_rejects_empty_samples() -> None:
+    with pytest.raises(ValueError, match="samples must not be empty"):
+        CampaignShotPlan(shot_id="s", samples=(), initial_bank_voltage_V=5000.0)
+
+
+def test_shot_plan_rejects_non_finite_initial_current() -> None:
+    sample = CampaignShotSample(0.0, _plasma(0.0, 10.0, 0.02, 0.01, 0.0, 0.0))
+    with pytest.raises(ValueError, match="initial_bank_current_A must be finite"):
+        CampaignShotPlan(
+            shot_id="s",
+            samples=(sample,),
+            initial_bank_voltage_V=5000.0,
+            initial_bank_current_A=float("inf"),
+        )
+
+
+def test_orchestrator_rejects_blank_campaign_id() -> None:
+    with pytest.raises(ValueError, match="campaign_id must not be empty"):
+        MultiShotCampaignOrchestrator("  ", _scheduler_spec(), _bank_spec())
+
+
+def test_orchestrator_rejects_wrong_scheduler_spec() -> None:
+    not_spec: Any = object()
+    with pytest.raises(TypeError, match="scheduler_spec must be PulsedScenarioSpec"):
+        MultiShotCampaignOrchestrator("c", not_spec, _bank_spec())
+
+
+def test_orchestrator_rejects_wrong_bank_spec() -> None:
+    not_spec: Any = object()
+    with pytest.raises(TypeError, match="bank_spec must be CapacitorBankSpec"):
+        MultiShotCampaignOrchestrator("c", _scheduler_spec(), not_spec)
+
+
+def test_run_rejects_empty_shots() -> None:
+    with pytest.raises(ValueError, match="shots must not be empty"):
+        _orchestrator().run(())
+
+
+def test_run_rejects_non_shot_plan_entries() -> None:
+    not_shot: Any = object()
+    with pytest.raises(TypeError, match="shots must contain CampaignShotPlan entries"):
+        _orchestrator().run((not_shot,))
+
+
+def test_admission_failure_reason_flags_non_idle_terminal_state() -> None:
+    orchestrator = MultiShotCampaignOrchestrator("c", _scheduler_spec(), _bank_spec(), require_complete_lifecycle=False)
+    assert orchestrator._admission_failure_reason("burn", ()) == "shot did not return to idle"
