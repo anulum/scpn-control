@@ -133,9 +133,13 @@
 
 ## 7. scpn-control Unique Position
 
-1. **Microsecond control cycle** — 5.05 µs P50 native integrated control cycle
-   (CI), with the isolated Rust SNN controller at 0.92 µs P50. Full integrated
-   cycle (SNN + MPC handoff + formal check + transport), not a single kernel op.
+1. **Neuro-symbolic control with formal contracts** — Petri Net → SNN compilation
+   plus pre/post-condition safety contracts checked on every action, across a
+   runtime-selectable PID/MPC/H∞/SNN stack on one interface. No competing
+   open-source fusion code has this path. Control compute is comfortably within
+   the 1–10 kHz real-time budget (native cycle 5.05 µs P50 CI), but that is a
+   necessary-not-sufficient property — the fielded bottleneck is diagnostics,
+   reconstruction, and actuation, not the controller.
 
 2. **Nonlinear delta-f GK + native TGLF-like approximation + 5 external GK interfaces +
    hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,

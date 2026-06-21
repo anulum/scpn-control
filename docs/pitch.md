@@ -32,27 +32,33 @@ scpn-control addresses these with a different architecture.
 
 A standalone neuro-symbolic control engine that compiles Stochastic Petri Nets
 into spiking neural network controllers — with contract-based pre/post-condition
-checking, microsecond control-cycle latency, and zero GPU dependency.
+checking, a runtime-selectable multi-controller stack, and zero GPU dependency.
 
-### Microsecond control cycle
+### What makes it different
 
-The native (Rust) integrated control cycle benchmarks at 5.05 µs P50 on the CI
-runner (AMD EPYC 7763) and 2.85 µs on the local workstation (Intel i5-11600K).
-This is the **full integrated control cycle** (SNN + MPC handoff + formal safety
-check + UDP transport), measured over 5000 steps × 7 repeats; it is not yet a
-fielded plant loop including diagnostics and actuator hardware.
+The differentiator is the architecture, not raw speed:
 
-| Metric | scpn-control | DIII-D PCS | TORAX | ITER PCS |
-|--------|-------------|-----------|-------|----------|
-| Control cycle (P50) | **5.05 us** (CI) / 2.85 us (local) | 100--250 us (physics cycle) | ~ms (sim step) | 5--10 ms |
-| Language | Rust + Python | C/Fortran | JAX | TBD |
-| GPU required | **No** | No | Yes | TBD |
-| Deployment | Research / Alpha | Production | Offline sim | Spec |
+- **Petri Net → SNN compilation.** A control specification written as a
+  Stochastic Petri Net is compiled into leaky integrate-and-fire neuron pools —
+  an open-source neuro-symbolic control path that does not exist elsewhere for
+  fusion.
+- **Formal safety contracts on every action.** Pre/post-condition contracts
+  (Z3-backed, certificate-bundled) are checked on every control observation and
+  command, fail-closed.
+- **One interface, five controllers.** PID, nonlinear MPC, H∞, SNN, and a
+  neuro-cybernetic controller share a single contract interface and are
+  runtime-selectable, so the same safety case covers the whole stack.
+- **CPU-only, Rust-accelerated.** No GPU dependency anywhere in the control path.
 
-> **Caveat:** DIII-D PCS timings include I/O, diagnostics, and actuator
-> commands over fielded hardware. scpn-control's 5.05 µs is the integrated
-> control cycle on a loopback-UDP campaign. A fair comparison would require
-> equivalent end-to-end measurement on comparable hardware.
+### Real-time budget
+
+Control compute is not the bottleneck. The native integrated control cycle runs
+in 5.05 µs P50 on CI (2.85 µs local) — comfortably under the 1–10 kHz real-time
+band (100 µs–1 ms period). In a fielded loop the dominant latency is diagnostics
+acquisition, equilibrium reconstruction, and actuation, not the controller, so
+this is reported as *meeting the budget with margin*, not as a competitive speed
+claim. Per-controller and per-backend tables, with the local/CI side-by-side and
+the `acados`-gated MPC caveat, are in [benchmarks](benchmarks.md).
 
 ### 0.39 ms neural equilibrium research path — without GPU
 

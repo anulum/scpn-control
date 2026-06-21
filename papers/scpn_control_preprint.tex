@@ -27,12 +27,14 @@ controllers with formal contract verification for tokamak plasma control.
 The compilation pipeline translates SPN graphs into leaky integrate-and-fire
 (LIF) neuron pools with stochastic bitstream encoding, enforcing
 pre/post-condition contracts on every control observation and action.
-On the CI reference runner (AMD EPYC 7763) the NumPy SNN controller steps in
-\SI{23.2}{\micro\second} median (P50); with the Rust backend this drops to
-\SI{0.92}{\micro\second} (P50), and the full native integrated control cycle runs
-in \SI{5.05}{\micro\second} (P50) --- competitive with the DIII-D PCS physics
-loop rate of 4--10~kHz. All figures are reproducible CI measurements
-(Section~\ref{sec:validation}).
+The contribution is this compilation-and-contract architecture and a
+runtime-selectable controller stack (PID, nonlinear MPC, $H_\infty$, SNN) sharing
+a single contract interface, rather than raw throughput. The control compute is
+comfortably within the 4--10~kHz real-time band (native integrated control cycle
+\SI{5.05}{\micro\second} P50 on the CI reference runner, reproducible;
+Section~\ref{sec:validation}); a fielded loop is bounded by diagnostics,
+equilibrium reconstruction, and actuation rather than the controller, so we report
+the latency as meeting the budget with margin, not as a competitive speed claim.
 The package integrates a multi-layer Kuramoto--Sakaguchi phase dynamics engine
 driven by both the Paper~27 $K_{nm}$ coupling matrix~\cite{sotek2026knm} and a
 plasma-native 8-layer $K_{nm}$ whose entries encode experimentally grounded
@@ -104,10 +106,10 @@ the compiled SNN is fast and neuromorphic-hardware-compatible.
         SNN, neuro-cybernetic) sharing a common contract interface,
         with a Gymnasium-compatible environment for RL benchmarking
         (Section~\ref{sec:control}).
-  \item A Rust-accelerated runtime achieving a \SI{5.05}{\micro\second}
-        P50 native integrated control cycle (and a \SI{0.92}{\micro\second}
-        isolated Rust SNN step) on the CI reference runner, validated against
-        DIII-D and SPARC equilibria at $<2\%$ RMSE
+  \item A CPU-only Rust-accelerated runtime whose control compute sits well
+        within the real-time budget (\SI{5.05}{\micro\second} P50 native
+        integrated control cycle on the CI reference runner), with equilibrium
+        models validated against DIII-D and SPARC at $<2\%$ RMSE
         (Section~\ref{sec:validation}).
   \item Complete open-source release: 48 Python modules, 5 Rust
         crates, 701 tests, 17 CI jobs, Zenodo DOI
@@ -776,9 +778,12 @@ Integrated control cycle & Rust native & 5.05 & 6.34 & 198~kHz \\
 \end{tabular}
 \end{table}
 
-The Rust SNN backend (1085~kHz) and the native integrated control cycle
-(198~kHz) exceed the DIII-D PCS physics loop rate of 4--10~kHz by two orders of
-magnitude. The $H_\infty$ controller meets real-time bands on either backend.
+The SNN, $H_\infty$, PID, and native integrated control cycle all sit well within
+the 4--10~kHz real-time band on the control-compute side. This is a
+necessary-not-sufficient property: a fielded loop is bounded by diagnostics,
+equilibrium reconstruction, and actuation, not by these control-compute figures,
+so they are reported as meeting the budget rather than as an end-to-end speed
+advantage over fielded systems.
 The nonlinear MPC reaches real-time only with a compiled QP backend: its
 microsecond regime requires \texttt{acados}, which is not installed in the CI or
 local environments, so only the pure-Python QP backends (millisecond-scale) are

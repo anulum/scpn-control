@@ -172,13 +172,15 @@ controller tuning, target-hardware latency evidence, and local or air-gapped
 physics debugging. The project deliberately keeps broader facility claims
 blocked until the required external artefacts exist.
 
-> **5.05 µs P50 native control cycle** on the CI runner (AMD EPYC 7763),
-> **2.85 µs** on the local workstation (Intel i5-11600K). This is the full
-> integrated control cycle (SNN + MPC handoff + formal safety check + UDP
-> transport), measured over 5000 steps × 7 repeats; the Python-orchestrated path
-> is 9.42 µs (CI) / 4.36 µs (local). Per-controller and per-backend latencies are
-> in [benchmarks](docs/benchmarks.md); reproduce with
-> `python scripts/benchmark_native_handoff.py`.
+> **Neuro-symbolic control with formal safety contracts.** SCPN Control compiles
+> Stochastic Petri Nets into spiking neural network controllers and runs them
+> behind pre/post-condition contracts checked on every control action, in a
+> runtime-selectable stack alongside PID, nonlinear MPC, and H∞ — no GPU required.
+> The control compute meets the 1–10 kHz real-time budget with margin (native
+> integrated control cycle 5.05 µs P50 on CI / 2.85 µs local, reproducible via
+> `scripts/benchmark_native_handoff.py`); in a fielded loop the bottleneck is
+> diagnostics, equilibrium reconstruction, and actuation, not the controller.
+> Benchmark methodology and per-backend tables: [benchmarks](docs/benchmarks.md).
 > See [competitive analysis](docs/competitive_analysis.md) for methodology and
 > [production readiness](docs/production_readiness.md) for deployment limits.
 >
