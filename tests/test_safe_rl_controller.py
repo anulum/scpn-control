@@ -19,7 +19,7 @@ from scpn_control.control.safe_rl_controller import (
 
 
 class MockEnv:
-    def __init__(self):
+    def __init__(self) -> None:
         class Space:
             def sample(self):
                 return np.array([0.0])
@@ -158,3 +158,16 @@ def test_cbf_positive():
     # Outside safe set: q_95 < Q95_MIN
     obs_unsafe_q = np.array([10.0, 2.0, Q95_MIN - 0.5])
     assert cbf_q95(obs_unsafe_q) < 0.0, "cbf_q95 must be negative outside safe set"
+
+
+def test_lagrangian_ppo_predict_returns_action_space_sample() -> None:
+    """An untrained Lagrangian-PPO policy samples a random action.
+
+    Until a policy network is trained, ``predict`` falls back to a uniform sample
+    from the wrapped environment's action space.
+    """
+    env = ConstrainedGymTokamakEnv(MockEnv(), default_safety_constraints())
+    ppo = LagrangianPPO(env)
+    action = ppo.predict(np.array([10.0, 2.0, 3.0]))
+    assert isinstance(action, np.ndarray)
+    np.testing.assert_array_equal(action, np.array([0.0]))
