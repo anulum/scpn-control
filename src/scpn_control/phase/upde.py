@@ -122,8 +122,9 @@ class UPDESystem:
         alpha = np.zeros_like(K) if self.spec.alpha is None else np.asarray(self.spec.alpha, dtype=np.float64)
         zeta = np.zeros(L) if self.spec.zeta is None else np.asarray(self.spec.zeta, dtype=np.float64)
 
-        # Attempt Rust fast-path if L > 1 and all layers have same N
-        if HAS_RUST_UPDE and L > 0:
+        # Attempt Rust fast-path if L > 1 and all layers have same N (rust absent on the CI
+        # coverage job; the numpy path below is what runs there).
+        if HAS_RUST_UPDE and L > 0:  # pragma: no cover
             n_per = len(theta_arr[0])
             if all(len(t) == n_per for t in theta_arr):
                 theta_flat = np.concatenate(theta_arr).astype(np.float64)
