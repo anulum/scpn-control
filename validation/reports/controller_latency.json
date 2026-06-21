@@ -3,81 +3,160 @@
     {
       "backend": "numpy",
       "name": "PID",
+      "note": "",
       "stats": {
-        "max_us": 19.927,
-        "mean_us": 0.4737255,
-        "min_us": 0.401,
+        "max_us": 17.954,
+        "mean_us": 0.4456945,
+        "min_us": 0.38,
         "n": 2000,
-        "p50_us": 0.451,
-        "p95_us": 0.501,
-        "p99_us": 0.532,
-        "throughput_khz": 2217.294900221729
-      }
-    },
-    {
-      "backend": "numpy",
-      "name": "SNN (NumPy)",
-      "stats": {
-        "max_us": 48.812,
-        "mean_us": 23.5129395,
-        "min_us": 21.25,
-        "n": 2000,
-        "p50_us": 23.093,
-        "p95_us": 24.637,
-        "p99_us": 41.437,
-        "throughput_khz": 43.30316546139523
-      }
-    },
-    {
-      "backend": "rust",
-      "name": "SNN (Rust)",
-      "stats": {
-        "max_us": 51.136,
-        "mean_us": 0.9264125,
-        "min_us": 0.831,
-        "n": 2000,
-        "p50_us": 0.872,
-        "p95_us": 0.922,
-        "p99_us": 0.992,
-        "throughput_khz": 1146.7889908256882
+        "p50_us": 0.431,
+        "p95_us": 0.461,
+        "p99_us": 0.492,
+        "throughput_khz": 2320.185614849188
       },
       "status": "measured"
     },
     {
+      "backend": "rust",
+      "name": "PID",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: PyPIDController not built"
+    },
+    {
       "backend": "numpy",
-      "name": "MPC (Np=10)",
+      "name": "SNN",
+      "note": "",
       "stats": {
-        "max_us": 31108.073,
-        "mean_us": 23829.438162000002,
-        "min_us": 23025.68,
+        "max_us": 54.883,
+        "mean_us": 23.500940999999997,
+        "min_us": 21.36,
+        "n": 2000,
+        "p50_us": 23.154,
+        "p95_us": 24.306,
+        "p99_us": 40.456,
+        "throughput_khz": 43.18908180012093
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "rust",
+      "name": "SNN",
+      "note": "",
+      "stats": {
+        "max_us": 41.718,
+        "mean_us": 0.9713145,
+        "min_us": 0.861,
+        "n": 2000,
+        "p50_us": 0.922,
+        "p95_us": 1.002,
+        "p99_us": 1.062,
+        "throughput_khz": 1084.5986984815618
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "internal",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 30854.13,
+        "mean_us": 23847.473166,
+        "min_us": 23540.213,
         "n": 500,
-        "p50_us": 23754.614,
-        "p95_us": 24176.714,
-        "p99_us": 25543.092,
-        "throughput_khz": 0.0420970848021357
-      }
+        "p50_us": 23741.451,
+        "p95_us": 24279.313,
+        "p99_us": 25160.286,
+        "throughput_khz": 0.0421204247373086
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "scipy",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 32937.936,
+        "mean_us": 27032.794036,
+        "min_us": 25719.526,
+        "n": 500,
+        "p50_us": 26916.929,
+        "p95_us": 27631.895,
+        "p99_us": 28244.988,
+        "throughput_khz": 0.03715134070458038
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "osqp",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": {
+        "max_us": 18497.269,
+        "mean_us": 15931.289528000001,
+        "min_us": 14839.471,
+        "n": 500,
+        "p50_us": 15895.768,
+        "p95_us": 16135.569,
+        "p99_us": 16808.936,
+        "throughput_khz": 0.06290982606188011
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "casadi",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: casadi not installed"
+    },
+    {
+      "backend": "acados",
+      "name": "MPC (Np=10)",
+      "note": "",
+      "stats": null,
+      "status": "unavailable: acados_template not installed"
     },
     {
       "backend": "numpy",
       "name": "H-infinity",
+      "note": "general state-space",
       "stats": {
-        "max_us": 110.597,
-        "mean_us": 29.142347,
-        "min_us": 27.331,
+        "max_us": 110.007,
+        "mean_us": 29.272098000000003,
+        "min_us": 27.742,
         "n": 2000,
-        "p50_us": 28.243,
-        "p95_us": 31.179,
-        "p99_us": 49.954,
-        "throughput_khz": 35.407003505293346
-      }
+        "p50_us": 28.514,
+        "p95_us": 31.8,
+        "p99_us": 48.611,
+        "throughput_khz": 35.07049168829347
+      },
+      "status": "measured"
+    },
+    {
+      "backend": "rust",
+      "name": "H-infinity",
+      "note": "2-state VDE",
+      "stats": {
+        "max_us": 35.106,
+        "mean_us": 1.365461,
+        "min_us": 1.252,
+        "n": 2000,
+        "p50_us": 1.323,
+        "p95_us": 1.383,
+        "p99_us": 1.733,
+        "throughput_khz": 755.8578987150416
+      },
+      "status": "measured"
     }
   ],
-  "generated_at": "2026-06-21T20:05:33.774435+00:00",
+  "generated_at": "2026-06-21T20:16:08.878575+00:00",
   "parameters": {
     "iterations": 2000,
     "warmup": 200
   },
   "platform": {
+    "cpu_model": "AMD EPYC 7763 64-Core Processor",
     "machine": "x86_64",
     "platform": "Linux-6.17.0-1018-azure-x86_64-with-glibc2.39",
     "python": "3.12.13 (main, Mar  4 2026, 02:26:36) [GCC 13.3.0]"

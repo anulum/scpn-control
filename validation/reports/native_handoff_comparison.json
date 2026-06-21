@@ -1,48 +1,48 @@
 {
   "comparison": {
-    "active_cycle_speedup_p50": 1.712226908803769,
+    "active_cycle_speedup_p50": 1.866226550919079,
     "native_drops_zero": true,
     "native_publish_failures_zero": true,
     "native_udp_sink_packets": 5000,
     "python_udp_sink_packets": 5000,
-    "wall_time_speedup": 1.0074837597764348
+    "wall_time_speedup": 1.0233437941020924
   },
-  "generated_at": "2026-06-21T20:05:19.769422+00:00",
+  "generated_at": "2026-06-21T20:15:31.099725+00:00",
   "latency_stats": {
     "native": {
-      "max_us": 5.8647082,
-      "mean_us": 5.125452114285714,
-      "min_us": 4.5843884,
+      "max_us": 6.3437382,
+      "mean_us": 5.349318142857143,
+      "min_us": 4.8513158,
       "n": 7,
-      "p50_us": 5.0818372,
-      "p95_us": 5.8647082,
-      "p99_us": 5.8647082,
+      "p50_us": 5.0497928000000005,
+      "p95_us": 6.3437382,
+      "p99_us": 6.3437382,
       "samples_us": [
-        4.5843884,
-        4.6704859999999995,
-        4.9626168,
-        5.0818372,
-        5.2380596,
-        5.4760686,
-        5.8647082
+        4.8513158,
+        4.8602858,
+        4.9672934,
+        5.0497928000000005,
+        5.257052,
+        6.115749,
+        6.3437382
       ]
     },
     "python": {
-      "max_us": 10.2691754,
-      "mean_us": 8.924327114285715,
-      "min_us": 8.211206,
+      "max_us": 9.6923944,
+      "mean_us": 9.454440714285713,
+      "min_us": 9.3393536,
       "n": 7,
-      "p50_us": 8.7012584,
-      "p95_us": 10.2691754,
-      "p99_us": 10.2691754,
+      "p50_us": 9.424057399999999,
+      "p95_us": 9.6923944,
+      "p99_us": 9.6923944,
       "samples_us": [
-        8.211206,
-        8.399034,
-        8.5588052,
-        8.7012584,
-        8.9855506,
-        9.3452602,
-        10.2691754
+        9.3393536,
+        9.342471999999999,
+        9.393425800000001,
+        9.424057399999999,
+        9.463138800000001,
+        9.526243000000001,
+        9.6923944
       ]
     }
   },
@@ -57,15 +57,16 @@
     "warmup": 2
   },
   "platform": {
+    "cpu_model": "AMD EPYC 7763 64-Core Processor",
     "machine": "x86_64",
     "platform": "Linux-6.17.0-1018-azure-x86_64-with-glibc2.39",
     "python": "3.12.13 (main, Mar  4 2026, 02:26:36) [GCC 13.3.0]"
   },
   "rows": [
     {
-      "avg_cycle_us": 10.2691754,
+      "avg_cycle_us": 9.6923944,
       "dropped": 0,
-      "effective_step_us": 185.40603659999988,
+      "effective_step_us": 185.27957119999883,
       "mode": "python",
       "name": "python",
       "native_last_acados_time_ns": null,
@@ -76,33 +77,33 @@
       "status": "completed",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9270301829999994
+      "wall_s": 0.9263978559999941
     },
     {
-      "avg_cycle_us": 5.8647082,
+      "avg_cycle_us": 5.257052,
       "dropped": 0,
-      "effective_step_us": 184.0288092000037,
+      "effective_step_us": 181.05310480000298,
       "mode": "native",
       "name": "native",
       "native_last_acados_time_ns": 40,
-      "native_last_cycle_ns": "4578",
-      "native_last_snn_time_ns": 761,
-      "native_total_cycle_ns": "29323541",
+      "native_last_cycle_ns": "4208",
+      "native_last_snn_time_ns": 942,
+      "native_total_cycle_ns": "26285260",
       "publish_failures": 0,
       "status": "normal",
       "steps": 5000,
       "transport_backend": "std",
-      "wall_s": 0.9201440460000185
+      "wall_s": 0.9052655240000149
     }
   ],
   "schema": "scpn-control.native_handoff_comparison.v2",
   "summaries": {
     "native": {
-      "avg_cycle_us": 5.8647082,
+      "avg_cycle_us": 5.257052,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 184.0288092000037,
-      "elapsed_s": 0.8762392140000088,
+      "effective_step_us": 181.05310480000298,
+      "elapsed_s": 0.8657022670000174,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -130,21 +131,21 @@
           "certificate_id": "",
           "certificate_schema_version": "",
           "channel_capacity": 2,
-          "checked": 54,
+          "checked": 52,
           "core_z3": 2,
           "dispatch_interval_steps": 30,
-          "dropped": 110,
-          "effective_verification_rate": 32.53012048192771,
+          "dropped": 113,
+          "effective_verification_rate": 31.325301204819276,
           "enabled": true,
           "failures": 0,
           "generated": 166,
-          "last_checked_step": 4770,
+          "last_checked_step": 4800,
           "last_failed_step": 0,
           "last_status": "safe",
           "max_depth": 4,
           "max_marking": 100,
           "mode": "async_drop",
-          "submitted": 56,
+          "submitted": 53,
           "sync_wait_count": 0,
           "sync_wait_max_ns": 0,
           "sync_wait_min_ns": 0,
@@ -155,8 +156,8 @@
         },
         "heartbeat_enabled": false,
         "last_acados_time_ns": 40,
-        "last_cycle_ns": "4578",
-        "last_snn_time_ns": 761,
+        "last_cycle_ns": "4208",
+        "last_snn_time_ns": 942,
         "mode": "native",
         "n_neurons": 64,
         "publish_failures": 0,
@@ -165,7 +166,7 @@
         "steps": 5000,
         "target_r": 6.2,
         "target_z": 0.0,
-        "total_cycle_ns": "29323541",
+        "total_cycle_ns": "26285260",
         "transport_backend": "std",
         "transport_endpoint": "127.0.0.1",
         "transport_port": 55917
@@ -185,7 +186,7 @@
             3
           ],
           "available_parallelism": 4,
-          "generated_ns": 1782072318849779505,
+          "generated_ns": 1782072930195025897,
           "governors": {
             "1": null,
             "2": null,
@@ -258,14 +259,14 @@
         "port": 55917
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9201440460000185
+      "wall_s": 0.9052655240000149
     },
     "python": {
-      "avg_cycle_us": 10.2691754,
+      "avg_cycle_us": 9.6923944,
       "c_gB": 0.0424,
       "dropped": 0,
-      "effective_step_us": 185.40603659999988,
-      "elapsed_s": 0.875969026000007,
+      "effective_step_us": 185.27957119999883,
+      "elapsed_s": 0.8752779600000054,
       "execution": {
         "core_hb": 4,
         "core_net": 3,
@@ -290,7 +291,7 @@
             3
           ],
           "available_parallelism": 4,
-          "generated_ns": 1782072310639106378,
+          "generated_ns": 1782072921681101121,
           "governors": {
             "1": null,
             "2": null,
@@ -353,15 +354,15 @@
         ]
       },
       "snapshot": {
-        "acados_time_ns": 862,
-        "cycle_us": 7.785,
+        "acados_time_ns": 1272,
+        "cycle_us": 8.727,
         "heartbeat_expired": false,
         "measured_r": 6.2,
         "measured_z": 0.0,
         "publish_ok": true,
         "r_command": 0.0,
         "r_error": 0.0,
-        "snn_time_ns": 1393,
+        "snn_time_ns": 1653,
         "step": 4999,
         "z_command": 0.0,
         "z_error": 0.0
@@ -377,7 +378,7 @@
         "port": 55916
       },
       "udp_sink_packets": 5000,
-      "wall_s": 0.9270301829999994
+      "wall_s": 0.9263978559999941
     }
   }
 }
