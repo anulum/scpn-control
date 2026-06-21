@@ -86,6 +86,20 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--tick-interval-s", type=float, default=0.0001)
     parser.add_argument("--neurons", type=int, default=64)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument(
+        "--repeats",
+        type=int,
+        default=5,
+        help="Measured campaigns per backend (after warm-up); the reported "
+        "p50/p95/p99 are computed over these repeats to stabilise the noisy "
+        "single-run average.",
+    )
+    parser.add_argument(
+        "--warmup",
+        type=int,
+        default=1,
+        help="Discarded warm-up campaigns per backend (JIT/cache warm-up).",
+    )
     parser.add_argument("--transport-backend", default="std", choices=("std", "io-uring"))
     parser.add_argument("--transport-endpoint", default="127.0.0.1")
     parser.add_argument("--transport-port-base", type=int, default=55900)
@@ -176,6 +190,51 @@ def _speedup(python_summary: dict[str, Any], native_summary: dict[str, Any]) -> 
     return python_step_us / native_step_us
 
 
+def _percentile(sorted_values: list[float], q: float) -> float:
+    """Nearest-rank percentile (q in [0, 1]) of a pre-sorted list."""
+    if not sorted_values:
+        return 0.0
+    idx = min(len(sorted_values) - 1, max(0, int(round(q * (len(sorted_values) - 1)))))
+    return float(sorted_values[idx])
+
+
+def _latency_stats(samples: list[float]) -> dict[str, Any]:
+    """Stabilised statistics over the per-repeat avg_cycle_us samples."""
+    ordered = sorted(float(v) for v in samples)
+    n = len(ordered)
+    return {
+        "n": n,
+        "p50_us": _percentile(ordered, 0.50),
+        "p95_us": _percentile(ordered, 0.95),
+        "p99_us": _percentile(ordered, 0.99),
+        "mean_us": (sum(ordered) / n) if n else 0.0,
+        "min_us": ordered[0] if ordered else 0.0,
+        "max_us": ordered[-1] if ordered else 0.0,
+        "samples_us": ordered,
+    }
+
+
+def _run_backend_repeated(
+    args: argparse.Namespace, *, backend: str, port_base: int
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Run warm-up + measured campaigns for one backend.
+
+    Returns the last representative summary and the stabilised latency stats
+    (p50/p95/p99 over the measured-repeat avg_cycle_us samples).
+    """
+    samples: list[float] = []
+    last_summary: dict[str, Any] = {}
+    for run_idx in range(int(args.warmup) + int(args.repeats)):
+        # Cycle the port per run so back-to-back binds never collide.
+        port = port_base + 2 * run_idx
+        last_summary = _run_campaign(args, backend=backend, port=port)
+        if run_idx >= int(args.warmup):
+            avg = last_summary.get("avg_cycle_us")
+            if avg is not None:
+                samples.append(float(avg))
+    return last_summary, _latency_stats(samples)
+
+
 def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
     rows = payload["rows"]
     lines = [
@@ -219,11 +278,11 @@ def main() -> int:
     if args.tick_interval_s < 0.0:
         raise SystemExit("--tick-interval-s must be >= 0")
 
-    python_summary = _run_campaign(args, backend="python", port=args.transport_port_base)
-    native_summary = _run_campaign(args, backend="native", port=args.transport_port_base + 1)
+    python_summary, python_stats = _run_backend_repeated(args, backend="python", port_base=args.transport_port_base)
+    native_summary, native_stats = _run_backend_repeated(args, backend="native", port_base=args.transport_port_base + 1)
 
     payload = {
-        "schema": "scpn-control.native_handoff_comparison.v1",
+        "schema": "scpn-control.native_handoff_comparison.v2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "platform": {
             "python": sys.version,
@@ -233,10 +292,16 @@ def main() -> int:
         "parameters": {
             "steps": args.steps,
             "tick_interval_s": args.tick_interval_s,
+            "repeats": int(args.repeats),
+            "warmup": int(args.warmup),
             "transport_backend": args.transport_backend,
             "transport_endpoint": args.transport_endpoint,
             "transport_port_base": args.transport_port_base,
             "transport_max_queue": args.transport_max_queue,
+        },
+        "latency_stats": {
+            "python": python_stats,
+            "native": native_stats,
         },
         "rows": [
             _row("python", python_summary),
@@ -248,6 +313,9 @@ def main() -> int:
         },
         "comparison": {
             "wall_time_speedup": _speedup(python_summary, native_summary),
+            "active_cycle_speedup_p50": (
+                python_stats["p50_us"] / native_stats["p50_us"] if native_stats.get("p50_us") else 0.0
+            ),
             "native_drops_zero": int(native_summary.get("dropped", -1)) == 0,
             "native_publish_failures_zero": int(native_summary.get("publish_failures", -1)) == 0,
             "python_udp_sink_packets": int(python_summary.get("udp_sink_packets", 0)),

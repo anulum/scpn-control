@@ -53,6 +53,13 @@ jobs:
           PYTHONPATH=$PWD/src python tools/run_benchmark_suite.py \
             --steps 400 --warmup 40 \
             --json-out artifacts/benchmarks/suite_report.json
+      - name: Native-handoff control-loop latency (P50/P95/P99, canonical)
+        run: |
+          . .venv/bin/activate
+          PYTHONPATH=$PWD/src python scripts/benchmark_native_handoff.py \
+            --steps 5000 --repeats 7 --warmup 2 \
+            --json-out artifacts/benchmarks/native_handoff_comparison.json \
+            --markdown-out artifacts/benchmarks/native_handoff_comparison.md
       - name: Regression gate (evidence-only on hosted runner)
         run: |
           . .venv/bin/activate
