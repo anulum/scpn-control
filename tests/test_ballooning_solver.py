@@ -145,3 +145,9 @@ def test_stability_diagram_rejects_malformed_shear_grid():
     bad = np.array([0.5, np.nan, 1.0])
     with pytest.raises(ValueError, match="s_range must contain only finite values"):
         compute_stability_diagram(bad)
+
+
+def test_marginal_stability_zero_when_unstable_at_alpha_min() -> None:
+    """A finite-shear case already unstable at alpha_min reports zero critical alpha."""
+    crit = find_marginal_stability(s=1.0, alpha_min=1.9, alpha_max=2.0)
+    assert crit == 0.0
