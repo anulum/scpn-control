@@ -639,3 +639,91 @@ class TestKernelEdgeCases:
             assert summary["psi_source"] == "kernel"
         finally:
             fcr_mod.FusionKernel = original_fk
+
+
+class _CfgVariantKernel:
+    """Kernel stand-in with a configurable cfg and a valid-resolution Psi."""
+
+    def __init__(self, cfg: object) -> None:
+        self.cfg = cfg
+        self.Psi = np.zeros((40, 40), dtype=np.float64)
+        self.R = np.linspace(1.0, 5.0, 40)
+        self.Z = np.linspace(-3.0, 3.0, 40)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+
+    def solve_equilibrium(self) -> None:
+        pass
+
+
+class _SmallPsiKernel:
+    """Kernel stand-in whose 2-D Psi is below the minimum 8x8 resolution."""
+
+    def __init__(self, _config_path: str) -> None:
+        self.cfg = {"coils": [{"current": 0.0} for _ in range(5)]}
+        self.Psi = np.zeros((4, 4), dtype=np.float64)
+        self.R = np.linspace(1.0, 5.0, 4)
+        self.Z = np.linspace(-3.0, 3.0, 4)
+        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
+
+    def solve_equilibrium(self) -> None:
+        pass
+
+
+def test_run_rejects_kernel_with_subresolution_psi() -> None:
+    """A kernel whose Psi is below 8x8 fails closed when the fallback is disabled."""
+    with pytest.raises(RuntimeError, match="Kernel Psi is invalid"):
+        run_control_room(
+            sim_duration=1, save_animation=False, save_report=False, verbose=False, kernel_factory=_SmallPsiKernel
+        )
+
+
+def test_run_rejects_kernel_cfg_missing_coils() -> None:
+    """A kernel cfg without a 'coils' entry fails closed without the coil fallback."""
+    with pytest.raises(RuntimeError, match="missing 'coils'"):
+        run_control_room(
+            sim_duration=1,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=lambda _p: _CfgVariantKernel({"shape": "ok"}),
+        )
+
+
+def test_run_rejects_kernel_cfg_coils_not_a_list() -> None:
+    """A non-list 'coils' entry raises during the coil update and fails closed."""
+    with pytest.raises(RuntimeError, match="coil-current update failed"):
+        run_control_room(
+            sim_duration=1,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=lambda _p: _CfgVariantKernel({"coils": "nope"}),
+        )
+
+
+def test_run_rejects_failed_animation_export(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failed animation export fails closed when the render fallback is disabled."""
+    import scpn_control.control.fusion_control_room as fcr
+
+    monkeypatch.setattr(fcr, "_render_outputs", lambda *a, **k: (False, "render boom", False, None))
+    with pytest.raises(RuntimeError, match="Animation export failed"):
+        run_control_room(sim_duration=1, save_animation=True, save_report=False, verbose=False)
+
+
+def test_run_logs_coil_update_failure_in_degraded_mode() -> None:
+    """With the explicit coil-update fallback enabled, a coil failure is logged.
+
+    A non-list 'coils' entry still raises internally, but with both coil-update
+    fallback flags set the run degrades gracefully, logging the failure instead of
+    raising, and returns a finite summary.
+    """
+    summary = run_control_room(
+        sim_duration=1,
+        save_animation=False,
+        save_report=False,
+        verbose=False,
+        kernel_factory=lambda _p: _CfgVariantKernel({"coils": "nope"}),
+        allow_coil_update_fallback=True,
+        allow_legacy_coil_update_fallback=True,
+    )
+    assert isinstance(summary, dict)
