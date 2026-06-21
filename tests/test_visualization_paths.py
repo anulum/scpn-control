@@ -15,6 +15,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -294,6 +296,31 @@ class TestFlightSimVisualization:
         ok, err = ctrl.visualize_flight(output_path=str(tmp_path / "nope.png"))
         assert ok is False
         assert "mocked mpl missing" in err
+
+    def test_visualize_flight_limited_plasma_no_divertor(self, tmp_path: Path) -> None:
+        """X-point that never forms a divertor renders the limited-plasma label."""
+        from scpn_control.control.tokamak_flight_sim import IsoFluxController
+
+        ctrl = IsoFluxController.__new__(IsoFluxController)
+        ctrl.verbose = False
+        ctrl.kernel = _FlightKernel("dummy")
+        ctrl.history = {
+            "t": [0, 1],
+            "Ip": [5.0, 5.1],
+            "R_axis": [6.2, 6.2],
+            "Z_axis": [0.0, 0.0],
+            "X_point": [(0.0, 0.0), (0.0, 0.0)],
+            "ctrl_R_cmd": [0.0, 0.0],
+            "ctrl_R_applied": [0.0, 0.0],
+            "ctrl_Z_cmd": [0.0, 0.0],
+            "ctrl_Z_applied": [0.0, 0.0],
+            "beta_cmd": [1.0, 1.0],
+            "beta_applied": [1.0, 1.0],
+        }
+        out = str(tmp_path / "limited.png")
+        ok, err = ctrl.visualize_flight(output_path=out)
+        assert ok is True
+        assert err is None
 
 
 # ── advanced_soc_fusion_learning: _plot_learning + save_plot ─────────
