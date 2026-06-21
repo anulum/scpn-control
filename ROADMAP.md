@@ -55,7 +55,7 @@
 - [x] UNDERDEVELOPED_REGISTER tracking gaps
 - [x] SECURITY.md, CODE_OF_CONDUCT.md
 - [x] Shared validators (core/_validators.py)
-- [x] Coverage gate: 62% (actual: 93%)
+- [x] Coverage gate: 62% (actual: 100%; gate now 99%)
 - [x] Python 3.13 in CI matrix
 - [x] CI: 15 jobs, ~1900 tests
 

@@ -37,7 +37,7 @@ graph TD
         ISS2[integrated_scenario.py]
     end
 
-    subgraph "control/ — Controllers (42 non-init modules)"
+    subgraph "control/ — Controllers (50 non-init modules)"
         HINF2[h_infinity_controller.py]
         MU2[mu_synthesis.py]
         NMPC2[nmpc_controller.py]
@@ -229,13 +229,13 @@ sequenceDiagram
 
 ```
 scpn-control/
-├── src/scpn_control/     # 134 Python modules (129 non-init)
+├── src/scpn_control/     # 153 Python modules (148 non-init)
 │   ├── scpn/             # SPN → SNN compiler (8 non-init modules)
 │   ├── core/             # Equilibrium, transport, scaling (69 non-init modules)
-│   ├── control/          # Controllers (42 modules, optional deps guarded)
+│   ├── control/          # Controllers (50 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
-├── tests/                # Module-specific tests with a 93% coverage gate
+├── tests/                # Module-specific tests with a 99% coverage gate
 
 
 ├── examples/             # 6 notebooks + 3 scripts

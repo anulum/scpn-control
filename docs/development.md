@@ -66,7 +66,7 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term  # coverage
 ```
 
-Coverage gate: 93% (configured in `pyproject.toml`). Coverage claims should
+Coverage gate: 99% (configured in `pyproject.toml`). Coverage claims should
 come from the latest local coverage run or the GitHub coverage lane, not from
 static documentation text.
 

@@ -52,7 +52,7 @@ heat-flux normalisation is treated as an open validation target: the latest
 local-dispersion path overpredicts the published GENE growth rate.
 
 The codebase comprises a Python package and 5 Rust crates (ndarray 0.16,
-rand 0.9, PyO3 0.25) with broad Python and Rust test coverage, a 93% local
+rand 0.9, PyO3 0.25) with broad Python and Rust test coverage, a 99% local
 package-coverage gate, and a multi-workflow CI matrix.
 
 ## Statement of Need
@@ -184,7 +184,7 @@ The solver is validated against:
 The test suite comprises Python module tests and Rust workspace tests across
 CI workflows for Python, Rust, JAX parity, LIF+NEF SNN emulation, security
 analysis, and OpenSSF Scorecard checks. The local coverage configuration
-currently enforces a 93% package-coverage gate while specialised tests continue
+currently enforces a 99% package-coverage gate while specialised tests continue
 to replace broad coverage-bucket debt. The project holds an OpenSSF CII Best
 Practices badge.
 All physics equations cite their source papers; ~80 citations spanning

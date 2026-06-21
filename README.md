@@ -349,7 +349,7 @@ src/scpn_control/
 |   +-- compiler.py    #   FusionCompiler -> CompiledNet (LIF + bitstream)
 |   +-- contracts.py   #   ControlObservation, ControlAction, ControlTargets
 |   +-- controller.py  #   NeuroSymbolicController (main entry point)
-+-- core/              # Physics solvers + plant models (67 modules)
++-- core/              # Physics solvers + plant models (73 modules)
 |   +-- fusion_kernel.py           # Grad-Shafranov equilibrium (fixed + free boundary)
 |   +-- integrated_transport_solver.py  # Multi-species transport PDE
 |   +-- gyrokinetic_transport.py   # Quasilinear TGLF-10 (ITG/TEM/ETG)
@@ -364,9 +364,9 @@ src/scpn_control/
 |   +-- stability_mhd.py           # 5 MHD stability criteria
 |   +-- scaling_laws.py            # IPB98y2 confinement scaling
 |   +-- neural_transport.py        # QLKNN-10D trained surrogate
-|   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (1000x speedup)
+|   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (~1000x speedup vs Picard)
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
-+-- control/           # Controllers (42 modules, optional deps guarded)
++-- control/           # Controllers (50 modules, optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
 |   +-- mu_synthesis.py            # Static D-scaled structured singular value bound
 |   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
