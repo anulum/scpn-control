@@ -8,6 +8,58 @@
 
 # Architecture
 
+## SCPN ecosystem and cross-repository contracts
+
+`scpn-control` is one repository in a three-repository SCPN ecosystem. Each
+repository owns a distinct surface, and the boundaries between them are explicit
+contracts rather than copied code. Understanding the split explains why a given
+capability lives where it does, and where to look for the canonical version of a
+physics model, a quantum routine, or a control surface.
+
+| Repository | Role | Owns |
+|------------|------|------|
+| [`scpn-fusion-core`](https://github.com/anulum/scpn-fusion-core) | Physics-solver laboratory | Broad physics kernels, high-fidelity numerical formulation, external-code validation campaigns, facility-data integration, Rust and GPU solver paths, 3D equilibrium / stellarator / VMEC / free-boundary internals, and neural physics training stacks. |
+| [`scpn-control`](https://github.com/anulum/scpn-control) (this repository) | Control-grade integration and facade | Bounded public control APIs, NMPC and controller-loop integration, Petri-net and SNN runtime contracts, replay and campaign metadata, fail-closed adapters, HIL/CODAC/EPICS/WebSocket safety boundaries, control-side source and actuator gradients, and traceable claim surfaces. |
+| [`scpn-quantum-control`](https://github.com/anulum/scpn-quantum-control) | Quantum and phase-dynamics research | Quantum disruption classifiers, Qiskit/PennyLane execution and provider integration, and quantum Kuramoto/UPDE variants. `scpn-control` consumes a bounded control adapter for the quantum disruption path rather than re-implementing it. |
+
+### Why the split exists
+
+Each surface has a **single canonical owner**, so the same work is not developed
+twice and each repository's public claims stay scoped to what it can validate:
+
+- A physics solver matures in `scpn-fusion-core` first; `scpn-control` ports or
+  wraps the subset that has a clear control-loop contract, turning selected
+  physics into auditable controller surfaces.
+- The quantum path is owned in `scpn-quantum-control`; `scpn-control` holds only
+  the control adapter, classifier API, and feature-ordering contract.
+- When `scpn-control` needs new mathematics, the solver-level result belongs
+  upstream in `scpn-fusion-core`, so that control stays a bounded facade and does
+  not become a second physics laboratory with divergent copies of the same model.
+
+### What crosses a boundary
+
+Every cross-repository boundary is a contract, not a shared mutable file. When a
+capability is ported between repositories, the boundary fixes:
+
+- physical units, array shapes, and timestep semantics;
+- the failure mode (boundaries fail closed when an optional dependency, native
+  backend, or evidence gate is unavailable);
+- replay metadata, provenance, and the bounded public-claim status of the result.
+
+```mermaid
+graph LR
+    FC["scpn-fusion-core<br/>physics-solver laboratory"]
+    QC["scpn-quantum-control<br/>quantum and phase research"]
+    CC["scpn-control<br/>control-grade facade"]
+    FC -- "port / wrap solver subset<br/>(control-loop contract)" --> CC
+    QC -- "control adapter<br/>(classifier + feature contract)" --> CC
+    CC -. "upstream reusable maths" .-> FC
+```
+
+The remainder of this page describes the internal architecture of `scpn-control`
+itself. The relationship to `scpn-fusion-core` is also summarised in the project
+[README](https://github.com/anulum/scpn-control#relationship-to-scpn-fusion-core).
+
 ## Module Map
 
 ```mermaid

@@ -93,6 +93,14 @@ control-loop contract.
 The split avoids double work: FUSION-CORE advances physics breadth, while
 CONTROL turns selected physics into auditable controller surfaces.
 
+[`scpn-quantum-control`](https://github.com/anulum/scpn-quantum-control) is the
+third repository in the ecosystem: it owns quantum disruption classifiers,
+Qiskit/PennyLane execution, and quantum phase-dynamics variants. `scpn-control`
+consumes a bounded control adapter for the quantum disruption path rather than
+re-implementing it. The full three-repository ownership split and the contracts
+between the repositories are documented in
+[the architecture guide](docs/architecture.md#scpn-ecosystem-and-cross-repository-contracts).
+
 ## Why it matters
 
 Fusion control software is usually split across offline modelling codes,
