@@ -530,7 +530,7 @@
     },
     {
       "component": "real-time EFIT-lite equilibrium reconstruction",
-      "equation_contract": "Real-time equilibrium reconstruction claims must declare the fixed-boundary Grad-Shafranov solve, polynomial p-prime and FF-prime source profiles, diagnostic response interpolation, Rogowski current reconstruction, macroscopic-shape extraction assumptions, diagnostic provenance, matched-reference source, psi/Ip/q95/beta_pol/li tolerances, and facility-claim admission status.",
+      "equation_contract": "Real-time equilibrium reconstruction claims must declare the Grad-Shafranov forward solve (fixed-boundary five-point Delta-star operator with polynomial p-prime and FF-prime source profiles), the least-squares response-function inverse (Tikhonov-regularised weighted least-squares over the p-prime/FF-prime basis with an outer Picard loop over the normalised-flux geometry, reporting the measured chi-squared, iteration count, and plasma current recovered from the fitted flux rather than forced), the optional free-boundary mode (per-coil toroidal Green's-function flux columns with a von Hagenow free-space boundary condition and a joint coil-current least-squares fit), diagnostic response interpolation, macroscopic-shape extraction from the boundary contour, diagnostic provenance, matched-reference source, psi/Ip/q95/beta_pol/li tolerances, and facility-claim admission status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
@@ -545,7 +545,7 @@
       ],
       "unit_contract": "SI metres, webers per radian, tesla, amperes, pascals per weber, FF-prime units, and dimensionless q95, beta_pol, li, elongation, and triangularity.",
       "validation_evidence": [
-        "tests/test_realtime_efit.py fixed-boundary solve and diagnostic reconstruction checks",
+        "tests/test_realtime_efit.py fixed-boundary and free-boundary least-squares inverse closure (psi, coil-current, and recovered-Ip recovery) and diagnostic reconstruction checks",
         "tests/test_kinetic_efit.py kinetic EFIT integration checks",
         "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks",
         "tests/test_realtime_efit.py claim-evidence provenance, matched-reference admission, and invalid-reference checks",
@@ -565,7 +565,7 @@
       "covered_source_paths": [
         "src/scpn_control/control/realtime_efit.py"
       ],
-      "validity_domain": "Fixed-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; not a substitute for facility-grade EFIT or P-EFIT validation unless matched reference evidence passes the strict admission gate.",
+      "validity_domain": "Fixed-boundary and free-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; closure-validated against synthetic diagnostics only; not a substitute for facility-grade EFIT or P-EFIT validation unless matched reference evidence passes the strict admission gate.",
       "external_validation_tracker_issue": 48
     },
     {

@@ -17,8 +17,8 @@ It is not matched EFIT/P-EFIT or measured-discharge validation.
 - Flux loops: `3`
 - B probes: `3`
 - Reconstructed Ip [A]: `1.500000e+07`
-- q95: `3.000000e+00`
-- beta_pol: `1.000000e+00`
-- li: `1.000000e+00`
+- q95: `3.486432e+00`
+- beta_pol: `8.994660e-10`
+- li: `2.592558e-01`
 - Facility claim allowed: `False`
 - Claim boundary: `bounded synthetic EFIT-lite regression evidence only; matched EFIT/P-EFIT or measured reference required for facility claims`
