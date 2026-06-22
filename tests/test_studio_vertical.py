@@ -175,6 +175,16 @@ def test_efit_evidence_does_not_render_as_validated() -> None:
     assert bundle.schema == "studio.efit-reconstruction.v1"
 
 
+def test_efit_evidence_carries_prose_validity_domain() -> None:
+    bundle = efit_reconstruction_evidence(_efit(), **_WHO, **_TS)
+    validity = bundle.claim_boundary.validity_domain
+    assert validity is not None
+    assert validity.note is not None
+    # CONTROL's validity_domain is qualitative prose, not fabricated numeric ranges.
+    assert "closure-validated" in validity.note
+    assert validity.ranges == ()
+
+
 @pytest.mark.parametrize(
     "kwargs",
     [

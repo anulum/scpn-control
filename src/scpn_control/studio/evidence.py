@@ -51,6 +51,7 @@ from scpn_studio_platform.evidence import (
     ProvActivity,
     ProvAgent,
     ProvEntity,
+    ValidityDomain,
 )
 
 from .verbs import (
@@ -170,7 +171,21 @@ def efit_reconstruction_evidence(
         grid={"nz": result.nz, "nr": result.nr, "coords": "R-Z"},
     )
     numeric = NumericProvenance(active_backend="python", reference_backend="synthetic-closure")
-    claim = ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED)
+    # The validity_domain (SDK 0.2.0, CONTROL's first v1.x additive) carries the
+    # qualitative scope as prose — CONTROL's traceability validity_domains are
+    # operating-regime/provenance caveats, not fabricated numeric ranges.
+    validity = ValidityDomain(
+        note=(
+            "Fixed-boundary and free-boundary EFIT-lite reconstruction, closure-validated "
+            "against synthetic diagnostics only; not facility-grade EFIT/P-EFIT validation "
+            "unless matched reference evidence passes the strict admission gate."
+        )
+    )
+    claim = ClaimBoundary(
+        status=ClaimStatus.BOUNDED_MODEL,
+        admission=AdmissionDecision.REJECTED,
+        validity_domain=validity,
+    )
     return EvidenceBundle(
         schema=EFIT_RECONSTRUCTION_SCHEMA,
         entity=entity,

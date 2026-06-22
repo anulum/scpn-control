@@ -58,7 +58,7 @@ ml = ["torch>=2.0"]
 facility = ["mdsthin>=1.6.3"]
 jax = ["jax>=0.4.20", "jaxlib>=0.4.20"]
 neuro = ["sc-neurocore>=3.8.0"]
-studio = ["scpn-studio-platform>=0.1,<0.2"]  # SCPN STUDIO vertical (scpn_control.studio)
+studio = ["scpn-studio-platform>=0.2,<0.3"]  # SCPN STUDIO vertical (scpn_control.studio)
 nengo = []  # pure-numpy LIF+NEF engine, no external deps
 loihi = []  # Loihi export deprecated; use export_fpga_weights()
 rl = ["stable-baselines3>=2.0", "gymnasium>=0.29"]
