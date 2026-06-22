@@ -364,7 +364,7 @@ src/scpn_control/
 |   +-- stability_mhd.py           # 5 MHD stability criteria
 |   +-- scaling_laws.py            # IPB98y2 confinement scaling
 |   +-- neural_transport.py        # QLKNN-10D trained surrogate
-|   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (~1000x speedup vs Picard)
+|   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (research-path speedup, not P-EFIT validated)
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
 +-- control/           # Controllers (50 modules, optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
