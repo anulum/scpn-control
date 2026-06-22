@@ -82,7 +82,7 @@ SIMULATE = Verb(
     produces=(SCENARIO_SIMULATION_SCHEMA,),
     backends=("python", "rust"),
 )
-"""Roll out a closed-loop control scenario on a reduced-order plant."""
+"""Roll out a closed-loop control scenario on a low-order plant model."""
 
 ANALYSE = Verb(
     name="analyse",
