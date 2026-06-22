@@ -45,6 +45,13 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
+      - name: Install studio platform SDK (ubuntu 3.12 only)
+        # The studio vertical (scpn_control.studio) consumes the published
+        # scpn-studio-platform SDK; install it on the job that runs mypy + the
+        # 100% coverage gate so tests/test_studio_vertical.py executes (it
+        # importorskips elsewhere) and the studio modules are covered.
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        run: pip install 'scpn-studio-platform>=0.1,<0.2'
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

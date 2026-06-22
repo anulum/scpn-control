@@ -2063,6 +2063,26 @@ coverage.
 
 ::: scpn_control.scpn.geometry_neutral_replay.load_geometry_neutral_replay_evidence
 
+### Studio Vertical
+
+CONTROL's SCPN STUDIO vertical expresses its verbs and evidence on the locked
+`scpn-studio-platform` contract (installed via the optional `studio` extra). It
+consumes the platform SDK rather than forking it: verbs are declared as platform
+`Verb` records, results map to platform `EvidenceBundle` records, and the
+capability manifest is the platform `CapabilityManifest`.
+
+#### Studio Verbs
+
+::: scpn_control.studio.verbs
+
+#### Studio Evidence Bundles
+
+::: scpn_control.studio.evidence
+
+#### Studio Capability Manifest
+
+::: scpn_control.studio.manifest
+
 ---
 
 ## CLI
