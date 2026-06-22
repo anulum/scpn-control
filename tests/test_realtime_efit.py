@@ -118,9 +118,12 @@ def test_reconstruction_solovev():
     meas, psi_true, ip_true = _closure_case(efit)
     res = efit.reconstruct(meas, mode="geometric")
 
-    # Geometric macroscopic descriptors (mean major radius / half-width).
-    assert np.isclose(res.shape.R0, 6.2)
-    assert np.isclose(res.shape.a, 2.0)
+    # Macroscopic descriptors from the reconstructed boundary contour (sub-grid,
+    # so close to but not exactly the geometric mean radius / half-width).
+    assert res.shape.R0 == pytest.approx(6.2, abs=0.1)
+    assert res.shape.a == pytest.approx(2.0, abs=0.15)
+    assert res.shape.kappa > 1.0  # the grid domain is vertically elongated
+    assert np.isfinite(res.shape.li) and res.shape.li > 0.0
     # Real least-squares inverse recovers the flux map and Ip (no force-hack) with
     # a near-zero weighted chi-squared on self-consistent diagnostics.
     assert np.linalg.norm(res.psi - psi_true) / np.linalg.norm(psi_true) < 1.0e-4

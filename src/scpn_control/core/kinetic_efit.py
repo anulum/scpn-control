@@ -480,8 +480,13 @@ class KineticEFIT(RealtimeEFIT):
             q_axis = float(np.clip(1.0 + np.mean(np.abs(mse_pitch)) / 90.0, 0.7, 2.0))
             q_prof = q_axis + 2.0 * rho_1d**2
         else:
-            q_axis = min(float(res_mag.shape.q95), 1.5)
-            q_prof = q_axis + max(float(res_mag.shape.q95) - q_axis, 0.0) * rho_1d**2
+            q95_mag = float(res_mag.shape.q95)
+            if not np.isfinite(q95_mag):
+                # No magnetic q available (degenerate / data-free reconstruction);
+                # use a neutral edge-q fallback so the kinetic q-profile stays finite.
+                q95_mag = 3.0
+            q_axis = min(q95_mag, 1.5)
+            q_prof = q_axis + max(q95_mag - q_axis, 0.0) * rho_1d**2
 
         beta_fast = (
             np.mean(p_fast) / (res_mag.shape.B0**2 / (2.0 * 4.0 * np.pi * 1e-7))

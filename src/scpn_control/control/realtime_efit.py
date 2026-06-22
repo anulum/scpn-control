@@ -19,6 +19,7 @@ import numpy as np
 import numpy.typing as npt
 
 from scpn_control._typing import AnyFloatArray
+from scpn_control.core.equilibrium_shape import compute_equilibrium_shape
 
 MU0 = 4.0e-7 * np.pi
 _EFIT_CLAIM_SCHEMA_VERSION = 1
@@ -360,6 +361,7 @@ class RealtimeEFIT:
         Z_grid: AnyFloatArray,
         n_p_modes: int = 3,
         n_ff_modes: int = 3,
+        vacuum_rb_phi: float = 33.0,
     ):
         self.diagnostics = diagnostics
         self.R = R_grid
@@ -368,6 +370,10 @@ class RealtimeEFIT:
         self.nZ = len(Z_grid)
         self.n_p_modes = n_p_modes
         self.n_ff_modes = n_ff_modes
+        # Vacuum toroidal-field flux function F_edge = R0 * B_phi0 [T m]; the
+        # magnetic inverse fixes the poloidal field but not the toroidal field, so
+        # the (externally known) vacuum TF is required to evaluate q and B_phi.
+        self.vacuum_rb_phi = float(vacuum_rb_phi)
 
         self.response = DiagnosticResponse(diagnostics, R_grid, Z_grid)
 
@@ -641,8 +647,7 @@ class RealtimeEFIT:
             if delta < tol:
                 break
 
-        shape = self.compute_shape_params(psi)
-        shape.Ip_reconstructed = float(self._diagnostic_vector(psi)[-1])
+        shape = self.compute_shape_params(psi, coeffs[: self.n_p_modes], coeffs[self.n_p_modes :])
 
         t1 = time.perf_counter()
         return ReconstructionResult(
@@ -705,31 +710,56 @@ class RealtimeEFIT:
         R0 = float(np.mean(self.R))
         return (R0, float(self.Z[0]) + 0.1)
 
-    def compute_shape_params(self, psi: AnyFloatArray) -> ShapeParams:
-        """Compute plasma-shape parameters from a flux map.
+    def compute_shape_params(
+        self,
+        psi: AnyFloatArray,
+        p_coeffs: AnyFloatArray | None = None,
+        ff_coeffs: AnyFloatArray | None = None,
+    ) -> ShapeParams:
+        """Compute plasma-shape parameters from a reconstructed flux map.
+
+        Delegates the macroscopic descriptors to the reusable
+        :func:`scpn_control.core.equilibrium_shape.compute_equilibrium_shape`:
+        R0/minor radius/elongation/triangularity from the boundary contour,
+        ``li(3)`` from the poloidal-field volume integral, poloidal beta from the
+        fitted pressure profile, and q95 from the toroidal flux function. The
+        plasma current is taken from the flux map; a degenerate (no-plasma) map
+        returns geometric defaults.
 
         Parameters
         ----------
         psi
             Poloidal-flux map on the EFIT R/Z grid.
-
-        Returns
-        -------
-        ShapeParams
-            Elongation, triangularity, and related shape descriptors.
+        p_coeffs, ff_coeffs
+            Fitted ``p'(psi_N)`` / ``FF'(psi_N)`` coefficients (needed for beta_pol
+            and q95); default to zeros when called without a reconstruction.
         """
-        # Extract R0 and a from the simple base_psi
-        R0 = float(np.mean(self.R))
-        a = float(self.R[-1] - self.R[0]) / 2.0
+        psi_arr = np.asarray(psi, dtype=float)
+        ip = float(self._diagnostic_vector(psi_arr)[-1])
+        p_arr = np.zeros(self.n_p_modes) if p_coeffs is None else np.asarray(p_coeffs, dtype=float)
+        ff_arr = np.zeros(self.n_ff_modes) if ff_coeffs is None else np.asarray(ff_coeffs, dtype=float)
 
+        shape = compute_equilibrium_shape(psi_arr, self.R, self.Z, p_arr, ff_arr, ip, self.vacuum_rb_phi)
+        if shape is None:
+            return ShapeParams(
+                R0=float(np.mean(self.R)),
+                a=float(self.R[-1] - self.R[0]) / 2.0,
+                kappa=1.0,
+                delta_upper=0.0,
+                delta_lower=0.0,
+                q95=float("nan"),
+                beta_pol=0.0,
+                li=0.0,
+                Ip_reconstructed=ip,
+            )
         return ShapeParams(
-            R0=R0,
-            a=a,
-            kappa=1.7,  # Default
-            delta_upper=0.3,
-            delta_lower=0.4,
-            q95=3.0,
-            beta_pol=1.0,
-            li=1.0,
-            Ip_reconstructed=15e6,
+            R0=shape.R0,
+            a=shape.a,
+            kappa=shape.kappa,
+            delta_upper=shape.delta_upper,
+            delta_lower=shape.delta_lower,
+            q95=shape.q95,
+            beta_pol=shape.beta_pol,
+            li=shape.li,
+            Ip_reconstructed=ip,
         )
