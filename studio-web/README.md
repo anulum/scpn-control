@@ -1,0 +1,50 @@
+<!--
+SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+© Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+© Code 2020–2026 Miroslav Šotek. All rights reserved.
+ORCID: 0009-0009-3560-0851
+Contact: www.anulum.li | protoscience@anulum.li
+-->
+
+# Control Studio — UI remote
+
+The SCPN-CONTROL Control Studio's **Module Federation 2.x remote**. It exposes
+`./ControlStudioPanel` under the remote name `scpn_control`
+(`studioRemoteName('scpn-control')`) and builds a `remoteEntry.js` that the SCPN
+Studio Hub loads at runtime (the Hub's `loadStudioPanel` consumes exactly this). It
+also runs standalone, matching the federation model where each studio is
+independent.
+
+## What the panel shows
+
+- CONTROL's verbs with their gating attributes: safety tier, side-effect class, and
+  timing. A realtime verb (`regulate`) shows its hard deadline; a live-hardware verb
+  (`regulate`, `mitigate`) is marked as Hub-gated per tenant.
+- CONTROL's claims, each rendered by the shared honesty rule: only a
+  reference-validated claim is marked validated; every other boundary
+  (bounded-model, …) is shown verbatim — the same grading the Python vertical emits.
+
+## Layout
+
+| Path | Responsibility |
+| --- | --- |
+| `src/domain.ts` | The studio's verb/claim data + the honesty rendering rules. |
+| `src/ControlStudioPanel.tsx` | The exposed federated panel. |
+
+## Develop
+
+```bash
+pnpm install
+pnpm typecheck   # tsc --noEmit, strict
+pnpm lint        # eslint, type-checked + react-hooks
+pnpm format:check
+pnpm test        # vitest, 100% coverage gate
+pnpm build       # vite build — emits dist/remoteEntry.js
+pnpm dev         # standalone preview
+```
+
+## Next
+
+Serve `remoteEntry.js` from the studio host and register it with the Hub
+(`type: 'module'`); wire the panel's data from the live CONTROL studio backend
+(`scpn_control.studio`) instead of the representative sample.
