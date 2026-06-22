@@ -794,6 +794,35 @@ P-EFIT or documented-public-reference artefact validator passes.
 
 ::: scpn_control.core.neural_equilibrium.SyntheticEquilibriumCampaign
 
+### Equilibrium Shape & Profile Metrics
+
+Reusable, reconstruction-agnostic extraction of macroscopic descriptors
+(R0/minor radius/elongation/triangularity, `li(3)`, poloidal beta, and `q95`)
+from a poloidal-flux map and the fitted `p'`/`FF'` profiles. Used by the
+real-time EFIT inverse and shareable by the free-boundary kernel and kinetic
+EFIT. The poloidal field uses the per-radian convention `B_pol = |grad psi| / R`
+(Ampere-consistent); `q95` requires `contourpy` for the flux-surface contour.
+
+::: scpn_control.core.equilibrium_shape.EquilibriumShape
+
+::: scpn_control.core.equilibrium_shape.compute_equilibrium_shape
+
+::: scpn_control.core.equilibrium_shape.boundary_geometry
+
+::: scpn_control.core.equilibrium_shape.poloidal_field
+
+::: scpn_control.core.equilibrium_shape.internal_inductance
+
+::: scpn_control.core.equilibrium_shape.poloidal_beta
+
+::: scpn_control.core.equilibrium_shape.safety_factor_q95
+
+::: scpn_control.core.equilibrium_shape.pressure_grid
+
+::: scpn_control.core.equilibrium_shape.plasma_boundary
+
+::: scpn_control.core.equilibrium_shape.largest_flux_contour
+
 ### JAX-Accelerated Neural Equilibrium
 
 Requires `pip install "scpn-control[jax]"`. GPU and autodiff via `jax.grad`.

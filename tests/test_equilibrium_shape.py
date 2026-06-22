@@ -67,6 +67,7 @@ def test_boundary_geometry_recovers_miller_shape():
 
 
 def test_poloidal_field_satisfies_amperes_law():
+    pytest.importorskip("contourpy")
     from scipy.interpolate import RegularGridInterpolator
 
     _efit, r_grid, z_grid, psi, _p, _ff, ip = _closure_equilibrium()
@@ -124,6 +125,7 @@ def test_poloidal_beta_zero_for_zero_current():
 
 
 def test_safety_factor_q95_is_finite_and_positive():
+    pytest.importorskip("contourpy")
     _efit, r_grid, z_grid, psi, _p, ff, _ip = _closure_equilibrium()
     psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
     q95 = safety_factor_q95(psi, psi_n, r_grid, z_grid, ff, float(psi.max()), 33.0)
@@ -139,6 +141,7 @@ def test_safety_factor_q95_nan_for_absent_surface():
 
 
 def test_compute_equilibrium_shape_full_set():
+    pytest.importorskip("contourpy")
     _efit, r_grid, z_grid, psi, p_true, ff_true, ip = _closure_equilibrium()
     shape = compute_equilibrium_shape(psi, r_grid, z_grid, p_true, ff_true, ip, 33.0)
     assert isinstance(shape, EquilibriumShape)
