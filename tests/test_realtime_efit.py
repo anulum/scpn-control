@@ -735,6 +735,19 @@ def test_solve_source_freespace_rejects_bad_shape():
         efit._solve_source_freespace(np.zeros((4, 4)))
 
 
+def test_solve_source_with_bc_raises_on_non_finite_solution():
+    efit = _efit_33()
+
+    class _NanLU:
+        def solve(self, rhs: np.ndarray) -> np.ndarray:
+            return np.full_like(np.asarray(rhs, dtype=float), np.nan)
+
+    efit._gs_lu = _NanLU()
+    efit._gs_inner_shape = (efit.nR - 2, efit.nZ - 2)
+    with pytest.raises(RuntimeError, match="non-finite flux"):
+        efit._solve_source_with_bc(np.zeros((efit.nR, efit.nZ)), np.zeros((efit.nR, efit.nZ)))
+
+
 def test_freespace_operator_rejects_nonuniform_grid():
     diagnostics = create_mock_diagnostics()
     r_nonuniform = np.array([4.2, 4.5, 5.5, 7.0, 8.2])
