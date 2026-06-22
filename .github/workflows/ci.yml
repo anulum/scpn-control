@@ -66,7 +66,7 @@ jobs:
           pip install --require-hashes -r requirements/ci-viz.txt
           pip install --require-hashes -r requirements/ci-hdf5.txt
           pip install --require-hashes -r requirements/ci-jax.txt
-          pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=99
+          pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=100
       - name: Upload coverage artifact
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
