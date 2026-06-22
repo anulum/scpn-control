@@ -635,3 +635,109 @@ def test_diagnostic_weights_handles_missing_probe_group():
     weights = efit._diagnostic_weights(np.array([0.1, 0.2, 1.0e6]), 2.0e-2)
     assert weights.shape == (3,)
     assert np.all(np.isfinite(weights))
+
+
+def _free_boundary_efit() -> RealtimeEFIT:
+    """Dense sensor ring + outboard coils so the free-boundary fit is over-determined."""
+    angles = np.linspace(0.0, 2.0 * np.pi, 16, endpoint=False)
+    loops = [(6.2 + 1.9 * np.cos(t), 1.9 * np.sin(t)) for t in angles]
+    probes = [(6.2 + 1.7 * np.cos(t), 1.7 * np.sin(t), "R" if k % 2 else "Z") for k, t in enumerate(angles)]
+    diagnostics = MagneticDiagnostics(loops, probes, rogowski_radius=6.2)
+    return RealtimeEFIT(diagnostics, np.linspace(4.2, 8.2, 49), np.linspace(-3.0, 3.0, 49), vacuum_rb_phi=33.0)
+
+
+def _free_boundary_closure(efit):
+    """Build a true free-boundary equilibrium (plasma + coils) and its diagnostics."""
+    from scpn_control.core.fusion_kernel import CoilSet
+
+    coils = CoilSet(positions=[(8.5, 2.5), (8.5, -2.5), (4.0, 3.0)], currents=np.zeros(3), turns=[1, 1, 1])
+    p_true = np.array([2.0, -1.5, 0.4])
+    ff_true = np.array([1.0, -0.6, 0.1])
+    i_true = np.array([3.0e5, -2.0e5, 1.5e5])
+    rho = efit._geometric_rho()[0]
+    basis = [efit._solve_source_freespace(s) for s in efit._basis_sources(rho)]
+    coil_cols = efit._coil_flux_columns(coils)
+    psi_true = np.tensordot(np.concatenate([p_true, ff_true]), np.asarray(basis), axes=(0, 0))
+    psi_true = psi_true + np.tensordot(i_true, np.asarray(coil_cols), axes=(0, 0))
+    measurements = efit.response.simulate_measurements(psi_true, i_true)
+    return coils, psi_true, i_true, measurements
+
+
+def test_free_boundary_closure_recovers_coil_currents_and_flux():
+    efit = _free_boundary_efit()
+    coils, psi_true, i_true, measurements = _free_boundary_closure(efit)
+    res = efit.reconstruct(measurements, coils=coils, mode="geometric")
+    assert res.coil_currents is not None
+    assert res.coil_currents.shape == (3,)
+    assert _relative_array_error("psi", res.psi, psi_true) < 1.0e-4
+    assert _relative_array_error("coil_currents", res.coil_currents, i_true) < 1.0e-4
+    assert res.chi_squared < 1.0e-6
+
+
+def test_free_boundary_picard_mode_runs_and_fits_diagnostics():
+    # The truth uses the geometric-rho basis, so the psi_N Picard basis cannot
+    # recover it exactly (as in the fixed-boundary case); this exercises the
+    # free-boundary Picard path and checks it iterates to a finite, coil-augmented
+    # fit.
+    efit = _free_boundary_efit()
+    coils, _psi_true, _i_true, measurements = _free_boundary_closure(efit)
+    res = efit.reconstruct(measurements, coils=coils, mode="psi_n", max_iter=10)
+    assert res.coil_currents is not None
+    assert res.coil_currents.shape == (3,)
+    assert res.n_iterations >= 1
+    assert np.isfinite(res.chi_squared)
+    assert np.all(np.isfinite(res.psi))
+
+
+def test_fixed_boundary_reconstruct_has_no_coil_currents():
+    efit = _efit_33()
+    meas, _psi_true, _ip_true = _closure_case(efit)
+    res = efit.reconstruct(meas, mode="geometric")
+    assert res.coil_currents is None
+
+
+def test_coil_flux_columns_default_turns_when_unset():
+    from scpn_control.core.fusion_kernel import CoilSet
+
+    efit = _free_boundary_efit()
+    coils = CoilSet(positions=[(8.5, 2.5), (8.5, -2.5)], currents=np.zeros(2), turns=[])
+    columns = efit._coil_flux_columns(coils)
+    assert len(columns) == 2
+    assert all(c.shape == (efit.nR, efit.nZ) for c in columns)
+
+
+def test_coil_flux_columns_rejects_turns_length_mismatch():
+    from scpn_control.core.fusion_kernel import CoilSet
+
+    efit = _free_boundary_efit()
+    coils = CoilSet(positions=[(8.5, 2.5), (8.5, -2.5)], currents=np.zeros(2), turns=[1])
+    with pytest.raises(ValueError, match="turns length"):
+        efit._coil_flux_columns(coils)
+
+
+def test_solve_source_with_bc_zero_matches_fixed_boundary():
+    efit = _efit_33()
+    source = efit._basis_sources(efit._geometric_rho()[0])[0]
+    psi_fixed = efit._solve_source(source)
+    psi_bc = efit._solve_source_with_bc(source, np.zeros((efit.nR, efit.nZ)))
+    assert np.allclose(psi_fixed, psi_bc, atol=1e-12)
+
+
+def test_solve_source_with_bc_rejects_bad_shape():
+    efit = _efit_33()
+    with pytest.raises(ValueError, match="shapes must match"):
+        efit._solve_source_with_bc(np.zeros((3, 3)), np.zeros((efit.nR, efit.nZ)))
+
+
+def test_solve_source_freespace_rejects_bad_shape():
+    efit = _free_boundary_efit()
+    with pytest.raises(ValueError, match="source shape"):
+        efit._solve_source_freespace(np.zeros((4, 4)))
+
+
+def test_freespace_operator_rejects_nonuniform_grid():
+    diagnostics = create_mock_diagnostics()
+    r_nonuniform = np.array([4.2, 4.5, 5.5, 7.0, 8.2])
+    efit = RealtimeEFIT(diagnostics, r_nonuniform, np.linspace(-3.0, 3.0, 33))
+    with pytest.raises(ValueError, match="uniform R/Z spacing"):
+        efit._freespace_boundary_operator()

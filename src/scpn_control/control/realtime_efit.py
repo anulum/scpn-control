@@ -5,18 +5,27 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # Project: SCPN Control
 # Description: Real-time equilibrium reconstruction utilities.
-"""Real-time fixed-boundary EFIT-style reconstruction utilities and diagnostics."""
+"""Real-time EFIT-style reconstruction utilities and diagnostics.
+
+Supports both a fixed-boundary inverse (``reconstruct`` without coils) and a
+free-boundary inverse (``reconstruct`` with a :class:`CoilSet`): the latter adds
+external-coil flux via toroidal Green's functions and a von Hagenow free-space
+plasma-boundary condition, and jointly fits the p'/FF' profiles and coil currents.
+"""
 
 from __future__ import annotations
 
 import json
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 import numpy.typing as npt
+
+if TYPE_CHECKING:
+    from scpn_control.core.fusion_kernel import CoilSet
 
 from scpn_control._typing import AnyFloatArray
 from scpn_control.core.equilibrium_shape import compute_equilibrium_shape
@@ -88,6 +97,9 @@ class ReconstructionResult:
         Number of Picard iterations performed.
     wall_time_ms
         Reconstruction wall time in milliseconds.
+    coil_currents
+        Fitted external-coil currents [A] for a free-boundary reconstruction;
+        ``None`` for a fixed-boundary fit (no coils supplied).
     """
 
     psi: AnyFloatArray
@@ -97,6 +109,9 @@ class ReconstructionResult:
     chi_squared: float
     n_iterations: int
     wall_time_ms: float
+    # Keyword-only with a default so subclasses (e.g. KineticReconstructionResult)
+    # can still add required positional fields without a dataclass ordering clash.
+    coil_currents: AnyFloatArray | None = field(default=None, kw_only=True)
 
 
 @dataclass(frozen=True)
@@ -382,6 +397,9 @@ class RealtimeEFIT:
         # so the LU factorisation is reused across every basis/Picard solve.
         self._gs_lu: Any = None
         self._gs_inner_shape: tuple[int, int] | None = None
+        # Cached von Hagenow source-to-boundary-flux operator (free-boundary only),
+        # geometry-only like the LU, so built once on first free-boundary solve.
+        self._freespace_op: tuple[AnyFloatArray, tuple[AnyFloatArray, AnyFloatArray]] | None = None
 
     def _geometric_rho(self) -> tuple[AnyFloatArray, AnyFloatArray, AnyFloatArray]:
         """Geometric normalised minor radius rho in [0, 1] plus the (R, Z) meshes."""
@@ -481,6 +499,126 @@ class RealtimeEFIT:
         source = -(MU0 * rr**2 * p_prime + ff_prime)
         return self._solve_source(source)
 
+    def _coil_flux_columns(self, coils: CoilSet) -> list[AnyFloatArray]:
+        """Per-coil vacuum poloidal-flux maps on the EFIT grid (unit current).
+
+        Each column is ``turns_j`` times the axisymmetric toroidal Green's function
+        of coil ``j`` evaluated over the grid, reusing
+        :func:`FusionKernel._green_function_array`. These are the free-boundary
+        response columns for the coil currents — geometry-only and independent of
+        the plasma source, so they are assembled once per reconstruction.
+        """
+        from scpn_control.core.fusion_kernel import FusionKernel
+
+        positions = list(coils.positions)
+        turns = list(coils.turns) if len(coils.turns) else [1] * len(positions)
+        if len(turns) != len(positions):
+            raise ValueError("CoilSet turns length must match positions")
+        rr, zz = np.meshgrid(self.R, self.Z, indexing="ij")
+        columns: list[AnyFloatArray] = []
+        for (r_c, z_c), n_turn in zip(positions, turns, strict=True):
+            green = FusionKernel._green_function_array(float(r_c), float(z_c), rr, zz)
+            columns.append(np.asarray(float(n_turn) * np.asarray(green, dtype=float), dtype=float))
+        return columns
+
+    def _boundary_node_indices(self) -> tuple[AnyFloatArray, AnyFloatArray]:
+        """``(i, j)`` index arrays of the grid-perimeter nodes (top/bottom rows, then side columns)."""
+        i_idx: list[int] = []
+        j_idx: list[int] = []
+        for i in range(self.nR):
+            i_idx.extend((i, i))
+            j_idx.extend((0, self.nZ - 1))
+        for j in range(1, self.nZ - 1):
+            i_idx.extend((0, self.nR - 1))
+            j_idx.extend((j, j))
+        return np.asarray(i_idx, dtype=int), np.asarray(j_idx, dtype=int)
+
+    def _freespace_boundary_operator(self) -> tuple[AnyFloatArray, tuple[AnyFloatArray, AnyFloatArray]]:
+        """Cached source-to-boundary-flux operator for the von Hagenow free-space BC.
+
+        Returns ``(G_eff, (bi, bj))`` such that the free-space poloidal flux the
+        plasma current produces on the grid boundary is ``G_eff @ source.ravel()``,
+        where ``G_eff[b, c] = green(node_b, cell_c) * (-dR dZ / (mu0 R_c))`` maps the
+        Grad-Shafranov source ``source = Delta* psi = -mu0 R j_phi`` (so ``j_phi =
+        -source/(mu0 R)``) through the toroidal Green's function. Geometry-only.
+        """
+        if self._freespace_op is not None:
+            return self._freespace_op
+        from scpn_control.core.fusion_kernel import FusionKernel
+
+        r_steps = np.diff(self.R)
+        z_steps = np.diff(self.Z)
+        if not np.allclose(r_steps, r_steps[0]) or not np.allclose(z_steps, z_steps[0]):
+            raise ValueError("free-boundary GS solve requires uniform R/Z spacing")
+        rr, zz = np.meshgrid(self.R, self.Z, indexing="ij")
+        r_flat = rr.ravel()
+        z_flat = zz.ravel()
+        d_r = float(r_steps[0])
+        d_z = float(z_steps[0])
+        cell_factor = -d_r * d_z / (MU0 * np.maximum(r_flat, 1e-12))
+        bi, bj = self._boundary_node_indices()
+        g_eff = np.empty((bi.size, r_flat.size), dtype=float)
+        for k in range(bi.size):
+            green = FusionKernel._green_function_array(
+                float(self.R[int(bi[k])]), float(self.Z[int(bj[k])]), r_flat, z_flat
+            )
+            g_eff[k] = np.asarray(green, dtype=float) * cell_factor
+        self._freespace_op = (g_eff, (bi, bj))
+        return self._freespace_op
+
+    def _solve_source_with_bc(self, source: AnyFloatArray, psi_bc: AnyFloatArray) -> AnyFloatArray:
+        """Solve ``Delta* psi = source`` on the interior with Dirichlet ``psi = psi_bc`` on the boundary.
+
+        Reuses the cached fixed-boundary interior LU; the non-zero boundary values
+        enter the interior right-hand side through the stencil links the operator
+        omits at the boundary (so ``psi_bc = 0`` reproduces :meth:`_solve_source`).
+        """
+        source_arr = np.asarray(source, dtype=float)
+        bc_arr = np.asarray(psi_bc, dtype=float)
+        if source_arr.shape != (self.nR, self.nZ) or bc_arr.shape != (self.nR, self.nZ):
+            raise ValueError("source and psi_bc shapes must match the EFIT R/Z grid")
+        lu, (n_r_inner, n_z_inner) = self._gs_factorization()
+        d_r = float(self.R[1] - self.R[0])
+        d_z = float(self.Z[1] - self.Z[0])
+        inv_dr2 = 1.0 / (d_r * d_r)
+        inv_dz2 = 1.0 / (d_z * d_z)
+        r_inner = np.maximum(np.asarray(self.R[1:-1], dtype=float), 1e-12)
+        coeff_r_minus = inv_dr2 + 1.0 / (2.0 * r_inner * d_r)  # link to the (i-1) neighbour
+        coeff_r_plus = inv_dr2 - 1.0 / (2.0 * r_inner * d_r)  # link to the (i+1) neighbour
+
+        rhs = source_arr[1:-1, 1:-1].copy()
+        rhs[0, :] -= coeff_r_minus[0] * bc_arr[0, 1:-1]
+        rhs[-1, :] -= coeff_r_plus[-1] * bc_arr[-1, 1:-1]
+        rhs[:, 0] -= inv_dz2 * bc_arr[1:-1, 0]
+        rhs[:, -1] -= inv_dz2 * bc_arr[1:-1, -1]
+
+        interior = lu.solve(rhs.reshape(n_r_inner * n_z_inner))
+        if not np.all(np.isfinite(interior)):
+            raise RuntimeError("free-boundary GS solve produced non-finite flux")
+        psi = np.zeros((self.nR, self.nZ), dtype=float)
+        psi[0, :] = bc_arr[0, :]
+        psi[-1, :] = bc_arr[-1, :]
+        psi[:, 0] = bc_arr[:, 0]
+        psi[:, -1] = bc_arr[:, -1]
+        psi[1:-1, 1:-1] = interior.reshape((n_r_inner, n_z_inner))
+        return psi
+
+    def _solve_source_freespace(self, source: AnyFloatArray) -> AnyFloatArray:
+        """Free-boundary GS solve: ``Delta* psi = source`` with the von Hagenow free-space BC.
+
+        The boundary flux is the free-space flux the plasma current produces (not
+        pinned to zero), so the plasma flux decays correctly — the free-boundary
+        counterpart of :meth:`_solve_source`.
+        """
+        source_arr = np.asarray(source, dtype=float)
+        if source_arr.shape != (self.nR, self.nZ):
+            raise ValueError("source shape must match the EFIT R/Z grid")
+        g_eff, (bi, bj) = self._freespace_boundary_operator()
+        boundary_vals = g_eff @ source_arr.ravel()
+        psi_bc = np.zeros((self.nR, self.nZ), dtype=float)
+        psi_bc[bi, bj] = boundary_vals
+        return self._solve_source_with_bc(source_arr, psi_bc)
+
     def _normalized_flux(self, psi: AnyFloatArray) -> AnyFloatArray:
         """Normalised poloidal flux psi_N in [0, 1] (0 at the axis, 1 at the boundary).
 
@@ -570,7 +708,7 @@ class RealtimeEFIT:
     def _weighted_lstsq(
         response: AnyFloatArray, d: AnyFloatArray, sqrt_w: AnyFloatArray, regularization: float
     ) -> AnyFloatArray:
-        """Tikhonov-regularised weighted least squares for the profile coefficients."""
+        """Tikhonov-regularised weighted least squares for the fit coefficients."""
         a_mat = sqrt_w[:, np.newaxis] * response
         b_vec = sqrt_w * d
         if regularization > 0.0:
@@ -584,6 +722,7 @@ class RealtimeEFIT:
         self,
         measurements: dict[str, float | AnyFloatArray],
         *,
+        coils: CoilSet | None = None,
         mode: str = "psi_n",
         max_iter: int = 25,
         tol: float = 1.0e-5,
@@ -601,6 +740,12 @@ class RealtimeEFIT:
         ----------
         measurements
             Magnetic diagnostics dict (``flux_loops``, ``b_probes``, ``Ip``).
+        coils
+            Optional external :class:`CoilSet`. When supplied, the reconstruction is
+            free-boundary: the plasma basis uses the von Hagenow free-space boundary
+            condition, the coil currents become additional unknowns (toroidal
+            Green's-function columns), and the total flux is ``psi_plasma +
+            psi_coil``. When ``None`` the fixed-boundary inverse is used.
         mode
             ``"psi_n"`` fits p'/FF' as polynomials in the normalised flux (Picard
             iterated); ``"geometric"`` uses the fixed geometric-radius basis (single
@@ -622,20 +767,43 @@ class RealtimeEFIT:
         sqrt_w = np.sqrt(self._diagnostic_weights(d, rel_sigma))
         n_coeff = self.n_p_modes + self.n_ff_modes
 
+        free_boundary = coils is not None
+        # Coil flux columns are geometry-only, so they are assembled once and reused
+        # across every Picard iteration. The diagnostic columns are scaled by a
+        # reference current (the plasma Ip) so the fitted coil coefficients are
+        # order-1 like the p'/FF' coefficients, keeping the shared Tikhonov penalty
+        # scale-fair (coil currents are ~MA, profile coefficients are ~1).
+        coil_cols = self._coil_flux_columns(coils) if coils is not None else []
+        i_scale = max(abs(float(measurements.get("Ip", 0.0))), 1.0)
+        coil_diag = i_scale * np.column_stack([self._diagnostic_vector(g) for g in coil_cols]) if coil_cols else None
+
         rho_geom, _rr, _zz = self._geometric_rho()
         x_field = rho_geom
         psi: AnyFloatArray = np.zeros((self.nR, self.nZ), dtype=float)
         coeffs: AnyFloatArray = np.zeros(n_coeff, dtype=float)
+        coil_currents: AnyFloatArray | None = None
         chi_squared = float("inf")
         n_iterations = 0
 
         for iteration in range(max_iter):
             n_iterations = iteration + 1
-            basis_psi = [self._solve_source(src) for src in self._basis_sources(x_field)]
-            response = np.column_stack([self._diagnostic_vector(p) for p in basis_psi])
-            coeffs = self._weighted_lstsq(response, d, sqrt_w, regularization)
-            psi_new = np.tensordot(coeffs, np.asarray(basis_psi), axes=(0, 0))
-            residual = response @ coeffs - d
+            sources = self._basis_sources(x_field)
+            if free_boundary:
+                basis_psi = [self._solve_source_freespace(src) for src in sources]
+            else:
+                basis_psi = [self._solve_source(src) for src in sources]
+            plasma_diag = np.column_stack([self._diagnostic_vector(p) for p in basis_psi])
+            response = np.column_stack([plasma_diag, coil_diag]) if coil_diag is not None else plasma_diag
+
+            params = self._weighted_lstsq(response, d, sqrt_w, regularization)
+            coeffs = params[:n_coeff]
+            psi_plasma = np.tensordot(coeffs, np.asarray(basis_psi), axes=(0, 0))
+            if free_boundary:
+                coil_currents = params[n_coeff:] * i_scale
+                psi_new = psi_plasma + np.tensordot(coil_currents, np.asarray(coil_cols), axes=(0, 0))
+            else:
+                psi_new = psi_plasma
+            residual = response @ params - d
             chi_squared = float(np.sum((sqrt_w * residual) ** 2))
 
             denom = max(float(np.linalg.norm(psi_new)), 1e-30)
@@ -658,6 +826,7 @@ class RealtimeEFIT:
             chi_squared=chi_squared,
             n_iterations=n_iterations,
             wall_time_ms=(t1 - t0) * 1000.0,
+            coil_currents=coil_currents,
         )
 
     def find_lcfs(self, psi: AnyFloatArray) -> AnyFloatArray:

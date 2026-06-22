@@ -16,11 +16,14 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+
+if TYPE_CHECKING:
+    from scpn_control.core.fusion_kernel import CoilSet
 
 from scpn_control.control.realtime_efit import (
     MagneticDiagnostics,
@@ -425,6 +428,7 @@ class KineticEFIT(RealtimeEFIT):
         self,
         measurements: dict[str, Any],
         *,
+        coils: CoilSet | None = None,
         mode: str = "psi_n",
         max_iter: int = 25,
         tol: float = 1.0e-5,
@@ -441,8 +445,9 @@ class KineticEFIT(RealtimeEFIT):
         ----------
         measurements
             Magnetic and kinetic measurement payload for this reconstruction.
-        mode, max_iter, tol, regularization, rel_sigma
-            Magnetic-inverse options forwarded to the base EFIT reconstruction.
+        coils, mode, max_iter, tol, regularization, rel_sigma
+            Magnetic-inverse options forwarded to the base EFIT reconstruction;
+            ``coils`` selects the free-boundary inverse (fits the coil currents).
 
         Returns
         -------
@@ -452,6 +457,7 @@ class KineticEFIT(RealtimeEFIT):
         """
         res_mag = super().reconstruct(
             measurements,
+            coils=coils,
             mode=mode,
             max_iter=max_iter,
             tol=tol,
