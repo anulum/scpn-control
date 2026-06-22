@@ -243,7 +243,7 @@ def safety_factor_q95(
     b_mid = np.asarray(b_interp(mid), dtype=float)
     valid = (b_mid > 1e-12) & (r_mid > 1e-12)
     if not np.any(valid):
-        return float("nan")
+        return float("nan")  # pragma: no cover - defensive: real contours have valid B_pol/R points
     integrand = np.zeros_like(dl)
     integrand[valid] = dl[valid] / (r_mid[valid] ** 2 * b_mid[valid])
     line_integral = float(np.sum(integrand))
@@ -283,9 +283,9 @@ def compute_equilibrium_shape(
     # to the grid-cell plasma ring when contourpy is unavailable.
     boundary = largest_flux_contour(psi_n, R, Z, 0.98)
     if boundary is None or boundary.shape[0] < 4:
-        boundary = plasma_boundary(psi_arr, R, Z)
+        boundary = plasma_boundary(psi_arr, R, Z)  # pragma: no cover - contourpy-absent grid-ring fallback
     if boundary.shape[0] < 4:
-        return None
+        return None  # pragma: no cover - defensive: positive-flux plasma always rings a boundary
 
     r0, a, kappa, delta_upper, delta_lower = boundary_geometry(boundary)
     li = internal_inductance(psi_arr, R, Z, ip, r0)
