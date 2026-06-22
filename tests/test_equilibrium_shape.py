@@ -17,6 +17,7 @@ from scpn_control.core.equilibrium_shape import (
     EquilibriumShape,
     boundary_geometry,
     compute_equilibrium_shape,
+    cylindrical_q95,
     internal_inductance,
     largest_flux_contour,
     plasma_boundary,
@@ -171,3 +172,12 @@ def test_largest_flux_contour_none_for_absent_level():
     _efit, r_grid, z_grid, psi, _p, _ff, _ip = _closure_equilibrium()
     psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
     assert largest_flux_contour(psi_n, r_grid, z_grid, 5.0) is None
+
+
+def test_cylindrical_q95_estimate():
+    # Contour-free fallback: finite, positive, and elongation-scaled.
+    q = cylindrical_q95(a=2.0, kappa=1.7, r0=6.2, ip=5.0e6, vacuum_rb_phi=33.0)
+    assert np.isfinite(q) and q > 0.0
+    q_round = cylindrical_q95(a=2.0, kappa=1.0, r0=6.2, ip=5.0e6, vacuum_rb_phi=33.0)
+    assert q > q_round  # elongation raises the cylindrical q
+    assert np.isnan(cylindrical_q95(a=2.0, kappa=1.7, r0=6.2, ip=0.0, vacuum_rb_phi=33.0))

@@ -252,6 +252,17 @@ def safety_factor_q95(
     return float(f_surface / (2.0 * np.pi) * line_integral)
 
 
+def cylindrical_q95(a: float, kappa: float, r0: float, ip: float, vacuum_rb_phi: float) -> float:
+    """Elongation-corrected cylindrical edge safety factor (contour-free estimate).
+
+    ``q ~ 2 pi a^2 F (1 + kappa^2) / (2 mu0 R0^2 |Ip|)`` with ``F = R0 B_phi0``;
+    used as the q95 fallback when the flux-surface contour engine is unavailable.
+    """
+    if abs(ip) < 1e-30 or r0 <= 0.0:
+        return float("nan")
+    return float(2.0 * np.pi * a**2 * abs(vacuum_rb_phi) * (1.0 + kappa**2) / (2.0 * MU0 * r0**2 * abs(ip)))
+
+
 def compute_equilibrium_shape(
     psi: AnyFloatArray,
     R: AnyFloatArray,
@@ -280,6 +291,11 @@ def compute_equilibrium_shape(
     li = internal_inductance(psi_arr, R, Z, ip, r0)
     beta_pol = poloidal_beta(psi_arr, psi_n, R, Z, p_coeffs, psi_axis, a, ip)
     q95 = safety_factor_q95(psi_arr, psi_n, R, Z, ff_coeffs, psi_axis, vacuum_rb_phi)
+    if not np.isfinite(q95):
+        # No flux-surface contour (e.g. contourpy unavailable): fall back to the
+        # contour-free cylindrical estimate so q95 stays finite everywhere. The CI
+        # coverage job has contourpy, so this branch is exercised only where it is absent.
+        q95 = cylindrical_q95(a, kappa, r0, ip, vacuum_rb_phi)  # pragma: no cover - contourpy-absent fallback
     return EquilibriumShape(
         R0=r0,
         a=a,

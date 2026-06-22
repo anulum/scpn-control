@@ -817,6 +817,8 @@ EFIT. The poloidal field uses the per-radian convention `B_pol = |grad psi| / R`
 
 ::: scpn_control.core.equilibrium_shape.safety_factor_q95
 
+::: scpn_control.core.equilibrium_shape.cylindrical_q95
+
 ::: scpn_control.core.equilibrium_shape.pressure_grid
 
 ::: scpn_control.core.equilibrium_shape.plasma_boundary

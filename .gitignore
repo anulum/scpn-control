@@ -103,3 +103,9 @@ docs/assets/orcid_qr.png
 # Local backups — never committed
 BACKUP/
 ARCHIVE/
+
+# acados generated OCP solver code (benchmark/validation runs)
+c_generated_code/
+*_ocp_*.json
+acados_ocp_*.json
+scpn_control_nmpc_ocp.json
