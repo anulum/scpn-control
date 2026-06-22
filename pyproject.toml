@@ -128,6 +128,7 @@ module = [
     "torch", "torch.*",
     "scipy", "scipy.*",
     "osqp",
+    "contourpy",
     "z3",
     "h5py",
     "websockets",
