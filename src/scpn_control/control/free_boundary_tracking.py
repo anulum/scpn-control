@@ -366,23 +366,32 @@ class FreeBoundaryTrackingController:
         if not np.isfinite(self.solve_tol) or self.solve_tol <= 0.0:
             raise ValueError("solve_tol must be finite and > 0.")
 
+        # The four guards below are defensive checks on the *kernel's* coilset
+        # contract (a misbehaving kernel returning a method-less object, an empty
+        # coilset, or mis-shaped/non-finite current limits). build_coilset_from_config
+        # is dual-use — the kernel's own __init__ calls it via solve() before the
+        # tracker does — and the kernel guarantees a valid coilset, so these cannot be
+        # reached through the public surface without a fixture that also breaks the
+        # kernel's own construction. Reasoned-pragma rather than a call-count hack.
         build_coilset = getattr(self.kernel, "build_coilset_from_config", None)
-        if not callable(build_coilset):  # pragma: no cover
+        if not callable(build_coilset):  # pragma: no cover - defensive: kernel coilset contract
             raise TypeError("kernel must define build_coilset_from_config() for free-boundary tracking.")
         self.coils = build_coilset()
         self.n_coils = int(len(self.coils.positions))
-        if self.n_coils < 1:  # pragma: no cover
+        if self.n_coils < 1:  # pragma: no cover - defensive: kernel coilset contract
             raise ValueError("free-boundary tracking requires at least one external coil.")
 
         if self.coils.current_limits is None:
             self.coil_current_limits = np.full(self.n_coils, np.inf, dtype=np.float64)
         else:
             self.coil_current_limits = np.asarray(self.coils.current_limits, dtype=np.float64).reshape(-1)
-            if self.coil_current_limits.shape != (self.n_coils,):  # pragma: no cover
+            if self.coil_current_limits.shape != (
+                self.n_coils,
+            ):  # pragma: no cover - defensive: kernel coilset contract
                 raise ValueError("CoilSet.current_limits must match the number of coils.")
             if np.any(~np.isfinite(self.coil_current_limits)) or np.any(
                 self.coil_current_limits <= 0.0
-            ):  # pragma: no cover
+            ):  # pragma: no cover - defensive: kernel coilset contract
                 raise ValueError("CoilSet.current_limits must be finite and > 0.")
 
         tracking_cfg = self.kernel.cfg.get("free_boundary_tracking", {})
