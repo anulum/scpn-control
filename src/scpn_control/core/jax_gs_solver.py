@@ -34,7 +34,7 @@ NumPy fallback provided when JAX is unavailable.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -48,7 +48,7 @@ try:
     _HAS_JAX = True
 except ImportError:
     jax = None
-    jnp = None
+    jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     lax = None
     _HAS_JAX = False
 

@@ -36,7 +36,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -57,7 +57,7 @@ try:
     _HAS_JAX = True
 except ImportError:
     jax = None
-    jnp = None
+    jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     _HAS_JAX = False
 
 _EQUILIBRIUM_PARAM_COUNT = 2

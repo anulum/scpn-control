@@ -10,7 +10,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 import warnings
 
 import numpy as np
@@ -23,7 +23,7 @@ try:
     _HAS_JAX = True
 except ImportError:
     jax = None
-    jnp = None
+    jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     _HAS_JAX = False
 
 try:

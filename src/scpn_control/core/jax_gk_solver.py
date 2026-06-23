@@ -25,7 +25,7 @@ import platform
 from datetime import datetime, timezone
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -47,7 +47,7 @@ try:
     _HAS_JAX = True
 except ImportError:
     jax = None
-    jnp = None
+    jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     _HAS_JAX = False
 
 _E_CHARGE = 1.602176634e-19  # C

@@ -125,15 +125,12 @@ files = [
 # are intentionally absent: they ship py.typed and are checked strictly.
 [[tool.mypy.overrides]]
 module = [
-    "matplotlib", "matplotlib.*",
-    "torch", "torch.*",
     "scipy", "scipy.*",
     "osqp",
     "contourpy",
     "z3",
     "h5py",
     "websockets",
-    "jaxlib",
     "optuna",
     "casadi",
     "acados_template",
@@ -142,16 +139,18 @@ module = [
 ]
 ignore_missing_imports = true
 
-# JAX ships py.typed but its top-level __init__ does not list every public
-# symbol (e.g. jax.checkpoint) in __all__.  Do not impose our strict
-# no_implicit_reexport on the third-party package; allow its implicit
-# re-exports so jax.checkpoint resolves under both the configured gate and a
-# whole-package --strict run. JAX is an optional dependency, so also tolerate it
-# being absent from the type-check environment.
+# JAX and torch are optional, guarded dependencies that are not installed in the
+# authoritative type-check environment, so the gate already sees them as untyped.
+# follow_imports = "skip" makes that explicit and consistent: it treats them as Any
+# whether or not they happen to be installed locally, so the optional-dependency
+# fallbacks (``jax = None``) and the untyped ``jax.config`` calls type-check
+# identically in both configurations instead of only when the deps are absent.
+# (no_implicit_reexport stays relaxed for jax.checkpoint-style implicit re-exports.)
 [[tool.mypy.overrides]]
-module = ["jax", "jax.*"]
+module = ["jax", "jax.*", "jaxlib", "torch", "torch.*", "matplotlib", "matplotlib.*"]
 no_implicit_reexport = false
 ignore_missing_imports = true
+follow_imports = "skip"
 
 # Optional native/sibling components imported behind guards: the Rust extension
 # (built by maturin, absent in the type-check env), sibling GOTM repositories,

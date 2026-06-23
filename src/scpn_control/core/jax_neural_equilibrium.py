@@ -32,7 +32,7 @@ to the NumPy implementation in neural_equilibrium.py.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -45,7 +45,10 @@ try:
     _HAS_JAX = True
 except ImportError:
     jax = None
-    jnp = None
+    # jnp is typed as a module from the import above; the optional-dependency
+    # fallback assigns an Any so the annotation references (jnp.ndarray) still
+    # resolve without a per-environment type:ignore that would flip used/unused.
+    jnp = cast(Any, None)
     _HAS_JAX = False
 
 
