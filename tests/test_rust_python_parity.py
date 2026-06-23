@@ -186,7 +186,15 @@ class TestSORSolverParity:
     """Compare the full Picard+SOR equilibrium solve between Python and Rust."""
 
     @pytest.mark.xfail(
-        reason="Rust/Python SOR solvers converge to different equilibria — parity gap under investigation"
+        reason=(
+            "Diagnosed 2026-06-23 (not different equilibria): both backends reach the same "
+            "equilibrium structure (Pearson r~0.999, identical min/max extrema, same argmax), "
+            "but SOR's update-norm stopping criterion plateaus at gs_residual~4 — far from the "
+            "true GS solution — so Python and Rust halt ~6% apart in interior L2 and exact-value "
+            "parity to rtol=1e-3 is not reachable via SOR. Closing it needs a shared GS-residual "
+            "stopping criterion in both backends (FUSION-canonical solver semantics, coordinated); "
+            "the multigrid solver is the accurate, converging path. See PARITY-1 in the internal TODO."
+        )
     )
     def test_sor_equilibrium_parity(self, tmp_path: Path) -> None:
         """Run the SOR-based equilibrium solver via both Python and Rust
@@ -631,7 +639,12 @@ class TestTopologyParity:
     equilibrium (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
     """
 
-    @pytest.mark.xfail(reason="Depends on SOR parity — Rust/Python solvers converge differently")
+    @pytest.mark.xfail(
+        reason=(
+            "Inherits the SOR stopping-criterion plateau diagnosed in test_sor_equilibrium_parity "
+            "(PARITY-1): the ~6% Python/Rust interior gap shifts the recovered X-point too."
+        )
+    )
     def test_x_point_parity(self, tmp_path: Path) -> None:
         """After equilibrium solve, the X-point location and Psi value
         should agree between Python and Rust.
