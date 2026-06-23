@@ -91,6 +91,32 @@ jobs:
           # transient uploader/GPG signature problem.
           fail_ci_if_error: false
 
+  # ─── Job: Control Studio web remote (Module Federation 2.x) ───
+  studio-web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: studio-web
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020  # v4
+        with:
+          node-version: "22"
+      - name: Enable pnpm
+        run: corepack enable && corepack prepare pnpm@11.2.2 --activate
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm typecheck
+      - name: Lint
+        run: pnpm lint
+      - name: Format check
+        run: pnpm format:check
+      - name: Tests + coverage gate
+        run: pnpm exec vitest run --coverage
+      - name: Build (Module Federation remote)
+        run: pnpm build
+
   # ─── Job 2: Notebook smoke tests ───
   notebook-smoke:
     runs-on: ubuntu-latest
