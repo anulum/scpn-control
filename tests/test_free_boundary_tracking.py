@@ -977,3 +977,18 @@ class TestFreeBoundaryConfigResolvers:
         for bad in (-0.1, 1.1, float("nan")):
             with pytest.raises(ValueError):
                 resolve(bad, default=0.3, name="frac")
+
+    def test_resolve_supervisor_limits_merge_and_rejections(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_supervisor_limits
+        # Both sources merge; values are coerced to float.
+        merged = resolve({"shape_rms": 0.1}, {"max_abs_coil_current": 2})
+        assert merged == {"shape_rms": 0.1, "max_abs_coil_current": 2.0}
+        assert resolve(None, None) == {}  # both None -> skip both -> empty
+        with pytest.raises(ValueError):
+            resolve("not-a-mapping", None)  # non-dict source
+        with pytest.raises(ValueError):
+            resolve({"bogus_key": 1.0}, None)  # unknown limit name
+        with pytest.raises(ValueError):
+            resolve({"shape_rms": -1.0}, None)  # negative limit
+        with pytest.raises(ValueError):
+            resolve({"shape_rms": float("nan")}, None)  # non-finite limit

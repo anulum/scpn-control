@@ -649,7 +649,7 @@ class FreeBoundaryTrackingController:
         return cast(FloatArray, np.asarray(limits, dtype=np.float64))
 
     @staticmethod
-    def _resolve_supervisor_limits(  # pragma: no cover
+    def _resolve_supervisor_limits(
         cfg_limits: Any,
         override_limits: dict[str, float] | None,
     ) -> dict[str, float]:
