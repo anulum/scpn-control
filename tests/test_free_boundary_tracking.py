@@ -933,3 +933,47 @@ def test_controller_verbose_logging_path():
     )
     summary = controller.run_tracking_shot(shot_steps=2, gain=0.4)
     assert summary["steps"] == 2
+
+
+class TestFreeBoundaryConfigResolvers:
+    """Direct unit tests for the static config-resolution validators.
+
+    These pure helpers (default/override resolution + finite/range validation) were
+    previously excluded from coverage with a per-method pragma; they are exercised
+    here across every branch instead.
+    """
+
+    def test_resolve_positive_float_paths_and_rejections(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_positive_float
+        assert resolve(None, None, default=2.0, name="x") == 2.0  # default
+        assert resolve(3.0, None, default=2.0, name="x") == 3.0  # cfg value
+        assert resolve(3.0, 5.0, default=2.0, name="x") == 5.0  # override wins
+        for bad in (0.0, -1.0, float("nan"), float("inf")):
+            with pytest.raises(ValueError):
+                resolve(bad, None, default=2.0, name="x")
+
+    def test_resolve_nonnegative_int_paths_and_rejection(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_nonnegative_int
+        assert resolve(None, None, default=4, name="n") == 4
+        assert resolve(7, None, default=4, name="n") == 7
+        assert resolve(7, 9, default=4, name="n") == 9  # override wins
+        with pytest.raises(ValueError):
+            resolve(-1, None, default=4, name="n")
+
+    def test_resolve_nonnegative_float_allows_inf_rejects_nan_and_negative(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_nonnegative_float
+        assert resolve(None, default=1.5, name="f") == 1.5  # default
+        assert resolve(2.5, default=1.5, name="f") == 2.5  # cfg value
+        assert resolve(float("inf"), default=1.5, name="f") == float("inf")  # inf permitted
+        with pytest.raises(ValueError):
+            resolve(float("nan"), default=1.5, name="f")
+        with pytest.raises(ValueError):
+            resolve(-0.1, default=1.5, name="f")
+
+    def test_resolve_fraction_range(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_fraction
+        assert resolve(None, default=0.3, name="frac") == 0.3
+        assert resolve(0.7, default=0.3, name="frac") == 0.7
+        for bad in (-0.1, 1.1, float("nan")):
+            with pytest.raises(ValueError):
+                resolve(bad, default=0.3, name="frac")

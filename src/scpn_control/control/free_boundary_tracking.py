@@ -567,7 +567,7 @@ class FreeBoundaryTrackingController:
         return merged
 
     @staticmethod
-    def _resolve_positive_float(  # pragma: no cover
+    def _resolve_positive_float(
         cfg_value: Any,
         override_value: float | None,
         *,
@@ -585,7 +585,7 @@ class FreeBoundaryTrackingController:
         return value
 
     @staticmethod
-    def _resolve_nonnegative_int(  # pragma: no cover
+    def _resolve_nonnegative_int(
         cfg_value: Any,
         override_value: int | None,
         *,
@@ -603,7 +603,7 @@ class FreeBoundaryTrackingController:
         return value
 
     @staticmethod
-    def _resolve_nonnegative_float(  # pragma: no cover
+    def _resolve_nonnegative_float(
         cfg_value: Any,
         *,
         default: float,
@@ -618,7 +618,7 @@ class FreeBoundaryTrackingController:
         return value
 
     @staticmethod
-    def _resolve_fraction(  # pragma: no cover
+    def _resolve_fraction(
         cfg_value: Any,
         *,
         default: float,
