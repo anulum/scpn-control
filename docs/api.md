@@ -2087,6 +2087,15 @@ capability manifest is the platform `CapabilityManifest`.
 
 ::: scpn_control.studio.adapters
 
+#### Studio Panel Feed
+
+The federated panel reads CONTROL's verbs and claims from the wire feed this module
+emits (`studio.control-feed.v1`), so the UI never holds a second, drifting copy of
+the contract. Regenerate the standalone artefact with
+`python -m scpn_control.studio.feed > studio-web/public/studio-feed.json`.
+
+::: scpn_control.studio.feed
+
 ---
 
 ## CLI

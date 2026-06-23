@@ -1,0 +1,154 @@
+{
+  "claims": [
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.efit-reconstruction.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "admitted",
+      "kind": "formally-proven",
+      "schema": "studio.safety-certificate.v1",
+      "status": "reference-validated"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.controller-latency.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "curated",
+      "schema": "studio.physics-validation.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.geometry-neutral-replay.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.phase-sync-monitor.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.disruption-prediction.v1",
+      "status": "validation-gap"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.equilibrium-analysis.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.controller-run.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.disruption-mitigation.v1",
+      "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "measured",
+      "schema": "studio.scenario-simulation.v1",
+      "status": "bounded-model"
+    }
+  ],
+  "content_digest": "sha256:e3aff3da79d19f0bf703ed186f05a05353d7b0fef9836278e882268486af2091",
+  "feed_schema": "studio.control-feed.v1",
+  "studio": "scpn-control",
+  "studio_version": "0.21.0",
+  "verbs": [
+    {
+      "domain_distinctive": false,
+      "name": "reconstruct",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "interactive"
+    },
+    {
+      "domain_distinctive": false,
+      "name": "simulate",
+      "safety_tier": "research",
+      "side_effect": "simulated",
+      "timing_class": "batch"
+    },
+    {
+      "domain_distinctive": false,
+      "name": "analyse",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "batch"
+    },
+    {
+      "domain_distinctive": false,
+      "name": "validate",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "batch"
+    },
+    {
+      "domain_distinctive": false,
+      "name": "benchmark",
+      "safety_tier": "research",
+      "side_effect": "simulated",
+      "timing_class": "batch"
+    },
+    {
+      "domain_distinctive": false,
+      "name": "replay",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "batch"
+    },
+    {
+      "deadline_us": 5.0,
+      "domain_distinctive": true,
+      "name": "regulate",
+      "safety_tier": "certified",
+      "side_effect": "live-hardware",
+      "timing_class": "realtime"
+    },
+    {
+      "domain_distinctive": true,
+      "name": "certify",
+      "safety_tier": "certified",
+      "side_effect": "read-only",
+      "timing_class": "batch"
+    },
+    {
+      "domain_distinctive": true,
+      "name": "predict",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "interactive"
+    },
+    {
+      "domain_distinctive": true,
+      "name": "mitigate",
+      "safety_tier": "certified",
+      "side_effect": "live-hardware",
+      "timing_class": "interactive"
+    },
+    {
+      "domain_distinctive": true,
+      "name": "monitor",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "interactive"
+    }
+  ]
+}

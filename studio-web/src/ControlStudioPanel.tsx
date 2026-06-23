@@ -8,12 +8,19 @@
 
 import type { ReactElement } from 'react';
 
+import type { ClaimSummary, ControlVerb } from './domain.js';
 import {
   claimRendersAsValidated,
   CONTROL_CLAIMS,
   CONTROL_VERBS,
   requiresLiveHardwareGate,
 } from './domain.js';
+
+/** The verbs and claims the panel renders — supplied from the live feed, or sampled. */
+export interface ControlStudioPanelProps {
+  readonly verbs?: readonly ControlVerb[];
+  readonly claims?: readonly ClaimSummary[];
+}
 
 /**
  * The SCPN-CONTROL Control Studio panel — the federated UI module the Hub loads.
@@ -23,8 +30,14 @@ import {
  * as Hub-gated) and a claims section that renders each claim's boundary verbatim,
  * marking only a reference-validated claim as validated. The same honesty grading
  * the Python vertical emits is shown here as UI.
+ *
+ * The verbs and claims come from the live studio feed (see ``feed.ts``); the bundled
+ * domain sample is the default so the remote also renders standalone.
  */
-export default function ControlStudioPanel(): ReactElement {
+export default function ControlStudioPanel({
+  verbs = CONTROL_VERBS,
+  claims = CONTROL_CLAIMS,
+}: ControlStudioPanelProps = {}): ReactElement {
   return (
     <section className="control-studio">
       <header className="control-studio__header">
@@ -42,7 +55,7 @@ export default function ControlStudioPanel(): ReactElement {
           </tr>
         </thead>
         <tbody>
-          {CONTROL_VERBS.map((verb) => {
+          {verbs.map((verb) => {
             const gated = requiresLiveHardwareGate(verb);
             const timing =
               verb.deadlineUs === undefined
@@ -64,7 +77,7 @@ export default function ControlStudioPanel(): ReactElement {
       <div className="control-studio__claims">
         <h3>Claims</h3>
         <ul>
-          {CONTROL_CLAIMS.map((claim) => {
+          {claims.map((claim) => {
             const validated = claimRendersAsValidated(claim.status, claim.admission);
             return (
               <li key={claim.schema} data-validated={validated ? 'yes' : 'no'}>

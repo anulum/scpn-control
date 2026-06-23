@@ -62,6 +62,15 @@ from .evidence import (
     safety_certificate_evidence,
     scenario_simulation_evidence,
 )
+from .feed import (
+    FEED_SCHEMA,
+    claim_summary,
+    render_feed_json,
+    representative_bundles,
+    representative_feed,
+    studio_feed,
+    verb_summary,
+)
 from .manifest import build_manifest, declared_surface
 from .verbs import (
     CONTROL_VERBS,
@@ -73,6 +82,7 @@ from .verbs import (
 
 __all__ = [
     "CONTROL_VERBS",
+    "FEED_SCHEMA",
     "STUDIO_ID",
     "ControllerLatencyResult",
     "ControllerRunResult",
@@ -87,6 +97,7 @@ __all__ = [
     "TraceabilityClaim",
     "build_manifest",
     "canonical_digest",
+    "claim_summary",
     "controller_latency_evidence",
     "controller_latency_evidence_from_measurement",
     "controller_run_evidence",
@@ -108,9 +119,14 @@ __all__ = [
     "phase_sync_monitor_evidence_from_snapshot",
     "physics_validation_evidence",
     "physics_validation_evidences_from_registry",
+    "render_feed_json",
     "replay_evidence_from_geometry_neutral",
+    "representative_bundles",
+    "representative_feed",
     "safety_certificate_evidence",
     "safety_certificate_evidence_from_certificate",
     "scenario_simulation_evidence",
     "scenario_simulation_evidence_from_audit",
+    "studio_feed",
+    "verb_summary",
 ]

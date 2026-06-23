@@ -10,6 +10,7 @@ import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 
 import ControlStudioPanel from '../src/ControlStudioPanel.js';
+import type { ClaimSummary, ControlVerb } from '../src/domain.js';
 
 describe('ControlStudioPanel', () => {
   it('renders the studio header', () => {
@@ -53,5 +54,31 @@ describe('ControlStudioPanel', () => {
     const efit = screen.getByText(/studio\.efit-reconstruction\.v1/);
     expect(efit.closest('li')).toHaveAttribute('data-validated', 'no');
     expect(efit).toHaveTextContent('bounded-model');
+  });
+
+  it('renders the verbs and claims supplied from the live feed', () => {
+    const verbs: readonly ControlVerb[] = [
+      {
+        name: 'mitigate',
+        safetyTier: 'certified',
+        sideEffect: 'live-hardware',
+        timingClass: 'interactive',
+        domainDistinctive: true,
+      },
+    ];
+    const claims: readonly ClaimSummary[] = [
+      {
+        schema: 'studio.disruption-mitigation.v1',
+        status: 'bounded-model',
+        admission: 'rejected',
+        kind: 'measured',
+      },
+    ];
+    render(<ControlStudioPanel verbs={verbs} claims={claims} />);
+    // Only the feed-supplied verb is rendered (1 verb + 1 header row), not the sample.
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.queryByText('reconstruct')).not.toBeInTheDocument();
+    const claim = screen.getByText(/studio\.disruption-mitigation\.v1/);
+    expect(claim.closest('li')).toHaveAttribute('data-validated', 'no');
   });
 });
