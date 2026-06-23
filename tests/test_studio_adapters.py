@@ -27,8 +27,11 @@ from scpn_studio_platform.evidence import EvidenceKind  # noqa: E402
 
 from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams  # noqa: E402
 from scpn_control.studio import (  # noqa: E402
+    TraceabilityClaim,
     controller_latency_evidence_from_measurement,
     efit_evidence_from_reconstruction,
+    physics_validation_evidence,
+    physics_validation_evidences_from_registry,
     safety_certificate_evidence_from_certificate,
 )
 
@@ -204,3 +207,94 @@ def test_latency_adapter_rejects_missing_percentile() -> None:
             **_WHO,
             **_TS,
         )
+
+
+# ── physics-traceability validation mapper + registry adapter ──────────
+def _claim(status: str = "bounded_model", *, allowed: bool = False, blocking: str | None = None) -> TraceabilityClaim:
+    return TraceabilityClaim(
+        component="real-time EFIT-lite",
+        module_path="src/scpn_control/control/realtime_efit.py",
+        fidelity_status=status,
+        public_claim_allowed=allowed,
+        validity_domain="Fixed-boundary EFIT-lite regression; not facility-grade unless matched.",
+        blocking_dependency=blocking,
+    )
+
+
+def test_reference_validated_claim_renders_validated() -> None:
+    bundle = physics_validation_evidence(_claim("reference_validated", allowed=True), **_WHO, **_TS)
+    assert bundle.schema == "studio.physics-validation.v1"
+    assert bundle.evidence_kind is EvidenceKind.CURATED
+    assert bundle.renders_as_validated is True
+    assert bundle.claim_boundary.validity_domain is not None
+
+
+def test_bounded_claim_renders_verbatim_with_validity_domain() -> None:
+    bundle = physics_validation_evidence(_claim("bounded_model"), **_WHO, **_TS)
+    assert bundle.renders_as_validated is False
+    note = bundle.claim_boundary.validity_domain
+    assert note is not None and note.note is not None and "EFIT-lite" in note.note
+
+
+def test_external_dependency_blocked_claim_carries_blocked_on() -> None:
+    bundle = physics_validation_evidence(
+        _claim("external_dependency_blocked", blocking="Install external GK binaries"),
+        **_WHO,
+        **_TS,
+    )
+    assert bundle.renders_as_validated is False
+    assert bundle.claim_boundary.blocked_on[0].dependency == "Install external GK binaries"
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"fidelity_status": "nonsense"},
+        {"component": "  "},
+        {"validity_domain": ""},
+        {"fidelity_status": "external_dependency_blocked", "blocking_dependency": None},
+    ],
+)
+def test_traceability_claim_rejects_bad_inputs(kwargs: dict[str, object]) -> None:
+    base = {
+        "component": "c",
+        "module_path": "m.py",
+        "fidelity_status": "bounded_model",
+        "public_claim_allowed": False,
+        "validity_domain": "scope",
+        "blocking_dependency": "dep",
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        TraceabilityClaim(**base)  # type: ignore[arg-type]
+
+
+def test_registry_adapter_maps_a_list() -> None:
+    entries = [
+        {
+            "component": "c1",
+            "module_path": "m1.py",
+            "fidelity_status": "external_dependency_blocked",
+            "public_claim_allowed": False,
+            "validity_domain": "blocked scope",
+            "required_actions": ["Acquire external reference"],
+        },
+    ]
+    bundles = physics_validation_evidences_from_registry(entries, **_WHO, **_TS)
+    assert len(bundles) == 1
+    assert bundles[0].claim_boundary.blocked_on[0].dependency == "Acquire external reference"
+
+
+def test_registry_adapter_over_the_real_61_entries() -> None:
+    import json
+    from pathlib import Path
+
+    registry = Path(__file__).resolve().parents[1] / "validation" / "physics_traceability.json"
+    entries = json.loads(registry.read_text())["entries"]
+    bundles = physics_validation_evidences_from_registry(entries, **_WHO, **_TS)
+    assert len(bundles) == len(entries)
+    # Exactly the one reference-validated, admitted claim renders as validated;
+    # every other boundary is shown verbatim.
+    assert sum(1 for b in bundles if b.renders_as_validated) == 1
+    # Every claim carries its qualitative validity-domain prose.
+    assert all(b.claim_boundary.validity_domain is not None for b in bundles)

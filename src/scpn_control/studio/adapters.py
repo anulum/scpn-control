@@ -21,16 +21,18 @@ an explicit argument from the caller that ran the proof, rather than inventing o
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
 from .evidence import (
     ControllerLatencyResult,
     EfitReconstructionResult,
     SafetyCertificateResult,
+    TraceabilityClaim,
     canonical_digest,
     controller_latency_evidence,
     efit_reconstruction_evidence,
+    physics_validation_evidence,
     safety_certificate_evidence,
 )
 
@@ -241,3 +243,66 @@ def controller_latency_evidence_from_measurement(
         ended=ended,
         host=host,
     )
+
+
+def physics_validation_evidences_from_registry(
+    entries: Iterable[Mapping[str, Any]],
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> tuple[EvidenceBundle, ...]:
+    """Map physics_traceability registry entries onto physics-validation bundles.
+
+    Each entry of ``validation/physics_traceability.json`` becomes a
+    ``studio.physics-validation.v1`` bundle carrying its fidelity status on the
+    claim lattice, its admission, and its qualitative ``validity_domain`` as a prose
+    note. For an ``external_dependency_blocked`` entry the blocking dependency is
+    taken from the first ``required_actions`` item (the lattice requires one).
+
+    Parameters
+    ----------
+    entries
+        The registry entries (each a mapping with ``component``, ``module_path``,
+        ``fidelity_status``, ``public_claim_allowed``, ``validity_domain`` and, for
+        blocked entries, ``required_actions``).
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    tuple[EvidenceBundle, ...]
+        One bundle per entry, in input order.
+
+    Raises
+    ------
+    KeyError
+        If an entry is missing a required field.
+    """
+    bundles: list[EvidenceBundle] = []
+    for entry in entries:
+        required_actions = list(entry.get("required_actions") or [])
+        blocking = required_actions[0] if required_actions else None
+        claim = TraceabilityClaim(
+            component=str(entry["component"]),
+            module_path=str(entry["module_path"]),
+            fidelity_status=str(entry["fidelity_status"]),
+            public_claim_allowed=bool(entry["public_claim_allowed"]),
+            validity_domain=str(entry["validity_domain"]),
+            blocking_dependency=blocking,
+        )
+        bundles.append(
+            physics_validation_evidence(
+                claim,
+                operator=operator,
+                studio_version=studio_version,
+                started=started,
+                ended=ended,
+            )
+        )
+    return tuple(bundles)

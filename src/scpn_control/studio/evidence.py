@@ -40,6 +40,7 @@ from typing import Any
 
 from scpn_studio_platform.evidence import (
     AdmissionDecision,
+    BlockedOn,
     ClaimBoundary,
     ClaimStatus,
     EvidenceBundle,
@@ -57,9 +58,18 @@ from scpn_studio_platform.evidence import (
 from .verbs import (
     CONTROLLER_LATENCY_SCHEMA,
     EFIT_RECONSTRUCTION_SCHEMA,
+    PHYSICS_VALIDATION_SCHEMA,
     SAFETY_CERTIFICATE_SCHEMA,
     STUDIO_ID,
 )
+
+#: Maps a physics_traceability ``fidelity_status`` onto the platform claim lattice.
+_FIDELITY_TO_STATUS: dict[str, ClaimStatus] = {
+    "reference_validated": ClaimStatus.REFERENCE_VALIDATED,
+    "bounded_model": ClaimStatus.BOUNDED_MODEL,
+    "validation_gap": ClaimStatus.VALIDATION_GAP,
+    "external_dependency_blocked": ClaimStatus.EXTERNAL_DEPENDENCY_BLOCKED,
+}
 
 
 def canonical_digest(payload: Mapping[str, Any]) -> str:
@@ -431,4 +441,125 @@ def controller_latency_evidence(
         claim_boundary=claim,
         numeric_provenance=numeric,
         physical_contract=physical,
+    )
+
+
+# ── physics-traceability claim (bounded, curated) ──────────────────────
+@dataclass(frozen=True, slots=True)
+class TraceabilityClaim:
+    """A path-free physics-traceability registry claim.
+
+    Mirrors one entry of ``validation/physics_traceability.json`` reduced to the
+    fields the bundle needs: the component, its module, the fidelity status, whether
+    its public claim is admitted, and the qualitative validity-domain prose.
+
+    Parameters
+    ----------
+    component
+        Human-readable name of the claim.
+    module_path
+        Source module the claim covers.
+    fidelity_status
+        One of ``reference_validated`` / ``bounded_model`` / ``validation_gap`` /
+        ``external_dependency_blocked``.
+    public_claim_allowed
+        Whether the public (facility) claim is admitted.
+    validity_domain
+        The qualitative scope prose (no fabricated numeric ranges).
+    blocking_dependency
+        The missing dependency, required when ``fidelity_status`` is
+        ``external_dependency_blocked``.
+
+    Raises
+    ------
+    ValueError
+        If a required string is empty, the status is unknown, or a blocked status
+        carries no blocking dependency.
+    """
+
+    component: str
+    module_path: str
+    fidelity_status: str
+    public_claim_allowed: bool
+    validity_domain: str
+    blocking_dependency: str | None = None
+
+    def __post_init__(self) -> None:
+        """Validate the fields and the status/blocking-dependency invariant."""
+        for name in ("component", "module_path", "validity_domain"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"TraceabilityClaim.{name} must be non-empty")
+        if self.fidelity_status not in _FIDELITY_TO_STATUS:
+            raise ValueError(f"unknown fidelity_status {self.fidelity_status!r}")
+        if self.fidelity_status == "external_dependency_blocked" and not (self.blocking_dependency or "").strip():
+            raise ValueError("external_dependency_blocked claim requires a blocking_dependency")
+
+
+def physics_validation_evidence(
+    claim: TraceabilityClaim,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build a ``studio.physics-validation.v1`` bundle for a traceability claim.
+
+    Carries the claim's place on the seven-state lattice, its runtime admission
+    (from ``public_claim_allowed``), and its qualitative validity-domain prose as a
+    :class:`ValidityDomain` note — the honest scope without fabricated numeric
+    ranges. Only the single reference-validated, admitted claim renders as
+    validated; the rest render their boundary verbatim.
+
+    Parameters
+    ----------
+    claim
+        The path-free traceability claim.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``curated`` schema-B bundle whose admissibility reflects the claim status.
+    """
+    status = _FIDELITY_TO_STATUS[claim.fidelity_status]
+    admission = AdmissionDecision.ADMITTED if claim.public_claim_allowed else AdmissionDecision.REJECTED
+    blocked: tuple[BlockedOn, ...] = ()
+    if status is ClaimStatus.EXTERNAL_DEPENDENCY_BLOCKED:
+        blocked = (BlockedOn(dependency=str(claim.blocking_dependency), kind="external-dependency"),)
+    boundary = ClaimBoundary(
+        status=status,
+        admission=admission,
+        validity_domain=ValidityDomain(note=claim.validity_domain),
+        blocked_on=blocked,
+    )
+    digest = canonical_digest(
+        {
+            "component": claim.component,
+            "module_path": claim.module_path,
+            "fidelity_status": claim.fidelity_status,
+            "validity_domain": claim.validity_domain,
+        }
+    )
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/physics-validation/{claim.module_path}", digest=digest)
+    activity = ProvActivity(verb="validate", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    level = (
+        EvidenceLevel.ENGINEERING_VERIFIED
+        if status is ClaimStatus.REFERENCE_VALIDATED
+        else EvidenceLevel.SCIENTIFICALLY_CURATED
+    )
+    return EvidenceBundle(
+        schema=PHYSICS_VALIDATION_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=level,
+        evidence_kind=EvidenceKind.CURATED,
+        claim_boundary=boundary,
     )

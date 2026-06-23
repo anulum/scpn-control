@@ -27,15 +27,18 @@ from __future__ import annotations
 from .adapters import (
     controller_latency_evidence_from_measurement,
     efit_evidence_from_reconstruction,
+    physics_validation_evidences_from_registry,
     safety_certificate_evidence_from_certificate,
 )
 from .evidence import (
     ControllerLatencyResult,
     EfitReconstructionResult,
     SafetyCertificateResult,
+    TraceabilityClaim,
     canonical_digest,
     controller_latency_evidence,
     efit_reconstruction_evidence,
+    physics_validation_evidence,
     safety_certificate_evidence,
 )
 from .manifest import build_manifest, declared_surface
@@ -53,6 +56,7 @@ __all__ = [
     "ControllerLatencyResult",
     "EfitReconstructionResult",
     "SafetyCertificateResult",
+    "TraceabilityClaim",
     "build_manifest",
     "canonical_digest",
     "controller_latency_evidence",
@@ -63,6 +67,8 @@ __all__ = [
     "efit_evidence_from_reconstruction",
     "efit_reconstruction_evidence",
     "evidence_schemas",
+    "physics_validation_evidence",
+    "physics_validation_evidences_from_registry",
     "safety_certificate_evidence",
     "safety_certificate_evidence_from_certificate",
 ]
