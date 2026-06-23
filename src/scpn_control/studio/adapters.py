@@ -26,15 +26,20 @@ from typing import TYPE_CHECKING, Any
 
 from .evidence import (
     ControllerLatencyResult,
+    ControllerRunResult,
     DisruptionPrediction,
     EfitReconstructionResult,
     EquilibriumAnalysis,
+    MitigationRun,
     MonitorSnapshot,
     ReplaySummary,
     SafetyCertificateResult,
+    ScenarioSimulationRun,
     TraceabilityClaim,
     canonical_digest,
     controller_latency_evidence,
+    controller_run_evidence,
+    disruption_mitigation_evidence,
     disruption_prediction_evidence,
     efit_reconstruction_evidence,
     equilibrium_analysis_evidence,
@@ -42,12 +47,14 @@ from .evidence import (
     phase_sync_monitor_evidence,
     physics_validation_evidence,
     safety_certificate_evidence,
+    scenario_simulation_evidence,
 )
 
 if TYPE_CHECKING:
     from scpn_studio_platform.evidence import EvidenceBundle
 
     from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams
+    from scpn_control.core.integrated_scenario import ScenarioCouplingAudit
     from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence
 
 
@@ -478,4 +485,179 @@ def equilibrium_analysis_evidence_from_shape(
     )
     return equilibrium_analysis_evidence(
         analysis, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
+
+
+def controller_run_evidence_from_simulation(
+    summary: Mapping[str, Any],
+    *,
+    controller: str,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+    host: str | None = None,
+) -> EvidenceBundle:
+    """Map a closed-loop controller-run summary onto a controller-run bundle.
+
+    Parameters
+    ----------
+    summary
+        A run summary as produced by a closed-loop shape/current controller (for
+        example ``run_sota_simulation``): ``steps``, ``mean_tracking_error``,
+        ``max_abs_action`` and ``max_abs_coil_current``.
+    controller
+        Name of the controller run; the summary records the loop, not its name, so
+        the caller supplies it rather than the adapter inventing one.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+    host
+        Optional host descriptor.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.controller-run.v1`` bundle (measured, bounded-model).
+
+    Raises
+    ------
+    KeyError
+        If the summary is missing a required field.
+    """
+    n_steps = int(summary["steps"])
+    mean_error = float(summary["mean_tracking_error"])
+    max_action = float(summary["max_abs_action"])
+    max_coil = float(summary["max_abs_coil_current"])
+    src = ControllerRunResult(
+        controller=controller,
+        n_steps=n_steps,
+        mean_tracking_error=mean_error,
+        max_abs_action=max_action,
+        max_abs_coil_current=max_coil,
+        result_digest=canonical_digest(
+            {
+                "controller": controller,
+                "steps": n_steps,
+                "mean_tracking_error": mean_error,
+                "max_abs_action": max_action,
+                "max_abs_coil_current": max_coil,
+            }
+        ),
+    )
+    return controller_run_evidence(
+        src,
+        operator=operator,
+        studio_version=studio_version,
+        started=started,
+        ended=ended,
+        host=host,
+    )
+
+
+def disruption_mitigation_evidence_from_run(
+    summary: Mapping[str, Any],
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``run_spi_mitigation`` summary onto a disruption-mitigation bundle.
+
+    Parameters
+    ----------
+    summary
+        The deterministic SPI summary (``neon_quantity_mol``, ``argon_quantity_mol``,
+        ``xenon_quantity_mol``, ``z_eff``, ``final_current_ma`` and ``samples``).
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.disruption-mitigation.v1`` bundle (measured, bounded-model).
+
+    Raises
+    ------
+    KeyError
+        If the summary is missing a required field.
+    """
+    neon = float(summary["neon_quantity_mol"])
+    argon = float(summary["argon_quantity_mol"])
+    xenon = float(summary["xenon_quantity_mol"])
+    z_eff = float(summary["z_eff"])
+    final_current = float(summary["final_current_ma"])
+    sample_count = int(summary["samples"])
+    run = MitigationRun(
+        neon_quantity_mol=neon,
+        argon_quantity_mol=argon,
+        xenon_quantity_mol=xenon,
+        z_eff=z_eff,
+        final_current_ma=final_current,
+        sample_count=sample_count,
+        result_digest=canonical_digest(
+            {
+                "neon_quantity_mol": neon,
+                "argon_quantity_mol": argon,
+                "xenon_quantity_mol": xenon,
+                "z_eff": z_eff,
+                "final_current_ma": final_current,
+                "samples": sample_count,
+            }
+        ),
+    )
+    return disruption_mitigation_evidence(
+        run, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
+
+
+def scenario_simulation_evidence_from_audit(
+    audit: ScenarioCouplingAudit,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``ScenarioCouplingAudit`` onto a scenario-simulation bundle.
+
+    Parameters
+    ----------
+    audit
+        A ``ScenarioCouplingAudit`` from ``audit_scenario_coupling`` — its
+        ``metadata`` carries the scenario name, config digest, step count, time
+        window and module count, and its ``passed`` flag the bounded-audit result.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.scenario-simulation.v1`` bundle (measured, bounded-model). A
+        passing audit does not promote the claim past bounded-model.
+    """
+    meta = audit.metadata
+    run = ScenarioSimulationRun(
+        scenario_name=meta.scenario_name,
+        config_digest=meta.config_sha256,
+        n_steps=meta.n_steps,
+        t_start_s=float(meta.t_start_s),
+        t_end_s=float(meta.t_end_s),
+        module_count=len(meta.enabled_modules),
+        audit_passed=bool(audit.passed),
+    )
+    return scenario_simulation_evidence(
+        run, operator=operator, studio_version=studio_version, started=started, ended=ended
     )

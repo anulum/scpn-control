@@ -30,6 +30,8 @@ from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvide
 from scpn_control.studio import (  # noqa: E402
     TraceabilityClaim,
     controller_latency_evidence_from_measurement,
+    controller_run_evidence_from_simulation,
+    disruption_mitigation_evidence_from_run,
     disruption_prediction_evidence_from_risk,
     efit_evidence_from_reconstruction,
     equilibrium_analysis_evidence_from_shape,
@@ -38,6 +40,7 @@ from scpn_control.studio import (  # noqa: E402
     physics_validation_evidences_from_registry,
     replay_evidence_from_geometry_neutral,
     safety_certificate_evidence_from_certificate,
+    scenario_simulation_evidence_from_audit,
 )
 
 _TS = {"started": "2026-06-23T00:00:00Z", "ended": "2026-06-23T00:00:01Z"}
@@ -469,3 +472,166 @@ def test_equilibrium_analysis_rejects_empty_digest() -> None:
 
     with pytest.raises(ValueError):
         EquilibriumAnalysis(r0=1.7, a=0.5, kappa=1.8, q95=3.5, beta_pol=0.9, li=0.8, result_digest="  ")
+
+
+# ── controller-run adapter (regulate) ──────────────────────────────────
+_SOTA_SUMMARY = {
+    "steps": 60,
+    "mean_tracking_error": 0.12,
+    "max_abs_action": 1.8,
+    "max_abs_coil_current": 28.0,
+    "runtime_seconds": 0.4,
+}
+
+
+def test_controller_run_adapter_maps_simulation_summary() -> None:
+    bundle = controller_run_evidence_from_simulation(_SOTA_SUMMARY, controller="surrogate_mpc", **_WHO, **_TS)
+    assert bundle.schema == "studio.controller-run.v1"
+    assert bundle.evidence_kind is EvidenceKind.MEASURED
+    assert bundle.renders_as_validated is False  # closed-loop surrogate run is bounded
+    assert bundle.claim_boundary.validity_domain is not None
+    assert "surrogate_mpc" in bundle.entity.entity_id
+
+
+def test_controller_run_adapter_rejects_missing_field() -> None:
+    bad = {k: v for k, v in _SOTA_SUMMARY.items() if k != "mean_tracking_error"}
+    with pytest.raises(KeyError):
+        controller_run_evidence_from_simulation(bad, controller="surrogate_mpc", **_WHO, **_TS)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"controller": "  "},
+        {"n_steps": 0},
+        {"mean_tracking_error": -0.1},
+        {"max_abs_action": -1.0},
+        {"max_abs_coil_current": -1.0},
+        {"result_digest": ""},
+    ],
+)
+def test_controller_run_result_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    from scpn_control.studio import ControllerRunResult
+
+    base: dict[str, object] = {
+        "controller": "surrogate_mpc",
+        "n_steps": 10,
+        "mean_tracking_error": 0.1,
+        "max_abs_action": 1.0,
+        "max_abs_coil_current": 5.0,
+        "result_digest": "d",
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        ControllerRunResult(**base)  # type: ignore[arg-type]
+
+
+# ── disruption-mitigation adapter (mitigate) ───────────────────────────
+_SPI_SUMMARY = {
+    "neon_quantity_mol": 0.1,
+    "argon_quantity_mol": 0.0,
+    "xenon_quantity_mol": 0.0,
+    "z_eff": 2.4,
+    "final_current_ma": 3.1,
+    "samples": 5000,
+}
+
+
+def test_mitigation_adapter_maps_spi_summary() -> None:
+    bundle = disruption_mitigation_evidence_from_run(_SPI_SUMMARY, **_WHO, **_TS)
+    assert bundle.schema == "studio.disruption-mitigation.v1"
+    assert bundle.evidence_kind is EvidenceKind.MEASURED
+    assert bundle.renders_as_validated is False
+    assert bundle.claim_boundary.validity_domain is not None
+
+
+def test_mitigation_adapter_rejects_missing_field() -> None:
+    bad = {k: v for k, v in _SPI_SUMMARY.items() if k != "z_eff"}
+    with pytest.raises(KeyError):
+        disruption_mitigation_evidence_from_run(bad, **_WHO, **_TS)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"neon_quantity_mol": -0.1},
+        {"z_eff": 0.5},
+        {"sample_count": 0},
+        {"result_digest": "  "},
+    ],
+)
+def test_mitigation_run_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    from scpn_control.studio import MitigationRun
+
+    base: dict[str, object] = {
+        "neon_quantity_mol": 0.1,
+        "argon_quantity_mol": 0.0,
+        "xenon_quantity_mol": 0.0,
+        "z_eff": 2.0,
+        "final_current_ma": 3.0,
+        "sample_count": 100,
+        "result_digest": "d",
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        MitigationRun(**base)  # type: ignore[arg-type]
+
+
+# ── scenario-simulation adapter (simulate) ─────────────────────────────
+def _scenario_audit(*, passed: bool = True):  # type: ignore[no-untyped-def]
+    from scpn_control.core.integrated_scenario import ScenarioCouplingAudit, ScenarioCouplingMetadata
+
+    meta = ScenarioCouplingMetadata(
+        schema_version="scenario-coupling-audit-v1",
+        scenario_name="iter_baseline",
+        config_sha256="a" * 64,
+        n_steps=100,
+        dt_s=1.0,
+        t_start_s=0.0,
+        t_end_s=100.0,
+        enabled_modules=("transport", "current_diffusion", "bootstrap_current"),
+        max_abs_current_deviation_MA=0.0,
+        max_relative_thermal_energy_step=0.1,
+        all_profiles_finite=True,
+        strictly_monotonic_time=True,
+        exchange_count=300,
+        claim_status="bounded replay audit only; external trajectory validation required",
+    )
+    return ScenarioCouplingAudit(passed=passed, metadata=meta, module_exchanges=(), violations=())
+
+
+@pytest.mark.parametrize("passed", [True, False])
+def test_scenario_adapter_maps_audit(passed: bool) -> None:
+    bundle = scenario_simulation_evidence_from_audit(_scenario_audit(passed=passed), **_WHO, **_TS)
+    assert bundle.schema == "studio.scenario-simulation.v1"
+    assert bundle.evidence_kind is EvidenceKind.MEASURED
+    # A passing replay audit must NOT promote the claim past bounded-model.
+    assert bundle.renders_as_validated is False
+    assert bundle.claim_boundary.validity_domain is not None
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"scenario_name": " "},
+        {"config_digest": ""},
+        {"n_steps": 0},
+        {"t_end_s": 0.0},
+        {"module_count": 0},
+    ],
+)
+def test_scenario_simulation_run_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    from scpn_control.studio import ScenarioSimulationRun
+
+    base: dict[str, object] = {
+        "scenario_name": "iter_baseline",
+        "config_digest": "a" * 64,
+        "n_steps": 100,
+        "t_start_s": 0.0,
+        "t_end_s": 100.0,
+        "module_count": 3,
+        "audit_passed": True,
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        ScenarioSimulationRun(**base)  # type: ignore[arg-type]

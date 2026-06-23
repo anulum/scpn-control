@@ -57,6 +57,8 @@ from scpn_studio_platform.evidence import (
 
 from .verbs import (
     CONTROLLER_LATENCY_SCHEMA,
+    CONTROLLER_RUN_SCHEMA,
+    DISRUPTION_MITIGATION_SCHEMA,
     DISRUPTION_PREDICTION_SCHEMA,
     EFIT_RECONSTRUCTION_SCHEMA,
     EQUILIBRIUM_ANALYSIS_SCHEMA,
@@ -64,6 +66,7 @@ from .verbs import (
     PHASE_SYNC_MONITOR_SCHEMA,
     PHYSICS_VALIDATION_SCHEMA,
     SAFETY_CERTIFICATE_SCHEMA,
+    SCENARIO_SIMULATION_SCHEMA,
     STUDIO_ID,
 )
 
@@ -926,5 +929,356 @@ def equilibrium_analysis_evidence(
         evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED),
+        physical_contract=physical,
+    )
+
+
+# ── controller run (bounded, measured closed-loop run) ─────────────────
+@dataclass(frozen=True, slots=True)
+class ControllerRunResult:
+    """Path-free summary of a closed-loop controller run against a plant.
+
+    Mirrors the run summary of a closed-loop shape/current controller (for example
+    ``run_sota_simulation``): the controller, the number of control steps, the
+    realised mean tracking error, and the peak coil action/current the run drove.
+    The run is a closed loop on a surrogate low-order plant, not a facility-certified
+    live-hardware control outcome.
+
+    Parameters
+    ----------
+    controller
+        Name of the controller run.
+    n_steps
+        Number of closed-loop control steps executed.
+    mean_tracking_error
+        Mean state-tracking error over the run, in metres (the controlled state is
+        the magnetic-axis / X-point position).
+    max_abs_action
+        Peak absolute per-step coil action over the run, in kA-turn.
+    max_abs_coil_current
+        Peak absolute coil current over the run, in kA-turn.
+    result_digest
+        SHA-256 of the run summary.
+
+    Raises
+    ------
+    ValueError
+        If the controller name is empty, the step count is below one, a magnitude is
+        negative, or the digest is empty.
+    """
+
+    controller: str
+    n_steps: int
+    mean_tracking_error: float
+    max_abs_action: float
+    max_abs_coil_current: float
+    result_digest: str
+
+    def __post_init__(self) -> None:
+        """Validate the controller name, step count, magnitudes, and digest."""
+        if not self.controller.strip():
+            raise ValueError("ControllerRunResult.controller must be non-empty")
+        if self.n_steps < 1:
+            raise ValueError("ControllerRunResult.n_steps must be >= 1")
+        if self.mean_tracking_error < 0 or self.max_abs_action < 0 or self.max_abs_coil_current < 0:
+            raise ValueError("ControllerRunResult magnitudes must be non-negative")
+        if not self.result_digest.strip():
+            raise ValueError("ControllerRunResult.result_digest must be non-empty")
+
+
+def controller_run_evidence(
+    result: ControllerRunResult,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+    host: str | None = None,
+) -> EvidenceBundle:
+    """Build the ``studio.controller-run.v1`` bundle (measured closed-loop run).
+
+    ``regulate`` is the ecosystem's only realtime, live-hardware verb, but a
+    *closed-loop run against a surrogate low-order plant* is measured-but-bounded
+    evidence: it is not a facility-certified live-hardware control outcome (that is
+    the ``certify`` verb's machine-checked safety certificate). So the claim is
+    ``bounded-model`` / ``rejected`` and does not render as validated.
+
+    Parameters
+    ----------
+    result
+        The path-free controller-run summary.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+    host
+        Optional host descriptor the run executed on.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle whose ``renders_as_validated`` is ``False``.
+    """
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/controller-run/{result.controller}/{result.result_digest}",
+        digest=result.result_digest,
+    )
+    activity = ProvActivity(verb="regulate", studio=STUDIO_ID, started=started, ended=ended, host=host)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(
+        units={"tracking_error": "m", "action": "kA-turn", "coil_current": "kA-turn"},
+        grid={},
+    )
+    validity = ValidityDomain(
+        note=(
+            "Closed-loop shape/current control run against a surrogate low-order plant "
+            "model; not a facility-certified live-hardware control outcome (certification "
+            "is the certify verb's machine-checked safety certificate)."
+        )
+    )
+    return EvidenceBundle(
+        schema=CONTROLLER_RUN_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(
+            status=ClaimStatus.BOUNDED_MODEL,
+            admission=AdmissionDecision.REJECTED,
+            validity_domain=validity,
+        ),
+        physical_contract=physical,
+    )
+
+
+# ── disruption mitigation (bounded, measured SPI run) ──────────────────
+@dataclass(frozen=True, slots=True)
+class MitigationRun:
+    """Path-free summary of a shattered-pellet-injection mitigation run.
+
+    Mirrors the deterministic summary of ``run_spi_mitigation``: the injected
+    noble-gas dose per species, the post-injection effective charge, the plasma
+    current at the end of the current quench, and the simulated sample count.
+
+    Parameters
+    ----------
+    neon_quantity_mol, argon_quantity_mol, xenon_quantity_mol
+        Injected noble-gas dose per species, in moles.
+    z_eff
+        Post-injection effective charge (>= 1).
+    final_current_ma
+        Plasma current at the end of the current quench, in MA.
+    sample_count
+        Number of simulated time samples.
+    result_digest
+        SHA-256 of the mitigation run summary.
+
+    Raises
+    ------
+    ValueError
+        If a dose is negative, ``z_eff`` is below one, the sample count is below one,
+        or the digest is empty.
+    """
+
+    neon_quantity_mol: float
+    argon_quantity_mol: float
+    xenon_quantity_mol: float
+    z_eff: float
+    final_current_ma: float
+    sample_count: int
+    result_digest: str
+
+    def __post_init__(self) -> None:
+        """Validate the doses, effective charge, sample count, and digest."""
+        if self.neon_quantity_mol < 0 or self.argon_quantity_mol < 0 or self.xenon_quantity_mol < 0:
+            raise ValueError("MitigationRun doses must be non-negative")
+        if self.z_eff < 1.0:
+            raise ValueError("MitigationRun.z_eff must be >= 1")
+        if self.sample_count < 1:
+            raise ValueError("MitigationRun.sample_count must be >= 1")
+        if not self.result_digest.strip():
+            raise ValueError("MitigationRun.result_digest must be non-empty")
+
+
+def disruption_mitigation_evidence(
+    run: MitigationRun,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.disruption-mitigation.v1`` bundle (measured SPI run).
+
+    The mitigation run is a low-order shattered-pellet-injection quench model
+    (neutral-gas-shielding ablation, noble-gas radiative ``Z_eff``); it is real and
+    deterministic but not a facility-validated disruption-mitigation outcome, so the
+    claim is ``bounded-model`` / ``rejected``.
+
+    Parameters
+    ----------
+    run
+        The path-free mitigation run summary.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle (bounded-model).
+    """
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/disruption-mitigation/{run.result_digest}", digest=run.result_digest)
+    activity = ProvActivity(verb="mitigate", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(
+        units={"dose": "mol", "Z_eff": "dimensionless", "current": "MA"},
+        grid={},
+    )
+    validity = ValidityDomain(
+        note=(
+            "Low-order shattered-pellet-injection quench model (neutral-gas-shielding "
+            "ablation, noble-gas radiative Z_eff); not a facility-validated "
+            "disruption-mitigation outcome."
+        )
+    )
+    return EvidenceBundle(
+        schema=DISRUPTION_MITIGATION_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(
+            status=ClaimStatus.BOUNDED_MODEL,
+            admission=AdmissionDecision.REJECTED,
+            validity_domain=validity,
+        ),
+        physical_contract=physical,
+    )
+
+
+# ── scenario simulation (bounded, measured replay rollout) ─────────────
+@dataclass(frozen=True, slots=True)
+class ScenarioSimulationRun:
+    """Path-free summary of an integrated-scenario simulation rollout.
+
+    Mirrors a ``ScenarioCouplingMetadata`` together with its audit pass flag (from
+    ``audit_scenario_coupling``): the scenario, the digest of the exact config used,
+    the step count and time window, the participating-module count, and whether the
+    bounded replay-coupling audit passed.
+
+    Parameters
+    ----------
+    scenario_name
+        Name of the scenario.
+    config_digest
+        SHA-256 of the exact ``ScenarioConfig`` used.
+    n_steps
+        Number of simulated time steps.
+    t_start_s, t_end_s
+        Scenario time window in seconds (``t_end_s`` must exceed ``t_start_s``).
+    module_count
+        Number of physics/control modules in the coupling exchange.
+    audit_passed
+        Whether the bounded replay-coupling audit passed.
+
+    Raises
+    ------
+    ValueError
+        If a required string is empty, the step count is below one, the time window
+        is empty, or the module count is below one.
+    """
+
+    scenario_name: str
+    config_digest: str
+    n_steps: int
+    t_start_s: float
+    t_end_s: float
+    module_count: int
+    audit_passed: bool
+
+    def __post_init__(self) -> None:
+        """Validate the identity, step count, time window, and module count."""
+        if not self.scenario_name.strip() or not self.config_digest.strip():
+            raise ValueError("ScenarioSimulationRun scenario_name and config_digest must be non-empty")
+        if self.n_steps < 1:
+            raise ValueError("ScenarioSimulationRun.n_steps must be >= 1")
+        if self.t_end_s <= self.t_start_s:
+            raise ValueError("ScenarioSimulationRun.t_end_s must exceed t_start_s")
+        if self.module_count < 1:
+            raise ValueError("ScenarioSimulationRun.module_count must be >= 1")
+
+
+def scenario_simulation_evidence(
+    run: ScenarioSimulationRun,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.scenario-simulation.v1`` bundle (measured rollout).
+
+    A scenario rollout is a closed-loop run on a low-order plant model checked by a
+    bounded replay-coupling audit (finite, monotonic, conservation-bounded). A
+    passing audit proves replay consistency, **not** facility validation — so even an
+    audited, passing rollout stays ``bounded-model`` / ``rejected`` and does not
+    render as validated; external trajectory validation is required for a facility
+    claim.
+
+    Parameters
+    ----------
+    run
+        The path-free scenario rollout summary.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle (bounded-model).
+    """
+    digest = canonical_digest(
+        {
+            "scenario_name": run.scenario_name,
+            "config_digest": run.config_digest,
+            "n_steps": run.n_steps,
+            "audit_passed": run.audit_passed,
+        }
+    )
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/scenario-simulation/{run.config_digest}", digest=digest)
+    activity = ProvActivity(verb="simulate", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(units={"time": "s"}, grid={"n_steps": run.n_steps, "modules": run.module_count})
+    validity = ValidityDomain(
+        note=(
+            "Closed-loop scenario rollout on a low-order plant model with a bounded "
+            "replay-coupling audit (finite, monotonic, conservation-bounded); not an "
+            "external integrated-modelling or measured-discharge validation."
+        )
+    )
+    return EvidenceBundle(
+        schema=SCENARIO_SIMULATION_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(
+            status=ClaimStatus.BOUNDED_MODEL,
+            admission=AdmissionDecision.REJECTED,
+            validity_domain=validity,
+        ),
         physical_contract=physical,
     )
