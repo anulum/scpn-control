@@ -26,12 +26,17 @@ pytest.importorskip("scpn_studio_platform")
 from scpn_studio_platform.evidence import EvidenceKind  # noqa: E402
 
 from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams  # noqa: E402
+from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence  # noqa: E402
 from scpn_control.studio import (  # noqa: E402
     TraceabilityClaim,
     controller_latency_evidence_from_measurement,
+    disruption_prediction_evidence_from_risk,
     efit_evidence_from_reconstruction,
+    equilibrium_analysis_evidence_from_shape,
+    phase_sync_monitor_evidence_from_snapshot,
     physics_validation_evidence,
     physics_validation_evidences_from_registry,
+    replay_evidence_from_geometry_neutral,
     safety_certificate_evidence_from_certificate,
 )
 
@@ -298,3 +303,169 @@ def test_registry_adapter_over_the_real_61_entries() -> None:
     assert sum(1 for b in bundles if b.renders_as_validated) == 1
     # Every claim carries its qualitative validity-domain prose.
     assert all(b.claim_boundary.validity_domain is not None for b in bundles)
+
+
+# ── batch-2 verb adapters: replay / monitor / predict / analyse ────────
+def _replay_evidence(*, device_claim_allowed: bool = False) -> GeometryNeutralReplayEvidence:
+    return GeometryNeutralReplayEvidence(
+        schema_version="scpn-control.geometry-neutral-replay-evidence.v1",
+        generated_utc="2026-06-23T00:00:00Z",
+        replay_schema_version="v1",
+        replay_report_sha256="1" * 64,
+        scenario_digest="2" * 64,
+        trace_digest="3" * 64,
+        metrics_digest="4" * 64,
+        thresholds_digest="5" * 64,
+        magnetic_configuration_reference="iter-baseline",
+        actuator_calibration="nominal",
+        latency_model="bounded",
+        fault_model="none",
+        final_fieldline_spread=0.01,
+        improvement_fraction=0.42,
+        max_abs_current_A=1.2e4,
+        p95_latency_us=6.1,
+        deterministic=True,
+        passes_thresholds=True,
+        measured_or_benchmark_artefact_sha256=None,
+        device_claim_allowed=device_claim_allowed,
+        claim_status="bounded synthetic replay evidence",
+        payload_sha256="6" * 64,
+    )
+
+
+def test_replay_adapter_maps_geometry_neutral_evidence() -> None:
+    bundle = replay_evidence_from_geometry_neutral(_replay_evidence(), **_WHO, **_TS)
+    assert bundle.schema == "studio.geometry-neutral-replay.v1"
+    assert bundle.evidence_kind is EvidenceKind.MEASURED
+    assert bundle.renders_as_validated is False  # device_claim_allowed False
+    assert bundle.physical_contract is not None
+
+
+def test_replay_summary_rejects_bad_inputs() -> None:
+    from scpn_control.studio import ReplaySummary
+
+    with pytest.raises(ValueError):
+        ReplaySummary(
+            scenario_digest="",
+            trace_digest="t",
+            result_digest="r",
+            max_abs_current_a=1.0,
+            p95_latency_us=1.0,
+            device_claim_allowed=False,
+        )
+
+
+def test_monitor_adapter_maps_a_tick_snapshot() -> None:
+    snap = {"tick": 42, "R_global": 0.93, "lambda_exp": -0.1, "guard_approved": True, "latency_us": 4.2}
+    bundle = phase_sync_monitor_evidence_from_snapshot(snap, **_WHO, **_TS)
+    assert bundle.schema == "studio.phase-sync-monitor.v1"
+    assert bundle.renders_as_validated is False
+    assert bundle.evidence_kind is EvidenceKind.MEASURED
+
+
+def test_monitor_adapter_rejects_missing_field() -> None:
+    with pytest.raises(KeyError):
+        phase_sync_monitor_evidence_from_snapshot({"tick": 1, "R_global": 0.5}, **_WHO, **_TS)
+
+
+def test_monitor_snapshot_rejects_out_of_range() -> None:
+    from scpn_control.studio import MonitorSnapshot
+
+    with pytest.raises(ValueError):
+        MonitorSnapshot(tick=1, r_global=1.5, lambda_exp=0.0, guard_approved=True, latency_us=1.0)
+
+
+def test_predict_adapter_renders_validation_gap() -> None:
+    bundle = disruption_prediction_evidence_from_risk(
+        0.73,
+        observables={"n1_amplitude": 0.2, "rotation": 1.5},
+        **_WHO,
+        **_TS,
+    )
+    assert bundle.schema == "studio.disruption-prediction.v1"
+    assert bundle.renders_as_validated is False
+    assert bundle.claim_boundary.validity_domain is not None
+
+
+def test_prediction_rejects_out_of_range_risk() -> None:
+    from scpn_control.studio import DisruptionPrediction
+
+    with pytest.raises(ValueError):
+        DisruptionPrediction(risk=1.4, observable_count=2, result_digest="d")
+
+
+def test_analyse_adapter_maps_shape_params() -> None:
+    shape = ShapeParams(
+        R0=1.7,
+        a=0.5,
+        kappa=1.8,
+        delta_upper=0.4,
+        delta_lower=0.4,
+        q95=3.5,
+        beta_pol=0.9,
+        li=0.8,
+        Ip_reconstructed=1.5e7,
+    )
+    bundle = equilibrium_analysis_evidence_from_shape(shape, **_WHO, **_TS)
+    assert bundle.schema == "studio.equilibrium-analysis.v1"
+    assert bundle.renders_as_validated is False
+    assert bundle.physical_contract is not None and bundle.physical_contract.units["R0"] == "m"
+
+
+def test_equilibrium_analysis_rejects_nonpositive_geometry() -> None:
+    from scpn_control.studio import EquilibriumAnalysis
+
+    with pytest.raises(ValueError):
+        EquilibriumAnalysis(r0=0.0, a=0.5, kappa=1.8, q95=3.5, beta_pol=0.9, li=0.8, result_digest="d")
+
+
+def test_replay_adapter_admits_device_claim_when_allowed() -> None:
+    bundle = replay_evidence_from_geometry_neutral(_replay_evidence(device_claim_allowed=True), **_WHO, **_TS)
+    assert bundle.renders_as_validated is True
+
+
+def test_replay_summary_rejects_negative_magnitude() -> None:
+    from scpn_control.studio import ReplaySummary
+
+    with pytest.raises(ValueError):
+        ReplaySummary(
+            scenario_digest="s",
+            trace_digest="t",
+            result_digest="r",
+            max_abs_current_a=-1.0,
+            p95_latency_us=1.0,
+            device_claim_allowed=False,
+        )
+
+
+@pytest.mark.parametrize("kwargs", [{"tick": -1}, {"latency_us": -1.0}])
+def test_monitor_snapshot_rejects_negative(kwargs: dict[str, object]) -> None:
+    from scpn_control.studio import MonitorSnapshot
+
+    base: dict[str, object] = {
+        "tick": 0,
+        "r_global": 0.5,
+        "lambda_exp": 0.0,
+        "guard_approved": True,
+        "latency_us": 1.0,
+    }
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        MonitorSnapshot(**base)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("kwargs", [{"observable_count": -1}, {"result_digest": "  "}])
+def test_disruption_prediction_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    from scpn_control.studio import DisruptionPrediction
+
+    base: dict[str, object] = {"risk": 0.5, "observable_count": 2, "result_digest": "d"}
+    base.update(kwargs)
+    with pytest.raises(ValueError):
+        DisruptionPrediction(**base)  # type: ignore[arg-type]
+
+
+def test_equilibrium_analysis_rejects_empty_digest() -> None:
+    from scpn_control.studio import EquilibriumAnalysis
+
+    with pytest.raises(ValueError):
+        EquilibriumAnalysis(r0=1.7, a=0.5, kappa=1.8, q95=3.5, beta_pol=0.9, li=0.8, result_digest="  ")

@@ -57,7 +57,11 @@ from scpn_studio_platform.evidence import (
 
 from .verbs import (
     CONTROLLER_LATENCY_SCHEMA,
+    DISRUPTION_PREDICTION_SCHEMA,
     EFIT_RECONSTRUCTION_SCHEMA,
+    EQUILIBRIUM_ANALYSIS_SCHEMA,
+    GEOMETRY_NEUTRAL_REPLAY_SCHEMA,
+    PHASE_SYNC_MONITOR_SCHEMA,
     PHYSICS_VALIDATION_SCHEMA,
     SAFETY_CERTIFICATE_SCHEMA,
     STUDIO_ID,
@@ -562,4 +566,365 @@ def physics_validation_evidence(
         evidence_level=level,
         evidence_kind=EvidenceKind.CURATED,
         claim_boundary=boundary,
+    )
+
+
+# ── geometry-neutral replay (bounded, measured) ────────────────────────
+@dataclass(frozen=True, slots=True)
+class ReplaySummary:
+    """Path-free summary of a geometry-neutral replay.
+
+    Mirrors the fields of ``GeometryNeutralReplayEvidence`` the bundle needs.
+
+    Parameters
+    ----------
+    scenario_digest, trace_digest
+        SHA-256 digests of the replayed scenario and trace.
+    result_digest
+        SHA-256 of the replay evidence payload.
+    max_abs_current_a
+        Peak absolute coil current over the replay, in amperes.
+    p95_latency_us
+        95th-percentile control-cycle latency over the replay, in microseconds.
+    device_claim_allowed
+        Whether the device (facility) claim is admitted.
+
+    Raises
+    ------
+    ValueError
+        If a digest is empty or a magnitude is negative.
+    """
+
+    scenario_digest: str
+    trace_digest: str
+    result_digest: str
+    max_abs_current_a: float
+    p95_latency_us: float
+    device_claim_allowed: bool
+
+    def __post_init__(self) -> None:
+        """Validate the digests and magnitudes."""
+        for name in ("scenario_digest", "trace_digest", "result_digest"):
+            if not getattr(self, name).strip():
+                raise ValueError(f"ReplaySummary.{name} must be non-empty")
+        if self.max_abs_current_a < 0 or self.p95_latency_us < 0:
+            raise ValueError("ReplaySummary magnitudes must be non-negative")
+
+
+def geometry_neutral_replay_evidence_bundle(
+    summary: ReplaySummary,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.geometry-neutral-replay.v1`` bundle.
+
+    A replay is a recomputable measured run, but bounded synthetic regression
+    evidence — its device claim is not admitted unless matched-reference evidence
+    passes — so it does not render as validated.
+
+    Parameters
+    ----------
+    summary
+        The path-free replay summary.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle whose admissibility reflects the device claim.
+    """
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/replay/{summary.result_digest}", digest=summary.result_digest)
+    activity = ProvActivity(verb="replay", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(units={"coil_current": "A", "latency": "us"}, grid={})
+    status = ClaimStatus.REFERENCE_VALIDATED if summary.device_claim_allowed else ClaimStatus.BOUNDED_MODEL
+    admission = AdmissionDecision.ADMITTED if summary.device_claim_allowed else AdmissionDecision.REJECTED
+    return EvidenceBundle(
+        schema=GEOMETRY_NEUTRAL_REPLAY_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(status=status, admission=admission),
+        physical_contract=physical,
+    )
+
+
+# ── phase-sync monitor (bounded, measured telemetry) ───────────────────
+@dataclass(frozen=True, slots=True)
+class MonitorSnapshot:
+    """Path-free phase-sync monitor snapshot.
+
+    Mirrors the dashboard snapshot returned by ``RealtimeMonitor.tick``.
+
+    Parameters
+    ----------
+    tick
+        Monotonic tick index of the snapshot.
+    r_global
+        Global Kuramoto coherence in ``[0, 1]``.
+    lambda_exp
+        Estimated largest Lyapunov exponent.
+    guard_approved
+        Whether the Lyapunov guard approved the step.
+    latency_us
+        Tick wall time in microseconds.
+
+    Raises
+    ------
+    ValueError
+        If the tick or latency is negative, or coherence is outside ``[0, 1]``.
+    """
+
+    tick: int
+    r_global: float
+    lambda_exp: float
+    guard_approved: bool
+    latency_us: float
+
+    def __post_init__(self) -> None:
+        """Validate the snapshot ranges."""
+        if self.tick < 0:
+            raise ValueError("MonitorSnapshot.tick must be >= 0")
+        if not (0.0 <= self.r_global <= 1.0):
+            raise ValueError("MonitorSnapshot.r_global must be in [0, 1]")
+        if self.latency_us < 0:
+            raise ValueError("MonitorSnapshot.latency_us must be >= 0")
+
+
+def phase_sync_monitor_evidence(
+    snapshot: MonitorSnapshot,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.phase-sync-monitor.v1`` bundle.
+
+    A live coherence/guard snapshot is measured telemetry, not a validated facility
+    claim, so it is bounded-model and does not render as validated.
+
+    Parameters
+    ----------
+    snapshot
+        The path-free monitor snapshot.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle (bounded-model).
+    """
+    digest = canonical_digest({"tick": snapshot.tick, "r_global": snapshot.r_global, "lambda_exp": snapshot.lambda_exp})
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/phase-sync/{snapshot.tick}", digest=digest)
+    activity = ProvActivity(verb="monitor", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(units={"R_global": "dimensionless", "lambda_exp": "1/s", "latency": "us"}, grid={})
+    return EvidenceBundle(
+        schema=PHASE_SYNC_MONITOR_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED),
+        physical_contract=physical,
+    )
+
+
+# ── disruption prediction (validation-gap fixed-weight baseline) ──────────
+@dataclass(frozen=True, slots=True)
+class DisruptionPrediction:
+    """Path-free disruption-risk prediction.
+
+    Mirrors ``predict_disruption_risk`` output: a risk in ``[0, 1]`` from a
+    hand-tuned fixed-weight baseline (U-015), not a model trained on a
+    real disruption database — so its claim is a validation gap.
+
+    Parameters
+    ----------
+    risk
+        The predicted disruption risk in ``[0, 1]``.
+    observable_count
+        Number of toroidal-asymmetry observables the prediction used.
+    result_digest
+        SHA-256 of the prediction inputs/output.
+
+    Raises
+    ------
+    ValueError
+        If the risk is outside ``[0, 1]``, the count is negative, or the digest is
+        empty.
+    """
+
+    risk: float
+    observable_count: int
+    result_digest: str
+
+    def __post_init__(self) -> None:
+        """Validate the risk range, count, and digest."""
+        if not (0.0 <= self.risk <= 1.0):
+            raise ValueError("DisruptionPrediction.risk must be in [0, 1]")
+        if self.observable_count < 0:
+            raise ValueError("DisruptionPrediction.observable_count must be >= 0")
+        if not self.result_digest.strip():
+            raise ValueError("DisruptionPrediction.result_digest must be non-empty")
+
+
+def disruption_prediction_evidence(
+    prediction: DisruptionPrediction,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.disruption-prediction.v1`` bundle.
+
+    The predictor is a hand-tuned fixed-weight baseline with no ROC against a real
+    disruption database, so the claim is a validation gap and is not admitted.
+
+    Parameters
+    ----------
+    prediction
+        The path-free prediction.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle on the validation-gap boundary.
+    """
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/disruption-prediction/{prediction.result_digest}", digest=prediction.result_digest
+    )
+    activity = ProvActivity(verb="predict", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    validity = ValidityDomain(
+        note=(
+            "Hand-tuned fixed-weight sigmoid over toroidal-asymmetry observables; a "
+            "fixed-weight baseline, not a model trained or ROC-validated on a real "
+            "disruption database."
+        )
+    )
+    return EvidenceBundle(
+        schema=DISRUPTION_PREDICTION_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.TAXONOMY,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(
+            status=ClaimStatus.VALIDATION_GAP,
+            admission=AdmissionDecision.REJECTED,
+            validity_domain=validity,
+        ),
+    )
+
+
+# ── equilibrium analysis (bounded, measured) ───────────────────────────
+@dataclass(frozen=True, slots=True)
+class EquilibriumAnalysis:
+    """Path-free macroscopic equilibrium-shape analysis.
+
+    Mirrors the ``ShapeParams`` derived from a reconstruction.
+
+    Parameters
+    ----------
+    r0, a, kappa
+        Major radius, minor radius, elongation.
+    q95, beta_pol, li
+        Safety factor at 95% flux, poloidal beta, internal inductance.
+    result_digest
+        SHA-256 of the analysis output.
+
+    Raises
+    ------
+    ValueError
+        If a positive-definite geometry value is non-positive or the digest is empty.
+    """
+
+    r0: float
+    a: float
+    kappa: float
+    q95: float
+    beta_pol: float
+    li: float
+    result_digest: str
+
+    def __post_init__(self) -> None:
+        """Validate geometry positivity and the digest."""
+        if self.r0 <= 0 or self.a <= 0 or self.kappa <= 0:
+            raise ValueError("EquilibriumAnalysis R0/a/kappa must be positive")
+        if not self.result_digest.strip():
+            raise ValueError("EquilibriumAnalysis.result_digest must be non-empty")
+
+
+def equilibrium_analysis_evidence(
+    analysis: EquilibriumAnalysis,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.equilibrium-analysis.v1`` bundle.
+
+    Macroscopic shape parameters derived from an EFIT-lite reconstruction inherit
+    its bounded status, so the analysis does not render as validated.
+
+    Parameters
+    ----------
+    analysis
+        The path-free shape analysis.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``measured`` schema-B bundle (bounded-model).
+    """
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/equilibrium-analysis/{analysis.result_digest}", digest=analysis.result_digest
+    )
+    activity = ProvActivity(verb="analyse", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    physical = PhysicalContract(
+        units={"R0": "m", "a": "m", "kappa": "dimensionless", "q95": "dimensionless"},
+        grid={},
+    )
+    return EvidenceBundle(
+        schema=EQUILIBRIUM_ANALYSIS_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED),
+        physical_contract=physical,
     )

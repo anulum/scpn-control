@@ -26,12 +26,20 @@ from typing import TYPE_CHECKING, Any
 
 from .evidence import (
     ControllerLatencyResult,
+    DisruptionPrediction,
     EfitReconstructionResult,
+    EquilibriumAnalysis,
+    MonitorSnapshot,
+    ReplaySummary,
     SafetyCertificateResult,
     TraceabilityClaim,
     canonical_digest,
     controller_latency_evidence,
+    disruption_prediction_evidence,
     efit_reconstruction_evidence,
+    equilibrium_analysis_evidence,
+    geometry_neutral_replay_evidence_bundle,
+    phase_sync_monitor_evidence,
     physics_validation_evidence,
     safety_certificate_evidence,
 )
@@ -39,7 +47,8 @@ from .evidence import (
 if TYPE_CHECKING:
     from scpn_studio_platform.evidence import EvidenceBundle
 
-    from scpn_control.control.realtime_efit import ReconstructionResult
+    from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams
+    from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence
 
 
 def efit_evidence_from_reconstruction(
@@ -306,3 +315,167 @@ def physics_validation_evidences_from_registry(
             )
         )
     return tuple(bundles)
+
+
+def replay_evidence_from_geometry_neutral(
+    evidence: GeometryNeutralReplayEvidence,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``GeometryNeutralReplayEvidence`` onto a replay bundle.
+
+    Parameters
+    ----------
+    evidence
+        The geometry-neutral replay evidence object.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.geometry-neutral-replay.v1`` bundle.
+    """
+    summary = ReplaySummary(
+        scenario_digest=evidence.scenario_digest,
+        trace_digest=evidence.trace_digest,
+        result_digest=evidence.payload_sha256,
+        max_abs_current_a=float(evidence.max_abs_current_A),
+        p95_latency_us=float(evidence.p95_latency_us),
+        device_claim_allowed=bool(evidence.device_claim_allowed),
+    )
+    return geometry_neutral_replay_evidence_bundle(
+        summary, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
+
+
+def phase_sync_monitor_evidence_from_snapshot(
+    snapshot: Mapping[str, Any],
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``RealtimeMonitor.tick`` snapshot onto a monitor bundle.
+
+    Parameters
+    ----------
+    snapshot
+        The dashboard snapshot dict (``tick``, ``R_global``, ``lambda_exp``,
+        ``guard_approved``, ``latency_us``).
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.phase-sync-monitor.v1`` bundle.
+
+    Raises
+    ------
+    KeyError
+        If a required snapshot field is missing.
+    """
+    snap = MonitorSnapshot(
+        tick=int(snapshot["tick"]),
+        r_global=float(snapshot["R_global"]),
+        lambda_exp=float(snapshot["lambda_exp"]),
+        guard_approved=bool(snapshot["guard_approved"]),
+        latency_us=float(snapshot["latency_us"]),
+    )
+    return phase_sync_monitor_evidence(
+        snap, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
+
+
+def disruption_prediction_evidence_from_risk(
+    risk: float,
+    *,
+    observables: Mapping[str, float],
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``predict_disruption_risk`` output onto a prediction bundle.
+
+    Parameters
+    ----------
+    risk
+        The predicted disruption risk in ``[0, 1]``.
+    observables
+        The toroidal-asymmetry observables the prediction used.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.disruption-prediction.v1`` bundle (validation-gap, fixed-weight).
+    """
+    prediction = DisruptionPrediction(
+        risk=float(risk),
+        observable_count=len(observables),
+        result_digest=canonical_digest({"risk": float(risk), "observables": dict(observables)}),
+    )
+    return disruption_prediction_evidence(
+        prediction, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
+
+
+def equilibrium_analysis_evidence_from_shape(
+    shape: ShapeParams,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Map a ``ShapeParams`` onto an equilibrium-analysis bundle.
+
+    Parameters
+    ----------
+    shape
+        The macroscopic shape parameters derived from a reconstruction.
+    operator
+        Opaque identity of the operator/tenant.
+    studio_version
+        Version of the CONTROL studio.
+    started, ended
+        ISO-8601 start/end timestamps.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``studio.equilibrium-analysis.v1`` bundle (bounded-model).
+    """
+    analysis = EquilibriumAnalysis(
+        r0=float(shape.R0),
+        a=float(shape.a),
+        kappa=float(shape.kappa),
+        q95=float(shape.q95),
+        beta_pol=float(shape.beta_pol),
+        li=float(shape.li),
+        result_digest=canonical_digest(
+            {"R0": float(shape.R0), "a": float(shape.a), "kappa": float(shape.kappa), "q95": float(shape.q95)}
+        ),
+    )
+    return equilibrium_analysis_evidence(
+        analysis, operator=operator, studio_version=studio_version, started=started, ended=ended
+    )
