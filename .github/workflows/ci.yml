@@ -51,7 +51,12 @@ jobs:
         # 100% coverage gate so tests/test_studio_vertical.py executes (it
         # importorskips elsewhere) and the studio modules are covered.
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        run: pip install 'scpn-studio-platform>=0.2,<0.3'
+        # Hash-pinned (the SDK has no transitive deps, so --hash needs only its own).
+        # Verified at source: https://pypi.org/pypi/scpn-studio-platform/0.2.0/json
+        run: |
+          pip install scpn-studio-platform==0.2.0 \
+            --hash=sha256:46f7e207c92f97eb0b51cfaa0d5d6f157fc1512aba2f193096f3c37afaca8228 \
+            --hash=sha256:0b19696a670c9c413ed19750a0729bf04ddb7156ef7847db4d3a538796e56f95
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

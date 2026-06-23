@@ -43,3 +43,13 @@ updates:
     labels:
       - "dependencies"
       - "rust"
+
+  - package-ecosystem: "npm"
+    directory: "/studio-web"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps(studio-web)"
+    labels:
+      - "dependencies"
+      - "javascript"
