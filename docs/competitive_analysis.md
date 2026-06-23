@@ -87,7 +87,7 @@
 | **SCPN phase coupling** | **Yes (8-layer UPDE bridge)** | No | No | No | No | No |
 | Neural surrogate (QLKNN) | Yes | External | No | No | No | No |
 | **Neuro-symbolic SNN** | **Yes** | No | No | No | No | No |
-| **Disruption prediction (ML)** | **Yes** | No | No | No | No | N/A |
+| **Disruption prediction (ML)** | **Yes (experimental, synthetic-only)** | No | No | No | No | N/A |
 | **SPI mitigation** | **Yes** | No | No | No | No | Yes |
 | Neutronics / TBR | Yes (1-D slab) | No | Yes | No | Yes | No |
 | **Digital twin (real-time)** | **Yes** | No | No | No | No | No |
