@@ -312,7 +312,9 @@ class TestDirectorInterfaceRunMission:
         assert di.director_backend == "injected"
 
     def test_no_fallback_raises(self):
-        with pytest.raises(ImportError, match="allow_fallback=False"):
+        # No injected director and no fallback: a configuration error (there is no
+        # implicit director_module to import), so it raises ValueError.
+        with pytest.raises(ValueError, match="without a director"):
             DirectorInterface(
                 "mock.json",
                 allow_fallback=False,

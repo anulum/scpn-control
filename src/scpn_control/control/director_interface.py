@@ -33,14 +33,6 @@ except ImportError:
 import numpy as np
 
 try:
-    from director_module import DirectorModule
-
-    DIRECTOR_AVAILABLE = True  # pragma: no cover - director_module is an optional sibling dependency
-except ImportError:  # pragma: no cover - optional dependency path
-    DIRECTOR_AVAILABLE = False
-    DirectorModule = None
-
-try:
     from scpn_control.core._rust_compat import RUST_BACKEND, FusionKernel
 except ImportError:
     try:
@@ -121,17 +113,15 @@ class DirectorInterface:
                 "rule-based legacy fallback is disabled by default."
             )
         self.nc = controller_factory(config_path)
+        # A director is provided one of two honest ways: inject a concrete director
+        # object (the integration seam — any external director, e.g. a future
+        # director_ai adapter, is wired in by the caller), or opt into the built-in
+        # rule-based legacy fallback. There is no implicit `director_module` import:
+        # no such package exists and the real sibling (`director_ai`) does not expose
+        # a `DirectorModule`, so that branch was dead and has been removed.
         if director is not None:
             self.director = director
             self.director_backend = "injected"
-        elif (
-            DIRECTOR_AVAILABLE and DirectorModule is not None
-        ):  # pragma: no cover - requires the optional director_module dependency
-            self.director = DirectorModule(
-                entropy_threshold=float(entropy_threshold),
-                history_window=int(history_window),
-            )
-            self.director_backend = "director_module"
         elif allow_fallback:
             self.director = _RuleBasedDirector(
                 entropy_threshold=float(entropy_threshold),
@@ -139,8 +129,10 @@ class DirectorInterface:
             )
             self.director_backend = "fallback_rule_based"
         else:
-            raise ImportError(
-                "Cannot initialize DirectorInterface without DIRECTOR_AI module when allow_fallback=False."
+            raise ValueError(
+                "Cannot initialize DirectorInterface without a director: pass `director=...` "
+                "to inject one, or set allow_fallback=True (with allow_legacy_fallback=True) "
+                "for the rule-based legacy director."
             )
 
         self.step_count = 0
