@@ -2083,6 +2083,10 @@ capability manifest is the platform `CapabilityManifest`.
 
 ::: scpn_control.studio.manifest
 
+#### Studio Live-Emitter Adapters
+
+::: scpn_control.studio.adapters
+
 ---
 
 ## CLI

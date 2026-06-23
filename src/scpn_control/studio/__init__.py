@@ -24,6 +24,11 @@ the intended fail-closed behaviour for an optional studio surface.
 
 from __future__ import annotations
 
+from .adapters import (
+    controller_latency_evidence_from_measurement,
+    efit_evidence_from_reconstruction,
+    safety_certificate_evidence_from_certificate,
+)
 from .evidence import (
     ControllerLatencyResult,
     EfitReconstructionResult,
@@ -51,10 +56,13 @@ __all__ = [
     "build_manifest",
     "canonical_digest",
     "controller_latency_evidence",
+    "controller_latency_evidence_from_measurement",
     "core_verbs",
     "declared_surface",
     "domain_verbs",
+    "efit_evidence_from_reconstruction",
     "efit_reconstruction_evidence",
     "evidence_schemas",
     "safety_certificate_evidence",
+    "safety_certificate_evidence_from_certificate",
 ]
