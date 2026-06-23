@@ -9,6 +9,20 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # Annotation-only imports: typing the lazy-import facades below with their real
+    # parameter/return types (instead of `object`) removes the per-call
+    # `# type: ignore[arg-type]`s without forcing the heavy geometry_neutral_replay
+    # module to import at package-import time (it is still imported lazily, inside
+    # each function body). `from __future__ import annotations` keeps these strings.
+    from collections.abc import Mapping
+    from pathlib import Path
+    from typing import Any
+
+    from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence
+
 from scpn_control.scpn.artifact import (
     Artifact,
     get_artifact_json_schema,
@@ -117,12 +131,12 @@ def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> 
     return _impl(steps=steps, seed=seed)
 
 
-def validate_geometry_neutral_report(report: object) -> None:
+def validate_geometry_neutral_report(report: Mapping[str, Any]) -> None:
     """Validate a geometry-neutral replay report, raising on any violation."""
 
     from scpn_control.scpn.geometry_neutral_replay import validate_geometry_neutral_report as _impl
 
-    _impl(report)  # type: ignore[arg-type]
+    _impl(report)
 
 
 def load_geometry_neutral_replay_schema(version: str) -> dict[str, object]:
@@ -141,86 +155,122 @@ def register_geometry_neutral_replay_v1_1_schema() -> dict[str, object]:
     return _impl()
 
 
-def assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle(report: object) -> object:
+def assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle(
+    report: Mapping[str, Any],
+) -> Mapping[str, Any]:
     """Assert a v1 replay report loads under the v1.1 schema bundle."""
 
     from scpn_control.scpn.geometry_neutral_replay import (
         assert_v1_replay_loadable_under_v1_1_schema_bundle as _impl,
     )
 
-    return _impl(report)  # type: ignore[arg-type]
+    return _impl(report)
 
 
-def build_geometry_neutral_aer_admission_metadata(**kwargs: object) -> dict[str, object]:
+def build_geometry_neutral_aer_admission_metadata(
+    *,
+    admission_report: Mapping[str, Any],
+    decode_strategy: str,
+    decode_window_ns: int,
+    n_features: int,
+    feature_normalisation: str = "unit",
+    require_monotonic: bool = False,
+    feature_vector: object | None = None,
+) -> dict[str, Any]:
     """Build AER-admission metadata for a geometry-neutral replay."""
 
     from scpn_control.scpn.geometry_neutral_replay import build_aer_admission_metadata as _impl
 
-    return _impl(**kwargs)  # type: ignore[arg-type]
+    return _impl(
+        admission_report=admission_report,
+        decode_strategy=decode_strategy,
+        decode_window_ns=decode_window_ns,
+        n_features=n_features,
+        feature_normalisation=feature_normalisation,
+        require_monotonic=require_monotonic,
+        feature_vector=feature_vector,
+    )
 
 
-def attach_geometry_neutral_aer_admission_metadata(report: object, aer_admission: object) -> dict[str, object]:
+def attach_geometry_neutral_aer_admission_metadata(
+    report: Mapping[str, Any], aer_admission: Mapping[str, Any]
+) -> dict[str, Any]:
     """Attach AER-admission metadata to a geometry-neutral replay report."""
 
     from scpn_control.scpn.geometry_neutral_replay import attach_aer_admission_metadata as _impl
 
-    return _impl(report, aer_admission)  # type: ignore[arg-type]
+    return _impl(report, aer_admission)
 
 
-def save_geometry_neutral_replay_report(report: object, output_path: object) -> object:
+def save_geometry_neutral_replay_report(report: Mapping[str, Any], output_path: str | Path) -> Path:
     """Save a geometry-neutral replay report to disk."""
 
     from scpn_control.scpn.geometry_neutral_replay import save_geometry_neutral_replay_report as _impl
 
-    return _impl(report, output_path)  # type: ignore[arg-type]
+    return _impl(report, output_path)
 
 
-def load_geometry_neutral_replay_report(path: object) -> dict[str, object]:
+def load_geometry_neutral_replay_report(path: str | Path) -> dict[str, Any]:
     """Load a geometry-neutral replay report from disk."""
 
     from scpn_control.scpn.geometry_neutral_replay import load_geometry_neutral_replay_report as _impl
 
-    return _impl(path)  # type: ignore[arg-type]
+    return _impl(path)
 
 
-def render_geometry_neutral_markdown(report: object) -> str:
+def render_geometry_neutral_markdown(report: Mapping[str, Any]) -> str:
     """Render a geometry-neutral replay report as Markdown."""
 
     from scpn_control.scpn.geometry_neutral_replay import render_geometry_neutral_markdown as _impl
 
-    return _impl(report)  # type: ignore[arg-type]
+    return _impl(report)
 
 
-def geometry_neutral_replay_evidence(report: object, **kwargs: object) -> object:
+def geometry_neutral_replay_evidence(
+    report: Mapping[str, Any],
+    *,
+    generated_utc: str | None = None,
+    measured_or_benchmark_artefact_sha256: str | None = None,
+    device_claim_allowed: bool = False,
+) -> GeometryNeutralReplayEvidence:
     """Build admission evidence for a geometry-neutral replay report."""
 
     from scpn_control.scpn.geometry_neutral_replay import geometry_neutral_replay_evidence as _impl
 
-    return _impl(report, **kwargs)  # type: ignore[arg-type]
+    return _impl(
+        report,
+        generated_utc=generated_utc,
+        measured_or_benchmark_artefact_sha256=measured_or_benchmark_artefact_sha256,
+        device_claim_allowed=device_claim_allowed,
+    )
 
 
-def assert_geometry_neutral_replay_claim_admissible(evidence: object) -> object:
+def assert_geometry_neutral_replay_claim_admissible(
+    evidence: GeometryNeutralReplayEvidence,
+) -> GeometryNeutralReplayEvidence:
     """Assert geometry-neutral replay evidence is admissible, raising otherwise."""
 
     from scpn_control.scpn.geometry_neutral_replay import assert_geometry_neutral_replay_claim_admissible as _impl
 
-    return _impl(evidence)  # type: ignore[arg-type]
+    return _impl(evidence)
 
 
-def save_geometry_neutral_replay_evidence(evidence: object, output_path: object) -> None:
+def save_geometry_neutral_replay_evidence(evidence: GeometryNeutralReplayEvidence, output_path: str | Path) -> None:
     """Save geometry-neutral replay evidence to disk."""
 
     from scpn_control.scpn.geometry_neutral_replay import save_geometry_neutral_replay_evidence as _impl
 
-    _impl(evidence, output_path)  # type: ignore[arg-type]
+    _impl(evidence, output_path)
 
 
-def load_geometry_neutral_replay_evidence(path: object, **kwargs: object) -> object:
+def load_geometry_neutral_replay_evidence(
+    path: str | Path, *, require_device_claim: bool = False
+) -> GeometryNeutralReplayEvidence:
     """Load geometry-neutral replay evidence from disk."""
 
     from scpn_control.scpn.geometry_neutral_replay import load_geometry_neutral_replay_evidence as _impl
 
-    return _impl(path, **kwargs)  # type: ignore[arg-type]
+    return _impl(path, require_device_claim=require_device_claim)
 
 
 __all__ = [
