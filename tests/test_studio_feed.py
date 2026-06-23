@@ -141,7 +141,15 @@ def test_committed_feed_artifact_matches_the_producer() -> None:
     # The panel's standalone artefact must not drift from the Python producer — this
     # is the whole point of the feed (no second source of truth). Regenerate with
     # `python -m scpn_control.studio.feed > studio-web/public/studio-feed.json`.
+    #
+    # ``studio_version`` is an environment-dependent stamp (the installed distribution
+    # version, or ``"0+unknown"`` when run from a non-installed source tree as in CI),
+    # so it is excluded — the structural contract (verbs, claims, digest, schema) is
+    # what must stay in lock-step.
     repo_root = Path(__file__).resolve().parents[1]
     artifact = repo_root / "studio-web" / "public" / "studio-feed.json"
     committed = json.loads(artifact.read_text(encoding="utf-8"))
-    assert committed == representative_feed()
+    produced = representative_feed()
+    committed.pop("studio_version", None)
+    produced.pop("studio_version", None)
+    assert committed == produced
