@@ -4,7 +4,7 @@
 #
 #    pip-compile --allow-unsafe --generate-hashes --output-file=requirements/ci-studio.txt --strip-extras requirements/ci-studio.in
 #
-scpn-studio-platform==0.2.0 \
-    --hash=sha256:0b19696a670c9c413ed19750a0729bf04ddb7156ef7847db4d3a538796e56f95 \
-    --hash=sha256:46f7e207c92f97eb0b51cfaa0d5d6f157fc1512aba2f193096f3c37afaca8228
+scpn-studio-platform==0.8.0 \
+    --hash=sha256:a256d56411afdd1de3bb2441310f8eb66b29611b3f19c90e1848e9e40b895e00 \
+    --hash=sha256:ef8b01157e79d6c2315a3ba237c03001bf06c3631615ed499773cb293e4e29eb
     # via -r requirements/ci-studio.in
