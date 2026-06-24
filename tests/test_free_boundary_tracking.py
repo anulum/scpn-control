@@ -1130,9 +1130,7 @@ class TestFreeBoundaryValidationAndErrorPaths:
         ctrl.kernel.solve = None
         with pytest.raises(AttributeError, match="solve"):
             ctrl._solve_free_boundary_state()
-        ctrl.kernel.solve_free_boundary = (
-            lambda coils, *, max_outer_iter, tol, optimize_shape: {"ok": True}
-        )
+        ctrl.kernel.solve_free_boundary = lambda coils, *, max_outer_iter, tol, optimize_shape: {"ok": True}
         assert ctrl._solve_free_boundary_state() == {"ok": True}
 
     def test_observe_true_objectives_requires_consistent_targets(self) -> None:
