@@ -43,7 +43,7 @@ _IDS = [bundle.schema for bundle in _BUNDLES]
 def test_representative_surface_is_one_bundle_per_schema() -> None:
     schemas = [bundle.schema for bundle in _BUNDLES]
     assert len(schemas) == len(set(schemas)), "schemas must be unique (one bundle per verb)"
-    assert len(schemas) >= 11, "the representative surface must cover the 11-verb vertical"
+    assert len(schemas) >= 12, "the representative surface must cover the 12-verb vertical"
     assert all(s.startswith("studio.") and s.endswith(".v1") for s in schemas)
 
 

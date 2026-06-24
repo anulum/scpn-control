@@ -59,6 +59,7 @@ DISRUPTION_MITIGATION_SCHEMA = "studio.disruption-mitigation.v1"
 PHASE_SYNC_MONITOR_SCHEMA = "studio.phase-sync-monitor.v1"
 SCENARIO_SIMULATION_SCHEMA = "studio.scenario-simulation.v1"
 EQUILIBRIUM_ANALYSIS_SCHEMA = "studio.equilibrium-analysis.v1"
+PARITY_REFUTATION_SCHEMA = "studio.parity-refutation.v1"
 
 
 # ── core-spine verbs ───────────────────────────────────────────────────
@@ -182,6 +183,17 @@ MONITOR = Verb(
 )
 """Stream live phase-sync coherence and guard-halt telemetry."""
 
+VERIFY = Verb(
+    name="verify",
+    safety_tier=SafetyTier.RESEARCH,
+    side_effect=SideEffect.READ_ONLY,
+    timing=Timing(TimingClass.BATCH),
+    fidelity=Fidelity.REDUCED_ORDER,
+    produces=(PARITY_REFUTATION_SCHEMA,),
+    backends=("python", "rust"),
+)
+"""Verify cross-implementation numerical parity between the Python and Rust backends (verify/cross-check)."""
+
 
 CONTROL_VERBS: tuple[Verb, ...] = (
     RECONSTRUCT,
@@ -195,6 +207,7 @@ CONTROL_VERBS: tuple[Verb, ...] = (
     PREDICT,
     MITIGATE,
     MONITOR,
+    VERIFY,
 )
 """Every verb the CONTROL studio advertises, in manifest order."""
 

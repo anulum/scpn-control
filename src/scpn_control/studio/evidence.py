@@ -43,11 +43,15 @@ from scpn_studio_platform.evidence import (
     BlockedOn,
     ClaimBoundary,
     ClaimStatus,
+    Convergence,
+    ConvergenceStatus,
     EvidenceBundle,
     EvidenceKind,
     EvidenceLevel,
+    Exactness,
     FormalCertificate,
     NumericProvenance,
+    ParityCheck,
     PhysicalContract,
     ProvActivity,
     ProvAgent,
@@ -63,6 +67,7 @@ from .verbs import (
     EFIT_RECONSTRUCTION_SCHEMA,
     EQUILIBRIUM_ANALYSIS_SCHEMA,
     GEOMETRY_NEUTRAL_REPLAY_SCHEMA,
+    PARITY_REFUTATION_SCHEMA,
     PHASE_SYNC_MONITOR_SCHEMA,
     PHYSICS_VALIDATION_SCHEMA,
     SAFETY_CERTIFICATE_SCHEMA,
@@ -336,6 +341,110 @@ def safety_certificate_evidence(
         evidence_kind=EvidenceKind.FORMALLY_PROVEN,
         claim_boundary=claim,
         formal_certificates=(certificate,),
+    )
+
+
+# ── cross-backend parity refutation (falsified / refuted) ──────────────
+@dataclass(frozen=True, slots=True)
+class ParityRefutationResult:
+    """The path-free result of a cross-backend solver-parity check.
+
+    Mirrors ``tests/test_rust_python_parity.py``: the Python and Rust ``FusionKernel``
+    run the same equilibrium solver on the same grid and their final Psi fields are
+    compared. For the SOR solver the hypothesis "the backends agree to ``target_rtol``"
+    is TESTED and REFUTED with raw counts (PARITY-1) — both backends reach the same
+    equilibrium *structure* (high ``pearson_r``, identical extrema) but SOR's update-norm
+    stopping criterion plateaus at ``gs_residual_plateau`` far from the true GS solution,
+    so the interior fields halt ``interior_l2_rel`` apart and exact-value parity is not
+    reachable via SOR.
+
+    Parameters
+    ----------
+    solver_method
+        The solver whose cross-backend parity was checked (e.g. ``"sor"``).
+    grid
+        Opaque description of the test grid/case (e.g. the Solov'ev parameters).
+    pearson_r
+        Structural correlation of the two backends' final fields (~0.999 for SOR).
+    interior_l2_rel
+        Relative interior L2 gap at halt (the refutation magnitude; ~0.06 for SOR).
+    gs_residual_plateau
+        The Grad-Shafranov residual the SOR update-norm criterion plateaus at (~4).
+    target_rtol
+        The exact-value parity tolerance that is *not* reached (e.g. ``1e-3``).
+    result_digest
+        SHA-256 of the canonical result payload.
+    raw_reference
+        Pointer to the originating test / tracked finding (e.g. ``"PARITY-1"``).
+    """
+
+    solver_method: str
+    grid: str
+    pearson_r: float
+    interior_l2_rel: float
+    gs_residual_plateau: float
+    target_rtol: float
+    result_digest: str
+    raw_reference: str
+
+
+def parity_refutation_evidence(
+    result: ParityRefutationResult,
+    *,
+    operator: str,
+    studio_version: str,
+    started: str,
+    ended: str,
+) -> EvidenceBundle:
+    """Build the ``studio.parity-refutation.v1`` bundle (falsified / refuted).
+
+    A cross-backend numerical-parity hypothesis that was TESTED and REFUTED with raw
+    counts — distinct from an untested ``validation-gap``. It is carried as
+    ``evidence_kind=falsified`` + ``claim_status=refuted`` (admission ``rejected``) so
+    the ledger records a promoted negative finding: a refuted parity can never render as
+    a validated parity claim, and the raw ``ParityCheck``/``Convergence`` counts travel
+    with it so a consumer can see exactly *how* it failed.
+
+    Returns
+    -------
+    EvidenceBundle
+        A ``falsified`` schema-B bundle whose ``renders_as_validated`` is ``False``.
+    """
+    parity = ParityCheck(
+        reference="python",
+        exactness=Exactness.TOLERANCE_AWARE,
+        max_error=result.interior_l2_rel,
+        passed=False,
+        tolerance=result.target_rtol,
+    )
+    convergence = Convergence(
+        status=ConvergenceStatus.MAX_ITERS,
+        iterations=0,
+        residual=result.gs_residual_plateau,
+        tolerance=result.target_rtol,
+    )
+    numeric = NumericProvenance(
+        active_backend="rust",
+        reference_backend="python",
+        parity=(parity,),
+        convergence=convergence,
+    )
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/parity-refutation/{result.result_digest}",
+        digest=result.result_digest,
+    )
+    activity = ProvActivity(verb="verify", studio=STUDIO_ID, started=started, ended=ended)
+    agent = ProvAgent(studio_version=studio_version, operator=operator)
+    claim = ClaimBoundary(status=ClaimStatus.REFUTED, admission=AdmissionDecision.REJECTED)
+    return EvidenceBundle(
+        schema=PARITY_REFUTATION_SCHEMA,
+        entity=entity,
+        activity=activity,
+        agent=agent,
+        evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
+        evidence_kind=EvidenceKind.FALSIFIED,
+        claim_boundary=claim,
+        numeric_provenance=numeric,
     )
 
 

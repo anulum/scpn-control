@@ -42,6 +42,7 @@ from .evidence import (
     EquilibriumAnalysis,
     MitigationRun,
     MonitorSnapshot,
+    ParityRefutationResult,
     ReplaySummary,
     SafetyCertificateResult,
     ScenarioSimulationRun,
@@ -54,6 +55,7 @@ from .evidence import (
     efit_reconstruction_evidence,
     equilibrium_analysis_evidence,
     geometry_neutral_replay_evidence_bundle,
+    parity_refutation_evidence,
     phase_sync_monitor_evidence,
     physics_validation_evidence,
     safety_certificate_evidence,
@@ -319,6 +321,19 @@ def representative_bundles(
         ),
         **who,
     )
+    parity = parity_refutation_evidence(
+        ParityRefutationResult(
+            solver_method="sor",
+            grid="65x65 Solov'ev R0=1.7 a=0.5 B0=2.0 Ip=1.0MA",
+            pearson_r=0.999,
+            interior_l2_rel=0.06,
+            gs_residual_plateau=4.0,
+            target_rtol=1e-3,
+            result_digest=canonical_digest({"parity": "sor", "finding": "PARITY-1"}),
+            raw_reference="PARITY-1",
+        ),
+        **who,
+    )
     return (
         efit,
         certificate,
@@ -331,6 +346,7 @@ def representative_bundles(
         controller_run,
         mitigation,
         scenario,
+        parity,
     )
 
 

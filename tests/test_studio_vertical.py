@@ -88,8 +88,8 @@ def _latency() -> ControllerLatencyResult:
 
 
 # ── verbs ──────────────────────────────────────────────────────────────
-def test_control_advertises_eleven_verbs() -> None:
-    assert len(CONTROL_VERBS) == 11
+def test_control_advertises_twelve_verbs() -> None:
+    assert len(CONTROL_VERBS) == 12
     assert STUDIO_ID == "scpn-control"
 
 
@@ -102,7 +102,14 @@ def test_core_and_domain_verb_split() -> None:
         "benchmark",
         "replay",
     }
-    assert {v.name for v in domain_verbs()} == {"regulate", "certify", "predict", "mitigate", "monitor"}
+    assert {v.name for v in domain_verbs()} == {
+        "regulate",
+        "certify",
+        "predict",
+        "mitigate",
+        "monitor",
+        "verify",
+    }
     assert len(core_verbs()) + len(domain_verbs()) == len(CONTROL_VERBS)
 
 
@@ -141,8 +148,8 @@ def test_evidence_schemas_are_sorted_unique_and_complete() -> None:
 def test_manifest_identity_and_surface() -> None:
     manifest = build_manifest()
     assert manifest.studio == "scpn-control"
-    assert len(manifest.verbs) == 11
-    assert len(manifest.evidence_types) == 11
+    assert len(manifest.verbs) == 12
+    assert len(manifest.evidence_types) == 12
     assert manifest.content_digest.startswith("sha256:")
     assert manifest.ui_module is not None
 
@@ -307,3 +314,37 @@ def test_canonical_digest_is_order_independent_and_stable() -> None:
 def test_canonical_digest_rejects_nan() -> None:
     with pytest.raises(ValueError):
         canonical_digest({"x": float("nan")})
+
+
+def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
+    from scpn_studio_platform.evidence import AdmissionDecision, ClaimStatus
+
+    from scpn_control.studio.evidence import ParityRefutationResult, parity_refutation_evidence
+
+    bundle = parity_refutation_evidence(
+        ParityRefutationResult(
+            solver_method="sor",
+            grid="65x65 Solov'ev R0=1.7 a=0.5 B0=2.0 Ip=1.0MA",
+            pearson_r=0.999,
+            interior_l2_rel=0.06,
+            gs_residual_plateau=4.0,
+            target_rtol=1e-3,
+            result_digest="a" * 64,
+            raw_reference="PARITY-1",
+        ),
+        operator="op",
+        studio_version="test",
+        started="2026-06-25T00:00:00Z",
+        ended="2026-06-25T00:00:01Z",
+    )
+    # The honest pair: a TESTED-and-refuted parity, not an untested validation gap.
+    assert bundle.evidence_kind is EvidenceKind.FALSIFIED
+    assert bundle.claim_boundary.status is ClaimStatus.REFUTED
+    assert bundle.claim_boundary.admission is AdmissionDecision.REJECTED
+    # A refuted parity can NEVER render as a validated parity claim (LOCK-4).
+    assert bundle.renders_as_validated is False
+    # The raw counts travel with the refutation so a consumer sees HOW it failed.
+    parity = bundle.numeric_provenance.parity[0]
+    assert parity.passed is False
+    assert parity.max_error == 0.06
+    assert bundle.numeric_provenance.convergence.residual == 4.0

@@ -1,5 +1,5 @@
 {
-  "content_digest": "sha256:e3aff3da79d19f0bf703ed186f05a05353d7b0fef9836278e882268486af2091",
+  "content_digest": "sha256:81e6d14878828a63c488313b37498c2f337771b8697095ff330a211eb1c0b8b1",
   "contract_era": "v1",
   "enumeration": "language-agnostic",
   "evidence_types": [
@@ -10,6 +10,7 @@
     "studio.efit-reconstruction.v1",
     "studio.equilibrium-analysis.v1",
     "studio.geometry-neutral-replay.v1",
+    "studio.parity-refutation.v1",
     "studio.phase-sync-monitor.v1",
     "studio.physics-validation.v1",
     "studio.safety-certificate.v1",
@@ -191,6 +192,22 @@
         "class": "interactive"
       },
       "verb": "monitor"
+    },
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.parity-refutation.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "verify"
     }
   ]
 }

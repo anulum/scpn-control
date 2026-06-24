@@ -51,7 +51,7 @@ def test_artifact_is_schema_a_well_formed() -> None:
     assert _DIGEST_RE.match(payload["content_digest"]), payload["content_digest"]
     verbs = [verb["verb"] if isinstance(verb, dict) else verb for verb in payload["verbs"]]
     assert len(verbs) == len(set(verbs)), "verbs must be unique"
-    assert len(verbs) == 11, "the CONTROL vertical advertises eleven verbs"
+    assert len(verbs) == 12, "the CONTROL vertical advertises twelve verbs"
     evidence_types = payload["evidence_types"]
     assert all(schema.endswith(".v1") for schema in evidence_types)
-    assert len(evidence_types) == len(set(evidence_types)) == 11
+    assert len(evidence_types) == len(set(evidence_types)) == 12

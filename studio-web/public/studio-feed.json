@@ -65,9 +65,15 @@
       "kind": "measured",
       "schema": "studio.scenario-simulation.v1",
       "status": "bounded-model"
+    },
+    {
+      "admission": "rejected",
+      "kind": "falsified",
+      "schema": "studio.parity-refutation.v1",
+      "status": "refuted"
     }
   ],
-  "content_digest": "sha256:e3aff3da79d19f0bf703ed186f05a05353d7b0fef9836278e882268486af2091",
+  "content_digest": "sha256:81e6d14878828a63c488313b37498c2f337771b8697095ff330a211eb1c0b8b1",
   "feed_schema": "studio.control-feed.v1",
   "studio": "scpn-control",
   "studio_version": "0.21.0",
@@ -149,6 +155,13 @@
       "safety_tier": "research",
       "side_effect": "read-only",
       "timing_class": "interactive"
+    },
+    {
+      "domain_distinctive": true,
+      "name": "verify",
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing_class": "batch"
     }
   ]
 }
