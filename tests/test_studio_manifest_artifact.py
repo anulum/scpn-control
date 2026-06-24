@@ -30,8 +30,16 @@ _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 def test_committed_artifact_matches_the_producer() -> None:
+    # ``studio_version`` is an environment-dependent stamp (the installed distribution
+    # version, or "0+unknown" from a non-installed source tree as in CI), so it is
+    # excluded — the structural contract (verbs, evidence, digest, era) stays in lock-step,
+    # and content_digest is computed over verbs+evidence, not studio_version.
     assert _ARTIFACT.exists(), "run `python tools/emit_studio_manifest.py`"
-    assert _ARTIFACT.read_text(encoding="utf-8") == render(), (
+    committed = json.loads(_ARTIFACT.read_text(encoding="utf-8"))
+    produced = json.loads(render())
+    committed.pop("studio_version", None)
+    produced.pop("studio_version", None)
+    assert committed == produced, (
         "docs/_generated/studio_manifest.json is stale; run `python tools/emit_studio_manifest.py`"
     )
 

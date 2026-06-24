@@ -50,7 +50,14 @@ def main(argv: list[str] | None = None) -> int:
         if not _ARTIFACT.exists():
             print(f"{_ARTIFACT} is missing; run `python tools/emit_studio_manifest.py`.")
             return 1
-        if _ARTIFACT.read_text(encoding="utf-8") != rendered:
+        # ``studio_version`` is an environment-dependent stamp (installed distribution
+        # version vs "0+unknown" from a source tree), excluded so the check is env-stable;
+        # content_digest covers the verbs+evidence contract regardless.
+        committed = json.loads(_ARTIFACT.read_text(encoding="utf-8"))
+        produced = json.loads(rendered)
+        committed.pop("studio_version", None)
+        produced.pop("studio_version", None)
+        if committed != produced:
             print(f"{_ARTIFACT} is stale; run `python tools/emit_studio_manifest.py`.")
             return 1
         return 0
