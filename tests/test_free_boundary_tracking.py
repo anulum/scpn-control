@@ -198,6 +198,15 @@ class _FallbackKernel(_DummyFreeBoundaryKernel):
         }
 
 
+class _UnlimitedCoilKernel(_DummyFreeBoundaryKernel):
+    """Coilset without explicit current limits (infinite headroom)."""
+
+    def build_coilset_from_config(self) -> CoilSet:
+        coils = super().build_coilset_from_config()
+        coils.current_limits = None
+        return coils
+
+
 class _ObserverKernel(_DummyFreeBoundaryKernel):
     def __init__(self, config_file: str) -> None:
         super().__init__(config_file)
@@ -992,3 +1001,161 @@ class TestFreeBoundaryConfigResolvers:
             resolve({"shape_rms": -1.0}, None)  # negative limit
         with pytest.raises(ValueError):
             resolve({"shape_rms": float("nan")}, None)  # non-finite limit
+
+
+def _build_tracker() -> FreeBoundaryTrackingController:
+    """Construct a valid controller over the dummy free-boundary plant (4 coils)."""
+    return FreeBoundaryTrackingController(
+        "dummy.json",
+        kernel_factory=_DummyFreeBoundaryKernel,
+        verbose=False,
+    )
+
+
+class TestFreeBoundaryValidationAndErrorPaths:
+    """Direct-call coverage of the controller's input-validation and error branches."""
+
+    def test_resolve_objective_tolerances_merge_and_rejections(self) -> None:
+        resolve = FreeBoundaryTrackingController._resolve_objective_tolerances
+        merged = resolve({"shape_rms": 0.2}, {"x_point_flux": 0.01})
+        assert merged == {"shape_rms": 0.2, "x_point_flux": 0.01}
+        assert resolve(None, None) == {}
+        with pytest.raises(ValueError, match="mapping"):
+            resolve("not-a-mapping", None)
+        with pytest.raises(ValueError, match="Unknown"):
+            resolve({"bogus": 1.0}, None)
+        with pytest.raises(ValueError, match=">= 0"):
+            resolve({"shape_rms": -1.0}, None)
+        with pytest.raises(ValueError):
+            resolve({"shape_rms": float("inf")}, None)
+
+    def test_resolve_coil_slew_limits_scalar_and_rejections(self) -> None:
+        ctrl = _build_tracker()
+        scalar = ctrl._resolve_coil_slew_limits(None, 0.5)
+        assert scalar.shape == (ctrl.n_coils,)
+        with pytest.raises(ValueError, match="scalar or match"):
+            ctrl._resolve_coil_slew_limits(None, [1.0, 2.0, 3.0])
+        with pytest.raises(ValueError, match="finite values > 0"):
+            ctrl._resolve_coil_slew_limits(None, [1.0, 2.0, 3.0, -1.0])
+
+    def test_resolve_fallback_currents_rejections(self) -> None:
+        ctrl = _build_tracker()
+        assert ctrl._resolve_fallback_currents(None) is None
+        with pytest.raises(ValueError, match="match the number of coils"):
+            ctrl._resolve_fallback_currents([0.1, 0.2, 0.3])
+        with pytest.raises(ValueError, match="finite"):
+            ctrl._resolve_fallback_currents([0.1, 0.2, float("inf"), 0.3])
+        with pytest.raises(ValueError, match="current_limits"):
+            ctrl._resolve_fallback_currents([5.0, 5.0, 5.0, 5.0])
+
+    def test_command_currents_rejects_bad_gain(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="gain must be finite"):
+            ctrl._command_currents(np.zeros(ctrl.n_coils), 0.0)
+
+    def test_apply_commanded_currents_rejects_bad_shape(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="must match the number of coils"):
+            ctrl._apply_commanded_currents(np.zeros(ctrl.n_coils - 1))
+
+    def test_compute_correction_rejects_bad_observation_shape(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="target vector shape"):
+            ctrl.compute_correction(np.zeros(ctrl.target_vector.size - 1))
+
+    def test_run_tracking_shot_rejects_bad_arguments(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="shot_steps must be"):
+            ctrl.run_tracking_shot(shot_steps=0)
+        with pytest.raises(ValueError, match="gain must be finite"):
+            ctrl.run_tracking_shot(shot_steps=2, gain=0.0)
+
+    def test_apply_fallback_currents_requires_configuration(self) -> None:
+        ctrl = _build_tracker()
+        assert ctrl.fallback_currents is None
+        with pytest.raises(ValueError, match="fallback currents are not configured"):
+            ctrl._apply_fallback_currents()
+
+    def test_restore_actuator_states_rejects_count_mismatch(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="snapshot count"):
+            ctrl._restore_actuator_states(())
+
+    def test_resolve_measurement_vector_rejections(self) -> None:
+        ctrl = _build_tracker()
+        assert ctrl._resolve_measurement_vector(None, name="m").shape == ctrl.target_vector.shape
+        with pytest.raises(ValueError, match="mapping"):
+            ctrl._resolve_measurement_vector("not-a-dict", name="m")
+        with pytest.raises(ValueError, match="Unknown"):
+            ctrl._resolve_measurement_vector({"bogus_block": 1.0}, name="m")
+        first_block = ctrl.objective_blocks[0]
+        width = first_block.stop - first_block.start
+        # a scalar broadcasts to the block width
+        broadcast = ctrl._resolve_measurement_vector({first_block.name: 0.01}, name="m")
+        assert broadcast[first_block.start] == 0.01
+        # a single-element vector broadcasts to the block width
+        single = ctrl._resolve_measurement_vector({first_block.name: [0.02]}, name="m")
+        assert float(single[first_block.start]) == 0.02
+        # a wrong-width vector is rejected
+        with pytest.raises(ValueError, match="exactly"):
+            ctrl._resolve_measurement_vector({first_block.name: [0.1] * (width + 2)}, name="m")
+        with pytest.raises(ValueError, match="finite"):
+            ctrl._resolve_measurement_vector({first_block.name: float("inf")}, name="m")
+
+    def test_identify_response_matrix_rejects_bad_perturbation(self) -> None:
+        ctrl = _build_tracker()
+        with pytest.raises(ValueError, match="perturbation must be finite"):
+            ctrl.identify_response_matrix(perturbation=0.0)
+
+    def test_apply_fallback_currents_success(self) -> None:
+        ctrl = FreeBoundaryTrackingController("dummy.json", kernel_factory=_FallbackKernel, verbose=False)
+        assert ctrl.fallback_currents is not None
+        deviation = ctrl._apply_fallback_currents()
+        assert deviation >= 0.0
+
+    def test_unlimited_coils_exercise_infinite_headroom_penalties(self) -> None:
+        # A coilset without current limits yields infinite headroom, exercising the
+        # unbounded-penalty branch of _build_coil_penalties.
+        summary = run_free_boundary_tracking(
+            config_file="dummy.json",
+            kernel_factory=_UnlimitedCoilKernel,
+            shot_steps=2,
+            gain=0.6,
+            verbose=False,
+        )
+        assert summary["steps"] == 2
+
+    def test_solve_free_boundary_state_dispatch_and_guard(self) -> None:
+        ctrl = _build_tracker()
+        ctrl.kernel.solve = None
+        with pytest.raises(AttributeError, match="solve"):
+            ctrl._solve_free_boundary_state()
+        ctrl.kernel.solve_free_boundary = (
+            lambda coils, *, max_outer_iter, tol, optimize_shape: {"ok": True}
+        )
+        assert ctrl._solve_free_boundary_state() == {"ok": True}
+
+    def test_observe_true_objectives_requires_consistent_targets(self) -> None:
+        for attr, match in (
+            ("target_flux_points", "shape-flux observation requires"),
+            ("x_point_target", "x_point_flux observation requires"),
+            ("divertor_strike_points", "divertor-flux observation requires"),
+        ):
+            ctrl = _build_tracker()
+            setattr(ctrl.coils, attr, None)
+            with pytest.raises(ValueError, match=match):
+                ctrl._observe_true_objectives()
+
+    def test_unknown_objective_block_is_rejected(self) -> None:
+        from scpn_control.control.free_boundary_tracking import _ObjectiveBlock
+
+        bogus = _ObjectiveBlock("bogus", 0, 1)
+        for method in ("_build_control_objective_weights", "_observe_true_objectives"):
+            ctrl = _build_tracker()
+            ctrl.objective_blocks = (*ctrl.objective_blocks, bogus)
+            with pytest.raises(ValueError, match="Unknown objective block"):
+                getattr(ctrl, method)()
+        ctrl = _build_tracker()
+        ctrl.objective_blocks = (*ctrl.objective_blocks, bogus)
+        with pytest.raises(ValueError, match="Unknown objective block"):
+            ctrl._build_control_activation_mask({"objective_checks": {}})

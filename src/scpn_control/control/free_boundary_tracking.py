@@ -374,25 +374,29 @@ class FreeBoundaryTrackingController:
         # reached through the public surface without a fixture that also breaks the
         # kernel's own construction. Reasoned-pragma rather than a call-count hack.
         build_coilset = getattr(self.kernel, "build_coilset_from_config", None)
-        if not callable(build_coilset):  # pragma: no cover - defensive: kernel coilset contract
-            raise TypeError("kernel must define build_coilset_from_config() for free-boundary tracking.")
+        if not callable(build_coilset):
+            raise TypeError(
+                "kernel must define build_coilset_from_config() for free-boundary tracking."
+            )  # pragma: no cover - defensive: kernel coilset contract
         self.coils = build_coilset()
         self.n_coils = int(len(self.coils.positions))
-        if self.n_coils < 1:  # pragma: no cover - defensive: kernel coilset contract
-            raise ValueError("free-boundary tracking requires at least one external coil.")
+        if self.n_coils < 1:
+            raise ValueError(
+                "free-boundary tracking requires at least one external coil."
+            )  # pragma: no cover - defensive: kernel coilset contract
 
         if self.coils.current_limits is None:
             self.coil_current_limits = np.full(self.n_coils, np.inf, dtype=np.float64)
         else:
             self.coil_current_limits = np.asarray(self.coils.current_limits, dtype=np.float64).reshape(-1)
-            if self.coil_current_limits.shape != (
-                self.n_coils,
-            ):  # pragma: no cover - defensive: kernel coilset contract
-                raise ValueError("CoilSet.current_limits must match the number of coils.")
-            if np.any(~np.isfinite(self.coil_current_limits)) or np.any(
-                self.coil_current_limits <= 0.0
-            ):  # pragma: no cover - defensive: kernel coilset contract
-                raise ValueError("CoilSet.current_limits must be finite and > 0.")
+            if self.coil_current_limits.shape != (self.n_coils,):
+                raise ValueError(
+                    "CoilSet.current_limits must match the number of coils."
+                )  # pragma: no cover - defensive: kernel coilset contract
+            if np.any(~np.isfinite(self.coil_current_limits)) or np.any(self.coil_current_limits <= 0.0):
+                raise ValueError(
+                    "CoilSet.current_limits must be finite and > 0."
+                )  # pragma: no cover - defensive: kernel coilset contract
 
         tracking_cfg = self.kernel.cfg.get("free_boundary_tracking", {})
         self.control_dt_s = self._resolve_positive_float(
@@ -563,14 +567,14 @@ class FreeBoundaryTrackingController:
         ):
             if raw is None:
                 continue
-            if not isinstance(raw, dict):  # pragma: no cover
+            if not isinstance(raw, dict):
                 raise ValueError(f"{name} must be a mapping of tolerance names to non-negative floats.")
             for key, value in raw.items():
-                if key not in allowed:  # pragma: no cover
+                if key not in allowed:
                     allowed_keys = ", ".join(sorted(allowed))
                     raise ValueError(f"Unknown {name} key {key!r}. Allowed keys: {allowed_keys}.")
                 tol_value = float(value)
-                if not np.isfinite(tol_value) or tol_value < 0.0:  # pragma: no cover
+                if not np.isfinite(tol_value) or tol_value < 0.0:
                     raise ValueError(f"{name}.{key} must be finite and >= 0.")
                 merged[key] = tol_value
         return merged
@@ -639,7 +643,7 @@ class FreeBoundaryTrackingController:
             raise ValueError(f"{name} must be finite and in [0, 1].")
         return value
 
-    def _resolve_coil_slew_limits(  # pragma: no cover
+    def _resolve_coil_slew_limits(
         self,
         cfg_limits: Any,
         override_limits: float | list[float] | None,
@@ -692,7 +696,7 @@ class FreeBoundaryTrackingController:
                 merged[key] = limit_value
         return merged
 
-    def _resolve_fallback_currents(self, cfg_value: Any) -> FloatArray | None:  # pragma: no cover
+    def _resolve_fallback_currents(self, cfg_value: Any) -> FloatArray | None:
         if cfg_value is None:
             return None
         values = np.asarray(cfg_value, dtype=np.float64).reshape(-1)
@@ -704,7 +708,7 @@ class FreeBoundaryTrackingController:
             raise ValueError("free_boundary_tracking.fallback_currents must respect CoilSet.current_limits.")
         return cast(FloatArray, values.copy())
 
-    def _build_coil_actuators(self) -> list[FirstOrderActuator]:  # pragma: no cover
+    def _build_coil_actuators(self) -> list[FirstOrderActuator]:
         actuators: list[FirstOrderActuator] = []
         for idx in range(self.n_coils):
             limit = float(self.coil_current_limits[idx])
@@ -720,7 +724,7 @@ class FreeBoundaryTrackingController:
             actuators.append(actuator)
         return actuators
 
-    def _snapshot_actuator_states(self) -> tuple[_ActuatorSnapshot, ...]:  # pragma: no cover
+    def _snapshot_actuator_states(self) -> tuple[_ActuatorSnapshot, ...]:
         return tuple(
             _ActuatorSnapshot(
                 state=float(actuator.state),
@@ -729,7 +733,7 @@ class FreeBoundaryTrackingController:
             for actuator in self._coil_actuators
         )
 
-    def _restore_actuator_states(self, snapshots: tuple[_ActuatorSnapshot, ...]) -> None:  # pragma: no cover
+    def _restore_actuator_states(self, snapshots: tuple[_ActuatorSnapshot, ...]) -> None:
         if len(snapshots) != len(self._coil_actuators):
             raise ValueError("actuator snapshot count must match the number of coils.")
         for actuator, snapshot in zip(self._coil_actuators, snapshots):
@@ -742,7 +746,7 @@ class FreeBoundaryTrackingController:
             actuator.state = current
             actuator._delay_buffer = [current] * max(actuator.delay_steps, 1)
 
-    def _build_target_vector(self) -> tuple[FloatArray, tuple[_ObjectiveBlock, ...]]:  # pragma: no cover
+    def _build_target_vector(self) -> tuple[FloatArray, tuple[_ObjectiveBlock, ...]]:
         values: list[float] = []
         blocks: list[_ObjectiveBlock] = []
         start = 0
@@ -766,7 +770,9 @@ class FreeBoundaryTrackingController:
                 blocks.append(_ObjectiveBlock("x_point_flux", start, stop))
                 start = stop
         elif self.coils.x_point_flux_target is not None:
-            raise ValueError("x_point_flux_target requires x_point_target for free-boundary tracking.")
+            raise ValueError(
+                "x_point_flux_target requires x_point_target for free-boundary tracking."
+            )  # pragma: no cover - defensive: kernel builds x-point flux and position targets together
 
         if self.coils.divertor_strike_points is not None and self.coils.divertor_flux_values is not None:
             divertor_flux = np.asarray(self.coils.divertor_flux_values, dtype=np.float64).reshape(-1)
@@ -777,7 +783,7 @@ class FreeBoundaryTrackingController:
 
         return np.asarray(values, dtype=np.float64), tuple(blocks)
 
-    def _resolve_measurement_vector(self, raw_value: Any, *, name: str) -> FloatArray:  # pragma: no cover
+    def _resolve_measurement_vector(self, raw_value: Any, *, name: str) -> FloatArray:
         vector = np.zeros_like(self.target_vector, dtype=np.float64)
         if raw_value is None:
             return vector
@@ -813,7 +819,7 @@ class FreeBoundaryTrackingController:
             weight = max(weight, 1.0 / max(float(tol), 1.0e-12))
         return float(weight)
 
-    def _build_control_objective_weights(self) -> FloatArray:  # pragma: no cover
+    def _build_control_objective_weights(self) -> FloatArray:
         weights = np.ones(self.target_vector.shape, dtype=np.float64)
         for block in self.objective_blocks:
             if block.name == "shape_flux":
@@ -880,7 +886,7 @@ class FreeBoundaryTrackingController:
             self._measurement_latency_buffer.popleft()
         return cast(FloatArray, np.asarray(self._measurement_latency_buffer[0].copy(), dtype=np.float64))
 
-    def _predict_current_objectives(  # pragma: no cover
+    def _predict_current_objectives(
         self,
         delayed_observation: FloatArray,
         *,
@@ -909,7 +915,9 @@ class FreeBoundaryTrackingController:
             if update_state:
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
             return cast(FloatArray, delayed.copy())
-        if not update_state:
+        if (
+            not update_state
+        ):  # pragma: no cover - latency projection without state mutation (response-identification path)
             predicted = delayed + prediction_horizon * delta
             return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
         updated = (1.0 - self.latency_compensation_gain) * self.objective_rate_estimate
@@ -920,7 +928,7 @@ class FreeBoundaryTrackingController:
         predicted = delayed + prediction_horizon * self.objective_rate_estimate
         return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
 
-    def _observe_snapshot(self, *, apply_latency: bool = True) -> _ObservationSnapshot:  # pragma: no cover
+    def _observe_snapshot(self, *, apply_latency: bool = True) -> _ObservationSnapshot:
         true_observation = self._observe_true_objectives()
         measured_observation = cast(
             FloatArray,
@@ -965,7 +973,7 @@ class FreeBoundaryTrackingController:
             updated = np.clip(updated, -self.observer_max_abs, self.observer_max_abs)
         self.objective_bias_estimate = np.asarray(updated, dtype=np.float64)
 
-    def _command_currents(self, delta_currents: FloatArray, gain: float) -> FloatArray:  # pragma: no cover
+    def _command_currents(self, delta_currents: FloatArray, gain: float) -> FloatArray:
         g = float(gain)
         if not np.isfinite(g) or g <= 0.0:
             raise ValueError("gain must be finite and > 0.")
@@ -975,7 +983,7 @@ class FreeBoundaryTrackingController:
             commanded[idx] = float(np.clip(commanded[idx] + g * float(delta_currents[idx]), -limit, limit))
         return cast(FloatArray, np.asarray(commanded, dtype=np.float64))
 
-    def _apply_commanded_currents(self, commanded: FloatArray) -> FloatArray:  # pragma: no cover
+    def _apply_commanded_currents(self, commanded: FloatArray) -> FloatArray:
         command = np.asarray(commanded, dtype=np.float64).reshape(-1)
         if command.shape != (self.n_coils,):
             raise ValueError("commanded currents must match the number of coils.")
@@ -985,7 +993,7 @@ class FreeBoundaryTrackingController:
         self.coils.currents = applied
         return cast(FloatArray, np.asarray(applied.copy(), dtype=np.float64))
 
-    def _solve_free_boundary_state(self) -> dict[str, Any]:  # pragma: no cover
+    def _solve_free_boundary_state(self) -> dict[str, Any]:
         self._sync_config_currents()
         solve = getattr(self.kernel, "solve", None)
         if callable(solve):
@@ -1014,7 +1022,7 @@ class FreeBoundaryTrackingController:
 
         raise AttributeError("kernel must define solve() or solve_free_boundary() for free-boundary tracking.")
 
-    def _observe_true_objectives(self) -> FloatArray:  # pragma: no cover
+    def _observe_true_objectives(self) -> FloatArray:
         observed: list[float] = []
         for block in self.objective_blocks:
             if block.name == "shape_flux":
@@ -1047,7 +1055,7 @@ class FreeBoundaryTrackingController:
     def _observe_objectives(self) -> FloatArray:
         return self._observe_snapshot().effective
 
-    def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:  # pragma: no cover
+    def identify_response_matrix(self, perturbation: float | None = None) -> FloatArray:
         """Identify the shape-response matrix by perturbing each coil current.
 
         Parameters
@@ -1075,7 +1083,7 @@ class FreeBoundaryTrackingController:
             plus[idx] = float(np.clip(original_currents[idx] + p, -hi, hi))
             minus[idx] = float(np.clip(original_currents[idx] - p, -hi, hi))
             denom = plus[idx] - minus[idx]
-            if abs(denom) < 1e-12:
+            if abs(denom) < 1e-12:  # pragma: no cover - degenerate coil with ~zero actuation range
                 self.response_matrix[:, idx] = 0.0
                 continue
 
@@ -1095,11 +1103,11 @@ class FreeBoundaryTrackingController:
         self._update_response_diagnostics()
         return self.response_matrix.copy()
 
-    def _update_response_diagnostics(self) -> None:  # pragma: no cover
+    def _update_response_diagnostics(self) -> None:
         singular_values = np.asarray(np.linalg.svd(self.response_matrix, compute_uv=False), dtype=np.float64).reshape(
             -1
         )
-        if singular_values.size < 1:
+        if singular_values.size < 1:  # pragma: no cover - unreachable: n_coils>=1 implies >=1 singular value
             self.response_rank = 0
             self.response_condition_number = float("inf")
             self.response_max_singular_value = 0.0
@@ -1115,7 +1123,7 @@ class FreeBoundaryTrackingController:
         self.response_condition_number = float(sigma_max / float(nonzero[-1])) if nonzero.size > 0 else float("inf")
         self.response_degenerate = bool((not np.isfinite(sigma_max)) or sigma_max <= cutoff or nonzero.size < 1)
 
-    def _build_control_activation_mask(self, metrics: dict[str, Any]) -> FloatArray:  # pragma: no cover
+    def _build_control_activation_mask(self, metrics: dict[str, Any]) -> FloatArray:
         objective_checks = cast(dict[str, bool], metrics.get("objective_checks", {}))
         mask = np.ones(self.target_vector.shape, dtype=np.float64)
         for block in self.objective_blocks:
@@ -1133,7 +1141,7 @@ class FreeBoundaryTrackingController:
                 mask[block.start : block.stop] = 0.0
         return mask
 
-    def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:  # pragma: no cover
+    def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:
         headrooms = np.ones(self.n_coils, dtype=np.float64)
         penalties = np.ones(self.n_coils, dtype=np.float64)
         for idx in range(self.n_coils):
@@ -1159,7 +1167,7 @@ class FreeBoundaryTrackingController:
             penalties[idx] = float(np.sqrt(max(reference_headroom / float(headrooms[idx]), 1.0)))
         return cast(FloatArray, penalties)
 
-    def compute_correction(  # pragma: no cover
+    def compute_correction(
         self,
         observation: FloatArray,
         *,
@@ -1211,15 +1219,15 @@ class FreeBoundaryTrackingController:
         commanded = self._command_currents(delta_currents, gain=gain)
         return self._apply_commanded_currents(commanded)
 
-    def _apply_fallback_currents(self) -> float:  # pragma: no cover
+    def _apply_fallback_currents(self) -> float:
         if self.fallback_currents is None:
             raise ValueError("fallback currents are not configured.")
         applied = self._apply_commanded_currents(self.fallback_currents)
-        if applied.size < 1:
+        if applied.size < 1:  # pragma: no cover - defensive: applied currents always span n_coils>=1
             return 0.0
         return float(np.max(np.abs(self.fallback_currents - applied)))
 
-    def _recover_to_safe_state(  # pragma: no cover
+    def _recover_to_safe_state(
         self,
         *,
         actuator_snapshot: tuple[_ActuatorSnapshot, ...],
@@ -1360,7 +1368,7 @@ class FreeBoundaryTrackingController:
         }
 
     @staticmethod
-    def _detect_tolerance_regressions(  # pragma: no cover
+    def _detect_tolerance_regressions(
         metrics_before: dict[str, Any],
         metrics_after: dict[str, Any],
     ) -> dict[str, bool]:
@@ -1380,14 +1388,16 @@ class FreeBoundaryTrackingController:
                 continue
             before_value = metrics_before.get(metric_name)
             after_value = metrics_after.get(metric_name)
-            if before_value is None or after_value is None:
+            if (
+                before_value is None or after_value is None
+            ):  # pragma: no cover - regression metric absent from one snapshot
                 continue
             before_scalar = float(before_value)
             after_scalar = float(after_value)
             regressions[key] = bool(before_scalar <= tolerance + 1.0e-12 and after_scalar > tolerance + 1.0e-12)
         return regressions
 
-    def run_tracking_shot(  # pragma: no cover
+    def run_tracking_shot(
         self,
         *,
         shot_steps: int = 10,
@@ -1802,7 +1812,7 @@ def run_free_boundary_tracking(
     >>> bool(summary["objective_convergence_active"])
     True
     """
-    if config_file is None:  # pragma: no cover
+    if config_file is None:  # pragma: no cover - module demo default-config path
         repo_root = Path(__file__).resolve().parents[3]
         config_file = str(repo_root / "iter_config.json")
 
