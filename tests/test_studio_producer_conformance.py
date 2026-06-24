@@ -25,9 +25,16 @@ add vectors for ``falsified + reference-validated => rejected`` (INV-2/LOCK-4),
 from __future__ import annotations
 
 import pytest
-from scpn_studio_platform.evidence import AdmissionDecision, ClaimStatus, EvidenceKind
 
-from scpn_control.studio.feed import representative_bundles
+pytest.importorskip("scpn_studio_platform")
+
+from scpn_studio_platform.evidence import (  # noqa: E402
+    AdmissionDecision,
+    ClaimStatus,
+    EvidenceKind,
+)
+
+from scpn_control.studio.feed import representative_bundles  # noqa: E402
 
 _BUNDLES = representative_bundles()
 _IDS = [bundle.schema for bundle in _BUNDLES]
