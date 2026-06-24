@@ -1,0 +1,65 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — studio schema-A CapabilityManifest emitter
+"""Emit (or check) the SCPN-CONTROL schema-A studio CapabilityManifest artifact.
+
+This is the federation-gate counterpart the SCPN-STUDIO keeper consumes with
+``validate_studio_manifest`` — the schema-A manifest carrying ``contract_era`` +
+``evidence_types`` + ``verbs`` + ``content_digest``. It is distinct from
+``docs/_generated/capability_manifest.json`` (the repo-inventory manifest); this one is
+the canonical product of :func:`scpn_control.studio.manifest.build_manifest`.
+
+``--check`` fails if the committed artifact has drifted from the producer, so a verb or
+evidence-schema change cannot silently leave a stale federation manifest behind.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from scpn_control.studio.manifest import build_manifest
+
+_ARTIFACT = Path(__file__).resolve().parents[1] / "docs" / "_generated" / "studio_manifest.json"
+
+
+def render() -> str:
+    """Return the deterministic schema-A manifest JSON (sorted, trailing newline)."""
+    payload = build_manifest().to_dict()
+    return json.dumps(payload, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Fail if the committed artifact differs from the producer (no write).",
+    )
+    args = parser.parse_args(argv)
+
+    rendered = render()
+    if args.check:
+        if not _ARTIFACT.exists():
+            print(f"{_ARTIFACT} is missing; run `python tools/emit_studio_manifest.py`.")
+            return 1
+        if _ARTIFACT.read_text(encoding="utf-8") != rendered:
+            print(f"{_ARTIFACT} is stale; run `python tools/emit_studio_manifest.py`.")
+            return 1
+        return 0
+
+    _ARTIFACT.parent.mkdir(parents=True, exist_ok=True)
+    _ARTIFACT.write_text(rendered, encoding="utf-8")
+    print(f"wrote {_ARTIFACT}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
