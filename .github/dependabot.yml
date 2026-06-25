@@ -13,6 +13,8 @@ updates:
     groups:
       actions:
         patterns: ["*"]
+    ignore:
+      - dependency-name: "dtolnay/rust-toolchain"
 
   - package-ecosystem: "pip"
     directory: "/"
