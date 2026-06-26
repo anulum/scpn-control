@@ -85,6 +85,21 @@ describe('narrowFeed', () => {
       freshness: 'verified-at-source',
     });
   });
+
+  it('keeps legacy claims without a freshness field sparse', () => {
+    const feed = narrowFeed({
+      ...VALID_FEED,
+      claims: [
+        {
+          schema: 'studio.legacy-claim.v1',
+          status: 'bounded-model',
+          admission: 'rejected',
+          kind: 'measured',
+        },
+      ],
+    });
+    expect(feed.claims[0]).not.toHaveProperty('freshness');
+  });
 });
 
 describe('isRawFeed', () => {
