@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     # Annotation-only imports: typing the lazy-import facades below with their real
     # parameter/return types (instead of `object`) removes the per-call
-    # `# type: ignore[arg-type]`s without forcing the heavy geometry_neutral_replay
+    # arg-type suppression comments without forcing the heavy geometry_neutral_replay
     # module to import at package-import time (it is still imported lazily, inside
     # each function body). `from __future__ import annotations` keeps these strings.
     from collections.abc import Mapping

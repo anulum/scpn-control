@@ -1,10 +1,10 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Native C++ solver bridge and build admission.
+# SCPN Control — Native C++ solver bridge and build admission.
 """HPC job bridge for submitting and tracking external validation workloads."""
 
 from __future__ import annotations
@@ -21,7 +21,7 @@ import shutil
 import subprocess
 import weakref
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 
@@ -40,8 +40,8 @@ _NATIVE_BUILD_COMPILER = "g++"
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
     """Return ``array`` as C-contiguous ``float64`` with minimal copying."""
     if isinstance(array, np.ndarray) and array.dtype == np.float64 and array.flags.c_contiguous:
-        return array  # type: ignore[return-value]
-    return np.ascontiguousarray(array, dtype=np.float64)
+        return cast("NDArray[np.float64]", array)
+    return cast("NDArray[np.float64]", np.ascontiguousarray(array, dtype=np.float64))
 
 
 def _require_c_contiguous_f64(
@@ -58,7 +58,7 @@ def _require_c_contiguous_f64(
         raise ValueError(f"{name} must be C-contiguous")
     if tuple(array.shape) != tuple(expected_shape):
         raise ValueError(f"{name} shape mismatch: expected {expected_shape}, received {tuple(array.shape)}")
-    return array  # type: ignore[return-value]
+    return cast("NDArray[np.float64]", array)
 
 
 def _sanitize_convergence_params(
