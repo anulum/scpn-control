@@ -50,6 +50,7 @@ from scpn_studio_platform.evidence import (
     EvidenceLevel,
     Exactness,
     FormalCertificate,
+    Freshness,
     NumericProvenance,
     ParityCheck,
     PhysicalContract,
@@ -216,6 +217,7 @@ def efit_reconstruction_evidence(
         evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=claim,
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         numeric_provenance=numeric,
         physical_contract=physical,
     )
@@ -340,6 +342,7 @@ def safety_certificate_evidence(
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.FORMALLY_PROVEN,
         claim_boundary=claim,
+        freshness=Freshness.VERIFIED_AT_SOURCE,
         formal_certificates=(certificate,),
     )
 
@@ -444,6 +447,7 @@ def parity_refutation_evidence(
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.FALSIFIED,
         claim_boundary=claim,
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         numeric_provenance=numeric,
     )
 
@@ -555,6 +559,7 @@ def controller_latency_evidence(
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=claim,
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         numeric_provenance=numeric,
         physical_contract=physical,
     )
@@ -678,6 +683,7 @@ def physics_validation_evidence(
         evidence_level=level,
         evidence_kind=EvidenceKind.CURATED,
         claim_boundary=boundary,
+        freshness=Freshness.TRACEABLE_UNCHECKED,
     )
 
 
@@ -767,6 +773,7 @@ def geometry_neutral_replay_evidence_bundle(
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=status, admission=admission),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )
 
@@ -855,6 +862,7 @@ def phase_sync_monitor_evidence(
         evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )
 
@@ -951,6 +959,7 @@ def disruption_prediction_evidence(
             admission=AdmissionDecision.REJECTED,
             validity_domain=validity,
         ),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
     )
 
 
@@ -1038,6 +1047,7 @@ def equilibrium_analysis_evidence(
         evidence_level=EvidenceLevel.SCIENTIFICALLY_CURATED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_MODEL, admission=AdmissionDecision.REJECTED),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )
 
@@ -1159,6 +1169,7 @@ def controller_run_evidence(
             admission=AdmissionDecision.REJECTED,
             validity_domain=validity,
         ),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )
 
@@ -1269,6 +1280,7 @@ def disruption_mitigation_evidence(
             admission=AdmissionDecision.REJECTED,
             validity_domain=validity,
         ),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )
 
@@ -1389,5 +1401,6 @@ def scenario_simulation_evidence(
             admission=AdmissionDecision.REJECTED,
             validity_domain=validity,
         ),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
         physical_contract=physical,
     )

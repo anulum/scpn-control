@@ -12,8 +12,8 @@ The federated panel must not hard-code CONTROL's verbs and claims — a second c
 drifts from the Python contract. This module emits a JSON-safe *studio feed*: the
 manifest's verbs reduced to the panel's rendering fields, plus a set of live
 :class:`scpn_studio_platform.evidence.EvidenceBundle` claims reduced to their
-schema, claim-boundary status, admission and modality. The panel reads the same
-honesty grading the Python vertical emits, with no second source of truth.
+schema, claim-boundary status, admission, modality, and freshness. The panel reads
+the same honesty grading the Python vertical emits, with no second source of truth.
 
 The serialisers (:func:`verb_summary`, :func:`claim_summary`, :func:`studio_feed`)
 take whatever bundles the serving runtime has produced. :func:`representative_feed`
@@ -116,17 +116,21 @@ def claim_summary(bundle: EvidenceBundle) -> dict[str, str]:
     Returns
     -------
     dict[str, str]
-        The bundle's ``schema`` and its claim ``status`` / ``admission`` / ``kind``
-        as wire strings — exactly what the panel needs to apply the honesty rule
-        (validated only when reference-validated and admitted).
+        The bundle's ``schema`` and its claim ``status`` / ``admission`` /
+        ``kind`` / ``freshness`` as wire strings — exactly what the panel needs to
+        apply the honesty rule (validated only when reference-validated, admitted,
+        and not freshness-floored).
     """
     boundary = bundle.claim_boundary
-    return {
+    summary = {
         "schema": bundle.schema,
         "status": boundary.status.value,
         "admission": boundary.admission.value,
         "kind": bundle.evidence_kind.value,
     }
+    if bundle.freshness is not None:
+        summary["freshness"] = bundle.freshness.value
+    return summary
 
 
 def studio_feed(

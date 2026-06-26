@@ -23,6 +23,7 @@ import type {
   ClaimSummary,
   ControlVerb,
   EvidenceKind,
+  Freshness,
   SafetyTier,
   SideEffect,
   TimingClass,
@@ -45,6 +46,7 @@ interface RawClaim {
   readonly status: ClaimStatus;
   readonly admission: AdmissionDecision;
   readonly kind: EvidenceKind;
+  readonly freshness?: Freshness;
 }
 
 /** The studio feed document as it appears on the wire. */
@@ -89,12 +91,13 @@ function toVerb(raw: RawVerb): ControlVerb {
 }
 
 function toClaim(raw: RawClaim): ClaimSummary {
-  return {
+  const base = {
     schema: raw.schema,
     status: raw.status,
     admission: raw.admission,
     kind: raw.kind,
   };
+  return raw.freshness === undefined ? base : { ...base, freshness: raw.freshness };
 }
 
 /** Structural type guard for the wire feed (validates the two collections). */

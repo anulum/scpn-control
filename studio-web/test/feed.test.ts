@@ -44,6 +44,7 @@ const VALID_FEED = {
       status: 'reference-validated',
       admission: 'admitted',
       kind: 'formally-proven',
+      freshness: 'verified-at-source',
     },
   ],
 } as const;
@@ -81,6 +82,7 @@ describe('narrowFeed', () => {
       status: 'reference-validated',
       admission: 'admitted',
       kind: 'formally-proven',
+      freshness: 'verified-at-source',
     });
   });
 });

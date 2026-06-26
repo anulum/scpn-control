@@ -25,7 +25,7 @@ export type SideEffect = 'read-only' | 'simulated' | 'live-hardware';
 /** Timing class of a verb. */
 export type TimingClass = 'batch' | 'interactive' | 'realtime';
 
-/** The seven-state claim-boundary lattice (mirrors the platform contract). */
+/** The claim-boundary lattice (mirrors the platform contract). */
 export type ClaimStatus =
   | 'reference-validated'
   | 'bounded-model'
@@ -33,10 +33,21 @@ export type ClaimStatus =
   | 'validation-gap'
   | 'external-dependency-blocked'
   | 'roadmap'
-  | 'toolchain-gated';
+  | 'toolchain-gated'
+  | 'refuted';
 
 /** The orthogonal evidence modality. */
-export type EvidenceKind = 'measured' | 'curated' | 'formally-proven';
+export type EvidenceKind =
+  | 'measured'
+  | 'curated'
+  | 'formally-proven'
+  | 'falsified'
+  | 'noise-limited'
+  | 'hardware-validated'
+  | 'producer-asserted';
+
+/** Whether the evidence was re-checked at source recently enough to validate. */
+export type Freshness = 'verified-at-source' | 'traceable-unchecked' | 'untraceable';
 
 /** The runtime admission decision for a claim. */
 export type AdmissionDecision = 'admitted' | 'rejected';
@@ -57,6 +68,7 @@ export interface ClaimSummary {
   readonly status: ClaimStatus;
   readonly admission: AdmissionDecision;
   readonly kind: EvidenceKind;
+  readonly freshness?: Freshness;
 }
 
 /** Whether the Hub must hard-gate this verb per tenant before running it. */
@@ -67,17 +79,21 @@ export function requiresLiveHardwareGate(verb: ControlVerb): boolean {
 /**
  * Whether a claim may be presented as validated.
  *
- * Mirrors the platform `ClaimBoundary.is_admissible` exactly: the status must be
- * `reference-validated` AND the runtime admission must be `admitted`. Checking the
- * status alone would wrongly render a `reference-validated` but `rejected` claim as
- * validated, so both axes are required — keeping the TS rendering in lock-step with
- * the Python contract.
+ * Mirrors the platform presentation gate: the status must be
+ * `reference-validated`, runtime admission must be `admitted`, and declared
+ * freshness must be `verified-at-source`. Checking the status alone would wrongly
+ * render stale or rejected claims as validated, so all axes are required.
  */
 export function claimRendersAsValidated(
   status: ClaimStatus,
   admission: AdmissionDecision,
+  freshness?: Freshness,
 ): boolean {
-  return status === 'reference-validated' && admission === 'admitted';
+  return (
+    status === 'reference-validated' &&
+    admission === 'admitted' &&
+    (freshness === undefined || freshness === 'verified-at-source')
+  );
 }
 
 /** Every verb the CONTROL studio advertises, in manifest order. */
@@ -173,17 +189,20 @@ export const CONTROL_CLAIMS: readonly ClaimSummary[] = [
     status: 'bounded-model',
     admission: 'rejected',
     kind: 'measured',
+    freshness: 'traceable-unchecked',
   },
   {
     schema: 'studio.safety-certificate.v1',
     status: 'reference-validated',
     admission: 'admitted',
     kind: 'formally-proven',
+    freshness: 'verified-at-source',
   },
   {
     schema: 'studio.controller-latency.v1',
     status: 'bounded-model',
     admission: 'rejected',
     kind: 'measured',
+    freshness: 'traceable-unchecked',
   },
 ];

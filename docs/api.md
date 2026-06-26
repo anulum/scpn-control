@@ -2091,7 +2091,10 @@ capability manifest is the platform `CapabilityManifest`.
 
 The federated panel reads CONTROL's verbs and claims from the wire feed this module
 emits (`studio.control-feed.v1`), so the UI never holds a second, drifting copy of
-the contract. Regenerate the standalone artefact with
+the contract. Claim summaries include the platform freshness axis: the safety
+certificate emits `verified-at-source` after the mapper re-checks proof coverage,
+while the other representative claims emit `traceable-unchecked` and render at their
+boundary unless fresh source verification is supplied. Regenerate the standalone artefact with
 `python -m scpn_control.studio.feed > studio-web/public/studio-feed.json`.
 
 ::: scpn_control.studio.feed

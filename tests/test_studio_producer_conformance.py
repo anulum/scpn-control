@@ -12,14 +12,10 @@ ratified honesty invariants — exhaustively across the whole representative sur
 not just per-builder spot-checks — so a future evidence builder cannot silently emit a
 bundle that renders as validated without being reference-validated AND admitted. This
 is the producer side of the studio conformance contract (the keeper's
-``validate_studio_bundle`` is the federation-gate counterpart).
-
-Staged for the SDK additive increment (CONTROL pin is ``>=0.1,<0.9`` today, so these
-members are not yet importable): once the keeper ships ``EvidenceKind.FALSIFIED`` /
-``ClaimStatus.REFUTED`` / ``EvidenceKind.PRODUCER_ASSERTED`` and the freshness axis,
-add vectors for ``falsified + reference-validated => rejected`` (INV-2/LOCK-4),
-``producer-asserted => claim-status ceiling bounded-support`` (INV-6), and the
-``verified-at-source / traceable-unchecked / untraceable`` freshness floor.
+``validate_studio_bundle`` is the federation-gate counterpart). The vectors cover the
+additive SDK axes CONTROL consumes: ``falsified`` / ``refuted`` parity findings,
+``producer-asserted`` ceiling behavior, and the freshness floor that prevents stale
+or unchecked evidence from rendering as validated.
 """
 
 from __future__ import annotations
@@ -30,10 +26,19 @@ pytest.importorskip("scpn_studio_platform")
 
 from scpn_studio_platform.evidence import (  # noqa: E402
     AdmissionDecision,
+    ClaimBoundary,
     ClaimStatus,
+    EvidenceBundle,
     EvidenceKind,
+    EvidenceLevel,
+    Freshness,
+    ProvActivity,
+    ProvAgent,
+    ProvEntity,
+    validate_studio_bundle,
 )
 
+from scpn_control.studio.feed import FEED_SCHEMA, claim_summary, studio_feed  # noqa: E402
 from scpn_control.studio.feed import representative_bundles  # noqa: E402
 
 _BUNDLES = representative_bundles()
@@ -48,7 +53,7 @@ def test_representative_surface_is_one_bundle_per_schema() -> None:
 
 
 @pytest.mark.parametrize("bundle", _BUNDLES, ids=_IDS)
-def test_renders_as_validated_is_exactly_the_admitted_reference_validated_pair(bundle) -> None:
+def test_renders_as_validated_is_exactly_the_admitted_reference_validated_pair(bundle: EvidenceBundle) -> None:
     # The load-bearing cross-field invariant, stated as an iff for every emittable bundle:
     # a bundle renders as validated if and only if it is BOTH reference-validated AND admitted.
     boundary = bundle.claim_boundary
@@ -60,11 +65,12 @@ def test_renders_as_validated_is_exactly_the_admitted_reference_validated_pair(b
 
 
 @pytest.mark.parametrize("bundle", _BUNDLES, ids=_IDS)
-def test_every_axis_is_a_valid_enum_member(bundle) -> None:
+def test_every_axis_is_a_valid_enum_member(bundle: EvidenceBundle) -> None:
     boundary = bundle.claim_boundary
     assert isinstance(boundary.status, ClaimStatus)
     assert isinstance(boundary.admission, AdmissionDecision)
     assert isinstance(bundle.evidence_kind, EvidenceKind)
+    assert isinstance(bundle.freshness, Freshness)
 
 
 def test_nothing_reaches_validated_by_any_other_path() -> None:
@@ -89,3 +95,87 @@ def test_surface_is_honest_by_default_only_a_formal_proof_validates() -> None:
         if bundle.renders_as_validated and bundle.evidence_kind is EvidenceKind.FORMALLY_PROVEN
     ]
     assert proven_and_validated, "the one validated bundle must be backed by a formal proof"
+
+
+@pytest.mark.parametrize("bundle", _BUNDLES, ids=_IDS)
+def test_federation_gate_agrees_with_producer_rendering(bundle: EvidenceBundle) -> None:
+    verdict = validate_studio_bundle(bundle.to_dict())
+    assert verdict.admitted is True
+    assert verdict.rejections == ()
+    if bundle.evidence_kind is EvidenceKind.FALSIFIED or bundle.claim_boundary.status is ClaimStatus.REFUTED:
+        assert verdict.mode == "refuted"
+    elif bundle.renders_as_validated:
+        assert bundle.freshness is Freshness.VERIFIED_AT_SOURCE
+        assert verdict.mode == "validated"
+    else:
+        assert verdict.mode == "boundary"
+
+
+def test_refuted_parity_is_a_fresh_traceable_negative_finding() -> None:
+    parity = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.parity-refutation.v1")
+    assert parity.evidence_kind is EvidenceKind.FALSIFIED
+    assert parity.claim_boundary.status is ClaimStatus.REFUTED
+    assert parity.claim_boundary.admission is AdmissionDecision.REJECTED
+    assert parity.freshness is Freshness.TRACEABLE_UNCHECKED
+    assert parity.renders_as_validated is False
+    assert validate_studio_bundle(parity.to_dict()).mode == "refuted"
+
+
+def test_validated_certificate_declares_verified_at_source_freshness() -> None:
+    certificate = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.safety-certificate.v1")
+    assert certificate.evidence_kind is EvidenceKind.FORMALLY_PROVEN
+    assert certificate.claim_boundary.status is ClaimStatus.REFERENCE_VALIDATED
+    assert certificate.claim_boundary.admission is AdmissionDecision.ADMITTED
+    assert certificate.freshness is Freshness.VERIFIED_AT_SOURCE
+    assert validate_studio_bundle(certificate.to_dict()).mode == "validated"
+
+
+def test_unchecked_freshness_floors_reference_validated_claims() -> None:
+    bundle = EvidenceBundle(
+        schema="studio.synthetic-freshness-floor.v1",
+        entity=ProvEntity(entity_id="scpn-control/freshness-floor/demo", digest="a" * 64),
+        activity=ProvActivity(
+            verb="validate",
+            studio="scpn-control",
+            started="2026-06-26T00:00:00Z",
+            ended="2026-06-26T00:00:01Z",
+        ),
+        agent=ProvAgent(studio_version="test", operator="opaque:test"),
+        evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
+        evidence_kind=EvidenceKind.MEASURED,
+        claim_boundary=ClaimBoundary(status=ClaimStatus.REFERENCE_VALIDATED, admission=AdmissionDecision.ADMITTED),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
+    )
+    assert bundle.renders_as_validated is True
+    assert validate_studio_bundle(bundle.to_dict()).mode == "boundary"
+
+
+def test_producer_asserted_claims_are_never_validated() -> None:
+    bundle = EvidenceBundle(
+        schema="studio.synthetic-producer-asserted.v1",
+        entity=ProvEntity(entity_id="scpn-control/producer-asserted/demo", digest="b" * 64),
+        activity=ProvActivity(
+            verb="validate",
+            studio="scpn-control",
+            started="2026-06-26T00:00:00Z",
+            ended="2026-06-26T00:00:01Z",
+        ),
+        agent=ProvAgent(studio_version="test", operator="opaque:test"),
+        evidence_level=EvidenceLevel.TAXONOMY,
+        evidence_kind=EvidenceKind.PRODUCER_ASSERTED,
+        claim_boundary=ClaimBoundary(status=ClaimStatus.BOUNDED_SUPPORT, admission=AdmissionDecision.REJECTED),
+        freshness=Freshness.TRACEABLE_UNCHECKED,
+    )
+    assert bundle.renders_as_validated is False
+    assert validate_studio_bundle(bundle.to_dict()).mode == "boundary"
+
+
+def test_claim_summary_and_feed_preserve_freshness_axis() -> None:
+    certificate = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.safety-certificate.v1")
+    assert claim_summary(certificate)["freshness"] == "verified-at-source"
+
+    feed = studio_feed(_BUNDLES, content_digest="sha256:test")
+    assert feed["feed_schema"] == FEED_SCHEMA
+    claims = feed["claims"]
+    assert isinstance(claims, list)
+    assert all("freshness" in claim for claim in claims)

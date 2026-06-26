@@ -34,6 +34,15 @@ describe('claimRendersAsValidated', () => {
     expect(claimRendersAsValidated('reference-validated', 'rejected')).toBe(false);
   });
 
+  it('floors reference-validated claims when freshness is unchecked', () => {
+    expect(claimRendersAsValidated('reference-validated', 'admitted', 'traceable-unchecked')).toBe(
+      false,
+    );
+    expect(claimRendersAsValidated('reference-validated', 'admitted', 'verified-at-source')).toBe(
+      true,
+    );
+  });
+
   it('renders every other boundary verbatim, not validated', () => {
     for (const status of [
       'bounded-model',
@@ -71,11 +80,12 @@ describe('CONTROL_VERBS', () => {
 describe('CONTROL_CLAIMS', () => {
   it('spans the honesty axes with one admissible and two bounded claims', () => {
     expect(
-      CONTROL_CLAIMS.filter((c) => claimRendersAsValidated(c.status, c.admission)),
+      CONTROL_CLAIMS.filter((c) => claimRendersAsValidated(c.status, c.admission, c.freshness)),
     ).toHaveLength(1);
     expect(
-      CONTROL_CLAIMS.filter((c) => !claimRendersAsValidated(c.status, c.admission)),
+      CONTROL_CLAIMS.filter((c) => !claimRendersAsValidated(c.status, c.admission, c.freshness)),
     ).toHaveLength(2);
     expect(CONTROL_CLAIMS.some((c) => c.kind === 'formally-proven')).toBe(true);
+    expect(CONTROL_CLAIMS.every((c) => c.freshness !== undefined)).toBe(true);
   });
 });

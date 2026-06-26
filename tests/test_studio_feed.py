@@ -71,6 +71,7 @@ def test_claim_summary_reduces_bundle_to_panel_fields() -> None:
         "status": "bounded-model",
         "admission": "rejected",
         "kind": "measured",
+        "freshness": "traceable-unchecked",
     }
 
 

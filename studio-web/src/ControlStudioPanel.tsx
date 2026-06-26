@@ -78,7 +78,11 @@ export default function ControlStudioPanel({
         <h3>Claims</h3>
         <ul>
           {claims.map((claim) => {
-            const validated = claimRendersAsValidated(claim.status, claim.admission);
+            const validated = claimRendersAsValidated(
+              claim.status,
+              claim.admission,
+              claim.freshness,
+            );
             return (
               <li key={claim.schema} data-validated={validated ? 'yes' : 'no'}>
                 {claim.schema} — {claim.kind} — {validated ? 'validated' : claim.status}

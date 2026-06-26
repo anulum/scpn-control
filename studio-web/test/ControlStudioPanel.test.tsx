@@ -72,6 +72,7 @@ describe('ControlStudioPanel', () => {
         status: 'bounded-model',
         admission: 'rejected',
         kind: 'measured',
+        freshness: 'traceable-unchecked',
       },
     ];
     render(<ControlStudioPanel verbs={verbs} claims={claims} />);

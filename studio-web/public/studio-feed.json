@@ -2,72 +2,84 @@
   "claims": [
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.efit-reconstruction.v1",
       "status": "bounded-model"
     },
     {
       "admission": "admitted",
+      "freshness": "verified-at-source",
       "kind": "formally-proven",
       "schema": "studio.safety-certificate.v1",
       "status": "reference-validated"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.controller-latency.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "curated",
       "schema": "studio.physics-validation.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.geometry-neutral-replay.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.phase-sync-monitor.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.disruption-prediction.v1",
       "status": "validation-gap"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.equilibrium-analysis.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.controller-run.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.disruption-mitigation.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "measured",
       "schema": "studio.scenario-simulation.v1",
       "status": "bounded-model"
     },
     {
       "admission": "rejected",
+      "freshness": "traceable-unchecked",
       "kind": "falsified",
       "schema": "studio.parity-refutation.v1",
       "status": "refuted"
@@ -76,7 +88,7 @@
   "content_digest": "sha256:81e6d14878828a63c488313b37498c2f337771b8697095ff330a211eb1c0b8b1",
   "feed_schema": "studio.control-feed.v1",
   "studio": "scpn-control",
-  "studio_version": "0.21.0",
+  "studio_version": "0.22.0",
   "verbs": [
     {
       "domain_distinctive": false,
