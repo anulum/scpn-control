@@ -10,6 +10,10 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## [0.22.0] - 2026-06-26
+
 ### Added
 - libFuzzer harness for the Rust parser, numeric-adapter, and FFI surfaces:
   reactor-configuration JSON, VMEC-like and BOUT++ text parsers, the
@@ -34,6 +38,17 @@
   overflowing matrix norm can no longer stall the capacitor-bank discharge; the
   routine now fails closed on a non-finite norm and the discharge rejects the
   input instead of looping.
+
+### Changed
+- Bumped package, citation, Zenodo, API, README, release-note, MkDocs, generated
+  capability, and SCPN Studio manifest metadata to `0.22.0`.
+- Aligned the SCPN Studio manifest's advertised platform SDK range with the
+  package extra and CI-pinned `scpn-studio-platform` dependency policy.
+
+### Security
+- Bumped GitHub Actions pins, Rust crates, Python dependencies, and studio-web
+  dependencies through the green Dependabot maintenance lane, while preserving
+  release-age safety for newly published package versions.
 
 ## [0.21.0] - 2026-06-15
 

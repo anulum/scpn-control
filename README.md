@@ -137,32 +137,28 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.21.0
+## What is new in v0.22.0
 
-This release strengthens validation evidence. Twenty control and physics models
-gained tests that compare their outputs against independently derived exact
-closed-form, analytic, eigenvalue, or conservation-law references, and the
-differentiable-transport facade reached near-complete statement coverage. It
-does not relax the facility, target-hardware, P-EFIT, PREEMPT_RT, or
-external-code evidence gates.
+This release turns the post-0.21 control-evidence work into a publishable
+package checkpoint. It adds Rust fuzzing for parser, numeric-adapter, and FFI
+surfaces; a benchmark regression gate with tracked baselines; a runtime-bound
+formal safety certificate; SCPN Studio evidence feeds; and bounded
+differentiable-scenario evidence. It does not relax the facility,
+target-hardware, P-EFIT, PREEMPT_RT, TORAX, or external-code evidence gates.
 
-- Twenty models are now checked against exact references rather than
-  self-consistency fixtures, including the Grad-Shafranov solver against the
-  Solov'ev equilibrium, the Kuramoto runtime against published synchronisation
-  results, structured singular value against exact mu identities, the
-  guiding-centre orbit integrator against conservation laws, and the
-  Modified Rutherford, RZIP, resistive-wall-mode, sawtooth, scrape-off-layer,
-  current-drive, ideal-MHD, EPED, ELM, momentum-transport, runaway-avalanche,
-  halo-current, volt-second, density-control, and DT burn-control models.
-- The differentiable-transport facade reached 99.5% statement coverage with
-  module-specific input-validation, evidence-guard, and JAX-path tests.
-- Strict mypy typing now covers the admission, configuration, current-drive,
-  and real-time EFIT modules.
-- A Rust advisory was cleared (pyo3/numpy 0.25 to 0.29) and numpy, osqp,
-  tornado, hypothesis, pip-audit, ruff, sha2, and socket2 were bumped.
-- Release documentation keeps all new evidence classified as repository
-  validation coverage. No new production timing or facility validation claim is
-  admitted by this release.
+- Rust fuzzing now covers reactor configuration JSON, VMEC-like and BOUT++ text
+  parsers, the capacitor-bank discharge ledger, and the Kuramoto phase kernel,
+  with tracked seeds and nightly evidence reports.
+- Benchmark regression admission records per-language p50/p95/p99 latency,
+  throughput, provenance, baseline digests, and explicit threshold policy.
+- Runtime-bound safety certificates bind a holding CTL/LTL proof to the
+  deployable controller configuration, Petri-net topology digest, SNN
+  parameters, solver mode, runtime target, and timing envelope.
+- SCPN Studio exports twelve platform verbs and evidence bundles through the
+  generated schema-A capability manifest and standalone panel feed.
+- Release documentation keeps the new evidence bounded: fuzzing, local timing,
+  studio feeds, and analytic differentiable scenarios remain review artefacts,
+  not facility validation or plant-deployment claims.
 
 ## Why this has market value
 
@@ -212,7 +208,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.21.0 |
+| Package version | 0.22.0 |
 | Python requirement | >=3.10 |
 | Project scripts | 2 |
 | Public API exports | 44 |
@@ -223,7 +219,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 119 |
 | Optional extras | 18 |
 | Python test files | 384 |
-| Public documentation pages | 53 |
+| Public documentation pages | 54 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -585,7 +581,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.21.0
+git tag v0.22.0
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

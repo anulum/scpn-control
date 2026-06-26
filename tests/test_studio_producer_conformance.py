@@ -14,7 +14,7 @@ bundle that renders as validated without being reference-validated AND admitted.
 is the producer side of the studio conformance contract (the keeper's
 ``validate_studio_bundle`` is the federation-gate counterpart).
 
-Staged for the SDK additive increment (CONTROL pin is ``>=0.2,<0.3`` today, so these
+Staged for the SDK additive increment (CONTROL pin is ``>=0.1,<0.9`` today, so these
 members are not yet importable): once the keeper ships ``EvidenceKind.FALSIFIED`` /
 ``ClaimStatus.REFUTED`` / ``EvidenceKind.PRODUCER_ASSERTED`` and the freshness axis,
 add vectors for ``falsified + reference-validated => rejected`` (INV-2/LOCK-4),

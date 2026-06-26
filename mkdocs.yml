@@ -99,6 +99,7 @@ nav:
     - Development: development.md
     - Capability Manifest: capability_manifest.md
     - Capability Snapshot: _generated/capability_snapshot.md
+    - Release Notes v0.22.0: release_notes_v0.22.0.md
     - Release Notes v0.21.0: release_notes_v0.21.0.md
     - Release Notes v0.20.7: release_notes_v0.20.7.md
     - Release Notes v0.20.6: release_notes_v0.20.6.md

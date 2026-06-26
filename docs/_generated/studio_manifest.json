@@ -16,10 +16,10 @@
     "studio.safety-certificate.v1",
     "studio.scenario-simulation.v1"
   ],
-  "platform_sdk": ">=0.2,<0.3",
+  "platform_sdk": ">=0.1,<0.9",
   "protocol_version": "1",
   "studio": "scpn-control",
-  "studio_version": "0.21.0",
+  "studio_version": "0.22.0",
   "transport_profile": "local-first",
   "ui_module": {
     "exposes": [

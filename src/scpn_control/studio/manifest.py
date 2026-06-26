@@ -50,7 +50,7 @@ def _resolve_studio_version() -> str:
 STUDIO_VERSION = _resolve_studio_version()
 """The CONTROL studio version this manifest stamps (the installed package version)."""
 
-PLATFORM_SDK_RANGE = ">=0.2,<0.3"
+PLATFORM_SDK_RANGE = ">=0.1,<0.9"
 """The platform SDK SemVer range the studio builds on (matches the ``studio`` extra)."""
 
 PROTOCOL_VERSION = "1"

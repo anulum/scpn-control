@@ -10,144 +10,100 @@
 
 ## Unreleased
 
+No unreleased changes.
+
+## [0.22.0] - 2026-06-26
+
 ### Added
-- Added a Grad-Shafranov Solov'ev analytic-equilibrium validator that checks the
-  production discrete operator and Red-Black SOR smoother for second-order
-  convergence, emits tamper-evident sealed evidence, and records the Rust
-  multigrid backend behaviour for transparency.
-- Added a structured-singular-value validator that checks the D-scaled mu upper
-  bound against exact closed-form identities (full-block, diagonal-plant,
-  rank-one, and the spectral sandwich) with tamper-evident sealed evidence and a
-  recorded D-scaling-invariance diagnostic.
-- Added a guiding-centre orbit conservation validator that integrates the
-  production orbit stepper in a static analytic axisymmetric field and checks
-  exact conservation of kinetic energy and canonical toroidal momentum over
-  passing and trapped orbits, with tamper-evident sealed evidence.
-- Added a transport heat-diffusion validator that checks the production
-  cylindrical diffusion operator against the exact Bessel eigenvalue and the
-  Crank-Nicolson tridiagonal solve against a manufactured steady state at second
-  order, with Python/Rust Thomas-solver parity and tamper-evident sealed
-  evidence.
-- Added an NTM island-dynamics validator that checks the Modified Rutherford
-  Equation right-hand side and RK4 integrator against the exact classical-only
-  separable trajectory and the closed-form classical+bootstrap saturated-width
-  attractor, with tamper-evident sealed evidence.
-- Added an RZIP rigid vertical stability validator that checks the production
-  state-space growth rate against the exact no-wall eigenvalue, the stable-index
-  oscillation frequency, the exact current/index/inertia scaling laws, and
-  resistive-wall stabilisation, with tamper-evident sealed evidence.
-- Added a resistive-wall-mode feedback validator that checks the Bondeson-Ward
-  growth rate, wall-gap correction, rotation stabilisation, critical-rotation
-  marginality, and feedback marginalisation against their exact closed forms,
-  with tamper-evident sealed evidence.
-- Added a Kadomtsev sawtooth-crash validator that checks volume-integrated energy
-  and particle conservation, the helical-flux mixing condition, profile
-  flattening and q reset, outside invariance, and the analytic q=1-radius
-  convergence against exact references, with tamper-evident sealed evidence.
-- Added a two-point scrape-off-layer validator that checks the connection length,
-  parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure
-  balance, Eich regression exponents, peak heat flux, and the detachment density
-  boundary against exact closed forms, with tamper-evident sealed evidence.
-- Added an auxiliary current-drive validator that checks deposition power
-  conservation, the Stix critical energy and slowing-down scalings, the Prater
-  ECCD efficiency and launch-angle maximisation, the driven-current
-  proportionality, and the neutral-beam current chain against exact closed forms,
-  with tamper-evident sealed evidence.
-- Added an ideal-MHD stability-metric validator that checks the Troyon beta limit
-  and scalings, the Mercier interchange index, the Connor-Hastie-Taylor
-  ballooning boundary, and the Kruskal-Shafranov criterion against exact closed
-  forms, with tamper-evident sealed evidence.
-- Added an EPED pedestal validator that checks the q95 formula, alpha-inversion
-  pressure, poloidal-beta definition, ideal-gas temperature, collisionality width
-  narrowing, shaping-factor reference, and the KBM width constraint against the
-  exact construction relations, with tamper-evident sealed evidence.
-- Added an ELM peeling-ballooning validator that checks the ballooning and
-  peeling limits and scalings, the elliptical stability boundary, and the Type-I
-  ELM crash energy conservation against exact closed forms, with tamper-evident
-  sealed evidence.
-- Added a toroidal momentum-transport validator that checks the NBI torque, the
-  Hinton-Hazeltine radial electric field, the E×B shearing rate, the
-  turbulence-suppression factor, the Rice intrinsic-rotation scaling, and the
-  Mach number against exact closed forms, with tamper-evident sealed evidence.
-- Added a runaway-electron validator that checks the Connor-Hastie critical and
-  Dreicer fields, the collision and avalanche time constants, and the
-  Rosenbluth-Putvinski avalanche growth rate, threshold, linearity, and RMP
-  deconfinement against exact closed forms, with tamper-evident sealed evidence.
-- Added a halo-current validator that checks the Fitzpatrick L/R circuit halo
-  resistance, inductance, mutual inductance, and time constant, the
-  halo-resistance scaling laws, the electromagnetic wall force and
-  toroidal-peaking product, and the fast-circuit quasi-static tracking limit
-  against exact closed forms, with tamper-evident sealed evidence.
-- Added a volt-second flux-budget validator that checks the inductive flux, the
-  Ejima startup flux, the resistive ramp integral, the flat-top budget closure,
-  the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption
-  integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling
-  laws against exact closed forms, with tamper-evident sealed evidence.
-- Added a density-control particle-balance validator that checks the Greenwald
-  limit, the volume-averaged Greenwald fraction, the circular flux-surface volume
-  elements, the gas-puff, neutral-beam, and recycling source normalisation, the
-  cryopump edge sink, the diffusion operator vanishing on a uniform interior, and
-  the Greenwald scaling laws against exact closed forms, with tamper-evident
-  sealed evidence.
-- Added a DT burn-control alpha-heating validator that checks the alpha-energy
-  partition, the alpha power density, the alpha-power volume integral, the energy
-  gain and ignition limits, the Lawson triple product and ignition margin, the
-  burn fraction, the reactivity-exponent finite difference, and the burn scaling
-  laws against exact closed forms, with tamper-evident sealed evidence.
+- libFuzzer harness for the Rust parser, numeric-adapter, and FFI surfaces:
+  reactor-configuration JSON, VMEC-like and BOUT++ text parsers, the
+  capacitor-bank discharge ledger, and the Kuramoto phase kernel. Includes a
+  fail-closed campaign orchestrator with provenance and seed-checksum evidence
+  reports, a tracked seed corpus, and a nightly fuzzing workflow separate from
+  per-commit CI.
+- Polyglot benchmark regression gate: a suite runner that records per-language
+  p50/p95/p99 latency, throughput, and run provenance, and a fail-closed gate
+  that compares a fresh report against a tracked baseline under an explicit
+  threshold policy, rejecting tampered reports or baselines, missing metrics, and
+  cross-CPU comparisons. Runs in evidence-only mode on the nightly workflow.
+- Runtime-bound formal safety certificate: binds a holding bounded CTL/LTL
+  certificate to a structured controller runtime identity — controller
+  configuration, Petri-net topology digest, SNN parameters, solver mode, runtime
+  target, and a declared timing envelope. Issuance, proof replay, and
+  facility-facing admission all fail closed unless the binding, runtime target,
+  timing envelope, and re-proved obligations match on the declared stack.
+
+### Fixed
+- Bounded the scaling-and-squaring exponent in the Rust matrix exponential so an
+  overflowing matrix norm can no longer stall the capacitor-bank discharge; the
+  routine now fails closed on a non-finite norm and the discharge rejects the
+  input instead of looping.
 
 ### Changed
-- Hardened toroidal momentum transport with a bounded implicit collisional
-  damping frequency profile, fail-closed damping validation, and updated
-  physics traceability evidence.
-- Updated the Grad-Shafranov fusion-kernel traceability entry, physics methods
-  reference, and validation guide with the Solov'ev convergence evidence.
-- Updated the structured-singular-value traceability entry and validation guide
-  with the closed-form mu identity evidence.
-- Updated the orbit-following traceability entry and validation guide with the
-  guiding-centre conservation evidence.
-- Updated the transport-solver traceability entry, physics methods reference, and
-  validation guide with the heat-diffusion analytic and Python/Rust parity
-  evidence.
-- Updated the NTM island-dynamics traceability entry and validation guide with the
-  Modified Rutherford Equation analytic evidence.
-- Updated the halo-current and runaway-electron disruption traceability entry,
-  physics methods reference, and validation guide with the Fitzpatrick halo L/R
-  circuit closed-form and quasi-static-tracking evidence.
-- Updated the volt-second flux-budget traceability entry, physics methods
-  reference, and validation guide with the inductive, Ejima, resistive, flat-top
-  budget-closure, decomposition, integrator, optimiser, and scaling-law evidence.
-- Updated the density-control traceability entry, physics methods reference, and
-  validation guide with the Greenwald-limit, volume-element, source-conservation,
-  cryopump-sink, and diffusion-operator closed-form evidence.
-- Updated the DT burn-control traceability entry, physics methods reference, and
-  validation guide with the alpha-power, energy-gain, Lawson, burn-fraction, and
-  reactivity-exponent closed-form evidence.
-- Updated the RZIP vertical-stability traceability entry, physics methods
-  reference, and validation guide with the no-wall eigenvalue and scaling-law
-  evidence.
-- Updated the resistive-wall-mode traceability entry, physics methods reference,
-  and validation guide with the Bondeson-Ward and feedback closed-form evidence.
-- Added a Kadomtsev sawtooth-crash traceability entry, physics methods reference,
-  and validation guide with the reconnection conservation evidence.
-- Added a two-point scrape-off-layer traceability entry, physics methods
-  reference, and validation guide with the divertor closed-form evidence.
-- Updated the auxiliary current-drive traceability entry, physics methods
-  reference, and validation guide with the deposition and efficiency closed-form
-  evidence.
-- Updated the ideal-MHD stability traceability entry, physics methods reference,
-  and validation guide with the Troyon, Mercier, ballooning, and Kruskal-Shafranov
-  closed-form evidence.
-- Updated the EPED pedestal traceability entry, physics methods reference, and
-  validation guide with the construction-relation and KBM-constraint evidence.
-- Updated the ELM crash traceability entry, physics methods reference, and
-  validation guide with the peeling-ballooning and crash-energy closed-form
-  evidence.
-- Updated the momentum-transport traceability entry, physics methods reference,
-  and validation guide with the torque, force-balance, and rotation closed-form
-  evidence.
-- Updated the halo/runaway disruption traceability entry, physics methods
-  reference, and validation guide with the runaway-field and avalanche closed-form
-  evidence.
+- Bumped package, citation, Zenodo, API, README, release-note, MkDocs, generated
+  capability, and SCPN Studio manifest metadata to `0.22.0`.
+- Aligned the SCPN Studio manifest's advertised platform SDK range with the
+  package extra and CI-pinned `scpn-studio-platform` dependency policy.
+
+### Security
+- Bumped GitHub Actions pins, Rust crates, Python dependencies, and studio-web
+  dependencies through the green Dependabot maintenance lane, while preserving
+  release-age safety for newly published package versions.
+
+## [0.21.0] - 2026-06-15
+
+### Added
+- Validated the Kuramoto phase-synchronisation runtime against published
+  synchronisation results.
+- Validated the Grad-Shafranov equilibrium solver against the Solov'ev exact
+  equilibrium.
+- Validated the structured-singular-value (mu) computation against exact mu
+  identities.
+- Validated the guiding-centre orbit integrator against conservation laws.
+- Validated the transport heat-diffusion solver against analytic results.
+- Validated the neoclassical tearing-mode Modified Rutherford Equation against
+  exact references.
+- Validated RZIP rigid vertical stability against exact eigenvalues.
+- Validated resistive-wall-mode feedback against exact closed forms.
+- Validated the Kadomtsev sawtooth crash against exact conservation laws.
+- Validated the two-point scrape-off-layer model against exact closed forms.
+- Validated the auxiliary current-drive model against exact closed forms.
+- Validated ideal-MHD stability metrics against exact closed forms.
+- Validated the EPED pedestal model against exact construction relations.
+- Validated the ELM peeling-ballooning boundary and crash against exact forms.
+- Validated toroidal momentum transport against exact closed forms.
+- Validated the runaway-electron avalanche model against exact closed forms.
+- Validated the Fitzpatrick halo-current L/R circuit against exact closed forms.
+- Validated the volt-second flux budget against exact closed forms.
+- Validated density-control particle balance against exact closed forms.
+- Validated DT burn-control alpha-heating algebra against exact closed forms.
+
+### Changed
+- Raised differentiable-transport facade test coverage to 99.5% with
+  module-specific validation, evidence-guard, and JAX-path tests.
+- Enforced strict mypy typing for the admission, configuration, current-drive,
+  and real-time EFIT modules.
+- Hardened the momentum-damping transport contract and capacitor-bank energy
+  admission.
+- Resealed multi-shot campaign evidence payload digests.
+- Regenerated the capability manifest for current-drive typed dictionaries and
+  the physics-traceability report.
+
+### Fixed
+- Restored ruff lint and format compliance on the control core.
+- Scoped per-module mypy strict flags and fixed the admission consumer.
+
+### Security
+- Bumped Rust pyo3 and numpy bindings from 0.25 to 0.29 to clear an advisory.
+- Bumped Rust sha2 0.10 to 0.11 and socket2 0.5 to 0.6.
+- Bumped numpy to 2.2.6, osqp to 1.1.2, tornado to 6.5.6, hypothesis to
+  6.155.2, pip-audit to 2.10.1, and ruff to 0.15.16.
+
+### Repository hygiene
+- Bumped codecov-action from 6 to 7 and stopped failing CI on transient
+  Codecov upload errors.
+- Expanded user-oriented scope and orientation sections across the guides and
+  normalised trailing newlines.
 
 ## [0.20.7] - 2026-06-05
 
@@ -1576,11 +1532,3 @@
 - CI reduced from 13 jobs to 6
 - `hpc_bridge.py` relocated from `hpc/` to `core/` subpackage
 - Import guards added for excluded modules (stability_analyzer, global_design_scanner, imas_connector, diagnostics.forward, fusion_ignition_sim)
-
-## Practical use and scope
-
-Use this as the project event log for backward-compatible planning.
-
-- Use the changelog for version-to-version behavior and compatibility tracking.
-- Pair entries here with `docs/release_notes_v*` when preparing a release summary.
-- Treat this as timeline evidence, not as an admission gate on its own.
