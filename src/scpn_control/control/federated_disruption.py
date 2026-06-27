@@ -237,17 +237,17 @@ def _mlp_gradients(x: FloatArray, y: FloatArray, weights: dict[str, FloatArray])
     dl = (y_pred - y) / n  # (n,)
 
     grads: dict[str, FloatArray] = {}
-    grads["b3"] = dl.sum(axis=0, keepdims=True).ravel()
+    grads["b3"] = np.sum(dl, axis=0, keepdims=True).ravel()
     grads["w3"] = h2.T @ dl.reshape(-1, 1)
 
     dh2 = dl.reshape(-1, 1) @ weights["w3"].T
     dh2 = dh2 * (h2_pre > 0).astype(float)
-    grads["b2"] = dh2.sum(axis=0)
+    grads["b2"] = np.sum(dh2, axis=0)
     grads["w2"] = h1.T @ dh2
 
     dh1 = dh2 @ weights["w2"].T
     dh1 = dh1 * (h1_pre > 0).astype(float)
-    grads["b1"] = dh1.sum(axis=0)
+    grads["b1"] = np.sum(dh1, axis=0)
     grads["w1"] = x.T @ dh1
 
     return grads, loss
@@ -713,11 +713,7 @@ def create_facility_clients_from_arrays(
     if not datasets:
         raise ValueError("datasets must contain at least one facility")
     clients: list[MachineClient] = []
-    seen: set[str] = set()
     for machine, payload in datasets.items():
-        if machine in seen:  # pragma: no cover - datasets is a dict with unique keys; defensive dedup
-            raise ValueError(f"Duplicate facility {machine!r}")
-        seen.add(machine)
         missing = {"X_train", "y_train", "X_test", "y_test"} - set(payload)
         if missing:
             raise ValueError(f"{machine} dataset missing required arrays: {sorted(missing)}")

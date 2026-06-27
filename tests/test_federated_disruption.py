@@ -13,18 +13,23 @@
 # ──────────────────────────────────────────────────────────────────────
 """Tests for federated learning framework (FedAvg / FedProx)."""
 
+from __future__ import annotations
+
+from collections.abc import Sequence
 import json
 from typing import Any
 
 import numpy as np
 import pytest
 
+from scpn_control._typing import FloatArray
 from scpn_control.control.federated_disruption import (
     DifferentialPrivacyConfig,
     MACHINE_PROFILES,
     N_FEATURES,
     FederatedConfig,
     FederatedServer,
+    MachineClient,
     PrivacyLedgerEntry,
     _init_mlp_weights,
     compose_privacy_epsilon,
@@ -36,8 +41,8 @@ from scpn_control.control.federated_disruption import (
 )
 
 
-def _make_clients(machines=("DIII-D", "JET", "KSTAR"), seed=42):
-    cfgs = [{"machine": m, "n_train": 120, "n_test": 40} for m in machines]
+def _make_clients(machines: Sequence[str] = ("DIII-D", "JET", "KSTAR"), seed: int = 42) -> list[MachineClient]:
+    cfgs: list[dict[str, Any]] = [{"machine": m, "n_train": 120, "n_test": 40} for m in machines]
     return create_machine_clients(cfgs, seed=seed)
 
 
@@ -45,12 +50,12 @@ def _make_clients(machines=("DIII-D", "JET", "KSTAR"), seed=42):
 
 
 class TestMachineClients:
-    def test_create_three_clients(self):
+    def test_create_three_clients(self) -> None:
         clients = _make_clients()
         assert len(clients) == 3
         assert {c.machine for c in clients} == {"DIII-D", "JET", "KSTAR"}
 
-    def test_data_shapes(self):
+    def test_data_shapes(self) -> None:
         clients = _make_clients()
         for c in clients:
             assert c.X_train.shape == (120, N_FEATURES)
@@ -58,17 +63,17 @@ class TestMachineClients:
             assert c.X_test.shape == (40, N_FEATURES)
             assert set(np.unique(c.y_train)).issubset({0.0, 1.0})
 
-    def test_get_data_size(self):
+    def test_get_data_size(self) -> None:
         clients = _make_clients()
         assert clients[0].get_data_size() == 120
 
-    def test_unknown_machine_rejected(self):
+    def test_unknown_machine_rejected(self) -> None:
         with pytest.raises(ValueError, match="Unknown machine"):
             create_machine_clients([{"machine": "TOKAMAK-X"}])
 
 
 class TestFacilityArrayClients:
-    def test_create_facility_clients_from_arrays_preserves_boundaries(self):
+    def test_create_facility_clients_from_arrays_preserves_boundaries(self) -> None:
         clients = _make_clients(("DIII-D", "JET"), seed=11)
         datasets = {
             client.machine: {
@@ -83,7 +88,7 @@ class TestFacilityArrayClients:
         assert [client.machine for client in restored] == ["DIII-D", "JET"]
         assert restored[0].learning_rate == pytest.approx(0.02)
 
-    def test_create_facility_clients_rejects_bad_feature_shape(self):
+    def test_create_facility_clients_rejects_bad_feature_shape(self) -> None:
         with pytest.raises(ValueError, match="X_train"):
             create_facility_clients_from_arrays(
                 {
@@ -96,7 +101,7 @@ class TestFacilityArrayClients:
                 }
             )
 
-    def test_create_facility_clients_rejects_non_binary_labels(self):
+    def test_create_facility_clients_rejects_non_binary_labels(self) -> None:
         with pytest.raises(ValueError, match="binary disruption labels"):
             create_facility_clients_from_arrays(
                 {
@@ -114,7 +119,7 @@ class TestFacilityArrayClients:
 
 
 class TestFedAvg:
-    def test_weighted_average(self):
+    def test_weighted_average(self) -> None:
         rng = np.random.default_rng(0)
         w1 = _init_mlp_weights(rng)
         w2 = _init_mlp_weights(rng)
@@ -129,7 +134,7 @@ class TestFedAvg:
             expected = w1[key] * 0.25 + w2[key] * 0.75
             np.testing.assert_allclose(avg[key], expected, atol=1e-12)
 
-    def test_single_client_passthrough(self):
+    def test_single_client_passthrough(self) -> None:
         rng = np.random.default_rng(1)
         w = _init_mlp_weights(rng)
         cfg = FederatedConfig(min_clients=1, machines=["DIII-D"])
@@ -138,13 +143,13 @@ class TestFedAvg:
         for key in w:
             np.testing.assert_allclose(avg[key], w[key], atol=1e-12)
 
-    def test_empty_raises(self):
+    def test_empty_raises(self) -> None:
         cfg = FederatedConfig(machines=["DIII-D", "JET"])
         server = FederatedServer(cfg)
         with pytest.raises(ValueError, match="at least one"):
             server.aggregate([])
 
-    def test_zero_sample_weight_rejected(self):
+    def test_zero_sample_weight_rejected(self) -> None:
         rng = np.random.default_rng(1)
         w = _init_mlp_weights(rng)
         cfg = FederatedConfig(machines=["DIII-D", "JET"])
@@ -157,7 +162,7 @@ class TestFedAvg:
 
 
 class TestFedProx:
-    def test_proximal_differs_from_plain(self):
+    def test_proximal_differs_from_plain(self) -> None:
         clients = _make_clients(("DIII-D", "JET"), seed=7)
         cfg_avg = FederatedConfig(n_rounds=3, local_epochs=3, machines=["DIII-D", "JET"], aggregation="fedavg")
         cfg_prox = FederatedConfig(
@@ -181,7 +186,7 @@ class TestFedProx:
 
 
 class TestRunRound:
-    def test_round_returns_finite_metrics(self):
+    def test_round_returns_finite_metrics(self) -> None:
         clients = _make_clients()
         cfg = FederatedConfig(machines=["DIII-D", "JET", "KSTAR"])
         server = FederatedServer(cfg)
@@ -192,14 +197,14 @@ class TestRunRound:
             assert m["n_samples"] > 0
             assert m["machine"] in MACHINE_PROFILES
 
-    def test_too_few_clients_rejected(self):
+    def test_too_few_clients_rejected(self) -> None:
         clients = _make_clients(("DIII-D",))
         cfg = FederatedConfig(min_clients=2, machines=["DIII-D"])
         server = FederatedServer(cfg)
         with pytest.raises(ValueError, match="Need >="):
             server.run_round(clients)
 
-    def test_round_metrics_contain_required_keys(self):
+    def test_round_metrics_contain_required_keys(self) -> None:
         clients = _make_clients(("DIII-D", "JET"))
         cfg = FederatedConfig(min_clients=2, machines=["DIII-D", "JET"])
         server = FederatedServer(cfg)
@@ -213,7 +218,7 @@ class TestRunRound:
 
 
 class TestFullTraining:
-    def test_loss_decreases_over_rounds(self):
+    def test_loss_decreases_over_rounds(self) -> None:
         clients = _make_clients(seed=99)
         cfg = FederatedConfig(
             n_rounds=8,
@@ -228,7 +233,7 @@ class TestFullTraining:
         last_loss = history[-1]["mean_loss"]
         assert last_loss < first_loss
 
-    def test_federation_helps_generalisation(self):
+    def test_federation_helps_generalisation(self) -> None:
         """Global model accuracy >= mean of single-machine accuracies."""
         rng = np.random.default_rng(42)
         machines = ["DIII-D", "JET", "KSTAR"]
@@ -260,7 +265,7 @@ class TestFullTraining:
 
 
 class TestDifferentialPrivacy:
-    def test_clipping_bounds_norm(self):
+    def test_clipping_bounds_norm(self) -> None:
         rng = np.random.default_rng(0)
         grads = _init_mlp_weights(rng)
         # Scale up to ensure clipping activates
@@ -269,18 +274,18 @@ class TestDifferentialPrivacy:
         total_norm = np.sqrt(sum(float(np.sum(g**2)) for g in clipped.values()))
         assert total_norm <= 1.0 + 1e-6
 
-    def test_noise_adds_variance(self):
+    def test_noise_adds_variance(self) -> None:
         rng = np.random.default_rng(1)
-        grads = {"w": np.zeros((4, 4)), "b": np.zeros(4)}
+        grads: dict[str, FloatArray] = {"w": np.zeros((4, 4)), "b": np.zeros(4)}
         noised = differential_privacy_clip(grads, max_norm=10.0, noise_sigma=1.0, rng=rng)
         assert float(np.std(noised["w"])) > 0.1
 
-    def test_gaussian_accountant_composes_linearly(self):
+    def test_gaussian_accountant_composes_linearly(self) -> None:
         epsilon = gaussian_mechanism_epsilon(2.0, 1e-5)
         assert epsilon > 0.0
         assert compose_privacy_epsilon(2.0, 1e-5, 3) == pytest.approx(3.0 * epsilon)
 
-    def test_dp_round_records_privacy_ledger(self):
+    def test_dp_round_records_privacy_ledger(self) -> None:
         clients = _make_clients(("DIII-D", "JET"), seed=123)
         dp_config = DifferentialPrivacyConfig(
             max_update_norm=0.05,
@@ -307,9 +312,9 @@ class TestDifferentialPrivacy:
 
 
 class TestHeterogeneity:
-    def test_skewed_distributions_converge(self):
+    def test_skewed_distributions_converge(self) -> None:
         """Clients with different disruption fractions still converge."""
-        cfgs = [
+        cfgs: list[dict[str, Any]] = [
             {"machine": "DIII-D", "n_train": 100, "disruption_fraction": 0.2},
             {"machine": "JET", "n_train": 100, "disruption_fraction": 0.7},
             {"machine": "KSTAR", "n_train": 100, "disruption_fraction": 0.5},
@@ -325,7 +330,7 @@ class TestHeterogeneity:
 
 
 class TestSerialisation:
-    def test_round_trip(self):
+    def test_round_trip(self) -> None:
         cfg = FederatedConfig(machines=["DIII-D", "JET"])
         server = FederatedServer(cfg, seed=5)
         state = server.get_state()
@@ -339,7 +344,7 @@ class TestSerialisation:
             )
         assert restored.config.aggregation == "fedavg"
 
-    def test_dp_state_round_trip_preserves_privacy_ledger(self):
+    def test_dp_state_round_trip_preserves_privacy_ledger(self) -> None:
         clients = _make_clients(("DIII-D", "JET"), seed=33)
         cfg = FederatedConfig(
             machines=["DIII-D", "JET"],
@@ -354,7 +359,7 @@ class TestSerialisation:
 
 
 class TestSyntheticMultiFacilityBenchmark:
-    def test_benchmark_reports_bounded_synthetic_evidence(self):
+    def test_benchmark_reports_bounded_synthetic_evidence(self) -> None:
         summary = run_synthetic_multifacility_benchmark(
             machines=("DIII-D", "JET", "KSTAR"),
             n_rounds=2,
@@ -371,31 +376,31 @@ class TestSyntheticMultiFacilityBenchmark:
 class TestConfigValidation:
     """Lines 244-257: FederatedConfig.__post_init__ raises on invalid params."""
 
-    def test_invalid_n_rounds(self):
+    def test_invalid_n_rounds(self) -> None:
         with pytest.raises(ValueError, match="n_rounds"):
             FederatedConfig(n_rounds=0, machines=["DIII-D", "JET"])
 
-    def test_invalid_local_epochs(self):
+    def test_invalid_local_epochs(self) -> None:
         with pytest.raises(ValueError, match="local_epochs"):
             FederatedConfig(local_epochs=0, machines=["DIII-D", "JET"])
 
-    def test_invalid_learning_rate(self):
+    def test_invalid_learning_rate(self) -> None:
         with pytest.raises(ValueError, match="learning_rate"):
             FederatedConfig(learning_rate=-0.01, machines=["DIII-D", "JET"])
 
-    def test_invalid_aggregation(self):
+    def test_invalid_aggregation(self) -> None:
         with pytest.raises(ValueError, match="aggregation"):
             FederatedConfig(aggregation="invalid", machines=["DIII-D", "JET"])
 
-    def test_invalid_mu_proximal(self):
+    def test_invalid_mu_proximal(self) -> None:
         with pytest.raises(ValueError, match="mu_proximal"):
             FederatedConfig(mu_proximal=-1.0, machines=["DIII-D", "JET"])
 
-    def test_invalid_min_clients(self):
+    def test_invalid_min_clients(self) -> None:
         with pytest.raises(ValueError, match="min_clients"):
             FederatedConfig(min_clients=0, machines=["DIII-D", "JET"])
 
-    def test_invalid_machine_name(self):
+    def test_invalid_machine_name(self) -> None:
         with pytest.raises(ValueError, match="Unknown machine"):
             FederatedConfig(machines=["DIII-D", "NONEXISTENT"])
 
@@ -403,9 +408,7 @@ class TestConfigValidation:
 class TestMachineClientValidation:
     """Line 276: MachineClient rejects unknown machine names."""
 
-    def test_unknown_machine_raises(self):
-        from scpn_control.control.federated_disruption import MachineClient
-
+    def test_unknown_machine_raises(self) -> None:
         with pytest.raises(ValueError, match="Unknown machine"):
             MachineClient("TOKAMAK_X", np.zeros((10, 8)), np.zeros(10), np.zeros((5, 8)), np.zeros(5))
 
