@@ -26,7 +26,7 @@ try:
 except ImportError:
     HAS_MPL = False
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -689,79 +689,110 @@ def _model_risk_samples(  # pragma: no cover - requires torch
     return np.asarray(samples, dtype=float)
 
 
-# --- AI: TRANSFORMER MODEL ---
-if torch is not None:  # pragma: no cover
+if TYPE_CHECKING:
 
-    class DisruptionTransformer(nn.Module):  # type: ignore[misc]
-        """Transformer encoder for disruption prediction with MC dropout.
+    class _TorchModule:
+        """Static subset of ``torch.nn.Module`` used by this optional model."""
 
-        Architecture follows Kates-Harbeck et al. 2019, Nature 568, 526 (FRNN)
-        adapted to a single-channel time series with positional encoding.
-        MC dropout uncertainty: Gal & Ghahramani 2016, ICML.
-        """
+        def __init__(self) -> None: ...
 
-        def __init__(self, seq_len: int = DEFAULT_SEQ_LEN, dropout: float = 0.1) -> None:
-            super().__init__()
-            self.seq_len = _normalize_seq_len(seq_len)
-            self.embedding = nn.Linear(1, 32)
-            self.pos_encoder = nn.Parameter(torch.zeros(1, self.seq_len, 32))
-            encoder_layer = nn.TransformerEncoderLayer(
-                d_model=32,
-                nhead=4,
-                dim_feedforward=64,
-                dropout=dropout,
-                batch_first=True,
-            )
-            self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
-            self.classifier = nn.Sequential(
-                nn.Linear(32, 16),
-                nn.ReLU(),
-                nn.Dropout(dropout),
-                nn.Linear(16, 1),
-            )
-            self.sigmoid = nn.Sigmoid()
+        def train(self, mode: bool = True) -> Any: ...
 
-        def forward(self, src: Any) -> Any:
-            """Forward pass of the disruption transformer.
+        def eval(self) -> Any: ...
 
-            Parameters
-            ----------
-            src
-                Input sequence batch, shape ``(batch, seq_len, n_features)``.
+        def parameters(self) -> Any: ...
 
-            Returns
-            -------
-            Any
-                The per-sequence disruption score tensor.
-            """
-            if src.ndim != 3:
-                raise ValueError(f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}.")
-            if src.shape[1] < 1:
-                raise ValueError("Input sequence length must be >= 1.")
-            if src.shape[2] != 1:
-                raise ValueError(f"Input feature dimension must be 1; got {src.shape[2]}.")
-            if src.shape[1] > self.seq_len:
-                raise ValueError(f"Input sequence length {src.shape[1]} exceeds configured seq_len {self.seq_len}.")
-            x = self.embedding(src) + self.pos_encoder[:, : src.shape[1], :]
-            output = self.transformer(x)
-            last_step = output[:, -1, :]
-            return self.sigmoid(self.classifier(last_step))
+        def state_dict(self) -> Any: ...
 
-        def predict_with_uncertainty(self, src: Any, n_samples: int = 10) -> tuple[float, float]:
-            """MC dropout inference returning (mean, std) over n_samples passes."""
-            self.train()
-            samples = []
-            with torch.no_grad():
-                for _ in range(n_samples):
-                    samples.append(float(self.forward(src).item()))
-            return float(np.mean(samples)), float(np.std(samples))
-else:  # pragma: no cover - only used without torch installed
+        def load_state_dict(self, state_dict: Any) -> Any: ...
 
-    class DisruptionTransformer:  # type: ignore[no-redef]
-        """Fallback stub used when torch is unavailable."""
+        def __call__(self, *args: Any, **kwargs: Any) -> Any: ...
 
-        def __init__(self) -> None:
+
+class _DisruptionTransformerImpl:  # pragma: no cover - requires torch for full model
+    """Transformer encoder for disruption prediction with MC dropout.
+
+    Architecture follows Kates-Harbeck et al. 2019, Nature 568, 526 (FRNN)
+    adapted to a single-channel time series with positional encoding.
+    MC dropout uncertainty: Gal & Ghahramani 2016, ICML.
+    """
+
+    def __init__(self, seq_len: int = DEFAULT_SEQ_LEN, dropout: float = 0.1) -> None:
+        if torch is None or nn is None:
             raise RuntimeError("Torch is required for DisruptionTransformer.")
+        super().__init__()
+        self.seq_len = _normalize_seq_len(seq_len)
+        self.embedding = nn.Linear(1, 32)
+        self.pos_encoder = nn.Parameter(torch.zeros(1, self.seq_len, 32))
+        encoder_layer = nn.TransformerEncoderLayer(
+            d_model=32,
+            nhead=4,
+            dim_feedforward=64,
+            dropout=dropout,
+            batch_first=True,
+        )
+        self.transformer = nn.TransformerEncoder(encoder_layer, num_layers=2)
+        self.classifier = nn.Sequential(
+            nn.Linear(32, 16),
+            nn.ReLU(),
+            nn.Dropout(dropout),
+            nn.Linear(16, 1),
+        )
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, src: Any) -> Any:
+        """Forward pass of the disruption transformer.
+
+        Parameters
+        ----------
+        src
+            Input sequence batch, shape ``(batch, seq_len, n_features)``.
+
+        Returns
+        -------
+        Any
+            The per-sequence disruption score tensor.
+        """
+        if src.ndim != 3:
+            raise ValueError(f"Input tensor must have shape [batch, seq, 1]; got rank {src.ndim}.")
+        if src.shape[1] < 1:
+            raise ValueError("Input sequence length must be >= 1.")
+        if src.shape[2] != 1:
+            raise ValueError(f"Input feature dimension must be 1; got {src.shape[2]}.")
+        if src.shape[1] > self.seq_len:
+            raise ValueError(f"Input sequence length {src.shape[1]} exceeds configured seq_len {self.seq_len}.")
+        x = self.embedding(src) + self.pos_encoder[:, : src.shape[1], :]
+        output = self.transformer(x)
+        last_step = output[:, -1, :]
+        return self.sigmoid(self.classifier(last_step))
+
+    def predict_with_uncertainty(self, src: Any, n_samples: int = 10) -> tuple[float, float]:
+        """MC dropout inference returning mean and standard deviation."""
+
+        if torch is None:
+            raise RuntimeError("Torch is required for DisruptionTransformer.")
+        cast(Any, self).train()
+        samples = []
+        with torch.no_grad():
+            for _ in range(n_samples):
+                samples.append(float(self.forward(src).item()))
+        return float(np.mean(samples)), float(np.std(samples))
+
+
+if TYPE_CHECKING:
+
+    class DisruptionTransformer(_DisruptionTransformerImpl, _TorchModule):
+        """Typed public transformer surface for static analysis."""
+
+elif nn is not None:
+
+    class DisruptionTransformer(_DisruptionTransformerImpl, nn.Module):  # pragma: no cover - requires torch
+        """Runtime transformer surface backed by ``torch.nn.Module``."""
+
+else:
+
+    class DisruptionTransformer(_DisruptionTransformerImpl):  # pragma: no cover - optional dependency fallback
+        """Runtime transformer surface that raises until torch is installed."""
 
 
 def train_predictor(  # pragma: no cover - requires torch+matplotlib

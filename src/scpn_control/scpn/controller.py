@@ -17,8 +17,9 @@ from __future__ import annotations
 import json
 import os
 import time
+from importlib import import_module
 from pathlib import Path
-from typing import Callable, Mapping, Sequence, cast
+from typing import Any, Callable, Mapping, Sequence, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -43,21 +44,21 @@ _rust_sample_firing: Callable[[FloatArray, int, int, bool], object] | None = Non
 _FAULT_INJECTION_ENV = "SCPN_ALLOW_CONTROLLER_FAULT_INJECTION"
 
 try:
-    from scpn_control_rs import (  # type: ignore[import-not-found,unused-ignore]  # pragma: no cover
-        scpn_dense_activations as _rust_dense_activations_impl,
+    _rust_runtime = cast(Any, import_module("scpn_control_rs"))  # pragma: no cover
+    _rust_dense_activations = cast(  # pragma: no cover
+        Callable[[FloatArray, FloatArray], object],
+        _rust_runtime.scpn_dense_activations,
     )
-    from scpn_control_rs import (  # pragma: no cover
-        scpn_marking_update as _rust_marking_update_impl,
+    _rust_marking_update = cast(  # pragma: no cover
+        Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object],
+        _rust_runtime.scpn_marking_update,
     )
-    from scpn_control_rs import (  # pragma: no cover
-        scpn_sample_firing as _rust_sample_firing_impl,
+    _rust_sample_firing = cast(  # pragma: no cover
+        Callable[[FloatArray, int, int, bool], object],
+        _rust_runtime.scpn_sample_firing,
     )
-
-    _rust_dense_activations = _rust_dense_activations_impl  # pragma: no cover
-    _rust_marking_update = _rust_marking_update_impl  # pragma: no cover
-    _rust_sample_firing = _rust_sample_firing_impl  # pragma: no cover
     _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover
-except ImportError:
+except (ImportError, AttributeError):
     _HAS_RUST_SCPN_RUNTIME = False
 
 
