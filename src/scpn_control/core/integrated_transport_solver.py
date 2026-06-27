@@ -414,17 +414,20 @@ class TransportSolver(FusionKernel):
 
         # ── Multi-ion species (P1.1) ──
         # Densities in 10^19 m^-3 (same units as ne)
+        self.n_D: AnyFloatArray | None
+        self.n_T: AnyFloatArray | None
+        self.n_He: AnyFloatArray | None
         if self.multi_ion:
             # Species densities inherit ne's floating precision and are reassigned
             # by general-shape numpy reductions during evolution, so AnyFloatArray
             # is the precise storage type here.
-            self.n_D: AnyFloatArray = 0.5 * self.ne.copy()  # Deuterium
-            self.n_T: AnyFloatArray = 0.5 * self.ne.copy()  # Tritium
-            self.n_He: AnyFloatArray = np.zeros(self.nr)  # He-4 ash
+            self.n_D = 0.5 * self.ne.copy()  # Deuterium
+            self.n_T = 0.5 * self.ne.copy()  # Tritium
+            self.n_He = np.zeros(self.nr)  # He-4 ash
         else:
-            self.n_D = None  # type: ignore[assignment]
-            self.n_T = None  # type: ignore[assignment]
-            self.n_He = None  # type: ignore[assignment]
+            self.n_D = None
+            self.n_T = None
+            self.n_He = None
 
         # He-ash pumping time (default 5 * tau_E, ITER design baseline)
         self.tau_He_factor: float = 5.0  # tau_He/tau_E ratio; ITER design basis, Reiter et al.
@@ -1392,18 +1395,22 @@ class TransportSolver(FusionKernel):
           S_He_source — He-ash production rate [10^19 m^-3 / s]
           P_rad_line  — line radiation power density from tungsten [keV / s per 10^19]
         """
-        if not self.multi_ion or self.n_D is None:
+        if not self.multi_ion or self.n_D is None or self.n_T is None or self.n_He is None:
             self._last_particle_balance_error = 0.0
             return np.zeros(self.nr), np.zeros(self.nr)
 
+        n_D = self.n_D
+        n_T = self.n_T
+        n_He = self.n_He
+
         # Particle inventory before evolution (10^19 m^-3 units × volume)
         dV = self._rho_volume_element()
-        N_before = float(np.sum((self.n_D + self.n_T + self.n_He) * 1e19 * dV))
+        N_before = float(np.sum((n_D + n_T + n_He) * 1e19 * dV))
 
         # Fusion source: S_fus = n_D * n_T * <sigma_v> (reactions per m^3 per s)
         # n_D, n_T are in 10^19 m^-3 => multiply by (1e19)^2
         sigmav = self._bosch_hale_sigmav(self.Ti)
-        S_fus = (self.n_D * 1e19) * (self.n_T * 1e19) * sigmav  # reactions/m^3/s
+        S_fus = (n_D * 1e19) * (n_T * 1e19) * sigmav  # reactions/m^3/s
 
         # He-ash source (in 10^19 m^-3 / s) — one He per fusion reaction
         S_He = S_fus / 1e19
@@ -1411,7 +1418,7 @@ class TransportSolver(FusionKernel):
         # He-ash sink: pumping with tau_He (default 5 * tau_E)
         tau_E = self.compute_confinement_time(1.0)  # rough estimate
         tau_He = max(self.tau_He_factor * tau_E, 0.5)  # floor at 0.5 s
-        S_He_pump = self.n_He / tau_He
+        S_He_pump = n_He / tau_He
 
         # D and T consumption rate (in 10^19 / s)
         S_fuel = S_fus / 1e19
@@ -1433,25 +1440,29 @@ class TransportSolver(FusionKernel):
 
         for _ in range(n_sub):
             # Evolve D
-            new_D = self.n_D + dt_sub * (_diffuse(self.n_D) - S_fuel)
+            new_D = n_D + dt_sub * (_diffuse(n_D) - S_fuel)
             new_D[0] = new_D[1]  # Neumann at axis
             new_D[-1] = 0.01  # edge recycling floor
-            self.n_D = np.maximum(0.001, new_D)
+            n_D = np.maximum(0.001, new_D)
 
             # Evolve T
-            new_T = self.n_T + dt_sub * (_diffuse(self.n_T) - S_fuel)
+            new_T = n_T + dt_sub * (_diffuse(n_T) - S_fuel)
             new_T[0] = new_T[1]
             new_T[-1] = 0.01
-            self.n_T = np.maximum(0.001, new_T)
+            n_T = np.maximum(0.001, new_T)
 
             # Evolve He-ash
-            new_He = self.n_He + dt_sub * (_diffuse(self.n_He) + S_He - S_He_pump)
+            new_He = n_He + dt_sub * (_diffuse(n_He) + S_He - S_He_pump)
             new_He[0] = new_He[1]
             new_He[-1] = 0.0
-            self.n_He = np.maximum(0.0, new_He)
+            n_He = np.maximum(0.0, new_He)
+
+        self.n_D = n_D
+        self.n_T = n_T
+        self.n_He = n_He
 
         # Particle balance diagnostic
-        N_after = float(np.sum((self.n_D + self.n_T + self.n_He) * 1e19 * dV))
+        N_after = float(np.sum((n_D + n_T + n_He) * 1e19 * dV))
         dN_actual = N_after - N_before
         # Relative error (includes boundary flux + clipping residuals)
         self._last_particle_balance_error = abs(dN_actual - dN_source_expected) / max(abs(N_before), 1e-10)
@@ -1461,17 +1472,14 @@ class TransportSolver(FusionKernel):
         # state in ITER edge conditions (Te ~ 1-5 keV); full coronal model
         # gives Z_W ~ 8-20, we use 10 as representative mid-range.
         Z_W = 10.0
-        self.ne = self.n_D + self.n_T + 2.0 * self.n_He + Z_W * np.maximum(self.n_impurity, 0.0)
+        self.ne = n_D + n_T + 2.0 * n_He + Z_W * np.maximum(self.n_impurity, 0.0)
         self.ne = np.maximum(self.ne, 0.1)
 
         # Z_eff
         ne_m3 = self.ne * 1e19
         ne_safe = np.maximum(ne_m3, 1e10)
         sum_nZ2 = (
-            self.n_D * 1e19 * 1.0
-            + self.n_T * 1e19 * 1.0
-            + self.n_He * 1e19 * 4.0
-            + np.maximum(self.n_impurity, 0.0) * 1e19 * Z_W**2
+            n_D * 1e19 * 1.0 + n_T * 1e19 * 1.0 + n_He * 1e19 * 4.0 + np.maximum(self.n_impurity, 0.0) * 1e19 * Z_W**2
         )
         self._Z_eff = float(np.clip(np.mean(sum_nZ2 / ne_safe), 1.0, 10.0))
 
