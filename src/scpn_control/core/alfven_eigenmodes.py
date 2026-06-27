@@ -160,7 +160,7 @@ class AlfvenContinuum:
                 # idx comes from a sign change of (q - q_gap) across [idx, idx+1], which
                 # requires q1 and q2 to straddle q_gap, so q1 == q2 is unreachable here.
                 if q1 == q2:
-                    continue  # pragma: no cover
+                    continue  # pragma: no cover - defensive duplicate-gap branch
 
                 frac = (q_gap - q1) / (q2 - q1)
                 rho_gap = r1 + frac * (r2 - r1)

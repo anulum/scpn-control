@@ -491,7 +491,7 @@ def solve_eigenvalue_single_ky(
                 # Defensive: a vanishing dispersion derivative is a degenerate,
                 # measure-zero condition that physical inputs do not reach; the
                 # guard prevents a division by zero in the Newton step below.
-                break  # pragma: no cover
+                break  # pragma: no cover - defensive iterative-convergence exit
             step = d / dd
             # Damped Newton to prevent overshoot
             if abs(step) > 2.0 * scale:

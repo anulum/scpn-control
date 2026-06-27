@@ -189,7 +189,7 @@ class TwoPointSOL:
         sheath_denom = GAMMA_SHEATH * n_u * max(T_u, 0.1) * e_charge
         if sheath_denom > 0.0:
             T_t_sheath = (2.0 * q_par_t_W_m2 / sheath_denom) ** 2 * m_i / e_charge
-        else:  # pragma: no cover
+        else:  # pragma: no cover - defensive geometry branch
             T_t_sheath = 0.1
 
         T_t = max(T_t_cond, T_t_sheath, 0.1)

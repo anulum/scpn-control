@@ -33,9 +33,9 @@ import numpy as np
 from scpn_control._typing import FloatArray
 
 try:
-    import torch  # pragma: no cover
-    import torch.nn as nn  # pragma: no cover
-    import torch.optim as optim  # pragma: no cover
+    import torch  # pragma: no cover - optional torch model path
+    import torch.nn as nn  # pragma: no cover - optional torch model path
+    import torch.optim as optim  # pragma: no cover - optional torch model path
 except ImportError:  # pragma: no cover - optional dependency path
     torch = None
     nn = None

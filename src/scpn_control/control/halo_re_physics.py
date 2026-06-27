@@ -813,7 +813,9 @@ def disruption_mitigation_claim_evidence(
         # The external validator's _ALLOWED_SOURCES mirrors this set, so an
         # inadmissible source already fails strict validation above; defence in depth.
         if reference_source not in _DISRUPTION_REFERENCE_SOURCES:
-            raise ValueError("disruption reference source is not admissible")  # pragma: no cover
+            raise ValueError(
+                "disruption reference source is not admissible"
+            )  # pragma: no cover - validator rejects invalid reference metadata earlier
         reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
         reference_artifact_sha256 = _non_empty_text(
             "reference_artifact_sha256", str(payload["reference_artifact_sha256"])
@@ -822,7 +824,9 @@ def disruption_mitigation_claim_evidence(
         # The external validator already rejects reference_case_count <= 0, so strict
         # validation above fails first; defence in depth.
         if reference_case_count < 1:
-            raise ValueError("reference_case_count must be positive")  # pragma: no cover
+            raise ValueError(
+                "reference_case_count must be positive"
+            )  # pragma: no cover - validator rejects invalid reference metadata earlier
         metrics = dict(payload["metrics"])
         tolerances = dict(payload["tolerances"])
         claim_allowed = True

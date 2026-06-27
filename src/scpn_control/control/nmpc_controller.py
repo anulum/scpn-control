@@ -1290,7 +1290,9 @@ class NonlinearMPC:
         except ImportError as exc:
             raise ImportError("qp_backend='casadi' requires the optional casadi package.") from exc
 
-        return self._solve_qp_casadi_impl(ca, A_k, B_k, P_term, u_prev, x_ref)  # pragma: no cover
+        return self._solve_qp_casadi_impl(
+            ca, A_k, B_k, P_term, u_prev, x_ref
+        )  # pragma: no cover - optional CasADi backend path
 
     def _solve_qp_casadi_impl(  # pragma: no cover - casadi optional dep, absent on CI
         self,

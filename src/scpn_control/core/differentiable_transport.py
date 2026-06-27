@@ -791,10 +791,10 @@ def assert_transport_differentiability_claim_admissible(
     # enforces audit.passed == (max_abs_error <= tolerance), and a passed audit is
     # required earlier, so these error-versus-tolerance re-checks cannot fire. They
     # are retained as a redundant fail-closed guard but are unreachable for coverage.
-    if isinstance(audit, TransportRolloutGradientAudit):  # pragma: no cover
+    if isinstance(audit, TransportRolloutGradientAudit):  # pragma: no cover - defensive audit-shape invariant
         if audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability rollout source-gradient error exceeds tolerance")
-    else:  # pragma: no cover
+    else:  # pragma: no cover - defensive audit-shape invariant
         if audit.chi_max_abs_error > audit.tolerance or audit.source_max_abs_error > audit.tolerance:
             raise ValueError("transport differentiability parameter-gradient error exceeds tolerance")
     return evidence
@@ -858,7 +858,7 @@ def transport_full_fidelity_readiness_evidence(
     # backend for each report and _assert_latency_report_matches_campaign requires
     # the campaign backend to match, so by this point every backend is "jax". This
     # block is a redundant fail-closed guard and cannot add the reason in practice.
-    if (  # pragma: no cover
+    if (  # pragma: no cover - defensive audit-shape invariant
         metadata.backend != "jax"
         or gradient_report.backend != "jax"
         or (rollout_report is not None and rollout_report.backend != "jax")
@@ -2051,7 +2051,7 @@ def audit_transport_parameter_gradients(
     # Defence-in-depth: transport_parameter_gradients (called above) already rejects
     # a missing target_profiles, so this re-check after input validation is a
     # redundant fail-closed guard that cannot be reached.
-    if target_array is None:  # pragma: no cover
+    if target_array is None:  # pragma: no cover - defensive audit-shape invariant
         raise ValueError("target_profiles is required")
     if weight_array is None:
         weight_array = np.ones(CHANNEL_COUNT)

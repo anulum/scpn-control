@@ -118,7 +118,7 @@ def find_rational_surfaces(
                 # A sign change in (q - q_target) between idx and idx+1 implies
                 # q1 != q2; equal endpoints share a sign and produce no crossing,
                 # so this divide-by-zero guard is unreachable for detected crossings.
-                if q1 == q2:  # pragma: no cover
+                if q1 == q2:  # pragma: no cover - defensive interpolation edge case
                     continue
 
                 frac = (q_target - q1) / (q2 - q1)
@@ -258,7 +258,7 @@ def bootstrap_from_local(
     p_e = n_e_si * T_e_J
     # ne_19 and Te_keV are validated strictly positive above, so the electron
     # pressure is strictly positive and this degeneracy guard never fires.
-    if p_e <= 0.0:  # pragma: no cover
+    if p_e <= 0.0:  # pragma: no cover - defensive interpolation edge case
         return 0.0
 
     # Wesson 2011, Eq. 14.2.3 (same as neoclassical.py)

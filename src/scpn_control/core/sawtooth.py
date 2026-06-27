@@ -253,7 +253,7 @@ class SawtoothMonitor:
         # A detected q=1 sign change requires q1 and q2 to straddle 1.0, so they
         # cannot be equal; this guards a degenerate input and is unreachable.
         if q1 == q2:
-            return float(r1)  # pragma: no cover
+            return float(r1)  # pragma: no cover - defensive sawtooth edge-case branch
         frac = (1.0 - q1) / (q2 - q1)
         return float(r1 + frac * (r2 - r1))
 
@@ -291,14 +291,14 @@ class SawtoothMonitor:
         # defensive and unreachable, as is the equal-abscissa arm (rho is
         # strictly increasing).
         if idx == 0:
-            s1 = shear[0]  # pragma: no cover
+            s1 = shear[0]  # pragma: no cover - defensive sawtooth edge-case branch
         elif idx >= len(self.rho):
-            s1 = shear[-1]  # pragma: no cover
+            s1 = shear[-1]  # pragma: no cover - defensive sawtooth edge-case branch
         else:
             r1, r2 = self.rho[idx - 1], self.rho[idx]
             s_1, s_2 = shear[idx - 1], shear[idx]
             if r1 == r2:
-                s1 = s_1  # pragma: no cover
+                s1 = s_1  # pragma: no cover - defensive sawtooth edge-case branch
             else:
                 frac = (rho_1 - r1) / (r2 - r1)
                 s1 = s_1 + frac * (s_2 - s_1)
@@ -347,14 +347,14 @@ def kadomtsev_crash(
                 # ψ* is positive at the q=1 surface (q<1 inside) and decreases
                 # outward, so the first non-positive sample always has a positive
                 # predecessor; this else is defensive and unreachable.
-                rho_mix = rho[i]  # pragma: no cover
+                rho_mix = rho[i]  # pragma: no cover - defensive sawtooth edge-case branch
             break
 
     idx_mix = np.searchsorted(rho, rho_mix)
     # rho_mix lies at or beyond the q=1 surface (>= rho[1]), so its insertion
     # index is always >= 1; this guard is defensive and unreachable.
     if idx_mix == 0:
-        return T.copy(), n.copy(), q.copy(), rho_1, rho_mix  # pragma: no cover
+        return T.copy(), n.copy(), q.copy(), rho_1, rho_mix  # pragma: no cover - defensive sawtooth edge-case branch
 
     rho_inner = rho[:idx_mix]
 

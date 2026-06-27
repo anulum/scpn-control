@@ -864,7 +864,7 @@ class RealtimeEFIT:
         # mask is empty, which the psi_max guard above already returns for; this
         # is defence in depth and is unreachable.
         if r_idx.size == 0:
-            return np.empty((0, 2), dtype=float)  # pragma: no cover
+            return np.empty((0, 2), dtype=float)  # pragma: no cover - defensive empty-contour fallback
 
         points = np.column_stack((self.R[r_idx], self.Z[z_idx]))
         centroid = np.mean(points, axis=0)

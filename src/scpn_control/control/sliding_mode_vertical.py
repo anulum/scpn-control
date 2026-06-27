@@ -156,6 +156,6 @@ def estimate_convergence_time(alpha: float, beta: float, L_max: float, s0: float
     # The guard above already returns when alpha <= sqrt(2 L_max), so denom is
     # strictly positive here; this is a redundant defensive check.
     if denom <= 0:
-        return float("inf")  # pragma: no cover
+        return float("inf")  # pragma: no cover - defensive zero-denominator fallback
 
     return 2.0 * math.sqrt(abs(s0)) / denom

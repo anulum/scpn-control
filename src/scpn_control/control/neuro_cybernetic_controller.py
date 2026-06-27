@@ -34,10 +34,14 @@ from scpn_control.control import solve_kernel
 try:
     # sc_neurocore is an optional dependency, uninstalled on the CI coverage job;
     # the success-path imports below are therefore unreachable there.
-    from sc_neurocore.neurons.stochastic_lif import StochasticLIFNeuron  # pragma: no cover
-    from sc_neurocore.sources.quantum_entropy import QuantumEntropySource  # pragma: no cover
+    from sc_neurocore.neurons.stochastic_lif import (
+        StochasticLIFNeuron,
+    )  # pragma: no cover - optional sc-neurocore integration path
+    from sc_neurocore.sources.quantum_entropy import (
+        QuantumEntropySource,
+    )  # pragma: no cover - optional sc-neurocore integration path
 
-    SC_NEUROCORE_AVAILABLE = True  # pragma: no cover
+    SC_NEUROCORE_AVAILABLE = True  # pragma: no cover - optional sc-neurocore integration path
 except ImportError:  # pragma: no cover - optional dependency path
     SC_NEUROCORE_AVAILABLE = False
     StochasticLIFNeuron = None
@@ -56,9 +60,11 @@ _SAFETY_STATE_SAFE_SHUTDOWN = "safe_shutdown"
 def _resolve_fusion_kernel() -> Any:
     """Resolve FusionKernel lazily to keep pool-only paths dependency-light."""
     try:
-        from scpn_control.core._rust_compat import FusionKernel as _FusionKernel  # pragma: no cover
+        from scpn_control.core._rust_compat import (
+            FusionKernel as _FusionKernel,
+        )  # pragma: no cover - optional sc-neurocore integration path
 
-        return _FusionKernel  # pragma: no cover
+        return _FusionKernel  # pragma: no cover - optional sc-neurocore integration path
     except ImportError:
         try:
             from scpn_control.core.fusion_kernel import FusionKernel as _FusionKernel

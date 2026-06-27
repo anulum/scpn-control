@@ -185,7 +185,7 @@ class Z3BoundedModelChecker:
         # Unreachable by SMT soundness: a `sat` result on the disjunction of
         # out-of-bounds terms guarantees at least one (step, place) violates, so
         # the loop above always returns. The raise is a fail-closed guard.
-        raise RuntimeError(  # pragma: no cover
+        raise RuntimeError(  # pragma: no cover - optional Z3 solver state invariant
             "Z3 returned a model without an identifiable marking-bound violation."
         )
 
@@ -459,7 +459,7 @@ class Z3BoundedModelChecker:
                 return Z3ModelCheckingReport(False, "z3", max_depth, "sat", [violation], [spec.name])
         # Unreachable by SMT soundness: a `sat` co-marking disjunction guarantees
         # some step has both places above threshold, so the loop returns first.
-        raise RuntimeError(  # pragma: no cover
+        raise RuntimeError(  # pragma: no cover - optional Z3 solver state invariant
             "Z3 returned a model without an identifiable co-marking violation."
         )
 

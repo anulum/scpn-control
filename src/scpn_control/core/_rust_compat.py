@@ -51,7 +51,7 @@ try:
         solve_coil_currents,
     )
 
-    _RUST_AVAILABLE = True  # pragma: no cover
+    _RUST_AVAILABLE = True  # pragma: no cover - optional Rust backend path
 except ImportError:
     _RUST_AVAILABLE = False
 
@@ -74,12 +74,12 @@ def _normalise_rust_config_path(config_path: str) -> tuple[dict[str, Any], str, 
     normalised_config = _fusion_kernel_config_dump(_parse_fusion_kernel_config(raw_config))
     physics_config_any = normalised_config.setdefault("physics", {})
     # _fusion_kernel_config_dump always yields a dict for physics/solver; defensive re-checks.
-    if not isinstance(physics_config_any, dict):  # pragma: no cover
+    if not isinstance(physics_config_any, dict):  # pragma: no cover - optional Rust backend path
         raise ValueError("physics configuration must be an object")
     physics_config: dict[str, Any] = physics_config_any
     physics_config.setdefault("vacuum_permeability", 1.0)
     solver_config_any = normalised_config.setdefault("solver", {})
-    if not isinstance(solver_config_any, dict):  # pragma: no cover
+    if not isinstance(solver_config_any, dict):  # pragma: no cover - optional Rust backend path
         raise ValueError("solver configuration must be an object")
     solver_config: dict[str, Any] = solver_config_any
     solver_config.setdefault("solver_method", "sor")
@@ -209,9 +209,11 @@ class RustAcceleratedKernel:
         """Get current solver method name."""
         if hasattr(self._rust, "solver_method"):
             return str(self._rust.solver_method())
-        return "sor"  # pragma: no cover
+        return "sor"  # pragma: no cover - optional Rust backend path
 
-    def calculate_thermodynamics(self, p_aux_mw: float = 50.0) -> dict[str, Any]:  # pragma: no cover
+    def calculate_thermodynamics(
+        self, p_aux_mw: float = 50.0
+    ) -> dict[str, Any]:  # pragma: no cover - optional Rust backend path
         """D-T fusion thermodynamics from current equilibrium (Rust backend)."""
         return dict(self._rust.calculate_thermodynamics(p_aux_mw))
 
@@ -224,7 +226,7 @@ class RustAcceleratedKernel:
 
 FusionKernel: Any
 
-if _RUST_AVAILABLE:  # pragma: no cover
+if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
     FusionKernel = RustAcceleratedKernel
     RUST_BACKEND = True
 else:  # pragma: no cover - rust-absent fallback; exercised by the rust-free python-tests CI job
@@ -232,7 +234,7 @@ else:  # pragma: no cover - rust-absent fallback; exercised by the rust-free pyt
 
 
 # Re-export Rust-only helpers (with compatibility shims where needed)
-if _RUST_AVAILABLE:  # pragma: no cover
+if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
 
     def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
         """Compatibility wrapper for legacy config-path invocation.
@@ -284,9 +286,9 @@ def rust_bosch_hale_dt(t_kev: float) -> float:
     """Bosch-Hale D-T reaction rate [m³/s] at temperature t_kev [keV]."""
     if not _RUST_AVAILABLE:  # pragma: no cover - rust-absent guard; exercised by the rust-free python-tests CI job
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
-    from scpn_control_rs import bosch_hale_dt  # pragma: no cover
+    from scpn_control_rs import bosch_hale_dt  # pragma: no cover - optional Rust backend path
 
-    return float(bosch_hale_dt(float(t_kev)))  # pragma: no cover
+    return float(bosch_hale_dt(float(t_kev)))  # pragma: no cover - optional Rust backend path
 
 
 class RustSnnPool:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
@@ -305,9 +307,9 @@ class RustSnnPool:  # pragma: no cover - rust wrapper (covered by rust-python-in
     """
 
     def __init__(self, n_neurons: int = 50, gain: float = 10.0, window_size: int = 20):
-        from scpn_control_rs import PySnnPool  # pragma: no cover
+        from scpn_control_rs import PySnnPool  # pragma: no cover - optional Rust backend path
 
-        self._inner = PySnnPool(n_neurons, gain, window_size)  # pragma: no cover
+        self._inner = PySnnPool(n_neurons, gain, window_size)  # pragma: no cover - optional Rust backend path
 
     def step(self, error: float) -> float:
         """Process *error* through SNN pool and return scalar control output."""
@@ -339,9 +341,9 @@ class RustSnnController:  # pragma: no cover - rust wrapper (covered by rust-pyt
     """
 
     def __init__(self, target_r: float = 6.2, target_z: float = 0.0):
-        from scpn_control_rs import PySnnController  # pragma: no cover
+        from scpn_control_rs import PySnnController  # pragma: no cover - optional Rust backend path
 
-        self._inner = PySnnController(target_r, target_z)  # pragma: no cover
+        self._inner = PySnnController(target_r, target_z)  # pragma: no cover - optional Rust backend path
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
         """Process measured (R, Z) position and return (ctrl_R, ctrl_Z)."""
@@ -360,7 +362,7 @@ class RustSnnController:  # pragma: no cover - rust wrapper (covered by rust-pyt
         return f"RustSnnController(target_r={self.target_r}, target_z={self.target_z})"
 
 
-if _RUST_AVAILABLE:  # pragma: no cover
+if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
 
     class _NativeRustUdpTransportBridge:
         """Python wrapper for zero-copy Rust UDP transport publisher."""
@@ -383,7 +385,7 @@ if _RUST_AVAILABLE:  # pragma: no cover
                 str(backend),
                 int(heartbeat_port),
                 int(heartbeat_timeout_ms),
-            )  # pragma: no cover
+            )  # pragma: no cover - optional Rust backend path
 
         def start(self) -> None:
             """Start the background UDP publisher worker."""
@@ -480,7 +482,7 @@ else:  # pragma: no cover - rust-absent fallback bridge; exercised by the rust-f
 
 
 RustUdpTransportBridge: type[_NativeRustUdpTransportBridge] | type[_FallbackRustUdpTransportBridge]
-if _RUST_AVAILABLE:  # pragma: no cover
+if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
     RustUdpTransportBridge = _NativeRustUdpTransportBridge
 else:  # pragma: no cover - rust-absent selector; exercised by the rust-free python-tests CI job
     RustUdpTransportBridge = _FallbackRustUdpTransportBridge
@@ -532,39 +534,39 @@ class RustPIDController:
 
     def __init__(self, kp: float, ki: float, kd: float):
         try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
 
-            self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover
+            self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover - optional Rust backend path
             self._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover
-            self._inner = self._PurePythonPID(kp, ki, kd)  # pragma: no cover
+        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
+            self._inner = self._PurePythonPID(kp, ki, kd)  # pragma: no cover - optional Rust backend path
             self._mode = "fallback"
 
     @classmethod
     def radial(cls) -> "RustPIDController":
-        obj = cls.__new__(cls)  # pragma: no cover
+        obj = cls.__new__(cls)  # pragma: no cover - optional Rust backend path
         try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
 
-            obj._inner = PyPIDController.radial()  # pragma: no cover
+            obj._inner = PyPIDController.radial()  # pragma: no cover - optional Rust backend path
             obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover
-            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
+        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
+            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover - optional Rust backend path
             obj._mode = "fallback"
-        return obj  # pragma: no cover
+        return obj  # pragma: no cover - optional Rust backend path
 
     @classmethod
     def vertical(cls) -> "RustPIDController":
-        obj = cls.__new__(cls)  # pragma: no cover
+        obj = cls.__new__(cls)  # pragma: no cover - optional Rust backend path
         try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover
+            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
 
-            obj._inner = PyPIDController.vertical()  # pragma: no cover
+            obj._inner = PyPIDController.vertical()  # pragma: no cover - optional Rust backend path
             obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover
-            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover
+        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
+            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover - optional Rust backend path
             obj._mode = "fallback"
-        return obj  # pragma: no cover
+        return obj  # pragma: no cover - optional Rust backend path
 
     def step(self, error: float) -> float:
         return float(self._inner.step(error))
@@ -599,14 +601,16 @@ class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust
 
     def __init__(self, target_r: float, target_z: float):
         try:
-            from scpn_control_rs import PyIsoFluxController  # pragma: no cover
+            from scpn_control_rs import PyIsoFluxController  # pragma: no cover - optional Rust backend path
 
-            self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover
-            self._mode = "rust"  # pragma: no cover
-        except (ImportError, AttributeError):  # pragma: no cover
-            from scpn_control_rs import PySnnController  # pragma: no cover
+            self._inner = PyIsoFluxController(target_r, target_z)  # pragma: no cover - optional Rust backend path
+            self._mode = "rust"  # pragma: no cover - optional Rust backend path
+        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
+            from scpn_control_rs import PySnnController  # pragma: no cover - optional Rust backend path
 
-            self._inner = PySnnController(float(target_r), float(target_z))  # pragma: no cover
+            self._inner = PySnnController(
+                float(target_r), float(target_z)
+            )  # pragma: no cover - optional Rust backend path
             self._mode = "fallback"
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
@@ -653,13 +657,15 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
         u_max: float = 10.0,
         dt: float = 1e-3,
     ):
-        from scpn_control_rs import PyHInfController  # pragma: no cover
+        from scpn_control_rs import PyHInfController  # pragma: no cover - optional Rust backend path
 
-        a = np.array([[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64)  # pragma: no cover
-        b2 = np.array([[0.0], [1.0]], dtype=np.float64)  # pragma: no cover
-        c2 = np.array([[1.0, 0.0]], dtype=np.float64)  # pragma: no cover
-        self._inner = PyHInfController(a, b2, c2, gamma, dt)  # pragma: no cover
-        self._u_max = u_max  # pragma: no cover
+        a = np.array(
+            [[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64
+        )  # pragma: no cover - optional Rust backend path
+        b2 = np.array([[0.0], [1.0]], dtype=np.float64)  # pragma: no cover - optional Rust backend path
+        c2 = np.array([[1.0, 0.0]], dtype=np.float64)  # pragma: no cover - optional Rust backend path
+        self._inner = PyHInfController(a, b2, c2, gamma, dt)  # pragma: no cover - optional Rust backend path
+        self._u_max = u_max  # pragma: no cover - optional Rust backend path
 
     def step(self, y: float, dt: float) -> float:
         """Measurement y → control u (observer-based, saturation-limited)."""
@@ -701,10 +707,17 @@ def rust_multigrid_vcycle(
     tuple of (psi, residual, n_cycles, converged)
     """
     try:
-        from scpn_control_rs import multigrid_vcycle as _rust_mg  # pragma: no cover
+        from scpn_control_rs import multigrid_vcycle as _rust_mg  # pragma: no cover - optional Rust backend path
 
-        result = _rust_mg(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)  # pragma: no cover
-        return (np.asarray(result[0]), float(result[1]), int(result[2]), bool(result[3]))  # pragma: no cover
+        result = _rust_mg(
+            source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles
+        )  # pragma: no cover - optional Rust backend path
+        return (
+            np.asarray(result[0]),
+            float(result[1]),
+            int(result[2]),
+            bool(result[3]),
+        )  # pragma: no cover - optional Rust backend path
     except ImportError:
         return _python_multigrid_vcycle(source, psi_bc, r_min, r_max, z_min, z_max, nr, nz, tol, max_cycles)
 
@@ -776,10 +789,10 @@ class RustSPIMitigation:
                 raise ValueError(f"{name} must be finite and > 0, got {val}")
 
         try:
-            from scpn_control_rs import PySPIMitigation  # pragma: no cover
+            from scpn_control_rs import PySPIMitigation  # pragma: no cover - optional Rust backend path
 
-            self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)  # pragma: no cover
-            self._use_rust = True  # pragma: no cover
+            self._inner = PySPIMitigation(w_th_mj, ip_ma, te_kev)  # pragma: no cover - optional Rust backend path
+            self._use_rust = True  # pragma: no cover - optional Rust backend path
         except ImportError:
             self._use_rust = False
             self._w_th = w_th_mj * 1e6  # J
@@ -788,7 +801,7 @@ class RustSPIMitigation:
 
     def run(self) -> list[dict[str, Any]]:
         """Run full SPI simulation and return snapshot history."""
-        if self._use_rust:  # pragma: no cover
+        if self._use_rust:  # pragma: no cover - optional Rust backend path
             return list(self._inner.run())
 
         w_th, ip, te = self._w_th, self._ip, self._te
@@ -853,9 +866,9 @@ def rust_svd_optimal_correction(
         Coil current deltas.
     """
     try:
-        from scpn_control_rs import svd_optimal_correction as _rust_svd  # pragma: no cover
+        from scpn_control_rs import svd_optimal_correction as _rust_svd  # pragma: no cover - optional Rust backend path
 
-        return np.asarray(  # pragma: no cover
+        return np.asarray(  # pragma: no cover - optional Rust backend path
             _rust_svd(
                 np.ascontiguousarray(response_matrix, dtype=np.float64),
                 np.ascontiguousarray(error, dtype=np.float64),

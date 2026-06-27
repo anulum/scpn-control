@@ -491,7 +491,9 @@ class VerticalStabilityAnalysis:
         # increasing, so the finite-difference field and its radial gradient are
         # finite everywhere; this guard is defence in depth and is unreachable.
         if not np.isfinite(dBz_dR_at_r0):
-            raise ValueError("vertical field radial gradient is not finite")  # pragma: no cover
+            raise ValueError(
+                "vertical field radial gradient is not finite"
+            )  # pragma: no cover - validator rejects non-finite gradient earlier
 
         return float(-(r0 / bz_at_r0) * dBz_dR_at_r0)
 

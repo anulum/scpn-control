@@ -40,9 +40,9 @@ KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED = "qualified_kuramoto_runtime_evidence"
 
 # Rust fast-path (sub-ms for N > 1000)
 try:
-    from scpn_control_rs import kuramoto_step as _rust_step  # pragma: no cover
+    from scpn_control_rs import kuramoto_step as _rust_step  # pragma: no cover - optional Rust Kuramoto backend path
 
-    RUST_KURAMOTO = True  # pragma: no cover
+    RUST_KURAMOTO = True  # pragma: no cover - optional Rust Kuramoto backend path
 except ImportError:
     RUST_KURAMOTO = False
 

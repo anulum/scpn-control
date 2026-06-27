@@ -46,12 +46,21 @@ _HAS_NEUROCORE_V3 = False
 
 try:
     from sc_neurocore import RNG as _SC_RNG  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
-    from sc_neurocore import StochasticLIFNeuron, generate_bernoulli_bitstream  # pragma: no cover
-    from sc_neurocore.accel import sc_forward  # pragma: no cover
-    from sc_neurocore.accel.vector_ops import pack_bitstream, vec_and, vec_popcount  # pragma: no cover
+    from sc_neurocore import (
+        StochasticLIFNeuron,
+        generate_bernoulli_bitstream,
+    )  # pragma: no cover - optional sc-neurocore integration path
+    from sc_neurocore.accel import sc_forward  # pragma: no cover - optional sc-neurocore integration path
+    from sc_neurocore.accel.vector_ops import (
+        pack_bitstream,
+        vec_and,
+        vec_popcount,
+    )  # pragma: no cover - optional sc-neurocore integration path
 
-    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True  # pragma: no cover
-    logger.info("sc_neurocore v3.16.0+ detected — sc_forward inference + Rust backend")  # pragma: no cover
+    _HAS_SC_NEUROCORE = _HAS_NEUROCORE_V3 = True  # pragma: no cover - optional sc-neurocore integration path
+    logger.info(
+        "sc_neurocore v3.16.0+ detected — sc_forward inference + Rust backend"
+    )  # pragma: no cover - optional sc-neurocore integration path
 except ImportError:
     try:
         from sc_neurocore import RNG as _SC_RNG

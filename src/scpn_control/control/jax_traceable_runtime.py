@@ -27,9 +27,9 @@ except ImportError:
     _HAS_JAX = False
 
 try:
-    import torch  # pragma: no cover
+    import torch  # pragma: no cover - optional TorchScript backend path
 
-    _HAS_TORCH = True  # pragma: no cover
+    _HAS_TORCH = True  # pragma: no cover - optional TorchScript backend path
 except ImportError:
     torch = None
     _HAS_TORCH = False
@@ -248,7 +248,7 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:  # pragma: no cover - to
     # torch.jit.script compiles the following bodies to TorchScript IR; the
     # torchscript backend tests exercise them, but coverage.py cannot observe
     # JIT-compiled execution, so the kernel bodies are marked no cover.
-    def _rollout_impl(  # pragma: no cover
+    def _rollout_impl(  # pragma: no cover - optional TorchScript backend path
         cmd: torch.Tensor,
         initial_state: float,
         alpha: float,
@@ -264,7 +264,7 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:  # pragma: no cover - to
             out[i] = state
         return out
 
-    def _rollout_batch_impl(  # pragma: no cover
+    def _rollout_batch_impl(  # pragma: no cover - optional TorchScript backend path
         cmd: torch.Tensor,
         initial_state: torch.Tensor,
         alpha: float,
@@ -294,7 +294,7 @@ def _compile_torchscript_rollouts() -> tuple[Any, Any]:  # pragma: no cover - to
 
 def _simulate_torchscript(
     commands: FloatArray, initial_state: float, spec: TraceableRuntimeSpec
-) -> FloatArray:  # pragma: no cover
+) -> FloatArray:  # pragma: no cover - optional TorchScript backend path
     rollout, _ = _compile_torchscript_rollouts()
 
     cmd = torch.as_tensor(commands, dtype=torch.float64)
@@ -347,7 +347,7 @@ def _simulate_jax_batch(commands: FloatArray, initial_state: FloatArray, spec: T
     return np.asarray(hist, dtype=np.float64)
 
 
-def _simulate_torchscript_batch(  # pragma: no cover
+def _simulate_torchscript_batch(  # pragma: no cover - optional TorchScript backend path
     commands: FloatArray, initial_state: FloatArray, spec: TraceableRuntimeSpec
 ) -> FloatArray:
     _, rollout_batch = _compile_torchscript_rollouts()
@@ -399,7 +399,7 @@ def run_traceable_control_loop(
             compiled=True,
         )
 
-    if b == "torchscript":  # pragma: no cover
+    if b == "torchscript":  # pragma: no cover - optional TorchScript backend path
         return TraceableRuntimeResult(
             state_history=_simulate_torchscript(cmd_arr, x0, runtime_spec),
             backend_used="torchscript",
@@ -458,7 +458,7 @@ def run_traceable_control_batch(
             backend_used="jax",
             compiled=True,
         )
-    if b == "torchscript":  # pragma: no cover
+    if b == "torchscript":  # pragma: no cover - optional TorchScript backend path
         return TraceableRuntimeBatchResult(
             state_history=_simulate_torchscript_batch(cmd_arr, x0, runtime_spec),
             backend_used="torchscript",

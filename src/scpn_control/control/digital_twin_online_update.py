@@ -389,7 +389,7 @@ def assert_digital_twin_update_claim_admissible(
     # The recomputation above runs _validate_update_inputs, which already rejects
     # any result whose evidence_kind != "bounded_online_update" (line 443-444), so
     # by here the kind is always bounded; this stays as a defensive restatement.
-    if result.evidence_kind != "bounded_online_update":  # pragma: no cover
+    if result.evidence_kind != "bounded_online_update":  # pragma: no cover - validator constrains evidence kind
         raise ValueError("digital twin update evidence requires bounded_online_update result")
     _validate_update_inputs(observation, priors, result, external_artifacts)
     if not evidence.improved_over_baseline or result.best_loss >= result.baseline_loss:

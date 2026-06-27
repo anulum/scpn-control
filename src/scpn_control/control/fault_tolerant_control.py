@@ -177,7 +177,7 @@ class ReconfigurableController:
         try:
             H_inv = np.linalg.inv(H)
             K = H_inv @ J_T_W
-        except np.linalg.LinAlgError:  # pragma: no cover
+        except np.linalg.LinAlgError:  # pragma: no cover - defensive singular-matrix fallback
             K = np.zeros_like(J.T)
 
         for i in self.faulted_coils:

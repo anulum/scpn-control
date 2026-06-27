@@ -44,20 +44,20 @@ _rust_sample_firing: Callable[[FloatArray, int, int, bool], object] | None = Non
 _FAULT_INJECTION_ENV = "SCPN_ALLOW_CONTROLLER_FAULT_INJECTION"
 
 try:
-    _rust_runtime = cast(Any, import_module("scpn_control_rs"))  # pragma: no cover
-    _rust_dense_activations = cast(  # pragma: no cover
+    _rust_runtime = cast(Any, import_module("scpn_control_rs"))  # pragma: no cover - optional Rust SCPN runtime path
+    _rust_dense_activations = cast(  # pragma: no cover - optional Rust SCPN runtime path
         Callable[[FloatArray, FloatArray], object],
         _rust_runtime.scpn_dense_activations,
     )
-    _rust_marking_update = cast(  # pragma: no cover
+    _rust_marking_update = cast(  # pragma: no cover - optional Rust SCPN runtime path
         Callable[[FloatArray, FloatArray, FloatArray, FloatArray], object],
         _rust_runtime.scpn_marking_update,
     )
-    _rust_sample_firing = cast(  # pragma: no cover
+    _rust_sample_firing = cast(  # pragma: no cover - optional Rust SCPN runtime path
         Callable[[FloatArray, int, int, bool], object],
         _rust_runtime.scpn_sample_firing,
     )
-    _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover
+    _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover - optional Rust SCPN runtime path
 except (ImportError, AttributeError):
     _HAS_RUST_SCPN_RUNTIME = False
 
@@ -635,7 +635,9 @@ class NeuroSymbolicController:
                     # rust-sampling + fault-injection bitflip RNG seed; the numpy-path
                     # equivalent and the no-bitflip branch are covered. Not reliably reached on
                     # the CI rust build (verified in .venv / the rust-python-interop job).
-                    rng = np.random.default_rng(_seed64(self.seed_base, f"sc_flip:{int(k)}"))  # pragma: no cover
+                    rng = np.random.default_rng(
+                        _seed64(self.seed_base, f"sc_flip:{int(k)}")
+                    )  # pragma: no cover - optional Rust SCPN runtime path
                 else:
                     rng = None
             else:

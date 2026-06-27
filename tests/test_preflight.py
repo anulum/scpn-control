@@ -65,6 +65,17 @@ def test_preflight_runs_runtime_wiring_gate() -> None:
     assert "runtime-wiring" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_coverage_pragma_gate() -> None:
+    """Local preflight must reject unreasoned source coverage exclusions."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["coverage-pragmas"] == [preflight._PY, "tools/check_coverage_pragmas.py"]
+    assert "coverage-pragmas" not in preflight.TEST_GATES
+    assert "coverage-pragmas" not in preflight.RUST_GATES
+
+
 def test_preflight_subprocess_env_prefers_source_tree() -> None:
     """Local preflight imports the checked-out source tree before installed packages."""
     preflight = _load_preflight_module()

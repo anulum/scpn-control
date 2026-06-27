@@ -1089,7 +1089,9 @@ def neural_equilibrium_claim_evidence(
         payload = json.loads(artifact_path.read_text(encoding="utf-8"))
         reference_source = _non_empty_text("source", str(payload["source"]))
         # validate_neural_equilibrium_reference already enforces source admissibility; defensive re-check.
-        if reference_source not in _NEURAL_EQUILIBRIUM_REFERENCE_SOURCES:  # pragma: no cover
+        if (
+            reference_source not in _NEURAL_EQUILIBRIUM_REFERENCE_SOURCES
+        ):  # pragma: no cover - validator restricts reference source
             raise ValueError("neural-equilibrium reference source is not admissible")
         if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
             raise ValueError("neural-equilibrium reference artifact does not match supplied weights")

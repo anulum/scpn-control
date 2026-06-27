@@ -96,6 +96,19 @@ across `src`, `tests`, `benchmarks`, `examples`, `tools`, and `validation`; it
 fails if a source module is referenced by no package API, test, tool, or
 pipeline file. Both gates run through `tools/preflight.py`.
 
+## Coverage Exclusions
+
+Every source `# pragma: no cover` exclusion must explain why the line is not
+covered by the local Python coverage job:
+
+```bash
+python tools/check_coverage_pragmas.py
+```
+
+Use a one-line reason such as an optional dependency path, native backend path,
+or defensive invariant branch. The gate runs through `tools/preflight.py` and
+fails on bare exclusions.
+
 ---
 
 ## Release Process

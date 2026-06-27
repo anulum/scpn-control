@@ -63,6 +63,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("benchmark-regression", [_PY, "validation/validate_benchmark_regression_gates.py"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
     ("runtime-wiring", [_PY, "tools/check_runtime_wiring.py"], None),
+    ("coverage-pragmas", [_PY, "tools/check_coverage_pragmas.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
     ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),
