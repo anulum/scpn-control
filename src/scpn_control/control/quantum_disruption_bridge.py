@@ -362,9 +362,6 @@ def run_quantum_disruption_bridge(
         )
         status = "quantum-unavailable"
 
-    if backend_contract_attestation is None:  # pragma: no cover - try/except always assigns attestation
-        raise RuntimeError("quantum disruption backend contract attestation was not produced")
-
     risk_score = quantum_score if quantum_score is not None else classical_score
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,

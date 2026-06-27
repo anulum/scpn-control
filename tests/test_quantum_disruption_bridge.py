@@ -18,10 +18,11 @@ from copy import deepcopy
 from typing import Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 
-def _control_features() -> np.ndarray:
+def _control_features() -> NDArray[np.float64]:
     return np.array([1.2, 2.4, 3.4, 0.7, 0.9, 0.15, 0.004, 0.2], dtype=np.float64)
 
 
@@ -41,13 +42,10 @@ def _unavailable_report() -> dict[str, Any]:
         run_quantum_disruption_bridge,
     )
 
-    return cast(
-        dict[str, Any],
-        run_quantum_disruption_bridge(
-            _control_features(),
-            extra_iter_features=_extra_iter_features(),
-            config=QuantumDisruptionBridgeConfig(quantum_module="missing.quantum.backend"),
-        ),
+    return run_quantum_disruption_bridge(
+        _control_features(),
+        extra_iter_features=_extra_iter_features(),
+        config=QuantumDisruptionBridgeConfig(quantum_module="missing.quantum.backend"),
     )
 
 
@@ -57,12 +55,9 @@ def _kernel_report() -> dict[str, Any]:
         quantum_disruption_kernel_matrix,
     )
 
-    return cast(
-        dict[str, Any],
-        quantum_disruption_kernel_matrix(
-            np.vstack([_control_features(), _control_features()]),
-            config=QuantumDisruptionBridgeConfig(allow_center_defaults=True),
-        ),
+    return quantum_disruption_kernel_matrix(
+        np.vstack([_control_features(), _control_features()]),
+        config=QuantumDisruptionBridgeConfig(allow_center_defaults=True),
     )
 
 
@@ -72,14 +67,11 @@ def _center_default_unavailable_report() -> dict[str, Any]:
         run_quantum_disruption_bridge,
     )
 
-    return cast(
-        dict[str, Any],
-        run_quantum_disruption_bridge(
-            _control_features(),
-            config=QuantumDisruptionBridgeConfig(
-                allow_center_defaults=True,
-                quantum_module="missing.quantum.backend",
-            ),
+    return run_quantum_disruption_bridge(
+        _control_features(),
+        config=QuantumDisruptionBridgeConfig(
+            allow_center_defaults=True,
+            quantum_module="missing.quantum.backend",
         ),
     )
 
@@ -282,7 +274,7 @@ def test_quantum_disruption_bridge_calls_quantum_owner_when_available(monkeypatc
         def __init__(self, seed: int) -> None:
             self.seed = seed
 
-        def predict(self, features: np.ndarray) -> float:
+        def predict(self, features: NDArray[np.float64]) -> float:
             assert features.shape == (11,)
             assert np.all((features >= 0.0) & (features <= 1.0))
             return 0.73
