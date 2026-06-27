@@ -16,6 +16,8 @@ shape the keeper's gate requires.
 
 from __future__ import annotations
 
+import importlib
+import importlib.metadata
 import json
 import re
 from pathlib import Path
@@ -24,6 +26,7 @@ import pytest
 
 pytest.importorskip("scpn_studio_platform")
 
+import scpn_control.studio.manifest as manifest_module  # noqa: E402
 from tools.emit_studio_manifest import _ARTIFACT, render  # noqa: E402
 
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -55,3 +58,20 @@ def test_artifact_is_schema_a_well_formed() -> None:
     evidence_types = payload["evidence_types"]
     assert all(schema.endswith(".v1") for schema in evidence_types)
     assert len(evidence_types) == len(set(evidence_types)) == 12
+
+
+def test_manifest_version_falls_back_when_distribution_metadata_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source-tree import stamps manifests with the non-fabricated sentinel."""
+
+    def missing_distribution(distribution_name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(distribution_name)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(importlib.metadata, "version", missing_distribution)
+        importlib.reload(manifest_module)
+        assert manifest_module.STUDIO_VERSION == "0+unknown"
+        assert manifest_module.build_manifest().studio_version == "0+unknown"
+
+    importlib.reload(manifest_module)

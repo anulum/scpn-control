@@ -43,7 +43,7 @@ def _resolve_studio_version() -> str:
     """
     try:
         return version("scpn-control")
-    except PackageNotFoundError:  # pragma: no cover - only in a non-installed tree
+    except PackageNotFoundError:
         return "0+unknown"
 
 
