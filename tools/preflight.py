@@ -17,13 +17,14 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Any, cast
 from urllib.request import urlopen
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
 if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
-    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
-    sys.stderr.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[attr-defined]
+    cast(Any, sys.stdout).reconfigure(encoding="utf-8", errors="replace")
+    cast(Any, sys.stderr).reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
 RUST_DIR = ROOT / "scpn-control-rs"
@@ -61,6 +62,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),
     ("benchmark-regression", [_PY, "validation/validate_benchmark_regression_gates.py"], None),
     ("module-linkage", [_PY, "tools/check_test_module_linkage.py"], None),
+    ("runtime-wiring", [_PY, "tools/check_runtime_wiring.py"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
     ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),

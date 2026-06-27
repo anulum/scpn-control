@@ -1,10 +1,10 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
+<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
+<!-- Commercial license available -->
 <!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
 <!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
 <!-- ORCID: 0009-0009-3560-0851 -->
 <!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: Development guide. -->
+<!-- SCPN Control — Development guide. -->
 
 # Development
 
@@ -80,6 +80,21 @@ mypy
 
 Scope: all modules under `src/scpn_control/` (`disallow_untyped_defs = true`, `warn_return_any = true`).
 PEP 561 marker: `src/scpn_control/py.typed`.
+
+## Wiring Checks
+
+Two local guards keep source modules connected to real repository surfaces:
+
+```bash
+python tools/check_test_module_linkage.py
+python tools/check_runtime_wiring.py
+```
+
+`check_test_module_linkage.py` confirms production modules have direct test
+linkage or an explicit allowlist entry. `check_runtime_wiring.py` parses imports
+across `src`, `tests`, `benchmarks`, `examples`, `tools`, and `validation`; it
+fails if a source module is referenced by no package API, test, tool, or
+pipeline file. Both gates run through `tools/preflight.py`.
 
 ---
 

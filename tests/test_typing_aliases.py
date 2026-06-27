@@ -15,7 +15,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
-from scpn_control import _typing
+import scpn_control._typing as _typing
 
 
 def test_float_array_is_float64_ndarray() -> None:

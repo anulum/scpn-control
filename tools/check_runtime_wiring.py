@@ -21,8 +21,8 @@ awaiting a consumer. But it is a removal/cover candidate to confirm.
 
 Usage::
 
-    python tools/check_runtime_wiring.py            # human report
-    python tools/check_runtime_wiring.py --json     # machine-readable
+    python tools/check_runtime_wiring.py            # human report, fails on orphans
+    python tools/check_runtime_wiring.py --json     # machine-readable, fails on orphans
 """
 
 from __future__ import annotations
@@ -53,10 +53,12 @@ def _all_modules() -> dict[str, Path]:
     return {_module_name(p): p for p in SRC.glob(f"{PKG}/**/*.py")}
 
 
-def _resolve_relative(current: str, level: int, module: str | None) -> str:
-    base = current.split(".")
-    # `current` is the importing module; level 1 = its package, level 2 = parent, etc.
-    trimmed = base[: len(base) - level] if level <= len(base) else []
+def _resolve_relative(current: str, level: int, module: str | None, *, is_package: bool) -> str:
+    """Resolve a relative import from a module or package ``__init__`` context."""
+    package = current if is_package else current.rpartition(".")[0]
+    base = package.split(".") if package else []
+    trim = max(level - 1, 0)
+    trimmed = base[: len(base) - trim] if trim <= len(base) else []
     if module:
         trimmed = trimmed + module.split(".")
     return ".".join(trimmed)
@@ -66,11 +68,16 @@ def _imports_of(current: str, path: Path) -> set[str]:
     """All scpn_control.* dotted targets imported anywhere in the file."""
     out: set[str] = set()
     tree = ast.parse(path.read_text(encoding="utf-8"))
+    is_package = path.name == "__init__.py"
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             out.update(a.name for a in node.names if a.name.startswith(PKG))
         elif isinstance(node, ast.ImportFrom):
-            target = _resolve_relative(current, node.level, node.module) if node.level else (node.module or "")
+            target = (
+                _resolve_relative(current, node.level, node.module, is_package=is_package)
+                if node.level
+                else (node.module or "")
+            )
             if not target.startswith(PKG):
                 continue
             out.add(target)
@@ -111,15 +118,15 @@ def find_orphans() -> tuple[list[str], int]:
     return orphans, len(modules)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Report modules unreachable from a runtime entry point.")
     parser.add_argument("--json", action="store_true", help="emit JSON instead of a human report")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     orphans, total = find_orphans()
     if args.json:
         print(json.dumps({"total_modules": total, "orphans": orphans}, indent=2))
-        return 0
+        return 1 if orphans else 0
 
     print(f"Wiring check: {total} source modules scanned against {', '.join(IMPORTER_DIRS)}.")
     if not orphans:
@@ -130,7 +137,7 @@ def main() -> int:
         print(f"  - {name}")
     print("\nEach is a removal-or-cover candidate: confirm it is a deliberate public")
     print("surface awaiting a consumer, or wire/test it, or remove it.")
-    return 0
+    return 1
 
 
 if __name__ == "__main__":
