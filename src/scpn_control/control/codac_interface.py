@@ -38,7 +38,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
 
-from scpn_control.scpn.contracts import ControlAction, ControlObservation
+from scpn_control.scpn.contracts import ControlObservation
 
 
 CODAC_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.codac-runtime-evidence.v1"
@@ -378,13 +378,27 @@ class CODACInterface:
             Z_axis_m=float(pv_values.get("Z_axis", pv_values.get("Z_axis_m", 0.0))),
         )
 
-    def unpack_action(self, action: ControlAction) -> dict[str, float]:
-        """Convert controller ControlAction to EPICS PV dict."""
+    def unpack_action(self, action: Mapping[str, float]) -> dict[str, float]:
+        """Convert controller actions to EPICS process-variable values.
+
+        Parameters
+        ----------
+        action : Mapping[str, float]
+            Controller action values keyed by the CODAC action names in
+            ``_OUTPUT_KEY_MAP``. Missing actions default to zero output so an
+            incomplete controller command maps to a fail-stationary actuator
+            packet.
+
+        Returns
+        -------
+        dict[str, float]
+            EPICS process-variable values keyed by fully qualified PV names.
+        """
         prefix = self.config.pv_prefix
         out: dict[str, float] = {}
         for action_key, suffix in _OUTPUT_KEY_MAP.items():
             pv = f"{prefix}:{suffix}"
-            out[pv] = float(action.get(action_key, 0.0))  # type: ignore[arg-type]
+            out[pv] = float(action.get(action_key, 0.0))
         return out
 
     def run_cycle(self, pv_values: Mapping[str, float]) -> dict[str, float]:
