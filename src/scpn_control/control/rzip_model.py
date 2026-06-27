@@ -551,8 +551,11 @@ class RZIPController:
     """LQR vertical-position controller for the RZIP plant.
 
     Solves the continuous-time algebraic Riccati equation for the optimal gain
-    weighting position (``Kp``) and velocity (``Kd``), falling back to zero gain
-    when SciPy is unavailable or the Riccati solve fails.
+    weighting position (``Kp``) and velocity (``Kd``). If SciPy's Riccati input
+    validation fails because of a local numerical-stack mismatch, the controller
+    falls back to a finite-horizon discrete Riccati iteration for the same
+    plant. Zero gain is the final fail-closed fallback when no feedback design
+    can be computed.
 
     Parameters
     ----------
@@ -589,9 +592,38 @@ class RZIPController:
 
             P = scipy.linalg.solve_continuous_are(A, B, Q, R)
             self.K_gain = np.linalg.inv(R) @ B.T @ P
+        except TypeError:
+            try:
+                self.K_gain = self._discrete_riccati_fallback_gain(A, B, Q, R)
+            except (np.linalg.LinAlgError, TypeError, ValueError):
+                self.K_gain = np.zeros((B.shape[1], A.shape[1]))
         except (ImportError, np.linalg.LinAlgError):
             # Fallback if scipy not available or LQR fails
             self.K_gain = np.zeros((B.shape[1], A.shape[1]))
+
+    @staticmethod
+    def _discrete_riccati_fallback_gain(
+        A: NDArray[np.float64],
+        B: NDArray[np.float64],
+        Q: NDArray[np.float64],
+        R: NDArray[np.float64],
+    ) -> NDArray[np.float64]:
+        """Compute a bounded NumPy-only state-feedback fallback gain."""
+
+        spectral_radius = max(float(np.max(np.abs(np.linalg.eigvals(A)))), 1.0)
+        dt = 0.1 / spectral_radius
+        A_d = np.eye(A.shape[0]) + dt * A
+        B_d = dt * B
+        P = Q.copy()
+        for _ in range(256):
+            gain = np.linalg.solve(R + B_d.T @ P @ B_d, B_d.T @ P @ A_d)
+            if not np.all(np.isfinite(gain)):
+                raise np.linalg.LinAlgError("discrete Riccati fallback produced non-finite gain")
+            next_P = Q + A_d.T @ P @ A_d - A_d.T @ P @ B_d @ gain
+            if not np.all(np.isfinite(next_P)):
+                raise np.linalg.LinAlgError("discrete Riccati fallback produced non-finite covariance")
+            P = next_P
+        return np.asarray(np.linalg.solve(R + B_d.T @ P @ B_d, B_d.T @ P @ A_d), dtype=float)
 
     def step(self, dZ_measured: float, dt: float) -> NDArray[np.float64]:
         """Compute the active-coil voltage command for one control cycle.

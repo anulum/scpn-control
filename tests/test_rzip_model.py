@@ -699,18 +699,12 @@ def test_required_feedback_gain_returns_zero_for_marginal_growth():
     assert VerticalStabilityAnalysis.required_feedback_gain(gamma=0.0, tau_wall=0.01, tau_controller=1e-4) == 0.0
 
 
-def test_controller_falls_back_to_zero_gain_when_riccati_fails(active_coils, monkeypatch):
-    import scipy.linalg
-
-    def _boom(*_args, **_kwargs):
-        raise np.linalg.LinAlgError("forced Riccati failure")
-
-    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _boom)
+def _active_feedback_rzip(active_coils: list[VesselElement]) -> RZIPModel:
     elements = [
         VesselElement(R=2.0, Z=0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
         VesselElement(R=2.0, Z=-0.5, resistance=1e0, cross_section=0.1, inductance=1e-5),
     ]
-    rzip = RZIPModel(
+    return RZIPModel(
         R0=2.0,
         a=0.5,
         kappa=1.7,
@@ -720,6 +714,103 @@ def test_controller_falls_back_to_zero_gain_when_riccati_fails(active_coils, mon
         vessel=VesselModel(elements),
         active_coils=active_coils,
     )
+
+
+def test_controller_falls_back_to_zero_gain_when_riccati_fails(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise np.linalg.LinAlgError("forced Riccati failure")
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _boom)
+    rzip = _active_feedback_rzip(active_coils)
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+    A, B, _C, _D = rzip.build_state_space()
+    assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])
+    assert np.all(ctrl.K_gain == 0.0)
+
+
+def test_controller_uses_scipy_riccati_gain_when_available(active_coils, monkeypatch):
+    import scipy.linalg
+
+    rzip = _active_feedback_rzip(active_coils)
+    A, B, _C, _D = rzip.build_state_space()
+
+    def _identity_solution(*_args: object, **_kwargs: object) -> np.ndarray:
+        return np.eye(A.shape[0])
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _identity_solution)
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+
+    np.testing.assert_allclose(ctrl.K_gain, B.T)
+
+
+def test_controller_falls_back_when_scipy_validation_raises_type_error(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _boom(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("SciPy/NumPy validation rejected the ARE input")
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _boom)
+    rzip = _active_feedback_rzip(active_coils)
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+    A, B, _C, _D = rzip.build_state_space()
+    assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])
+    assert np.any(ctrl.K_gain != 0.0)
+    assert np.max(np.real(ctrl.closed_loop_eigenvalues())) < rzip.vertical_growth_rate()
+
+
+def test_controller_zero_gain_fallback_handles_nonfinite_discrete_riccati(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _care_boom(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("SciPy/NumPy validation rejected the ARE input")
+
+    def _nonfinite_solve(_lhs: object, rhs: np.ndarray) -> np.ndarray:
+        return np.full_like(rhs, np.inf, dtype=float)
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _care_boom)
+    monkeypatch.setattr(np.linalg, "solve", _nonfinite_solve)
+    rzip = _active_feedback_rzip(active_coils)
+    ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+    A, B, _C, _D = rzip.build_state_space()
+    assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])
+    assert np.all(ctrl.K_gain == 0.0)
+
+
+def test_controller_zero_gain_fallback_handles_overflowing_discrete_covariance(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _care_boom(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("SciPy/NumPy validation rejected the ARE input")
+
+    def _overflowing_solve(_lhs: object, rhs: np.ndarray) -> np.ndarray:
+        return np.full_like(rhs, 1.0e308, dtype=float)
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _care_boom)
+    monkeypatch.setattr(np.linalg, "solve", _overflowing_solve)
+    rzip = _active_feedback_rzip(active_coils)
+
+    with np.errstate(over="ignore", invalid="ignore"):
+        ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
+
+    A, B, _C, _D = rzip.build_state_space()
+    assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])
+    assert np.all(ctrl.K_gain == 0.0)
+
+
+def test_controller_zero_gain_fallback_remains_last_resort(active_coils, monkeypatch):
+    import scipy.linalg
+
+    def _care_boom(*_args: object, **_kwargs: object) -> None:
+        raise TypeError("SciPy/NumPy validation rejected the ARE input")
+
+    def _solve_boom(*_args: object, **_kwargs: object) -> None:
+        raise np.linalg.LinAlgError("discrete Riccati fallback cannot solve this plant")
+
+    monkeypatch.setattr(scipy.linalg, "solve_continuous_are", _care_boom)
+    monkeypatch.setattr(np.linalg, "solve", _solve_boom)
+    rzip = _active_feedback_rzip(active_coils)
     ctrl = RZIPController(rzip, Kp=1.0, Kd=1.0)
     A, B, _C, _D = rzip.build_state_space()
     assert ctrl.K_gain.shape == (B.shape[1], A.shape[1])

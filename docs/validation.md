@@ -478,8 +478,11 @@ growth-time identity, and the exact `Ip`, `sqrt(-n)`, and `1/sqrt(M_eff)` scalin
 laws — all to about `1e-16` relative. A passive resistive wall is shown to reduce
 the growth rate below the no-wall value, confirming the eddy-current circuit
 coupling is stabilising. This validates the rigid-mode physics and eigenvalue
-machinery; facility-validated vertical-control claims still require a matched
-RZIP/CREATE-L/TSC or measured vertical-displacement benchmark.
+machinery. `RZIPController` computes continuous-time LQR gains when the local
+SciPy Riccati path is usable and falls back to a bounded NumPy discrete-Riccati
+iteration if SciPy validation fails; zero gain is reserved for fail-closed cases
+where both designs fail. Facility-validated vertical-control claims still
+require a matched RZIP/CREATE-L/TSC or measured vertical-displacement benchmark.
 
 Resistive-wall-mode feedback evidence against exact closed forms can be
 regenerated with:

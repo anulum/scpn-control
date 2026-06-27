@@ -10,7 +10,11 @@
 
 ## Unreleased
 
-No unreleased changes.
+### Fixed
+- Hardened `RZIPController` so SciPy/NumPy Riccati validation failures fall
+  back to a bounded NumPy discrete-Riccati gain before the zero-gain fail-closed
+  path, preserving the vertical-feedback contract in the local workstation
+  numerical stack.
 
 ## [0.22.0] - 2026-06-26
 

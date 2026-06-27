@@ -1708,6 +1708,8 @@ analysis and preserves the failed audit evidence in the returned result.
 
 ::: scpn_control.control.rzip_model.RZIPModel
 
+::: scpn_control.control.rzip_model.RZIPController
+
 ::: scpn_control.control.rzip_model.RZIPCalibrationEvidence
 
 ::: scpn_control.control.rzip_model.rzip_calibration_evidence

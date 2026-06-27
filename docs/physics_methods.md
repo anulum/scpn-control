@@ -181,7 +181,7 @@ the state-space matrix for $x = [Z, \dot Z, I_1, \ldots]$.
 
 - **Source**: Lazarus et al., *Nucl. Fusion* 30, 111 (1990); Wesson,
   *Tokamaks* (2011) Ch. 3.10.
-- **Implementation**: `src/scpn_control/control/rzip_model.py:251`.
+- **Implementation**: `src/scpn_control/control/rzip_model.py`.
 - **Validation**: In the no-wall limit the rigid mode reduces to the exact
   $2\times2$ block with eigenvalues $\pm\sqrt{-K/M_{\mathrm{eff}}}$, so the
   production `vertical_growth_rate` reproduces $\gamma=\sqrt{-n\,\mu_0 I_p^2/
@@ -192,7 +192,10 @@ the state-space matrix for $x = [Z, \dot Z, I_1, \ldots]$.
   `validation/validate_rzip_vertical_stability.py` with tests in
   `tests/test_rzip_vertical_stability_validation.py`. Facility-validated
   vertical-control claims still require a matched RZIP/CREATE-L/TSC or measured
-  vertical-displacement benchmark.
+  vertical-displacement benchmark. The controller path uses continuous-time LQR
+  when SciPy's algebraic Riccati solver is available, falls back to a bounded
+  NumPy discrete-Riccati iteration when local SciPy validation fails, and only
+  emits zero gain when both designs fail closed.
 
 ### Ideal-MHD Stability Metrics
 Troyon normalised-beta limit, Mercier interchange index, ballooning

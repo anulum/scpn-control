@@ -441,8 +441,7 @@
       ],
       "unit_contract": "SI metres, seconds, amperes, henries, ohms, tesla, and dimensionless vertical field index; growth time is reported in milliseconds; calibration evidence digests are SHA-256 hex strings.",
       "validation_evidence": [
-        "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, and controller-measurement checks",
-        "tests/test_rzip_model.py RZIP fallback and singular-circuit checks",
+        "tests/test_rzip_model.py vertical growth, field-index, declared-inertia, feedback-gain, physical-parameter, controller-measurement, SciPy Riccati, NumPy fallback Riccati, zero-gain last-resort, and singular-circuit checks",
         "validation/validate_rzip_reference.py strict RZIP reference artifact gate",
         "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
         "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
