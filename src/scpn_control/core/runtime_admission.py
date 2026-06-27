@@ -24,11 +24,22 @@ import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Protocol
+
+
+class _ResourceModule(Protocol):
+    RLIMIT_MEMLOCK: int
+    RLIM_INFINITY: int
+
+    def getrlimit(self, resource: int, /) -> tuple[int, int]: ...
+
 
 if sys.platform != "win32":
-    import resource as _resource
+    import resource as _resource_module
+
+    _resource: _ResourceModule | None = _resource_module
 else:  # pragma: no cover - win32-only fallback; CI and dev hosts are Linux
-    _resource = None  # type: ignore[assignment]
+    _resource = None
 
 RUNTIME_ADMISSION_SCHEMA_VERSION = "scpn-control.runtime-admission.v1"
 DEFAULT_MIN_MEMLOCK_BYTES = 64 * 1024 * 1024
