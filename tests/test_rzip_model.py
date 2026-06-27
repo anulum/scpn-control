@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, replace
+from typing import Any
 
 import numpy as np
 import pytest
@@ -397,6 +398,33 @@ def test_compute_n_index_rejects_degenerate_vertical_field():
 
     with pytest.raises(ValueError, match="vertical field"):
         VerticalStabilityAnalysis.compute_n_index(np.zeros_like(rr), rr, zz, 2.0)
+
+
+def test_compute_n_index_rejects_non_finite_radial_gradient(monkeypatch: pytest.MonkeyPatch) -> None:
+    original_interp = np.interp
+    calls = 0
+
+    def fake_interp(
+        x: Any,
+        xp: Any,
+        fp: Any,
+        left: Any = None,
+        right: Any = None,
+        period: Any = None,
+    ) -> float:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            return float("nan")
+        return float(original_interp(x, xp, fp, left=left, right=right, period=period))
+
+    psi, r_axis, z_axis = _flux_grid()
+    monkeypatch.setattr(np, "interp", fake_interp)
+
+    with pytest.raises(ValueError, match="radial gradient is not finite"):
+        VerticalStabilityAnalysis.compute_n_index(psi, r_axis, z_axis, 2.0)
+
+    assert calls == 2
 
 
 def test_passive_stability_margin():

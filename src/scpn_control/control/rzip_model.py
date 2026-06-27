@@ -487,13 +487,10 @@ class VerticalStabilityAnalysis:
         dBz_dR_at_r0 = float(np.interp(r0, r_axis, dBz_dR_midplane))
         if not np.isfinite(bz_at_r0) or abs(bz_at_r0) <= 1e-12:
             raise ValueError("vertical field at R0 is degenerate")
-        # psi is guarded finite and r_axis is finite, positive and strictly
-        # increasing, so the finite-difference field and its radial gradient are
-        # finite everywhere; this guard is defence in depth and is unreachable.
+        # Validated finite grids make this finite in normal execution; keep the
+        # guard so a non-finite interpolation backend result fails closed.
         if not np.isfinite(dBz_dR_at_r0):
-            raise ValueError(
-                "vertical field radial gradient is not finite"
-            )  # pragma: no cover - validator rejects non-finite gradient earlier
+            raise ValueError("vertical field radial gradient is not finite")
 
         return float(-(r0 / bz_at_r0) * dBz_dR_at_r0)
 
