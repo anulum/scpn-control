@@ -1744,6 +1744,10 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control._typing
 
+#### Shared NPZ Writer
+
+::: scpn_control._npz
+
 ### Control Modules
 
 #### Burn Controller

@@ -34,7 +34,9 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 import numpy as np
+from numpy.typing import ArrayLike
 
+from scpn_control._npz import save_npz_arrays
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
@@ -923,7 +925,7 @@ class NeuralEquilibriumAccelerator:
         assert self.pca.explained_variance_ratio_ is not None
         assert self._input_mean is not None
         assert self._input_std is not None
-        payload: dict[str, AnyFloatArray] = {
+        payload: dict[str, ArrayLike] = {
             "n_components": np.array([self.cfg.n_components]),
             "grid_nh": np.array([self.cfg.grid_shape[0]]),
             "grid_nw": np.array([self.cfg.grid_shape[1]]),
@@ -939,7 +941,7 @@ class NeuralEquilibriumAccelerator:
             payload[f"w{i}"] = w
             payload[f"b{i}"] = b
 
-        np.savez(path, **payload)  # type: ignore[arg-type]
+        save_npz_arrays(path, payload)
         logger.info("Saved neural equilibrium weights to %s", path)
 
     def load_weights(self, path: str | Path = DEFAULT_WEIGHTS_PATH) -> None:

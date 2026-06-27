@@ -13,6 +13,8 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
@@ -203,7 +205,7 @@ def test_export_weights_contents() -> None:
     assert weights["ch0_D_gain"].shape == (200,)
 
 
-def test_export_fpga_weights(tmp_path) -> None:
+def test_export_fpga_weights(tmp_path: Path) -> None:
     ctrl = NengoSNNController()
     out = tmp_path / "fpga_weights.npz"
     ctrl.export_fpga_weights(out)

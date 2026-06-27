@@ -36,8 +36,9 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
+from numpy.typing import ArrayLike, NDArray
 
+from scpn_control._npz import save_npz_arrays
 from scpn_control._typing import AnyFloatArray
 
 logger = logging.getLogger(__name__)
@@ -340,7 +341,7 @@ class NengoSNNController:
         path = Path(filename)
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        payload: dict[str, NDArray[Any]] = {
+        payload: dict[str, ArrayLike] = {
             "n_neurons": np.array([self.cfg.n_neurons]),
             "n_channels": np.array([self.cfg.n_channels]),
             "dt": np.array([self.cfg.dt]),
@@ -349,7 +350,7 @@ class NengoSNNController:
             "gain": np.array([self.cfg.gain]),
         }
         payload.update(self.export_weights())
-        np.savez(str(path), **payload)  # type: ignore[arg-type]
+        save_npz_arrays(path, payload)
         logger.info("Exported FPGA weights to %s", path)
 
     def export_loihi(self, filename: str | Path) -> None:

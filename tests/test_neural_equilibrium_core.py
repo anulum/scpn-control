@@ -44,7 +44,7 @@ from validation.validate_neural_equilibrium_reference import canonical_artifact_
 
 
 class TestNeuralEqConfig:
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         cfg = NeuralEqConfig()
         assert cfg.n_components == 20
         assert cfg.hidden_sizes == (128, 64, 32)
@@ -52,14 +52,14 @@ class TestNeuralEqConfig:
         assert cfg.grid_shape == (129, 129)
         assert cfg.lambda_gs == pytest.approx(0.1)
 
-    def test_custom(self):
+    def test_custom(self) -> None:
         cfg = NeuralEqConfig(n_components=5, hidden_sizes=(64,), lambda_gs=0.5)
         assert cfg.n_components == 5
         assert cfg.hidden_sizes == (64,)
 
 
 class TestTrainingResult:
-    def test_fields(self):
+    def test_fields(self) -> None:
         r = TrainingResult(
             n_samples=100,
             n_components=10,
@@ -74,30 +74,30 @@ class TestTrainingResult:
 
 
 class TestSimpleMLP:
-    def test_forward_shape(self):
+    def test_forward_shape(self) -> None:
         mlp = SimpleMLP([4, 8, 3], seed=0)
         x = np.random.default_rng(1).normal(size=(5, 4))
         out = mlp.forward(x)
         assert out.shape == (5, 3)
 
-    def test_predict_equals_forward(self):
+    def test_predict_equals_forward(self) -> None:
         mlp = SimpleMLP([3, 6, 2], seed=42)
         x = np.ones((2, 3))
         np.testing.assert_array_equal(mlp.predict(x), mlp.forward(x))
 
-    def test_single_hidden_layer(self):
+    def test_single_hidden_layer(self) -> None:
         mlp = SimpleMLP([2, 5, 1], seed=7)
         assert len(mlp.weights) == 2
         assert mlp.weights[0].shape == (2, 5)
         assert mlp.weights[1].shape == (5, 1)
 
-    def test_he_init_scale(self):
+    def test_he_init_scale(self) -> None:
         mlp = SimpleMLP([100, 50], seed=0)
         # He init: std ~ sqrt(2/fan_in) = sqrt(2/100) ~ 0.14
         empirical_std = float(np.std(mlp.weights[0]))
         assert 0.05 < empirical_std < 0.30
 
-    def test_relu_kills_negative(self):
+    def test_relu_kills_negative(self) -> None:
         mlp = SimpleMLP([1, 4, 1], seed=0)
         # Force W0 to produce negative pre-activations
         mlp.weights[0] = -np.ones((1, 4))
@@ -110,14 +110,14 @@ class TestSimpleMLP:
 
 
 class TestMinimalPCA:
-    def test_fit_transform_shape(self):
+    def test_fit_transform_shape(self) -> None:
         rng = np.random.default_rng(42)
         X = rng.normal(size=(50, 20))
         pca = MinimalPCA(n_components=5)
         Z = pca.fit_transform(X)
         assert Z.shape == (50, 5)
 
-    def test_inverse_roundtrip(self):
+    def test_inverse_roundtrip(self) -> None:
         rng = np.random.default_rng(0)
         # Low-rank data: should reconstruct near-exactly with enough components
         basis = rng.normal(size=(3, 30))
@@ -127,28 +127,31 @@ class TestMinimalPCA:
         X_recon = pca.inverse_transform(Z)
         np.testing.assert_allclose(X_recon, X, atol=1e-10)
 
-    def test_explained_variance_sums_to_one_if_enough_components(self):
+    def test_explained_variance_sums_to_one_if_enough_components(self) -> None:
         rng = np.random.default_rng(7)
         X = rng.normal(size=(30, 10))
         pca = MinimalPCA(n_components=10)
         pca.fit(X)
+        assert pca.explained_variance_ratio_ is not None
         total = float(np.sum(pca.explained_variance_ratio_))
         assert total == pytest.approx(1.0, abs=1e-8)
 
-    def test_explained_variance_decreasing(self):
+    def test_explained_variance_decreasing(self) -> None:
         rng = np.random.default_rng(3)
         X = rng.normal(size=(100, 15))
         pca = MinimalPCA(n_components=10)
         pca.fit(X)
+        assert pca.explained_variance_ratio_ is not None
         ev = pca.explained_variance_ratio_
         for i in range(len(ev) - 1):
             assert ev[i] >= ev[i + 1] - 1e-12
 
-    def test_mean_removed(self):
+    def test_mean_removed(self) -> None:
         rng = np.random.default_rng(5)
         X = rng.normal(loc=100.0, size=(20, 8))
         pca = MinimalPCA(n_components=3)
         pca.fit(X)
+        assert pca.mean_ is not None
         np.testing.assert_allclose(pca.mean_, X.mean(axis=0), atol=1e-12)
 
 
