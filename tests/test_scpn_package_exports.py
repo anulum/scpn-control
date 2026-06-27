@@ -17,6 +17,8 @@ what drives those wrapper bodies, so these tests import exclusively from
 
 from __future__ import annotations
 
+import importlib
+import importlib.metadata
 from pathlib import Path
 from typing import Any
 
@@ -163,3 +165,40 @@ def test_package_dir_includes_lazy_public_exports() -> None:
     listed = scpn_control.__dir__()
     assert set(scpn_control.__all__).issubset(set(listed))
     assert listed == sorted(set(listed))
+
+
+def test_package_version_falls_back_when_distribution_metadata_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A source-tree package import exposes the local development sentinel."""
+    import scpn_control
+
+    def missing_distribution(distribution_name: str) -> str:
+        raise importlib.metadata.PackageNotFoundError(distribution_name)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(importlib.metadata, "version", missing_distribution)
+        importlib.reload(scpn_control)
+        assert scpn_control.__version__ == "0.0.0.dev"
+
+    importlib.reload(scpn_control)
+
+
+def test_package_lazy_export_loads_and_caches_public_symbol() -> None:
+    """A package-root public export loads through the declared lazy module map."""
+    import scpn_control
+
+    scpn_control.__dict__.pop("TokamakConfig", None)
+    exported = scpn_control.TokamakConfig
+    from scpn_control.core import TokamakConfig
+
+    assert exported is TokamakConfig
+    assert scpn_control.__dict__["TokamakConfig"] is TokamakConfig
+
+
+def test_package_lazy_export_rejects_unknown_symbol() -> None:
+    """Unknown package-root attributes fail with the normal AttributeError contract."""
+    import scpn_control
+
+    with pytest.raises(AttributeError, match="definitely_missing"):
+        scpn_control.__getattr__("definitely_missing")
