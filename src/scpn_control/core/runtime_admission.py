@@ -38,7 +38,7 @@ if sys.platform != "win32":
     import resource as _resource_module
 
     _resource: _ResourceModule | None = _resource_module
-else:  # pragma: no cover - win32-only fallback; CI and dev hosts are Linux
+else:
     _resource = None
 
 RUNTIME_ADMISSION_SCHEMA_VERSION = "scpn-control.runtime-admission.v1"

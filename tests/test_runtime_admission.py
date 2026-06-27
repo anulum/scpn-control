@@ -11,6 +11,8 @@ from __future__ import annotations
 import os
 import sys
 import types
+import importlib.util
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -167,6 +169,23 @@ def test_runtime_probe_binds_native_snapshot_when_extension_exposes_it(monkeypat
     assert probe.native_snapshot["requested_cores"] == [4, 5, 6, 7]
 
 
+def test_collect_runtime_admission_evaluates_current_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The public collection wrapper binds the live probe to admission evaluation."""
+    request = RuntimeAdmissionRequest()
+    probe = _probe()
+
+    def collect_probe(observed_request: RuntimeAdmissionRequest) -> RuntimeAdmissionProbe:
+        assert observed_request is request
+        return probe
+
+    monkeypatch.setattr(ra, "collect_runtime_probe", collect_probe)
+    report = ra.collect_runtime_admission(request)
+
+    assert report["status"] == "pass"
+    assert report["production_claim_allowed"] is False
+    assert report["probe"] == probe.as_dict()
+
+
 class TestEvaluateRuntimeAdmissionBranches:
     def test_non_linux_probe_is_rejected(self) -> None:
         report = evaluate_runtime_admission(RuntimeAdmissionRequest(), _probe(is_linux=False))
@@ -224,6 +243,21 @@ class TestEvaluateRuntimeAdmissionBranches:
 
 
 class TestRuntimeProbeHelpers:
+    def test_resource_module_falls_back_to_none_on_win32_import(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Import-time resource detection has a deterministic Windows fallback."""
+        module_name = "_runtime_admission_win32_probe"
+        source_path = Path(ra.__file__).resolve()
+        spec = importlib.util.spec_from_file_location(module_name, source_path)
+        assert spec is not None
+        assert spec.loader is not None
+        module = importlib.util.module_from_spec(spec)
+        monkeypatch.setattr(sys, "platform", "win32")
+        monkeypatch.setitem(sys.modules, module_name, module)
+
+        spec.loader.exec_module(module)
+
+        assert module._resource is None
+
     def test_current_affinity_falls_back_when_getaffinity_unavailable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def _raise(_pid: int) -> set[int]:
             raise OSError("affinity unavailable")
