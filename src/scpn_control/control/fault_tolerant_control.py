@@ -91,11 +91,11 @@ class FDIMonitor:
         self.threshold_sigma = threshold_sigma
         self.n_alert = n_alert
 
-        self.innovation_history = np.zeros((n_alert, n_sensors))
+        self.innovation_history: FloatArray = np.zeros((n_alert, n_sensors))
         self.innovation_idx = 0
 
         # Normalised innovation variance; set to 1 for pre-whitened inputs.
-        self.S_diag = np.ones(n_sensors)
+        self.S_diag: FloatArray = np.ones(n_sensors)
 
         self.detected_faults: list[FaultReport] = []
         self.faulted_sensors: set[int] = set()
@@ -149,8 +149,9 @@ class ReconfigurableController:
 
     def __init__(self, base_controller: Any, jacobian: AnyFloatArray, n_coils: int, n_sensors: int):
         self.base_controller = base_controller
-        self.nominal_jacobian = jacobian.copy()
-        self.current_jacobian = jacobian.copy()
+        jacobian_arr = np.asarray(jacobian, dtype=np.float64)
+        self.nominal_jacobian: FloatArray = jacobian_arr.copy()
+        self.current_jacobian: FloatArray = jacobian_arr.copy()
         self.n_coils = n_coils
         self.n_sensors = n_sensors
 
@@ -159,7 +160,7 @@ class ReconfigurableController:
         self.stuck_values: dict[int, float] = {}
         self.sensor_fault_types: dict[int, FaultType] = {}
 
-        self.W = np.eye(jacobian.shape[0])
+        self.W: FloatArray = np.eye(jacobian.shape[0])
         self.lambda_reg = GAIN_REGULARISATION
 
         self.K = self._compute_gain()
@@ -171,14 +172,9 @@ class ReconfigurableController:
         J_T_W = J.T @ self.W
         H = J_T_W @ J + self.lambda_reg * np.eye(self.n_coils)
 
-        # The Tikhonov term λI (λ = 1e-6 > 0) makes H = JᵀWJ + λI strictly positive
-        # definite for any finite J and W, so the inverse always exists; non-finite
-        # inputs yield NaNs rather than a LinAlgError. The guard stays as defence.
-        try:
-            H_inv = np.linalg.inv(H)
-            K = H_inv @ J_T_W
-        except np.linalg.LinAlgError:  # pragma: no cover - defensive singular-matrix fallback
-            K = np.zeros_like(J.T)
+        # The Tikhonov term λI (λ = 1e-6 > 0) makes H = JᵀWJ + λI strictly
+        # positive definite for finite J and W, so solve avoids an explicit inverse.
+        K = np.linalg.solve(H, J_T_W)
 
         for i in self.faulted_coils:
             K[i, :] = 0.0
@@ -272,8 +268,12 @@ class ReconfigurableController:
         if len(self.faulted_coils) > self.n_coils // 2:
             return False
 
-        J = self.current_jacobian
-        rank = np.linalg.matrix_rank(J)
+        singular_values = np.linalg.svd(self.current_jacobian, compute_uv=False)
+        if singular_values.size == 0:
+            return False
+        largest = max(float(value) for value in singular_values)
+        tolerance = max(self.current_jacobian.shape) * np.finfo(float).eps * largest
+        rank = sum(1 for value in singular_values if float(value) > tolerance)
         return bool(rank >= MIN_REQUIRED_RANK)
 
     def graceful_shutdown(self) -> FloatArray:
