@@ -7,6 +7,8 @@
 # SCPN Control — Runaway Electron Tests
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 import pytest
 
@@ -28,26 +30,26 @@ from scpn_control.core.runaway_electrons import (
 # ---------------------------------------------------------------------------
 
 
-def test_zero_epar():
+def test_zero_epar() -> None:
     params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=0.0, Z_eff=1.5, B0=5.3, R0=6.2)
     assert dreicer_generation_rate(params) == 0.0
     assert avalanche_growth_rate(params, n_RE=1e10) == 0.0
 
 
-def test_subcritical_epar():
+def test_subcritical_epar() -> None:
     E_c = critical_field(ne_20=1.0, Te_keV=1.0)
     params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=E_c * 0.5, Z_eff=1.5, B0=5.3, R0=6.2)
     assert avalanche_growth_rate(params, n_RE=1e10) == 0.0
     assert dreicer_generation_rate(params) < 1e-10
 
 
-def test_dreicer_generation():
+def test_dreicer_generation() -> None:
     params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=100.0, Z_eff=1.5, B0=5.3, R0=6.2)
     rate = dreicer_generation_rate(params)
     assert rate > 0.0
 
 
-def test_avalanche_multiplication():
+def test_avalanche_multiplication() -> None:
     params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=10.0, Z_eff=1.5, B0=5.3, R0=6.2)
     E_c = critical_field(1.0, Te_keV=0.01)
     assert params.E_par > E_c
@@ -60,12 +62,12 @@ def test_avalanche_multiplication():
     assert np.isclose(rate2, 2.0 * rate)
 
 
-def test_hot_tail():
+def test_hot_tail() -> None:
     n_seed = hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=1.0, quench_time_ms=1.0)
     assert n_seed > 1e10
 
 
-def test_runaway_evolution():
+def test_runaway_evolution() -> None:
     params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=0.0, Z_eff=1.5, B0=5.3, R0=6.2)
     ev = RunawayEvolution(params)
 
@@ -75,7 +77,7 @@ def test_runaway_evolution():
     assert n[-1] > n[0]
 
 
-def test_mitigation_assessment():
+def test_mitigation_assessment() -> None:
     mit = RunawayMitigationAssessment()
 
     E_par = 20.0
@@ -94,7 +96,7 @@ def test_mitigation_assessment():
 # ---------------------------------------------------------------------------
 
 
-def test_coulomb_log_temperature():
+def test_coulomb_log_temperature() -> None:
     """ln Λ increases with T_e (Wesson 2011, Eq. 2.12.4)."""
     ne_20 = 1.0
     ln_low = coulomb_log(ne_20, Te_keV=0.1)  # 100 eV
@@ -103,7 +105,7 @@ def test_coulomb_log_temperature():
     assert ln_low < ln_mid < ln_high
 
 
-def test_avalanche_rate_threshold():
+def test_avalanche_rate_threshold() -> None:
     """No avalanche when E_par <= E_c (Rosenbluth & Putvinski 1997, Eq. 15)."""
     ne_20 = 1.0
     Te_keV = 1.0
@@ -116,7 +118,7 @@ def test_avalanche_rate_threshold():
     assert avalanche_growth_rate(params_above, n_RE=1e15) > 0.0
 
 
-def test_synchrotron_limit():
+def test_synchrotron_limit() -> None:
     """E_max decreases as E_c increases (Martin-Solis 2006, Eq. 12)."""
     E_par = 50.0
     E_c_low = 0.1  # V/m — high E/E_c ratio → high E_max
@@ -138,7 +140,7 @@ def test_synchrotron_limit():
     assert synchrotron_energy_limit(E_par, E_par * 2.0) == 0.0
 
 
-def test_dreicer_rate_physical():
+def test_dreicer_rate_physical() -> None:
     """Dreicer generation is positive when E_par is well above threshold.
 
     Connor & Hastie (1975): rate rises sharply just above E_D threshold.
@@ -159,7 +161,7 @@ def test_dreicer_rate_physical():
     assert dreicer_generation_rate(params_b) > 0.0
 
 
-def test_dreicer_field_values():
+def test_dreicer_field_values() -> None:
     """Dreicer field increases with density for fixed electron temperature."""
     from scpn_control.core.runaway_electrons import dreicer_field
 
@@ -169,30 +171,27 @@ def test_dreicer_field_values():
     assert E_D2 > E_D
 
 
-def test_avalanche_F_nonpositive_guard():
-    """Non-positive scattering correction leaves the avalanche source bounded.
-
-    F = 1 - 1/x + 4pi(Z+1)^2/(3(Z+1)x^2). For very large Z at marginal E/Ec,
-    F can become non-positive."""
+def test_avalanche_pitch_angle_correction_stays_physical_near_threshold() -> None:
+    """Extreme positive Z_eff near threshold still yields a bounded avalanche rate."""
     E_c = critical_field(ne_20=1.0, Te_keV=1.0)
     params = RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=E_c * 1.001, Z_eff=500.0, B0=5.3, R0=6.2)
     rate = avalanche_growth_rate(params, n_RE=1e15)
     assert rate >= 0.0
 
 
-def test_hot_tail_no_quench():
+def test_hot_tail_no_quench() -> None:
     """No thermal quench leaves the hot-tail source off."""
     assert hot_tail_seed(Te_pre_keV=5.0, Te_post_keV=5.0, ne_20=1.0, quench_time_ms=1.0) == 0.0
     assert hot_tail_seed(Te_pre_keV=5.0, Te_post_keV=10.0, ne_20=1.0, quench_time_ms=1.0) == 0.0
 
 
-def test_hot_tail_large_quench_time():
+def test_hot_tail_large_quench_time() -> None:
     """Slow quenches have negligible hot-tail seed density."""
     n = hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=1.0, quench_time_ms=1e12)
     assert n == 0.0
 
 
-def test_current_fraction_zero_ip():
+def test_current_fraction_zero_ip() -> None:
     """Zero total plasma current gives zero runaway-current fraction."""
     params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=5.0, Z_eff=1.5, B0=5.3, R0=6.2)
     ev = RunawayEvolution(params)
@@ -201,7 +200,7 @@ def test_current_fraction_zero_ip():
     assert 0.0 <= frac <= 1.0
 
 
-def test_suppression_zero_epar():
+def test_suppression_zero_epar() -> None:
     """No suppressing density is required for non-positive electric field."""
     assert RunawayMitigationAssessment.required_density_for_suppression(E_par=0.0, Z_eff=1.0) == 0.0
     assert RunawayMitigationAssessment.required_density_for_suppression(E_par=-1.0, Z_eff=1.0) == 0.0
@@ -210,7 +209,7 @@ def test_suppression_zero_epar():
 def test_finite_float_rejects_non_numeric_input() -> None:
     """A value that cannot be cast to float is reported as non-finite, not crashed."""
     with pytest.raises(ValueError, match="ne_20 must be finite"):
-        coulomb_log("not-a-number", Te_keV=1.0)  # type: ignore[arg-type]
+        coulomb_log(cast(Any, "not-a-number"), Te_keV=1.0)
 
 
 def test_dreicer_rate_zero_for_negligible_field_ratio() -> None:
@@ -257,7 +256,7 @@ def test_dreicer_rate_zero_when_exponent_underflows() -> None:
     assert dreicer_generation_rate(params) == 0.0
 
 
-def test_runaway_electron_domains_reject_nonphysical_plasma_inputs():
+def test_runaway_electron_domains_reject_nonphysical_plasma_inputs() -> None:
     with pytest.raises(ValueError, match="ne_20"):
         coulomb_log(0.0, Te_keV=1.0)
     with pytest.raises(ValueError, match="Te_keV"):
@@ -266,14 +265,14 @@ def test_runaway_electron_domains_reject_nonphysical_plasma_inputs():
         dreicer_generation_rate(RunawayParams(ne_20=1.0, Te_keV=1.0, E_par=1.0, Z_eff=0.0, B0=5.3, R0=6.2))
 
 
-def test_hot_tail_rejects_invalid_quench_domains():
+def test_hot_tail_rejects_invalid_quench_domains() -> None:
     with pytest.raises(ValueError, match="quench_time_ms"):
         hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=1.0, quench_time_ms=0.0)
     with pytest.raises(ValueError, match="ne_20"):
         hot_tail_seed(Te_pre_keV=10.0, Te_post_keV=0.01, ne_20=0.0, quench_time_ms=1.0)
 
 
-def test_runaway_evolution_rejects_invalid_time_domains():
+def test_runaway_evolution_rejects_invalid_time_domains() -> None:
     params = RunawayParams(ne_20=1.0, Te_keV=0.01, E_par=0.0, Z_eff=1.5, B0=5.3, R0=6.2)
     ev = RunawayEvolution(params)
     with pytest.raises(ValueError, match="dt"):
@@ -282,7 +281,7 @@ def test_runaway_evolution_rejects_invalid_time_domains():
         ev.evolve(n_RE_0=1e10, E_par_profile=lambda _t: 5.0, t_span=(0.1, 0.0), dt=0.01)
 
 
-def test_mitigation_rejects_invalid_geometry_and_heat_load_domains():
+def test_mitigation_rejects_invalid_geometry_and_heat_load_domains() -> None:
     mit = RunawayMitigationAssessment()
     with pytest.raises(ValueError, match="B0"):
         mit.maximum_re_energy(B0=0.0, R0=6.2)
