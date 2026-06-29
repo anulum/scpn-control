@@ -90,17 +90,54 @@ def test_validation_report_freshness_classifies_known_live_reports() -> None:
     reports = {report.path.relative_to(ROOT).as_posix(): report for report in matrix.stale_reports}
 
     assert (
-        reports["validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"]
-        .classification.bucket
+        reports[
+            "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"
+        ].classification.bucket
         == "rerunnable_local"
     )
     assert (
-        reports["validation/reports/gk_interface_artifacts.json"].classification.bucket
-        == "external_artifact_blocked"
+        reports["validation/reports/gk_interface_artifacts.json"].classification.bucket == "external_artifact_blocked"
     )
     assert (
         reports["validation/reports/mast_efm_neural_equilibrium_dataset.json"].classification.bucket
         == "historical_only"
+    )
+
+
+def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> None:
+    matrix = build_validation_report_freshness_matrix(
+        ROOT / "validation" / "reports",
+        as_of=datetime(2026, 6, 29, tzinfo=timezone.utc),
+        max_age_days=21,
+    )
+    refresh_plans = {
+        report.path.relative_to(ROOT).as_posix(): report.refresh_plan for report in matrix.rerunnable_local_reports
+    }
+
+    assert set(refresh_plans) == {
+        "validation/reports/aer_observation_admission_20260604T162953Z.json",
+        "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json",
+        "validation/reports/e2e_control_latency.json",
+        "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
+        "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
+        "validation/reports/runtime_admission_release_20260605T000000Z.json",
+        "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
+    }
+    assert (
+        refresh_plans["validation/reports/aer_observation_admission_20260604T162953Z.json"].status
+        == "ready_exact_command"
+    )
+    assert (
+        "bench_aer_observation.py"
+        in refresh_plans["validation/reports/aer_observation_admission_20260604T162953Z.json"].commands[0]
+    )
+    assert refresh_plans["validation/reports/e2e_control_latency.json"].status == "ready_reconstructed_command"
+    assert (
+        "benchmarks/e2e_control_latency.py" in refresh_plans["validation/reports/e2e_control_latency.json"].commands[0]
+    )
+    assert (
+        refresh_plans["validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"].status
+        == "manual_reconstruction_required"
     )
 
 
@@ -117,5 +154,8 @@ def test_validation_report_freshness_cli_accepts_current_window(capsys: CaptureF
 def test_validation_report_freshness_docs_include_entrypoint() -> None:
     validation_docs = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
 
-    assert "scpn-validation-report-freshness --output-json artifacts/validation_report_freshness.json" in validation_docs
+    assert (
+        "scpn-validation-report-freshness --output-json artifacts/validation_report_freshness.json" in validation_docs
+    )
     assert "scpn-control.validation-report-freshness.v1" in validation_docs
+    assert "Rerunnable local reports also include a refresh plan" in validation_docs

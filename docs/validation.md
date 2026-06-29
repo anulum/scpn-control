@@ -817,9 +817,13 @@ file timestamps. It reports stale benchmark and validation artifacts without
 changing claim status by default. Stale reports are classified into advisory
 `rerunnable_local`, `external_artifact_blocked`, and `historical_only` buckets
 so rerun campaigns can start from the local evidence that can actually be
-refreshed. Use `--fail-on-stale` only in release or promotion campaigns after
-the affected reports have been rerun or deliberately accepted as historical
-evidence.
+refreshed. Rerunnable local reports also include a refresh plan with a status
+and command list: `ready_exact_command` when the report preserved the command,
+`ready_reconstructed_command` when a schema-owned benchmark CLI can be rebuilt
+from persisted parameters, and `manual_reconstruction_required` when only
+partial or no command metadata exists. Use `--fail-on-stale` only in release or
+promotion campaigns after the affected reports have been rerun or deliberately
+accepted as historical evidence.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof

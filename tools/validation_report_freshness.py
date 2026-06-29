@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import sys
 from collections import Counter
 from dataclasses import dataclass
@@ -23,6 +24,12 @@ from typing import Final, Literal, cast
 ROOT = Path(__file__).resolve().parents[1]
 
 FreshnessBucket = Literal["rerunnable_local", "external_artifact_blocked", "historical_only"]
+RefreshPlanStatus = Literal[
+    "not_rerunnable_local",
+    "ready_exact_command",
+    "ready_reconstructed_command",
+    "manual_reconstruction_required",
+]
 
 _DATE_FIELD_NAMES: Final[frozenset[str]] = frozenset(
     {
@@ -86,6 +93,23 @@ class ValidationReportClassification:
 
 
 @dataclass(frozen=True)
+class ValidationReportRefreshPlan:
+    """Advisory command plan for refreshing one stale validation report."""
+
+    status: RefreshPlanStatus
+    commands: tuple[str, ...]
+    rationale: str
+
+    def to_dict(self) -> dict[str, object]:
+        """Return a JSON-serialisable refresh-plan record."""
+        return {
+            "status": self.status,
+            "commands": list(self.commands),
+            "rationale": self.rationale,
+        }
+
+
+@dataclass(frozen=True)
 class ValidationReportFreshness:
     """Freshness metadata for one validation report JSON artifact."""
 
@@ -96,6 +120,7 @@ class ValidationReportFreshness:
     stale: bool
     claim_boundary_present: bool
     classification: ValidationReportClassification
+    refresh_plan: ValidationReportRefreshPlan
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serialisable report freshness record."""
@@ -107,6 +132,7 @@ class ValidationReportFreshness:
             "stale": self.stale,
             "claim_boundary_present": self.claim_boundary_present,
             "classification": self.classification.to_dict(),
+            "refresh_plan": self.refresh_plan.to_dict(),
         }
 
 
@@ -123,6 +149,11 @@ class ValidationReportFreshnessMatrix:
     def stale_reports(self) -> tuple[ValidationReportFreshness, ...]:
         """Return reports older than the configured freshness window."""
         return tuple(report for report in self.reports if report.stale)
+
+    @property
+    def rerunnable_local_reports(self) -> tuple[ValidationReportFreshness, ...]:
+        """Return stale reports that can start from local rerun planning."""
+        return tuple(report for report in self.stale_reports if report.classification.bucket == "rerunnable_local")
 
     @property
     def source_counts(self) -> dict[str, int]:
@@ -149,6 +180,7 @@ class ValidationReportFreshnessMatrix:
             "summary": {
                 "report_count": len(self.reports),
                 "stale_report_count": len(self.stale_reports),
+                "rerunnable_local_report_count": len(self.rerunnable_local_reports),
                 "claim_boundary_missing": self.claim_boundary_missing,
                 "evidence_time_sources": self.source_counts,
                 "bucket_counts": self.bucket_counts,
@@ -186,14 +218,30 @@ class ValidationReportFreshnessMatrix:
         if not self.stale_reports:
             lines.append("No stale validation report JSON artifacts were found.")
         else:
-            lines.append("| Report | Bucket | Age days | Evidence time source | Claim boundary |")
-            lines.append("| --- | --- | ---: | --- | --- |")
+            lines.append("| Report | Bucket | Refresh status | Age days | Evidence time source | Claim boundary |")
+            lines.append("| --- | --- | --- | ---: | --- | --- |")
             for report in self.stale_reports:
                 claim_boundary = "yes" if report.claim_boundary_present else "no"
                 lines.append(
-                    f"| `{_repo_relative(report.path)}` | {report.classification.bucket} | {report.age_days} | "
+                    f"| `{_repo_relative(report.path)}` | {report.classification.bucket} | "
+                    f"{report.refresh_plan.status} | {report.age_days} | "
                     f"{report.evidence_time_source} | {claim_boundary} |"
                 )
+        lines.extend(
+            [
+                "",
+                "## Rerunnable Local Refresh Plan",
+                "",
+            ]
+        )
+        if not self.rerunnable_local_reports:
+            lines.append("No stale rerunnable-local validation report JSON artifacts were found.")
+        else:
+            lines.append("| Report | Status | Command source |")
+            lines.append("| --- | --- | --- |")
+            for report in self.rerunnable_local_reports:
+                command_source = report.refresh_plan.rationale
+                lines.append(f"| `{_repo_relative(report.path)}` | {report.refresh_plan.status} | {command_source} |")
         lines.append("")
         return "\n".join(lines)
 
@@ -241,6 +289,7 @@ def _report_freshness(path: Path, *, as_of: datetime, max_age_days: int) -> Vali
     evidence_time, source = _extract_evidence_time(path, payload)
     age_days = max((as_of - evidence_time).days, 0)
     claim_boundary_present = _contains_claim_boundary(payload)
+    classification = _classify_report(path, payload, claim_boundary_present)
     return ValidationReportFreshness(
         path=path,
         evidence_time=evidence_time,
@@ -248,7 +297,8 @@ def _report_freshness(path: Path, *, as_of: datetime, max_age_days: int) -> Vali
         age_days=age_days,
         stale=age_days > max_age_days,
         claim_boundary_present=claim_boundary_present,
-        classification=_classify_report(path, payload, claim_boundary_present),
+        classification=classification,
+        refresh_plan=_build_refresh_plan(path, payload, classification),
     )
 
 
@@ -286,6 +336,131 @@ def _first_matching_hint(searchable: str, hints: tuple[str, ...]) -> str | None:
         if hint in searchable:
             return hint
     return None
+
+
+def _build_refresh_plan(
+    path: Path,
+    payload: dict[str, object],
+    classification: ValidationReportClassification,
+) -> ValidationReportRefreshPlan:
+    if classification.bucket != "rerunnable_local":
+        return ValidationReportRefreshPlan(
+            status="not_rerunnable_local",
+            commands=(),
+            rationale="Report is not classified as rerunnable-local.",
+        )
+
+    preserved_commands = _preserved_commands(payload)
+    if preserved_commands and all("..." not in command for command in preserved_commands):
+        return ValidationReportRefreshPlan(
+            status="ready_exact_command",
+            commands=preserved_commands,
+            rationale="Exact command text is preserved in the report payload.",
+        )
+
+    reconstructed_command = _reconstruct_schema_command(path, payload)
+    if reconstructed_command is not None:
+        return ValidationReportRefreshPlan(
+            status="ready_reconstructed_command",
+            commands=(reconstructed_command,),
+            rationale="Command reconstructed from the report schema, output path, and persisted benchmark parameters.",
+        )
+
+    if preserved_commands:
+        return ValidationReportRefreshPlan(
+            status="manual_reconstruction_required",
+            commands=preserved_commands,
+            rationale="Only abbreviated or partial command text is present; rerun requires manual producer reconstruction.",
+        )
+
+    return ValidationReportRefreshPlan(
+        status="manual_reconstruction_required",
+        commands=(),
+        rationale="No command metadata or schema-owned reconstruction path was found.",
+    )
+
+
+def _preserved_commands(payload: dict[str, object]) -> tuple[str, ...]:
+    commands: list[str] = []
+    for key in ("outer_command", "command"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            commands.append(value.strip())
+    nested_commands = payload.get("commands")
+    if isinstance(nested_commands, dict):
+        for key in sorted(nested_commands):
+            value = nested_commands[key]
+            if isinstance(value, str) and value.strip():
+                commands.append(value.strip())
+    return tuple(dict.fromkeys(commands))
+
+
+def _reconstruct_schema_command(path: Path, payload: dict[str, object]) -> str | None:
+    schema_version = payload.get("schema_version")
+    if schema_version == "scpn-control.e2e-latency.v1":
+        return _reconstruct_e2e_latency_command(path, payload)
+    if schema_version == "scpn-control.runtime-admission-benchmark.v1":
+        return _reconstruct_runtime_admission_command(path, payload)
+    return None
+
+
+def _reconstruct_e2e_latency_command(path: Path, payload: dict[str, object]) -> str:
+    target_hardware = payload.get("target_hardware")
+    target = target_hardware if isinstance(target_hardware, dict) else {}
+    return shlex.join(
+        [
+            "env",
+            "PYTHONPATH=src",
+            "python",
+            "benchmarks/e2e_control_latency.py",
+            "--iterations",
+            _stringify_int(payload.get("iterations"), default=1000),
+            "--warmup",
+            _stringify_int(payload.get("warmup"), default=50),
+            "--output-json",
+            _repo_relative(path),
+            "--target-hardware-id",
+            _stringify_string(target.get("id"), default="local-host-unqualified"),
+            "--target-hardware-class",
+            _stringify_string(target.get("class"), default="unspecified-local"),
+            "--rt-kernel",
+            _stringify_string(target.get("rt_kernel"), default="unknown"),
+        ]
+    )
+
+
+def _reconstruct_runtime_admission_command(path: Path, payload: dict[str, object]) -> str:
+    stats = payload.get("stats")
+    stats_payload = stats if isinstance(stats, dict) else {}
+    iterations = _stringify_int(stats_payload.get("samples"), default=500)
+    return shlex.join(
+        [
+            "env",
+            "PYTHONPATH=src",
+            "python",
+            "benchmarks/bench_runtime_admission.py",
+            "--iterations",
+            iterations,
+            "--warmup",
+            "50",
+            "--json-out",
+            _repo_relative(path),
+            "--md-out",
+            _repo_relative(path.with_suffix(".md")),
+        ]
+    )
+
+
+def _stringify_int(value: object, *, default: int) -> str:
+    if isinstance(value, int) and value > 0:
+        return str(value)
+    return str(default)
+
+
+def _stringify_string(value: object, *, default: str) -> str:
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return default
 
 
 def _extract_evidence_time(path: Path, payload: dict[str, object]) -> tuple[datetime, str]:
