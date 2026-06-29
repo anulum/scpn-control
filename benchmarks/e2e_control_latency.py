@@ -48,10 +48,13 @@ from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_
 
 
 def _affinity() -> list[int]:
-    """Return the current process CPU affinity when the platform exposes it."""
+    """Return the CPU set visible to the benchmark process."""
     if hasattr(os, "sched_getaffinity"):
         return sorted(os.sched_getaffinity(0))
-    return []
+    cpu_count = os.cpu_count()
+    if cpu_count is None or cpu_count < 1:
+        return [0]
+    return list(range(cpu_count))
 
 
 def _loadavg() -> list[float]:
