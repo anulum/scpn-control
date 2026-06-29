@@ -25,7 +25,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
+import shlex
 import sys
 import tempfile
 import time
@@ -33,6 +35,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -42,6 +45,26 @@ if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_payload
+
+
+def _affinity() -> list[int]:
+    """Return the current process CPU affinity when the platform exposes it."""
+    if hasattr(os, "sched_getaffinity"):
+        return sorted(os.sched_getaffinity(0))
+    return []
+
+
+def _loadavg() -> list[float]:
+    """Return host load averages when available."""
+    if hasattr(os, "getloadavg"):
+        return [float(value) for value in os.getloadavg()]
+    return [0.0, 0.0, 0.0]
+
+
+def _governor() -> str | None:
+    """Return the first CPU governor string when sysfs exposes it."""
+    path = Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor")
+    return path.read_text(encoding="utf-8").strip() if path.exists() else None
 
 
 def _write_minimal_config(path: Path) -> Path:
@@ -66,12 +89,12 @@ def _write_minimal_config(path: Path) -> Path:
     return path
 
 
-def _percentile(sorted_arr: np.ndarray, p: float) -> float:
+def _percentile(sorted_arr: NDArray[np.float64], p: float) -> float:
     idx = int(p / 100.0 * (len(sorted_arr) - 1))
     return float(sorted_arr[idx])
 
 
-def bench_kernel_only(kernel: Any, n_warmup: int, n_iter: int) -> np.ndarray:
+def bench_kernel_only(kernel: Any, n_warmup: int, n_iter: int) -> NDArray[np.int64]:
     """Measure a single SOR step (kernel-only, no transport/control)."""
     source = -kernel.cfg["physics"]["vacuum_permeability"] * kernel.RR * kernel.J_phi
     for _ in range(n_warmup):
@@ -85,7 +108,7 @@ def bench_kernel_only(kernel: Any, n_warmup: int, n_iter: int) -> np.ndarray:
     return times_ns
 
 
-def bench_e2e(transport: Any, hinf: Any, n_warmup: int, n_iter: int) -> np.ndarray:
+def bench_e2e(equilibrium: Any, transport: Any, hinf: Any, n_warmup: int, n_iter: int) -> NDArray[np.int64]:
     """Measure the full control cycle: sensor→equilibrium→transport→control→actuator."""
     rng = np.random.default_rng(42)
     dt_transport = 0.001  # 1 ms transport step
@@ -95,24 +118,49 @@ def bench_e2e(transport: Any, hinf: Any, n_warmup: int, n_iter: int) -> np.ndarr
     slew_max = 1e8  # A/s
     u_prev = 0.0
 
-    source = -transport.cfg["physics"]["vacuum_permeability"] * transport.RR * transport.J_phi
+    source = -equilibrium.cfg["physics"]["vacuum_permeability"] * equilibrium.RR * equilibrium.J_phi
 
     for _ in range(n_warmup):
-        _e2e_iteration(transport, hinf, rng, source, dt_transport, dt_control, P_aux, u_max, slew_max, u_prev)
+        _e2e_iteration(
+            equilibrium,
+            transport,
+            hinf,
+            rng,
+            source,
+            dt_transport,
+            dt_control,
+            P_aux,
+            u_max,
+            slew_max,
+            u_prev,
+        )
 
     times_ns = np.empty(n_iter, dtype=np.int64)
     for i in range(n_iter):
         t0 = time.perf_counter_ns()
-        u_prev = _e2e_iteration(transport, hinf, rng, source, dt_transport, dt_control, P_aux, u_max, slew_max, u_prev)
+        u_prev = _e2e_iteration(
+            equilibrium,
+            transport,
+            hinf,
+            rng,
+            source,
+            dt_transport,
+            dt_control,
+            P_aux,
+            u_max,
+            slew_max,
+            u_prev,
+        )
         times_ns[i] = time.perf_counter_ns() - t0
     return times_ns
 
 
 def _e2e_iteration(
+    equilibrium: Any,
     transport: Any,
     hinf: Any,
     rng: np.random.Generator,
-    source: np.ndarray,
+    source: NDArray[np.float64],
     dt_transport: float,
     dt_control: float,
     P_aux: float,
@@ -125,7 +173,7 @@ def _e2e_iteration(
     z_displacement = 0.01 * rng.standard_normal()
 
     # 2. Equilibrium: one SOR step on current GS source
-    transport._sor_step(transport.Psi, source)
+    equilibrium._sor_step(equilibrium.Psi, source)
 
     # 3. Transport: update coefficients + advance profiles
     transport.update_transport_model(P_aux)
@@ -159,34 +207,58 @@ def main() -> None:
     )
     parser.add_argument("--rt-kernel", default="unknown", help="Real-time kernel or scheduler evidence label")
     args = parser.parse_args()
+    command = shlex.join([Path(sys.executable).name, *sys.argv])
+    loadavg_start = _loadavg()
 
     # Lazy imports so --help is fast
     from scpn_control.control.h_infinity_controller import get_radial_robust_controller
+    from scpn_control.core.fusion_kernel import FusionKernel as PythonFusionKernel
     from scpn_control.core.integrated_transport_solver import TransportSolver
 
     with tempfile.TemporaryDirectory() as tmpdir:
         cfg_path = _write_minimal_config(Path(tmpdir) / "bench.json")
+        equilibrium = PythonFusionKernel(cfg_path)
         transport = TransportSolver(cfg_path)
         transport.set_neoclassical(R0=4.0, a=2.0, B0=5.3)
 
     hinf = get_radial_robust_controller(gamma_growth=100.0, damping=10.0)
 
     # Kernel-only benchmark
-    kernel_ns = bench_kernel_only(transport, args.warmup, args.iterations)
+    kernel_ns = bench_kernel_only(equilibrium, args.warmup, args.iterations)
     kernel_ns.sort()
     kernel_us = kernel_ns / 1000.0
 
     # E2E benchmark
     hinf.reset()
-    e2e_ns = bench_e2e(transport, hinf, args.warmup, args.iterations)
+    e2e_ns = bench_e2e(equilibrium, transport, hinf, args.warmup, args.iterations)
     e2e_ns.sort()
     e2e_us = e2e_ns / 1000.0
+    kernel_only_us = {
+        "p50": round(_percentile(kernel_us, 50), 1),
+        "p95": round(_percentile(kernel_us, 95), 1),
+        "p99": round(_percentile(kernel_us, 99), 1),
+    }
+    e2e_percentiles_us = {
+        "p50": round(_percentile(e2e_us, 50), 1),
+        "p95": round(_percentile(e2e_us, 95), 1),
+        "p99": round(_percentile(e2e_us, 99), 1),
+    }
 
     results = build_e2e_latency_evidence_payload(
         {
             "iterations": args.iterations,
             "warmup": args.warmup,
             "grid": "16x16",
+            "generated_utc": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "command": command,
+            "context": {
+                "cpu_affinity": _affinity(),
+                "isolation_method": "process-affinity-inherited-or-taskset",
+                "loadavg_start": loadavg_start,
+                "loadavg_end": _loadavg(),
+                "governor": _governor(),
+                "heavy_jobs_running": os.environ.get("SCPN_HEAVY_JOBS_RUNNING", "not-recorded"),
+            },
             "target_hardware": {
                 "id": args.target_hardware_id,
                 "class": args.target_hardware_class,
@@ -197,17 +269,9 @@ def main() -> None:
                 "numpy": np.__version__,
                 "rt_kernel": args.rt_kernel,
             },
-            "kernel_only_us": {
-                "p50": round(_percentile(kernel_us, 50), 1),
-                "p95": round(_percentile(kernel_us, 95), 1),
-                "p99": round(_percentile(kernel_us, 99), 1),
-            },
-            "e2e_us": {
-                "p50": round(_percentile(e2e_us, 50), 1),
-                "p95": round(_percentile(e2e_us, 95), 1),
-                "p99": round(_percentile(e2e_us, 99), 1),
-            },
-            "e2e_overhead_factor": round(_percentile(e2e_us, 50) / max(_percentile(kernel_us, 50), 0.1), 1),
+            "kernel_only_us": kernel_only_us,
+            "e2e_us": e2e_percentiles_us,
+            "e2e_overhead_factor": round(e2e_percentiles_us["p50"] / max(kernel_only_us["p50"], 0.1), 1),
         }
     )
 

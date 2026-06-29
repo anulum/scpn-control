@@ -10,6 +10,11 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
+from collections.abc import Callable
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -20,8 +25,27 @@ from validation.validate_e2e_latency_evidence import (
 )
 
 
-def _latency_payload() -> dict:
+def _latency_payload() -> dict[str, Any]:
     return {
+        "generated_utc": "2026-06-29T21:30:00Z",
+        "command": (
+            "env PYTHONPATH=src python benchmarks/e2e_control_latency.py "
+            "--iterations 1000 --warmup 50 --output-json validation/reports/e2e_control_latency.json"
+        ),
+        "evidence_class": "local_regression",
+        "production_claim_allowed": False,
+        "claim_boundary": (
+            "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
+            "unless target_hardware.id, class, and rt_kernel are operator-qualified"
+        ),
+        "context": {
+            "cpu_affinity": [0, 1],
+            "isolation_method": "process-affinity-inherited-or-taskset",
+            "loadavg_start": [0.1, 0.2, 0.3],
+            "loadavg_end": [0.2, 0.2, 0.3],
+            "governor": "performance",
+            "heavy_jobs_running": "not-observed",
+        },
         "iterations": 1000,
         "warmup": 50,
         "target_hardware": {
@@ -40,7 +64,7 @@ def _latency_payload() -> dict:
     }
 
 
-def test_e2e_latency_evidence_accepts_qualified_hardware_report(tmp_path):
+def test_e2e_latency_evidence_accepts_qualified_hardware_report(tmp_path: Path) -> None:
     report = tmp_path / "e2e_latency.json"
     report.write_text(json.dumps(build_e2e_latency_evidence_payload(_latency_payload())), encoding="utf-8")
 
@@ -55,7 +79,7 @@ def test_e2e_latency_evidence_accepts_qualified_hardware_report(tmp_path):
     assert len(payload["payload_sha256"]) == 64
 
 
-def test_e2e_latency_evidence_rejects_unqualified_local_report(tmp_path):
+def test_e2e_latency_evidence_rejects_unqualified_local_report(tmp_path: Path) -> None:
     payload = _latency_payload()
     payload["target_hardware"]["id"] = "local-host-unqualified"
     payload["target_hardware"]["class"] = "unspecified-local"
@@ -71,7 +95,7 @@ def test_e2e_latency_evidence_rejects_unqualified_local_report(tmp_path):
     assert "target_hardware.rt_kernel must identify scheduler or RT-kernel evidence" in result.errors
 
 
-def test_e2e_latency_evidence_rejects_threshold_regression(tmp_path):
+def test_e2e_latency_evidence_rejects_threshold_regression(tmp_path: Path) -> None:
     payload = _latency_payload()
     payload["e2e_us"]["p95"] = 1500.0
     report = tmp_path / "e2e_latency.json"
@@ -83,7 +107,9 @@ def test_e2e_latency_evidence_rejects_threshold_regression(tmp_path):
     assert "e2e_us.p95 exceeds admission threshold 1000.0" in result.errors
 
 
-def test_e2e_latency_evidence_can_allow_unqualified_local_development_report(tmp_path):
+def test_e2e_latency_evidence_can_allow_unqualified_local_development_report(
+    tmp_path: Path,
+) -> None:
     payload = _latency_payload()
     payload["target_hardware"]["id"] = "local-host-unqualified"
     payload["target_hardware"]["class"] = "unspecified-local"
@@ -110,7 +136,11 @@ def test_e2e_latency_evidence_can_allow_unqualified_local_development_report(tmp
         ),
     ],
 )
-def test_e2e_latency_evidence_rejects_runtime_metadata_regressions(tmp_path, mutator, message):
+def test_e2e_latency_evidence_rejects_runtime_metadata_regressions(
+    tmp_path: Path,
+    mutator: Callable[[dict[str, Any]], None],
+    message: str,
+) -> None:
     payload = build_e2e_latency_evidence_payload(_latency_payload())
     mutator(payload)
     payload = build_e2e_latency_evidence_payload(payload)
@@ -123,7 +153,23 @@ def test_e2e_latency_evidence_rejects_runtime_metadata_regressions(tmp_path, mut
     assert message in result.errors
 
 
-def test_e2e_latency_evidence_rejects_tampered_payload_digest(tmp_path):
+def test_e2e_latency_evidence_rejects_benchmark_context_regressions(tmp_path: Path) -> None:
+    payload = build_e2e_latency_evidence_payload(_latency_payload())
+    payload.pop("command")
+    payload["context"] = {"cpu_affinity": [], "loadavg_start": [0.1], "loadavg_end": [0.2]}
+    report = tmp_path / "e2e_latency.json"
+    report.write_text(json.dumps(build_e2e_latency_evidence_payload(payload)), encoding="utf-8")
+
+    result = validate_e2e_latency_evidence(report)
+
+    assert result.status == "fail"
+    assert "command must record the E2E benchmark invocation" in result.errors
+    assert "context.cpu_affinity must record at least one CPU" in result.errors
+    assert "context.isolation_method must record the benchmark isolation method" in result.errors
+    assert "context.loadavg_start must contain three finite load-average values" in result.errors
+
+
+def test_e2e_latency_evidence_rejects_tampered_payload_digest(tmp_path: Path) -> None:
     payload = build_e2e_latency_evidence_payload(_latency_payload())
     payload["e2e_us"]["p95"] = 999.0
     report = tmp_path / "e2e_latency.json"
@@ -133,3 +179,31 @@ def test_e2e_latency_evidence_rejects_tampered_payload_digest(tmp_path):
 
     assert result.status == "fail"
     assert "payload_sha256 does not match latency evidence payload" in result.errors
+
+
+def test_e2e_latency_benchmark_emits_admissible_local_report(tmp_path: Path) -> None:
+    report = tmp_path / "e2e_latency.json"
+
+    subprocess.run(
+        [
+            sys.executable,
+            "benchmarks/e2e_control_latency.py",
+            "--iterations",
+            "3",
+            "--warmup",
+            "1",
+            "--output-json",
+            str(report),
+            "--json",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["schema_version"] == E2E_LATENCY_SCHEMA_VERSION
+    assert "benchmarks/e2e_control_latency.py" in payload["command"]
+    assert payload["context"]["cpu_affinity"]
+    result = validate_e2e_latency_evidence(report, require_target_hardware=False)
+    assert result.status == "pass"
