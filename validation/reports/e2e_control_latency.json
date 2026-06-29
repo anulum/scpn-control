@@ -7,13 +7,14 @@
     "p99": 7092.0
   },
   "grid": "16x16",
+  "generated_utc": "2026-05-31T11:44:01Z",
   "iterations": 200,
   "kernel_only_us": {
     "p50": 70.8,
     "p95": 135.9,
     "p99": 163.3
   },
-  "payload_sha256": "35e1f58847c01a9fd662335dec51fa245242c7966f0de8d4f0628e0e63b85e74",
+  "payload_sha256": "823e17f58ec63c127bfba4d0be71dba55c73469420b14b7ad617e90e0ca1e3e0",
   "schema_version": "scpn-control.e2e-latency.v1",
   "target_hardware": {
     "class": "unspecified-local",
