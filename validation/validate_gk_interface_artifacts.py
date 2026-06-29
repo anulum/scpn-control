@@ -18,6 +18,7 @@ import json
 import math
 import re
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -81,7 +82,11 @@ def validate_gk_interface_artifacts(
 
     if require_interface_artifacts and not paths:
         errors.append(
-            {"path": _portable_path(root), "field": "artifact_root", "error": "no external GK interface artefacts found"}
+            {
+                "path": _portable_path(root),
+                "field": "artifact_root",
+                "error": "no external GK interface artefacts found",
+            }
         )
 
     seen_code_runs: set[tuple[str, str]] = set()
@@ -110,7 +115,11 @@ def validate_gk_interface_artifacts(
 
     if require_interface_artifacts and report["interface_artifacts"] == 0 and not errors:
         errors.append(
-            {"path": _portable_path(root), "field": "artifact_root", "error": "no external GK interface artefacts found"}
+            {
+                "path": _portable_path(root),
+                "field": "artifact_root",
+                "error": "no external GK interface artefacts found",
+            }
         )
     if errors:
         report["status"] = "fail"
@@ -286,6 +295,7 @@ def _new_report(root: Path, *, require_interface_artifacts: bool) -> dict[str, A
         "schema_version": _REPORT_SCHEMA,
         "status": "pass",
         "root": _portable_path(root),
+        "generated_at_utc": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
         "payload_sha256": None,
         "interface_artifacts": 0,
         "require_interface_artifacts": bool(require_interface_artifacts),

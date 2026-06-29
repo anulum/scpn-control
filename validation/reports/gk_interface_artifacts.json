@@ -7,8 +7,9 @@
       "path": "validation/reports/gk_interfaces"
     }
   ],
+  "generated_at_utc": "2026-06-01T16:11:48Z",
   "interface_artifacts": 0,
-  "payload_sha256": "141d89e3b413b58b62af84b39ed95b5b8d9ef43425b9b232e6aebd0ed06d6f85",
+  "payload_sha256": "9eb4f10e5e0be0f2f498284c977f6913974eddd6f3586cbc34982212808b9b3a",
   "public_claims": {
     "blocked_reason": "Requires persisted real-executable or documented public-reference GK interface artefacts.",
     "external_interface_artifacts_admitted": false,
