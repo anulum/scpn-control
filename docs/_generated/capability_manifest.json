@@ -21,12 +21,12 @@
     "orcid": "0009-0009-3560-0851"
   },
   "counts": {
-    "project_script_count": 3,
+    "project_script_count": 4,
     "public_api_export_count": 44,
     "public_class_count": 526,
     "public_markdown_count": 54,
     "pyo3_export_count": 39,
-    "python_test_file_count": 389,
+    "python_test_file_count": 390,
     "rust_source_file_count": 64,
     "source_module_count": 146,
     "validation_script_count": 119,
@@ -118,7 +118,8 @@
     "scripts": {
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
       "scpn-control": "scpn_control.cli:main",
-      "scpn-evidence-gap-matrix": "tools.evidence_gap_matrix:main"
+      "scpn-evidence-gap-matrix": "tools.evidence_gap_matrix:main",
+      "scpn-validation-report-freshness": "tools.validation_report_freshness:main"
     },
     "version": "0.22.0"
   },
@@ -1327,6 +1328,7 @@
       "tests/test_tools/test_capability_manifest.py",
       "tests/test_tools/test_pragma_reason_gate.py",
       "tests/test_tools/test_runtime_wiring.py",
+      "tests/test_tools/test_validation_report_freshness.py",
       "tests/test_torax_hybrid_loop.py",
       "tests/test_torax_streak_disruption.py",
       "tests/test_tracker53_evidence_gate.py",

@@ -48,6 +48,10 @@ def test_manifest_scans_control_specific_surfaces(capability_tool: Any) -> None:
         manifest["project"]["scripts"]["scpn-check-generated-traceability"] == "tools.check_generated_traceability:main"
     )
     assert manifest["project"]["scripts"]["scpn-evidence-gap-matrix"] == "tools.evidence_gap_matrix:main"
+    assert (
+        manifest["project"]["scripts"]["scpn-validation-report-freshness"]
+        == "tools.validation_report_freshness:main"
+    )
 
     assert "FusionKernel" in manifest["python"]["public_api_exports"]
     assert "NeuroSymbolicController" in manifest["python"]["public_api_exports"]

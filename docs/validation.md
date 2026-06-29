@@ -800,6 +800,7 @@ python validation/validate_physics_traceability.py --output-json artifacts/physi
 python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md
 scpn-check-generated-traceability
 scpn-evidence-gap-matrix --output-json artifacts/evidence_gap_matrix.json --output-md artifacts/evidence_gap_matrix.md
+scpn-validation-report-freshness --output-json artifacts/validation_report_freshness.json --output-md artifacts/validation_report_freshness.md
 ```
 
 The evidence gap matrix uses schema `scpn-control.evidence-gap-matrix.v1` and
@@ -808,6 +809,14 @@ validation tracker. It is the planning input for promotion campaigns: first
 clear the tracker work package with real external-code, facility, benchmark, or
 hardware evidence, then update `validation/physics_traceability.json` and
 regenerate `docs/physics_traceability.md`.
+
+The validation report freshness inventory uses schema
+`scpn-control.validation-report-freshness.v1` and scans JSON artifacts under
+`validation/reports/` for explicit report timestamps, filename timestamps, or
+file timestamps. It reports stale benchmark and validation artifacts without
+changing claim status by default. Use `--fail-on-stale` only in release or
+promotion campaigns after the affected reports have been rerun or deliberately
+accepted as historical evidence.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof
