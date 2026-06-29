@@ -47,6 +47,7 @@ def test_manifest_scans_control_specific_surfaces(capability_tool: Any) -> None:
     assert (
         manifest["project"]["scripts"]["scpn-check-generated-traceability"] == "tools.check_generated_traceability:main"
     )
+    assert manifest["project"]["scripts"]["scpn-evidence-gap-matrix"] == "tools.evidence_gap_matrix:main"
 
     assert "FusionKernel" in manifest["python"]["public_api_exports"]
     assert "NeuroSymbolicController" in manifest["python"]["public_api_exports"]
@@ -140,7 +141,7 @@ def test_markdown_snapshot_is_readme_safe(capability_tool: Any) -> None:
     ]
     assert "<h1" not in markdown.lower()
     assert "\n# " not in markdown
-    assert "| Project scripts | 2 |" in markdown
+    assert f"| Project scripts | {manifest['counts']['project_script_count']} |" in markdown
     assert "".join(("Co", "dex")) not in markdown
     assert "".join(("Open", "AI")) not in markdown
 
