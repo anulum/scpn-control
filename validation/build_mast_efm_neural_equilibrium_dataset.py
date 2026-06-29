@@ -14,6 +14,7 @@ import argparse
 import hashlib
 import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -490,6 +491,7 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         "feature_names": list(FEATURE_NAMES),
         "fallback_features": list(fallback_features),
         "feature_source_policy": feature_source_policy,
+        "generated_at_utc": datetime.now(tz=timezone.utc).isoformat().replace("+00:00", "Z"),
         "target_keys": list(TARGET_KEYS),
         "ragged_target_policy": {
             "keys": list(RAGGED_LCFS_KEYS),

@@ -46,6 +46,7 @@
       "units": "dimensionless"
     }
   },
+  "generated_at_utc": "2026-06-05T20:32:49Z",
   "grid_shape": [
     65,
     129
@@ -56,7 +57,7 @@
     "emit compact holdout metrics and keep large weights/predictions on storage-host storage by SHA-256",
     "run validate_neural_equilibrium_reference.py only after full predictive artefacts and tolerances exist"
   ],
-  "payload_sha256": "b6f1b8651d32b2b9b2d2a5e581132983c163a4201a04c43009dcd8383f12243c",
+  "payload_sha256": "f059d55337004d698fc8acf390a9d6d75aeb44687e8718073f4bb3fad3b13e0f",
   "r_grid_m": {
     "count": 129,
     "max": 2.0,
