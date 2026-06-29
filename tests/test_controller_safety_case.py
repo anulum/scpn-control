@@ -202,6 +202,24 @@ def _write_readiness_file(root: Path, uri: str, payload: dict[str, object]) -> s
 def _target_hardware_latency_payload() -> dict[str, object]:
     return build_e2e_latency_evidence_payload(
         {
+            "generated_utc": "2026-05-31T00:00:00Z",
+            "command": (
+                "env PYTHONPATH=src python benchmarks/e2e_control_latency.py "
+                "--iterations 1000 --warmup 100 "
+                "--target-hardware-id jetson-orin-nx-lab-unit-03 "
+                "--target-hardware-class jetson --rt-kernel PREEMPT_RT-6.8-lab "
+                "--output-json validation/reports/hardware/target_timing.json"
+            ),
+            "evidence_class": "local_regression",
+            "production_claim_allowed": False,
+            "context": {
+                "cpu_affinity": [2, 3],
+                "isolation_method": "reserved-core-taskset",
+                "loadavg_start": [0.12, 0.10, 0.08],
+                "loadavg_end": [0.13, 0.10, 0.08],
+                "governor": "performance",
+                "heavy_jobs_running": "not-observed",
+            },
             "iterations": 1000,
             "warmup": 100,
             "grid": "16x16",
