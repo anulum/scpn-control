@@ -101,6 +101,7 @@ dev = [
 [project.scripts]
 scpn-control = "scpn_control.cli:main"
 scpn-check-generated-traceability = "tools.check_generated_traceability:main"
+scpn-evidence-gap-matrix = "tools.evidence_gap_matrix:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

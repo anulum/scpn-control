@@ -799,7 +799,15 @@ scpn-control validate-physics-traceability --json-out
 python validation/validate_physics_traceability.py --output-json artifacts/physics_traceability_report.json
 python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md
 scpn-check-generated-traceability
+scpn-evidence-gap-matrix --output-json artifacts/evidence_gap_matrix.json --output-md artifacts/evidence_gap_matrix.md
 ```
+
+The evidence gap matrix uses schema `scpn-control.evidence-gap-matrix.v1` and
+groups blocked or bounded physics-traceability entries by their external
+validation tracker. It is the planning input for promotion campaigns: first
+clear the tracker work package with real external-code, facility, benchmark, or
+hardware evidence, then update `validation/physics_traceability.json` and
+regenerate `docs/physics_traceability.md`.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof
