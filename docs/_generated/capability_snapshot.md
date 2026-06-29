@@ -12,7 +12,7 @@
 | --- | ---: |
 | Package version | 0.22.0 |
 | Python requirement | >=3.10 |
-| Project scripts | 2 |
+| Project scripts | 3 |
 | Public API exports | 44 |
 | Python control/physics modules | 146 |
 | Python public classes | 526 |
@@ -20,7 +20,7 @@
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 388 |
+| Python test files | 389 |
 | Public documentation pages | 54 |
 | GitHub Actions workflows | 10 |
 

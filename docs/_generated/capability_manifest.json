@@ -21,12 +21,12 @@
     "orcid": "0009-0009-3560-0851"
   },
   "counts": {
-    "project_script_count": 2,
+    "project_script_count": 3,
     "public_api_export_count": 44,
     "public_class_count": 526,
     "public_markdown_count": 54,
     "pyo3_export_count": 39,
-    "python_test_file_count": 388,
+    "python_test_file_count": 389,
     "rust_source_file_count": 64,
     "source_module_count": 146,
     "validation_script_count": 119,
@@ -117,7 +117,8 @@
     "python_requires": ">=3.10",
     "scripts": {
       "scpn-check-generated-traceability": "tools.check_generated_traceability:main",
-      "scpn-control": "scpn_control.cli:main"
+      "scpn-control": "scpn_control.cli:main",
+      "scpn-evidence-gap-matrix": "tools.evidence_gap_matrix:main"
     },
     "version": "0.22.0"
   },
@@ -1080,6 +1081,7 @@
       "tests/test_eqdsk.py",
       "tests/test_eqdsk_psi_to_norm.py",
       "tests/test_equilibrium_shape.py",
+      "tests/test_evidence_gap_matrix.py",
       "tests/test_external_profile_mode.py",
       "tests/test_fault_tolerant_control.py",
       "tests/test_federated_disruption.py",
