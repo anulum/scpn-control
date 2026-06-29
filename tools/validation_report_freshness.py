@@ -18,9 +18,11 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Final, cast
+from typing import Final, Literal, cast
 
 ROOT = Path(__file__).resolve().parents[1]
+
+FreshnessBucket = Literal["rerunnable_local", "external_artifact_blocked", "historical_only"]
 
 _DATE_FIELD_NAMES: Final[frozenset[str]] = frozenset(
     {
@@ -35,6 +37,52 @@ _DATE_FIELD_NAMES: Final[frozenset[str]] = frozenset(
     }
 )
 _FILENAME_TIMESTAMP_RE: Final[re.Pattern[str]] = re.compile(r"(20[0-9]{6}T[0-9]{6})Z?")
+_EXTERNAL_BLOCKED_HINTS: Final[tuple[str, ...]] = (
+    "diii",
+    "disruption",
+    "efit",
+    "external",
+    "facility",
+    "gk",
+    "gyrokinetic",
+    "imas",
+    "marfe",
+    "mast",
+    "measured",
+    "neural",
+    "ntm",
+    "orbit",
+    "qualikiz",
+    "reference",
+    "rwm",
+    "transport",
+    "vmec",
+)
+_RERUNNABLE_LOCAL_HINTS: Final[tuple[str, ...]] = (
+    "admission",
+    "benchmark",
+    "code_to_code",
+    "e2e_control",
+    "latency",
+    "native",
+    "pulsed",
+    "pyo3",
+    "runtime_admission",
+    "rust",
+    "soft_isolated",
+)
+
+
+@dataclass(frozen=True)
+class ValidationReportClassification:
+    """Advisory action bucket for a stale validation report."""
+
+    bucket: FreshnessBucket
+    rationale: str
+
+    def to_dict(self) -> dict[str, str]:
+        """Return a JSON-serialisable classification record."""
+        return {"bucket": self.bucket, "rationale": self.rationale}
 
 
 @dataclass(frozen=True)
@@ -47,6 +95,7 @@ class ValidationReportFreshness:
     age_days: int
     stale: bool
     claim_boundary_present: bool
+    classification: ValidationReportClassification
 
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serialisable report freshness record."""
@@ -57,6 +106,7 @@ class ValidationReportFreshness:
             "age_days": self.age_days,
             "stale": self.stale,
             "claim_boundary_present": self.claim_boundary_present,
+            "classification": self.classification.to_dict(),
         }
 
 
@@ -84,6 +134,11 @@ class ValidationReportFreshnessMatrix:
         """Return the number of reports without an explicit claim boundary signal."""
         return sum(1 for report in self.reports if not report.claim_boundary_present)
 
+    @property
+    def bucket_counts(self) -> dict[str, int]:
+        """Return stale-report counts by advisory action bucket."""
+        return dict(sorted(Counter(report.classification.bucket for report in self.stale_reports).items()))
+
     def to_dict(self) -> dict[str, object]:
         """Return a JSON-serialisable freshness matrix."""
         return {
@@ -96,6 +151,7 @@ class ValidationReportFreshnessMatrix:
                 "stale_report_count": len(self.stale_reports),
                 "claim_boundary_missing": self.claim_boundary_missing,
                 "evidence_time_sources": self.source_counts,
+                "bucket_counts": self.bucket_counts,
             },
             "stale_reports": [report.to_dict() for report in self.stale_reports],
             "reports": [report.to_dict() for report in self.reports],
@@ -113,18 +169,29 @@ class ValidationReportFreshnessMatrix:
             f"- Stale reports: `{len(self.stale_reports)}`",
             f"- Reports missing claim-boundary signal: `{self.claim_boundary_missing}`",
             "",
-            "## Stale Reports",
+            "## Classification Buckets",
             "",
+            "| Bucket | Stale reports |",
+            "| --- | ---: |",
         ]
+        for bucket, count in self.bucket_counts.items():
+            lines.append(f"| `{bucket}` | {count} |")
+        lines.extend(
+            [
+                "",
+                "## Stale Reports",
+                "",
+            ]
+        )
         if not self.stale_reports:
             lines.append("No stale validation report JSON artifacts were found.")
         else:
-            lines.append("| Report | Age days | Evidence time source | Claim boundary |")
-            lines.append("| --- | ---: | --- | --- |")
+            lines.append("| Report | Bucket | Age days | Evidence time source | Claim boundary |")
+            lines.append("| --- | --- | ---: | --- | --- |")
             for report in self.stale_reports:
                 claim_boundary = "yes" if report.claim_boundary_present else "no"
                 lines.append(
-                    f"| `{_repo_relative(report.path)}` | {report.age_days} | "
+                    f"| `{_repo_relative(report.path)}` | {report.classification.bucket} | {report.age_days} | "
                     f"{report.evidence_time_source} | {claim_boundary} |"
                 )
         lines.append("")
@@ -173,14 +240,52 @@ def _report_freshness(path: Path, *, as_of: datetime, max_age_days: int) -> Vali
     payload = _read_json_object(path)
     evidence_time, source = _extract_evidence_time(path, payload)
     age_days = max((as_of - evidence_time).days, 0)
+    claim_boundary_present = _contains_claim_boundary(payload)
     return ValidationReportFreshness(
         path=path,
         evidence_time=evidence_time,
         evidence_time_source=source,
         age_days=age_days,
         stale=age_days > max_age_days,
-        claim_boundary_present=_contains_claim_boundary(payload),
+        claim_boundary_present=claim_boundary_present,
+        classification=_classify_report(path, payload, claim_boundary_present),
     )
+
+
+def _classify_report(
+    path: Path,
+    payload: dict[str, object],
+    claim_boundary_present: bool,
+) -> ValidationReportClassification:
+    searchable = f"{_repo_relative(path)}\n{json.dumps(payload, sort_keys=True)}".lower()
+    if not claim_boundary_present:
+        return ValidationReportClassification(
+            bucket="historical_only",
+            rationale="No explicit claim-boundary signal was found; treat as historical/provenance evidence before rerun planning.",
+        )
+    external_hint = _first_matching_hint(searchable, _EXTERNAL_BLOCKED_HINTS)
+    if external_hint is not None:
+        return ValidationReportClassification(
+            bucket="external_artifact_blocked",
+            rationale=f"Report text or path references {external_hint!r}; promotion depends on external or reference artifacts.",
+        )
+    local_hint = _first_matching_hint(searchable, _RERUNNABLE_LOCAL_HINTS)
+    if local_hint is not None:
+        return ValidationReportClassification(
+            bucket="rerunnable_local",
+            rationale=f"Report text or path references {local_hint!r}; rerun as a local benchmark/admission artifact.",
+        )
+    return ValidationReportClassification(
+        bucket="historical_only",
+        rationale="No local rerun or external-artifact signal was detected; keep as historical evidence until manually reviewed.",
+    )
+
+
+def _first_matching_hint(searchable: str, hints: tuple[str, ...]) -> str | None:
+    for hint in hints:
+        if hint in searchable:
+            return hint
+    return None
 
 
 def _extract_evidence_time(path: Path, payload: dict[str, object]) -> tuple[datetime, str]:

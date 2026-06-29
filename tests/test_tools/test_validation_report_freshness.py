@@ -28,6 +28,9 @@ def test_validation_report_freshness_inventory_finds_live_stale_reports() -> Non
     assert len(matrix.reports) >= 118
     assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" in stale_paths
     assert matrix.source_counts["generated_at_utc"] >= 1
+    assert matrix.bucket_counts["rerunnable_local"] > 0
+    assert matrix.bucket_counts["external_artifact_blocked"] > 0
+    assert matrix.bucket_counts["historical_only"] > 0
 
 
 def test_validation_report_freshness_can_render_markdown_summary() -> None:
@@ -41,6 +44,8 @@ def test_validation_report_freshness_can_render_markdown_summary() -> None:
     assert "# SCPN Control Validation Report Freshness" in rendered
     assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" in rendered
     assert "Reports missing claim-boundary signal" in rendered
+    assert "## Classification Buckets" in rendered
+    assert "rerunnable_local" in rendered
 
 
 def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
@@ -67,7 +72,36 @@ def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "scpn-control.validation-report-freshness.v1"
     assert payload["summary"]["stale_report_count"] > 0
+    assert payload["summary"]["bucket_counts"]["rerunnable_local"] > 0
+    assert payload["stale_reports"][0]["classification"]["bucket"] in {
+        "rerunnable_local",
+        "external_artifact_blocked",
+        "historical_only",
+    }
     assert "Stale Reports" in output_md.read_text(encoding="utf-8")
+
+
+def test_validation_report_freshness_classifies_known_live_reports() -> None:
+    matrix = build_validation_report_freshness_matrix(
+        ROOT / "validation" / "reports",
+        as_of=datetime(2026, 6, 29, tzinfo=timezone.utc),
+        max_age_days=21,
+    )
+    reports = {report.path.relative_to(ROOT).as_posix(): report for report in matrix.stale_reports}
+
+    assert (
+        reports["validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"]
+        .classification.bucket
+        == "rerunnable_local"
+    )
+    assert (
+        reports["validation/reports/gk_interface_artifacts.json"].classification.bucket
+        == "external_artifact_blocked"
+    )
+    assert (
+        reports["validation/reports/mast_efm_neural_equilibrium_dataset.json"].classification.bucket
+        == "historical_only"
+    )
 
 
 def test_validation_report_freshness_cli_can_fail_on_stale_reports(capsys: CaptureFixture[str]) -> None:

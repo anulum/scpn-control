@@ -814,9 +814,12 @@ The validation report freshness inventory uses schema
 `scpn-control.validation-report-freshness.v1` and scans JSON artifacts under
 `validation/reports/` for explicit report timestamps, filename timestamps, or
 file timestamps. It reports stale benchmark and validation artifacts without
-changing claim status by default. Use `--fail-on-stale` only in release or
-promotion campaigns after the affected reports have been rerun or deliberately
-accepted as historical evidence.
+changing claim status by default. Stale reports are classified into advisory
+`rerunnable_local`, `external_artifact_blocked`, and `historical_only` buckets
+so rerun campaigns can start from the local evidence that can actually be
+refreshed. Use `--fail-on-stale` only in release or promotion campaigns after
+the affected reports have been rerun or deliberately accepted as historical
+evidence.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof
