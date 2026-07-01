@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Fixed
+- Replaced NumPy scalar-percentile calls in the disruption mitigation replay
+  path with deterministic linear interpolation, preventing local NumPy reload
+  failures in SPI diagnostics and halo/runaway post-disruption summaries.
 - Hardened `RZIPController` so SciPy/NumPy Riccati validation failures fall
   back to a bounded NumPy discrete-Riccati gain before the zero-gain fail-closed
   path, preserving the vertical-feedback contract in the local workstation

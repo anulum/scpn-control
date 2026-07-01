@@ -32,6 +32,7 @@ from scpn_control.core._validators import (
     require_int,
     require_positive_float,
 )
+from scpn_control.core._statistics import linear_percentile
 
 try:
     from scpn_control.core.global_design_scanner import GlobalDesignExplorer
@@ -249,13 +250,11 @@ def post_disruption_halo_runaway(
         halo_hist.append(float(halo))
         re_hist.append(float(runaway))
 
-    halo_arr = np.asarray(halo_hist, dtype=np.float64)
-    re_arr = np.asarray(re_hist, dtype=np.float64)
     return {
-        "halo_current_ma": float(np.percentile(halo_arr, 95)),
-        "runaway_beam_ma": float(np.percentile(re_arr, 95)),
-        "halo_peak_ma": float(np.max(halo_arr)),
-        "runaway_peak_ma": float(np.max(re_arr)),
+        "halo_current_ma": linear_percentile(halo_hist, 95.0),
+        "runaway_beam_ma": linear_percentile(re_hist, 95.0),
+        "halo_peak_ma": float(max(halo_hist)),
+        "runaway_peak_ma": float(max(re_hist)),
     }
 
 
@@ -537,12 +536,10 @@ def run_real_shot_replay(
     spi_triggered = False
     spi_trigger_idx = -1
 
-    # Slide through the shot
-    for t in range(min(window_size, n_steps), n_steps):
-        # Build signal window from dB/dt
-        signal_window = dBdt[t - window_size : t] if t >= window_size else dBdt[:t]
-        if signal_window.size < 8:  # pragma: no cover — window_size validated ≥8
-            continue
+    # Slide through the shot. Validation above guarantees window_size >= 8 and
+    # window_size <= n_steps, so every predictor window has enough samples.
+    for t in range(window_size, n_steps):
+        signal_window = dBdt[t - window_size : t]
 
         toroidal = {
             "toroidal_n1_amp": float(np.clip(n1_amp[t], 0, 10)),

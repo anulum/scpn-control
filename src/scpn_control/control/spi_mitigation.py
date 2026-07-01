@@ -9,10 +9,12 @@ from __future__ import annotations
 
 import logging
 import time
+from enum import Enum
 from typing import Any
 
 import numpy as np
 
+from scpn_control.core._statistics import linear_percentile
 from scpn_control.core._validators import require_non_negative_float
 
 logger = logging.getLogger(__name__)
@@ -23,9 +25,6 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-
-
-from enum import Enum
 
 
 class MitigationState(Enum):
@@ -424,7 +423,7 @@ class ShatteredPelletInjection:
             diagnostics = {
                 "z_eff": float(self.Z_eff),
                 "tau_cq_ms_mean": (float(np.mean(history_tau_cq)) if history_tau_cq else 0.0),
-                "tau_cq_ms_p95": (float(np.percentile(history_tau_cq, 95)) if history_tau_cq else 0.0),
+                "tau_cq_ms_p95": (linear_percentile(history_tau_cq, 95.0) if history_tau_cq else 0.0),
                 "final_current_MA": float(self.Ip / 1e6),
                 "final_temperature_keV": float(self.Te),
                 "neon_quantity_mol": float(neon),

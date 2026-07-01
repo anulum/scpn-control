@@ -1808,6 +1808,10 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.core._rust_compat
 
+#### Statistics Helpers
+
+::: scpn_control.core._statistics
+
 #### Validators
 
 ::: scpn_control.core._validators
