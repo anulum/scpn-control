@@ -161,7 +161,6 @@ follow_imports = "skip"
 module = [
     "scpn_control_rs",
     "sc_neurocore", "sc_neurocore.*",
-    "director_module",
     "scpn_control.core.global_design_scanner",
     "scpn_control.io.imas_connector",
 ]
