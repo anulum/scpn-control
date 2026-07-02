@@ -934,7 +934,17 @@ fails closed before calling the dynamic loader.
 
 ### NTM Dynamics (v0.16.0)
 
+::: scpn_control.core.ntm_dynamics.RationalSurface
+
+::: scpn_control.core.ntm_dynamics.NTMIslandDynamics
+
 ::: scpn_control.core.ntm_dynamics.NTMController
+
+::: scpn_control.core.ntm_dynamics.eccd_stabilization_factor
+
+::: scpn_control.core.ntm_dynamics.find_rational_surfaces
+
+::: scpn_control.core.ntm_dynamics.bootstrap_from_local
 
 ### Sawtooth Model (v0.16.0)
 

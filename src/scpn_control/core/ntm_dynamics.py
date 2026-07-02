@@ -62,7 +62,23 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 @dataclass
 class RationalSurface:
-    """q = m/n rational surface."""
+    """Interpolated q = m/n rational surface.
+
+    Attributes
+    ----------
+    rho
+        Normalised minor-radius coordinate of the rational surface.
+    r_s
+        Minor-radius position of the rational surface in metres.
+    m
+        Poloidal mode number.
+    n
+        Toroidal mode number.
+    q
+        Rational safety-factor value ``m / n``.
+    shear
+        Local magnetic shear ``(rho / q) dq / d rho``.
+    """
 
     rho: float
     r_s: float
@@ -73,11 +89,27 @@ class RationalSurface:
 
 
 def eccd_stabilization_factor(d_cd: float, w: float) -> float:
-    """ECCD deposition efficiency factor f_ECCD(w, d_cd).
+    """Return the ECCD deposition efficiency factor ``f_ECCD(w, d_cd)``.
 
-    f_ECCD = (w / d_cd) * exp(-w² / (4 d_cd²))
+    The model uses Carrera et al. 1986, Phys. Fluids 29, 899, Eq. 16:
+    ``f_ECCD = (w / d_cd) * exp(-w**2 / (4 d_cd**2))``.
 
-    Carrera et al. 1986, Phys. Fluids 29, 899, Eq. 16.
+    Parameters
+    ----------
+    d_cd
+        ECCD deposition half-width in metres.
+    w
+        Magnetic-island half-width in metres.
+
+    Returns
+    -------
+    float
+        Dimensionless coupling factor. Non-positive widths return ``0.0``.
+
+    Raises
+    ------
+    ValueError
+        If either input is non-finite.
     """
     d_cd = _finite_scalar("d_cd", d_cd)
     w = _finite_scalar("w", w)
@@ -89,7 +121,33 @@ def eccd_stabilization_factor(d_cd: float, w: float) -> float:
 def find_rational_surfaces(
     q: AnyFloatArray, rho: AnyFloatArray, a: float, m_max: int = 5, n_max: int = 3
 ) -> list[RationalSurface]:
-    """Locate radii where q(rho) = m/n by zero-crossing interpolation."""
+    """Locate rational surfaces by zero-crossing interpolation.
+
+    Parameters
+    ----------
+    q
+        One-dimensional positive safety-factor profile.
+    rho
+        One-dimensional strictly increasing normalised minor-radius grid.
+    a
+        Plasma minor radius in metres.
+    m_max
+        Largest poloidal mode number to scan.
+    n_max
+        Largest toroidal mode number to scan.
+
+    Returns
+    -------
+    list[RationalSurface]
+        Rational surfaces sorted by normalised radius.
+
+    Raises
+    ------
+    ValueError
+        If the profiles are not finite one-dimensional matching arrays, if
+        ``rho`` is not strictly increasing, or if the geometry/mode bounds are
+        non-physical.
+    """
     if q.ndim != 1 or rho.ndim != 1:
         raise ValueError("q and rho must be one-dimensional")
     if len(q) != len(rho) or len(q) < 2:
@@ -115,12 +173,6 @@ def find_rational_surfaces(
             for idx in crossings:
                 r1, r2 = rho[idx], rho[idx + 1]
                 q1, q2 = q[idx], q[idx + 1]
-                # A sign change in (q - q_target) between idx and idx+1 implies
-                # q1 != q2; equal endpoints share a sign and produce no crossing,
-                # so this divide-by-zero guard is unreachable for detected crossings.
-                if q1 == q2:  # pragma: no cover - defensive interpolation edge case
-                    continue
-
                 frac = (q_target - q1) / (q2 - q1)
                 rho_s = r1 + frac * (r2 - r1)
 
@@ -212,7 +264,7 @@ def bootstrap_from_local(
     dTe_dr: float,
     dTi_dr: float,
 ) -> float:
-    """Local Sauter bootstrap current density from full L31+L32+L34 closure.
+    """Return local Sauter bootstrap current density.
 
     Sauter et al. 1999, Phys. Plasmas 6, 2834, Eqs. 14-16:
 
@@ -221,6 +273,46 @@ def bootstrap_from_local(
 
     The local collisionality and trapped-particle fractions are evaluated from
     the same fits used in :mod:`scpn_control.core.neoclassical`.
+
+    Parameters
+    ----------
+    ne_19
+        Electron density in ``10**19 m^-3``.
+    Te_keV
+        Electron temperature in keV.
+    Ti_keV
+        Ion temperature in keV.
+    q
+        Safety factor at the evaluated radius.
+    rho
+        Normalised minor-radius coordinate.
+    R0
+        Major radius in metres.
+    a
+        Minor radius in metres.
+    B0
+        Toroidal magnetic field in tesla.
+    z_eff
+        Effective ion charge.
+    dne_dr
+        Electron-density radial gradient in ``10**19 m^-4``.
+    dTe_dr
+        Electron-temperature radial gradient in ``keV m^-1``.
+    dTi_dr
+        Ion-temperature radial gradient in ``keV m^-1``.
+
+    Returns
+    -------
+    float
+        Bootstrap current density in ``A m^-2``. The on-axis and vanishing
+        poloidal-field limits return ``0.0`` because the local fit is singular
+        there.
+
+    Raises
+    ------
+    ValueError
+        If scalar inputs are non-finite, if required positive quantities are
+        not positive, or if ``B0`` is zero.
     """
     ne_19 = _finite_scalar("ne_19", ne_19, positive=True)
     Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
@@ -256,11 +348,6 @@ def bootstrap_from_local(
     T_e_J = Te_keV * 1.602176634e-16
     T_i_J = Ti_keV * 1.602176634e-16
     p_e = n_e_si * T_e_J
-    # ne_19 and Te_keV are validated strictly positive above, so the electron
-    # pressure is strictly positive and this degeneracy guard never fires.
-    if p_e <= 0.0:  # pragma: no cover - defensive interpolation edge case
-        return 0.0
-
     # Wesson 2011, Eq. 14.2.3 (same as neoclassical.py)
     v_the = np.sqrt(2.0 * T_e_J / m_e)
     nu_ee = (n_e_si * e_charge**4 * ln_lambda) / (12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5)
@@ -286,6 +373,34 @@ class NTMIslandDynamics:
 
     Rutherford 1973, Phys. Fluids 16, 1903 — original equation.
     La Haye 2006, Phys. Plasmas 13, 055501 — full MRE with coefficients.
+
+    Parameters
+    ----------
+    r_s
+        Minor-radius position of the rational surface in metres.
+    m
+        Poloidal mode number.
+    n
+        Toroidal mode number.
+    a
+        Plasma minor radius in metres.
+    R0
+        Major radius in metres.
+    B0
+        Toroidal magnetic field in tesla.
+    Delta_prime_0
+        Classical tearing index at vanishing island width in ``m^-1``. When
+        omitted, the model uses the Rutherford cylindrical estimate
+        ``-2 m / r_s``.
+    s_hat
+        Local magnetic shear at the rational surface.
+    q_s
+        Safety factor at the rational surface.
+
+    Raises
+    ------
+    ValueError
+        If geometric ordering, mode numbers, or scalar domains are invalid.
     """
 
     def __init__(
@@ -333,9 +448,24 @@ class NTMIslandDynamics:
         self.a3 = _A3
 
     def delta_prime_model(self, w: float) -> float:
-        """Classical Δ' with finite-island-width saturation.
+        """Return classical ``Delta prime`` with finite-island-width saturation.
 
         Rutherford 1973, Phys. Fluids 16, 1903; La Haye 2006, Eq. 3.
+
+        Parameters
+        ----------
+        w
+            Island half-width in metres.
+
+        Returns
+        -------
+        float
+            Classical tearing index in ``m^-1``.
+
+        Raises
+        ------
+        ValueError
+            If ``w`` is not finite and positive.
         """
         w = _finite_scalar("w", w, positive=True)
         c = 0.5  # saturation width coefficient, La Haye 2006, Eq. 3
@@ -480,9 +610,51 @@ class NTMIslandDynamics:
         rho_theta_i: float | None = None,
         beta_pol: float | None = None,
     ) -> tuple[FloatArray, FloatArray]:
-        """Integrate w(t) via RK4.
+        """Integrate island width over time with fourth-order Runge-Kutta.
 
         All physics keyword arguments are forwarded to dw_dt unchanged.
+
+        Parameters
+        ----------
+        w0
+            Initial island half-width in metres.
+        t_span
+            Start and end time in seconds.
+        dt
+            Integration step in seconds.
+        j_bs
+            Bootstrap current density in ``A m^-2``.
+        j_phi
+            Total toroidal current density in ``A m^-2``.
+        j_cd
+            ECCD current density in ``A m^-2``.
+        eta
+            Plasma resistivity in ohm-metres.
+        w_d
+            Ion banana-width stabilisation scale in metres.
+        w_pol
+            Polarisation stabilisation width in metres.
+        d_cd
+            ECCD deposition half-width in metres.
+        pressure_gradient
+            Pressure gradient in ``Pa m^-1`` for optional GGJ correction.
+        B_pol
+            Poloidal magnetic field in tesla for optional GGJ correction.
+        rho_theta_i
+            Poloidal ion Larmor radius in metres.
+        beta_pol
+            Poloidal beta used with ``rho_theta_i`` to override ``w_d``.
+
+        Returns
+        -------
+        tuple[FloatArray, FloatArray]
+            Time grid in seconds and island half-width history in metres.
+
+        Raises
+        ------
+        ValueError
+            If the time span, step size, initial width, or forwarded physics
+            arguments are outside their admitted domains.
         """
         t_start = _finite_scalar("t_start", t_span[0])
         t_end = _finite_scalar("t_end", t_span[1])
@@ -526,7 +698,21 @@ class NTMIslandDynamics:
 
 
 class NTMController:
-    """ECCD-based NTM controller: triggers at onset, deactivates at target."""
+    """ECCD request state machine for NTM suppression.
+
+    Parameters
+    ----------
+    w_onset
+        Island width in metres above which the controller requests ECCD power.
+    w_target
+        Island width in metres below which the controller deactivates.
+
+    Raises
+    ------
+    ValueError
+        If the thresholds are not finite positive values or if ``w_target`` is
+        not smaller than ``w_onset``.
+    """
 
     def __init__(self, w_onset: float = 0.02, w_target: float = 0.005):
         w_onset = _finite_scalar("w_onset", w_onset, positive=True)
@@ -540,7 +726,28 @@ class NTMController:
         self.eccd_power_request = 0.0
 
     def step(self, w: float, rho_rs: float, max_power: float = 20.0) -> float:
-        """Return requested ECCD power [MW]; update controller state."""
+        """Return requested ECCD power and update controller state.
+
+        Parameters
+        ----------
+        w
+            Current island half-width in metres.
+        rho_rs
+            Normalised rational-surface radius used as the ECCD target.
+        max_power
+            Maximum requested ECCD power in MW.
+
+        Returns
+        -------
+        float
+            Requested ECCD power in MW.
+
+        Raises
+        ------
+        ValueError
+            If ``w`` or ``max_power`` is negative/non-finite, or if ``rho_rs``
+            lies outside ``[0, 1]``.
+        """
         w = _finite_scalar("w", w, nonnegative=True)
         rho_rs = _finite_scalar("rho_rs", rho_rs)
         if not (0.0 <= rho_rs <= 1.0):

@@ -20,7 +20,7 @@ from scpn_control.core.ntm_dynamics import (
 )
 
 
-def test_find_rational_surfaces():
+def test_find_rational_surfaces() -> None:
     rho = np.linspace(0, 1, 100)
     q = np.linspace(1.0, 3.5, 100)
     a = 1.0
@@ -35,7 +35,7 @@ def test_find_rational_surfaces():
     assert 3.0 in q_vals  # 3/1
 
 
-def test_classical_stable_decay():
+def test_classical_stable_decay() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     # No drive, no ECCD -> classical Delta' < 0
     t, w = ntm.evolve(
@@ -50,7 +50,7 @@ def test_classical_stable_decay():
     assert w[-1] < w[0]
 
 
-def test_bootstrap_drive_growth():
+def test_bootstrap_drive_growth() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     # Large bootstrap current -> island grows
     t, w = ntm.evolve(
@@ -65,7 +65,7 @@ def test_bootstrap_drive_growth():
     assert w[-1] > w[0]
 
 
-def test_island_saturation():
+def test_island_saturation() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     t, w = ntm.evolve(
         w0=0.01,
@@ -81,7 +81,7 @@ def test_island_saturation():
     assert w[-1] > 0.01
 
 
-def test_eccd_stabilization():
+def test_eccd_stabilization() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
 
     w0 = 0.05
@@ -98,7 +98,7 @@ def test_eccd_stabilization():
     assert dw_dt_with_cd < 0
 
 
-def test_eccd_misalignment():
+def test_eccd_misalignment() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
 
     w0 = 0.05
@@ -117,7 +117,7 @@ def test_eccd_misalignment():
     assert dw_dt_aligned < dw_dt_broad
 
 
-def test_polarization_threshold():
+def test_polarization_threshold() -> None:
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
 
     # w_d determines the critical width for bootstrap drive to take over
@@ -131,7 +131,7 @@ def test_polarization_threshold():
     assert dw_dt_small <= 0.0
 
 
-def test_diamagnetic_stabilizes_small_islands():
+def test_diamagnetic_stabilizes_small_islands() -> None:
     """w < w_d → diamagnetic term dominates; dw/dt must be negative.
 
     Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 20:
@@ -157,7 +157,7 @@ def test_diamagnetic_stabilizes_small_islands():
     assert dw_dt_val < 0.0, f"Expected negative dw/dt for w < w_d; got {dw_dt_val}"
 
 
-def test_ggj_delta_prime():
+def test_ggj_delta_prime() -> None:
     """Unfavorable pressure gradient (D_R > 0) makes Δ'_GGJ negative → more stable.
 
     Glasser, Greene & Johnson 1975, Phys. Fluids 18, 875, Eq. 42:
@@ -177,7 +177,7 @@ def test_ggj_delta_prime():
     assert delta_flat == 0.0
 
 
-def test_sauter_bootstrap_vs_direct():
+def test_sauter_bootstrap_vs_direct() -> None:
     """Local full-Sauter bootstrap agrees with profile Sauter evaluation."""
     from scpn_control.core.neoclassical import sauter_bootstrap
 
@@ -211,7 +211,7 @@ def test_sauter_bootstrap_vs_direct():
     assert abs(j_local - j_profile) / max(abs(j_profile), 1.0) < 0.25
 
 
-def test_seed_island_threshold():
+def test_seed_island_threshold() -> None:
     """Below the combined polarization + diamagnetic floor, islands don't grow.
 
     For w < max(w_pol, w_d), the stabilizing terms (term_pol + term_dia)
@@ -237,7 +237,7 @@ def test_seed_island_threshold():
     assert dw_dt_val <= 0.0, f"Seed island should not grow below polarization/diamagnetic floor; dw/dt={dw_dt_val}"
 
 
-def test_eccd_stabilization_factor_edge():
+def test_eccd_stabilization_factor_edge() -> None:
     """Non-positive island width or deposition width gives zero ECCD coupling."""
     assert eccd_stabilization_factor(0.05, 0.0) == 0.0
     assert eccd_stabilization_factor(0.0, 0.05) == 0.0
@@ -247,7 +247,7 @@ def test_eccd_stabilization_factor_edge():
         eccd_stabilization_factor(float("nan"), 0.05)
 
 
-def test_find_rational_surfaces_equal_q():
+def test_find_rational_surfaces_equal_q() -> None:
     """Flat q profiles do not create interpolated rational-surface crossings."""
     rho = np.linspace(0, 1, 10)
     q = np.ones(10) * 2.0  # flat q = 2/1
@@ -255,13 +255,13 @@ def test_find_rational_surfaces_equal_q():
     assert len(surfaces) == 0
 
 
-def test_ggj_delta_prime_zero_shear():
+def test_ggj_delta_prime_zero_shear() -> None:
     """Degenerate shear or poloidal field gives no finite GGJ correction."""
     assert _ggj_delta_prime(2, 0.5, 1e-7, -5e4, 0.3, 2.0, 3.0) == 0.0
     assert _ggj_delta_prime(2, 0.5, 1.0, -5e4, 1e-11, 2.0, 3.0) == 0.0
 
 
-def test_bootstrap_from_local_edge():
+def test_bootstrap_from_local_edge() -> None:
     """bootstrap_from_local fails closed for invalid state and returns zero on-axis."""
     with pytest.raises(ValueError, match="B0"):
         bootstrap_from_local(
@@ -314,7 +314,7 @@ def test_bootstrap_from_local_edge():
     )
 
 
-def test_dw_dt_with_rho_theta_i_override():
+def test_dw_dt_with_rho_theta_i_override() -> None:
     """dw_dt uses rho_theta_i * sqrt(2*beta_pol) as the banana-width override."""
     ntm = NTMIslandDynamics(r_s=0.5, m=2, n=1, a=1.0, R0=3.0, B0=2.0)
     dw1 = ntm.dw_dt(0.02, j_bs=1e5, j_phi=1e6, j_cd=0.0, eta=1e-7, w_d=1e-3)
@@ -380,7 +380,7 @@ def test_dw_dt_applies_ggj_correction_with_pressure_gradient() -> None:
     assert with_ggj != without_ggj
 
 
-def test_ntm_controller_deactivation():
+def test_ntm_controller_deactivation() -> None:
     """NTMController deactivates when the island width drops below target."""
     ctrl = NTMController(w_onset=0.02, w_target=0.005)
 

@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -132,7 +133,7 @@ def test_surface_rejects_nonpositive_mode_number() -> None:
 
 def test_surface_rejects_boolean_mode_number() -> None:
     with pytest.raises(ValueError, match="n must be a positive integer"):
-        RationalSurfaceConfig(r_s=0.3, m=2, n=True, a=0.5, R0=1.7, B0=2.0)  # type: ignore[arg-type]
+        RationalSurfaceConfig(r_s=0.3, m=2, n=True, a=0.5, R0=1.7, B0=2.0)
 
 
 # ── Numeric guards via public surface ────────────────────────────────
@@ -192,7 +193,7 @@ def test_evidence_rejects_non_hex_seal(result: NtmValidationResult) -> None:
 # ── CLI / report writer ──────────────────────────────────────────────
 
 
-def test_main_text_output_passes(capsys) -> None:
+def test_main_text_output_passes(capsys: pytest.CaptureFixture[str]) -> None:
     import validation.validate_ntm_island_dynamics as mod
 
     assert mod.main([]) == 0
@@ -201,7 +202,7 @@ def test_main_text_output_passes(capsys) -> None:
     assert "saturated width" in out
 
 
-def test_main_json_output_and_report(capsys, tmp_path) -> None:
+def test_main_json_output_and_report(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
     import validation.validate_ntm_island_dynamics as mod
 
     report = tmp_path / "ntm.json"
@@ -213,7 +214,10 @@ def test_main_json_output_and_report(capsys, tmp_path) -> None:
     assert "Modified Rutherford Equation" in report.with_suffix(".md").read_text()
 
 
-def test_main_returns_one_on_failure(monkeypatch, capsys) -> None:
+def test_main_returns_one_on_failure(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
     import validation.validate_ntm_island_dynamics as mod
 
     real = mod.validate_ntm_island_dynamics
