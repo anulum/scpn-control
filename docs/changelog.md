@@ -10,11 +10,30 @@
 
 ## Unreleased
 
+## [0.22.1] - 2026-07-03
+
 ### Fixed
+- Replaced NumPy scalar-percentile calls in the disruption mitigation replay
+  path with deterministic linear interpolation, preventing local NumPy reload
+  failures in SPI diagnostics and halo/runaway post-disruption summaries.
 - Hardened `RZIPController` so SciPy/NumPy Riccati validation failures fall
   back to a bounded NumPy discrete-Riccati gain before the zero-gain fail-closed
   path, preserving the vertical-feedback contract in the local workstation
   numerical stack.
+
+### Changed
+- Refreshed generated capability inventory metadata for the NTM coverage and
+  statistics-helper additions, keeping README and generated documentation
+  snapshots aligned with the tracked source and test inventory.
+- Consolidated the studio-web Dependabot stack on top of the green main branch,
+  including Vite, Module Federation Vite, TypeScript ESLint, ESLint, Prettier,
+  and lockfile transitive updates.
+
+### Security
+- Merged or superseded all open Dependabot pull requests, confirmed open
+  Dependabot, code-scanning, and secret-scanning alerts remained clear, and
+  purged failed or cancelled Actions history only after replacement CI and
+  benchmark evidence was green.
 
 ## [0.22.0] - 2026-06-26
 

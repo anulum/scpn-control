@@ -88,7 +88,7 @@
   "content_digest": "sha256:81e6d14878828a63c488313b37498c2f337771b8697095ff330a211eb1c0b8b1",
   "feed_schema": "studio.control-feed.v1",
   "studio": "scpn-control",
-  "studio_version": "0.22.0",
+  "studio_version": "0.22.1",
   "verbs": [
     {
       "domain_distinctive": false,

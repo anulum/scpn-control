@@ -137,28 +137,27 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.22.0
+## What is new in v0.22.1
 
-This release turns the post-0.21 control-evidence work into a publishable
-package checkpoint. It adds Rust fuzzing for parser, numeric-adapter, and FFI
-surfaces; a benchmark regression gate with tracked baselines; a runtime-bound
-formal safety certificate; SCPN Studio evidence feeds; and bounded
-differentiable-scenario evidence. It does not relax the facility,
-target-hardware, P-EFIT, PREEMPT_RT, TORAX, or external-code evidence gates.
+This patch release hardens the post-0.22 control-evidence package checkpoint.
+It fixes deterministic disruption replay percentile handling, adds a bounded
+RZIP Riccati fallback for local numerical-stack failures, refreshes generated
+capability metadata, and consolidates the studio-web dependency maintenance
+stack after all replacement CI and benchmark evidence turned green. It does not
+relax the facility, target-hardware, P-EFIT, PREEMPT_RT, TORAX, or
+external-code evidence gates.
 
-- Rust fuzzing now covers reactor configuration JSON, VMEC-like and BOUT++ text
-  parsers, the capacitor-bank discharge ledger, and the Kuramoto phase kernel,
-  with tracked seeds and nightly evidence reports.
-- Benchmark regression admission records per-language p50/p95/p99 latency,
-  throughput, provenance, baseline digests, and explicit threshold policy.
-- Runtime-bound safety certificates bind a holding CTL/LTL proof to the
-  deployable controller configuration, Petri-net topology digest, SNN
-  parameters, solver mode, runtime target, and timing envelope.
-- SCPN Studio exports twelve platform verbs and evidence bundles through the
-  generated schema-A capability manifest and standalone panel feed.
-- Release documentation keeps the new evidence bounded: fuzzing, local timing,
-  studio feeds, and analytic differentiable scenarios remain review artefacts,
-  not facility validation or plant-deployment claims.
+- Disruption replay post-processing now uses deterministic linear interpolation
+  instead of NumPy scalar-percentile calls on the affected SPI, halo-current,
+  and runaway-electron diagnostics.
+- `RZIPController` now attempts a bounded NumPy discrete-Riccati fallback before
+  the existing zero-gain fail-closed path when SciPy/NumPy validation fails.
+- Generated capability inventory metadata is aligned with the tracked NTM
+  coverage and statistics-helper additions.
+- The studio-web maintenance stack is consolidated on `main`, with green
+  install, typecheck, lint, format, coverage, and Module Federation build gates.
+- Open dependency PRs, security alert surfaces, and failed/cancelled Actions
+  history were resolved before the release was cut.
 
 ## Why this has market value
 
@@ -208,7 +207,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.22.0 |
+| Package version | 0.22.1 |
 | Python requirement | >=3.10 |
 | Project scripts | 4 |
 | Public API exports | 44 |
@@ -219,7 +218,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 119 |
 | Optional extras | 18 |
 | Python test files | 391 |
-| Public documentation pages | 54 |
+| Public documentation pages | 55 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -581,7 +580,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.22.0
+git tag v0.22.1
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```
