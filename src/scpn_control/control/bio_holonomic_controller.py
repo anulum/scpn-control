@@ -19,8 +19,9 @@ Bio-Holonomic Controller.
 Integrates SCPN Layer 4 (Cellular/Tissue) and Layer 5 (Organismal/Psychoemotional)
 adapters from `sc-neurocore` to drive bio-resonant feedback control. This
 demonstrates that the core control architecture is not plasma-bound, but
-can ingest physiological telemetry (HRV, EEG) to drive clinical interventions
-(like VIBRANA bio-acoustics).
+can ingest physiological telemetry (HRV, EEG) to drive bio-acoustic feedback
+research (such as the VIBRANA bio-acoustics line). Research surface only: no
+clinical, therapeutic, or medical-device claim is made or implied.
 """
 
 from __future__ import annotations
@@ -59,7 +60,7 @@ class BioTelemetrySnapshot:
 
 class BioHolonomicController:
     """
-    Biological Feedback Controller mapping L4/L5 states to clinical actions.
+    Biological feedback controller mapping L4/L5 states to actuator commands.
 
     Rather than mitigating plasma disruptions, this controller mitigates
     biological decoherence by tracking autonomic tone and triggering
