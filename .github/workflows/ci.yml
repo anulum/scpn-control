@@ -575,3 +575,14 @@ jobs:
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
         run: pytest tests/test_nengo_snn_wrapper.py -v --tb=short
+
+  # ─── Job 18: Lean formal proofs ───
+  lean-proofs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: leanprover/lean-action@38fbc41a8c28c4cbaec22d7f7de508ec2e7c0dd9  # v1.5.0
+        with:
+          use-github-cache: true
+          test: false
+          lint: false
