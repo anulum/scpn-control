@@ -586,3 +586,29 @@ jobs:
           use-github-cache: true
           test: false
           lint: false
+
+  # ─── Job 19: Evidence inventory (informative, non-gating) ───
+  # Publishes the validation-report freshness inventory and the evidence
+  # gap matrix as build artifacts. Deliberately does NOT pass
+  # --fail-on-stale: WCG-5e enables enforcement only after the stale
+  # inventory is rerun or explicitly waived (docs/internal TODO).
+  evidence-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Generate freshness inventory and evidence gap matrix
+        run: |
+          mkdir -p evidence-inventory
+          python tools/validation_report_freshness.py \
+            --output-json evidence-inventory/validation_report_freshness.json \
+            --output-md evidence-inventory/validation_report_freshness.md
+          python tools/evidence_gap_matrix.py \
+            --output-json evidence-inventory/evidence_gap_matrix.json \
+            --output-md evidence-inventory/evidence_gap_matrix.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: evidence-inventory
+          path: evidence-inventory/
