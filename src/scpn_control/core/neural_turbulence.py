@@ -164,12 +164,15 @@ def _profile_array(
 
 class QLKNNSurrogate:
     """
-    Pure NumPy inference for a QLKNN-like neural network.
+    Pure NumPy inference for a QLKNN-shaped neural network.
     Predicts turbulent fluxes [Q_i, Q_e, Gamma_e] from 10 parameters.
-    van de Plassche et al., Phys. Plasmas 27, 022310 (2020).
+    Architecture follows van de Plassche et al., Phys. Plasmas 27,
+    022310 (2020); the weights are NOT the published QLKNN10D weights.
 
-    Default construction auto-trains on a Jenko et al. (2001) critical gradient
-    model so predictions are physically meaningful out of the box.
+    Default construction self-trains on an analytic Jenko et al. (2001)
+    critical-gradient target, so out-of-the-box predictions reproduce that
+    analytic model, not QuaLiKiz. Load externally trained weights before
+    citing QLKNN-class fidelity.
     """
 
     def __init__(self, hidden_layers: list[int] | None = None, activation: str = "elu", pretrained: bool = True):

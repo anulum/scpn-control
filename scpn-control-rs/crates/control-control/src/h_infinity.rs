@@ -14,10 +14,12 @@
 //! Doyle-Glover-Khargonekar H-infinity synthesis in Rust.
 //!
 //! Mirrors the Python `h_infinity_controller` module. Uses ndarray
-//! for matrix ops; DARE solution requires ndarray-linalg (LAPACK).
+//! for matrix ops; the DARE solution runs through
+//! `control_math::linalg::solve_dare` (structured doubling, LAPACK-backed).
 //!
-//! Status: types + interface defined; full DARE solver gated on
-//! `ndarray-linalg` feature flag (not yet enabled).
+//! Status: fully wired. The constructor seeds pole-placement gains as
+//! initial values; `update_discretization` replaces them with the DARE
+//! feedback and observer gains on the first `step()`.
 
 use ndarray::{s, Array1, Array2, Axis};
 
@@ -200,8 +202,9 @@ pub struct HInfController {
 impl HInfController {
     /// Construct an H-infinity controller with LQR-approximated gains.
     ///
-    /// Uses simple pole-placement gains as initial values until the
-    /// full DARE solver is available via ndarray-linalg.
+    /// Seeds simple pole-placement gains as initial values; the DARE
+    /// feedback and observer gains computed in `update_discretization`
+    /// replace them on the first `step()`.
     pub fn new(plant: HInfPlant, gamma: f64, u_max: f64, dt: f64) -> Self {
         let n = plant.n_states();
         // Simple LQR-like gain: K = [gamma_growth, damping_target]
