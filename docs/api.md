@@ -2119,6 +2119,17 @@ boundary unless fresh source verification is supplied. Regenerate the standalone
 
 ::: scpn_control.studio.feed
 
+#### Studio Sealed Safety Claim
+
+The Hub's transparency log verifies artefacts with an RFC-8785 JCS
+canonicaliser that rejects non-integer JSON numbers, so the sealed
+safety-certificate claim is emitted float-free: integers stay within the
+exact-interoperability range and exact decimals travel as strings. The module
+is deliberately SDK-free so the artefact can be produced from a checkout
+without the optional `studio` extra.
+
+::: scpn_control.studio.sealed_claim
+
 ---
 
 ## CLI
