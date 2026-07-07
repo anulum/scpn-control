@@ -177,7 +177,7 @@ graph LR
     end
 
     subgraph "Controllers"
-        MPC[fusion_sota_mpc]
+        MPC[fusion_neural_mpc]
         HINF[h_infinity_controller]
         MU[mu_synthesis]
         NMPC[nmpc_controller]

@@ -39,7 +39,7 @@ scpn-control/
 │   │   └── gk_verification_report.py  Session verification stats
 │   ├── control/               Controllers (optional deps guarded)
 │   │   ├── h_infinity_controller.py   H-inf robust control
-│   │   ├── fusion_sota_mpc.py         Model Predictive Control
+│   │   ├── fusion_neural_mpc.py         Model Predictive Control
 │   │   ├── disruption_predictor.py    ML disruption prediction
 │   │   ├── spi_mitigation.py          SPI mitigation actuator
 │   │   ├── tokamak_digital_twin.py    Digital twin

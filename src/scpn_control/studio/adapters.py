@@ -504,7 +504,7 @@ def controller_run_evidence_from_simulation(
     ----------
     summary
         A run summary as produced by a closed-loop shape/current controller (for
-        example ``run_sota_simulation``): ``steps``, ``mean_tracking_error``,
+        example ``run_neural_mpc_simulation``): ``steps``, ``mean_tracking_error``,
         ``max_abs_action`` and ``max_abs_coil_current``.
     controller
         Name of the controller run; the summary records the loop, not its name, so

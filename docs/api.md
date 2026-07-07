@@ -221,7 +221,7 @@ validation artefacts.
 
 ## Control — Pulsed-Shot MPC Admission Adapter
 
-`scpn_control.control.fusion_sota_mpc.PulsedShotMPCAdapter` wraps the
+`scpn_control.control.fusion_neural_mpc.PulsedShotMPCAdapter` wraps the
 CONTROL-owned gradient MPC surface and admits its first action through the
 pulsed-scenario scheduler and capacitor-bank feasibility guard. It is a
 control-boundary adapter over existing MPC output, not a new equilibrium solver
@@ -247,9 +247,9 @@ fields to Python, including `evidence_schema_version`, `action_sha256`,
 Use the dedicated [Pulsed MPC Adapter](control/pulsed_mpc_adapter.md) guide for
 examples, runtime boundaries, and benchmark evidence commands.
 
-::: scpn_control.control.fusion_sota_mpc.PulsedShotMPCDecision
+::: scpn_control.control.fusion_neural_mpc.PulsedShotMPCDecision
 
-::: scpn_control.control.fusion_sota_mpc.PulsedShotMPCAdapter
+::: scpn_control.control.fusion_neural_mpc.PulsedShotMPCAdapter
 
 ---
 
@@ -1293,9 +1293,9 @@ binding, and zero backpressure disconnects.
 
 ### Model Predictive Control
 
-::: scpn_control.control.fusion_sota_mpc.NeuralSurrogate
+::: scpn_control.control.fusion_neural_mpc.NeuralSurrogate
 
-::: scpn_control.control.fusion_sota_mpc.ModelPredictiveController
+::: scpn_control.control.fusion_neural_mpc.ModelPredictiveController
 
 ### Optimal Control
 

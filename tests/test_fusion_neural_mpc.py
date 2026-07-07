@@ -13,7 +13,7 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Deterministic tests for fusion_sota_mpc runtime/controller paths."""
+"""Deterministic tests for fusion_neural_mpc runtime/controller paths."""
 
 from __future__ import annotations
 
@@ -23,11 +23,11 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control.control.fusion_sota_mpc import (
+from scpn_control.control.fusion_neural_mpc import (
     HAS_MPL,
     ModelPredictiveController,
     NeuralSurrogate,
-    run_sota_simulation,
+    run_neural_mpc_simulation,
 )
 
 
@@ -72,8 +72,8 @@ class _DummyKernel:
         return self._xp, 0.0
 
 
-def test_run_sota_simulation_returns_finite_bounded_summary() -> None:
-    summary = run_sota_simulation(
+def test_run_neural_mpc_simulation_returns_finite_bounded_summary() -> None:
+    summary = run_neural_mpc_simulation(
         config_file="dummy.json",
         shot_length=22,
         prediction_horizon=6,
@@ -114,7 +114,7 @@ def test_run_sota_simulation_returns_finite_bounded_summary() -> None:
     assert 7.0 <= summary["final_target_ip_ma"] <= 9.0
 
 
-def test_run_sota_simulation_is_deterministic_for_fixed_inputs() -> None:
+def test_run_neural_mpc_simulation_is_deterministic_for_fixed_inputs() -> None:
     kwargs = dict(
         config_file="dummy.json",
         shot_length=18,
@@ -128,8 +128,8 @@ def test_run_sota_simulation_is_deterministic_for_fixed_inputs() -> None:
         verbose=False,
         kernel_factory=_DummyKernel,
     )
-    a = run_sota_simulation(**kwargs)
-    b = run_sota_simulation(**kwargs)
+    a = run_neural_mpc_simulation(**kwargs)
+    b = run_neural_mpc_simulation(**kwargs)
     for key in (
         "final_target_ip_ma",
         "final_r_axis",
@@ -167,9 +167,9 @@ def test_mpc_plan_is_clipped_to_action_limit() -> None:
         ({"disturbance_start_step": -1}, "disturbance_start_step"),
     ],
 )
-def test_run_sota_simulation_rejects_invalid_runtime_inputs(kwargs: dict[str, int], match: str) -> None:
+def test_run_neural_mpc_simulation_rejects_invalid_runtime_inputs(kwargs: dict[str, int], match: str) -> None:
     with pytest.raises(ValueError, match=match):
-        run_sota_simulation(
+        run_neural_mpc_simulation(
             config_file="dummy.json",
             save_plot=False,
             verbose=False,
@@ -205,8 +205,8 @@ def test_surrogate_rejects_invalid_perturbation() -> None:
         surrogate.train_on_kernel(kernel, perturbation=0.0)
 
 
-def test_run_sota_simulation_default_config_path() -> None:
-    summary = run_sota_simulation(
+def test_run_neural_mpc_simulation_default_config_path() -> None:
+    summary = run_neural_mpc_simulation(
         config_file=None,
         shot_length=8,
         save_plot=False,
@@ -216,8 +216,8 @@ def test_run_sota_simulation_default_config_path() -> None:
     assert "iter_config.json" in summary["config_path"]
 
 
-def test_run_sota_simulation_explicit_target_vector() -> None:
-    summary = run_sota_simulation(
+def test_run_neural_mpc_simulation_explicit_target_vector() -> None:
+    summary = run_neural_mpc_simulation(
         config_file="dummy.json",
         shot_length=8,
         target_vector=np.array([6.1, 0.1, 5.2, -3.3]),
@@ -230,10 +230,10 @@ def test_run_sota_simulation_explicit_target_vector() -> None:
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="requires matplotlib (optional viz dependency)")
-def test_run_sota_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+def test_run_neural_mpc_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
     out = tmp_path / "results.png"
-    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_sota_mpc"):
-        summary = run_sota_simulation(
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_neural_mpc"):
+        summary = run_neural_mpc_simulation(
             config_file="dummy.json",
             shot_length=6,
             save_plot=True,
@@ -244,15 +244,15 @@ def test_run_sota_simulation_saves_plot(tmp_path: Path, caplog: pytest.LogCaptur
     assert summary["plot_saved"] is True
     assert summary["plot_error"] is None
     assert out.exists()
-    assert "SOTA Analysis saved" in caplog.text
+    assert "Neural-MPC analysis saved" in caplog.text
 
 
 @pytest.mark.skipif(not HAS_MPL, reason="requires matplotlib (optional viz dependency)")
-def test_run_sota_simulation_reports_plot_failure(tmp_path: Path) -> None:
+def test_run_neural_mpc_simulation_reports_plot_failure(tmp_path: Path) -> None:
     # The parent directory does not exist, so savefig raises an OSError the
     # plotting helper must catch and surface as plot_error.
     bad = tmp_path / "missing_dir" / "results.png"
-    summary = run_sota_simulation(
+    summary = run_neural_mpc_simulation(
         config_file="dummy.json",
         shot_length=6,
         save_plot=True,
@@ -265,9 +265,9 @@ def test_run_sota_simulation_reports_plot_failure(tmp_path: Path) -> None:
     assert not bad.exists()
 
 
-def test_run_sota_simulation_verbose_prints_output(caplog) -> None:
-    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_sota_mpc"):
-        run_sota_simulation(
+def test_run_neural_mpc_simulation_verbose_prints_output(caplog) -> None:
+    with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_neural_mpc"):
+        run_neural_mpc_simulation(
             config_file="dummy.json",
             shot_length=12,
             save_plot=False,

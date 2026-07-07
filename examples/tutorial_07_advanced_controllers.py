@@ -482,7 +482,7 @@ print(f"    Optimized Ip at t=5s:    {opt_vals['Ip']:.3f}")
 # ║ Section 8: Controller Comparison                                ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-from scpn_control.control.fusion_sota_mpc import (
+from scpn_control.control.fusion_neural_mpc import (
     ModelPredictiveController,
     NeuralSurrogate,
 )

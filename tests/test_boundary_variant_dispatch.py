@@ -21,7 +21,7 @@ from scpn_control.control import solve_kernel
 from scpn_control.control.director_interface import DirectorInterface
 from scpn_control.control.fusion_control_room import run_control_room
 from scpn_control.control.fusion_optimal_control import OptimalController
-from scpn_control.control.fusion_sota_mpc import run_sota_simulation
+from scpn_control.control.fusion_neural_mpc import run_neural_mpc_simulation
 from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 from scpn_control.control.tokamak_flight_sim import run_flight_sim
 
@@ -190,9 +190,9 @@ def test_run_flight_sim_prefers_variant_dispatch() -> None:
     _assert_dispatch_used()
 
 
-def test_run_sota_simulation_prefers_variant_dispatch() -> None:
+def test_run_neural_mpc_simulation_prefers_variant_dispatch() -> None:
     _VariantAwareKernel.last_instance = None
-    summary = run_sota_simulation(
+    summary = run_neural_mpc_simulation(
         config_file="dummy.json",
         shot_length=6,
         prediction_horizon=3,

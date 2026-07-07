@@ -1058,7 +1058,7 @@ class ControllerRunResult:
     """Path-free summary of a closed-loop controller run against a plant.
 
     Mirrors the run summary of a closed-loop shape/current controller (for example
-    ``run_sota_simulation``): the controller, the number of control steps, the
+    ``run_neural_mpc_simulation``): the controller, the number of control steps, the
     realised mean tracking error, and the peak coil action/current the run drove.
     The run is a closed loop on a surrogate low-order plant, not a facility-certified
     live-hardware control outcome.

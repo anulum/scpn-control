@@ -474,9 +474,9 @@ class TestOptimalControlVisualization:
         assert err is not None
 
 
-# ── fusion_sota_mpc: _plot_telemetry + save_plot ─────────────────────
+# ── fusion_neural_mpc: _plot_telemetry + save_plot ─────────────────────
 
-from scpn_control.control.fusion_sota_mpc import run_sota_simulation
+from scpn_control.control.fusion_neural_mpc import run_neural_mpc_simulation
 
 
 class _MPCKernel:
@@ -504,10 +504,10 @@ class _MPCKernel:
         return self._xp, 0.0
 
 
-class TestSOTAMPCVisualization:
+class TestNeuralMPCVisualization:
     def test_save_plot_true(self, tmp_path):
         out = str(tmp_path / "mpc.png")
-        s = run_sota_simulation(
+        s = run_neural_mpc_simulation(
             config_file="dummy.json",
             shot_length=10,
             prediction_horizon=3,
@@ -521,7 +521,7 @@ class TestSOTAMPCVisualization:
 
     def test_save_plot_bad_path(self, tmp_path):
         bad = str(tmp_path / "nope" / "mpc.png")
-        s = run_sota_simulation(
+        s = run_neural_mpc_simulation(
             config_file="dummy.json",
             shot_length=10,
             prediction_horizon=3,

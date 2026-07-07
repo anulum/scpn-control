@@ -276,7 +276,7 @@ model.
 
 **scpn-control**: `NonlinearMPC` in `scpn_control.control.nmpc_controller` (SQP-based,
 6 states, 3 inputs, DARE terminal cost). `ModelPredictiveController` in
-`scpn_control.control.fusion_sota_mpc` (extended version with neural surrogate support).
+`scpn_control.control.fusion_neural_mpc` (extended version with neural surrogate support).
 
 ---
 

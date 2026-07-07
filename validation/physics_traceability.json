@@ -2491,7 +2491,7 @@
         "Repository capacitor-bank RLC admission contract",
         "Repository gradient MPC admission adapter contract"
       ],
-      "module_path": "src/scpn_control/control/fusion_sota_mpc.py",
+      "module_path": "src/scpn_control/control/fusion_neural_mpc.py",
       "public_claim_allowed": false,
       "required_actions": [
         "Attach measured scheduler telemetry, capacitor-bank interlock evidence, and facility pulse-response artefacts before PCS or facility-control claims",
@@ -2499,8 +2499,8 @@
       ],
       "unit_contract": "State vectors use the MPC surrogate units declared by the caller; action components and safe-action components share coil/current actuator units; capacitor-bank slack is joules; pulse duration is seconds; peak current is amperes; digests are SHA-256 hex strings.",
       "validation_evidence": [
-        "tests/test_fusion_sota_mpc_pulsed_adapter.py module-specific Python admission and decision-digest checks",
-        "tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py optional PyO3 parity checks for evidence fields",
+        "tests/test_fusion_neural_mpc_pulsed_adapter.py module-specific Python admission and decision-digest checks",
+        "tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py optional PyO3 parity checks for evidence fields",
         "scpn-control-rs/crates/control-control/tests/pulsed_mpc_adapter.rs native Rust admission and decision-digest checks",
         "benchmarks/bench_pulsed_mpc_adapter.py local regression benchmark with decision evidence",
         "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs native Rust local regression benchmark with decision evidence",
@@ -2508,9 +2508,9 @@
         "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.json native Rust local regression report"
       ],
       "evidence_paths": [
-        "src/scpn_control/control/fusion_sota_mpc.py",
-        "tests/test_fusion_sota_mpc_pulsed_adapter.py",
-        "tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py",
+        "src/scpn_control/control/fusion_neural_mpc.py",
+        "tests/test_fusion_neural_mpc_pulsed_adapter.py",
+        "tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py",
         "scpn-control-rs/crates/control-control/src/mpc.rs",
         "scpn-control-rs/crates/control-control/tests/pulsed_mpc_adapter.rs",
         "scpn-control-rs/crates/control-python/src/lib.rs",
@@ -2524,7 +2524,7 @@
         "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.md"
       ],
       "covered_source_paths": [
-        "src/scpn_control/control/fusion_sota_mpc.py"
+        "src/scpn_control/control/fusion_neural_mpc.py"
       ],
       "validity_domain": "Control-boundary admission and digest-bound local evidence only; not a measured capacitor-bank driver, hardware interlock, equilibrium-solver upgrade, or facility PCS validation claim.",
       "external_validation_tracker_issue": 51

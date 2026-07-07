@@ -23,7 +23,7 @@ from typing import Any
 import numpy as np
 
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec
-from scpn_control.control.fusion_sota_mpc import ModelPredictiveController, NeuralSurrogate, PulsedShotMPCAdapter
+from scpn_control.control.fusion_neural_mpc import ModelPredictiveController, NeuralSurrogate, PulsedShotMPCAdapter
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     PulsedScenarioScheduler,
     PulsedScenarioSpec,

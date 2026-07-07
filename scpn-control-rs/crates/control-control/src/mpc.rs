@@ -7,7 +7,7 @@
 // SCPN Control — Rust gradient MPC and pulsed-shot admission adapter.
 //! Model Predictive Control for tokamak shape control.
 //!
-//! Port of `fusion_sota_mpc.py`.
+//! Port of `fusion_neural_mpc.py`.
 //! Linear surrogate + gradient descent over prediction horizon.
 
 use control_types::error::{FusionError, FusionResult};

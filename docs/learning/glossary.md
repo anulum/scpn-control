@@ -120,7 +120,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **MHD (Magnetohydrodynamics)** — Fluid description of plasma. Ideal MHD governs kink, ballooning, and peeling modes; resistive MHD governs tearing and NTM. `core.stability_mhd`
 
-**MPC (Model Predictive Control)** — Receding-horizon optimal control: solve a finite-horizon optimisation at each time step using a plant model, apply the first control action, repeat. `control.fusion_sota_mpc`
+**MPC (Model Predictive Control)** — Receding-horizon optimal control: solve a finite-horizon optimisation at each time step using a plant model, apply the first control action, repeat. `control.fusion_neural_mpc`
 
 **Modified Rutherford Equation (MRE)** — ODE governing NTM island width evolution: dw/dt = eta/(mu_0 r_s) [Delta'(w) + Delta_bs(w) + Delta_ECCD(w)]. Predicts when islands grow or shrink. `core.ntm_dynamics`
 

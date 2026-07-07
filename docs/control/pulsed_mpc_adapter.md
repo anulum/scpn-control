@@ -62,7 +62,7 @@ from scpn_control.control.capacitor_bank_state import (
     CapacitorBank,
     CapacitorBankSpec,
 )
-from scpn_control.control.fusion_sota_mpc import (
+from scpn_control.control.fusion_neural_mpc import (
     ModelPredictiveController,
     NeuralSurrogate,
     PulsedShotMPCAdapter,
@@ -183,8 +183,8 @@ dedicated parity tests must run without stale-wheel skips:
 
 ```bash
 PYTHONPATH=src .venv/bin/python -m pytest \
-  tests/test_fusion_sota_mpc_pulsed_adapter.py \
-  tests/test_fusion_sota_mpc_pulsed_adapter_rust_parity.py -q
+  tests/test_fusion_neural_mpc_pulsed_adapter.py \
+  tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py -q
 ```
 
 ## Evidence boundary

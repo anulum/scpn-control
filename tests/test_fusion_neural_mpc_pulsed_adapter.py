@@ -11,7 +11,7 @@ import numpy as np
 import pytest
 
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec
-from scpn_control.control.fusion_sota_mpc import (
+from scpn_control.control.fusion_neural_mpc import (
     ModelPredictiveController,
     NeuralSurrogate,
     PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,

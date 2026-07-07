@@ -387,7 +387,7 @@ Current local regression evidence:
 
 Use this benchmark after changes to the pulsed MPC admission boundary:
 
-- `src/scpn_control/control/fusion_sota_mpc.py`
+- `src/scpn_control/control/fusion_neural_mpc.py`
 - `src/scpn_control/control/pulsed_scenario_scheduler_v2.py`
 - `src/scpn_control/control/capacitor_bank_state.py`
 - `scpn-control-rs/crates/control-control/src/mpc.rs`

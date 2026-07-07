@@ -48,7 +48,7 @@ from scpn_control.control.pulsed_scenario_scheduler_v2 import (
 
 logger = logging.getLogger(__name__)
 
-# --- SOTA PARAMETERS ---
+# --- Neural-MPC parameters ---
 PREDICTION_HORIZON = 10
 SHOT_LENGTH = 100
 PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION = "scpn-control.pulsed-mpc-decision-evidence.v1"
@@ -98,7 +98,7 @@ class NeuralSurrogate:
         perturbation
             Coil-current perturbation amplitude; must be finite and positive.
         """
-        self._log("[SOTA] Training Neural Surrogate on Physics Kernel...")
+        self._log("[neural-mpc] Training Neural Surrogate on Physics Kernel...")
         solve_kernel(kernel)
         base_state = self.get_state(kernel)
         p = float(perturbation)
@@ -114,7 +114,7 @@ class NeuralSurrogate:
             kernel.cfg["coils"][i]["current"] = old_i
 
         solve_kernel(kernel)
-        self._log("[SOTA] Surrogate Training Complete.")
+        self._log("[neural-mpc] Surrogate Training Complete.")
 
     def get_state(self, kernel: Any) -> FloatArray:
         """Extract the shape state ``[R_axis, Z_axis, R_xpoint, Z_xpoint]`` in metres.
@@ -522,7 +522,7 @@ def _plot_telemetry(
         return False, str(exc)
 
 
-def run_sota_simulation(
+def run_neural_mpc_simulation(
     config_file: str | None = None,
     shot_length: int = SHOT_LENGTH,
     prediction_horizon: int = PREDICTION_HORIZON,
@@ -533,7 +533,7 @@ def run_sota_simulation(
     action_limit: float = 2.0,
     coil_current_limits: Tuple[float, float] = (-40.0, 40.0),
     save_plot: bool = True,
-    output_path: str = "SOTA_MPC_Results.png",
+    output_path: str = "neural_mpc_results.png",
     verbose: bool = True,
     kernel_factory: Callable[[str], Any] = FusionKernel,
 ) -> Dict[str, Any]:
@@ -593,7 +593,7 @@ def run_sota_simulation(
         target_vec = np.asarray(target_vector, dtype=np.float64).reshape(4)
 
     if verbose:
-        logger.info("\n--- SCPN FUSION SOTA: Neural-MPC Hybrid Control ---")
+        logger.info("\n--- SCPN Fusion: Neural-MPC Hybrid Control ---")
 
     kernel = kernel_factory(str(config_file))
     surrogate = NeuralSurrogate(
@@ -681,7 +681,7 @@ def run_sota_simulation(
             output_path,
         )
         if verbose and plot_saved:
-            logger.info(f"SOTA Analysis saved: {output_path}")
+            logger.info(f"Neural-MPC analysis saved: {output_path}")
 
     return {
         "config_path": str(config_file),
@@ -702,4 +702,4 @@ def run_sota_simulation(
 
 
 if __name__ == "__main__":
-    run_sota_simulation()
+    run_neural_mpc_simulation()
