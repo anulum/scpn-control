@@ -109,3 +109,7 @@ c_generated_code/
 *_ocp_*.json
 acados_ocp_*.json
 scpn_control_nmpc_ocp.json
+CLAUDE.md
+.claude/
+.env
+node_modules/
