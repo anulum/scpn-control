@@ -34,10 +34,25 @@ def test_sealed_claim_submodule_imports_without_the_sdk() -> None:
             return None
 
     blocker = _BlockSdk()
-    saved = {k: sys.modules.pop(k) for k in list(sys.modules) if k.split(".")[0] == "scpn_studio_platform"}
+    # Purge the SDK AND every already-imported studio submodule: earlier tests
+    # in a full-suite run import studio.evidence with the SDK present, and both
+    # importlib.reload and the lazy facade's globals cache would otherwise
+    # satisfy the attribute access without touching the blocked SDK import.
+    purge_roots = ("scpn_studio_platform",)
+    purge_exact = {
+        "scpn_control.studio.adapters",
+        "scpn_control.studio.evidence",
+        "scpn_control.studio.feed",
+        "scpn_control.studio.manifest",
+        "scpn_control.studio.verbs",
+    }
+    saved = {k: sys.modules.pop(k) for k in list(sys.modules) if k.split(".")[0] in purge_roots or k in purge_exact}
     sys.meta_path.insert(0, blocker)
     try:
         pkg = importlib.reload(studio)
+        for name in list(vars(pkg)):
+            if name in pkg._EXPORT_MODULES:
+                delattr(pkg, name)  # drop lazily cached symbols from prior tests
         mod = importlib.import_module("scpn_control.studio.sealed_claim")
         assert mod.SEALED_SAFETY_CLAIM_SCHEMA == "scpn-control.sealed-safety-claim.v1"
         with pytest.raises(ModuleNotFoundError):
