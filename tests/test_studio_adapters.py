@@ -27,8 +27,10 @@ from scpn_studio_platform.evidence import EvidenceKind  # noqa: E402
 
 from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams  # noqa: E402
 from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence  # noqa: E402
-from scpn_control.studio import (  # noqa: E402
-    TraceabilityClaim,
+
+# Import from the concrete modules (not the lazy package facade) so the
+# runtime-wiring gate sees a direct consumer of scpn_control.studio.adapters.
+from scpn_control.studio.adapters import (  # noqa: E402
     controller_latency_evidence_from_measurement,
     controller_run_evidence_from_simulation,
     disruption_mitigation_evidence_from_run,
@@ -36,11 +38,14 @@ from scpn_control.studio import (  # noqa: E402
     efit_evidence_from_reconstruction,
     equilibrium_analysis_evidence_from_shape,
     phase_sync_monitor_evidence_from_snapshot,
-    physics_validation_evidence,
     physics_validation_evidences_from_registry,
     replay_evidence_from_geometry_neutral,
     safety_certificate_evidence_from_certificate,
     scenario_simulation_evidence_from_audit,
+)
+from scpn_control.studio.evidence import (  # noqa: E402
+    TraceabilityClaim,
+    physics_validation_evidence,
 )
 
 _TS = {"started": "2026-06-23T00:00:00Z", "ended": "2026-06-23T00:00:01Z"}
