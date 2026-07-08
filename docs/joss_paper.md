@@ -8,7 +8,7 @@
 
 # JOSS Paper: SCPN Control
 
-**Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control**
+**SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control**
 
 *Miroslav Šotek* ([ORCID 0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)) — ANULUM CH & LI
 

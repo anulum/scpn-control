@@ -15,6 +15,8 @@
   policy updated by clipped policy-gradient returns and Lagrangian safety costs.
 - Extended the version-sync guard to cover release notes, README PyPI/Python
   badges, the Pepy all-time downloads badge, and package metadata drift.
+- Added a JOSS submission guard covering canonical paper metadata, bibliography
+  citation coverage, docs mirror links, and editorial claim-boundary text.
 - Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
   sealed validation evidence contract and refreshed the Rust multigrid
   informational record.

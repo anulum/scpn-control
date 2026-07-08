@@ -198,6 +198,17 @@ mkdocs build     # static site in site/
 
 CI deploys to GitHub Pages on push to `main` via `.github/workflows/docs-pages.yml`.
 
+## JOSS Submission Review
+
+Run `python tools/check_joss_submission.py` before sending the paper to an
+external JOSS workflow. The guard checks the canonical `paper.md` front matter,
+the root `paper.bib` bibliography, bracketed citation coverage, the
+`docs/joss_paper.md` mirror, and the claim-boundary/editorial text that keeps
+benchmark and validation statements tied to admitted evidence.
+
+The guard runs in local preflight and CI lint so the paper, docs mirror, and
+bibliography drift together instead of relying on a manual editorial pass.
+
 ## How to use this guide in practice
 
 This page defines the engineering path to stable work, not the path for first contact.

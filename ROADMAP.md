@@ -284,7 +284,8 @@
 - [x] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
 - [x] 42 CI-gated physics invariant tests + 118 physics deepening tests
 - [x] Backup: `stable-v0.18.0-20260317` tag + bundle
-- [ ] JOSS submission (review + editorial)
+- [x] JOSS submission review + editorial workflow guard
+- [ ] External JOSS submission and reviewer/editorial issue lifecycle
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
 - [ ] Resolve the public bounded-claim queue in `docs/physics_traceability.md`.

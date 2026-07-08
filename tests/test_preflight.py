@@ -54,6 +54,17 @@ def test_release_evidence_gate_is_not_skipped_by_no_tests_or_no_rust() -> None:
     assert "release-evidence" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_joss_submission_gate() -> None:
+    """Local preflight must keep the JOSS paper workflow reviewable."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["joss-submission"] == [preflight._PY, "tools/check_joss_submission.py"]
+    assert "joss-submission" not in preflight.TEST_GATES
+    assert "joss-submission" not in preflight.RUST_GATES
+
+
 def test_preflight_runs_runtime_wiring_gate() -> None:
     """Local preflight must fail closed on source modules with no repository wiring."""
     preflight = _load_preflight_module()
