@@ -1,16 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Controller Tuning
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Controller Tuning
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Automated controller gain tuning using Bayesian optimization.
 
@@ -27,7 +21,7 @@ from typing import Any
 try:
     import optuna
 
-    HAS_OPTUNA = True  # pragma: no cover - optuna optional dep, uninstalled on CI
+    HAS_OPTUNA = True
 except ImportError:
     HAS_OPTUNA = False
 
@@ -52,7 +46,7 @@ def tune_pid(env: Any, n_trials: int = 50) -> dict[str, float]:
         logger.warning("Optuna not installed; returning default gains.")
         return {"Kp": 1.0, "Ki": 0.1, "Kd": 0.05}
 
-    def objective(trial: optuna.Trial) -> float:  # pragma: no cover - optional Optuna optimisation path
+    def objective(trial: optuna.Trial) -> float:
         kp = trial.suggest_float("Kp", 0.1, 10.0, log=True)
         ki = trial.suggest_float("Ki", 0.01, 1.0, log=True)
         kd = trial.suggest_float("Kd", 0.01, 1.0, log=True)
@@ -72,10 +66,10 @@ def tune_pid(env: Any, n_trials: int = 50) -> dict[str, float]:
 
         return total_iae / n_episodes
 
-    study = optuna.create_study(direction="minimize")  # pragma: no cover - optional Optuna optimisation path
-    study.optimize(objective, n_trials=n_trials)  # pragma: no cover - optional Optuna optimisation path
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=n_trials)
 
-    return dict(study.best_params)  # pragma: no cover - optional Optuna optimisation path
+    return dict(study.best_params)
 
 
 def tune_hinf(plant: dict[str, Any], n_trials: int = 50) -> dict[str, float]:
@@ -83,11 +77,11 @@ def tune_hinf(plant: dict[str, Any], n_trials: int = 50) -> dict[str, float]:
     if not HAS_OPTUNA:
         return {"gamma": 1.1, "bandwidth": 0.5}
 
-    def objective(trial: optuna.Trial) -> float:  # pragma: no cover - optional Optuna optimisation path
+    def objective(trial: optuna.Trial) -> float:
         gamma = trial.suggest_float("gamma", 1.01, 2.0)
         return float(abs(gamma - 1.1))
 
-    study = optuna.create_study(direction="minimize")  # pragma: no cover - optional Optuna optimisation path
-    study.optimize(objective, n_trials=n_trials)  # pragma: no cover - optional Optuna optimisation path
+    study = optuna.create_study(direction="minimize")
+    study.optimize(objective, n_trials=n_trials)
 
-    return dict(study.best_params)  # pragma: no cover - optional Optuna optimisation path
+    return dict(study.best_params)
