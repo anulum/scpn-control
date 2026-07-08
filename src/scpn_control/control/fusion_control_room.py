@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 
@@ -37,13 +37,22 @@ try:
 except ImportError:
     HAS_MPL = False
 
-try:
-    from scpn_control.core._rust_compat import FusionKernel
-except ImportError:
+KernelFactory = Callable[[str], Any]
+
+
+def _load_fusion_kernel() -> KernelFactory | None:
+    """Return the preferred fusion-kernel factory when a kernel backend is installed."""
     try:
-        from scpn_control.core.fusion_kernel import FusionKernel
-    except ImportError:  # pragma: no cover - optional kernel path
-        FusionKernel = None
+        from scpn_control.core._rust_compat import FusionKernel as kernel_factory
+    except ImportError:
+        try:
+            from scpn_control.core.fusion_kernel import FusionKernel as kernel_factory
+        except ImportError:
+            return None
+    return cast(KernelFactory, kernel_factory)
+
+
+FusionKernel = _load_fusion_kernel()
 
 # --- CONTROL ROOM PARAMETERS ---
 RESOLUTION = 60
@@ -223,58 +232,70 @@ def _render_outputs(
             missing_backend if save_report else None,
         )
 
-    fig = plt.figure(figsize=(12, 8), facecolor="#1e1e1e")
-    gs = fig.add_gridspec(2, 2)
+    try:
+        fig = plt.figure(figsize=(12, 8), facecolor="#1e1e1e")
+        gs = fig.add_gridspec(2, 2)
 
-    ax_plasma = fig.add_subplot(gs[:, 0])
-    ax_plasma.set_facecolor("black")
-    ax_plasma.set_title("Tokamak Cross-Section (Live)", color="white")
-    extent = (
-        float(frames[0]["r_min"]),
-        float(frames[0]["r_max"]),
-        float(frames[0]["z_min"]),
-        float(frames[0]["z_max"]),
-    )
-    im = ax_plasma.imshow(
-        np.asarray(frames[0]["density"]),
-        extent=extent,
-        origin="lower",
-        cmap="plasma",
-        vmin=0.0,
-        vmax=1.0,
-        animated=True,
-    )
+        ax_plasma = fig.add_subplot(gs[:, 0])
+        ax_plasma.set_facecolor("black")
+        ax_plasma.set_title("Tokamak Cross-Section (Live)", color="white")
+        extent = (
+            float(frames[0]["r_min"]),
+            float(frames[0]["r_max"]),
+            float(frames[0]["z_min"]),
+            float(frames[0]["z_max"]),
+        )
+        im = ax_plasma.imshow(
+            np.asarray(frames[0]["density"]),
+            extent=extent,
+            origin="lower",
+            cmap="plasma",
+            vmin=0.0,
+            vmax=1.0,
+            animated=True,
+        )
 
-    ax_trace = fig.add_subplot(gs[0, 1])
-    ax_trace.set_facecolor("#2e2e2e")
-    ax_trace.set_title("Vertical Displacement (Z-Pos)", color="white")
-    ax_trace.set_ylim(-1.5, 1.5)
-    ax_trace.grid(True, color="#444")
-    (line_z,) = ax_trace.plot([], [], "cyan", lw=2, animated=True)
-    (line_setpoint,) = ax_trace.plot([], [], "r--", alpha=0.5, animated=True)
-    ax_trace.set_xlim(0, max(50, len(frames)))
+        ax_trace = fig.add_subplot(gs[0, 1])
+        ax_trace.set_facecolor("#2e2e2e")
+        ax_trace.set_title("Vertical Displacement (Z-Pos)", color="white")
+        ax_trace.set_ylim(-1.5, 1.5)
+        ax_trace.grid(True, color="#444")
+        (line_z,) = ax_trace.plot([], [], "cyan", lw=2, animated=True)
+        (line_setpoint,) = ax_trace.plot([], [], "r--", alpha=0.5, animated=True)
+        ax_trace.set_xlim(0, max(50, len(frames)))
 
-    ax_coils = fig.add_subplot(gs[1, 1])
-    ax_coils.set_facecolor("#2e2e2e")
-    ax_coils.set_title("Poloidal Field Coil Currents", color="white")
-    ax_coils.set_ylim(0, 1.1)
-    bar_top = ax_coils.bar([0], [history_top[0]], color="red", label="Top Coil")
-    bar_bot = ax_coils.bar([1], [history_bot[0]], color="blue", label="Bottom Coil")
-    ax_coils.set_xticks([0, 1])
-    ax_coils.set_xticklabels(["Top", "Bottom"], color="white")
-    ax_coils.legend()
+        ax_coils = fig.add_subplot(gs[1, 1])
+        ax_coils.set_facecolor("#2e2e2e")
+        ax_coils.set_title("Poloidal Field Coil Currents", color="white")
+        ax_coils.set_ylim(0, 1.1)
+        bar_top = ax_coils.bar([0], [history_top[0]], color="red", label="Top Coil")
+        bar_bot = ax_coils.bar([1], [history_bot[0]], color="blue", label="Bottom Coil")
+        ax_coils.set_xticks([0, 1])
+        ax_coils.set_xticklabels(["Top", "Bottom"], color="white")
+        ax_coils.legend()
 
-    (top_marker,) = ax_plasma.plot(3.0, 2.9, "s", color="red", markersize=20, alpha=0.3)
-    (bot_marker,) = ax_plasma.plot(3.0, -2.9, "s", color="blue", markersize=20, alpha=0.3)
-    wall = Rectangle(
-        (extent[0], extent[2] + 0.2),
-        extent[1] - extent[0],
-        (extent[3] - extent[2]) - 0.4,
-        linewidth=2,
-        edgecolor="gray",
-        facecolor="none",
-    )
-    ax_plasma.add_patch(wall)
+        (top_marker,) = ax_plasma.plot(3.0, 2.9, "s", color="red", markersize=20, alpha=0.3)
+        (bot_marker,) = ax_plasma.plot(3.0, -2.9, "s", color="blue", markersize=20, alpha=0.3)
+        wall = Rectangle(
+            (extent[0], extent[2] + 0.2),
+            extent[1] - extent[0],
+            (extent[3] - extent[2]) - 0.4,
+            linewidth=2,
+            edgecolor="gray",
+            facecolor="none",
+        )
+        ax_plasma.add_patch(wall)
+    except (OSError, TypeError, ValueError, RuntimeError) as exc:
+        fig = locals().get("fig")
+        if fig is not None:
+            plt.close(fig)
+        render_error = str(exc)
+        return (
+            False,
+            render_error if save_animation else None,
+            False,
+            render_error if save_report else None,
+        )
 
     def update(frame_idx: int) -> tuple[Any, ...]:
         rec = frames[frame_idx]
