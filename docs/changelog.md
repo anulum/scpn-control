@@ -21,6 +21,8 @@
 ### Changed
 - Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear
   policy updated by clipped policy-gradient returns and Lagrangian safety costs.
+- Extended the version-sync guard to cover release notes, README PyPI/Python
+  badges, the Pepy all-time downloads badge, and package metadata drift.
 
 ## [0.22.1] - 2026-07-03
 

@@ -19,9 +19,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+PROJECT_SLUG = "scpn-control"
 
 
 def _extract(path: Path, pattern: str) -> str | None:
+    """Extract the first regex capture group from a UTF-8 text file."""
+
     if not path.exists():
         return None
     text = path.read_text(encoding="utf-8")
@@ -29,13 +32,44 @@ def _extract(path: Path, pattern: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _contains(path: Path, substring: str) -> bool:
+def _require_contains(path: Path, substring: str, label: str) -> str | None:
+    """Return an error message when ``path`` does not contain ``substring``."""
+
     if not path.exists():
-        return True  # skip missing optional files
-    return substring in path.read_text(encoding="utf-8")
+        return f"MISSING: {label} file {path.relative_to(ROOT)} does not exist"
+    if substring not in path.read_text(encoding="utf-8"):
+        return f"MISMATCH: {label} missing {substring!r}"
+    return None
+
+
+def _release_notes_path(version: str) -> Path:
+    """Return the expected release-notes path for a package version."""
+
+    return ROOT / "docs" / f"release_notes_v{version}.md"
+
+
+def _metadata_badge_errors(version: str) -> list[str]:
+    """Validate README badges and release-note metadata tied to public releases."""
+
+    readme = ROOT / "README.md"
+    release_notes = _release_notes_path(version)
+    checks = [
+        (readme, f"https://img.shields.io/pypi/v/{PROJECT_SLUG}", "README PyPI version badge"),
+        (readme, f"https://img.shields.io/pypi/pyversions/{PROJECT_SLUG}", "README Python-version badge"),
+        (readme, f"https://pepy.tech/project/{PROJECT_SLUG}", "README Pepy downloads link"),
+        (readme, f"https://static.pepy.tech/badge/{PROJECT_SLUG}", "README all-time downloads badge"),
+        (readme, f"| Package version | {version} |", "README package-version table"),
+        (readme, f"git tag v{version}", "README release tag example"),
+        (release_notes, f"# SCPN Control v{version} Release Notes", "release-note heading"),
+        (release_notes, f"`v{version}` commit/tag", "release-note CI checklist"),
+        (release_notes, f"`scpn-control=={version}`", "release-note PyPI checklist"),
+    ]
+    return [error for path, substring, label in checks if (error := _require_contains(path, substring, label))]
 
 
 def main() -> int:
+    """Return success only when repository version and release metadata agree."""
+
     canonical = _extract(ROOT / "pyproject.toml", r'^version\s*=\s*"([^"]+)"')
     if not canonical:
         print("FAIL: could not extract version from pyproject.toml")
@@ -47,23 +81,27 @@ def main() -> int:
     }
 
     errors = 0
+    messages: list[str] = []
     for name, ver in versions.items():
         if ver is None:
             print(f"WARN: could not extract version from {name}")
         elif ver != canonical:
-            print(f"MISMATCH: {name} has {ver!r}, expected {canonical!r}")
-            errors += 1
+            messages.append(f"MISMATCH: {name} has {ver!r}, expected {canonical!r}")
 
-    if not _contains(ROOT / "docs" / "api.md", canonical):
-        print(f"MISMATCH: docs/api.md does not contain {canonical!r}")
-        errors += 1
+    if api_error := _require_contains(ROOT / "docs" / "api.md", canonical, "docs/api.md version marker"):
+        messages.append(api_error)
 
+    messages.extend(_metadata_badge_errors(canonical))
+
+    errors = len(messages)
     if errors:
+        for message in messages:
+            print(message)
         print(f"\nCanonical version (pyproject.toml): {canonical}")
         print(f"{errors} file(s) out of sync.")
         return 1
 
-    print(f"OK: all versions = {canonical}")
+    print(f"OK: all versions and release metadata = {canonical}")
     return 0
 
 

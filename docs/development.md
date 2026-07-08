@@ -174,6 +174,9 @@ evidence; sealed evidence keys stay with the Studio keeper.
 ## Release Process
 
 1. Bump version in `pyproject.toml`, `CITATION.cff`, and `.zenodo.json`
+   and run `python tools/check_version_sync.py` to verify release notes,
+   README PyPI/Python-version badges, the Pepy all-time downloads badge, and
+   local version metadata.
 2. Tag and push:
 
     ```bash

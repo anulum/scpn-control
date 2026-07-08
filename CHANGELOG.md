@@ -13,6 +13,8 @@
 ### Changed
 - Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear
   policy updated by clipped policy-gradient returns and Lagrangian safety costs.
+- Extended the version-sync guard to cover release notes, README PyPI/Python
+  badges, the Pepy all-time downloads badge, and package metadata drift.
 - Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
   sealed validation evidence contract and refreshed the Rust multigrid
   informational record.

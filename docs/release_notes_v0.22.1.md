@@ -62,6 +62,7 @@ Do not treat `v0.22.1` as published until all items are true:
 - Failed or cancelled Actions records are absent from the last 1000 runs after
   replacement evidence is green.
 - The GitHub release is created from the `v0.22.1` tag.
+- PyPI shows `scpn-control==0.22.1` with both wheel and source distribution.
 
 ## Practical use and scope
 
