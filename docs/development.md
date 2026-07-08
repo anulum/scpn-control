@@ -142,6 +142,18 @@ self-applied promotion terms. Internal planning surfaces under `docs/internal/`
 and `.coordination/` are excluded; bounded negative language and candidate
 labels remain allowed because they do not assert an achieved public claim.
 
+## Public API Docstrings
+
+```bash
+python tools/run_docstring_gate.py
+```
+
+The docstring gate runs ruff's public API pydocstyle rules for classes,
+functions, methods, packages, and nested classes. The recorded debt is zero, so
+new public APIs without docstrings fail CI, local preflight, and `make lint`.
+Docstrings should name the technical contract, units, failure modes, and claim
+boundaries where those details matter.
+
 ## Studio Custody Guards
 
 ```bash

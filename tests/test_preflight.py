@@ -76,6 +76,17 @@ def test_preflight_runs_coverage_pragma_gate() -> None:
     assert "coverage-pragmas" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_docstring_quality_gate() -> None:
+    """Local preflight must enforce public API docstring quality."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["docstring-quality"] == [preflight._PY, "tools/run_docstring_gate.py"]
+    assert "docstring-quality" not in preflight.TEST_GATES
+    assert "docstring-quality" not in preflight.RUST_GATES
+
+
 def test_preflight_runs_studio_offline_sealing_gate() -> None:
     """Local preflight must keep Studio signing custody out of CI and deploy surfaces."""
     preflight = _load_preflight_module()

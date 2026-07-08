@@ -57,6 +57,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
+    ("docstring-quality", [_PY, "tools/run_docstring_gate.py"], None),
     ("public-surface-hygiene", [_PY, "tools/check_public_surface_hygiene.py"], None),
     ("studio-deploy-key", [_PY, "tools/check_studio_deploy_key.py"], None),
     ("studio-offline-sealing", [_PY, "tools/check_studio_offline_sealing.py"], None),

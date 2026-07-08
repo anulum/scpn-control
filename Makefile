@@ -12,6 +12,7 @@ test-all: test test-rust
 lint:
 	ruff check src/ tests/
 	ruff format --check src/ tests/
+	python tools/run_docstring_gate.py
 
 fmt:
 	ruff check --fix src/ tests/

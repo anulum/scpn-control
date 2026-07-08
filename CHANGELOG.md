@@ -37,6 +37,8 @@
 - Added a Studio offline-sealing guard that keeps publication signing keys out
   of tracked CI and deploy policy surfaces while preserving deploy-only
   credential lanes.
+- Wired the zero-debt public API docstring quality gate into local preflight and
+  `make lint`, matching the existing CI documentation coverage lane.
 
 ## [0.22.1] - 2026-07-03
 
