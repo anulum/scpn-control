@@ -212,12 +212,12 @@ blocked until the required external artefacts exist.
 | Project scripts | 4 |
 | Public API exports | 44 |
 | Python control/physics modules | 147 |
-| Python public classes | 526 |
+| Python public classes | 527 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 411 |
+| Python test files | 412 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -623,8 +623,9 @@ git push --tags
   nonlinear solvers remain bounded local models until cross-validated against
   production TGLF, GENE, GS2, CGYRO, QuaLiKiz, or documented public references
   on identical equilibria.
-- **Disruption predictor**: Synthetic training data only. Not validated on
-  experimental disruption databases.
+- **Disruption predictor**: Default score is a deterministic fixed-weight
+  heuristic with synthetic sanity checks only. Optional Transformer training uses
+  synthetic shots. Not validated on experimental disruption databases.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
   runs on GPU if available. Public MAST EFM prediction evidence is available as
   fail-closed flux and derived-geometry evaluation with exact public EFM

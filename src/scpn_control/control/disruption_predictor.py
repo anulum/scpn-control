@@ -7,8 +7,16 @@
 
 from __future__ import annotations
 
-# ML disruption prediction: Kates-Harbeck et al. 2019, Nature 568, 526 —
-# FRNN deep-learning disruption predictor on JET/DIII-D.
+import logging
+import math
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, cast
+
+# Disruption prediction reference boundary: Kates-Harbeck et al. 2019,
+# Nature 568, 526, validates FRNN disruption prediction on JET/DIII-D.
+# This module's default public score is not that trained model; it is the
+# fixed-weight heuristic declared by disruption_risk_claim_boundary().
 #
 # Locked-mode disruption precursor: de Vries et al. 2011, Nucl. Fusion 51,
 # 053018 — cross-machine disruption database; locked modes dominate.
@@ -25,8 +33,6 @@ try:
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast
 
 import numpy as np
 
@@ -40,8 +46,6 @@ except ImportError:  # pragma: no cover - optional dependency path
     torch = None
     nn = None
     optim = None
-
-import logging
 
 from scpn_control.core._validators import (
     require_bounded_float,
@@ -59,6 +63,27 @@ DEFAULT_MODEL_FILENAME = "disruption_model.pth"
 PROBABILISTIC_SIGMA_LEVELS = (-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5)
 TOROIDAL_PERTURB_FRACTION = 0.08
 MIN_PROBABILISTIC_NOISE_SCALE = 1.0e-4
+DISRUPTION_FEATURE_CONTRACT: tuple[str, ...] = (
+    "mean",
+    "std",
+    "max",
+    "slope",
+    "energy",
+    "last",
+    "toroidal_n1_amp",
+    "toroidal_n2_amp",
+    "toroidal_n3_amp",
+    "toroidal_asymmetry_index",
+    "toroidal_radial_spread",
+)
+DISRUPTION_HEURISTIC_SCORE_SOURCE = "fixed_weight_logistic_heuristic"
+DISRUPTION_HEURISTIC_TRAINING_PROVENANCE = "hand_chosen_weights_no_real_disruption_database_fit"
+DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE = (
+    "synthetic_sanity_check:validation/reports/disruption_replay_pipeline_benchmark.md"
+)
+DISRUPTION_HEURISTIC_REQUIRED_ACTION = (
+    "Train or fit on an admitted real disruption database before any facility disruption-prediction claim."
+)
 
 # Minimum required alarm lead time.
 # Lehnen et al. 2015, J. Nucl. Mater. 463, 39 — τ_warning > τ_TQ + τ_mitigation.
@@ -69,6 +94,101 @@ TAU_WARNING_MIN_S: float = 0.010  # s
 # de Vries et al. 2011, Nucl. Fusion 51, 053018, §3 — locked-mode onset
 # is identified as the dominant disruption precursor across JET, DIII-D, AUG.
 LOCKED_MODE_ALARM_THRESHOLD: float = 0.15  # normalised units
+
+
+@dataclass(frozen=True, slots=True)
+class DisruptionRiskClaimBoundary:
+    """Machine-readable claim boundary for the public disruption-risk score.
+
+    The boundary is intentionally narrow: ``predict_disruption_risk`` emits a
+    deterministic fixed-weight logistic heuristic. It is not trained on, fitted
+    to, or ROC-validated against a real disruption database.
+    """
+
+    predictor_id: str
+    score_source: str
+    feature_contract: tuple[str, ...]
+    training_provenance: str
+    validation_provenance: str
+    public_claim_allowed: bool
+    facility_roc_validated: bool
+    required_action: str
+
+    def __post_init__(self) -> None:
+        """Reject empty fields and any widened facility-claim boundary."""
+
+        for name in (
+            "predictor_id",
+            "score_source",
+            "training_provenance",
+            "validation_provenance",
+            "required_action",
+        ):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"DisruptionRiskClaimBoundary.{name} must be a non-empty string")
+        if not self.feature_contract or any(not item.strip() for item in self.feature_contract):
+            raise ValueError("DisruptionRiskClaimBoundary.feature_contract must contain non-empty feature names")
+        if self.public_claim_allowed:
+            raise ValueError("DisruptionRiskClaimBoundary.public_claim_allowed must remain false")
+        if self.facility_roc_validated:
+            raise ValueError("DisruptionRiskClaimBoundary.facility_roc_validated must remain false")
+
+    def to_metadata(self) -> dict[str, Any]:
+        """Return a JSON-serialisable metadata representation."""
+
+        return {
+            "predictor_id": self.predictor_id,
+            "score_source": self.score_source,
+            "feature_contract": list(self.feature_contract),
+            "training_provenance": self.training_provenance,
+            "validation_provenance": self.validation_provenance,
+            "public_claim_allowed": self.public_claim_allowed,
+            "facility_roc_validated": self.facility_roc_validated,
+            "required_action": self.required_action,
+        }
+
+
+def disruption_risk_claim_boundary() -> DisruptionRiskClaimBoundary:
+    """Return the fixed public boundary for ``predict_disruption_risk`` claims."""
+
+    return DisruptionRiskClaimBoundary(
+        predictor_id="predict_disruption_risk",
+        score_source=DISRUPTION_HEURISTIC_SCORE_SOURCE,
+        feature_contract=DISRUPTION_FEATURE_CONTRACT,
+        training_provenance=DISRUPTION_HEURISTIC_TRAINING_PROVENANCE,
+        validation_provenance=DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE,
+        public_claim_allowed=False,
+        facility_roc_validated=False,
+        required_action=DISRUPTION_HEURISTIC_REQUIRED_ACTION,
+    )
+
+
+def _attach_disruption_claim_boundary(metadata: dict[str, Any]) -> dict[str, Any]:
+    """Attach the fixed disruption-risk claim boundary to an output mapping."""
+
+    enriched = dict(metadata)
+    enriched["claim_boundary"] = disruption_risk_claim_boundary().to_metadata()
+    return enriched
+
+
+def _linear_percentile(values: Any, percentile: float) -> float:
+    """Return a deterministic linear percentile without NumPy reduction sentinels."""
+
+    p = require_bounded_float("percentile", percentile, low=0.0, high=100.0)
+    flat = sorted(float(value) for value in np.asarray(values, dtype=float).reshape(-1))
+    if not flat:
+        raise ValueError("values must contain at least one sample")
+    if len(flat) == 1:
+        return flat[0]
+
+    rank = (len(flat) - 1) * (p / 100.0)
+    lower = int(math.floor(rank))
+    upper = int(math.ceil(rank))
+    if lower == upper:
+        return flat[lower]
+    fraction = rank - float(lower)
+    return flat[lower] * (1.0 - fraction) + flat[upper] * fraction
 
 
 def simulate_tearing_mode(
@@ -167,10 +287,7 @@ def simulate_tearing_mode(
 def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str, float] | None = None) -> FloatArray:
     """Build a compact feature vector for control-oriented disruption scoring.
 
-    Feature layout:
-      [mean, std, max, slope, energy, last,
-       toroidal_n1_amp, toroidal_n2_amp, toroidal_n3_amp,
-       toroidal_asymmetry_index, toroidal_radial_spread]
+    Feature layout is declared by ``DISRUPTION_FEATURE_CONTRACT``.
 
     Feature selection follows Rea et al. 2019, Nucl. Fusion 59, 096016,
     Table I — locked-mode amplitude, radiated power fraction, q95, β_N,
@@ -197,10 +314,10 @@ def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str,
     spread = float(obs.get("toroidal_radial_spread", 0.0))
     require_finite_array("toroidal observables", [n1, n2, n3, asym, spread])
 
-    return np.array(
-        [mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread],
-        dtype=float,
-    )
+    values = [mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread]
+    if len(values) != len(DISRUPTION_FEATURE_CONTRACT):
+        raise RuntimeError("disruption feature vector length drifted from the public contract")
+    return np.array(values, dtype=float)
 
 
 def predict_disruption_risk(signal: Any, toroidal_observables: dict[str, float] | None = None) -> float:
@@ -211,8 +328,9 @@ def predict_disruption_risk(signal: Any, toroidal_observables: dict[str, float] 
     model trained on a real disruption database: the feature weights and logit bias
     below are hand-chosen by inspection (sanity-checked against synthetic DIII-D/JET
     shots in validation/reports/disruption_replay_pipeline_benchmark.md), not fitted
-    by an optimiser. It supplements the Transformer pathway as an interpretable
-    baseline. Logit bias: sigmoid(−4.0) ≈ 0.018, giving low base risk on zero features.
+    by an optimiser. It can be compared with the optional synthetic Transformer
+    pathway as an interpretable baseline. Logit bias: sigmoid(−4.0) ≈ 0.018,
+    giving low base risk on zero features.
     """
     features = build_disruption_feature_vector(signal, toroidal_observables)
     mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread = features
@@ -413,8 +531,8 @@ def run_fault_noise_campaign(
     )
 
     mean_abs_err = float(np.mean(errors_arr))
-    p95_abs_err = float(np.percentile(errors_arr, 95))
-    p95_recovery = float(np.percentile(rec_arr, 95))
+    p95_abs_err = _linear_percentile(errors_arr, 95.0)
+    p95_recovery = _linear_percentile(rec_arr, 95.0)
     success_rate = float(np.mean(rec_arr <= recovery_window_i))
 
     thresholds = {
@@ -562,7 +680,7 @@ def run_anomaly_alarm_campaign(
 
     tpr = float(true_positives / max(positives, 1))
     fpr = float(false_positives / max(negatives, 1))
-    p95_latency = float(np.percentile(latencies, 95)) if latencies else float(window_i)
+    p95_latency = _linear_percentile(latencies, 95.0) if latencies else float(window_i)
     passes = bool(tpr >= 0.75 and fpr <= 0.35)
 
     return {
@@ -894,27 +1012,34 @@ def train_predictor(  # pragma: no cover - requires torch+matplotlib
     logger.info(f"Saved model: {model_path}")
 
     plot_path = _repo_root() / "artifacts" / "Disruption_AI_Result.png"
-    if save_plot:
+    if save_plot and HAS_MPL:
         plot_path.parent.mkdir(parents=True, exist_ok=True)
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
-        ax1.plot(losses)
-        ax1.set_title("Transformer Training Loss")
-        ax1.set_xlabel("Epoch")
-        ax2.plot(test_sig, "r-" if test_lbl else "g-")
-        ax2.set_title(f"Diagnostic Signal (AI Risk: {risk:.2f})")
-        plt.tight_layout()
-        plt.savefig(plot_path)
-        plt.close(fig)
-        logger.info(f"Saved: {plot_path}")
+        try:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
+            ax1.plot(losses)
+            ax1.set_title("Transformer Training Loss")
+            ax1.set_xlabel("Epoch")
+            ax2.plot(test_sig, "r-" if test_lbl else "g-")
+            ax2.set_title(f"Diagnostic Signal (AI Risk: {risk:.2f})")
+            plt.tight_layout()
+            plt.savefig(plot_path)
+            plt.close(fig)
+            logger.info(f"Saved: {plot_path}")
+        except (RuntimeError, TypeError, ValueError) as exc:
+            logger.warning("Skipping disruption training plot: %s", exc)
 
-    return model, {
-        "seq_len": int(seq_len),
-        "shots": int(n_shots),
-        "epochs": int(epochs),
-        "model_path": str(model_path),
-        "risk": float(risk),
-        "test_label": int(test_lbl),
-    }
+    return model, _attach_disruption_claim_boundary(
+        {
+            "seq_len": int(seq_len),
+            "shots": int(n_shots),
+            "epochs": int(epochs),
+            "model_path": str(model_path),
+            "risk": float(risk),
+            "test_label": int(test_lbl),
+            "training_data": "synthetic_shots",
+            "facility_roc_validated": False,
+        }
+    )
 
 
 def load_or_train_predictor(
@@ -965,13 +1090,15 @@ def load_or_train_predictor(
     if torch is None:
         if not allow_fallback:
             raise RuntimeError("Torch is required for load_or_train_predictor().")
-        return None, {
-            "trained": False,
-            "fallback": True,
-            "reason": "torch_unavailable",
-            "model_path": str(model_path) if model_path is not None else str(default_model_path()),
-            "seq_len": int(_normalize_seq_len(seq_len)),
-        }
+        return None, _attach_disruption_claim_boundary(
+            {
+                "trained": False,
+                "fallback": True,
+                "reason": "torch_unavailable",
+                "model_path": str(model_path) if model_path is not None else str(default_model_path()),
+                "seq_len": int(_normalize_seq_len(seq_len)),
+            }
+        )
 
     path = Path(model_path) if model_path is not None else default_model_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -991,32 +1118,40 @@ def load_or_train_predictor(
             model = DisruptionTransformer(seq_len=loaded_seq_len)
             model.load_state_dict(state_dict)
             model.eval()
-            return model, {
-                "trained": False,
-                "fallback": False,
-                "model_path": str(path),
-                "seq_len": int(loaded_seq_len),
-            }
+            return model, _attach_disruption_claim_boundary(
+                {
+                    "trained": False,
+                    "fallback": False,
+                    "model_path": str(path),
+                    "seq_len": int(loaded_seq_len),
+                    "training_data": "checkpoint_metadata_unavailable",
+                    "facility_roc_validated": False,
+                }
+            )
         except (RuntimeError, ValueError, KeyError, OSError) as exc:
             if not allow_fallback:
                 raise
-            return None, {
-                "trained": False,
-                "fallback": True,
-                "reason": f"checkpoint_load_failed:{exc.__class__.__name__}",
-                "model_path": str(path),
-                "seq_len": int(seq_len),
-            }
+            return None, _attach_disruption_claim_boundary(
+                {
+                    "trained": False,
+                    "fallback": True,
+                    "reason": f"checkpoint_load_failed:{exc.__class__.__name__}",
+                    "model_path": str(path),
+                    "seq_len": int(seq_len),
+                }
+            )
 
     if not train_if_missing and not force_retrain:  # pragma: no cover - requires torch
         if allow_fallback:
-            return None, {
-                "trained": False,
-                "fallback": True,
-                "reason": "checkpoint_missing",
-                "model_path": str(path),
-                "seq_len": int(seq_len),
-            }
+            return None, _attach_disruption_claim_boundary(
+                {
+                    "trained": False,
+                    "fallback": True,
+                    "reason": "checkpoint_missing",
+                    "model_path": str(path),
+                    "seq_len": int(seq_len),
+                }
+            )
         raise FileNotFoundError(f"Checkpoint not found: {path}")
 
     kwargs.setdefault("seq_len", seq_len)
@@ -1026,15 +1161,21 @@ def load_or_train_predictor(
     except (RuntimeError, ValueError, OSError) as exc:  # pragma: no cover - requires torch
         if not allow_fallback:
             raise
-        return None, {
-            "trained": False,
-            "fallback": True,
-            "reason": f"train_failed:{exc.__class__.__name__}",
-            "model_path": str(path),
-            "seq_len": int(seq_len),
-        }
+        return None, _attach_disruption_claim_boundary(
+            {
+                "trained": False,
+                "fallback": True,
+                "reason": f"train_failed:{exc.__class__.__name__}",
+                "model_path": str(path),
+                "seq_len": int(seq_len),
+            }
+        )
     info["trained"] = True  # pragma: no cover - requires torch
     info["fallback"] = False  # pragma: no cover - requires torch
+    info["facility_roc_validated"] = False  # pragma: no cover - requires torch
+    info.setdefault(
+        "claim_boundary", disruption_risk_claim_boundary().to_metadata()
+    )  # pragma: no cover - requires torch
     return model, info  # pragma: no cover - requires torch
 
 
@@ -1183,8 +1324,16 @@ def evaluate_predictor(
             T_s = T_ms / 1000.0
             early_enough = np.array(times_test) >= T_s
             mask = (y_true == 1) & early_enough
-            if mask.sum() > 0:
-                recall_at_t = np.sum(predictions[mask] == 1) / mask.sum()
+            mask_items = [bool(item) for item in mask.tolist()]
+            mask_count = sum(1 for item in mask_items if item)
+            if mask_count > 0:
+                predicted_positive = [bool(item) for item in (predictions == 1).tolist()]
+                true_positive_hits = sum(
+                    1
+                    for predicted, included in zip(predicted_positive, mask_items, strict=True)
+                    if included and predicted
+                )
+                recall_at_t = true_positive_hits / mask_count
             else:
                 recall_at_t = 0.0
             result[f"recall_at_{T_ms}ms"] = float(recall_at_t)

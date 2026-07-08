@@ -584,11 +584,13 @@
       "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
       "validation_evidence": [
         "tests/test_disruption_predictor.py heuristic feature-vector and bounded-output checks",
+        "tests/test_disruption_predictor_claim_boundary.py machine-readable claim-boundary and public-surface checks",
         "validation/reports/disruption_replay_pipeline_benchmark.md synthetic sanity-check provenance"
       ],
       "evidence_paths": [
         "src/scpn_control/control/disruption_predictor.py",
-        "tests/test_disruption_predictor.py"
+        "tests/test_disruption_predictor.py",
+        "tests/test_disruption_predictor_claim_boundary.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/control/disruption_predictor.py"

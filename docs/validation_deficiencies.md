@@ -48,9 +48,10 @@ q-profile normalisation.
 **Threshold:** `recall > 80%`, `FPR < 25%`
 **Result:** Recall 100%, FPR 0% — **PASS**
 
-*Note:* Although the current test set passes, the synthetic ROC analysis
-(Task V4) suggests that the FPR may degrade under more diverse noise
-conditions.
+*Note:* Synthetic-only heuristic replay passes this local gate, but it is not a
+real disruption-database ROC. The predictor remains a fixed-weight baseline
+until an admitted facility dataset trains or fits the score and reruns the
+validation gate.
 
 ## 3. Transport Scaling (Lane 2)
 
