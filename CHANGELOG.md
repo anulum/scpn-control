@@ -10,6 +10,11 @@
 
 ## Unreleased
 
+### Changed
+- Hardened the GitHub installation-token format readiness guard with canonical
+  source headers, public API docstrings, repository traversal tests, binary-file
+  skip coverage, and explicit development documentation.
+
 ## [0.22.1] - 2026-07-03
 
 ### Fixed

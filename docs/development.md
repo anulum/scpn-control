@@ -109,6 +109,20 @@ Use a one-line reason such as an optional dependency path, native backend path,
 or defensive invariant branch. The gate runs through `tools/preflight.py` and
 fails on bare exclusions.
 
+## GitHub Token Format Guard
+
+The security lane runs `python tools/check_github_token_format_readiness.py` in
+CI. The guard scans tracked text files and workflow files for brittle GitHub
+installation-token assumptions: exact-width `ghs_` regexes, fixed token-length
+checks, undersized storage columns, and installation-token endpoint calls that
+omit `X-GitHub-Stateless-S2S-Token`.
+
+Treat installation tokens as opaque strings. Code may check for presence,
+prefixes needed for routing, or provider errors, but it must not assume a fixed
+length or storage width. Test fixtures live under `tests/` and are intentionally
+excluded from the repository scan so negative examples remain possible without
+making the gate flag itself.
+
 ---
 
 ## Release Process
