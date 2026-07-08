@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -138,7 +139,7 @@ def test_lean_formal_report_rejects_malformed_contract_payload(field: str, value
     payload.pop("payload_sha256")
     payload[field] = value
     if field == "proof_assumptions":
-        payload["assumption_sha256"] = compute_assumption_sha256(value)
+        payload["assumption_sha256"] = compute_assumption_sha256(cast(list[str], value))
 
     with pytest.raises(LeanFormalVerificationError, match=match):
         validate_lean_formal_report_payload(payload)

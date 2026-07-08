@@ -155,8 +155,6 @@ def _is_lean_identifier_segment(value: str, *, allow_prime: bool) -> bool:
 def _is_dotted_lean_identifier(value: str, *, allow_prime: bool) -> bool:
     """Return True for dotted Lean names without regex backtracking risk."""
     segments = value.split(".")
-    if not segments:  # pragma: no cover - str.split() always yields at least one segment
-        return False
     return all(_is_lean_identifier_segment(segment, allow_prime=allow_prime) for segment in segments)
 
 
@@ -406,13 +404,6 @@ def validate_lean_formal_report_payload(payload: object, *, require_payload_sha2
         module_paths=module_paths,
         safety_case_ids=safety_case_ids,
     )
-    # Defensive guards: validate_required_contract_evidence_links above already pins
-    # module_paths and safety_case_ids to exactly the per-contract expected sets, so
-    # both counts are bounded below by the theorem_modules / proved_contracts subsets.
-    if len(module_paths) < len(theorem_modules):  # pragma: no cover - pinned by evidence-link validation
-        raise LeanFormalVerificationError("Lean 4 report module_paths must cover theorem_modules")
-    if len(safety_case_ids) < len(proved_contracts):  # pragma: no cover - pinned by evidence-link validation
-        raise LeanFormalVerificationError("Lean 4 report safety_case_ids must cover proved_contracts")
     payload_digest = payload.get("payload_sha256")
     if payload_digest is None:
         if require_payload_sha256:
