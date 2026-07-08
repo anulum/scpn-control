@@ -431,7 +431,7 @@ class HPCBridge:
 
         psi_out = np.zeros(expected_shape, dtype=np.float64)
         solved = self.solve_into(j_phi, psi_out, iterations=iterations)
-        if solved is None:  # pragma: no cover - solve_into cannot return None once this prepare succeeded
+        if solved is None:
             return None
         return solved
 
@@ -483,7 +483,7 @@ class HPCBridge:
             tolerance=tolerance,
             omega=omega,
         )
-        if converged is None:  # pragma: no cover - the into-variant cannot return None once this prepare succeeded
+        if converged is None:
             return None
         iterations_used, final_delta = converged
         return psi_out, iterations_used, final_delta
