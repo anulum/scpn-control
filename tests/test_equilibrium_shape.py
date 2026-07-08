@@ -9,7 +9,10 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from scpn_control.control.realtime_efit import MU0, MagneticDiagnostics, RealtimeEFIT
@@ -27,37 +30,43 @@ from scpn_control.core.equilibrium_shape import (
     safety_factor_q95,
 )
 
+FloatArray = npt.NDArray[np.float64]
 
-def _miller_boundary(r0: float, a: float, kappa: float, delta: float, n: int = 400) -> np.ndarray:
+
+def _miller_boundary(r0: float, a: float, kappa: float, delta: float, n: int = 400) -> FloatArray:
     theta = np.linspace(0.0, 2.0 * np.pi, n, endpoint=False)
     r = r0 + a * np.cos(theta + delta * np.sin(theta))
     z = kappa * a * np.sin(theta)
-    return np.column_stack([r, z])
+    return cast(FloatArray, np.column_stack([r, z]))
 
 
 def _closure_equilibrium(
     n: int = 65,
-) -> tuple[RealtimeEFIT, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, float]:
+) -> tuple[RealtimeEFIT, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, float]:
     diag = MagneticDiagnostics(
         [(6.0, 0.0), (6.2, 1.0), (7.4, 0.0)], [(6.0, 0.0, "Z"), (7.4, 0.0, "Z")], rogowski_radius=6.2
     )
-    r_grid = np.linspace(4.2, 8.2, n)
-    z_grid = np.linspace(-3.0, 3.0, n)
+    r_grid = cast(FloatArray, np.linspace(4.2, 8.2, n, dtype=np.float64))
+    z_grid = cast(FloatArray, np.linspace(-3.0, 3.0, n, dtype=np.float64))
     efit = RealtimeEFIT(diag, r_grid, z_grid, vacuum_rb_phi=33.0)
-    p_true = np.array([2.0, -1.5, 0.4])
-    ff_true = np.array([1.0, -0.6, 0.1])
+    p_true = cast(FloatArray, np.array([2.0, -1.5, 0.4], dtype=np.float64))
+    ff_true = cast(FloatArray, np.array([1.0, -0.6, 0.1], dtype=np.float64))
     x = efit._geometric_rho()[0]
-    psi = np.zeros((n, n))
+    psi = cast(FloatArray, np.zeros((n, n), dtype=np.float64))
     for _ in range(60):
         srcs = efit._basis_sources(x)
         src = sum(p_true[k] * srcs[k] for k in range(3)) + sum(ff_true[k] * srcs[3 + k] for k in range(3))
-        psi = efit._solve_source(src)
+        psi = cast(FloatArray, efit._solve_source(src))
         x = efit._normalized_flux(psi)
     ip = float(efit._diagnostic_vector(psi)[-1])
     return efit, r_grid, z_grid, psi, p_true, ff_true, ip
 
 
-def test_boundary_geometry_recovers_miller_shape():
+def _normalised_flux(psi: FloatArray) -> FloatArray:
+    return cast(FloatArray, np.clip(1.0 - psi / float(np.max(psi)), 0.0, 1.0))
+
+
+def test_boundary_geometry_recovers_miller_shape() -> None:
     pts = _miller_boundary(6.2, 2.0, 1.7, 0.3)
     r0, a, kappa, delta_u, delta_l = boundary_geometry(pts)
     assert r0 == pytest.approx(6.2, abs=0.05)
@@ -67,7 +76,7 @@ def test_boundary_geometry_recovers_miller_shape():
     assert delta_l == pytest.approx(0.3, abs=0.06)
 
 
-def test_poloidal_field_satisfies_amperes_law():
+def test_poloidal_field_satisfies_amperes_law() -> None:
     pytest.importorskip("contourpy")
     from scipy.interpolate import RegularGridInterpolator
 
@@ -79,7 +88,7 @@ def test_poloidal_field_satisfies_amperes_law():
     b_z = dpsi_dr / rr
     i_br = RegularGridInterpolator((r_grid, z_grid), b_r, bounds_error=False, fill_value=0.0)
     i_bz = RegularGridInterpolator((r_grid, z_grid), b_z, bounds_error=False, fill_value=0.0)
-    loop = largest_flux_contour(np.clip(1.0 - psi / psi.max(), 0.0, 1.0), r_grid, z_grid, 0.5)
+    loop = largest_flux_contour(_normalised_flux(psi), r_grid, z_grid, 0.5)
     assert loop is not None
     seg = np.diff(np.vstack([loop, loop[:1]]), axis=0)
     mid = 0.5 * (np.vstack([loop, loop[:1]])[:-1] + np.vstack([loop, loop[:1]])[1:])
@@ -90,58 +99,59 @@ def test_poloidal_field_satisfies_amperes_law():
     assert abs(float(np.sum(b_dot_dl))) < MU0 * abs(ip)
 
 
-def test_internal_inductance_is_physical():
+def test_internal_inductance_is_physical() -> None:
     _efit, r_grid, z_grid, psi, _p, _ff, ip = _closure_equilibrium()
     boundary = plasma_boundary(psi, r_grid, z_grid)
-    r0 = 0.5 * (boundary[:, 0].max() + boundary[:, 0].min())
+    r0 = 0.5 * (float(np.max(boundary[:, 0])) + float(np.min(boundary[:, 0])))
     li = internal_inductance(psi, r_grid, z_grid, ip, r0)
     assert 0.2 < li < 2.0
 
 
-def test_internal_inductance_zero_for_zero_current():
+def test_internal_inductance_zero_for_zero_current() -> None:
     _efit, r_grid, z_grid, psi, _p, _ff, _ip = _closure_equilibrium()
     assert internal_inductance(psi, r_grid, z_grid, 0.0, 6.2) == 0.0
 
 
-def test_pressure_grid_vanishes_at_edge_and_peaks_at_axis():
+def test_pressure_grid_vanishes_at_edge_and_peaks_at_axis() -> None:
     psi_n = np.array([0.0, 0.5, 1.0])
     p = pressure_grid(psi_n, np.array([3.0, -1.0]), psi_axis=2.0)
     assert p[-1] == pytest.approx(0.0)  # boundary
     assert p[0] > p[1] > p[-1]  # monotone decreasing axis -> edge for positive p'
 
 
-def test_poloidal_beta_nonnegative_and_zero_for_no_pressure():
+def test_poloidal_beta_nonnegative_and_zero_for_no_pressure() -> None:
     _efit, r_grid, z_grid, psi, _p, _ff, ip = _closure_equilibrium()
-    psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
-    beta = poloidal_beta(psi, psi_n, r_grid, z_grid, np.array([2.0, -1.5, 0.4]), float(psi.max()), 2.0, ip)
+    psi_axis = float(np.max(psi))
+    psi_n = _normalised_flux(psi)
+    beta = poloidal_beta(psi, psi_n, r_grid, z_grid, np.array([2.0, -1.5, 0.4]), psi_axis, 2.0, ip)
     assert beta >= 0.0
-    zero = poloidal_beta(psi, psi_n, r_grid, z_grid, np.zeros(3), float(psi.max()), 2.0, ip)
+    zero = poloidal_beta(psi, psi_n, r_grid, z_grid, np.zeros(3), psi_axis, 2.0, ip)
     assert zero == 0.0
 
 
-def test_poloidal_beta_zero_for_zero_current():
+def test_poloidal_beta_zero_for_zero_current() -> None:
     _efit, r_grid, z_grid, psi, _p, _ff, _ip = _closure_equilibrium()
-    psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
-    assert poloidal_beta(psi, psi_n, r_grid, z_grid, np.array([1.0]), float(psi.max()), 2.0, 0.0) == 0.0
+    psi_n = _normalised_flux(psi)
+    assert poloidal_beta(psi, psi_n, r_grid, z_grid, np.array([1.0]), float(np.max(psi)), 2.0, 0.0) == 0.0
 
 
-def test_safety_factor_q95_is_finite_and_positive():
+def test_safety_factor_q95_is_finite_and_positive() -> None:
     pytest.importorskip("contourpy")
     _efit, r_grid, z_grid, psi, _p, ff, _ip = _closure_equilibrium()
-    psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
-    q95 = safety_factor_q95(psi, psi_n, r_grid, z_grid, ff, float(psi.max()), 33.0)
+    psi_n = _normalised_flux(psi)
+    q95 = safety_factor_q95(psi, psi_n, r_grid, z_grid, ff, float(np.max(psi)), 33.0)
     assert np.isfinite(q95)
     assert q95 > 0.0
 
 
-def test_safety_factor_q95_nan_for_absent_surface():
+def test_safety_factor_q95_nan_for_absent_surface() -> None:
     _efit, r_grid, z_grid, psi, _p, ff, _ip = _closure_equilibrium()
-    psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
+    psi_n = _normalised_flux(psi)
     # psi_N = 2.0 lies outside [0, 1] so no contour exists.
-    assert np.isnan(safety_factor_q95(psi, psi_n, r_grid, z_grid, ff, float(psi.max()), 33.0, surface=2.0))
+    assert np.isnan(safety_factor_q95(psi, psi_n, r_grid, z_grid, ff, float(np.max(psi)), 33.0, surface=2.0))
 
 
-def test_compute_equilibrium_shape_full_set():
+def test_compute_equilibrium_shape_full_set() -> None:
     pytest.importorskip("contourpy")
     _efit, r_grid, z_grid, psi, p_true, ff_true, ip = _closure_equilibrium()
     shape = compute_equilibrium_shape(psi, r_grid, z_grid, p_true, ff_true, ip, 33.0)
@@ -155,26 +165,26 @@ def test_compute_equilibrium_shape_full_set():
     assert np.isfinite(shape.q95) and shape.q95 > 0.0
 
 
-def test_compute_equilibrium_shape_none_for_degenerate_flux():
+def test_compute_equilibrium_shape_none_for_degenerate_flux() -> None:
     r_grid = np.linspace(4.2, 8.2, 17)
     z_grid = np.linspace(-3.0, 3.0, 17)
     psi = np.zeros((17, 17))
     assert compute_equilibrium_shape(psi, r_grid, z_grid, np.zeros(3), np.zeros(3), 0.0, 33.0) is None
 
 
-def test_plasma_boundary_empty_for_nonpositive_flux():
+def test_plasma_boundary_empty_for_nonpositive_flux() -> None:
     r_grid = np.linspace(4.2, 8.2, 9)
     z_grid = np.linspace(-3.0, 3.0, 9)
     assert plasma_boundary(np.zeros((9, 9)), r_grid, z_grid).shape == (0, 2)
 
 
-def test_largest_flux_contour_none_for_absent_level():
+def test_largest_flux_contour_none_for_absent_level() -> None:
     _efit, r_grid, z_grid, psi, _p, _ff, _ip = _closure_equilibrium()
-    psi_n = np.clip(1.0 - psi / psi.max(), 0.0, 1.0)
+    psi_n = _normalised_flux(psi)
     assert largest_flux_contour(psi_n, r_grid, z_grid, 5.0) is None
 
 
-def test_cylindrical_q95_estimate():
+def test_cylindrical_q95_estimate() -> None:
     # Contour-free fallback: finite, positive, and elongation-scaled.
     q = cylindrical_q95(a=2.0, kappa=1.7, r0=6.2, ip=5.0e6, vacuum_rb_phi=33.0)
     assert np.isfinite(q) and q > 0.0

@@ -859,13 +859,6 @@ class RealtimeEFIT:
         boundary = inner & ~interior
 
         r_idx, z_idx = np.nonzero(boundary)
-        # A non-empty plasma mask always yields a boundary ring (grid-edge cells
-        # border the False padding), so an empty boundary only occurs when the
-        # mask is empty, which the psi_max guard above already returns for; this
-        # is defence in depth and is unreachable.
-        if r_idx.size == 0:
-            return np.empty((0, 2), dtype=float)  # pragma: no cover - defensive empty-contour fallback
-
         points = np.column_stack((self.R[r_idx], self.Z[z_idx]))
         centroid = np.mean(points, axis=0)
         angles = np.arctan2(points[:, 1] - centroid[1], points[:, 0] - centroid[0])
