@@ -9,6 +9,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { loadPortalAuth } from './auth.js';
 import ControlStudioPanel from './ControlStudioPanel.js';
 import { loadStudioFeed } from './feed.js';
 
@@ -18,9 +19,10 @@ if (container === null) {
 }
 // Read the live studio feed the Python vertical emits; the loader falls back to the
 // bundled sample when the feed is unreachable, so the standalone remote still renders.
-const feed = await loadStudioFeed();
+// Portal identity is same-origin and cookie-backed; the panel never owns login or billing.
+const [feed, portalAuth] = await Promise.all([loadStudioFeed(), loadPortalAuth()]);
 createRoot(container).render(
   <StrictMode>
-    <ControlStudioPanel verbs={feed.verbs} claims={feed.claims} />
+    <ControlStudioPanel verbs={feed.verbs} claims={feed.claims} portalAuth={portalAuth} />
   </StrictMode>,
 );

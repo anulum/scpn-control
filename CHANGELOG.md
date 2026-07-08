@@ -31,6 +31,9 @@
 - Added the SCPN Studio deploy public key artifact with a CI/preflight guard
   that validates the ed25519 public key and rejects private key-like tracked
   paths.
+- Wired Studio Web to the portal-owned identity path by loading
+  `GET /api/v1/auth/me` with same-origin cookies and rendering only the portal
+  session state in the federated panel.
 
 ## [0.22.1] - 2026-07-03
 

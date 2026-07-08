@@ -29,6 +29,7 @@ studio is independent.
 | Path | Responsibility |
 | --- | --- |
 | `src/federationContract.ts` | The remote name, deployed base path, `remoteEntry.js`, `./Panel` exposure, and shared React dependencies. |
+| `src/auth.ts` | Same-origin portal session loader for `GET /api/v1/auth/me` with `credentials: 'include'`; no local login or billing surface. |
 | `src/domain.ts` | The studio's verb/claim data + the honesty rendering rules. |
 | `src/ControlStudioPanel.tsx` | The exposed federated panel. |
 | `public/manifest.json` | The deployed schema-A capability manifest copied from `docs/_generated/studio_manifest.json`. |

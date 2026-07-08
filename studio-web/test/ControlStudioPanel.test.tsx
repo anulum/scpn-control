@@ -18,6 +18,10 @@ describe('ControlStudioPanel', () => {
     expect(
       screen.getByRole('heading', { name: 'SCPN-CONTROL — Control Studio' }),
     ).toBeInTheDocument();
+    expect(screen.getByText('Portal session: unavailable')).toHaveAttribute(
+      'data-auth-status',
+      'unavailable',
+    );
   });
 
   it('lists every verb as a table row', () => {
@@ -81,5 +85,29 @@ describe('ControlStudioPanel', () => {
     expect(screen.queryByText('reconstruct')).not.toBeInTheDocument();
     const claim = screen.getByText(/studio\.disruption-mitigation\.v1/);
     expect(claim.closest('li')).toHaveAttribute('data-validated', 'no');
+  });
+
+  it('renders the portal session supplied by the Hub origin', () => {
+    render(
+      <ControlStudioPanel
+        portalAuth={{
+          status: 'authenticated',
+          account: {
+            userId: 'user-1',
+            email: 'operator@example.invalid',
+            displayName: 'Operator',
+            emailVerified: true,
+            tier: 'pro',
+            mfaEnabled: true,
+          },
+        }}
+      />,
+    );
+
+    const status = screen.getByText('Portal session: Operator · pro');
+    expect(status).toHaveAttribute('data-auth-status', 'authenticated');
+    expect(
+      screen.queryByRole('button', { name: /login|billing|account/i }),
+    ).not.toBeInTheDocument();
   });
 });

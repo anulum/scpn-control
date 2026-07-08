@@ -8,6 +8,8 @@
 
 import type { ReactElement } from 'react';
 
+import type { PortalAuthState } from './auth.js';
+import { FALLBACK_AUTH } from './auth.js';
 import type { ClaimSummary, ControlVerb } from './domain.js';
 import {
   claimRendersAsValidated,
@@ -20,6 +22,7 @@ import {
 export interface ControlStudioPanelProps {
   readonly verbs?: readonly ControlVerb[];
   readonly claims?: readonly ClaimSummary[];
+  readonly portalAuth?: PortalAuthState;
 }
 
 /**
@@ -37,11 +40,19 @@ export interface ControlStudioPanelProps {
 export default function ControlStudioPanel({
   verbs = CONTROL_VERBS,
   claims = CONTROL_CLAIMS,
+  portalAuth = FALLBACK_AUTH,
 }: ControlStudioPanelProps = {}): ReactElement {
+  const portalStatus =
+    portalAuth.status === 'authenticated'
+      ? `${portalAuth.account.displayName} · ${portalAuth.account.tier}`
+      : portalAuth.status;
   return (
     <section className="control-studio">
       <header className="control-studio__header">
         <h2>SCPN-CONTROL — Control Studio</h2>
+        <p className="control-studio__portal" data-auth-status={portalAuth.status}>
+          Portal session: {portalStatus}
+        </p>
       </header>
 
       <table className="control-studio__verbs">
