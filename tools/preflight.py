@@ -58,6 +58,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("public-surface-hygiene", [_PY, "tools/check_public_surface_hygiene.py"], None),
+    ("studio-deploy-key", [_PY, "tools/check_studio_deploy_key.py"], None),
     ("studio-web-manifest", [_PY, "tools/sync_studio_web_manifest.py", "--check"], None),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
     ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),

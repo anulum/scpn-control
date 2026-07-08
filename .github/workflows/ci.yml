@@ -241,6 +241,7 @@ jobs:
       - name: Validate capability manifest
         run: |
           python tools/capability_manifest.py --check
+          python tools/check_studio_deploy_key.py
           python tools/sync_studio_web_manifest.py --check
 
   # ─── Job 4d: Release evidence gate ───

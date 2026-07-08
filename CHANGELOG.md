@@ -28,6 +28,9 @@
 - Added the deployed Studio Web `manifest.json` sync guard, public artifact, CI
   check, focused 100% coverage, and documentation for keeping it aligned with
   the generated schema-A Studio manifest.
+- Added the SCPN Studio deploy public key artifact with a CI/preflight guard
+  that validates the ed25519 public key and rejects private key-like tracked
+  paths.
 
 ## [0.22.1] - 2026-07-03
 
