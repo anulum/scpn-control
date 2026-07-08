@@ -218,7 +218,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 119 |
 | Optional extras | 18 |
 | Python test files | 397 |
-| Public documentation pages | 55 |
+| Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

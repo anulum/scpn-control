@@ -39,6 +39,9 @@
   credential lanes.
 - Wired the zero-debt public API docstring quality gate into local preflight and
   `make lint`, matching the existing CI documentation coverage lane.
+- Added architecture decision records for module and repository boundaries,
+  Python/Rust/PyO3 dispatch, solver and algorithm selection, validation evidence
+  strategy, and public versus internal API boundaries.
 
 ## [0.22.1] - 2026-07-03
 

@@ -74,6 +74,13 @@ nav:
     - Paper 27 Phase Dynamics: paper27_phase_dynamics.md
     - Paper 27 Reviewer Integration: REVIEWER_PAPER27_INTEGRATION.md
     - Architecture: architecture.md
+    - Architecture Decisions:
+      - ADR Index: adr/index.md
+      - Module and Repository Boundaries: adr/0001-module-and-repository-boundaries.md
+      - Python, Rust, and PyO3 Dispatch: adr/0002-python-rust-pyo3-dispatch.md
+      - Solver and Algorithm Selection: adr/0003-solver-and-algorithm-selection.md
+      - Validation, Data, and Evidence Strategy: adr/0004-validation-data-and-evidence-strategy.md
+      - Public and Internal API Boundaries: adr/0005-public-and-internal-api-boundaries.md
     - Physics Methods: physics_methods.md
     - Neural Transport Training: neural_transport_training.md
     - Capacitor-Bank State Model: control/capacitor_bank_state.md

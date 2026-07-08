@@ -8,6 +8,12 @@
 
 # Architecture
 
+Architecture decisions are recorded as focused ADRs under
+[Architecture Decision Records](adr/index.md). The ADR set captures the standing
+decisions behind module ownership, cross-repository boundaries, Python/Rust/PyO3
+dispatch, solver selection, validation strategy, and public versus internal API
+surfaces.
+
 ## SCPN ecosystem and cross-repository contracts
 
 `scpn-control` is one repository in a three-repository SCPN ecosystem. Each
