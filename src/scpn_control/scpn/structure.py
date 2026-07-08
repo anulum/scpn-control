@@ -227,7 +227,7 @@ class StochasticPetriNet:
                 # Defensive: add_arc rejects inhibitor arcs on Transition->Place
                 # edges and any non-positive weight, so a T->P edge reaching here
                 # can be neither an inhibitor nor negative-weight arc.
-                if is_inhibitor or w < 0.0:  # pragma: no cover - defensive Petri-net matrix invariant
+                if is_inhibitor or w < 0.0:
                     raise ValueError("Inhibitor arcs are only valid on Place->Transition edges.")
                 # Transition -> Place  => W_out[place_idx, transition_idx]
                 t_idx = self._transition_idx[src]
@@ -236,9 +236,56 @@ class StochasticPetriNet:
                 out_cols.append(t_idx)
                 out_vals.append(w)
 
-        self.W_in = sparse.csr_matrix((in_vals, (in_rows, in_cols)), shape=(nT, nP), dtype=np.float64)
-        self.W_out = sparse.csr_matrix((out_vals, (out_rows, out_cols)), shape=(nP, nT), dtype=np.float64)
+        self.W_in = self._csr_from_triplets(in_rows, in_cols, in_vals, shape=(nT, nP))
+        self.W_out = self._csr_from_triplets(out_rows, out_cols, out_vals, shape=(nP, nT))
         self._compiled = True
+
+    @staticmethod
+    def _csr_from_triplets(
+        row_indices: list[int],
+        col_indices: list[int],
+        values: list[float],
+        *,
+        shape: tuple[int, int],
+    ) -> sparse.csr_matrix:
+        """Build a float64 CSR matrix from COO-style triplets.
+
+        The direct CSR construction avoids SciPy's COO index-dtype inference path,
+        which can be brittle when test instrumentation reloads NumPy. Duplicate
+        triplets are coalesced to match COO-to-CSR summation semantics.
+        """
+        n_rows, n_cols = shape
+        if not values:
+            return sparse.csr_matrix(shape, dtype=np.float64)
+
+        triplets = sorted(zip(row_indices, col_indices, values, strict=True), key=lambda item: (item[0], item[1]))
+        coalesced_rows: list[int] = []
+        coalesced_cols: list[int] = []
+        coalesced_values: list[float] = []
+
+        current_row, current_col, current_value = triplets[0]
+        for row, col, value in triplets[1:]:
+            if row == current_row and col == current_col:
+                current_value += value
+                continue
+            coalesced_rows.append(current_row)
+            coalesced_cols.append(current_col)
+            coalesced_values.append(current_value)
+            current_row, current_col, current_value = row, col, value
+
+        coalesced_rows.append(current_row)
+        coalesced_cols.append(current_col)
+        coalesced_values.append(current_value)
+
+        index_dtype = np.int32 if max(n_rows, n_cols, len(coalesced_cols)) <= np.iinfo(np.int32).max else np.int64
+        indptr = np.zeros(n_rows + 1, dtype=index_dtype)
+        for row in coalesced_rows:
+            indptr[row + 1] += 1
+        np.cumsum(indptr, out=indptr)
+
+        indices = np.asarray(coalesced_cols, dtype=index_dtype)
+        data = np.asarray(coalesced_values, dtype=np.float64)
+        return sparse.csr_matrix((data, indices, indptr), shape=(n_rows, n_cols), dtype=np.float64)
 
     def validate_topology(self) -> dict[str, object]:
         """Return topology diagnostics without mutating compiled matrices.
@@ -447,7 +494,7 @@ class StochasticPetriNet:
         _W_in = self.W_in
         _W_out = self.W_out
         # Defensive: the _compiled guard above guarantees the matrices are set.
-        if _W_in is None or _W_out is None:  # pragma: no cover - defensive Petri-net matrix invariant
+        if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
         W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
         W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
@@ -470,11 +517,6 @@ class StochasticPetriNet:
 
                 max_seen = max(max_seen, float(np.max(marking)))
                 min_seen = min(min_seen, float(np.min(marking)))
-
-                if np.any(marking < -1e-9) or np.any(
-                    marking > 1.0 + 1e-9
-                ):  # pragma: no cover — np.clip above guarantees [0,1]
-                    bounded = False
 
         return {
             "bounded": bounded,
@@ -503,7 +545,7 @@ class StochasticPetriNet:
         _W_in = self.W_in
         _W_out = self.W_out
         # Defensive: the _compiled guard above guarantees the matrices are set.
-        if _W_in is None or _W_out is None:  # pragma: no cover - defensive Petri-net matrix invariant
+        if _W_in is None or _W_out is None:
             raise RuntimeError("Net must be compiled before verification.")
         W_in_dense: AnyFloatArray = _W_in.toarray() if hasattr(_W_in, "toarray") else np.asarray(_W_in)
         W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
