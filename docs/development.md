@@ -161,13 +161,14 @@ python tools/check_studio_deploy_key.py
 python tools/check_studio_offline_sealing.py
 ```
 
-`check_studio_deploy_key.py` validates the tracked Studio deploy public key and
-rejects private deploy-key-like tracked paths. `check_studio_offline_sealing.py`
-keeps Studio publication signing custody offline: workflows, Studio surfaces,
-docs, and tools must not reference Hub/Studio sealing or signing private-key
-secrets, and tracked policy surfaces must not contain private-key blocks. The
-guard deliberately allows deploy-only SSH credentials because they do not sign
-evidence; sealed evidence keys stay with the Studio keeper.
+`check_studio_deploy_key.py` validates the tracked Studio deploy public key, the
+CI rsync deploy workflow, and private deploy-key exclusion.
+`check_studio_offline_sealing.py` keeps Studio publication signing custody
+offline: workflows, Studio surfaces, docs, and tools must not reference
+Hub/Studio sealing or signing private-key secrets, and tracked policy surfaces
+must not contain private-key blocks. The guard deliberately allows deploy-only
+SSH credentials because they do not sign evidence; sealed evidence keys stay
+with the Studio keeper.
 
 ---
 

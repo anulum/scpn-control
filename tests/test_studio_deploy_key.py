@@ -74,6 +74,20 @@ def test_validate_public_key_reads_supplied_path(tmp_path: Path) -> None:
     guard.validate_public_key(key)
 
 
+def test_validate_deploy_workflow_accepts_current_ci() -> None:
+    """The CI workflow deploys the built Studio remote through the jailed lane."""
+    guard.validate_deploy_workflow()
+
+
+def test_validate_deploy_workflow_rejects_missing_deploy_contract(tmp_path: Path) -> None:
+    """Deploy workflow drift must fail closed before CI silently stops publishing."""
+    workflow = tmp_path / "ci.yml"
+    workflow.write_text("name: CI\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="Studio deploy workflow missing marker"):
+        guard.validate_deploy_workflow(workflow)
+
+
 def test_tracked_files_reads_git_index() -> None:
     """The guard inspects the real repository index."""
     paths = guard.tracked_files()
@@ -84,7 +98,7 @@ def test_tracked_files_reads_git_index() -> None:
 def test_main_passes_for_current_repo(capsys: CaptureFixture[str]) -> None:
     """The command-line guard passes against the current repository."""
     assert guard.main() == 0
-    assert "PASS: Studio deploy public key is valid" in capsys.readouterr().out
+    assert "PASS: Studio deploy key and CI deploy workflow" in capsys.readouterr().out
 
 
 def test_main_reports_validation_failures(

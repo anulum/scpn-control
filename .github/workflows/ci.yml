@@ -32,7 +32,7 @@ jobs:
         os: [ubuntu-latest]
         python-version: ["3.10", "3.11", "3.12", "3.13"]
         include:
-          - os: windows-2025-vs2026
+          - os: windows-2025
             python-version: "3.12"
           - os: macos-latest
             python-version: "3.12"
@@ -118,6 +118,28 @@ jobs:
         run: pnpm exec vitest run --coverage
       - name: Build (Module Federation remote)
         run: pnpm build
+      - name: Configure Studio deploy SSH
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SCPN_CONTROL_STUDIO_DEPLOY_KEY: ${{ secrets.SCPN_CONTROL_STUDIO_DEPLOY_KEY }}
+          SCPN_CONTROL_STUDIO_KNOWN_HOSTS: ${{ secrets.SCPN_CONTROL_STUDIO_KNOWN_HOSTS }}
+        run: |
+          test -n "$SCPN_CONTROL_STUDIO_DEPLOY_KEY"
+          test -n "$SCPN_CONTROL_STUDIO_KNOWN_HOSTS"
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SCPN_CONTROL_STUDIO_DEPLOY_KEY" > ~/.ssh/scpn-control-studio-ci-deploy
+          chmod 600 ~/.ssh/scpn-control-studio-ci-deploy
+          printf '%s\n' "$SCPN_CONTROL_STUDIO_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Deploy Studio remote
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          test -f dist/remoteEntry.js
+          test -f dist/manifest.json
+          test -f dist/studio-feed.json
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/scpn-control-studio-ci-deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes" \
+            dist/ deploy@www.anulum.org:
 
   # ─── Job 2: Notebook smoke tests ───
   notebook-smoke:

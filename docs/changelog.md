@@ -25,6 +25,9 @@
   badges, the Pepy all-time downloads badge, and package metadata drift.
 - Added a JOSS submission guard covering canonical paper metadata, bibliography
   citation coverage, docs mirror links, and editorial claim-boundary text.
+- Added the SCPN Studio Web CI deploy step for the provisioned
+  `scpn-control` remote, corrected the Windows CI runner label, and extended
+  the deploy-key guard to verify the workflow.
 
 ## [0.22.1] - 2026-07-03
 

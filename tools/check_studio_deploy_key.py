@@ -16,7 +16,21 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_KEY = ROOT / "studio-web" / "deploy" / "scpn-control-studio-ci-deploy.pub"
+WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
 EXPECTED_COMMENT = "scpn-control-studio-ci-deploy-2026-07-08"
+EXPECTED_DEPLOY_MARKERS = (
+    "Configure Studio deploy SSH",
+    "Deploy Studio remote",
+    "if: github.event_name == 'push' && github.ref == 'refs/heads/main'",
+    "${{ secrets.SCPN_CONTROL_STUDIO_DEPLOY_KEY }}",
+    "${{ secrets.SCPN_CONTROL_STUDIO_KNOWN_HOSTS }}",
+    "test -f dist/remoteEntry.js",
+    "test -f dist/manifest.json",
+    "test -f dist/studio-feed.json",
+    "rsync -az --delete",
+    "dist/ deploy@www.anulum.org:",
+    "StrictHostKeyChecking=yes",
+)
 
 
 def parse_public_key(line: str) -> tuple[str, bytes, str]:
@@ -105,15 +119,31 @@ def validate_public_key(path: Path = PUBLIC_KEY) -> None:
     parse_public_key(path.read_text(encoding="utf-8"))
 
 
+def validate_deploy_workflow(path: Path = WORKFLOW) -> None:
+    """Validate the Studio Web CI deploy workflow contract.
+
+    Parameters
+    ----------
+    path
+        GitHub Actions workflow that builds and deploys the Studio Web remote.
+    """
+    text = path.read_text(encoding="utf-8")
+    missing = [marker for marker in EXPECTED_DEPLOY_MARKERS if marker not in text]
+    if missing:
+        msg = f"Studio deploy workflow missing marker: {missing[0]}"
+        raise ValueError(msg)
+
+
 def main() -> int:
     """Run the Studio deploy-key guard."""
     try:
         validate_public_key()
         validate_tracked_files(tracked_files())
+        validate_deploy_workflow()
     except (OSError, subprocess.CalledProcessError, ValueError) as exc:
         print(f"FAIL: {exc}")
         return 1
-    print("PASS: Studio deploy public key is valid and no private key is tracked")
+    print("PASS: Studio deploy key and CI deploy workflow are valid")
     return 0
 
 

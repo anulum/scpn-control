@@ -57,6 +57,7 @@ python tools/sync_studio_web_manifest.py --check
 
 ## Next
 
-Serve `remoteEntry.js` from the studio host and register the `./Panel` exposure
-with the Hub (`type: 'module'`); wire the panel's data from the live CONTROL
-studio backend (`scpn_control.studio`) instead of the representative sample.
+The CI `studio-web` job deploys `dist/` to the provisioned SCPN Studio space on
+pushes to `main`. Keep `public/manifest.json` and `public/studio-feed.json`
+current before merge so the deployed bundle contains the remote entry, manifest,
+and feed the Hub reads.
