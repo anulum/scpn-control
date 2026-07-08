@@ -377,7 +377,7 @@ src/scpn_control/
 |   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
 |   +-- fault_tolerant_control.py  # Fault detection + degraded-mode operation
 |   +-- shape_controller.py        # Plasma shape via boundary Jacobian
-|   +-- safe_rl_controller.py      # PPO + MHD constraint checker
+|   +-- safe_rl_controller.py      # Clipped policy gradient + MHD constraint costs
 |   +-- scenario_scheduler.py      # Shot timeline + actuator scheduling
 |   +-- realtime_efit.py           # Streaming equilibrium reconstruction
 |   +-- control_benchmark_suite.py # Standardised benchmark scenarios

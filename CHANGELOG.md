@@ -11,6 +11,8 @@
 ## Unreleased
 
 ### Changed
+- Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear
+  policy updated by clipped policy-gradient returns and Lagrangian safety costs.
 - Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
   sealed validation evidence contract and refreshed the Rust multigrid
   informational record.
@@ -1128,7 +1130,7 @@
     (Ip, beta_N); automatic interpolation with hysteresis-aware regime detection
   - `shape_controller.py` — plasma shape feedback via divertor/shaping coils;
     boundary-geometry Jacobian; x-point and separatrix tracking
-  - `safe_rl_controller.py` — PPO wrapper with MHD constraint checker; vetoes
+  - `safe_rl_controller.py` — policy-gradient wrapper with MHD constraint checker; vetoes
     actions violating stability limits; Gymnasium-compatible
   - `sliding_mode_vertical.py` — sliding-mode controller for vertical stability;
     continuous control law with dead-band saturation; configurable sliding surface

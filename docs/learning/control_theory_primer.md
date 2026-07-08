@@ -353,8 +353,9 @@ RL is used for scenario-level control (seconds timescale), while classical contr
 handle fast loops (milliseconds).
 
 **scpn-control**: `TokamakEnv` (Gymnasium interface, 0D physics) in
-`scpn_control.control.gym_tokamak_env`. `LagrangianPPO` and `ConstrainedGymTokamakEnv`
-in `scpn_control.control.safe_rl_controller`.
+`scpn_control.control.gym_tokamak_env`. `LagrangianPPO` and
+`ConstrainedGymTokamakEnv` in `scpn_control.control.safe_rl_controller` provide a
+dependency-light clipped policy-gradient controller with Lagrangian safety costs.
 
 ---
 
@@ -681,7 +682,7 @@ a transformer-based predictor. When $p_{\text{disrupt}} > 0.8$:
    Chapter 13 (policy gradient methods). Free at http://incompleteideas.net/book/the-book.html.
 
 4. **Schulman, J. et al.** "Proximal Policy Optimization Algorithms", arXiv:1707.06347, 2017.
-   The PPO algorithm used in `LagrangianPPO`.
+   Clipped policy-gradient surrogate that informs the dependency-light `LagrangianPPO` controller.
 
 5. **Stacey, W. M.** *Fusion Plasma Physics*, 2nd ed., Wiley-VCH, 2012.
    Chapter 13 (plasma control), Chapter 11 (MHD stability and vertical stability).

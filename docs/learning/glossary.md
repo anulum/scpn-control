@@ -108,7 +108,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **L-mode (Low confinement mode)** — Standard tokamak operating regime without an edge transport barrier. Confinement time follows the L-mode scaling. `core.fusion_kernel`
 
-**Lagrangian PPO** — Proximal Policy Optimisation with Lagrangian constraint enforcement for safe reinforcement learning. Maintains a Lagrange multiplier for each safety constraint (e.g. beta_N < Troyon limit). `control.safe_rl_controller`
+**Lagrangian PPO** — Dependency-light clipped policy-gradient controller with Lagrangian constraint enforcement for safe reinforcement learning. Maintains a Lagrange multiplier for each safety constraint (e.g. beta_N < Troyon limit). `control.safe_rl_controller`
 
 **Lawson criterion** — Condition for ignition: n tau_E T > ~3 x 10^21 m^-3 s keV for D-T. Defines the minimum triple product for net energy gain.
 

@@ -61,6 +61,13 @@ class SafetyConstraint:
     limit: float
 
 
+@dataclass(frozen=True)
+class _PolicyStep:
+    observation: FloatArray
+    action: FloatArray
+    augmented_reward: float
+
+
 def cbf_beta_n(x: AnyFloatArray, beta_n_limit: float = BETA_N_LIMIT) -> float:
     """Control barrier function for β_N safety.
 
@@ -136,7 +143,7 @@ class ConstrainedGymTokamakEnv:
 
 
 class LagrangianPPO:
-    """PPO augmented with Lagrangian multipliers for constraint satisfaction.
+    """Clipped policy-gradient controller with Lagrangian safety multipliers.
 
     Objective (Tessler et al. 2018, Algorithm 1):
         r_aug = r - Σ_i λ_i c_i
@@ -144,11 +151,16 @@ class LagrangianPPO:
     Multiplier update (dual gradient ascent):
         λ_i ← max(0,  λ_i + lr (C_i - d_i))
 
-    Safety guarantee: at convergence J_{C_i}(π*) ≤ d_i for all i
-    (Achiam et al. 2017, Theorem 1, assuming feasibility).
+    Safety target: under the feasibility and convergence assumptions of the
+    constrained-policy literature, the Lagrangian optimum satisfies
+    ``J_C_i(π*) ≤ d_i`` for each constraint. This lightweight NumPy controller
+    exposes that optimisation structure; it does not replace a formal runtime
+    safety certificate.
 
-    Degrave et al. 2022, Nature 602, 414: penalty-based safety shaping
-    used in DeepMind tokamak controller for disruption avoidance.
+    The implementation is intentionally dependency-light: it uses a linear
+    diagonal-Gaussian policy, clips the scalar advantage in the PPO spirit, and
+    updates the policy from its own sampled rollouts instead of drawing actions
+    directly from the environment's action-space sampler.
     """
 
     def __init__(
@@ -156,12 +168,20 @@ class LagrangianPPO:
         env: ConstrainedGymTokamakEnv,
         lambda_lr: float = 0.01,
         gamma: float = 0.99,
+        policy_lr: float = 0.05,
+        exploration_std: float = 0.1,
+        seed: int | None = 0,
     ) -> None:
         self.env = env
         self.n_constraints = env.n_constraints
-        self.lambdas = np.zeros(self.n_constraints)
+        self.lambdas: FloatArray = np.zeros(self.n_constraints, dtype=np.float64)
         self.lambda_lr = lambda_lr
         self.gamma = gamma
+        self.policy_lr = policy_lr
+        self.exploration_std = exploration_std
+        self.rng = np.random.default_rng(seed)
+        self.policy_weights: FloatArray | None = None
+        self.policy_bias: FloatArray | None = None
         self.trained = False
 
     def _augmented_reward(self, reward: float, costs: list[float]) -> float:
@@ -179,31 +199,97 @@ class LagrangianPPO:
             limit = self.env.constraints[i].limit
             self.lambdas[i] = max(0.0, self.lambdas[i] + self.lambda_lr * (c - limit))
 
-    def train(self, total_timesteps: int) -> None:
-        """Stub training loop demonstrating λ update mechanics.
+    def _ensure_policy(self, obs: AnyFloatArray) -> FloatArray:
+        """Initialise the linear policy for the observed state/action dimensions."""
+        observation = np.asarray(obs, dtype=np.float64).reshape(-1)
+        if self.policy_weights is None or self.policy_bias is None:
+            sample = np.asarray(self.env.action_space.sample(), dtype=np.float64).reshape(-1)
+            self.policy_weights = np.zeros((sample.size, observation.size), dtype=np.float64)
+            self.policy_bias = np.zeros(sample.size, dtype=np.float64)
+        return observation
 
-        A production implementation replaces the random-action rollout
-        with a PPO policy gradient update on the augmented reward.
+    def _action_bounds(self, action_dim: int) -> tuple[FloatArray, FloatArray]:
+        """Return finite action bounds, defaulting to ``[-1, 1]`` when absent."""
+        low_raw = getattr(self.env.action_space, "low", None)
+        high_raw = getattr(self.env.action_space, "high", None)
+        if low_raw is None or high_raw is None:
+            return (
+                np.full(action_dim, -1.0, dtype=np.float64),
+                np.full(action_dim, 1.0, dtype=np.float64),
+            )
+        low = np.asarray(low_raw, dtype=np.float64).reshape(-1)
+        high = np.asarray(high_raw, dtype=np.float64).reshape(-1)
+        return low, high
+
+    def _policy_mean(self, obs: AnyFloatArray) -> tuple[FloatArray, FloatArray]:
+        """Return flattened observation and deterministic linear-policy mean."""
+        observation = self._ensure_policy(obs)
+        assert self.policy_weights is not None
+        assert self.policy_bias is not None
+        mean = self.policy_weights @ observation + self.policy_bias
+        low, high = self._action_bounds(mean.size)
+        return observation, np.clip(mean, low, high)
+
+    def _policy_action(self, obs: AnyFloatArray, *, explore: bool) -> tuple[FloatArray, FloatArray]:
+        """Return a policy action and the flattened observation used to produce it."""
+        observation, mean = self._policy_mean(obs)
+        if explore:
+            mean = mean + self.rng.normal(0.0, self.exploration_std, size=mean.shape)
+        low, high = self._action_bounds(mean.size)
+        return observation, np.clip(mean, low, high)
+
+    def _discounted_returns(self, rewards: list[float]) -> FloatArray:
+        """Compute discounted returns for one rollout."""
+        returns = np.zeros(len(rewards), dtype=np.float64)
+        running = 0.0
+        for index in range(len(rewards) - 1, -1, -1):
+            running = rewards[index] + self.gamma * running
+            returns[index] = running
+        return returns
+
+    def _update_policy(self, steps: list[_PolicyStep]) -> None:
+        """Apply a clipped REINFORCE-style update to the linear policy."""
+        if not steps or self.policy_weights is None or self.policy_bias is None:
+            return
+        returns = self._discounted_returns([step.augmented_reward for step in steps])
+        advantages = returns - float(np.mean(returns))
+        for step, advantage in zip(steps, advantages):
+            _, mean = self._policy_mean(step.observation)
+            direction = step.action - mean
+            clipped_advantage = float(np.clip(advantage, -1.0, 1.0))
+            self.policy_weights += self.policy_lr * clipped_advantage * np.outer(direction, step.observation)
+            self.policy_bias += self.policy_lr * clipped_advantage * direction
+
+    def train(self, total_timesteps: int) -> None:
+        """Train the linear policy on augmented rewards and update λ multipliers.
+
+        The rollout action comes from the controller's current stochastic policy,
+        not from ``action_space.sample()``. Episode returns update the linear
+        policy, while accumulated constraint costs update the Lagrangian
+        multipliers after each episode.
         """
         current_step = 0
         while current_step < total_timesteps:
             obs, info = self.env.reset()
             done = False
             ep_costs = [0.0] * self.n_constraints
+            rollout: list[_PolicyStep] = []
             steps = 0
 
             while not done and steps < 100:
-                action = self.env.action_space.sample()
+                observation, action = self._policy_action(obs, explore=True)
                 obs, reward, term, trunc, info = self.env.step(action)
                 done = term or trunc
 
                 costs = info.get("constraint_costs", [0.0] * self.n_constraints)
                 for i in range(self.n_constraints):
                     ep_costs[i] += costs[i]
+                rollout.append(_PolicyStep(observation, action, self._augmented_reward(float(reward), costs)))
 
                 current_step += 1
                 steps += 1
 
+            self._update_policy(rollout)
             self.update_lambdas(ep_costs)
 
         self.trained = True
@@ -219,10 +305,11 @@ class LagrangianPPO:
         Returns
         -------
         FloatArray
-            The selected action (a random action-space sample until a policy is
-            trained).
+            The deterministic mean action from the learned linear policy,
+            clipped to the environment action bounds.
         """
-        return np.asarray(self.env.action_space.sample())
+        _, mean = self._policy_mean(obs)
+        return mean
 
 
 # ── Default cost functions ────────────────────────────────────────────────────
