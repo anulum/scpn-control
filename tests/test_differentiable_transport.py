@@ -422,6 +422,26 @@ def test_transport_parameter_gradient_audit_rejects_invalid_admission_contract(m
         dt.audit_transport_parameter_gradients(profiles, chi, sources, target, rho, 1.0e-3, edge_values)
 
 
+def test_transport_parameter_gradient_audit_keeps_target_profile_guard(monkeypatch: pytest.MonkeyPatch) -> None:
+    rho = np.linspace(0.05, 1.0, 16)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+
+    def fake_parameter_gradients(*args: object, **kwargs: object) -> dt.TransportParameterGradients:
+        return dt.TransportParameterGradients(
+            loss=0.0,
+            chi_gradient=np.zeros_like(chi),
+            source_gradient=np.zeros_like(sources),
+        )
+
+    monkeypatch.setattr(dt, "transport_parameter_gradients", fake_parameter_gradients)
+
+    with pytest.raises(ValueError, match="target_profiles is required"):
+        dt.audit_transport_parameter_gradients(profiles, chi, sources, None, rho, 1.0e-3, edge_values)
+
+
 @pytest.mark.skipif(not dt.has_jax(), reason="JAX optional dependency is not installed")
 def test_transport_gradient_latency_report_times_audited_admission_path(tmp_path):
     rho = np.linspace(0.05, 1.0, 17)
