@@ -196,12 +196,6 @@ def free_response(spec: CapacitorBankSpec, v0: float, i0: float, t: float) -> Ca
     if spec.regime is RLCRegime.UNDERDAMPED:
         omega_d = math.sqrt(max(omega0 * omega0 - alpha * alpha, 0.0))
         exp_term = math.exp(-alpha * time)
-        # regime UNDERDAMPED => R < critical_r => alpha < omega0 => omega_d > 0, so this
-        # exact-zero fallback is unreachable defence-in-depth against rounding at the boundary.
-        if omega_d == 0.0:
-            return _critical_response(
-                spec, voltage0, current0, time
-            )  # pragma: no cover - critical-damping equality branch
         coeff_b = (dv0 + alpha * voltage0) / omega_d
         cos_term = math.cos(omega_d * time)
         sin_term = math.sin(omega_d * time)
@@ -216,12 +210,6 @@ def free_response(spec: CapacitorBankSpec, v0: float, i0: float, t: float) -> Ca
         root_delta = math.sqrt(max(alpha * alpha - omega0 * omega0, 0.0))
         root_1 = -alpha + root_delta
         root_2 = -alpha - root_delta
-        # regime OVERDAMPED => R > critical_r => alpha > omega0 => root_delta > 0 => roots
-        # differ, so this equal-roots fallback is unreachable defence-in-depth.
-        if root_1 == root_2:
-            return _critical_response(
-                spec, voltage0, current0, time
-            )  # pragma: no cover - critical-damping equality branch
         coeff_a = (dv0 - root_2 * voltage0) / (root_1 - root_2)
         coeff_b = voltage0 - coeff_a
         exp_1 = math.exp(root_1 * time)

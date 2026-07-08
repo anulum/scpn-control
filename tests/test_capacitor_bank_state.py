@@ -154,7 +154,10 @@ def test_single_exact_step_matches_closed_form_with_load() -> None:
     ("regime_resistance", "waveform"),
     [(0.5, "rect"), (2.0, "exp_decay"), (5.0, "half_sine")],
 )
-def test_discharge_energy_ledger_closes_to_machine_precision(regime_resistance: float, waveform: str) -> None:
+def test_discharge_energy_ledger_closes_to_machine_precision(
+    regime_resistance: float,
+    waveform: WaveformName,
+) -> None:
     """Exact dynamics plus closed-form energy integrals close the ledger exactly."""
     spec = CapacitorBankSpec(
         capacitance_F=100.0e-6,
@@ -180,6 +183,12 @@ def test_step_rejects_nonfinite_load_current() -> None:
     bank = CapacitorBank(_underdamped_spec(), initial_voltage_V=5_000.0)
     with pytest.raises(ValueError, match="external_load_current_A"):
         bank.step(1.0e-6, external_load_current_A=math.nan)
+
+
+def test_bank_spec_property_returns_original_spec() -> None:
+    spec = _underdamped_spec()
+    bank = CapacitorBank(spec)
+    assert bank.spec is spec
 
 
 def test_telemetry_adapts_to_pulsed_scheduler_contract() -> None:
@@ -332,7 +341,8 @@ def test_sample_waveform_rejects_unknown_waveform() -> None:
         _sample_waveform(pulse, 0.5e-3)
 
 
-def test_waveform_rms_squared_fraction_exp_decay_and_unknown() -> None:
+def test_waveform_rms_squared_fraction_known_shapes_and_unknown() -> None:
+    assert _waveform_rms_squared_fraction("half_sine") == pytest.approx(0.5)
     assert _waveform_rms_squared_fraction("exp_decay") == pytest.approx(0.25 * (1.0 - math.exp(-10.0)))
     with pytest.raises(ValueError, match="unknown waveform"):
         _waveform_rms_squared_fraction(cast(WaveformName, "sawtooth"))
