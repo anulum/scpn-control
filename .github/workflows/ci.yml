@@ -76,12 +76,21 @@ jobs:
           pip install --require-hashes -r requirements/ci-hdf5.txt
           pip install --require-hashes -r requirements/ci-jax.txt
           pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=100
+          mkdir -p artifacts/coverage/python
+          cp .coverage artifacts/coverage/python/.coverage.python
       - name: Upload coverage artifact
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
           name: coverage-report
           path: coverage.xml
+      - name: Upload Python coverage data
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-data-python
+          path: artifacts/coverage/python/.coverage.python
+          include-hidden-files: true
       - name: Upload to Codecov
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6
@@ -364,7 +373,56 @@ jobs:
       - name: Parity tests
         run: |
           . .venv/bin/activate
-          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
+          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 COVERAGE_FILE=.coverage.rust python -m coverage run --context=rust-present --source=scpn_control -m pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
+          mkdir -p artifacts/coverage/rust
+          mv .coverage.rust artifacts/coverage/rust/.coverage.rust
+      - name: Upload Rust-present coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-data-rust
+          path: artifacts/coverage/rust/.coverage.rust
+          include-hidden-files: true
+
+  native-coverage-combine:
+    needs: [python-tests, rust-python-interop]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Install coverage tooling
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+      - name: Download Python coverage data
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v6
+        with:
+          name: coverage-data-python
+          path: artifacts/coverage/python
+      - name: Download Rust-present coverage data
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v6
+        with:
+          name: coverage-data-rust
+          path: artifacts/coverage/rust
+      - name: Verify native coverage matrix
+        run: python tools/native_coverage_matrix.py
+      - name: Combine coverage data
+        run: |
+          python -m coverage combine --keep artifacts/coverage/python artifacts/coverage/rust
+          python -m coverage xml -o coverage.xml
+          python -m coverage report --fail-under=100
+      - name: Upload combined coverage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-report-combined
+          path: coverage.xml
+      - name: Upload combined coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v6
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
 
   # ─── Job 8: Rust benchmarks ───
   rust-benchmarks:

@@ -63,10 +63,10 @@ Five Rust crates under `scpn-control-rs/crates/`:
 pytest tests/ -v                         # full suite
 pytest tests/test_h_infinity_controller.py  # single file
 pytest -m "not slow"                     # skip slow markers
-pytest --cov=scpn_control --cov-report=term  # coverage
+pytest --cov=scpn_control --cov-report=term --cov-fail-under=100
 ```
 
-Coverage gate: 99% (configured in `pyproject.toml`). Coverage claims should
+Coverage gate: 100% (configured in `pyproject.toml`). Coverage claims should
 come from the latest local coverage run or the GitHub coverage lane, not from
 static documentation text.
 
@@ -116,6 +116,20 @@ python tools/check_coverage_pragmas.py
 Use a one-line reason such as an optional dependency path, native backend path,
 or defensive invariant branch. The gate runs through `tools/preflight.py` and
 fails on bare exclusions.
+
+Native-dependent modules use a two-environment coverage matrix because the
+authoritative Python job runs without the optional `scpn_control_rs` extension
+while the interop job builds it. CI uploads `coverage-data-python` and
+`coverage-data-rust`, then `native-coverage-combine` runs:
+
+```bash
+coverage combine --keep artifacts/coverage/python artifacts/coverage/rust
+coverage report --fail-under=100
+```
+
+`scpn-native-coverage-matrix` checks that the workflow, threshold, and public
+docs still describe the `scpn-control.native-coverage-matrix.v1` contract. The
+same guard runs through `tools/preflight.py`.
 
 ## GitHub Token Format Guard
 

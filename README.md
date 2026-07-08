@@ -209,7 +209,7 @@ blocked until the required external artefacts exist.
 | --- | ---: |
 | Package version | 0.22.1 |
 | Python requirement | >=3.10 |
-| Project scripts | 4 |
+| Project scripts | 5 |
 | Public API exports | 44 |
 | Python control/physics modules | 147 |
 | Python public classes | 527 |
@@ -217,7 +217,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 412 |
+| Python test files | 413 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 

@@ -162,13 +162,12 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/ 
 Coverage gate (matches CI threshold):
 
 ```bash
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=93
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=100
 ```
 
-The `93` gate is temporary debt aligned to the latest full CI measurement
-(`93.74%` on the May 31, 2026 main-branch run). New recovery work must add
-module-specific behavioural tests for concrete production surfaces rather than
-synthetic line-hit tests.
+The line-coverage gate is `100` in `pyproject.toml` and CI. New recovery work
+must add module-specific behavioural tests for concrete production surfaces
+rather than synthetic line-hit tests.
 
 ## Rust workspace checks
 
@@ -192,6 +191,20 @@ python -m pip install -e .
 python -c "import importlib.util; from scpn_control.core._rust_compat import _rust_available; assert importlib.util.find_spec('scpn_control_rs') and _rust_available()"
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
 ```
+
+Native-dependent coverage uses two CI data files and a merged report:
+
+1. `python-tests` writes `coverage-data-python` from the rust-absent Python
+   coverage job.
+2. `rust-python-interop` builds `scpn_control_rs`, runs the PyO3 parity tests
+   with `COVERAGE_FILE=.coverage.rust`, and writes `coverage-data-rust`.
+3. `native-coverage-combine` downloads both artifacts, runs
+   `coverage combine --keep artifacts/coverage/python artifacts/coverage/rust`,
+   emits the merged `coverage-report-combined`, and gates it with
+   `coverage report --fail-under=100`.
+
+Run `scpn-native-coverage-matrix --json` to verify the workflow and public docs
+still expose the `scpn-control.native-coverage-matrix.v1` contract.
 
 ## Local acceptance campaigns
 
@@ -1818,6 +1831,8 @@ declared tolerances.
 ## CI quality gates in `.github/workflows/ci.yml`
 
 - `python-tests` (3.10/3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
+- `native-coverage-combine` (combines rust-absent `coverage-data-python` with
+  Rust-present `coverage-data-rust` and gates `coverage-report-combined`)
 - `python-lint` (ruff check + ruff format)
 - `python-security` (bandit SAST)
 - `python-audit` (`pip_audit`)
