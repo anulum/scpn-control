@@ -303,8 +303,6 @@ class Z3BoundedModelChecker:
             if response_window:
                 non_idle_window = [z3.Not(idle[window]) for window in range(step + 1, deadline + 1)]
                 checks.append(z3.And(firings[step][t_idx], *non_idle_window, z3.Not(z3.Or(*response_window))))
-            else:  # pragma: no cover - max_latency_steps>=1 makes the response window non-empty
-                checks.append(firings[step][t_idx])
         if not checks:
             return Z3ModelCheckingReport(
                 False,
@@ -596,10 +594,6 @@ class Z3BoundedModelChecker:
                         markings[step + 1][p_idx]
                         == markings[step][p_idx] + (transition_weight * _z3_fraction(z3, base_delta))
                     )
-                if (
-                    not constraints
-                ):  # pragma: no cover - compile() guarantees >=1 place, so a per-place delta constraint always exists
-                    raise RuntimeError(f"transition {transition!r} produced an empty SMT constraint set")
                 solver.add(z3.Implies(firings[step][t_idx], z3.And(*constraints)))
         return z3, solver, markings, firings, idle
 
@@ -677,8 +671,6 @@ class Z3BoundedModelChecker:
                 for left_idx, left in enumerate(firing_terms):
                     for right in firing_terms[left_idx + 1 :]:
                         smt2_lines.append(f"(assert (not (and {left} {right})))")
-            else:  # pragma: no cover - compile() guarantees >=1 transition, so firing_terms is never empty
-                smt2_lines.append(f"(assert idle_{step})")
 
             transition_names = list(self._transition_index.keys())
             for transition in transition_names:
@@ -707,9 +699,6 @@ class Z3BoundedModelChecker:
                     )
             for p_idx in range(len(self.place_names)):
                 smt2_lines.append(f"(assert (=> idle_{step} (= m_{step + 1}_{p_idx} m_{step}_{p_idx})))")
-
-        if not self.transition_names:  # pragma: no cover - compile() guarantees >=1 transition
-            smt2_lines.append("(assert false) ; no transitions means vacuous safety contract")
 
         if trigger_transition is not None and response_transition is not None:
             t_idx = self._transition_index[trigger_transition]
