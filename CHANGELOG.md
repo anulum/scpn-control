@@ -25,6 +25,9 @@
 - Crosswired the Studio Web Vite remote to the generated manifest contract by
   building under `/studios/scpn-control/`, exposing `./Panel`, and testing the
   shared federation constants.
+- Added the deployed Studio Web `manifest.json` sync guard, public artifact, CI
+  check, focused 100% coverage, and documentation for keeping it aligned with
+  the generated schema-A Studio manifest.
 
 ## [0.22.1] - 2026-07-03
 

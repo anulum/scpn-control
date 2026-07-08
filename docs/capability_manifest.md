@@ -96,4 +96,17 @@ python tools/emit_studio_manifest.py --check
 ```
 
 The `--check` mode ignores only the environment-specific `studio_version` stamp.
+
+The deployed Studio Web public manifest is a byte-for-byte copy of the generated
+schema-A manifest:
+
+- `tools/sync_studio_web_manifest.py`
+- `studio-web/public/manifest.json`
+
+Refresh and check it with:
+
+```bash
+python tools/sync_studio_web_manifest.py
+python tools/sync_studio_web_manifest.py --check
+```
 All other manifest fields are compared against the producer.

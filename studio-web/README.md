@@ -31,6 +31,8 @@ studio is independent.
 | `src/federationContract.ts` | The remote name, deployed base path, `remoteEntry.js`, `./Panel` exposure, and shared React dependencies. |
 | `src/domain.ts` | The studio's verb/claim data + the honesty rendering rules. |
 | `src/ControlStudioPanel.tsx` | The exposed federated panel. |
+| `public/manifest.json` | The deployed schema-A capability manifest copied from `docs/_generated/studio_manifest.json`. |
+| `public/studio-feed.json` | The standalone panel feed rendered from `scpn_control.studio.feed`. |
 
 ## Develop
 
@@ -42,6 +44,14 @@ pnpm format:check
 pnpm test        # vitest, 100% coverage gate
 pnpm build       # vite build — emits dist/remoteEntry.js under /studios/scpn-control/
 pnpm dev         # standalone preview
+```
+
+Refresh the deployed public manifest after changing the Python Studio manifest:
+
+```bash
+python tools/emit_studio_manifest.py
+python tools/sync_studio_web_manifest.py
+python tools/sync_studio_web_manifest.py --check
 ```
 
 ## Next

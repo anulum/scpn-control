@@ -1,0 +1,213 @@
+{
+  "content_digest": "sha256:81e6d14878828a63c488313b37498c2f337771b8697095ff330a211eb1c0b8b1",
+  "contract_era": "v1",
+  "enumeration": "language-agnostic",
+  "evidence_types": [
+    "studio.controller-latency.v1",
+    "studio.controller-run.v1",
+    "studio.disruption-mitigation.v1",
+    "studio.disruption-prediction.v1",
+    "studio.efit-reconstruction.v1",
+    "studio.equilibrium-analysis.v1",
+    "studio.geometry-neutral-replay.v1",
+    "studio.parity-refutation.v1",
+    "studio.phase-sync-monitor.v1",
+    "studio.physics-validation.v1",
+    "studio.safety-certificate.v1",
+    "studio.scenario-simulation.v1"
+  ],
+  "platform_sdk": ">=0.1,<0.9",
+  "protocol_version": "1",
+  "studio": "scpn-control",
+  "studio_version": "0.22.1",
+  "transport_profile": "local-first",
+  "ui_module": {
+    "exposes": [
+      "./Panel"
+    ],
+    "federation": "module-federation-2",
+    "remote_entry": "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+  },
+  "verbs": [
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.efit-reconstruction.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "interactive"
+      },
+      "verb": "reconstruct"
+    },
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.scenario-simulation.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "simulated",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "simulate"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.equilibrium-analysis.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "analyse"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.physics-validation.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "validate"
+    },
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "produces": [
+        "studio.controller-latency.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "simulated",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "benchmark"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.geometry-neutral-replay.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "replay"
+    },
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.controller-run.v1"
+      ],
+      "safety_tier": "certified",
+      "side_effect": "live-hardware",
+      "timing": {
+        "class": "realtime",
+        "deadline_us": 5.0,
+        "schedulability": "declared"
+      },
+      "verb": "regulate"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.safety-certificate.v1"
+      ],
+      "safety_tier": "certified",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "certify"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.disruption-prediction.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "interactive"
+      },
+      "verb": "predict"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.disruption-mitigation.v1"
+      ],
+      "safety_tier": "certified",
+      "side_effect": "live-hardware",
+      "timing": {
+        "class": "interactive"
+      },
+      "verb": "mitigate"
+    },
+    {
+      "backends": [
+        "python"
+      ],
+      "produces": [
+        "studio.phase-sync-monitor.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "interactive"
+      },
+      "verb": "monitor"
+    },
+    {
+      "backends": [
+        "python",
+        "rust"
+      ],
+      "fidelity": "reduced-order",
+      "produces": [
+        "studio.parity-refutation.v1"
+      ],
+      "safety_tier": "research",
+      "side_effect": "read-only",
+      "timing": {
+        "class": "batch"
+      },
+      "verb": "verify"
+    }
+  ]
+}

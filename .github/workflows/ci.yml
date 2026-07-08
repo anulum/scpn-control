@@ -239,7 +239,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Validate capability manifest
-        run: python tools/capability_manifest.py --check
+        run: |
+          python tools/capability_manifest.py --check
+          python tools/sync_studio_web_manifest.py --check
 
   # ─── Job 4d: Release evidence gate ───
   release-evidence-gate:
