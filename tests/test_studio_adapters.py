@@ -480,7 +480,7 @@ def test_equilibrium_analysis_rejects_empty_digest() -> None:
 
 
 # ── controller-run adapter (regulate) ──────────────────────────────────
-_SOTA_SUMMARY = {
+_CONTROLLER_RUN_SUMMARY = {
     "steps": 60,
     "mean_tracking_error": 0.12,
     "max_abs_action": 1.8,
@@ -490,7 +490,7 @@ _SOTA_SUMMARY = {
 
 
 def test_controller_run_adapter_maps_simulation_summary() -> None:
-    bundle = controller_run_evidence_from_simulation(_SOTA_SUMMARY, controller="surrogate_mpc", **_WHO, **_TS)
+    bundle = controller_run_evidence_from_simulation(_CONTROLLER_RUN_SUMMARY, controller="surrogate_mpc", **_WHO, **_TS)
     assert bundle.schema == "studio.controller-run.v1"
     assert bundle.evidence_kind is EvidenceKind.MEASURED
     assert bundle.renders_as_validated is False  # closed-loop surrogate run is bounded
@@ -499,7 +499,7 @@ def test_controller_run_adapter_maps_simulation_summary() -> None:
 
 
 def test_controller_run_adapter_rejects_missing_field() -> None:
-    bad = {k: v for k, v in _SOTA_SUMMARY.items() if k != "mean_tracking_error"}
+    bad = {k: v for k, v in _CONTROLLER_RUN_SUMMARY.items() if k != "mean_tracking_error"}
     with pytest.raises(KeyError):
         controller_run_evidence_from_simulation(bad, controller="surrogate_mpc", **_WHO, **_TS)
 

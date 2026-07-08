@@ -131,6 +131,17 @@ length or storage width. Test fixtures live under `tests/` and are intentionally
 excluded from the repository scan so negative examples remain possible without
 making the gate flag itself.
 
+## Public Surface Hygiene
+
+```bash
+python tools/check_public_surface_hygiene.py
+```
+
+This guard scans tracked outward-facing text files and fails on bare
+self-applied promotion terms. Internal planning surfaces under `docs/internal/`
+and `.coordination/` are excluded; bounded negative language and candidate
+labels remain allowed because they do not assert an achieved public claim.
+
 ---
 
 ## Release Process

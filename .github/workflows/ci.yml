@@ -468,6 +468,8 @@ jobs:
         run: python tools/check_docs_coverage.py
       - name: Public-API docstring coverage
         run: python tools/run_docstring_gate.py
+      - name: Public surface hygiene
+        run: python tools/check_public_surface_hygiene.py
 
   # ─── Job 12: Python security scan (Bandit) ───
   python-security:

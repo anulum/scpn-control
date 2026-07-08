@@ -20,6 +20,8 @@
 - Aligned the generated SCPN Studio manifest with the deployed federation
   remote entry and stable `./Panel` exposure, with focused emitter CLI tests
   and documentation for the generated Studio artifact.
+- Added a public-surface claim hygiene guard for outward-facing promotion terms,
+  wired it into local preflight and CI, and cleaned existing public test labels.
 
 ## [0.22.1] - 2026-07-03
 

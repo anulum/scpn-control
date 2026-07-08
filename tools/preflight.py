@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
@@ -58,6 +57,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
+    ("public-surface-hygiene", [_PY, "tools/check_public_surface_hygiene.py"], None),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
     ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),
     ("benchmark-regression", [_PY, "validation/validate_benchmark_regression_gates.py"], None),

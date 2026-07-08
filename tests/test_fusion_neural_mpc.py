@@ -1,27 +1,21 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Test Fusion Sota Mpc
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Fusion SOTA MPC Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Fusion neural MPC tests.
 """Deterministic tests for fusion_neural_mpc runtime/controller paths."""
 
 from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Callable, TypedDict
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from scpn_control.control.fusion_neural_mpc import (
     HAS_MPL,
@@ -30,12 +24,62 @@ from scpn_control.control.fusion_neural_mpc import (
     run_neural_mpc_simulation,
 )
 
+FloatArray = NDArray[np.float64]
+
+
+class _CoilConfig(TypedDict):
+    """Coil state used by the deterministic dummy kernel."""
+
+    name: str
+    current: float
+
+
+class _PhysicsConfig(TypedDict):
+    """Physics block used by the deterministic dummy kernel."""
+
+    plasma_current_target: float
+
+
+class _KernelConfig(TypedDict):
+    """Configuration shape consumed by ``solve_equilibrium``."""
+
+    physics: _PhysicsConfig
+    coils: list[_CoilConfig]
+
+
+class _RunKwargs(TypedDict, total=False):
+    """Typed keyword arguments for ``run_neural_mpc_simulation``."""
+
+    config_file: str | None
+    shot_length: int
+    prediction_horizon: int
+    target_vector: FloatArray
+    disturbance_start_step: int
+    disturbance_per_step_ma: float
+    current_target_bounds: tuple[float, float]
+    action_limit: float
+    coil_current_limits: tuple[float, float]
+    save_plot: bool
+    output_path: str
+    verbose: bool
+    kernel_factory: Callable[[str], "_DummyKernel"]
+
+
+class _ControllerKwargs(TypedDict, total=False):
+    """Typed keyword arguments for ``ModelPredictiveController``."""
+
+    prediction_horizon: int
+    learning_rate: float
+    iterations: int
+    action_limit: float
+    action_regularization: float
+
 
 class _DummyKernel:
-    """Deterministic stand-in for FusionKernel used by SOTA MPC tests."""
+    """Deterministic stand-in for FusionKernel used by neural MPC tests."""
 
     def __init__(self, _config_file: str) -> None:
-        self.cfg = {
+        self.cfg: _KernelConfig = {
             "physics": {"plasma_current_target": 7.0},
             "coils": [
                 {"name": "PF1", "current": 0.0},
@@ -44,11 +88,13 @@ class _DummyKernel:
                 {"name": "PF4", "current": 0.0},
             ],
         }
-        self.R = np.linspace(5.8, 6.3, 25)
-        self.Z = np.linspace(-0.4, 0.4, 25)
-        self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = np.zeros((len(self.Z), len(self.R)), dtype=np.float64)
-        self._xp = (5.0, -3.5)
+        self.R: FloatArray = np.asarray(np.linspace(5.8, 6.3, 25), dtype=np.float64)
+        self.Z: FloatArray = np.asarray(np.linspace(-0.4, 0.4, 25), dtype=np.float64)
+        rr, zz = np.meshgrid(self.R, self.Z)
+        self.RR: FloatArray = np.asarray(rr, dtype=np.float64)
+        self.ZZ: FloatArray = np.asarray(zz, dtype=np.float64)
+        self.Psi: FloatArray = np.zeros((len(self.Z), len(self.R)), dtype=np.float64)
+        self._xp: tuple[float, float] = (5.0, -3.5)
         self.solve_equilibrium()
 
     def solve_equilibrium(self) -> None:
@@ -68,8 +114,55 @@ class _DummyKernel:
         xz = -3.5 + 0.03 * np.tanh((i[3] - i[2]) / 6.0)
         self._xp = (float(xr), float(xz))
 
-    def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
+    def find_x_point(self, _psi: FloatArray) -> tuple[tuple[float, float], float]:
         return self._xp, 0.0
+
+
+def _default_run_kwargs() -> _RunKwargs:
+    """Return deterministic simulation arguments used by repeated-call tests."""
+
+    return {
+        "config_file": "dummy.json",
+        "shot_length": 18,
+        "prediction_horizon": 5,
+        "disturbance_start_step": 4,
+        "disturbance_per_step_ma": 0.5,
+        "current_target_bounds": (6.5, 8.0),
+        "action_limit": 0.35,
+        "coil_current_limits": (-1.0, 1.0),
+        "save_plot": False,
+        "verbose": False,
+        "kernel_factory": _DummyKernel,
+    }
+
+
+def _runtime_kwargs_with(field: str, value: int) -> _RunKwargs:
+    """Return runtime arguments with one invalid integer field overridden."""
+
+    kwargs = _default_run_kwargs()
+    if field == "shot_length":
+        kwargs["shot_length"] = value
+    elif field == "disturbance_start_step":
+        kwargs["disturbance_start_step"] = value
+    else:
+        raise AssertionError(f"unhandled runtime field {field!r}")
+    return kwargs
+
+
+def _controller_kwargs_with(field: str, value: float | int) -> _ControllerKwargs:
+    """Return controller constructor arguments with one invalid field."""
+
+    if field == "prediction_horizon":
+        return {"prediction_horizon": int(value)}
+    if field == "learning_rate":
+        return {"learning_rate": float(value)}
+    if field == "iterations":
+        return {"iterations": int(value)}
+    if field == "action_limit":
+        return {"action_limit": float(value)}
+    if field == "action_regularization":
+        return {"action_regularization": float(value)}
+    raise AssertionError(f"unhandled controller field {field!r}")
 
 
 def test_run_neural_mpc_simulation_returns_finite_bounded_summary() -> None:
@@ -115,19 +208,7 @@ def test_run_neural_mpc_simulation_returns_finite_bounded_summary() -> None:
 
 
 def test_run_neural_mpc_simulation_is_deterministic_for_fixed_inputs() -> None:
-    kwargs = dict(
-        config_file="dummy.json",
-        shot_length=18,
-        prediction_horizon=5,
-        disturbance_start_step=4,
-        disturbance_per_step_ma=0.5,
-        current_target_bounds=(6.5, 8.0),
-        action_limit=0.35,
-        coil_current_limits=(-1.0, 1.0),
-        save_plot=False,
-        verbose=False,
-        kernel_factory=_DummyKernel,
-    )
+    kwargs = _default_run_kwargs()
     a = run_neural_mpc_simulation(**kwargs)
     b = run_neural_mpc_simulation(**kwargs)
     for key in (
@@ -168,14 +249,9 @@ def test_mpc_plan_is_clipped_to_action_limit() -> None:
     ],
 )
 def test_run_neural_mpc_simulation_rejects_invalid_runtime_inputs(kwargs: dict[str, int], match: str) -> None:
+    [(field, value)] = kwargs.items()
     with pytest.raises(ValueError, match=match):
-        run_neural_mpc_simulation(
-            config_file="dummy.json",
-            save_plot=False,
-            verbose=False,
-            kernel_factory=_DummyKernel,
-            **kwargs,
-        )
+        run_neural_mpc_simulation(**_runtime_kwargs_with(field, value))
 
 
 @pytest.mark.parametrize(
@@ -190,11 +266,12 @@ def test_run_neural_mpc_simulation_rejects_invalid_runtime_inputs(kwargs: dict[s
 )
 def test_mpc_controller_rejects_invalid_constructor_inputs(kwargs: dict[str, float | int], match: str) -> None:
     surrogate = NeuralSurrogate(n_coils=3, n_state=4, verbose=False)
+    [(field, value)] = kwargs.items()
     with pytest.raises(ValueError, match=match):
         ModelPredictiveController(
             surrogate=surrogate,
             target_state=np.zeros(4, dtype=np.float64),
-            **kwargs,
+            **_controller_kwargs_with(field, value),
         )
 
 
@@ -265,7 +342,7 @@ def test_run_neural_mpc_simulation_reports_plot_failure(tmp_path: Path) -> None:
     assert not bad.exists()
 
 
-def test_run_neural_mpc_simulation_verbose_prints_output(caplog) -> None:
+def test_run_neural_mpc_simulation_verbose_prints_output(caplog: pytest.LogCaptureFixture) -> None:
     with caplog.at_level(logging.INFO, logger="scpn_control.control.fusion_neural_mpc"):
         run_neural_mpc_simulation(
             config_file="dummy.json",
