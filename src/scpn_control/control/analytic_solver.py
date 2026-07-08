@@ -61,7 +61,7 @@ try:
 except ImportError:
     try:
         from scpn_control.core.fusion_kernel import FusionKernel
-    except ImportError as exc:  # pragma: no cover - import-guard path
+    except ImportError as exc:
         raise ImportError(
             "Unable to import FusionKernel. Run with PYTHONPATH=src "
             "or use `python -m scpn_control.control.analytic_solver`."
