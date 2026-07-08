@@ -547,6 +547,62 @@ def test_riccati_state_feedback_rejects_unstabilisable_plant():
         mu._riccati_state_feedback(A, B, C)
 
 
+def test_riccati_state_feedback_falls_back_for_stable_open_loop_plant(monkeypatch: pytest.MonkeyPatch) -> None:
+    A, B, C, _ = _plant()
+
+    def broken_care(*args: object, **kwargs: object) -> np.ndarray:
+        raise TypeError("local SciPy CARE validation failed")
+
+    monkeypatch.setattr(mu, "solve_continuous_are", broken_care)
+
+    gain = mu._riccati_state_feedback(A, B, C)
+
+    np.testing.assert_allclose(gain, np.zeros((B.shape[1], A.shape[0])))
+
+
+def test_riccati_state_feedback_fails_closed_when_fallback_stability_check_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    A, B, C, _ = _plant()
+
+    def broken_care(*args: object, **kwargs: object) -> np.ndarray:
+        raise TypeError("local SciPy CARE validation failed")
+
+    def broken_eigvals(*args: object, **kwargs: object) -> np.ndarray:
+        raise np.linalg.LinAlgError("eigenvalue decomposition failed")
+
+    monkeypatch.setattr(mu, "solve_continuous_are", broken_care)
+    monkeypatch.setattr(mu.np.linalg, "eigvals", broken_eigvals)
+
+    with pytest.raises(RuntimeError, match="plant stability could not be checked"):
+        mu._riccati_state_feedback(A, B, C)
+
+
+def test_riccati_state_feedback_accepts_finite_solver_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    A, B, C, _ = _plant()
+
+    def finite_care(*args: object, **kwargs: object) -> np.ndarray:
+        return np.eye(A.shape[0])
+
+    monkeypatch.setattr(mu, "solve_continuous_are", finite_care)
+
+    gain = mu._riccati_state_feedback(A, B, C)
+
+    np.testing.assert_allclose(gain, B.T)
+
+
+def test_riccati_state_feedback_rejects_nonfinite_solver_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    A, B, C, _ = _plant()
+
+    def nonfinite_care(*args: object, **kwargs: object) -> np.ndarray:
+        return np.full((A.shape[0], A.shape[0]), np.nan)
+
+    monkeypatch.setattr(mu, "solve_continuous_are", nonfinite_care)
+
+    with pytest.raises(RuntimeError, match="non-finite controller gain"):
+        mu._riccati_state_feedback(A, B, C)
+
+
 def test_closed_loop_dc_map_rejects_singular_system():
     identity = np.eye(2)
     with pytest.raises(RuntimeError, match="singular"):

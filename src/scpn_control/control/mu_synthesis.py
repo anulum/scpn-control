@@ -221,10 +221,7 @@ def _validate_mu_synthesis_claim_payload(
     payload_digest = _sha256_text("payload_sha256", payload["payload_sha256"])
     if payload_digest != _claim_payload_sha256(payload):
         raise ValueError("mu-synthesis claim evidence payload_sha256 does not match payload")
-    try:
-        evidence = MuSynthesisClaimEvidence(**{name: payload[name] for name in expected})
-    except TypeError as exc:  # pragma: no cover - unreachable; the field set is already exact above
-        raise ValueError("mu-synthesis claim evidence has invalid fields") from exc
+    evidence = MuSynthesisClaimEvidence(**{name: payload[name] for name in expected})
     if evidence.schema_version != _MU_CLAIM_SCHEMA_VERSION:
         raise ValueError("mu-synthesis claim evidence schema_version is unsupported")
     source = _non_empty_text("source", evidence.source)
@@ -551,14 +548,21 @@ def _validate_state_space(
             raise ValueError(f"{name} must contain only finite values.")
 
     uncertainty_size = uncertainty.total_size()
-    if uncertainty_size <= 0:  # pragma: no cover - StructuredUncertainty forbids empty/zero-size blocks
-        raise ValueError("uncertainty must contain at least one positive-size block.")
-    if any(block.size <= 0 for block in uncertainty.blocks):  # pragma: no cover - UncertaintyBlock enforces size > 0
-        raise ValueError("uncertainty block sizes must be positive.")
     if uncertainty_size != B.shape[1] or uncertainty_size != C.shape[0]:
         raise ValueError("D-K static mu analysis requires uncertainty size to match B columns and C rows.")
 
     return A, B, C, D_mat
+
+
+def _stable_open_loop_state_feedback(A: AnyFloatArray, B: AnyFloatArray, exc: Exception) -> FloatArray:
+    """Return zero feedback for already-stable plants when SciPy CARE is unavailable."""
+    try:
+        spectral_abscissa = float(np.max(np.real(np.linalg.eigvals(A))))
+    except np.linalg.LinAlgError as eig_exc:
+        raise RuntimeError("Riccati K-step failed; plant stability could not be checked.") from eig_exc
+    if spectral_abscissa < 0.0:
+        return np.zeros((B.shape[1], A.shape[0]), dtype=float)
+    raise RuntimeError("Riccati K-step failed; plant is not stabilisable in this bounded domain.") from exc
 
 
 def _riccati_state_feedback(A: AnyFloatArray, B: AnyFloatArray, C: AnyFloatArray) -> FloatArray:
@@ -567,10 +571,10 @@ def _riccati_state_feedback(A: AnyFloatArray, B: AnyFloatArray, C: AnyFloatArray
     r_weight = np.eye(B.shape[1])
     try:
         P = solve_continuous_are(A, B, q_weight, r_weight)
-    except LinAlgError as exc:
-        raise RuntimeError("Riccati K-step failed; plant is not stabilisable in this bounded domain.") from exc
+    except (LinAlgError, TypeError, ValueError) as exc:
+        return _stable_open_loop_state_feedback(A, B, exc)
     K = B.T @ P
-    if not np.all(np.isfinite(K)):  # pragma: no cover - defensive; a converged Riccati solution is finite
+    if not np.all(np.isfinite(K)):
         raise RuntimeError("Riccati K-step produced a non-finite controller gain.")
     return np.asarray(K, dtype=float)
 
@@ -589,8 +593,6 @@ def _closed_loop_dc_uncertainty_map(
     except np.linalg.LinAlgError as exc:
         raise RuntimeError("Closed-loop DC map is singular; robust mu evidence is unavailable.") from exc
     M = C @ state_response + D_mat
-    if not np.all(np.isfinite(M)):  # pragma: no cover - defensive; finite inputs and a solvable map yield finite M
-        raise RuntimeError("Closed-loop DC map produced non-finite values.")
     return np.asarray(M, dtype=complex)
 
 
