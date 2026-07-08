@@ -76,10 +76,18 @@ static documentation text.
 
 ```bash
 mypy
+python tools/run_mypy_strict.py
 ```
 
 Scope: all modules under `src/scpn_control/` (`disallow_untyped_defs = true`, `warn_return_any = true`).
 PEP 561 marker: `src/scpn_control/py.typed`.
+
+`tools/run_mypy_strict.py` is the local preflight gate for strict-typing debt. It
+first runs the configured repository mypy check, then runs a whole-package
+`mypy --strict src/scpn_control/` probe and compares the result with
+`tools/mypy_strict_debt.json`. The ratchet may stay flat or fall; increases need
+an explicit baseline update with the increase flag so added strict debt remains a
+reviewed change.
 
 ## Wiring Checks
 

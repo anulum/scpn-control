@@ -11,9 +11,12 @@
 from __future__ import annotations
 
 import json
+import subprocess
+import sys
 from pathlib import Path
 
 import pytest
+from _pytest.capture import CaptureFixture
 
 from tools import run_mypy_strict as rms
 
@@ -96,7 +99,10 @@ def test_ledger_to_dict_sorts_modules() -> None:
     """Serialised per-module counts are key-sorted for stable diffs."""
 
     ledger = rms.StrictDebtLedger(mypy_version="v", total=2, per_module={"z.z": 1, "a.a": 1})
-    assert list(ledger.to_dict()["per_module"]) == ["a.a", "z.z"]
+    per_module = ledger.to_dict()["per_module"]
+
+    assert isinstance(per_module, dict)
+    assert list(per_module) == ["a.a", "z.z"]
 
 
 def test_ledger_from_dict_rejects_wrong_schema() -> None:
@@ -111,6 +117,13 @@ def test_ledger_from_dict_rejects_non_object_per_module() -> None:
 
     with pytest.raises(ValueError):
         rms.StrictDebtLedger.from_dict({"schema": rms.LEDGER_SCHEMA, "total": 0, "per_module": []})
+
+
+def test_ledger_from_dict_rejects_non_integer_total() -> None:
+    """A non-integer ``total`` payload is refused."""
+
+    with pytest.raises(ValueError):
+        rms.StrictDebtLedger.from_dict({"schema": rms.LEDGER_SCHEMA, "total": "0", "per_module": {}})
 
 
 def _ledger(total: int, per_module: dict[str, int]) -> rms.StrictDebtLedger:
@@ -185,6 +198,95 @@ def _point_ledger_at(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     return ledger_path
 
 
+def test_mypy_version_reads_subprocess_stdout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The version helper returns stripped mypy version output."""
+
+    calls: list[list[str]] = []
+
+    def _fake_run(
+        cmd: list[str],
+        *,
+        cwd: Path,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        assert cwd == rms.REPO_ROOT
+        assert capture_output is True
+        assert text is True
+        return subprocess.CompletedProcess(cmd, 0, stdout="mypy 1.20.0\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    assert rms._mypy_version() == "mypy 1.20.0"
+    assert calls == [[sys.executable, "-m", "mypy", "--version"]]
+
+
+def test_mypy_version_falls_back_to_unknown(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Empty version output is reported as unknown."""
+
+    def _fake_run(
+        cmd: list[str],
+        *,
+        cwd: Path,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(cmd, 0, stdout="\n", stderr="")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    assert rms._mypy_version() == "unknown"
+
+
+def test_run_configured_mypy_returns_combined_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The configured gate wrapper preserves return code and combined streams."""
+
+    calls: list[list[str]] = []
+
+    def _fake_run(
+        cmd: list[str],
+        *,
+        cwd: Path,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        assert cwd == rms.REPO_ROOT
+        assert capture_output is True
+        assert text is True
+        return subprocess.CompletedProcess(cmd, 7, stdout="out\n", stderr="err\n")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    assert rms.run_configured_mypy() == (7, "out\nerr\n")
+    assert calls == [[sys.executable, "-m", "mypy"]]
+
+
+def test_run_strict_probe_returns_combined_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The strict probe wrapper returns combined streams and ignores exit code."""
+
+    calls: list[list[str]] = []
+
+    def _fake_run(
+        cmd: list[str],
+        *,
+        cwd: Path,
+        capture_output: bool,
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        assert cwd == rms.REPO_ROOT
+        assert capture_output is True
+        assert text is True
+        return subprocess.CompletedProcess(cmd, 1, stdout="strict-out\n", stderr="strict-err\n")
+
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+
+    assert rms.run_strict_probe() == "strict-out\nstrict-err\n"
+    assert calls == [[sys.executable, "-m", "mypy", "--strict", rms.SOURCE_TARGET]]
+
+
 def test_main_fails_closed_when_configured_gate_fails(monkeypatch: pytest.MonkeyPatch) -> None:
     """A failing configured gate returns its code and skips the probe."""
 
@@ -214,6 +316,29 @@ def test_main_passes_when_debt_within_baseline(
     )
 
     assert rms.main([]) == 0
+
+
+def test_main_reports_improvement_hint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    patched_probe: None,
+    capsys: CaptureFixture[str],
+) -> None:
+    """Debt reduction prints the baseline-tightening hint."""
+
+    ledger_path = _point_ledger_at(tmp_path, monkeypatch)
+    rms.write_ledger(
+        rms.StrictDebtLedger(
+            mypy_version="v",
+            total=5,
+            per_module={"scpn_control.control.nmpc_controller": 4, "scpn_control.core.current_drive": 1},
+        ),
+        ledger_path,
+    )
+
+    assert rms.main([]) == 0
+
+    assert "debt fell by 2 since the baseline" in capsys.readouterr().out
 
 
 def test_main_fails_on_regression(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, patched_probe: None) -> None:

@@ -14,6 +14,9 @@
 - Hardened the GitHub installation-token format readiness guard with canonical
   source headers, public API docstrings, repository traversal tests, binary-file
   skip coverage, and explicit development documentation.
+- Tightened the strict-mypy debt ratchet tests to cover subprocess wrappers,
+  malformed ledger totals, and improvement reporting at 100% focused coverage,
+  with development-guide documentation for the local preflight gate.
 
 ## [0.22.1] - 2026-07-03
 
