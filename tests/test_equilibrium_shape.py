@@ -15,6 +15,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
+import scpn_control.core.equilibrium_shape as eq_shape
 from scpn_control.control.realtime_efit import MU0, MagneticDiagnostics, RealtimeEFIT
 from scpn_control.core.equilibrium_shape import (
     EquilibriumShape,
@@ -184,6 +185,15 @@ def test_largest_flux_contour_none_for_absent_level() -> None:
     assert largest_flux_contour(psi_n, r_grid, z_grid, 5.0) is None
 
 
+def test_largest_flux_contour_none_when_contourpy_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(eq_shape, "_HAS_CONTOURPY", False)
+    r_grid = np.linspace(4.2, 8.2, 9)
+    z_grid = np.linspace(-3.0, 3.0, 9)
+    psi_n = np.zeros((9, 9), dtype=np.float64)
+
+    assert largest_flux_contour(psi_n, r_grid, z_grid, 0.5) is None
+
+
 def test_cylindrical_q95_estimate() -> None:
     # Contour-free fallback: finite, positive, and elongation-scaled.
     q = cylindrical_q95(a=2.0, kappa=1.7, r0=6.2, ip=5.0e6, vacuum_rb_phi=33.0)
@@ -191,3 +201,48 @@ def test_cylindrical_q95_estimate() -> None:
     q_round = cylindrical_q95(a=2.0, kappa=1.0, r0=6.2, ip=5.0e6, vacuum_rb_phi=33.0)
     assert q > q_round  # elongation raises the cylindrical q
     assert np.isnan(cylindrical_q95(a=2.0, kappa=1.7, r0=6.2, ip=0.0, vacuum_rb_phi=33.0))
+
+
+def test_safety_factor_q95_nan_when_contour_has_no_valid_field(monkeypatch: pytest.MonkeyPatch) -> None:
+    def no_field_contour(_psi_n: object, _r: object, _z: object, _level: float) -> FloatArray:
+        return cast(FloatArray, np.array([[4.5, -0.5], [5.5, -0.5], [5.5, 0.5], [4.5, 0.5]], dtype=np.float64))
+
+    def zero_poloidal_field(_psi: object, _r: object, _z: object) -> FloatArray:
+        return cast(FloatArray, np.zeros((5, 5), dtype=np.float64))
+
+    monkeypatch.setattr(eq_shape, "largest_flux_contour", no_field_contour)
+    monkeypatch.setattr(eq_shape, "poloidal_field", zero_poloidal_field)
+    r_grid = cast(FloatArray, np.linspace(4.0, 6.0, 5, dtype=np.float64))
+    z_grid = cast(FloatArray, np.linspace(-1.0, 1.0, 5, dtype=np.float64))
+    psi = cast(FloatArray, np.ones((5, 5), dtype=np.float64))
+
+    assert np.isnan(safety_factor_q95(psi, psi, r_grid, z_grid, np.array([0.0]), 1.0, 33.0))
+
+
+def test_compute_equilibrium_shape_uses_grid_boundary_when_contour_is_absent(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_contour(_psi_n: object, _r: object, _z: object, _level: float) -> None:
+        return None
+
+    monkeypatch.setattr(eq_shape, "largest_flux_contour", no_contour)
+    _efit, r_grid, z_grid, psi, p_true, ff_true, ip = _closure_equilibrium()
+
+    shape = compute_equilibrium_shape(psi, r_grid, z_grid, p_true, ff_true, ip, 33.0)
+
+    assert isinstance(shape, EquilibriumShape)
+    assert np.isfinite(shape.q95)
+
+
+def test_compute_equilibrium_shape_none_when_fallback_boundary_is_too_small(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def no_contour(_psi_n: object, _r: object, _z: object, _level: float) -> None:
+        return None
+
+    monkeypatch.setattr(eq_shape, "largest_flux_contour", no_contour)
+    psi = cast(FloatArray, np.ones((1, 1), dtype=np.float64))
+    r_grid = cast(FloatArray, np.array([6.2], dtype=np.float64))
+    z_grid = cast(FloatArray, np.array([0.0], dtype=np.float64))
+
+    assert compute_equilibrium_shape(psi, r_grid, z_grid, np.zeros(1), np.zeros(1), 1.0, 33.0) is None
