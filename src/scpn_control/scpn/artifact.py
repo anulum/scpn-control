@@ -746,16 +746,6 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
         )
     except LeanFormalVerificationError as exc:
         raise ArtifactValidationError(f"formal_verification.{exc}") from exc
-    # Defence-in-depth guards. validate_required_contract_evidence_links above
-    # already forces module_paths and safety_case_ids to equal the per-contract
-    # expected sets exactly (missing/unsupported entries raise there), so these
-    # length checks can never fire on a value that reached this point; they
-    # remain as a structural backstop against future relaxation of that
-    # validator.
-    if len(module_paths) < len(theorem_modules):  # pragma: no cover - unreachable given evidence-link equality
-        raise ArtifactValidationError("formal_verification.module_paths must cover theorem_modules")
-    if len(safety_case_ids) < len(proved_contracts):  # pragma: no cover - unreachable given evidence-link equality
-        raise ArtifactValidationError("formal_verification.safety_case_ids must cover proved_contracts")
 
 
 def _validate_formal_verification(evidence: FormalVerificationEvidence) -> None:
