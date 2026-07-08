@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
+  sealed validation evidence contract and refreshed the Rust multigrid
+  informational record.
 - Hardened the GitHub installation-token format readiness guard with canonical
   source headers, public API docstrings, repository traversal tests, binary-file
   skip coverage, and explicit development documentation.

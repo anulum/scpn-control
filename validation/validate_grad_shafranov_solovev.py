@@ -73,7 +73,7 @@ from scpn_control.core.fusion_kernel import FusionKernel
 
 FloatArray = NDArray[np.float64]
 
-GRAD_SHAFRANOV_SOLOVEV_SCHEMA_VERSION = "scpn-control.grad-shafranov-solovev-validation.v1"
+GRAD_SHAFRANOV_SOLOVEV_SCHEMA_VERSION = "scpn-control.grad-shafranov-solovev-validation.v2"
 
 DEFAULT_RESOLUTIONS: tuple[int, ...] = (33, 49, 65, 97)
 
@@ -322,7 +322,14 @@ def multigrid_reconstruction(
     for cycle in range(max_cycles):
         psi = np.asarray(
             kernel._multigrid_vcycle(
-                psi, source, kernel.RR, kernel.dR, kernel.dZ, omega=omega, pre_smooth=pre_smooth, post_smooth=post_smooth
+                psi,
+                source,
+                kernel.RR,
+                kernel.dR,
+                kernel.dZ,
+                omega=omega,
+                pre_smooth=pre_smooth,
+                post_smooth=post_smooth,
             ),
             dtype=np.float64,
         )
@@ -438,6 +445,11 @@ class GradShafranovValidationResult:
     reconstruction_order: float
     reconstruction_nrmse_finest: float
     reconstruction_passed: bool
+    multigrid_records: tuple[ConvergenceRecord, ...]
+    multigrid_details: tuple[MultigridReconstruction, ...]
+    multigrid_order: float
+    multigrid_nrmse_finest: float
+    multigrid_passed: bool
     min_order: float
     operator_error_gate: float
     reconstruction_nrmse_gate: float
@@ -453,6 +465,8 @@ def validate_grad_shafranov(
     omega: float = 1.6,
     residual_tol: float = 1e-9,
     max_sweeps: int = 40000,
+    multigrid_residual_tol: float = 1e-6,
+    multigrid_max_cycles: int = 60,
     min_order: float = 1.8,
     operator_error_gate: float = 5e-4,
     reconstruction_nrmse_gate: float = 1e-4,
@@ -460,7 +474,8 @@ def validate_grad_shafranov(
 ) -> GradShafranovValidationResult:
     """Validate the production Grad-Shafranov operator and SOR solver on Solov'ev.
 
-    Two production code paths must both converge at second order:
+    Three production code paths must converge at second order or to the
+    residual-backed discretisation floor:
 
     1. **Operator.** The truncation error of ``_apply_gs_operator`` against the
        analytic ``Δ*ψ`` decays at order ``≥ min_order`` and the finest-grid error
@@ -468,6 +483,9 @@ def validate_grad_shafranov(
     2. **SOR reconstruction.** The ``_sor_step`` solver reconstructs the exact ψ
        at order ``≥ min_order`` with finest-grid NRMSE below
        ``reconstruction_nrmse_gate``.
+    3. **Python multigrid reconstruction.** The production ``_multigrid_vcycle``
+       reaches ``multigrid_residual_tol`` and converges at order ``≥ min_order``
+       with finest-grid NRMSE below ``reconstruction_nrmse_gate``.
 
     The Rust multigrid backend is probed for the record when ``include_rust`` is
     set and the compiled extension is present; its result does not affect the
@@ -481,6 +499,8 @@ def validate_grad_shafranov(
     operator_records: list[ConvergenceRecord] = []
     reconstruction_records: list[ConvergenceRecord] = []
     reconstruction_details: list[SorReconstruction] = []
+    multigrid_records: list[ConvergenceRecord] = []
+    multigrid_details: list[MultigridReconstruction] = []
     for n in ordered:
         h = (geometry.r_max - geometry.r_min) / (n - 1)
         operator_records.append(
@@ -489,6 +509,15 @@ def validate_grad_shafranov(
         reconstruction = sor_reconstruction(geometry, n, omega=omega, residual_tol=residual_tol, max_sweeps=max_sweeps)
         reconstruction_details.append(reconstruction)
         reconstruction_records.append(ConvergenceRecord(resolution=n, mesh_spacing=h, error=reconstruction.nrmse))
+        multigrid = multigrid_reconstruction(
+            geometry,
+            n,
+            omega=omega,
+            residual_tol=multigrid_residual_tol,
+            max_cycles=multigrid_max_cycles,
+        )
+        multigrid_details.append(multigrid)
+        multigrid_records.append(ConvergenceRecord(resolution=n, mesh_spacing=h, error=multigrid.nrmse))
 
     operator_order = _log_log_slope(operator_records)
     operator_error_finest = operator_records[-1].error
@@ -501,6 +530,12 @@ def validate_grad_shafranov(
         reconstruction_order >= min_order
         and reconstruction_nrmse_finest < reconstruction_nrmse_gate
         and reconstruction_converged
+    )
+    multigrid_order = _log_log_slope(multigrid_records)
+    multigrid_nrmse_finest = multigrid_records[-1].error
+    multigrid_converged = all(detail.converged for detail in multigrid_details)
+    multigrid_passed = (
+        multigrid_order >= min_order and multigrid_nrmse_finest < reconstruction_nrmse_gate and multigrid_converged
     )
 
     rust_record = (
@@ -521,12 +556,17 @@ def validate_grad_shafranov(
         reconstruction_order=reconstruction_order,
         reconstruction_nrmse_finest=reconstruction_nrmse_finest,
         reconstruction_passed=reconstruction_passed,
+        multigrid_records=tuple(multigrid_records),
+        multigrid_details=tuple(multigrid_details),
+        multigrid_order=multigrid_order,
+        multigrid_nrmse_finest=multigrid_nrmse_finest,
+        multigrid_passed=multigrid_passed,
         min_order=min_order,
         operator_error_gate=operator_error_gate,
         reconstruction_nrmse_gate=reconstruction_nrmse_gate,
         rust_available=rust_record is not None,
         rust_record=rust_record,
-        passed=operator_passed and reconstruction_passed,
+        passed=operator_passed and reconstruction_passed and multigrid_passed,
     )
 
 
@@ -574,6 +614,21 @@ def build_evidence(result: GradShafranovValidationResult, *, target_id: str) -> 
         "reconstruction_order": result.reconstruction_order,
         "reconstruction_nrmse_finest": result.reconstruction_nrmse_finest,
         "reconstruction_passed": result.reconstruction_passed,
+        "multigrid_records": [
+            {
+                "resolution": rec.resolution,
+                "mesh_spacing": rec.mesh_spacing,
+                "nrmse": rec.error,
+                "cycles": detail.cycles,
+                "converged": detail.converged,
+                "residual_inf": detail.residual_inf,
+                "initial_residual_inf": detail.initial_residual_inf,
+            }
+            for rec, detail in zip(result.multigrid_records, result.multigrid_details)
+        ],
+        "multigrid_order": result.multigrid_order,
+        "multigrid_nrmse_finest": result.multigrid_nrmse_finest,
+        "multigrid_passed": result.multigrid_passed,
         "rust_available": result.rust_available,
         "rust_record": (
             None
@@ -697,6 +752,24 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
         f"{rec['iterations']} | {rec['converged']} |"
         for rec in evidence["reconstruction_records"]
     ]
+    lines += [
+        "",
+        "## Python multigrid reconstruction (`FusionKernel._multigrid_vcycle`)",
+        "",
+        f"- Order of accuracy: {evidence['multigrid_order']:.3f} (gate ≥ {evidence['min_order']})",
+        f"- Finest-grid NRMSE: {evidence['multigrid_nrmse_finest']:.3e} "
+        f"(gate < {evidence['reconstruction_nrmse_gate']:.1e})",
+        f"- Passed: {evidence['multigrid_passed']}",
+        "",
+        "| resolution | h | NRMSE | cycles | residual | initial residual | converged |",
+        "| --- | --- | --- | --- | --- | --- | --- |",
+    ]
+    lines += [
+        f"| {rec['resolution']} | {rec['mesh_spacing']:.4e} | {rec['nrmse']:.4e} | "
+        f"{rec['cycles']} | {rec['residual_inf']:.4e} | {rec['initial_residual_inf']:.4e} | "
+        f"{rec['converged']} |"
+        for rec in evidence["multigrid_records"]
+    ]
     rust = evidence["rust_record"]
     lines += ["", "## Rust multigrid backend (`scpn_control_rs.py_multigrid_solve`)", ""]
     if rust is None:
@@ -708,13 +781,21 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
             f"- Residual (inf-norm): {rust['residual_inf']:.4e}",
             f"- Injected Dirichlet data preserved: {rust['boundary_preserved']}",
             f"- Meets analytic tolerance: {rust['meets_analytic_tolerance']}",
-            "",
-            "The Rust binding's fixed-cycle multigrid does not converge on this "
-            "forcing — it preserves the injected Dirichlet boundary but leaves a large "
-            "interior residual — so it does not reproduce the Solov'ev equilibrium; "
-            "recorded for transparency and not part of the pass/fail gate. See the "
-            "Rust/Python SOR parity gap in `tests/test_rust_python_parity.py`.",
         ]
+        if rust["meets_analytic_tolerance"]:
+            lines += [
+                "",
+                "The Rust binding reproduces the Solov'ev analytic field under the "
+                "shared solver-stack sign convention. The record is informational; "
+                "Python operator, SOR, and multigrid paths remain the pass/fail gate.",
+            ]
+        else:
+            lines += [
+                "",
+                "The Rust binding does not meet the analytic tolerance for this "
+                "forcing. The record is kept for transparency and does not gate the "
+                "Python validation outcome.",
+            ]
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
@@ -759,6 +840,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"  SOR solver:     order={result.reconstruction_order:.3f} "
             f"finest_nrmse={result.reconstruction_nrmse_finest:.3e} "
             f"{'ok' if result.reconstruction_passed else 'FAIL'}"
+        )
+        print(
+            f"  multigrid:      order={result.multigrid_order:.3f} "
+            f"finest_nrmse={result.multigrid_nrmse_finest:.3e} "
+            f"{'ok' if result.multigrid_passed else 'FAIL'}"
         )
         if result.rust_record is not None:
             rust = result.rust_record

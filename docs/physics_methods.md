@@ -10,7 +10,7 @@ This document catalogs the primary physics models, equations, and scaling laws i
 $$\Delta^* \psi = R \frac{\partial}{\partial R}\left(\frac{1}{R}\frac{\partial \psi}{\partial R}\right) + \frac{\partial^2 \psi}{\partial Z^2} = -\mu_0 R^2 p'(\psi) - F(\psi) F'(\psi)$$
 
 - **Source**: Grad & Rubin (1958), Shafranov (1966).
-- **Implementation**: `src/scpn_control/core/fusion_kernel.py:380` (Picard + SOR).
+- **Implementation**: `src/scpn_control/core/fusion_kernel.py:380` (Picard + SOR/multigrid).
 - **Simplifications**: Axisymmetric assumption. Poloidal current $F(\psi)$ and pressure $p(\psi)$ are specified as polynomial or pedestal functions of $\psi$.
 - **Validation**: The production discrete operator
   `FusionKernel._apply_gs_operator` (sharing the `_mg_residual` five-point
@@ -18,16 +18,19 @@ $$\Delta^* \psi = R \frac{\partial}{\partial R}\left(\frac{1}{R}\frac{\partial \
   against the exact Solov'ev analytic equilibrium
   $\psi = c_1 R^4/8 + c_2 Z^2$, $\Delta^*\psi = c_1 R^2 + 2 c_2$, in
   `validation/validate_grad_shafranov_solovev.py` with tests in
-  `tests/test_grad_shafranov_solovev_validation.py`. Both paths converge at
+  `tests/test_grad_shafranov_solovev_validation.py`. The operator, SOR
+  reconstruction, and Python `_multigrid_vcycle` reconstruction converge at
   second order in the mesh spacing (operator order $\approx 2.00$, SOR
-  reconstruction order $\approx 2.02$), recorded as tamper-evident sealed
-  evidence in `validation/reports/grad_shafranov_solovev.json`. The Python
-  `_multigrid_vcycle` and the Rust `py_multigrid_solve` binding do not reproduce
-  the analytic equilibrium on this forcing and are recorded but not admitted.
-  This validates the equilibrium **discretisation and SOR solver** against an
-  analytic benchmark; it is not a facility-grade EFIT/GEQDSK reconstruction
-  claim. References: Solov'ev (1968); Cerfon & Freidberg, *Phys. Plasmas* 17,
-  032502 (2010); Jardin, *Computational Methods in Plasma Physics* (2010).
+  reconstruction order $\approx 2.02$, multigrid reconstruction order
+  $\approx 2.02$), recorded as tamper-evident sealed evidence in
+  `validation/reports/grad_shafranov_solovev.json`. The Rust
+  `py_multigrid_solve` binding is recorded as an informational polyglot check
+  and reproduces the same Solov'ev field under the shared solver-stack sign
+  convention. This validates the equilibrium **discretisation, SOR solver, and
+  multigrid solver** against an analytic benchmark; it is not a facility-grade
+  EFIT/GEQDSK reconstruction claim. References: Solov'ev (1968); Cerfon &
+  Freidberg, *Phys. Plasmas* 17, 032502 (2010); Jardin, *Computational Methods
+  in Plasma Physics* (2010).
 
 ### Evidence context for equilibrium methods
 

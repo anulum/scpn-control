@@ -362,18 +362,17 @@ python -m validation.validate_grad_shafranov_solovev \
   --report validation/reports/grad_shafranov_solovev.json
 ```
 
-The produced JSON uses `scpn-control.grad-shafranov-solovev-validation.v1` and
+The produced JSON uses `scpn-control.grad-shafranov-solovev-validation.v2` and
 binds its own payload by SHA-256. It confirms that the production discrete
-operator `FusionKernel._apply_gs_operator` (sharing the `_mg_residual` stencil)
-and the production Red-Black SOR smoother `_sor_step` both converge at second
-order in the mesh spacing to the exact field
-`ψ = c1 R⁴/8 + c2 Z²`, `Δ*ψ = c1 R² + 2 c2`. The Rust
-`scpn_control_rs.py_multigrid_solve` binding is recorded for transparency: its
-fixed-cycle multigrid does not converge on this forcing and is not admitted,
-consistent with the Rust/Python SOR parity gap in
-`tests/test_rust_python_parity.py`. This validates the equilibrium
-discretisation and SOR solver against an analytic benchmark; facility-grade
-EFIT/GEQDSK reconstruction claims still require matched external equilibria.
+operator `FusionKernel._apply_gs_operator` (sharing the `_mg_residual` stencil),
+the production Red-Black SOR smoother `_sor_step`, and the production Python
+multigrid V-cycle `_multigrid_vcycle` converge at second order in the mesh
+spacing to the exact field `ψ = c1 R⁴/8 + c2 Z²`, `Δ*ψ = c1 R² + 2 c2`. The
+Rust `scpn_control_rs.py_multigrid_solve` binding is recorded for transparency
+and reproduces the same Solov'ev field under the shared solver-stack sign
+convention. This validates the equilibrium discretisation, SOR solver, and
+multigrid solver against an analytic benchmark; facility-grade EFIT/GEQDSK
+reconstruction claims still require matched external equilibria.
 
 Structured-singular-value (mu) evidence against the exact closed-form mu
 identities can be regenerated with:

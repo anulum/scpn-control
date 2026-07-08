@@ -9,6 +9,9 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+from typing import Any, cast
+
 import numpy as np
 import pytest
 
@@ -168,7 +171,7 @@ def test_multigrid_reconstruction_is_frozen() -> None:
         ({"pre_smooth": 0}, "pre_smooth"),
     ],
 )
-def test_multigrid_reconstruction_rejects_invalid_arguments(kwargs, match) -> None:
+def test_multigrid_reconstruction_rejects_invalid_arguments(kwargs: dict[str, Any], match: str) -> None:
     geometry = SolovevGeometry.from_aspect()
     with pytest.raises(ValueError, match=match):
         multigrid_reconstruction(geometry, 33, **kwargs)
@@ -179,6 +182,7 @@ def test_multigrid_reconstruction_rejects_invalid_arguments(kwargs, match) -> No
 
 def test_rust_backend_recorded_or_absent(result: GradShafranovValidationResult) -> None:
     """The Rust record is present iff the extension is, and never spoofs a pass."""
+    assert result.multigrid_passed is True
     if result.rust_available:
         assert result.rust_record is not None
         # With the matched -Δ*ψ sign convention the Rust multigrid reconstructs
@@ -188,7 +192,7 @@ def test_rust_backend_recorded_or_absent(result: GradShafranovValidationResult) 
     else:
         assert result.rust_record is None
     # Rust never gates the Python validation outcome.
-    assert result.passed == (result.operator_passed and result.reconstruction_passed)
+    assert result.passed == (result.operator_passed and result.reconstruction_passed and result.multigrid_passed)
 
 
 def test_excluding_rust_yields_no_record() -> None:
@@ -251,9 +255,14 @@ def test_evidence_rejects_unknown_schema(result: GradShafranovValidationResult) 
 
 def test_evidence_rust_record_serialised_faithfully(result: GradShafranovValidationResult) -> None:
     evidence = build_evidence(result, target_id="test-target")
+    assert evidence["multigrid_passed"] is True
+    assert evidence["multigrid_nrmse_finest"] == result.multigrid_nrmse_finest
+    multigrid_records = cast(list[dict[str, Any]], evidence["multigrid_records"])
+    assert multigrid_records[-1]["cycles"] == result.multigrid_details[-1].cycles
     if result.rust_available:
-        assert evidence["rust_record"]["meets_analytic_tolerance"] is True
-        assert evidence["rust_record"]["resolution"] == result.resolutions[-1]
+        rust_record = cast(dict[str, Any], evidence["rust_record"])
+        assert rust_record["meets_analytic_tolerance"] is True
+        assert rust_record["resolution"] == result.resolutions[-1]
     else:
         assert evidence["rust_record"] is None
 
@@ -312,7 +321,7 @@ def test_evidence_rejects_non_hex_seal(result: GradShafranovValidationResult) ->
 # ── Rust import fallbacks ────────────────────────────────────────────
 
 
-def test_rust_record_none_when_extension_missing(monkeypatch) -> None:
+def test_rust_record_none_when_extension_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
 
     import validation.validate_grad_shafranov_solovev as mod
@@ -322,7 +331,7 @@ def test_rust_record_none_when_extension_missing(monkeypatch) -> None:
     assert mod.rust_multigrid_reconstruction(geometry, 33, analytic_tolerance=1e-4) is None
 
 
-def test_rust_record_none_when_binding_absent(monkeypatch) -> None:
+def test_rust_record_none_when_binding_absent(monkeypatch: pytest.MonkeyPatch) -> None:
     import sys
     import types
 
@@ -337,7 +346,7 @@ def test_rust_record_none_when_binding_absent(monkeypatch) -> None:
 # ── CLI / report writer ──────────────────────────────────────────────
 
 
-def test_main_text_output_passes(monkeypatch, capsys) -> None:
+def test_main_text_output_passes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     import validation.validate_grad_shafranov_solovev as mod
 
     real = mod.validate_grad_shafranov
@@ -346,7 +355,11 @@ def test_main_text_output_passes(monkeypatch, capsys) -> None:
     assert "Status: pass" in capsys.readouterr().out
 
 
-def test_main_json_output_and_report(monkeypatch, capsys, tmp_path) -> None:
+def test_main_json_output_and_report(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
     import json
 
     import validation.validate_grad_shafranov_solovev as mod
@@ -362,7 +375,7 @@ def test_main_json_output_and_report(monkeypatch, capsys, tmp_path) -> None:
     assert validate_evidence_payload(json.loads(report.read_text())) is True
 
 
-def test_main_report_without_rust_writes_absent_note(monkeypatch, tmp_path) -> None:
+def test_main_report_without_rust_writes_absent_note(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     import validation.validate_grad_shafranov_solovev as mod
 
     real = mod.validate_grad_shafranov
@@ -372,7 +385,26 @@ def test_main_report_without_rust_writes_absent_note(monkeypatch, tmp_path) -> N
     assert "extension not present" in report.with_suffix(".md").read_text()
 
 
-def test_main_returns_one_on_failure(monkeypatch, capsys) -> None:
+def test_report_writer_describes_rust_tolerance_miss(
+    result: GradShafranovValidationResult,
+    tmp_path: Path,
+) -> None:
+    import validation.validate_grad_shafranov_solovev as mod
+
+    evidence = build_evidence(result, target_id="test-target")
+    evidence["rust_record"] = {
+        "resolution": result.resolutions[-1],
+        "nrmse": 1.0,
+        "residual_inf": 2.0,
+        "boundary_preserved": True,
+        "meets_analytic_tolerance": False,
+    }
+    report = tmp_path / "gs_rust_miss.json"
+    mod._write_report(evidence, report)
+    assert "does not meet the analytic tolerance" in report.with_suffix(".md").read_text()
+
+
+def test_main_returns_one_on_failure(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     import validation.validate_grad_shafranov_solovev as mod
 
     real = mod.validate_grad_shafranov

@@ -2,8 +2,8 @@
 
 # Grad-Shafranov Solov'ev Validation
 
-- Schema: `scpn-control.grad-shafranov-solovev-validation.v1`
-- Generated (UTC): 2026-06-14T09:26:56Z
+- Schema: `scpn-control.grad-shafranov-solovev-validation.v2`
+- Generated (UTC): 2026-07-08T19:14:13Z
 - Target: `local-grad-shafranov-solovev`
 - Status: **pass**
 
@@ -33,12 +33,25 @@
 | 65 | 2.3438e-02 | 2.7003e-06 | 2551 | True |
 | 97 | 1.5625e-02 | 1.1939e-06 | 5701 | True |
 
+## Python multigrid reconstruction (`FusionKernel._multigrid_vcycle`)
+
+- Order of accuracy: 2.019 (gate ≥ 1.8)
+- Finest-grid NRMSE: 1.194e-06 (gate < 1.0e-04)
+- Passed: True
+
+| resolution | h | NRMSE | cycles | residual | initial residual | converged |
+| --- | --- | --- | --- | --- | --- | --- |
+| 33 | 4.6875e-02 | 1.0970e-05 | 10 | 1.4718e-07 | 4.1596e+03 | True |
+| 49 | 3.1250e-02 | 4.8255e-06 | 10 | 4.0732e-07 | 9.5070e+03 | True |
+| 65 | 2.3438e-02 | 2.7005e-06 | 10 | 7.7709e-07 | 1.7032e+04 | True |
+| 97 | 1.5625e-02 | 1.1939e-06 | 11 | 2.2604e-07 | 3.8615e+04 | True |
+
 ## Rust multigrid backend (`scpn_control_rs.py_multigrid_solve`)
 
 - Resolution: 97
-- NRMSE vs analytic: 1.5638e-01
-- Residual (inf-norm): 1.3852e+01
+- NRMSE vs analytic: 1.1939e-06
+- Residual (inf-norm): 3.5578e-09
 - Injected Dirichlet data preserved: True
-- Meets analytic tolerance: False
+- Meets analytic tolerance: True
 
-The Rust binding's fixed-cycle multigrid does not converge on this forcing — it preserves the injected Dirichlet boundary but leaves a large interior residual — so it does not reproduce the Solov'ev equilibrium; recorded for transparency and not part of the pass/fail gate. See the Rust/Python SOR parity gap in `tests/test_rust_python_parity.py`.
+The Rust binding reproduces the Solov'ev analytic field under the shared solver-stack sign convention. The record is informational; Python operator, SOR, and multigrid paths remain the pass/fail gate.

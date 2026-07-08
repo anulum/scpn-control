@@ -14,6 +14,9 @@
 - Added architecture decision records for module and repository boundaries,
   Python/Rust/PyO3 dispatch, solver and algorithm selection, validation evidence
   strategy, and public versus internal API boundaries.
+- Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
+  sealed validation evidence contract and refreshed the Rust multigrid
+  informational record.
 
 ## [0.22.1] - 2026-07-03
 

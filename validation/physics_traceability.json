@@ -1807,15 +1807,15 @@
       "required_actions": [
         "Validate reconstructed equilibria against EFIT, GEQDSK, or published fixed-boundary benchmark cases",
         "Preserve residual norms, convergence metadata, and Rust/Python parity evidence for every validation artefact",
-        "Close the Python multigrid V-cycle divergence and the Rust py_multigrid_solve non-convergence on the Solov'ev manufactured forcing so all solver backends reproduce the analytic equilibrium"
+        "Replace analytic Solov'ev backend evidence with matched EFIT, GEQDSK, or published fixed-boundary benchmark evidence before any facility reconstruction claim"
       ],
       "unit_contract": "SI metres, webers per radian, tesla, amperes, pascals, source derivatives, grid spacings, and dimensionless convergence tolerances.",
       "validation_evidence": [
         "tests/test_fusion_kernel.py",
         "tests/test_geqdsk_regression.py",
         "tests/test_rust_python_parity.py",
-        "validation/validate_grad_shafranov_solovev.py production discrete-operator and SOR-solver second-order convergence against the exact Solov'ev equilibrium with tamper-evident sealed evidence",
-        "tests/test_grad_shafranov_solovev_validation.py analytic-identity, operator-convergence, SOR-reconstruction, Rust-backend-record, and evidence-seal checks"
+        "validation/validate_grad_shafranov_solovev.py production discrete-operator, SOR-solver, and Python-multigrid second-order convergence against the exact Solov'ev equilibrium with tamper-evident sealed evidence plus informational Rust multigrid record",
+        "tests/test_grad_shafranov_solovev_validation.py analytic-identity, operator-convergence, SOR-reconstruction, Python-multigrid reconstruction, Rust-backend-record, and evidence-seal checks"
       ],
       "evidence_paths": [
         "tests/test_fusion_kernel.py",

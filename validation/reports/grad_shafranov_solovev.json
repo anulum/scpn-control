@@ -1,5 +1,5 @@
 {
-  "generated_utc": "2026-06-14T09:26:56Z",
+  "generated_utc": "2026-07-08T19:14:13Z",
   "geometry": {
     "a": 0.5,
     "c1": 1.0,
@@ -11,6 +11,47 @@
     "z_min": -0.75
   },
   "min_order": 1.8,
+  "multigrid_nrmse_finest": 1.1938899672993093e-06,
+  "multigrid_order": 2.018758396413027,
+  "multigrid_passed": true,
+  "multigrid_records": [
+    {
+      "converged": true,
+      "cycles": 10,
+      "initial_residual_inf": 4159.630584308577,
+      "mesh_spacing": 0.04687500000000001,
+      "nrmse": 1.0969561373499147e-05,
+      "residual_inf": 1.471759629723124e-07,
+      "resolution": 33
+    },
+    {
+      "converged": true,
+      "cycles": 10,
+      "initial_residual_inf": 9506.99605469709,
+      "mesh_spacing": 0.03125000000000001,
+      "nrmse": 4.825542638046743e-06,
+      "residual_inf": 4.0732248773878155e-07,
+      "resolution": 49
+    },
+    {
+      "converged": true,
+      "cycles": 10,
+      "initial_residual_inf": 17032.094916464506,
+      "mesh_spacing": 0.023437500000000003,
+      "nrmse": 2.7005289840973824e-06,
+      "residual_inf": 7.770919658867115e-07,
+      "resolution": 65
+    },
+    {
+      "converged": true,
+      "cycles": 11,
+      "initial_residual_inf": 38615.44031059471,
+      "mesh_spacing": 0.015625000000000003,
+      "nrmse": 1.1938899672993093e-06,
+      "residual_inf": 2.260430500555799e-07,
+      "resolution": 97
+    }
+  ],
   "operator_error_finest": 6.10351614893645e-05,
   "operator_error_gate": 0.0005,
   "operator_order": 1.9999999272728683,
@@ -38,7 +79,7 @@
     }
   ],
   "passed": true,
-  "payload_sha256": "2a0b062ef8578be523916f92bcbd4905752d6fbd74568907f4546006dc118a1c",
+  "payload_sha256": "f9ba3caea6cac85734c8de8462b81c579d4782a49154ed85c1ff93fe1a438557",
   "reconstruction_nrmse_finest": 1.1939229649189492e-06,
   "reconstruction_nrmse_gate": 0.0001,
   "reconstruction_order": 2.018732165798584,
@@ -86,11 +127,11 @@
   "rust_available": true,
   "rust_record": {
     "boundary_preserved": true,
-    "meets_analytic_tolerance": false,
-    "nrmse": 0.1563842134479154,
-    "residual_inf": 13.852363282355917,
+    "meets_analytic_tolerance": true,
+    "nrmse": 1.1939194895800081e-06,
+    "residual_inf": 3.5578091583943205e-09,
     "resolution": 97
   },
-  "schema_version": "scpn-control.grad-shafranov-solovev-validation.v1",
+  "schema_version": "scpn-control.grad-shafranov-solovev-validation.v2",
   "target_id": "local-grad-shafranov-solovev"
 }
