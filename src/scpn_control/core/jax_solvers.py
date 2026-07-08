@@ -44,7 +44,7 @@ try:
     from jax import lax
 
     _HAS_JAX = True
-except ImportError:
+except Exception:
     jax = None
     jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     lax = None
@@ -115,7 +115,7 @@ def _thomas_solve_np(
 
     for i in range(1, n):
         m = b[i] - a[i - 1] * cp[i - 1] if i > 0 else b[i]
-        if abs(m) < 1e-30:  # pragma: no cover — near-singular pivot guard
+        if abs(m) < 1e-30:
             m = 1e-30
         dp[i] = (d[i] - a[i - 1] * dp[i - 1]) / m
         if i < n - 1:

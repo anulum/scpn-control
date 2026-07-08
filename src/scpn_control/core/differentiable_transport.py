@@ -38,7 +38,7 @@ try:
     import jax.numpy as jnp
 
     _HAS_JAX = True
-except ImportError:
+except Exception:
     jax = None
     jnp = cast(Any, None)  # optional-dep fallback (keeps jnp.* annotations typed)
     _HAS_JAX = False

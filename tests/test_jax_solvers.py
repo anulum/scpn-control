@@ -21,6 +21,13 @@ batched transport via vmap.
 
 from __future__ import annotations
 
+import builtins
+import importlib.util
+from pathlib import Path
+from types import ModuleType
+from collections.abc import Sequence
+from typing import Any
+
 import numpy as np
 import pytest
 
@@ -57,7 +64,17 @@ class TestThomasSolveNumpy:
         assert x.shape == (3,)
         assert np.all(np.isfinite(x))
 
-    def test_identity_system(self):
+    def test_vanishing_inner_pivot_is_floored(self) -> None:
+        """A later zero pivot is floored during forward elimination."""
+        a = np.array([1.0, 1.0])
+        b = np.array([1.0, 1.0, 2.0])
+        c = np.array([1.0, 1.0])
+        d = np.array([1.0, 2.0, 3.0])
+        x = _thomas_solve_np(a, b, c, d)
+        assert x.shape == (3,)
+        assert np.all(np.isfinite(x))
+
+    def test_identity_system(self) -> None:
         """I x = d => x = d."""
         n = 10
         a = np.zeros(n - 1)
@@ -67,7 +84,7 @@ class TestThomasSolveNumpy:
         x = _thomas_solve_np(a, b, c, d)
         np.testing.assert_allclose(x, d, atol=1e-12)
 
-    def test_simple_tridiag(self):
+    def test_simple_tridiag(self) -> None:
         """Known 4x4 system: [2,-1,0,0; -1,2,-1,0; 0,-1,2,-1; 0,0,-1,2] x = [1,0,0,1]."""
         a = np.array([-1.0, -1.0, -1.0])
         b = np.array([2.0, 2.0, 2.0, 2.0])
@@ -80,7 +97,7 @@ class TestThomasSolveNumpy:
         result[1:] += a * x[:-1]
         np.testing.assert_allclose(result, d, atol=1e-10)
 
-    def test_diffusion_like_matrix(self):
+    def test_diffusion_like_matrix(self) -> None:
         """Tridiag from 1D diffusion discretisation."""
         n = 32
         a = -0.5 * np.ones(n - 1)
@@ -99,7 +116,7 @@ class TestThomasSolveNumpy:
 class TestDiffusionRhsNumpy:
     """Verify NumPy diffusion operator."""
 
-    def test_constant_profile_zero_flux(self):
+    def test_constant_profile_zero_flux(self) -> None:
         """Uniform T => L_h(T) = 0 everywhere."""
         n = 32
         rho = np.linspace(0.01, 1.0, n)
@@ -109,7 +126,7 @@ class TestDiffusionRhsNumpy:
         Lh = _diffusion_rhs_np(T, chi, rho, drho)
         np.testing.assert_allclose(Lh, 0.0, atol=1e-12)
 
-    def test_linear_profile(self):
+    def test_linear_profile(self) -> None:
         """Linear T(r) = r => nonzero L_h due to cylindrical geometry."""
         n = 64
         rho = np.linspace(0.01, 1.0, n)
@@ -120,7 +137,7 @@ class TestDiffusionRhsNumpy:
         # Interior should be nonzero (1/r correction)
         assert np.any(np.abs(Lh[1:-1]) > 1e-6)
 
-    def test_boundary_values_zero(self):
+    def test_boundary_values_zero(self) -> None:
         """Boundaries (i=0, i=n-1) should be zero (not computed)."""
         n = 32
         rho = np.linspace(0.01, 1.0, n)
@@ -135,7 +152,7 @@ class TestDiffusionRhsNumpy:
 class TestCrankNicolsonStep:
     """Verify Crank-Nicolson transport step."""
 
-    def test_no_source_diffuses(self):
+    def test_no_source_diffuses(self) -> None:
         """Without sources, peaked profile should flatten."""
         n = 32
         rho = np.linspace(0.05, 1.0, n)
@@ -147,7 +164,7 @@ class TestCrankNicolsonStep:
         # Peak should decrease
         assert np.max(T_new[1:-1]) < np.max(T[1:-1])
 
-    def test_edge_bc_applied(self):
+    def test_edge_bc_applied(self) -> None:
         """Edge boundary condition should be enforced."""
         n = 32
         rho = np.linspace(0.05, 1.0, n)
@@ -183,7 +200,7 @@ class TestJaxParity:
         monkeypatch.setattr("scpn_control.core.jax_solvers.jax.devices", _raise)
         assert has_jax_gpu() is False
 
-    def test_thomas_parity(self):
+    def test_thomas_parity(self) -> None:
         n = 32
         rng = np.random.default_rng(42)
         a = -0.3 * np.ones(n - 1)
@@ -195,7 +212,7 @@ class TestJaxParity:
         x_jax = thomas_solve(a, b, c, d, use_jax=True)
         np.testing.assert_allclose(x_jax, x_np, atol=1e-10)
 
-    def test_diffusion_rhs_parity(self):
+    def test_diffusion_rhs_parity(self) -> None:
         n = 32
         rho = np.linspace(0.05, 1.0, n)
         drho = rho[1] - rho[0]
@@ -206,7 +223,7 @@ class TestJaxParity:
         Lh_jax = diffusion_rhs(T, chi, rho, drho, use_jax=True)
         np.testing.assert_allclose(Lh_jax, Lh_np, atol=1e-8)
 
-    def test_cn_step_parity(self):
+    def test_cn_step_parity(self) -> None:
         n = 32
         rho = np.linspace(0.05, 1.0, n)
         drho = rho[1] - rho[0]
@@ -218,7 +235,7 @@ class TestJaxParity:
         T_jax = crank_nicolson_step(T, chi, source, rho, drho, 0.01, use_jax=True)
         np.testing.assert_allclose(T_jax, T_np, atol=1e-8)
 
-    def test_batched_cn(self):
+    def test_batched_cn(self) -> None:
         n = 32
         batch = 8
         rho = np.linspace(0.05, 1.0, n)
@@ -235,7 +252,7 @@ class TestJaxParity:
             assert result[i, -1] == pytest.approx(0.1)
             assert result[i, 0] == pytest.approx(result[i, 1])
 
-    def test_jax_grad_thomas(self):
+    def test_jax_grad_thomas(self) -> None:
         """JAX autodiff through Thomas solver should produce finite gradients."""
         import jax
         import jax.numpy as jnp
@@ -246,7 +263,7 @@ class TestJaxParity:
         b = 2.0 * jnp.ones(n)
         c = -0.3 * jnp.ones(n - 1)
 
-        def loss(d):
+        def loss(d: Any) -> Any:
             x = _thomas_solve_jax_impl(a, b, c, d)
             return jnp.sum(x**2)
 
@@ -255,7 +272,7 @@ class TestJaxParity:
         assert jnp.all(jnp.isfinite(grad))
         assert jnp.any(grad != 0.0)
 
-    def test_jax_grad_cn_step(self):
+    def test_jax_grad_cn_step(self) -> None:
         """JAX autodiff through full CN step."""
         import jax
         import jax.numpy as jnp
@@ -267,7 +284,7 @@ class TestJaxParity:
         chi = 0.5 * jnp.ones(n)
         source = jnp.zeros(n)
 
-        def loss(T):
+        def loss(T: Any) -> Any:
             T_new = _cn_step_jax(T, chi, source, rho, drho, 0.01, 0.1)
             return jnp.sum(T_new**2)
 
@@ -279,7 +296,7 @@ class TestJaxParity:
 class TestBatchedTransportFallback:
     """Batched transport with NumPy fallback."""
 
-    def test_batched_numpy_fallback(self):
+    def test_batched_numpy_fallback(self) -> None:
         n = 16
         batch = 4
         rho = np.linspace(0.05, 1.0, n)
@@ -302,7 +319,7 @@ class TestBatchedTransportFallback:
 class TestStrictJaxFallbackContracts:
     """Fail-closed contracts for explicit JAX requests."""
 
-    def test_use_jax_requires_explicit_legacy_fallback_opt_in(self, monkeypatch):
+    def test_use_jax_requires_explicit_legacy_fallback_opt_in(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
         a = np.array([-1.0, -1.0, -1.0])
         b = np.array([2.0, 2.0, 2.0, 2.0])
@@ -311,7 +328,7 @@ class TestStrictJaxFallbackContracts:
         with pytest.raises(ValueError, match="allow_legacy_numpy_fallback=True"):
             thomas_solve(a, b, c, d, use_jax=True, allow_numpy_fallback=True)
 
-    def test_use_jax_fails_closed_without_jax(self, monkeypatch):
+    def test_use_jax_fails_closed_without_jax(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
         a = np.array([-1.0, -1.0, -1.0])
         b = np.array([2.0, 2.0, 2.0, 2.0])
@@ -320,7 +337,7 @@ class TestStrictJaxFallbackContracts:
         with pytest.raises(RuntimeError, match="thomas_solve requested use_jax=True"):
             thomas_solve(a, b, c, d, use_jax=True)
 
-    def test_use_jax_legacy_fallback_opt_in(self, monkeypatch):
+    def test_use_jax_legacy_fallback_opt_in(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
         a = np.array([-1.0, -1.0, -1.0])
         b = np.array([2.0, 2.0, 2.0, 2.0])
@@ -337,7 +354,7 @@ class TestStrictJaxFallbackContracts:
         )
         np.testing.assert_allclose(out, _thomas_solve_np(a, b, c, d))
 
-    def test_batched_contracts_without_jax(self, monkeypatch):
+    def test_batched_contracts_without_jax(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("scpn_control.core.jax_solvers._HAS_JAX", False)
         n = 16
         batch = 3
@@ -362,3 +379,37 @@ class TestStrictJaxFallbackContracts:
             allow_legacy_numpy_fallback=True,
         )
         assert out.shape == T_batch.shape
+
+
+def test_optional_jax_initialisation_failure_uses_numpy_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Treat a broken optional JAX install as unavailable, not as an import-time crash."""
+    module_path = Path(__file__).parents[1] / "src" / "scpn_control" / "core" / "jax_solvers.py"
+    spec = importlib.util.spec_from_file_location("jax_solvers_broken_optional_probe", module_path)
+    assert spec is not None
+    assert spec.loader is not None
+    module = ModuleType("jax_solvers_broken_optional_probe")
+    real_import = builtins.__import__
+
+    def blocked_import(
+        name: str,
+        globals: dict[str, Any] | None = None,
+        locals: dict[str, Any] | None = None,
+        fromlist: Sequence[str] | None = (),
+        level: int = 0,
+    ) -> Any:
+        if name == "jax" or name.startswith("jax."):
+            raise AttributeError("simulated incompatible JAX runtime")
+        return real_import(name, globals, locals, fromlist, level)
+
+    monkeypatch.setattr(builtins, "__import__", blocked_import)
+    spec.loader.exec_module(module)
+
+    assert module.has_jax() is False
+    with pytest.raises(RuntimeError, match="thomas_solve requested use_jax=True"):
+        module.thomas_solve(
+            np.array([-1.0, -1.0, -1.0]),
+            np.array([2.0, 2.0, 2.0, 2.0]),
+            np.array([-1.0, -1.0, -1.0]),
+            np.array([1.0, 0.0, 0.0, 1.0]),
+            use_jax=True,
+        )

@@ -21,7 +21,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from pathlib import PurePosixPath
-from typing import Any
+from typing import Any, cast
 
 from scpn_control.control.codac_interface import load_codac_runtime_evidence
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
@@ -29,6 +29,7 @@ from scpn_control.core.differentiable_transport import TransportDifferentiabilit
 from scpn_control.scpn.artifact import (
     Artifact,
     ArtifactValidationError,
+    FormalVerificationEvidence,
     compute_artifact_payload_sha256,
     validate_safety_critical_artifact,
 )
@@ -554,9 +555,7 @@ def controller_safety_case_evidence(
         validate_safety_critical_artifact(controller_artifact)
     except ArtifactValidationError as exc:
         raise ValueError(f"safety-critical controller artifact is not admissible: {exc}") from exc
-    formal = controller_artifact.formal_verification
-    if formal is None:  # pragma: no cover - validate_safety_critical_artifact above already rejects formal=None
-        raise ValueError("safety-critical controller artifact is missing formal verification evidence")
+    formal = cast(FormalVerificationEvidence, controller_artifact.formal_verification)
     controller_sha256 = compute_artifact_payload_sha256(controller_artifact)
     _require_same_controller_binding(controller_sha256, transport_evidence, digital_twin_evidence)
     if not transport_evidence.audit_passed:
