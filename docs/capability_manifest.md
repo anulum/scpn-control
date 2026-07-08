@@ -71,3 +71,29 @@ Use this page to verify declared capabilities before publishing release or onboa
 - Use it to validate that documented features have executable counterparts in `tools/capability_manifest.toml`.
 - Run the manifest checks whenever public claims are widened.
 - Keep scope updates synchronized with `docs/production_readiness.md` and release notes.
+
+## SCPN Studio manifest
+
+The Studio federation manifest is a separate generated artifact:
+
+- `tools/emit_studio_manifest.py`
+- `docs/_generated/studio_manifest.json`
+- `src/scpn_control/studio/manifest.py`
+
+It declares the CONTROL studio id, verbs, evidence schemas, platform SDK range,
+content digest, and federated UI module. The UI module is published for the
+Studio Hub as:
+
+- remote entry: `https://www.anulum.org/studios/scpn-control/remoteEntry.js`
+- exposure: `./Panel`
+- runtime: `module-federation-2`
+
+Refresh it after Studio verb, evidence-schema, platform SDK, or UI-module changes:
+
+```bash
+python tools/emit_studio_manifest.py
+python tools/emit_studio_manifest.py --check
+```
+
+The `--check` mode ignores only the environment-specific `studio_version` stamp.
+All other manifest fields are compared against the producer.

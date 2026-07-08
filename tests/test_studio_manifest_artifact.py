@@ -23,10 +23,12 @@ import re
 from pathlib import Path
 
 import pytest
+from _pytest.capture import CaptureFixture
 
 pytest.importorskip("scpn_studio_platform")
 
 import scpn_control.studio.manifest as manifest_module  # noqa: E402
+import tools.emit_studio_manifest as emitter  # noqa: E402
 from tools.emit_studio_manifest import _ARTIFACT, render  # noqa: E402
 
 _DIGEST_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -58,6 +60,97 @@ def test_artifact_is_schema_a_well_formed() -> None:
     evidence_types = payload["evidence_types"]
     assert all(schema.endswith(".v1") for schema in evidence_types)
     assert len(evidence_types) == len(set(evidence_types)) == 12
+    ui_module = payload["ui_module"]
+    assert ui_module["remote_entry"] == "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+    assert ui_module["exposes"] == ["./Panel"]
+    assert ui_module["federation"] == "module-federation-2"
+
+
+def test_manifest_ui_module_matches_studio_federation_contract() -> None:
+    """The producer advertises the deployed remote and stable panel exposure."""
+
+    manifest = manifest_module.build_manifest()
+
+    assert manifest.ui_module is not None
+    assert manifest.ui_module.remote_entry == manifest_module.UI_REMOTE_ENTRY
+    assert manifest.ui_module.exposes == (manifest_module.UI_PANEL_EXPOSE,)
+
+
+def test_main_check_passes_when_artifact_matches(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``--check`` accepts a committed artifact that matches the producer."""
+
+    artifact = tmp_path / "studio_manifest.json"
+    artifact.write_text(render(), encoding="utf-8")
+    monkeypatch.setattr(emitter, "_ARTIFACT", artifact)
+
+    assert emitter.main(["--check"]) == 0
+
+
+def test_main_check_ignores_environment_specific_version(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``studio_version`` differences do not make the drift check fail."""
+
+    artifact = tmp_path / "studio_manifest.json"
+    payload = json.loads(render())
+    payload["studio_version"] = "different-local-stamp"
+    artifact.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    monkeypatch.setattr(emitter, "_ARTIFACT", artifact)
+
+    assert emitter.main(["--check"]) == 0
+
+
+def test_main_check_fails_when_artifact_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: CaptureFixture[str],
+) -> None:
+    """``--check`` fails closed when the generated artifact is absent."""
+
+    artifact = tmp_path / "missing" / "studio_manifest.json"
+    monkeypatch.setattr(emitter, "_ARTIFACT", artifact)
+
+    assert emitter.main(["--check"]) == 1
+
+    assert "is missing" in capsys.readouterr().out
+
+
+def test_main_check_fails_when_artifact_is_stale(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: CaptureFixture[str],
+) -> None:
+    """``--check`` fails closed when committed manifest content drifts."""
+
+    artifact = tmp_path / "studio_manifest.json"
+    payload = json.loads(render())
+    payload["ui_module"]["remote_entry"] = "https://www.anulum.org/studios/scpn-control/stale.js"
+    artifact.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    monkeypatch.setattr(emitter, "_ARTIFACT", artifact)
+
+    assert emitter.main(["--check"]) == 1
+
+    assert "is stale" in capsys.readouterr().out
+
+
+def test_main_writes_artifact(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: CaptureFixture[str],
+) -> None:
+    """Default invocation writes the deterministic generated artifact."""
+
+    artifact = tmp_path / "generated" / "studio_manifest.json"
+    monkeypatch.setattr(emitter, "_ARTIFACT", artifact)
+
+    assert emitter.main([]) == 0
+
+    assert artifact.read_text(encoding="utf-8") == render()
+    assert f"wrote {artifact}" in capsys.readouterr().out
 
 
 def test_manifest_version_falls_back_when_distribution_metadata_is_absent(

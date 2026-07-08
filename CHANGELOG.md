@@ -17,6 +17,9 @@
 - Tightened the strict-mypy debt ratchet tests to cover subprocess wrappers,
   malformed ledger totals, and improvement reporting at 100% focused coverage,
   with development-guide documentation for the local preflight gate.
+- Aligned the generated SCPN Studio manifest with the deployed federation
+  remote entry and stable `./Panel` exposure, with focused emitter CLI tests
+  and documentation for the generated Studio artifact.
 
 ## [0.22.1] - 2026-07-03
 

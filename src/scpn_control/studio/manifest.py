@@ -1,11 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio capability manifest
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio capability manifest.
 """The CONTROL studio's capability manifest (schema A) on the platform contract.
 
 Authors CONTROL's :class:`scpn_studio_platform.manifest.CapabilityManifest`: the
@@ -56,9 +55,15 @@ PLATFORM_SDK_RANGE = ">=0.1,<0.9"
 PROTOCOL_VERSION = "1"
 """The SYNAPSE wire protocol version the studio pins."""
 
+UI_REMOTE_ENTRY = "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+"""The deployed Module Federation remote-entry URL for the CONTROL panel."""
+
+UI_PANEL_EXPOSE = "./Panel"
+"""The Module Federation exposure path loaded by the SCPN Studio Hub."""
+
 UI_PANEL = UiModule(
-    remote_entry="scpn_control_studio/remoteEntry.js",
-    exposes=("./ControlStudioPanel",),
+    remote_entry=UI_REMOTE_ENTRY,
+    exposes=(UI_PANEL_EXPOSE,),
 )
 """The federated UI panel the Hub loads for the CONTROL studio."""
 

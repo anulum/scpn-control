@@ -23,10 +23,10 @@
   "transport_profile": "local-first",
   "ui_module": {
     "exposes": [
-      "./ControlStudioPanel"
+      "./Panel"
     ],
     "federation": "module-federation-2",
-    "remote_entry": "scpn_control_studio/remoteEntry.js"
+    "remote_entry": "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
   },
   "verbs": [
     {
