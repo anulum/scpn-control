@@ -22,6 +22,9 @@
   and documentation for the generated Studio artifact.
 - Added a public-surface claim hygiene guard for outward-facing promotion terms,
   wired it into local preflight and CI, and cleaned existing public test labels.
+- Crosswired the Studio Web Vite remote to the generated manifest contract by
+  building under `/studios/scpn-control/`, exposing `./Panel`, and testing the
+  shared federation constants.
 
 ## [0.22.1] - 2026-07-03
 

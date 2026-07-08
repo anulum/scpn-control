@@ -8,12 +8,12 @@ Contact: www.anulum.li | protoscience@anulum.li
 
 # Control Studio — UI remote
 
-The SCPN-CONTROL Control Studio's **Module Federation 2.x remote**. It exposes
-`./ControlStudioPanel` under the remote name `scpn_control`
-(`studioRemoteName('scpn-control')`) and builds a `remoteEntry.js` that the SCPN
-Studio Hub loads at runtime (the Hub's `loadStudioPanel` consumes exactly this). It
-also runs standalone, matching the federation model where each studio is
-independent.
+The SCPN-CONTROL Control Studio's **Module Federation 2.x remote**. It builds
+under `/studios/scpn-control/`, exposes `./Panel` under the remote name
+`scpn_control` (`studioRemoteName('scpn-control')`), and emits a `remoteEntry.js`
+that the SCPN Studio Hub loads at runtime (the Hub's `loadStudioPanel` consumes
+exactly this). It also runs standalone, matching the federation model where each
+studio is independent.
 
 ## What the panel shows
 
@@ -28,6 +28,7 @@ independent.
 
 | Path | Responsibility |
 | --- | --- |
+| `src/federationContract.ts` | The remote name, deployed base path, `remoteEntry.js`, `./Panel` exposure, and shared React dependencies. |
 | `src/domain.ts` | The studio's verb/claim data + the honesty rendering rules. |
 | `src/ControlStudioPanel.tsx` | The exposed federated panel. |
 
@@ -39,12 +40,12 @@ pnpm typecheck   # tsc --noEmit, strict
 pnpm lint        # eslint, type-checked + react-hooks
 pnpm format:check
 pnpm test        # vitest, 100% coverage gate
-pnpm build       # vite build — emits dist/remoteEntry.js
+pnpm build       # vite build — emits dist/remoteEntry.js under /studios/scpn-control/
 pnpm dev         # standalone preview
 ```
 
 ## Next
 
-Serve `remoteEntry.js` from the studio host and register it with the Hub
-(`type: 'module'`); wire the panel's data from the live CONTROL studio backend
-(`scpn_control.studio`) instead of the representative sample.
+Serve `remoteEntry.js` from the studio host and register the `./Panel` exposure
+with the Hub (`type: 'module'`); wire the panel's data from the live CONTROL
+studio backend (`scpn_control.studio`) instead of the representative sample.
