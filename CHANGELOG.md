@@ -34,6 +34,9 @@
 - Wired Studio Web to the portal-owned identity path by loading
   `GET /api/v1/auth/me` with same-origin cookies and rendering only the portal
   session state in the federated panel.
+- Added a Studio offline-sealing guard that keeps publication signing keys out
+  of tracked CI and deploy policy surfaces while preserving deploy-only
+  credential lanes.
 
 ## [0.22.1] - 2026-07-03
 

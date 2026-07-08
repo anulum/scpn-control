@@ -142,6 +142,21 @@ self-applied promotion terms. Internal planning surfaces under `docs/internal/`
 and `.coordination/` are excluded; bounded negative language and candidate
 labels remain allowed because they do not assert an achieved public claim.
 
+## Studio Custody Guards
+
+```bash
+python tools/check_studio_deploy_key.py
+python tools/check_studio_offline_sealing.py
+```
+
+`check_studio_deploy_key.py` validates the tracked Studio deploy public key and
+rejects private deploy-key-like tracked paths. `check_studio_offline_sealing.py`
+keeps Studio publication signing custody offline: workflows, Studio surfaces,
+docs, and tools must not reference Hub/Studio sealing or signing private-key
+secrets, and tracked policy surfaces must not contain private-key blocks. The
+guard deliberately allows deploy-only SSH credentials because they do not sign
+evidence; sealed evidence keys stay with the Studio keeper.
+
 ---
 
 ## Release Process

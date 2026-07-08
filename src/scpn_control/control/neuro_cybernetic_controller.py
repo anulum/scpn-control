@@ -35,13 +35,15 @@ try:
     # sc_neurocore is an optional dependency, uninstalled on the CI coverage job;
     # the success-path imports below are therefore unreachable there.
     from sc_neurocore.neurons.stochastic_lif import (
-        StochasticLIFNeuron,
+        StochasticLIFNeuron as _StochasticLIFNeuron,
     )  # pragma: no cover - optional sc-neurocore integration path
     from sc_neurocore.sources.quantum_entropy import (
-        QuantumEntropySource,
+        QuantumEntropySource as _QuantumEntropySource,
     )  # pragma: no cover - optional sc-neurocore integration path
 
     SC_NEUROCORE_AVAILABLE = True  # pragma: no cover - optional sc-neurocore integration path
+    StochasticLIFNeuron: Any = _StochasticLIFNeuron
+    QuantumEntropySource: Any = _QuantumEntropySource
 except ImportError:  # pragma: no cover - optional dependency path
     SC_NEUROCORE_AVAILABLE = False
     StochasticLIFNeuron = None

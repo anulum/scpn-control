@@ -76,6 +76,17 @@ def test_preflight_runs_coverage_pragma_gate() -> None:
     assert "coverage-pragmas" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_studio_offline_sealing_gate() -> None:
+    """Local preflight must keep Studio signing custody out of CI and deploy surfaces."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["studio-offline-sealing"] == [preflight._PY, "tools/check_studio_offline_sealing.py"]
+    assert "studio-offline-sealing" not in preflight.TEST_GATES
+    assert "studio-offline-sealing" not in preflight.RUST_GATES
+
+
 def test_preflight_subprocess_env_prefers_source_tree() -> None:
     """Local preflight imports the checked-out source tree before installed packages."""
     preflight = _load_preflight_module()

@@ -34,15 +34,17 @@ logger = logging.getLogger(__name__)
 
 try:
     from sc_neurocore.adapters.holonomic.l4_cell import (
-        L4_CellularAdapter,
+        L4_CellularAdapter as _L4_CellularAdapter,
         L4_HolonomicParameters,
     )  # pragma: no cover - optional sc-neurocore integration path
     from sc_neurocore.adapters.holonomic.l5_org import (
         L5_HolonomicParameters,
-        L5_OrganismalAdapter,
+        L5_OrganismalAdapter as _L5_OrganismalAdapter,
     )  # pragma: no cover - optional sc-neurocore integration path
 
     SC_NEUROCORE_HOLONOMIC_AVAILABLE = True  # pragma: no cover - sc_neurocore optional dep, absent on CI
+    L4_CellularAdapter: Any = _L4_CellularAdapter
+    L5_OrganismalAdapter: Any = _L5_OrganismalAdapter
 except ImportError:
     SC_NEUROCORE_HOLONOMIC_AVAILABLE = False
     L4_CellularAdapter = None
