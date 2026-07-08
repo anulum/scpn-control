@@ -58,7 +58,7 @@ try:
         _rust_runtime.scpn_sample_firing,
     )
     _HAS_RUST_SCPN_RUNTIME = True  # pragma: no cover - optional Rust SCPN runtime path
-except (ImportError, AttributeError):
+except (ImportError, AttributeError, NameError):
     _HAS_RUST_SCPN_RUNTIME = False
 
 
