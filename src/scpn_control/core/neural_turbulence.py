@@ -722,9 +722,7 @@ def neural_turbulence_claim_evidence(
         # inadmissible source already fails strict validation above; this guard
         # is defence in depth and is unreachable in production.
         if reference_source not in _NEURAL_TURBULENCE_REFERENCE_SOURCES:
-            raise ValueError(
-                "neural-turbulence reference source is not admissible"
-            )  # pragma: no cover - validator rejects invalid reference metadata earlier
+            raise ValueError("neural-turbulence reference source is not admissible")
         if payload["trained_weights_sha256"].lower() != weights_sha256.lower():
             raise ValueError("neural-turbulence reference artifact does not match supplied weights")
         reference_dataset_id = _non_empty_text("reference_dataset_id", str(payload["reference_dataset_id"]))
@@ -735,9 +733,7 @@ def neural_turbulence_claim_evidence(
         # The external validator already rejects reference_sample_count <= 0, so
         # strict validation above fails first; this guard is defence in depth.
         if reference_sample_count < 1:
-            raise ValueError(
-                "reference_sample_count must be positive"
-            )  # pragma: no cover - validator rejects invalid reference metadata earlier
+            raise ValueError("reference_sample_count must be positive")
         metrics = dict(payload["metrics"])
         tolerances = dict(payload["tolerances"])
         claim_allowed = True
