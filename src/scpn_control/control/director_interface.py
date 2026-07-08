@@ -1,26 +1,19 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Director Interface
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Director Interface
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Director interface.
 """Adapter contracts for exchanging control objectives with external director services."""
 
 from __future__ import annotations
 
+from importlib import import_module
 import logging
 import re
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 logger = logging.getLogger(__name__)
 
@@ -32,18 +25,26 @@ except ImportError:
     HAS_MPL = False
 import numpy as np
 
-try:
-    from scpn_control.core._rust_compat import RUST_BACKEND, FusionKernel
-except ImportError:
-    try:
-        from scpn_control.core.fusion_kernel import FusionKernel  # noqa: F401
 
-        RUST_BACKEND = False
-    except ImportError as exc:  # pragma: no cover - import-guard path
-        raise ImportError(
-            "Unable to import FusionKernel. Run with PYTHONPATH=src "
-            "or use `python -m scpn_control.control.director_interface`."
-        ) from exc
+def _load_fusion_kernel() -> tuple[type[Any], bool]:
+    """Load the native FusionKernel when present, otherwise the Python kernel."""
+    try:
+        rust_compat = import_module("scpn_control.core._rust_compat")
+    except ImportError:
+        try:
+            fusion_kernel = import_module("scpn_control.core.fusion_kernel")
+        except ImportError as exc:
+            raise ImportError(
+                "Unable to import FusionKernel. Run with PYTHONPATH=src "
+                "or use `python -m scpn_control.control.director_interface`."
+            ) from exc
+        fusion_kernel_module = cast(Any, fusion_kernel)
+        return cast(type[Any], fusion_kernel_module.FusionKernel), False
+    rust_compat_module = cast(Any, rust_compat)
+    return cast(type[Any], rust_compat_module.FusionKernel), bool(rust_compat_module.RUST_BACKEND)
+
+
+FusionKernel, RUST_BACKEND = _load_fusion_kernel()
 
 from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 from scpn_control.control import solve_kernel
@@ -349,7 +350,7 @@ class DirectorInterface:
             try:
                 self.visualize(output_path=output_path)
                 plot_saved = True
-            except (OSError, ValueError) as exc:  # pragma: no cover - backend-dependent
+            except (OSError, ValueError) as exc:
                 if not allow_plot_fallback:
                     raise RuntimeError(
                         "Director plot export failed and legacy plot fallback is disabled. "
