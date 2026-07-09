@@ -714,3 +714,41 @@ jobs:
         with:
           name: evidence-inventory
           path: evidence-inventory/
+
+  # ─── Job 20: Commit authorship gate ───
+  # Backstop for the local commit-msg hook: verifies that every new
+  # non-merge commit in the pushed or pull-request range carries the
+  # canonical authorship line and no legacy Co-Authored-By trailer, so a
+  # commit made with --no-verify cannot bypass the policy silently.
+  commit-authorship:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0  # v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1  # v6
+        with:
+          python-version: "3.12"
+      - name: Verify commit authorship lines
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          start="${PR_BASE:-$PUSH_BEFORE}"
+          zero="0000000000000000000000000000000000000000"
+          if [ -z "$start" ] || [ "$start" = "$zero" ] || ! git cat-file -e "${start}^{commit}" 2>/dev/null; then
+            echo "No usable base ref ('${start}'); skipping authorship range check."
+            exit 0
+          fi
+          shas="$(git rev-list --no-merges "${start}..${HEAD_SHA}")"
+          if [ -z "$shas" ]; then
+            echo "No new non-merge commits to verify."
+            exit 0
+          fi
+          workdir="$(mktemp -d)"
+          for sha in $shas; do
+            git log -1 --format=%B "$sha" > "${workdir}/${sha}.txt"
+          done
+          python tools/check_commit_authorship.py "${workdir}"/*.txt
