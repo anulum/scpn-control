@@ -986,6 +986,13 @@ fails closed before calling the dynamic loader.
 
 ### Formal Verification
 
+`FormalPetriNetVerifier` uses exact explicit-state reachability over the
+compiled Petri-net transition relation. `backend="auto"` records that
+explicit-state backend and does not relabel the result as z3 just because the
+optional solver package is importable. `backend="z3"` is an explicit opt-in and
+requires the optional `z3-solver` package; SMT-specific report artefacts remain
+on the separate z3 model-checking surface below.
+
 ::: scpn_control.scpn.formal_verification.FormalPetriNetVerifier
 
 ::: scpn_control.scpn.formal_verification.verify_formal_contracts

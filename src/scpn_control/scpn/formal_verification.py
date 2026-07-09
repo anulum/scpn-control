@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Commercial license available
-# © Concepts 1996-2026 Miroslav Sotek. All rights reserved.
-# © Code 2020-2026 Miroslav Sotek. All rights reserved.
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Formal Petri Net Verification
@@ -373,21 +373,24 @@ def _as_float_marking(place_names: list[str], values: tuple[Fraction, ...]) -> d
     return {place: float(values[i]) for i, place in enumerate(place_names)}
 
 
+def _z3_solver_available() -> bool:
+    """Return whether the optional z3-solver package is importable."""
+    try:
+        __import__("z3")
+    except ModuleNotFoundError:
+        return False
+    return True
+
+
 def _resolve_backend(backend: FormalBackend) -> str:
     if backend == "explicit-state":
         return backend
     if backend == "z3":
-        try:
-            import z3  # noqa: F401
-        except ModuleNotFoundError as exc:
-            raise RuntimeError("backend='z3' requires the optional z3-solver package") from exc
+        if not _z3_solver_available():
+            raise RuntimeError("backend='z3' requires the optional z3-solver package")
         return "z3"
     if backend == "auto":
-        try:
-            import z3  # noqa: F401
-        except ModuleNotFoundError:
-            return "explicit-state"
-        return "z3"
+        return "explicit-state"
     raise ValueError(f"unsupported formal verification backend: {backend}")
 
 
@@ -395,9 +398,9 @@ class FormalPetriNetVerifier:
     """Bounded formal verifier for compiled ``StochasticPetriNet`` objects.
 
     The current production backend is exact explicit-state reachability over
-    rational markings. ``backend='z3'`` is accepted only when the optional solver
-    package is installed; the same finite transition relation is then eligible
-    for SMT-backed proof extensions without changing public contracts.
+    rational markings. ``backend='auto'`` records that explicit-state backend
+    until an SMT execution path is wired into this verifier. ``backend='z3'``
+    remains an explicit opt-in that requires the optional solver package.
     """
 
     def __init__(self, net: StochasticPetriNet, *, backend: FormalBackend = "auto") -> None:
