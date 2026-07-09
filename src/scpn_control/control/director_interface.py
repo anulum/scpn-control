@@ -28,9 +28,8 @@ import numpy as np
 
 def _load_fusion_kernel() -> tuple[type[Any], bool]:
     """Load the native FusionKernel when present, otherwise the Python kernel."""
-    try:
-        rust_compat = import_module("scpn_control.core._rust_compat")
-    except ImportError:
+
+    def load_python_kernel() -> type[Any]:
         try:
             fusion_kernel = import_module("scpn_control.core.fusion_kernel")
         except ImportError as exc:
@@ -39,9 +38,16 @@ def _load_fusion_kernel() -> tuple[type[Any], bool]:
                 "or use `python -m scpn_control.control.director_interface`."
             ) from exc
         fusion_kernel_module = cast(Any, fusion_kernel)
-        return cast(type[Any], fusion_kernel_module.FusionKernel), False
+        return cast(type[Any], fusion_kernel_module.FusionKernel)
+
+    try:
+        rust_compat = import_module("scpn_control.core._rust_compat")
+    except ImportError:
+        return load_python_kernel(), False
     rust_compat_module = cast(Any, rust_compat)
-    return cast(type[Any], rust_compat_module.FusionKernel), bool(rust_compat_module.RUST_BACKEND)
+    if not hasattr(rust_compat_module, "FusionKernel"):
+        return load_python_kernel(), False
+    return cast(type[Any], rust_compat_module.FusionKernel), bool(getattr(rust_compat_module, "RUST_BACKEND", False))
 
 
 FusionKernel, RUST_BACKEND = _load_fusion_kernel()
