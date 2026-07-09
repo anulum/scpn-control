@@ -335,6 +335,7 @@ class PhaseStreamServer:
             "rate_limit_rejections": 0,
             "capacity_rejections": 0,
             "action_rejections": 0,
+            "malformed_frame_rejections": 0,
             "backpressure_disconnects": 0,
         }
 
@@ -349,7 +350,10 @@ class PhaseStreamServer:
     def _origin_allowed(self, websocket: Any) -> bool:
         origin = _get_header(websocket, "Origin")
         if origin is None:
-            return True
+            # A missing Origin header is only admissible when no allowlist is
+            # configured; otherwise a non-browser client could bypass the
+            # configured allowed_origins entirely.
+            return not self.allowed_origins
         return origin in self.allowed_origins
 
     def _authorised(self, websocket: Any) -> bool:
@@ -372,6 +376,7 @@ class PhaseStreamServer:
             "rate_limit_rejected": "rate_limit_rejections",
             "capacity_rejected": "capacity_rejections",
             "action_rejected": "action_rejections",
+            "frame_rejected": "malformed_frame_rejections",
         }.get(event)
         if counter is not None:
             self._bump_runtime_counter(counter)
@@ -437,8 +442,14 @@ class PhaseStreamServer:
                 try:
                     cmd = json.loads(msg)
                 except json.JSONDecodeError:
+                    self._audit_security_event(websocket, "frame_rejected", "malformed command frame")
+                    if not await self._send_response(websocket, {"error": "malformed_frame"}):
+                        break
                     continue
                 if not isinstance(cmd, dict):
+                    self._audit_security_event(websocket, "frame_rejected", "command frame is not an object")
+                    if not await self._send_response(websocket, {"error": "malformed_frame"}):
+                        break
                     continue
                 action = cmd.get("action")
                 if action not in self.allowed_actions:
@@ -536,8 +547,21 @@ class PhaseStreamServer:
             self._clients -= dead
             await asyncio.sleep(self.tick_interval_s)
 
+    def stop(self) -> None:
+        """Signal the broadcast tick loop to stop after its current iteration.
+
+        Idempotent. A running :meth:`serve` also cancels the tick loop on exit;
+        this method lets a caller request a graceful stop without cancelling the
+        server task.
+        """
+        self._running = False
+
     async def serve(self, host: str = "127.0.0.1", port: int = 8765, ssl_context: ssl.SSLContext | None = None) -> None:
-        """Start WebSocket server and tick loop."""
+        """Start WebSocket server and tick loop.
+
+        The broadcast tick loop is always cancelled and awaited when this method
+        returns or is cancelled, so no orphan task survives server shutdown.
+        """
         if self.require_client_auth and self.api_key is None:
             raise ValueError("api_key is required unless require_client_auth is disabled")
         if self.require_tls and ssl_context is None:
@@ -552,18 +576,24 @@ class PhaseStreamServer:
             raise ImportError("pip install websockets") from exc
 
         tick_task = asyncio.create_task(self._tick_loop())
-        async with websockets.serve(
-            self._handler,
-            host,
-            port,
-            ssl=ssl_context,
-            max_size=self.max_payload_bytes,
-            max_queue=4,
-            write_limit=self.max_client_write_buffer_bytes,
-        ):
-            scheme = "wss" if ssl_context is not None else "ws"
-            logger.info("Phase stream listening on %s://%s:%d", scheme, host, port)
-            await tick_task
+        try:
+            async with websockets.serve(
+                self._handler,
+                host,
+                port,
+                ssl=ssl_context,
+                max_size=self.max_payload_bytes,
+                max_queue=4,
+                write_limit=self.max_client_write_buffer_bytes,
+            ):
+                scheme = "wss" if ssl_context is not None else "ws"
+                logger.info("Phase stream listening on %s://%s:%d", scheme, host, port)
+                await tick_task
+        finally:
+            self._running = False
+            tick_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await tick_task
 
     def serve_sync(self, host: str = "127.0.0.1", port: int = 8765, ssl_context: ssl.SSLContext | None = None) -> None:
         """Blocking entry point."""

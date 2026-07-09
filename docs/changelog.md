@@ -7,8 +7,16 @@
   `GKCouplingGains` dataclass on `phase.gk_upde_bridge.adaptive_knm`, replacing
   the hard-coded turbulence/transport/pedestal gains and the diffusivity floor
   with documented, validated fields.
+- Added `PhaseStreamServer.stop()` to request a graceful shutdown of the
+  phase-stream broadcast tick loop.
 
 ### Changed
+- Hardened the phase-stream WebSocket: the `Origin` allowlist can no longer be
+  bypassed by a missing `Origin` header when origins are configured, malformed
+  and non-object command frames now return a `malformed_frame` error and
+  increment a `malformed_frame_rejections` counter instead of being dropped
+  silently, and `serve()` always cancels and awaits its broadcast tick loop on
+  exit so no orphan task survives shutdown.
 - `adaptive_knm` now logs a warning when handed a coupling matrix with fewer
   than six layers instead of silently returning it unmodulated.
 - Made the PyO3 crate testable in the Rust workspace: `scpn-control-rs` no

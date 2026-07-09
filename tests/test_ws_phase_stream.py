@@ -615,6 +615,84 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_handler_reports_malformed_json_frame(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS(["not-json", json.dumps({"action": "stop"})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "malformed_frame" in errors
+            assert server.runtime_counters()["malformed_frame_rejections"] == 1
+
+        asyncio.run(_run())
+
+    def test_handler_reports_non_object_frame(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps([1, 2, 3]), json.dumps({"action": "stop"})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "malformed_frame" in errors
+            assert server.runtime_counters()["malformed_frame_rejections"] == 1
+            assert mon.psi_driver == pytest.approx(0.0)
+
+        asyncio.run(_run())
+
+    def test_origin_rejected_when_missing_header_and_allowlist_configured(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
+        assert server._origin_allowed(_FakeWS(headers={})) is False
+
+    def test_origin_allowed_when_present_and_in_allowlist(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
+        assert server._origin_allowed(_FakeWS(headers={"Origin": "https://ui.example"})) is True
+
+    def test_origin_rejected_when_present_and_not_in_allowlist(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
+        assert server._origin_allowed(_FakeWS(headers={"Origin": "https://evil.example"})) is False
+
+    def test_stop_signals_tick_loop_to_halt(self):
+        mon = _make_monitor()
+        server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+        server._running = True
+        server.stop()
+        assert server._running is False
+
+    def test_serve_cancels_tick_task_on_cancellation(self, monkeypatch):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.01)
+
+            class _FakeServeCtx:
+                def __init__(self, *args, **kwargs):
+                    pass
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    return False
+
+            import types
+
+            fake_ws = types.ModuleType("websockets")
+            fake_ws.serve = _FakeServeCtx
+            monkeypatch.setitem(sys.modules, "websockets", fake_ws)
+
+            serve_task = asyncio.create_task(server.serve(port=9999))
+            await asyncio.sleep(0.03)
+            assert server._running is True
+            serve_task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await serve_task
+            assert server._running is False
+
+        asyncio.run(_run())
+
     def test_rate_limit_window_resets_after_configured_interval(self, monkeypatch):
         mon = _make_monitor()
         server = PhaseStreamServer(
@@ -1476,6 +1554,36 @@ def test_handler_breaks_when_rate_limit_response_fails():
 
         msg = json.dumps({"action": "set_psi", "value": 0.5})
         ws = _DeadSendWS([msg, msg], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_handler_breaks_when_malformed_frame_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        ws = _DeadSendWS(["not-json"], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_handler_breaks_when_non_object_frame_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        ws = _DeadSendWS([json.dumps([1, 2, 3])], headers=_AUTH_HEADERS)
         await server._handler(ws)
         assert ws not in server._clients
 
