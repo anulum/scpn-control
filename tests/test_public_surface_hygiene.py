@@ -47,6 +47,18 @@ def test_rejects_unsupported_uniqueness_claim() -> None:
     assert "unsupported uniqueness" in _categories("This path does not exist elsewhere for fusion.\n")
 
 
+def test_rejects_stale_notebook_output_path() -> None:
+    """The public tutorials must use the repository's artifact directory."""
+
+    assert "stale notebook output path" in _categories("--output-dir artefacts/notebook-exec\n")
+
+
+def test_accepts_current_notebook_output_path() -> None:
+    """The public tutorials may write executed notebooks under artifacts."""
+
+    assert scan_text("docs/tutorials.md", "--output-dir artifacts/notebook-exec\n") == []
+
+
 def test_accepts_bounded_negative_state_of_the_art_language() -> None:
     """Bounded negative comparison language is allowed."""
 

@@ -75,6 +75,7 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("unrivalled", re.compile(r"\bunrival(?:led|ed)\b", re.IGNORECASE)),
     ("crown jewel", re.compile(r"\bcrown jewel\b", re.IGNORECASE)),
     ("unsupported uniqueness", re.compile(r"\bdoes not exist elsewhere\b", re.IGNORECASE)),
+    ("stale notebook output path", re.compile(r"\bartefacts/notebook-exec\b")),
 )
 
 CHANGELOG_INTERNAL_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (

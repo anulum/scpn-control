@@ -94,7 +94,7 @@ compiled = FusionCompiler().compile(net)
 
 ```bash
 pip install -e ".[viz]" jupyter nbconvert
-jupyter nbconvert --to notebook --execute examples/q10_breakeven_demo.ipynb     --output-dir artefacts/notebook-exec
+jupyter nbconvert --to notebook --execute examples/q10_breakeven_demo.ipynb     --output-dir artifacts/notebook-exec
 ```
 
 Notebook outputs are demonstrations. Claim-bearing results must be captured by
