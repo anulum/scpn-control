@@ -136,8 +136,9 @@ The Python package is organised into four layers:
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE,
   Doyle 1989, Zhou 1996), $\mu$-synthesis (DK-iteration, Doyle 1982),
   NMPC (Rawlings 2017), gain-scheduled PID (Rugh-Shamma 2000),
-  shape controller (Ariola-Pironti 2008, ISOFLUX), safe RL (CPO with
-  control barrier functions, Ames 2017), sliding-mode vertical stability
+  shape controller (Ariola-Pironti 2008, ISOFLUX), safe RL (CPO-formulated
+  Lagrangian constraints with control barrier functions, Ames 2017),
+  sliding-mode vertical stability
   (Utkin 1992, Humphreys 2009), fault-tolerant FDIR (Blanke 2006),
   disruption prediction (Kates-Harbeck 2019 FRNN), SPI mitigation
   (Commaux 2010, Parks-Turnbull ablation), volt-second management

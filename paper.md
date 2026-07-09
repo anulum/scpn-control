@@ -148,8 +148,9 @@ The Python package is organised into four layers:
   artifact serialisation, FPGA HDL project export evidence.
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
   $\mu$-synthesis (D-K iteration), NMPC (SQP), gain-scheduled PID,
-  shape controller, safe RL (PPO with MHD constraint veto), sliding-mode
-  vertical stability, scenario scheduler, fault-tolerant control, digital
+  shape controller, safe RL (CPO-formulated Lagrangian constraints with
+  control barrier functions, Ames 2017), sliding-mode vertical stability,
+  scenario scheduler, fault-tolerant control, digital
   twin, flight simulator, Gymnasium environment, JAX-traceable runtime,
   ITER CODAC/EPICS interface, federated disruption prediction.
 

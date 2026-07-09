@@ -91,6 +91,22 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
             assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment}"
 
 
+def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
+    """Paper safe-RL wording must match the implemented controller surface."""
+
+    expected = "safe RL (CPO-formulated Lagrangian constraints with control barrier functions, Ames 2017)"
+    stale = "safe RL (PPO with MHD constraint veto)"
+    checked_paths = (
+        ROOT / "paper.md",
+        ROOT / "docs" / "joss_paper.md",
+    )
+
+    for path in checked_paths:
+        text = path.read_text(encoding="utf-8").replace("\n  ", " ")
+        assert expected in text, f"{path.relative_to(ROOT)} missing safe-RL implementation wording"
+        assert stale not in text, f"{path.relative_to(ROOT)} contains stale safe-RL veto wording"
+
+
 def test_neural_equilibrium_latency_claim_is_not_uncited() -> None:
     """Public neural-equilibrium docs must not repeat the uncited 0.39 ms claim."""
 
