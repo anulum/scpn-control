@@ -145,7 +145,7 @@ The Python package is organised into four layers:
   multi-layer solver, adaptive $K_{nm}$ engine with GK→UPDE bridge,
   Lyapunov guard, WebSocket real-time monitor.
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
-  artifact serialisation, FPGA bitstream export.
+  artifact serialisation, FPGA HDL project export evidence.
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
   $\mu$-synthesis (D-K iteration), NMPC (SQP), gain-scheduled PID,
   shape controller, safe RL (PPO with MHD constraint veto), sliding-mode

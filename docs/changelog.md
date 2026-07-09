@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Down-scoped the public FPGA surface from bitstream export to generated HDL
+  project/evidence export, preserving synthesis-evidence admission for any
+  future hardware claim.
 - Wired runtime-bound safety certificate admission into
   `NeuroSymbolicController`, including loaded-artifact topology matching,
   certificate/binding/target/replay fail-closed admission, and focused 100%

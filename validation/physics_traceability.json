@@ -2451,11 +2451,13 @@
       "unit_contract": "Fixed-point values use declared bit width and fractional-bit scale; clock in MHz, timestep in seconds, FIFO depth and neuron counts dimensionless, weights and thresholds quantised by explicit integer scale.",
       "validation_evidence": [
         "tests/test_fpga_export.py",
-        "tests/test_scpn_compiler.py"
+        "tests/test_scpn_compiler.py",
+        "tests/test_fpga_public_claim_boundary.py public-surface guard against FPGA bitstream export claims"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/fpga_export.py",
         "tests/test_fpga_export.py",
+        "tests/test_fpga_public_claim_boundary.py",
         "tests/test_scpn_compiler.py"
       ],
       "covered_source_paths": [

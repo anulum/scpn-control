@@ -7,17 +7,20 @@
 # ──────────────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — FPGA Bitstream Export
+# SCPN Control — FPGA HDL Project Export
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Export a CompiledNet to synthesisable HDL (Verilog / VHDL) for FPGA targets.
+Export a CompiledNet to generated HDL project files for FPGA toolchains.
 
-Generates a complete project directory with top-level module, weight ROM
-initialisation, timing constraints, and a Makefile for Vivado or Quartus.
+Generates a bounded project directory with HDL source, weight ROM
+initialisation, timing constraints, and a Makefile for Vivado or Quartus. The
+repository does not claim to emit a device bitstream; hardware claims require
+separate synthesis, timing, and bitstream evidence through
+``HDLExportEvidence``.
 """
 
 from __future__ import annotations
@@ -872,13 +875,16 @@ def export_bitstream_project(
     config: FPGAConfig,
     output_dir: Path,
 ) -> None:
-    """Write a complete FPGA project directory.
+    """Write a bounded FPGA HDL project directory.
 
     Creates:
         top.v / top.vhd — HDL source
         weights.mem     — weight ROM init
         constraints.xdc / constraints.sdc — timing
         Makefile        — synthesis flow
+
+    The historical function name is retained for API compatibility. This
+    function does not run a vendor toolchain or emit a device bitstream.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 

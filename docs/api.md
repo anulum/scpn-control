@@ -2095,6 +2095,11 @@ coverage.
 
 #### FPGA Export
 
+`scpn_control.scpn.fpga_export` writes bounded HDL project files and
+tamper-evident export evidence. It does not claim to emit a deployable FPGA
+bitstream. Facility or hardware claims require qualified synthesis report
+evidence through `assert_hdl_export_claim_admissible`.
+
 ::: scpn_control.scpn.fpga_export
 
 ::: scpn_control.scpn.fpga_export.HDLExportEvidence
