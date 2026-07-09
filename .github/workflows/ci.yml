@@ -408,12 +408,12 @@ jobs:
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
       - name: Download Python coverage data
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v6
         with:
           name: coverage-data-python
           path: artifacts/coverage/python
       - name: Download Rust-present coverage data
-        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0  # v6
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v6
         with:
           name: coverage-data-rust
           path: artifacts/coverage/rust
