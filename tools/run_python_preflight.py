@@ -1,10 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Run Python Preflight
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Fast Python preflight gate.
 
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ def _build_checks(
                     sys.executable,
                     "-m",
                     "pytest",
-                    "tests/test_version_metadata.py",
+                    "tests/test_project_metadata.py",
                     "-q",
                 ],
             )
@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--skip-version-metadata",
         action="store_true",
-        help="Skip tests/test_version_metadata.py",
+        help="Skip tests/test_project_metadata.py",
     )
     parser.add_argument(
         "--skip-notebook-quality",

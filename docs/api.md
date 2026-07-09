@@ -1166,12 +1166,21 @@ The admitted PID/SNN surface is also exact-linked: theorem modules, theorem
 names, linked production module paths, and safety-case identifiers must remain
 inside the expected PID/SNN namespaces and module paths instead of padding a
 valid report with unrelated evidence.
+`get_artifact_json_schema()` returns the current `.scpnctl.json` Draft-07
+schema from the same payload sections and dataclass field sets used by
+`save_artifact()` and `load_artifact()`. The schema declares the serialized
+`meta.firing_margin`, closed dense-weight and readout objects, the raw
+`data_u64` packed-weight form, the compact `u64-le-zlib-base64` packed-weight
+form, and the closed `formal_verification` manifest fields admitted by the
+runtime validator.
 
 ::: scpn_control.scpn.artifact.Artifact
 
 ::: scpn_control.scpn.artifact.FormalVerificationEvidence
 
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
+
+::: scpn_control.scpn.artifact.get_artifact_json_schema
 
 ::: scpn_control.scpn.artifact.save_artifact
 

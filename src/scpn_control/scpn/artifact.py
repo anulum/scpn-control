@@ -21,9 +21,9 @@ import hashlib
 import json
 import math
 import zlib
-from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
 from collections.abc import Callable
+from dataclasses import MISSING, dataclass, fields
+from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List
 
 from scpn_control.scpn.lean_verification import (
@@ -45,6 +45,8 @@ MAX_PACKED_WORDS = 10_000_000
 MAX_DECOMPRESSED_BYTES = MAX_PACKED_WORDS * 8
 MAX_COMPRESSED_BYTES = 50_000_000
 FORMAL_VERIFICATION_BACKENDS = {"explicit-state", "lean4", "z3"}
+SHA256_HEX_PATTERN = "^[0-9a-fA-F]{64}$"
+SAFE_RELATIVE_PATH_PATTERN = r"^(?!/|~|file:|.*://)(?!.*(?:^|/)\.\.(?:/|$))(?!.*\\).+"
 
 
 # ── Sub-structures ──────────────────────────────────────────────────────────
@@ -396,6 +398,31 @@ class FormalVerificationEvidence:
 FORMAL_VERIFICATION_ALLOWED_FIELDS = frozenset(FormalVerificationEvidence.__dataclass_fields__)
 
 
+def _required_dataclass_field_names(dataclass_type: Any) -> tuple[str, ...]:
+    """Return dataclass field names that have no default value."""
+
+    return tuple(
+        field.name for field in fields(dataclass_type) if field.default is MISSING and field.default_factory is MISSING
+    )
+
+
+ARTIFACT_META_REQUIRED_FIELDS = tuple(field.name for field in fields(ArtifactMeta) if field.name != "notes")
+FIXED_POINT_REQUIRED_FIELDS = _required_dataclass_field_names(FixedPoint)
+SEED_POLICY_REQUIRED_FIELDS = _required_dataclass_field_names(SeedPolicy)
+COMPILER_REQUIRED_FIELDS = _required_dataclass_field_names(CompilerInfo)
+PLACE_SPEC_REQUIRED_FIELDS = _required_dataclass_field_names(PlaceSpec)
+TRANSITION_SPEC_REQUIRED_FIELDS = tuple(field.name for field in fields(TransitionSpec) if field.name != "margin")
+WEIGHT_MATRIX_REQUIRED_FIELDS = _required_dataclass_field_names(WeightMatrix)
+PACKED_WEIGHT_REQUIRED_RAW_FIELDS = ("shape", "data_u64")
+PACKED_WEIGHT_REQUIRED_COMPACT_FIELDS = ("shape", "encoding", "count", "data_u64_b64_zlib")
+PACKED_WEIGHTS_GROUP_REQUIRED_FIELDS = ("words_per_stream", "w_in_packed")
+ACTION_READOUT_REQUIRED_FIELDS = _required_dataclass_field_names(ActionReadout)
+READOUT_REQUIRED_FIELDS = _required_dataclass_field_names(Readout)
+PLACE_INJECTION_REQUIRED_FIELDS = _required_dataclass_field_names(PlaceInjection)
+INITIAL_STATE_REQUIRED_FIELDS = _required_dataclass_field_names(InitialState)
+FORMAL_VERIFICATION_REQUIRED_FIELDS = _required_dataclass_field_names(FormalVerificationEvidence)
+
+
 # ── Artifact ────────────────────────────────────────────────────────────────
 
 
@@ -419,6 +446,11 @@ class Artifact:
     def nT(self) -> int:
         """Number of transitions in the topology."""
         return len(self.topology.transitions)
+
+
+ARTIFACT_PAYLOAD_REQUIRED_SECTIONS = tuple(
+    field.name for field in fields(Artifact) if field.name != "formal_verification"
+)
 
 
 # ── Validation ──────────────────────────────────────────────────────────────
@@ -1279,143 +1311,268 @@ def load_artifact(
     return artifact
 
 
-def get_artifact_json_schema() -> Dict[str, Any]:
-    """Return the formal JSON schema for .scpnctl.json artifacts.
+def _object_schema(
+    properties: dict[str, Any],
+    required: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """Return a closed JSON object schema with deterministic required order."""
 
-    Used by downstream tools to validate SNN compilation results before
-    deployment to the sc-neurocore FPGA backend.
-    """
     return {
-        "$schema": "http://json-schema.org/draft-07/schema#",
-        "title": "SCPN Controller Artifact",
         "type": "object",
-        "required": ["meta", "topology", "weights", "readout", "initial_state"],
-        "properties": {
-            "meta": {
-                "type": "object",
-                "required": ["artifact_version", "name", "stream_length", "firing_margin"],
-                "properties": {
-                    "artifact_version": {"type": "string"},
-                    "name": {"type": "string"},
-                    "dt_control_s": {"type": "number"},
-                    "stream_length": {"type": "integer"},
-                    "firing_margin": {"type": "number", "minimum": 0},
-                    "fixed_point": {
-                        "type": "object",
-                        "properties": {
-                            "data_width": {"type": "integer"},
-                            "fraction_bits": {"type": "integer"},
-                            "signed": {"type": "boolean"},
-                        },
-                    },
+        "additionalProperties": False,
+        "required": list(required),
+        "properties": properties,
+    }
+
+
+def _array_schema(
+    items: dict[str, Any],
+    *,
+    min_items: int | None = None,
+    max_items: int | None = None,
+) -> dict[str, Any]:
+    """Return a JSON array schema with optional cardinality bounds."""
+
+    schema: dict[str, Any] = {"type": "array", "items": items}
+    if min_items is not None:
+        schema["minItems"] = min_items
+    if max_items is not None:
+        schema["maxItems"] = max_items
+    return schema
+
+
+def _non_empty_string_schema(**extras: Any) -> dict[str, Any]:
+    """Return a string schema that rejects empty values."""
+
+    schema: dict[str, Any] = {"type": "string", "minLength": 1}
+    schema.update(extras)
+    return schema
+
+
+def _non_empty_string_array_schema(**extras: Any) -> dict[str, Any]:
+    """Return a non-empty array schema for string-list validation fields."""
+
+    return _array_schema(_non_empty_string_schema(**extras), min_items=1)
+
+
+def _packed_weight_schema() -> dict[str, Any]:
+    """Return the raw-or-compact packed-weight payload schema."""
+
+    shape_schema = _array_schema({"type": "integer", "minimum": 0}, min_items=3, max_items=3)
+    raw_schema = _object_schema(
+        {
+            "shape": shape_schema,
+            "data_u64": _array_schema({"type": "integer", "minimum": 0, "maximum": 2**64 - 1}),
+        },
+        PACKED_WEIGHT_REQUIRED_RAW_FIELDS,
+    )
+    compact_schema = _object_schema(
+        {
+            "shape": shape_schema,
+            "encoding": {"type": "string", "const": "u64-le-zlib-base64"},
+            "count": {"type": "integer", "minimum": 0, "maximum": MAX_PACKED_WORDS},
+            "data_u64_b64_zlib": _non_empty_string_schema(),
+        },
+        PACKED_WEIGHT_REQUIRED_COMPACT_FIELDS,
+    )
+    return {"oneOf": [raw_schema, compact_schema]}
+
+
+def _formal_verification_schema() -> dict[str, Any]:
+    """Return the proof-manifest schema derived from evidence dataclass fields."""
+
+    properties: dict[str, Any] = {
+        "required": {"type": "boolean"},
+        "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
+        "backend": {"type": "string", "enum": sorted(FORMAL_VERIFICATION_BACKENDS)},
+        "solver": _non_empty_string_schema(),
+        "max_depth": {"type": "integer", "minimum": 0},
+        "checked_specs": _non_empty_string_array_schema(),
+        "artifact_sha256": _non_empty_string_schema(pattern=SHA256_HEX_PATTERN),
+        "report_sha256": _non_empty_string_schema(pattern=SHA256_HEX_PATTERN),
+        "claim_boundary": _non_empty_string_schema(),
+        "report_uri": _non_empty_string_schema(pattern=SAFE_RELATIVE_PATH_PATTERN),
+        "generated_utc": _non_empty_string_schema(),
+        "counterexample_path": _non_empty_string_array_schema(),
+        "counterexample_property": _non_empty_string_schema(),
+        "lean_version": _non_empty_string_schema(),
+        "lakefile_sha256": _non_empty_string_schema(pattern=SHA256_HEX_PATTERN),
+        "proof_source_sha256": _non_empty_string_schema(pattern=SHA256_HEX_PATTERN),
+        "theorem_names": _non_empty_string_array_schema(),
+        "theorem_modules": _non_empty_string_array_schema(),
+        "proved_contracts": _non_empty_string_array_schema(),
+        "module_paths": _non_empty_string_array_schema(pattern=SAFE_RELATIVE_PATH_PATTERN),
+        "safety_case_ids": _non_empty_string_array_schema(),
+        "proof_assumptions": _non_empty_string_array_schema(),
+        "assumption_sha256": _non_empty_string_schema(pattern=SHA256_HEX_PATTERN),
+    }
+    if set(properties) != FORMAL_VERIFICATION_ALLOWED_FIELDS:
+        missing = sorted(FORMAL_VERIFICATION_ALLOWED_FIELDS.difference(properties))
+        extra = sorted(set(properties).difference(FORMAL_VERIFICATION_ALLOWED_FIELDS))
+        raise RuntimeError(f"formal_verification schema drift: missing={missing}, extra={extra}")
+    return _object_schema(properties, FORMAL_VERIFICATION_REQUIRED_FIELDS)
+
+
+def get_artifact_json_schema() -> Dict[str, Any]:
+    """Return the JSON schema for current ``.scpnctl.json`` artifact payloads.
+
+    Returns
+    -------
+    dict[str, Any]
+        Draft-07 JSON schema generated from the same dataclass fields,
+        serializer sections, packed-weight codec variants, and formal-proof
+        evidence field set admitted by ``load_artifact()`` and
+        ``save_artifact()``.
+    """
+
+    non_negative_unit_interval = {"type": "number", "minimum": 0, "maximum": 1}
+    non_negative_number = {"type": "number", "minimum": 0}
+    fixed_point_schema = _object_schema(
+        {
+            "data_width": {"type": "integer", "minimum": 1},
+            "fraction_bits": {"type": "integer", "minimum": 0},
+            "signed": {"type": "boolean"},
+        },
+        FIXED_POINT_REQUIRED_FIELDS,
+    )
+    seed_policy_schema = _object_schema(
+        {
+            "id": _non_empty_string_schema(),
+            "hash_fn": _non_empty_string_schema(),
+            "rng_family": _non_empty_string_schema(),
+        },
+        SEED_POLICY_REQUIRED_FIELDS,
+    )
+    compiler_schema = _object_schema(
+        {
+            "name": _non_empty_string_schema(),
+            "version": _non_empty_string_schema(),
+            "git_sha": _non_empty_string_schema(),
+        },
+        COMPILER_REQUIRED_FIELDS,
+    )
+    place_schema = _object_schema(
+        {"id": {"type": "integer", "minimum": 0}, "name": _non_empty_string_schema()},
+        PLACE_SPEC_REQUIRED_FIELDS,
+    )
+    transition_schema = _object_schema(
+        {
+            "id": {"type": "integer", "minimum": 0},
+            "name": _non_empty_string_schema(),
+            "threshold": non_negative_unit_interval,
+            "margin": non_negative_number,
+            "delay_ticks": {"type": "integer", "minimum": 0},
+        },
+        TRANSITION_SPEC_REQUIRED_FIELDS,
+    )
+    weight_matrix_schema = _object_schema(
+        {
+            "shape": _array_schema({"type": "integer", "minimum": 0}, min_items=2, max_items=2),
+            "data": _array_schema(non_negative_unit_interval),
+        },
+        WEIGHT_MATRIX_REQUIRED_FIELDS,
+    )
+    packed_group_schema = _object_schema(
+        {
+            "words_per_stream": {"type": "integer", "minimum": 1},
+            "w_in_packed": {"$ref": "#/definitions/packed_weight"},
+            "w_out_packed": {"$ref": "#/definitions/packed_weight"},
+        },
+        PACKED_WEIGHTS_GROUP_REQUIRED_FIELDS,
+    )
+    action_schema = _object_schema(
+        {
+            "id": {"type": "integer", "minimum": 0},
+            "name": _non_empty_string_schema(),
+            "pos_place": {"type": "integer", "minimum": 0},
+            "neg_place": {"type": "integer", "minimum": 0},
+        },
+        ACTION_READOUT_REQUIRED_FIELDS,
+    )
+    place_injection_schema = _object_schema(
+        {
+            "place_id": {"type": "integer", "minimum": 0},
+            "source": _non_empty_string_schema(),
+            "scale": {"type": "number"},
+            "offset": {"type": "number"},
+            "clamp_0_1": {"type": "boolean"},
+        },
+        PLACE_INJECTION_REQUIRED_FIELDS,
+    )
+    formal_verification_schema = _formal_verification_schema()
+    schema: dict[str, Any] = _object_schema(
+        {
+            "meta": _object_schema(
+                {
+                    "artifact_version": {"type": "string", "const": ARTIFACT_SCHEMA_VERSION},
+                    "name": _non_empty_string_schema(),
+                    "dt_control_s": {"type": "number", "exclusiveMinimum": 0},
+                    "stream_length": {"type": "integer", "minimum": 1},
+                    "fixed_point": fixed_point_schema,
+                    "firing_mode": {"type": "string", "enum": ["binary", "fractional"]},
+                    "firing_margin": non_negative_number,
+                    "seed_policy": seed_policy_schema,
+                    "created_utc": _non_empty_string_schema(),
+                    "compiler": compiler_schema,
+                    "notes": {"type": "string"},
                 },
-            },
-            "topology": {
-                "type": "object",
-                "properties": {
-                    "places": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "integer"},
-                                "name": {"type": "string"},
-                            },
-                        },
-                    },
-                    "transitions": {
-                        "type": "array",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "id": {"type": "integer"},
-                                "name": {"type": "string"},
-                                "threshold": {"type": "number"},
-                            },
-                        },
-                    },
+                ARTIFACT_META_REQUIRED_FIELDS,
+            ),
+            "topology": _object_schema(
+                {
+                    "places": _array_schema(place_schema),
+                    "transitions": _array_schema(transition_schema),
                 },
-            },
-            "weights": {
-                "type": "object",
-                "properties": {
+                ("places", "transitions"),
+            ),
+            "weights": _object_schema(
+                {
                     "w_in": {"$ref": "#/definitions/weight_matrix"},
                     "w_out": {"$ref": "#/definitions/weight_matrix"},
-                    "packed": {
-                        "type": "object",
-                        "properties": {
-                            "shape": {"type": "array", "items": {"type": "integer"}},
-                            "data_b64": {"type": "string"},
+                    "packed": packed_group_schema,
+                },
+                ("w_in", "w_out"),
+            ),
+            "readout": _object_schema(
+                {
+                    "actions": _array_schema(action_schema),
+                    "gains": _object_schema(
+                        {"per_action": _array_schema({"type": "number"})},
+                        ("per_action",),
+                    ),
+                    "limits": _object_schema(
+                        {
+                            "per_action_abs_max": _array_schema(non_negative_number),
+                            "slew_per_s": _array_schema(non_negative_number),
                         },
-                    },
+                        ("per_action_abs_max", "slew_per_s"),
+                    ),
                 },
-            },
-            "readout": {
-                "type": "object",
-                "properties": {
-                    "actions": {"type": "array"},
-                    "gains": {"type": "object"},
-                    "limits": {"type": "object"},
+                ("actions", "gains", "limits"),
+            ),
+            "initial_state": _object_schema(
+                {
+                    "marking": _array_schema(non_negative_unit_interval),
+                    "place_injections": _array_schema(place_injection_schema),
                 },
-            },
-            "initial_state": {
-                "type": "object",
-                "properties": {
-                    "marking": {"type": "array", "items": {"type": "number"}},
-                    "place_injections": {"type": "array"},
-                },
-            },
-            "formal_verification": {
-                "type": "object",
-                "additionalProperties": False,
-                "required": [
-                    "required",
-                    "status",
-                    "backend",
-                    "solver",
-                    "max_depth",
-                    "checked_specs",
-                    "artifact_sha256",
-                    "report_sha256",
-                    "claim_boundary",
-                ],
-                "properties": {
-                    "required": {"type": "boolean"},
-                    "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
-                    "backend": {"type": "string", "enum": sorted(FORMAL_VERIFICATION_BACKENDS)},
-                    "solver": {"type": "string"},
-                    "max_depth": {"type": "integer", "minimum": 0},
-                    "checked_specs": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "artifact_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-                    "report_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-                    "claim_boundary": {"type": "string"},
-                    "report_uri": {"type": "string"},
-                    "generated_utc": {"type": "string"},
-                    "counterexample_path": {"type": "array", "items": {"type": "string"}},
-                    "counterexample_property": {"type": "string"},
-                    "lean_version": {"type": "string"},
-                    "lakefile_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-                    "proof_source_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-                    "theorem_names": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "theorem_modules": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "proved_contracts": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "module_paths": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "safety_case_ids": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "proof_assumptions": {"type": "array", "items": {"type": "string"}, "minItems": 1},
-                    "assumption_sha256": {"type": "string", "pattern": "^[0-9a-fA-F]{64}$"},
-                },
-            },
+                INITIAL_STATE_REQUIRED_FIELDS,
+            ),
+            "formal_verification": formal_verification_schema,
         },
-        "definitions": {
-            "weight_matrix": {
-                "type": "object",
-                "properties": {
-                    "shape": {"type": "array", "items": {"type": "integer"}},
-                    "data": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 1}},
-                },
-            }
-        },
-    }
+        ARTIFACT_PAYLOAD_REQUIRED_SECTIONS,
+    )
+    schema.update(
+        {
+            "$schema": "http://json-schema.org/draft-07/schema#",
+            "title": "SCPN Controller Artifact",
+            "definitions": {
+                "weight_matrix": weight_matrix_schema,
+                "packed_weight": _packed_weight_schema(),
+                "formal_verification": formal_verification_schema,
+            },
+        }
+    )
+    return schema
 
 
 def save_artifact(
