@@ -1290,6 +1290,11 @@ reports that omit it are rejected before safety-critical artifact admission.
 
 ::: scpn_control.phase.kuramoto.lyapunov_exponent
 
+`lyapunov_exponent()` validates a positive finite `dt` and finite,
+non-negative `V(t)` samples. Its heuristic floors only the initial and final
+sample at `LYAPUNOV_VALUE_FLOOR` before the log ratio, then divides by
+`(n_samples - 1) * dt` because the input is a sampled state history.
+
 ::: scpn_control.phase.kuramoto.wrap_phase
 
 ::: scpn_control.phase.kuramoto.GlobalPsiDriver

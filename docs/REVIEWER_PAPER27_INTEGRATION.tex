@@ -378,6 +378,11 @@ The Lyapunov exponent is:
   \lambda = \frac{1}{T}\ln\frac{V(T)}{V(0)}, \qquad \lambda < 0 \implies \text{stable}
 \end{equation}
 
+Here $T = (n_{\mathrm{samples}} - 1)\Delta t$ for the sampled $V(t)$ history;
+the implementation validates finite non-negative samples and floors only the
+initial and final endpoints near perfect synchrony before evaluating the log
+ratio.
+
 Both functions implemented in Python (\texttt{lyapunov\_v}, \texttt{lyapunov\_exponent}
 in \texttt{kuramoto.py}) and Rust (\texttt{lyapunov\_v}, \texttt{kuramoto\_run\_lyapunov}
 in \texttt{kuramoto.rs}).

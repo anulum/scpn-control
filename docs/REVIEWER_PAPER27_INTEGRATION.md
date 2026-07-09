@@ -382,11 +382,13 @@ Demo: notebook §9 (SNN closed-loop) and §10 (PAC cross-layer SNN).
 from scpn_control.phase import lyapunov_v, lyapunov_exponent
 
 V = lyapunov_v(theta, psi)                # scalar ∈ [0, 2]
-lam = lyapunov_exponent(v_hist, dt=1e-3)  # λ = (1/T)·ln(V_f/V_0)
+lam = lyapunov_exponent(v_hist, dt=1e-3)  # T = (len(v_hist)-1)·dt
 # λ < 0 ⟹ stable convergence toward Ψ
 ```
 
-Matches `control-math/kuramoto.rs::lyapunov_v` and `kuramoto_run_lyapunov`.
+The exponent helper validates finite non-negative samples, floors only the
+initial and final endpoints near perfect synchrony, and matches
+`control-math/kuramoto.rs::lyapunov_v` and `kuramoto_run_lyapunov`.
 
 ### 9.2 UPDE Lyapunov Tracking
 

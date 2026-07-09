@@ -18,6 +18,8 @@
 use ndarray::Array1;
 use rayon::prelude::*;
 
+const LYAPUNOV_VALUE_FLOOR: f64 = 1.0e-15;
+
 /// Kuramoto order parameter: R·exp(i·ψ_r) = (1/N)·Σ exp(i·θ_j).
 /// Returns (R, ψ_r).
 pub fn order_parameter(theta: &[f64]) -> (f64, f64) {
@@ -139,7 +141,8 @@ pub fn lyapunov_v(theta: &[f64], psi: f64) -> f64 {
 
 /// Run N steps with Lyapunov tracking.
 /// Returns (final_theta, r_hist, v_hist, lyapunov_exponent).
-/// Lyapunov exponent λ = (1/T) · ln(V_final / V_initial).
+/// Lyapunov exponent λ = (1/T) · ln(V_final / V_initial), with endpoint
+/// values floored and T measured across sampled states as (n_samples - 1)·dt.
 /// λ < 0 ⟹ stable convergence toward Ψ.
 #[allow(clippy::too_many_arguments)]
 pub fn kuramoto_run_lyapunov(
@@ -152,9 +155,13 @@ pub fn kuramoto_run_lyapunov(
     zeta: f64,
     psi_external: Option<f64>,
 ) -> (Array1<f64>, Vec<f64>, Vec<f64>, f64) {
+    assert!(dt.is_finite() && dt > 0.0, "dt must be positive and finite");
     let mut theta = theta_init.to_vec();
     let mut r_hist = Vec::with_capacity(n_steps);
     let mut v_hist = Vec::with_capacity(n_steps);
+    let initial_psi = psi_external.unwrap_or_else(|| order_parameter(&theta).1);
+    let mut lambda_v_hist = Vec::with_capacity(n_steps + 1);
+    lambda_v_hist.push(lyapunov_v(&theta, initial_psi));
 
     for _ in 0..n_steps {
         let res = kuramoto_sakaguchi_step(&theta, omega, dt, k, alpha, zeta, psi_external);
@@ -163,12 +170,26 @@ pub fn kuramoto_run_lyapunov(
         theta = res.theta.to_vec();
         r_hist.push(res.r);
         v_hist.push(v);
+        lambda_v_hist.push(v);
     }
 
-    let t_total = n_steps as f64 * dt;
-    let v0 = v_hist.first().copied().unwrap_or(1.0).max(1e-15);
-    let vf = v_hist.last().copied().unwrap_or(1.0).max(1e-15);
-    let lyap_exp = (vf / v0).ln() / t_total;
+    let elapsed_intervals = lambda_v_hist.len().saturating_sub(1);
+    let lyap_exp = if elapsed_intervals == 0 {
+        0.0
+    } else {
+        let t_total = elapsed_intervals as f64 * dt;
+        let v0 = lambda_v_hist
+            .first()
+            .copied()
+            .unwrap_or(1.0)
+            .max(LYAPUNOV_VALUE_FLOOR);
+        let vf = lambda_v_hist
+            .last()
+            .copied()
+            .unwrap_or(1.0)
+            .max(LYAPUNOV_VALUE_FLOOR);
+        (vf / v0).ln() / t_total
+    };
 
     (Array1::from_vec(theta), r_hist, v_hist, lyap_exp)
 }
@@ -442,5 +463,26 @@ mod tests {
         assert_eq!(v_hist.len(), 500);
         // λ < 0 ⟹ V is decreasing ⟹ stable convergence
         assert!(lyap_exp < 0.0, "lyap_exp = {lyap_exp}, expected < 0");
+    }
+
+    #[test]
+    fn test_lyapunov_exponent_zero_without_steps() {
+        let theta = vec![0.0, 0.1, 0.2];
+        let omega = vec![0.0, 0.0, 0.0];
+        let (_, r_hist, v_hist, lyap_exp) =
+            kuramoto_run_lyapunov(&theta, &omega, 0, 0.01, 0.0, 0.0, 0.0, None);
+
+        assert!(r_hist.is_empty());
+        assert!(v_hist.is_empty());
+        assert_eq!(lyap_exp, 0.0);
+    }
+
+    #[test]
+    #[should_panic(expected = "dt must be positive and finite")]
+    fn test_lyapunov_exponent_rejects_invalid_dt() {
+        let theta = vec![0.0, 0.1, 0.2];
+        let omega = vec![0.0, 0.0, 0.0];
+
+        let _ = kuramoto_run_lyapunov(&theta, &omega, 1, 0.0, 0.0, 0.0, 0.0, None);
     }
 }

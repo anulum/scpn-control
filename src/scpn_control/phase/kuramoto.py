@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 KURAMOTO_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.kuramoto-runtime-evidence.v1"
 KURAMOTO_RUNTIME_EVIDENCE_BOUNDED = "bounded_python_timestep_evidence_only"
 KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED = "qualified_kuramoto_runtime_evidence"
+LYAPUNOV_VALUE_FLOOR = 1.0e-15
 
 # Rust fast-path (sub-ms for N > 1000)
 try:
@@ -322,13 +323,31 @@ def lyapunov_v(theta: FloatArray, psi: float) -> float:
 
 
 def lyapunov_exponent(v_hist: Sequence[float], dt: float) -> float:
-    """λ = (1/T) · ln(V_final / V_initial).  λ < 0 ⟹ stable."""
-    if len(v_hist) < 2:
+    """Estimate the finite-history Lyapunov change rate.
+
+    The input is a sequence of sampled, non-negative Lyapunov candidate
+    values.  Endpoint values are floored at ``LYAPUNOV_VALUE_FLOOR`` before
+    taking the log ratio, which keeps the heuristic finite near perfect
+    synchrony.  The elapsed time is ``(n_samples - 1) * dt`` because the
+    history contains sampled states rather than elapsed intervals.
+    """
+    dt_value = _positive_float("dt", dt)
+    try:
+        values = np.asarray(v_hist, dtype=np.float64)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("v_hist must contain finite numeric values") from exc
+    if values.ndim != 1:
+        raise ValueError("v_hist must be a 1D sequence")
+    if values.size < 2:
         return 0.0
-    v0 = max(v_hist[0], 1e-15)
-    vf = max(v_hist[-1], 1e-15)
-    T = len(v_hist) * dt
-    return float(np.log(vf / v0) / T)
+    if not np.isfinite(values).all():
+        raise ValueError("v_hist must contain only finite values")
+    if np.any(values < 0.0):
+        raise ValueError("v_hist must contain only non-negative values")
+    v0 = max(float(values[0]), LYAPUNOV_VALUE_FLOOR)
+    vf = max(float(values[-1]), LYAPUNOV_VALUE_FLOOR)
+    elapsed = (values.size - 1) * dt_value
+    return float(np.log(vf / v0) / elapsed)
 
 
 def kuramoto_sakaguchi_step(

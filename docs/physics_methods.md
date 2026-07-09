@@ -505,8 +505,12 @@ $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \
   order-parameter branch are checked against the exact mean-field Lorentzian
   results — critical coupling `Kc(α) = 2γ/cos α` and `R∞(K) = sqrt(1 − Kc/K)` —
   in `validation/validate_kuramoto_synchronisation.py`, with tests in
-  `tests/test_kuramoto_synchronisation_validation.py`. This validates the
-  synchronisation physics only; it is not a validated plasma-phase control law.
+  `tests/test_kuramoto_synchronisation_validation.py`. The accompanying
+  Lyapunov exponent helper validates positive finite timesteps and finite,
+  non-negative sampled histories; it floors endpoint values before applying
+  `ln(V_final/V_initial)` and measures elapsed time as
+  `(n_samples - 1) * dt`. This validates the synchronisation physics only; it is
+  not a validated plasma-phase control law.
 
 ### What this section is for
 
