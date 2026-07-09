@@ -39,7 +39,7 @@ KURAMOTO_RUNTIME_EVIDENCE_BOUNDED = "bounded_python_timestep_evidence_only"
 KURAMOTO_RUNTIME_EVIDENCE_QUALIFIED = "qualified_kuramoto_runtime_evidence"
 LYAPUNOV_VALUE_FLOOR = 1.0e-15
 
-# Rust fast-path (sub-ms for N > 1000)
+# Optional Rust backend for wrapped phase updates.
 try:
     from scpn_control_rs import kuramoto_step as _rust_step
 
@@ -366,7 +366,7 @@ def kuramoto_sakaguchi_step(
 
     dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
 
-    Uses Rust backend when available (rayon-parallelised, sub-ms for N>1000).
+    Uses the optional Rust backend when available for wrapped phase updates.
     """
     th = np.asarray(theta, dtype=np.float64)
     om = np.asarray(omega, dtype=np.float64)

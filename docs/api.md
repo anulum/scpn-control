@@ -1284,6 +1284,10 @@ reports that omit it are rejected before safety-critical artifact admission.
 
 ::: scpn_control.phase.kuramoto.kuramoto_sakaguchi_step
 
+`kuramoto_sakaguchi_step()` may dispatch to the optional Rust backend for
+wrapped phase updates. Treat latency as benchmark-context evidence; source
+comments and docstrings do not make fixed timing claims.
+
 ::: scpn_control.phase.kuramoto.order_parameter
 
 ::: scpn_control.phase.kuramoto.lyapunov_v
