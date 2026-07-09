@@ -62,6 +62,11 @@ site/
 validation/reports/code_to_code_benchmark.json
 validation/reports/code_to_code_benchmark.md
 
+# Optional native solver build outputs
+src/scpn_control/core/bin/
+src/scpn_control/core/libscpn_solver.so
+src/scpn_control/core/scpn_solver.dll
+
 # Streamlit (allow config.toml for Cloud deployment)
 .streamlit/secrets.toml
 

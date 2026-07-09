@@ -110,6 +110,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "scpn_control.scpn" = ["replay_schemas/*.json"]
+"scpn_control.core" = ["solver.cpp", "solver_manifest.json"]
 
 [tool.mypy]
 strict = true

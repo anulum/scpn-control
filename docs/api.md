@@ -350,6 +350,10 @@ environment, rejects symlinked solver inputs and output targets, compiles to a
 temporary package-local file, and publishes the shared library atomically after
 the compiler produced a regular file.
 
+The source and checksum manifest are shipped as `scpn_control.core` package
+data. Compiled `bin/libscpn_solver.so` or `bin/scpn_solver.dll` outputs are
+operator-local build products and are not committed.
+
 External runtime solver libraries remain blocked unless
 `SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1` is set for a vetted absolute path. The
 default path searches package-local solver locations only.

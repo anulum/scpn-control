@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Shipped the native Grad-Shafranov solver source and checksum manifest as
+  `scpn_control.core` package data, with opt-in compile/load regression coverage
+  for the package-local bridge path.
 - Down-scoped the public FPGA surface from bitstream export to generated HDL
   project/evidence export, preserving synthesis-evidence admission for any
   future hardware claim.
