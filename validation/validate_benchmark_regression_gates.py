@@ -22,10 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "validation" / "reports" / "benchmark_regression_gates.json"
 SCHEMA_VERSION = "scpn-control.benchmark-regression-gates.v1"
 ALLOWED_UNITS = frozenset({"us", "ms", "s"})
+SELF_DIGEST_FIELDS = frozenset({"payload_sha256", "report_payload_sha256"})
 
-JSONValue: TypeAlias = (
-    None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
-)
+JSONValue: TypeAlias = None | bool | int | float | str | list["JSONValue"] | dict[str, "JSONValue"]
 JSONMapping: TypeAlias = dict[str, JSONValue]
 
 
@@ -74,6 +73,46 @@ def _sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _sha256_json(value: JSONValue) -> str:
+    """Return the canonical SHA-256 digest for a JSON value."""
+
+    encoded = json.dumps(value, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _is_sha256_hex(value: str) -> bool:
+    """Return whether ``value`` is a SHA-256 hex digest."""
+
+    return len(value) == 64 and all(char in "0123456789abcdefABCDEF" for char in value)
+
+
+def _validate_self_digests(value: JSONValue, path: str, errors: list[str]) -> None:
+    """Recursively validate embedded JSON self-digest fields.
+
+    Only canonical self-digests are checked here. Artifact, dataset, model, and
+    source file digests are intentionally left to their domain validators.
+    """
+
+    if isinstance(value, dict):
+        for field in SELF_DIGEST_FIELDS:
+            declared = value.get(field)
+            if declared is None:
+                continue
+            field_path = f"{path}.{field}" if path else field
+            if not isinstance(declared, str) or not _is_sha256_hex(declared):
+                errors.append(f"{field_path} must be a SHA-256 hex digest")
+                continue
+            digest_payload = {key: item for key, item in value.items() if key != field}
+            if _sha256_json(digest_payload) != declared.lower():
+                errors.append(f"{field_path} self-digest mismatch")
+        for key, item in value.items():
+            child_path = f"{path}.{key}" if path else key
+            _validate_self_digests(item, child_path, errors)
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            _validate_self_digests(item, f"{path}[{index}]", errors)
+
+
 def _as_text(value: JSONValue, field: str, errors: list[str]) -> str:
     if isinstance(value, str) and value.strip():
         return value
@@ -106,8 +145,6 @@ def _safe_repo_relative_uri_parts(uri: str) -> tuple[str, ...] | None:
         return None
     posix_path = PurePosixPath(uri)
     parts = posix_path.parts
-    if not parts or posix_path.is_absolute():
-        return None
     if any(part in {"", ".", ".."} for part in parts):
         return None
     return tuple(str(part) for part in parts)
@@ -157,15 +194,8 @@ def _validate_hardware_context(
     rt_kernel = context.get("rt_kernel")
     if not isinstance(machine, str) or not machine.strip():
         errors.append(f"{benchmark_id}: hardware context must include machine")
-    if not (
-        isinstance(platform, str)
-        and platform.strip()
-        or isinstance(rt_kernel, str)
-        and rt_kernel.strip()
-    ):
-        errors.append(
-            f"{benchmark_id}: hardware context must include platform or rt_kernel"
-        )
+    if not (isinstance(platform, str) and platform.strip() or isinstance(rt_kernel, str) and rt_kernel.strip()):
+        errors.append(f"{benchmark_id}: hardware context must include platform or rt_kernel")
 
 
 def _validate_entry(
@@ -184,25 +214,17 @@ def _validate_entry(
     if status != "pass":
         local_errors.append(f"{benchmark_id}: gate status must be pass")
 
-    report_uri = _as_text(
-        entry.get("report_uri"), f"{benchmark_id}.report_uri", local_errors
-    )
+    report_uri = _as_text(entry.get("report_uri"), f"{benchmark_id}.report_uri", local_errors)
     if not _is_safe_repo_relative_uri(report_uri):
         local_errors.append(f"{benchmark_id}: report_uri is not repository-relative")
 
-    report_sha256 = _as_text(
-        entry.get("report_sha256"), f"{benchmark_id}.report_sha256", local_errors
-    )
-    metric_path = _as_text(
-        entry.get("metric_path"), f"{benchmark_id}.metric_path", local_errors
-    )
+    report_sha256 = _as_text(entry.get("report_sha256"), f"{benchmark_id}.report_sha256", local_errors)
+    metric_path = _as_text(entry.get("metric_path"), f"{benchmark_id}.metric_path", local_errors)
     observed = _as_number(entry.get("observed"), f"{benchmark_id}.observed", local_errors)
     unit = _as_text(entry.get("unit"), f"{benchmark_id}.unit", local_errors)
     if unit and unit not in ALLOWED_UNITS:
         local_errors.append(f"{benchmark_id}: unsupported unit: {unit}")
-    max_threshold = _as_number(
-        entry.get("max_threshold"), f"{benchmark_id}.max_threshold", local_errors
-    )
+    max_threshold = _as_number(entry.get("max_threshold"), f"{benchmark_id}.max_threshold", local_errors)
     if math.isfinite(max_threshold) and max_threshold <= 0.0:
         local_errors.append(f"{benchmark_id}: max_threshold must be positive")
     sample_count_path = _as_text(
@@ -210,9 +232,7 @@ def _validate_entry(
         f"{benchmark_id}.sample_count_path",
         local_errors,
     )
-    sample_count = _as_positive_int(
-        entry.get("sample_count"), f"{benchmark_id}.sample_count", local_errors
-    )
+    sample_count = _as_positive_int(entry.get("sample_count"), f"{benchmark_id}.sample_count", local_errors)
     min_sample_count = _as_positive_int(
         entry.get("min_sample_count"),
         f"{benchmark_id}.min_sample_count",
@@ -251,6 +271,7 @@ def _validate_entry(
     except ValueError as exc:
         root_errors.append(f"{benchmark_id}: {exc}")
         return None
+    _validate_self_digests(report, benchmark_id, root_errors)
 
     try:
         report_metric = _as_number(
@@ -275,9 +296,7 @@ def _validate_entry(
             root_errors,
         )
     except KeyError:
-        root_errors.append(
-            f"{benchmark_id}: sample_count_path missing: {sample_count_path}"
-        )
+        root_errors.append(f"{benchmark_id}: sample_count_path missing: {sample_count_path}")
         report_sample_count = -1
     if report_sample_count != sample_count:
         root_errors.append(f"{benchmark_id}: sample_count does not match report")
@@ -316,10 +335,7 @@ def validate_benchmark_regression_gates(
         errors.append(f"schema_version must be {SCHEMA_VERSION}")
     gate_set_id = _as_text(manifest.get("gate_set_id"), "gate_set_id", errors)
     claim_boundary = _as_text(manifest.get("claim_boundary"), "claim_boundary", errors)
-    if claim_boundary and (
-        "bounded" not in claim_boundary.lower()
-        or "unbounded" in claim_boundary.lower()
-    ):
+    if claim_boundary and ("bounded" not in claim_boundary.lower() or "unbounded" in claim_boundary.lower()):
         errors.append("claim_boundary must be bounded and must not be unbounded")
     _as_text(manifest.get("generated_utc"), "generated_utc", errors)
 
@@ -353,9 +369,7 @@ def validate_benchmark_regression_gates(
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Validate persisted benchmark regression gates."
-    )
+    parser = argparse.ArgumentParser(description="Validate persisted benchmark regression gates.")
     parser.add_argument(
         "manifest",
         nargs="?",

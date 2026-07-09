@@ -1848,6 +1848,11 @@ declared tolerances.
   benchmark command, generated timestamp, host-load/isolation context, bounded
   local-evidence claim metadata, and qualified target-hardware fields for
   real-time evidence.
+- `python validation/validate_benchmark_regression_gates.py` admits only
+  persisted benchmark-gate manifests whose referenced reports match their file
+  SHA-256, whose observed metrics and sample counts match the report payloads,
+  and whose embedded `payload_sha256` / `report_payload_sha256` self-digests
+  validate recursively.
 - Controller safety-case readiness resolves typed readiness artifacts under an explicit artifact root, verifies their SHA-256 bytes, and admits `target_hardware_timing`, `hil_replay_evidence`, `hdl_export_evidence`, `codac_runtime_evidence`, and `websocket_runtime_evidence` only after their strict evidence gates pass.
 - `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
 - `package-quality` (`build` + `twine check`)

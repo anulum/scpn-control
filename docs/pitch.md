@@ -60,12 +60,14 @@ this is reported as *meeting the budget with margin*, not as a competitive speed
 claim. Per-controller and per-backend tables, with the local/CI side-by-side and
 the `acados`-gated MPC caveat, are in [benchmarks](benchmarks.md).
 
-### 0.39 ms neural equilibrium research path — without GPU
+### Neural equilibrium research path — without GPU
 
 P-EFIT achieves <1 ms on GPU hardware. scpn-control's PCA + MLP surrogate
-achieves 0.39 ms on **CPU only**. Not validated against P-EFIT on identical
-equilibria — the MLP was trained on SPARC geometries, not the DIII-D shapes
-P-EFIT typically reconstructs.
+currently has bounded synthetic pretraining evidence, not an admitted latency
+claim against P-EFIT on identical equilibria. The tracked pretraining report is
+`validation/reports/neural_equilibrium_pretraining.json`; real EFIT/P-EFIT
+latency or accuracy claims remain blocked until matched reference artefacts are
+admitted.
 
 ### Full-stack control in one package
 
@@ -183,7 +185,7 @@ for scope and limitations.
 | IPB98(y,2) scaling | ITPA multi-machine database | 26.6% RMSE | Published coefficients |
 | Kuramoto convergence | R -> 0.92, V -> 0, lambda < 0 | 500-tick verified | Simulation |
 | Control latency | `benchmark_native_handoff.py` (P50/P99) | ~5 / ~6 us native cycle | CI (EPYC 7763) + local |
-| Neural equilibrium | PCA + MLP vs Picard ground truth | 0.39 ms mean | Simulation |
+| Neural equilibrium | PCA + MLP synthetic pretraining | Claim boundary report tracked | Simulation |
 
 > **Important:** "DIII-D shot replay" is validated against immutable repository
 > reference artefacts with manifest checksums. It is not a live MDSplus

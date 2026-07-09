@@ -1,27 +1,60 @@
 {
+  "claim_boundary": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
   "claim_status": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
-  "e2e_overhead_factor": 44.2,
-  "e2e_us": {
-    "p50": 3127.2,
-    "p95": 5486.3,
-    "p99": 7092.0
+  "command": "python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json validation/reports/e2e_control_latency.json",
+  "context": {
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "governor": "powersave",
+    "heavy_jobs_running": "not-recorded",
+    "isolation_method": "process-affinity-inherited-or-taskset",
+    "loadavg_end": [
+      8.45068359375,
+      13.5048828125,
+      13.302734375
+    ],
+    "loadavg_start": [
+      8.45068359375,
+      13.5048828125,
+      13.302734375
+    ]
   },
+  "e2e_overhead_factor": 40.2,
+  "e2e_us": {
+    "p50": 2451.7,
+    "p95": 5659.2,
+    "p99": 9650.8
+  },
+  "evidence_class": "local_regression",
+  "generated_utc": "2026-07-09T13:45:58Z",
   "grid": "16x16",
-  "generated_utc": "2026-05-31T11:44:01Z",
   "iterations": 200,
   "kernel_only_us": {
-    "p50": 70.8,
-    "p95": 135.9,
-    "p99": 163.3
+    "p50": 61.0,
+    "p95": 109.9,
+    "p99": 118.2
   },
-  "payload_sha256": "823e17f58ec63c127bfba4d0be71dba55c73469420b14b7ad617e90e0ca1e3e0",
+  "payload_sha256": "3ad458585a650742057ffe21108aa0e5641cb5549f3a221c8932b582cfe9ac8a",
+  "production_claim_allowed": false,
   "schema_version": "scpn-control.e2e-latency.v1",
   "target_hardware": {
     "class": "unspecified-local",
     "id": "local-host-unqualified",
     "machine": "x86_64",
     "numpy": "2.2.6",
-    "platform": "Linux-6.17.0-29-generic-x86_64-with-glibc2.39",
+    "platform": "Linux-6.17.0-35-generic-x86_64-with-glibc2.39",
     "processor": "x86_64",
     "python": "3.12.3",
     "rt_kernel": "unknown"

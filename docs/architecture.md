@@ -128,7 +128,7 @@ GEQDSK/IMAS Input
 FusionKernel (GS solver, 65×65)
     ↓                    ↓
 NeuralEquilibrium   IntegratedTransportSolver
-(0.39ms surrogate)    (1.5D Crank-Nicolson)
+(synthetic pretraining)    (1.5D Crank-Nicolson)
     ↓                    ↓
     └──────┬─────────────┘
            ↓

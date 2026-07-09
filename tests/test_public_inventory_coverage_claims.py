@@ -89,3 +89,22 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
         text = path.read_text(encoding="utf-8")
         for fragment in stale_fragments:
             assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment}"
+
+
+def test_neural_equilibrium_latency_claim_is_not_uncited() -> None:
+    """Public neural-equilibrium docs must not repeat the uncited 0.39 ms claim."""
+
+    checked_paths = (
+        ROOT / "docs" / "architecture.md",
+        ROOT / "docs" / "pitch.md",
+    )
+
+    for path in checked_paths:
+        text = path.read_text(encoding="utf-8")
+        assert "0.39 ms" not in text
+        assert "0.39ms" not in text
+
+    pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
+    assert "validation/reports/neural_equilibrium_pretraining.json" in pitch
+    assert "real EFIT/P-EFIT" in pitch
+    assert "latency or accuracy claims remain blocked" in pitch

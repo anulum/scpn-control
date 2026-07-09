@@ -7,9 +7,9 @@
     {
       "benchmark_id": "e2e_control_latency.kernel_only_p95_us",
       "report_uri": "validation/reports/e2e_control_latency.json",
-      "report_sha256": "834c114602a51b84df5ec266dcbd9aa912083a39fdb673772ddf45eb6b595be8",
+      "report_sha256": "8fa677c6f1a866e864cade67b5c94b216ba350a14cac48713824a82f621f8b18",
       "metric_path": "kernel_only_us.p95",
-      "observed": 135.9,
+      "observed": 109.9,
       "unit": "us",
       "max_threshold": 250.0,
       "sample_count_path": "iterations",
@@ -23,9 +23,9 @@
     {
       "benchmark_id": "e2e_control_latency.e2e_p95_us",
       "report_uri": "validation/reports/e2e_control_latency.json",
-      "report_sha256": "834c114602a51b84df5ec266dcbd9aa912083a39fdb673772ddf45eb6b595be8",
+      "report_sha256": "8fa677c6f1a866e864cade67b5c94b216ba350a14cac48713824a82f621f8b18",
       "metric_path": "e2e_us.p95",
-      "observed": 5486.3,
+      "observed": 5659.2,
       "unit": "us",
       "max_threshold": 7500.0,
       "sample_count_path": "iterations",
