@@ -18,6 +18,7 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
+import scpn_control.phase.plasma_knm as plasma_knm
 from scpn_control.phase.plasma_knm import (
     OMEGA_PLASMA_8,
     PLASMA_LAYER_NAMES,
@@ -253,6 +254,21 @@ class TestPlasmaOmega:
 
 
 class TestBuildFromConfig:
+    def test_calibration_constants_match_documented_values(self):
+        """The named plasma calibration coefficients match their documented values."""
+        assert plasma_knm._PLASMA_DECAY_ALPHA == 0.5
+        assert plasma_knm._PLASMA_BASE_COUPLING == 0.30
+        assert plasma_knm._BETA_COUPLING_GAIN == 0.5
+        assert plasma_knm._BETA_PROXY_CLIP_MAX == 2.0
+        assert plasma_knm._Q_CYL_COEFFICIENT == 5.0
+
+    def test_baseline_beta_proxy_saturates_at_documented_clip(self):
+        """Beyond the clip bound the beta proxy saturates, so K_base tops out at 2x baseline."""
+        saturated = build_knm_plasma_from_config(R0=6.2, a=2.0, B0=1.0, Ip=15.0, n_e=40.0)
+        moderate = build_knm_plasma_from_config(R0=6.2, a=2.0, B0=1.0, Ip=15.0, n_e=20.0)
+        # Both drive the proxy past the clip, so the coupling scale is identical.
+        np.testing.assert_allclose(np.asarray(saturated.K), np.asarray(moderate.K), atol=1e-12)
+
     def test_iter_baseline(self):
         spec = build_knm_plasma_from_config(
             R0=6.2,

@@ -156,6 +156,17 @@ OMEGA_PLASMA_16 = np.array(
 )
 
 
+# ── Calibration constants ───────────────────────────────────────────
+# Dimensionless plasma-coupling calibration coefficients, named here so the
+# physics scaling is auditable rather than buried in magic literals. They are
+# model tuning parameters, not values imported from external literature.
+_PLASMA_DECAY_ALPHA = 0.5  # exponential distance-decay rate across the timescale gap (steeper than Paper 27)
+_PLASMA_BASE_COUPLING = 0.30  # baseline inter-layer coupling K_base before beta scaling
+_BETA_COUPLING_GAIN = 0.5  # sensitivity of K_base to the normalised beta proxy
+_BETA_PROXY_CLIP_MAX = 2.0  # upper bound applied to the beta proxy before scaling
+_Q_CYL_COEFFICIENT = 5.0  # coefficient in the cylindrical safety factor q_cyl = 5 a^2 B0 / (R0 Ip)
+
+
 # ── Coupling matrix builders ────────────────────────────────────────
 
 
@@ -165,10 +176,9 @@ def _base_plasma_knm(L: int = 8, K_base: float = 0.30) -> NDArray[np.float64]:
     Uses weaker exponential decay (α=0.5) than Paper 27 because plasma
     layers span wider timescale separation.
     """
-    K_ALPHA = 0.5  # steeper decay across timescale gap
     idx = np.arange(L)
     dist = np.abs(idx[:, None] - idx[None, :])
-    K = K_base * np.exp(-K_ALPHA * dist)
+    K = K_base * np.exp(-_PLASMA_DECAY_ALPHA * dist)
     return np.asarray(K, dtype=np.float64)
 
 
@@ -414,10 +424,10 @@ def build_knm_plasma_from_config(
 
     # β_proxy ~ p / (B^2/2μ0) ∝ n·T / B^2; T ∝ a·B via confinement
     beta_proxy = n_e * a / B0**2
-    K_base = 0.30 * (1.0 + 0.5 * np.clip(beta_proxy, 0.0, 2.0))
+    K_base = _PLASMA_BASE_COUPLING * (1.0 + _BETA_COUPLING_GAIN * np.clip(beta_proxy, 0.0, _BETA_PROXY_CLIP_MAX))
 
     # q_cyl ≈ 5 a² B0 / (R0 Ip) — used to detect low-q (sawtooth-prone)
-    q_cyl = 5.0 * a**2 * B0 / (R0 * Ip)
+    q_cyl = _Q_CYL_COEFFICIENT * a**2 * B0 / (R0 * Ip)
 
     auto_mode = mode
     if mode == "baseline" and q_cyl < 1.0:
