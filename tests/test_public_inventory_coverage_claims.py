@@ -149,6 +149,35 @@ def test_architecture_native_latency_claim_cites_loopback_report() -> None:
     assert "~5 µs P50 CI" not in architecture
 
 
+def test_architecture_framing_uses_evidence_bound_language() -> None:
+    """Architecture framing must describe evidence boundaries, not guarantees."""
+
+    architecture = _normalized_prose(ROOT / "docs" / "architecture.md")
+    required_fragments = (
+        "separates Python orchestration from Rust/PyO3 hot paths",
+        "module-level tests and claim-boundary metadata",
+        "benchmark reports, runtime-admission records, and certificate evidence",
+        "Architecture review workflow",
+        "Use this map as a review checklist",
+        "keep claim levels local unless a validator admits promotion",
+        "without implying deployment readiness by itself",
+    )
+    stale_fragments = (
+        "practical guarantee",
+        "scientific experimentation stays ergonomic",
+        "Enterprise onboarding",
+        "timing guarantees",
+        "maximize iteration speed",
+        "practical control plane",
+        "speed and governance",
+    )
+
+    for fragment in required_fragments:
+        assert fragment in architecture, f"docs/architecture.md missing {fragment!r}"
+    for fragment in stale_fragments:
+        assert fragment not in architecture, f"docs/architecture.md contains {fragment!r}"
+
+
 def test_public_coverage_gate_claims_match_configuration() -> None:
     """Current public coverage-gate claims must match ``pyproject.toml``."""
 

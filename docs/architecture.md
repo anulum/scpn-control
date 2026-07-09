@@ -193,11 +193,12 @@ rebuilding the whole system:
   work must stay deterministic and where Python orchestration can remain
   high-level.
 
-The practical guarantee this architecture targets is not “all code in Rust,” but a
-controlled boundary: scientific experimentation stays ergonomic, while hot-path
-execution uses bounded contracts and evidence-linked certificates. This is why
-the project publishes both a pure-Python path and a fused native path: they share
-the same contracts, but have different runtime envelopes and admissible claims.
+The architecture separates Python orchestration from Rust/PyO3 hot paths instead
+of treating a language choice as a safety claim. Python surfaces carry
+module-level tests and claim-boundary metadata; native surfaces carry benchmark
+reports, runtime-admission records, and certificate evidence when those gates are
+available. The pure-Python and fused native paths share contracts, but they have
+different runtime envelopes and admissible claim levels.
 
 ## Module Dependencies
 
@@ -336,7 +337,8 @@ scpn-control/
 
 ## How to read this architecture page
 
-The architecture page is for tracing where data and control move, and where timing guarantees are expected to hold.
+The architecture page traces where data and control move, and where timing
+constraints are documented.
 
 In practice:
 
@@ -346,9 +348,9 @@ In practice:
 
 Use this map to isolate review risk: logic updates belong to module-level testing; timing regressions belong to native-path benchmarks and deployment constraints.
 
-## Enterprise onboarding to this architecture
+## Architecture review workflow
 
-This map is intended to reduce review uncertainty in three steps:
+Use this map as a review checklist in three steps:
 
 1. **Traceability first**: map each change to a module family (`scpn`, `core`,
    `control`, or `phase`) before touching timing paths.
@@ -358,13 +360,15 @@ This map is intended to reduce review uncertainty in three steps:
    `reference_validated`, `external_code_validated`, etc.) when the claim level
    explicitly allows it.
 
-The same graph is therefore used for two different operations:
+The same graph is therefore used for two review modes:
 
-- **Research mode**: maximize iteration speed with clear module-level acceptance.
-- **Deployment readiness mode**: pin execution boundaries, capture host metadata, and
-  route claims through the strict validators.
+- **Local iteration**: choose module-level acceptance tests and keep claim levels
+  local unless a validator admits promotion.
+- **Deployment admission**: pin execution boundaries, capture host metadata, and
+  route claims through the strict validators before widening public language.
 
-This gives the project a practical control plane for both speed and governance.
+The graph links code review, benchmark scope, and claim promotion without
+implying deployment readiness by itself.
 
 ## Practical use and scope
 
