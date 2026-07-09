@@ -38,7 +38,7 @@ try:
         digital_twin_summary_to_ids,
     )
 
-    HAS_IMAS = True  # pragma: no cover - imas IDS connector optional dep, not installed on CI
+    HAS_IMAS = True
 except ImportError:
     HAS_IMAS = False
 
