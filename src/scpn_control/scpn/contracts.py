@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Contracts
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Controller contracts.
 """
 Data contracts for the SCPN Fusion-Core Control API.
 
@@ -108,6 +100,63 @@ def _seed64(seed_base: int, sid: str) -> int:
     return int.from_bytes(h[:8], "little", signed=False)
 
 
+def feature_error_components(
+    obs_values: Sequence[float] | npt.NDArray[np.float64],
+    targets: Sequence[float] | npt.NDArray[np.float64],
+    scales: Sequence[float] | npt.NDArray[np.float64],
+    *,
+    axis_names: Sequence[str] | None = None,
+    out_pos: npt.NDArray[np.float64] | None = None,
+    out_neg: npt.NDArray[np.float64] | None = None,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
+    """Return positive and negative unipolar feature components.
+
+    This is the shared signed-error kernel for the public contract helper and
+    the live controller runtime. Each component is computed from
+    ``(target - observation) / scale``, clamped to ``[-1, 1]``, then split into
+    positive and negative ``[0, 1]`` channels.
+    """
+    obs_arr = np.asarray(obs_values, dtype=np.float64)
+    target_arr = np.asarray(targets, dtype=np.float64)
+    scale_arr = np.asarray(scales, dtype=np.float64)
+    if obs_arr.ndim != 1:
+        raise ValueError("obs_values must be one-dimensional")
+    if target_arr.shape != obs_arr.shape or scale_arr.shape != obs_arr.shape:
+        raise ValueError("obs_values, targets, and scales must have equal shapes")
+    names = list(axis_names) if axis_names is not None else [f"axis_{idx}" for idx in range(obs_arr.size)]
+    if len(names) != obs_arr.size:
+        raise ValueError("axis_names must match obs_values length")
+
+    _require_finite_axis_values("Observation value for feature extraction", obs_arr, names)
+    _require_finite_axis_values("Feature axis target", target_arr, names)
+    _require_finite_axis_values("Feature axis scale", scale_arr, names)
+
+    pos = np.empty(obs_arr.shape, dtype=np.float64) if out_pos is None else out_pos
+    neg = np.empty(obs_arr.shape, dtype=np.float64) if out_neg is None else out_neg
+    if pos.shape != obs_arr.shape or neg.shape != obs_arr.shape:
+        raise ValueError("out_pos and out_neg must match obs_values shape")
+
+    safe_scales = np.where(np.abs(scale_arr) > SCALE_FLOOR, scale_arr, SCALE_FLOOR)
+    np.subtract(target_arr, obs_arr, out=pos)
+    np.divide(pos, safe_scales, out=pos)
+    np.clip(pos, -CONTROL_ERROR_CLAMP, CONTROL_ERROR_CLAMP, out=pos)
+    np.negative(pos, out=neg)
+    np.clip(pos, 0.0, 1.0, out=pos)
+    np.clip(neg, 0.0, 1.0, out=neg)
+    return pos, neg
+
+
+def _require_finite_axis_values(
+    message_prefix: str,
+    values: npt.NDArray[np.float64],
+    axis_names: Sequence[str],
+) -> None:
+    if bool(np.all(np.isfinite(values))):
+        return
+    bad_index = int(np.flatnonzero(~np.isfinite(values))[0])
+    raise ValueError(f"{message_prefix} must be finite: {axis_names[bad_index]}")
+
+
 # ── Feature extraction ───────────────────────────────────────────────────────
 
 
@@ -145,24 +194,28 @@ def extract_features(
         ]
     )
 
-    out: dict[str, float] = {}
+    obs_values: list[float] = []
+    target_values: list[float] = []
+    scale_values: list[float] = []
+    axis_names: list[str] = []
     for axis in axes:
         if axis.obs_key not in obs:
             raise KeyError(f"Missing observation key for feature extraction: {axis.obs_key}")
-        obs_value = float(obs[axis.obs_key])
-        if not math.isfinite(obs_value):
-            raise ValueError(f"Observation value for feature extraction must be finite: {axis.obs_key}")
-        target = float(axis.target)
-        if not math.isfinite(target):
-            raise ValueError(f"Feature axis target must be finite: {axis.obs_key}")
-        scale_raw = float(axis.scale)
-        if not math.isfinite(scale_raw):
-            raise ValueError(f"Feature axis scale must be finite: {axis.obs_key}")
-        scale = scale_raw if abs(scale_raw) > SCALE_FLOOR else SCALE_FLOOR
-        err = (target - obs_value) / scale
-        err = max(-CONTROL_ERROR_CLAMP, min(CONTROL_ERROR_CLAMP, err))
-        out[axis.pos_key] = _clip01(max(0.0, err))
-        out[axis.neg_key] = _clip01(max(0.0, -err))
+        obs_values.append(float(obs[axis.obs_key]))
+        target_values.append(float(axis.target))
+        scale_values.append(float(axis.scale))
+        axis_names.append(axis.obs_key)
+
+    pos, neg = feature_error_components(
+        obs_values,
+        target_values,
+        scale_values,
+        axis_names=axis_names,
+    )
+    out: dict[str, float] = {}
+    for idx, axis in enumerate(axes):
+        out[axis.pos_key] = float(pos[idx])
+        out[axis.neg_key] = float(neg[idx])
 
     if passthrough_keys is not None:
         for key in passthrough_keys:
@@ -219,28 +272,78 @@ def decode_actions(
     if not math.isfinite(dt) or dt <= 0.0:
         raise ValueError("dt must be finite and > 0.")
 
-    n_places = len(marking)
+    prev_array = np.asarray(prev, dtype=np.float64)
+    decoded = decode_action_vector(
+        marking,
+        [spec.pos_place for spec in actions_spec],
+        [spec.neg_place for spec in actions_spec],
+        gains,
+        abs_max,
+        slew_per_s,
+        dt,
+        prev_array,
+    )
     result: dict[str, float] = {}
-    for i, spec in enumerate(actions_spec):
-        if spec.pos_place < 0 or spec.neg_place < 0:
-            raise ValueError("Action place indices must be >= 0.")
-        if spec.pos_place >= n_places or spec.neg_place >= n_places:
-            raise ValueError("Action place index out of bounds for marking vector.")
-        pos = marking[spec.pos_place]
-        neg = marking[spec.neg_place]
-        raw = (pos - neg) * gains[i]
-
-        # Slew-rate limiting
-        max_delta = slew_per_s[i] * dt
-        raw = max(prev[i] - max_delta, min(prev[i] + max_delta, raw))
-
-        # Absolute saturation
-        raw = max(-abs_max[i], min(abs_max[i], raw))
-
-        prev[i] = raw
-        result[spec.name] = raw
-
+    for idx, spec in enumerate(actions_spec):
+        value = float(decoded[idx])
+        prev[idx] = value
+        result[spec.name] = value
     return result
+
+
+def decode_action_vector(
+    marking: Sequence[float] | npt.NDArray[np.float64],
+    pos_places: Sequence[int] | npt.NDArray[np.int64],
+    neg_places: Sequence[int] | npt.NDArray[np.int64],
+    gains: Sequence[float] | npt.NDArray[np.float64],
+    abs_max: Sequence[float] | npt.NDArray[np.float64],
+    slew_per_s: Sequence[float] | npt.NDArray[np.float64],
+    dt: float,
+    prev: npt.NDArray[np.float64],
+    *,
+    work: npt.NDArray[np.float64] | None = None,
+) -> npt.NDArray[np.float64]:
+    """Decode marking to a vector of slew- and magnitude-limited actions.
+
+    The returned array is ``prev`` after in-place update. ``work`` may be a
+    caller-owned scratch array and is never returned.
+    """
+    marking_arr = np.asarray(marking, dtype=np.float64)
+    pos_idx = np.asarray(pos_places, dtype=np.int64)
+    neg_idx = np.asarray(neg_places, dtype=np.int64)
+    gains_arr = np.asarray(gains, dtype=np.float64)
+    abs_max_arr = np.asarray(abs_max, dtype=np.float64)
+    slew_arr = np.asarray(slew_per_s, dtype=np.float64)
+    if not math.isfinite(dt) or dt <= 0.0:
+        raise ValueError("dt must be finite and > 0.")
+    if marking_arr.ndim != 1:
+        raise ValueError("marking must be one-dimensional")
+    n_actions = pos_idx.size
+    if (
+        neg_idx.shape != (n_actions,)
+        or gains_arr.shape != (n_actions,)
+        or abs_max_arr.shape != (n_actions,)
+        or slew_arr.shape != (n_actions,)
+        or prev.shape != (n_actions,)
+    ):
+        raise ValueError("action index, gain, limit, slew, and prev arrays must have equal shapes")
+    if n_actions == 0:
+        return prev
+    if int(np.min(pos_idx)) < 0 or int(np.min(neg_idx)) < 0:
+        raise ValueError("Action place indices must be >= 0.")
+    n_places = marking_arr.size
+    if int(np.max(pos_idx)) >= n_places or int(np.max(neg_idx)) >= n_places:
+        raise ValueError("Action place index out of bounds for marking vector.")
+
+    raw = np.empty((n_actions,), dtype=np.float64) if work is None else work
+    if raw.shape != (n_actions,):
+        raise ValueError("work must match action count")
+    np.subtract(marking_arr[pos_idx], marking_arr[neg_idx], out=raw)
+    raw *= gains_arr
+    max_delta = slew_arr * float(dt)
+    np.clip(raw, prev - max_delta, prev + max_delta, out=raw)
+    np.clip(raw, -abs_max_arr, abs_max_arr, out=prev)
+    return prev
 
 
 # ── Physics Invariants ──────────────────────────────────────────────────────

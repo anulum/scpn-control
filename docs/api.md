@@ -1119,6 +1119,13 @@ binding, target, and proof replay evidence all match.
 
 ### Contracts
 
+`scpn_control.scpn.contracts` owns the shared numeric kernels used by both the
+public contract helpers and the live controller runtime. `extract_features()`
+and `NeuroSymbolicController.step()` use the same signed-error component kernel;
+`decode_actions()` and the controller readout use the same slew-rate and
+absolute-limit action-vector kernel. This keeps standalone contract checks and
+compiled controller execution aligned.
+
 ::: scpn_control.scpn.contracts.ControlObservation
 
 ::: scpn_control.scpn.contracts.ControlAction
@@ -1127,7 +1134,11 @@ binding, target, and proof replay evidence all match.
 
 ::: scpn_control.scpn.contracts.extract_features
 
+::: scpn_control.scpn.contracts.feature_error_components
+
 ::: scpn_control.scpn.contracts.decode_actions
+
+::: scpn_control.scpn.contracts.decode_action_vector
 
 ### Artifacts
 

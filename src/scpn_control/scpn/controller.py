@@ -33,6 +33,8 @@ from .contracts import (
     ControlScales,
     ControlTargets,
     FeatureAxisSpec,
+    decode_action_vector,
+    feature_error_components,
     _seed64,
 )
 from .observation import AERControlObservation
@@ -285,7 +287,6 @@ class NeuroSymbolicController:
         self._axis_neg_keys = [axis.neg_key for axis in axes]
         self._empty = np.zeros(0, dtype=np.float64)
         self._tmp_obs_vals = np.zeros(self._axis_count, dtype=np.float64)
-        self._tmp_feature_err = np.zeros(self._axis_count, dtype=np.float64)
         self._tmp_feature_pos = np.zeros(self._axis_count, dtype=np.float64)
         self._tmp_feature_neg = np.zeros(self._axis_count, dtype=np.float64)
 
@@ -411,7 +412,6 @@ class NeuroSymbolicController:
         self._action_slew_per_s = np.asarray(artifact.readout.slew_per_s, dtype=np.float64)
         self._action_count = len(self._action_names)
         self._dt = float(artifact.meta.dt_control_s)
-        self._action_max_delta = self._action_slew_per_s * self._dt
         self._prev_actions = np.zeros(self._action_count, dtype=np.float64)
         self._tmp_actions = np.zeros(self._action_count, dtype=np.float64)
         self.last_oracle_firing: list[float] = []
@@ -625,13 +625,14 @@ class NeuroSymbolicController:
         obs_vals = np.asarray(obs_vector, dtype=np.float64)
         if obs_vals.shape != (self._axis_count,):
             raise ValueError(f"obs_vector must have length {self._axis_count}, got {obs_vals.size}")
-        np.subtract(self._axis_targets, obs_vals, out=self._tmp_feature_err)
-        np.divide(self._tmp_feature_err, self._axis_scales, out=self._tmp_feature_err)
-        np.clip(self._tmp_feature_err, -1.0, 1.0, out=self._tmp_feature_err)
-        np.clip(self._tmp_feature_err, 0.0, 1.0, out=self._tmp_feature_pos)
-        np.negative(self._tmp_feature_err, out=self._tmp_feature_neg)
-        np.clip(self._tmp_feature_neg, 0.0, 1.0, out=self._tmp_feature_neg)
-        return self._tmp_feature_pos, self._tmp_feature_neg
+        return feature_error_components(
+            obs_vals,
+            self._axis_targets,
+            self._axis_scales,
+            axis_names=self._axis_obs_keys,
+            out_pos=self._tmp_feature_pos,
+            out_neg=self._tmp_feature_neg,
+        )
 
     def _build_feature_dict(
         self, obs_map: Mapping[str, float], pos_vals: FloatArray, neg_vals: FloatArray
@@ -866,17 +867,17 @@ class NeuroSymbolicController:
         if self._action_count == 0:
             return self._empty
 
-        raw = self._tmp_actions
-        np.subtract(marking[self._action_pos_idx], marking[self._action_neg_idx], out=raw)
-        raw *= self._action_gains
-        np.clip(
-            raw,
-            self._prev_actions - self._action_max_delta,
-            self._prev_actions + self._action_max_delta,
-            out=raw,
+        return decode_action_vector(
+            marking,
+            self._action_pos_idx,
+            self._action_neg_idx,
+            self._action_gains,
+            self._action_abs_max,
+            self._action_slew_per_s,
+            self._dt,
+            self._prev_actions,
+            work=self._tmp_actions,
         )
-        np.clip(raw, -self._action_abs_max, self._action_abs_max, out=self._prev_actions)
-        return self._prev_actions
 
     def _apply_bit_flip_faults(self, values: FloatArray, rng: np.random.Generator) -> FloatArray:
         """Inject bounded deterministic bit-flip faults into float vectors."""
