@@ -35,6 +35,7 @@ from scpn_control.scpn.lean_verification import (
     is_safety_case_id,
     load_lean_formal_report,
     validate_bounded_proof_assumptions,
+    validate_lean_module_reference_list,
     validate_lean_solver_version_binding,
     validate_required_contract_evidence_links,
     validate_required_contract_theorem_coverage,
@@ -705,17 +706,6 @@ def _validate_non_empty_string_list(
     return result
 
 
-def _validate_safe_relative_path_list(value: object, field_name: str) -> List[str]:
-    paths = _validate_non_empty_string_list(value, field_name)
-    for path in paths:
-        if "\\" in path or "://" in path or path.startswith(("file:", "/", "~")):
-            raise ArtifactValidationError(f"formal_verification.{field_name} must contain safe relative paths")
-        rel = PurePosixPath(path)
-        if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
-            raise ArtifactValidationError(f"formal_verification.{field_name} must contain safe relative paths")
-    return paths
-
-
 def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) -> None:
     if not isinstance(evidence.lean_version, str) or not evidence.lean_version:
         raise ArtifactValidationError("formal_verification.lean_version must be a non-empty string for lean4")
@@ -738,7 +728,10 @@ def _validate_lean4_formal_verification(evidence: FormalVerificationEvidence) ->
         validator=is_lean_module_name,
     )
     proved_contracts = _validate_non_empty_string_list(evidence.proved_contracts, "proved_contracts")
-    module_paths = _validate_safe_relative_path_list(evidence.module_paths, "module_paths")
+    try:
+        module_paths = validate_lean_module_reference_list(evidence.module_paths, "module_paths")
+    except LeanFormalVerificationError as exc:
+        raise ArtifactValidationError(f"formal_verification.{exc}") from exc
     safety_case_ids = _validate_non_empty_string_list(
         evidence.safety_case_ids,
         "safety_case_ids",

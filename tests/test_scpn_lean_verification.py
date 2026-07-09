@@ -41,8 +41,8 @@ def _lean_report() -> LeanFormalVerificationReport:
         theorem_modules=["ScpnControl.PID", "ScpnControl.SNN"],
         proved_contracts=["pid.actuator_saturation", "snn.marking_bounds"],
         module_paths=[
-            "src/scpn_control/control/pid_controller.py",
-            "src/scpn_control/scpn/controller.py",
+            "scpn_control.control.pid_controller",
+            "scpn_control.scpn.controller",
         ],
         safety_case_ids=["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
         claim_boundary="bounded Lean proof over exported controller envelope",
@@ -122,8 +122,8 @@ def test_lean_formal_report_rejects_payload_digest_mismatch() -> None:
         (
             "module_paths",
             [
-                "src/scpn_control/control/pid_controller.py",
-                "src/scpn_control/scpn/geometry_neutral_replay.py",
+                "scpn_control.control.pid_controller",
+                "scpn_control.scpn.geometry_neutral_replay",
             ],
             "module_paths missing required paths",
         ),

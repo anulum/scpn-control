@@ -59,11 +59,15 @@ strings that do not include the declared `lean_version`, unsupported
 `proved_contracts`, unsafe report paths, malformed theorem identifiers, missing
 PID/SNN namespace coverage, unbounded proof assumptions, and certification
 overclaims. It also rejects unrelated theorem namespaces, production module
-paths, and safety-case IDs instead of accepting padded reports. Safety-critical
-`.scpnctl` artifact admission must still bind the report digest, compiled
-artifact digest, Lake file digest, proof-source digest, checked specifications,
-theorem namespaces, production module paths, and bounded proof assumptions
-before the artifact can be loaded with `require_formal_verification=True`. The
+references, and safety-case IDs instead of accepting padded reports.
+Safety-critical `.scpnctl` artifact admission must still bind the report
+digest, compiled artifact digest, Lake file digest, proof-source digest, checked
+specifications, theorem namespaces, production module references, and bounded
+proof assumptions before the artifact can be loaded with
+`require_formal_verification=True`. The `module_paths` report field should use
+importable module names such as `scpn_control.control.pid_controller` so
+installed packages do not require repository `src/` paths; legacy safe relative
+source paths remain accepted for existing reports. The
 artifact manifest gate applies the same Lean solver/version and exact-link
 checks before optional report-root byte comparison runs, and report-root Lean
 files use the same duplicate-key-safe loader as direct report validation. Lean

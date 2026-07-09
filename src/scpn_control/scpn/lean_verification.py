@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import keyword
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -51,7 +52,11 @@ LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES = {
     "pid.actuator_saturation": "ScpnControl.PID",
     "snn.marking_bounds": "ScpnControl.SNN",
 }
-LEAN_REQUIRED_CONTRACT_MODULE_PATHS = {
+LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES = {
+    "pid.actuator_saturation": "scpn_control.control.pid_controller",
+    "snn.marking_bounds": "scpn_control.scpn.controller",
+}
+LEAN_LEGACY_CONTRACT_SOURCE_PATHS = {
     "pid.actuator_saturation": "src/scpn_control/control/pid_controller.py",
     "snn.marking_bounds": "src/scpn_control/scpn/controller.py",
 }
@@ -205,12 +210,39 @@ def validate_safe_relative_path_list(value: object, field_name: str) -> list[str
     """Validate report path lists without accepting traversal or URI syntax."""
     paths = validate_non_empty_string_list(value, field_name)
     for path in paths:
-        if "\\" in path or "://" in path or path.startswith(("file:", "/", "~")):
-            raise LeanFormalVerificationError(f"{field_name} must contain safe relative paths")
-        rel = PurePosixPath(path)
-        if rel.is_absolute() or any(part in {"", ".", ".."} for part in rel.parts):
+        if not is_safe_relative_path(path):
             raise LeanFormalVerificationError(f"{field_name} must contain safe relative paths")
     return paths
+
+
+def is_safe_relative_path(value: str) -> bool:
+    """Return True when ``value`` is a safe repository-relative POSIX path."""
+    if "\\" in value or "://" in value or value.startswith(("file:", "/", "~")):
+        return False
+    rel = PurePosixPath(value)
+    return not rel.is_absolute() and not any(part in {"", ".", ".."} for part in rel.parts)
+
+
+def is_python_module_name(value: str) -> bool:
+    """Return True when ``value`` is a dotted importable Python module name."""
+    segments = value.split(".")
+    return all(segment.isidentifier() and not keyword.iskeyword(segment) for segment in segments)
+
+
+def is_lean_module_reference(value: str) -> bool:
+    """Return True for an importable module name or legacy safe source path."""
+    return is_python_module_name(value) or is_safe_relative_path(value)
+
+
+def validate_lean_module_reference_list(value: object, field_name: str) -> list[str]:
+    """Validate production-module evidence links for installed and source trees."""
+    module_references = validate_non_empty_string_list(value, field_name)
+    for reference in module_references:
+        if not is_lean_module_reference(reference):
+            raise LeanFormalVerificationError(
+                f"{field_name} must contain safe relative paths or importable module names"
+            )
+    return module_references
 
 
 def validate_required_contract_theorem_coverage(
@@ -251,16 +283,28 @@ def validate_required_contract_evidence_links(
         raise LeanFormalVerificationError(
             "Lean 4 report theorem_names contains unsupported namespaces: " + ", ".join(unsupported_theorems)
         )
-    expected_paths = {LEAN_REQUIRED_CONTRACT_MODULE_PATHS[contract] for contract in proved_contracts}
-    missing_paths = sorted(expected_paths.difference(module_paths))
-    if missing_paths:
+    expected_references_by_contract = {
+        contract: {
+            LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES[contract],
+            LEAN_LEGACY_CONTRACT_SOURCE_PATHS[contract],
+        }
+        for contract in proved_contracts
+    }
+    missing_references = sorted(
+        LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES[contract]
+        for contract, accepted_references in expected_references_by_contract.items()
+        if not accepted_references.intersection(module_paths)
+    )
+    if missing_references:
         raise LeanFormalVerificationError(
-            "Lean 4 report module_paths missing required paths: " + ", ".join(missing_paths)
+            "Lean 4 report module_paths missing required paths or importable module references: "
+            + ", ".join(missing_references)
         )
-    unsupported_paths = sorted(set(module_paths).difference(expected_paths))
-    if unsupported_paths:
+    accepted_references = set().union(*expected_references_by_contract.values())
+    unsupported_references = sorted(set(module_paths).difference(accepted_references))
+    if unsupported_references:
         raise LeanFormalVerificationError(
-            "Lean 4 report module_paths contains unsupported paths: " + ", ".join(unsupported_paths)
+            "Lean 4 report module_paths contains unsupported references: " + ", ".join(unsupported_references)
         )
     expected_case_ids = {LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS[contract] for contract in proved_contracts}
     missing_case_ids = sorted(expected_case_ids.difference(safety_case_ids))
@@ -374,7 +418,7 @@ def validate_lean_formal_report_payload(payload: object, *, require_payload_sha2
         raise LeanFormalVerificationError(
             "Lean 4 report proved_contracts contains unsupported contracts: " + ", ".join(unsupported_contracts)
         )
-    module_paths = validate_safe_relative_path_list(payload.get("module_paths"), "module_paths")
+    module_paths = validate_lean_module_reference_list(payload.get("module_paths"), "module_paths")
     safety_case_ids = validate_non_empty_string_list(
         payload.get("safety_case_ids"),
         "safety_case_ids",

@@ -36,8 +36,8 @@ def _lean_report(*, artifact_sha256: str = "a" * 64) -> LeanFormalVerificationRe
         theorem_modules=["ScpnControl.PID", "ScpnControl.SNN"],
         proved_contracts=["pid.actuator_saturation", "snn.marking_bounds"],
         module_paths=[
-            "src/scpn_control/control/pid_controller.py",
-            "src/scpn_control/scpn/controller.py",
+            "scpn_control.control.pid_controller",
+            "scpn_control.scpn.controller",
         ],
         safety_case_ids=["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
         claim_boundary="bounded Lean proof over exported controller envelope",
@@ -139,8 +139,8 @@ def test_lean_formal_validator_rejects_unrelated_module_path(tmp_path: Path) -> 
     payload = write_lean_formal_report(_lean_report(), report_path)
     payload.pop("payload_sha256")
     payload["module_paths"] = [
-        "src/scpn_control/control/pid_controller.py",
-        "src/scpn_control/scpn/geometry_neutral_replay.py",
+        "scpn_control.control.pid_controller",
+        "scpn_control.scpn.geometry_neutral_replay",
     ]
     report_path.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
 

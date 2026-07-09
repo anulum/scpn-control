@@ -1166,9 +1166,12 @@ admitted only as blocked SMT evidence.
 Lean 4 reports are admitted only through the bounded `lean4` manifest path:
 the manifest must bind a solver string that identifies Lean and includes the
 declared Lean version, Lake file SHA-256, proof-source SHA-256, theorem names,
-theorem modules, proved contracts, linked production module paths, safety-case
-identifiers, checked specification list, report SHA-256, and compiled artifact
-SHA-256. The Lean report schema is
+theorem modules, proved contracts, linked production module references,
+safety-case identifiers, checked specification list, report SHA-256, and
+compiled artifact SHA-256. Production module references should use importable
+module names such as `scpn_control.scpn.controller` so installed wheels and
+sdists do not depend on a repository `src/` checkout; legacy safe relative
+source paths remain accepted for existing reports. The Lean report schema is
 `scpn-control.lean4-formal-report.v1`; when a report root is supplied, every
 manifest field above must match the report before admission. The current
 required Lean proof-contract surface covers PID actuator-saturation preservation
@@ -1177,9 +1180,9 @@ unsupported proved contracts to imply wider formal coverage. This is an evidence
 admission contract; it does not claim certification unless the referenced
 machine-checked proof artefacts are present and verified.
 The admitted PID/SNN surface is also exact-linked: theorem modules, theorem
-names, linked production module paths, and safety-case identifiers must remain
-inside the expected PID/SNN namespaces and module paths instead of padding a
-valid report with unrelated evidence.
+names, linked production module references, and safety-case identifiers must
+remain inside the expected PID/SNN namespaces and module references instead of
+padding a valid report with unrelated evidence.
 `get_artifact_json_schema()` returns the current `.scpnctl.json` Draft-07
 schema from the same payload sections and dataclass field sets used by
 `save_artifact()` and `load_artifact()`. The schema declares the serialized
@@ -1234,7 +1237,9 @@ do not include the reported `lean_version`, and any `proved_contracts` outside
 the currently admitted PID/SNN proof surface.
 Reports also fail closed when `theorem_names`, `theorem_modules`,
 `module_paths`, or `safety_case_ids` include unrelated entries outside the
-admitted PID/SNN proof boundary.
+admitted PID/SNN proof boundary. Despite the historical field name,
+`module_paths` admits importable module references for installed packages and
+legacy safe relative source paths for existing reports.
 The same checks run on the `.scpnctl` artifact manifest itself, even without a
 report root, so safety-critical artifact loading cannot admit a stale or padded
 Lean manifest before report-byte comparison is available.

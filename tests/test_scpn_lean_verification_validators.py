@@ -20,14 +20,18 @@ from typing import Any
 import pytest
 
 from scpn_control.scpn.lean_verification import (
-    LEAN_REQUIRED_CONTRACT_MODULE_PATHS,
+    LEAN_LEGACY_CONTRACT_SOURCE_PATHS,
+    LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES,
     LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES,
     LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS,
     LeanFormalVerificationError,
     LeanFormalVerificationReport,
     _is_sha256_hex,
     build_lean_formal_report_payload,
+    is_lean_module_reference,
     is_lean_module_name,
+    is_python_module_name,
+    is_safe_relative_path,
     is_lean_theorem_name,
     is_safety_case_id,
     load_lean_formal_report,
@@ -36,6 +40,7 @@ from scpn_control.scpn.lean_verification import (
     validate_non_empty_string_list,
     validate_required_contract_evidence_links,
     validate_required_contract_theorem_coverage,
+    validate_lean_module_reference_list,
     validate_safe_relative_path_list,
 )
 
@@ -56,8 +61,8 @@ def _report() -> LeanFormalVerificationReport:
         theorem_modules=["ScpnControl.PID", "ScpnControl.SNN"],
         proved_contracts=["pid.actuator_saturation", "snn.marking_bounds"],
         module_paths=[
-            "src/scpn_control/control/pid_controller.py",
-            "src/scpn_control/scpn/controller.py",
+            "scpn_control.control.pid_controller",
+            "scpn_control.scpn.controller",
         ],
         safety_case_ids=["SC-PID-ACTUATOR-SATURATION", "SC-SNN-MARKING-BOUNDS"],
         claim_boundary="bounded Lean proof over exported controller envelope",
@@ -99,6 +104,19 @@ class TestIdentifierHelpers:
     def test_safety_case_id_rejects_empty(self) -> None:
         assert is_safety_case_id("") is False
 
+    def test_python_module_name_accepts_installed_package_module(self) -> None:
+        assert is_python_module_name("scpn_control.scpn.controller") is True
+
+    def test_python_module_name_rejects_keyword_segment(self) -> None:
+        assert is_python_module_name("scpn_control.class.controller") is False
+
+    def test_safe_relative_path_accepts_legacy_source_path(self) -> None:
+        assert is_safe_relative_path("src/scpn_control/scpn/controller.py") is True
+
+    def test_lean_module_reference_accepts_installed_and_legacy_forms(self) -> None:
+        assert is_lean_module_reference("scpn_control.scpn.controller") is True
+        assert is_lean_module_reference("src/scpn_control/scpn/controller.py") is True
+
 
 class TestStringListValidators:
     def test_rejects_empty_list(self) -> None:
@@ -121,6 +139,16 @@ class TestStringListValidators:
         with pytest.raises(LeanFormalVerificationError, match="safe relative paths"):
             validate_safe_relative_path_list(["/etc/passwd.py"], "module_paths")
 
+    def test_safe_relative_path_accepts_legacy_source_path(self) -> None:
+        assert validate_safe_relative_path_list(
+            ["src/scpn_control/scpn/controller.py"],
+            "module_paths",
+        ) == ["src/scpn_control/scpn/controller.py"]
+
+    def test_module_reference_rejects_absolute_path(self) -> None:
+        with pytest.raises(LeanFormalVerificationError, match="safe relative paths or importable module names"):
+            validate_lean_module_reference_list(["/etc/passwd.py"], "module_paths")
+
 
 class TestBoundedProofAssumptions:
     def test_rejects_certification_claim(self) -> None:
@@ -138,16 +166,26 @@ class TestContractCoverageHelpers:
             theorem_modules=["ScpnControl.SNN"],
         )
 
-    def test_evidence_links_reject_unsupported_module_path(self) -> None:
+    def test_evidence_links_reject_unsupported_module_reference(self) -> None:
         contract = "pid.actuator_saturation"
-        with pytest.raises(LeanFormalVerificationError, match="unsupported paths"):
+        with pytest.raises(LeanFormalVerificationError, match="unsupported references"):
             validate_required_contract_evidence_links(
                 proved_contracts=[contract],
                 theorem_names=["ScpnControl.PID.actuatorSaturationPreserved"],
                 theorem_modules=[LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES[contract]],
-                module_paths=[LEAN_REQUIRED_CONTRACT_MODULE_PATHS[contract], "src/extra/unsupported.py"],
+                module_paths=[LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES[contract], "scpn_control.extra.unsupported"],
                 safety_case_ids=[LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS[contract]],
             )
+
+    def test_evidence_links_accept_legacy_source_path(self) -> None:
+        contract = "pid.actuator_saturation"
+        validate_required_contract_evidence_links(
+            proved_contracts=[contract],
+            theorem_names=["ScpnControl.PID.actuatorSaturationPreserved"],
+            theorem_modules=[LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES[contract]],
+            module_paths=[LEAN_LEGACY_CONTRACT_SOURCE_PATHS[contract]],
+            safety_case_ids=[LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS[contract]],
+        )
 
     def test_evidence_links_reject_unsupported_safety_case_id(self) -> None:
         contract = "pid.actuator_saturation"
@@ -156,7 +194,7 @@ class TestContractCoverageHelpers:
                 proved_contracts=[contract],
                 theorem_names=["ScpnControl.PID.actuatorSaturationPreserved"],
                 theorem_modules=[LEAN_REQUIRED_CONTRACT_MODULE_PREFIXES[contract]],
-                module_paths=[LEAN_REQUIRED_CONTRACT_MODULE_PATHS[contract]],
+                module_paths=[LEAN_REQUIRED_CONTRACT_MODULE_REFERENCES[contract]],
                 safety_case_ids=[LEAN_REQUIRED_CONTRACT_SAFETY_CASE_IDS[contract], "SC-EXTRA-UNSUPPORTED"],
             )
 
