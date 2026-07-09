@@ -28,6 +28,9 @@
 
 ### v0.2.0 — 2026-02-26
 - [x] Paper 27 phase dynamics engine (Kuramoto, Knm, UPDE, Lyapunov guard)
+  - Public-claim boundary: the Lyapunov guard is a research-prototype advisory
+    sliding-window monitor with warm-up and consecutive-window fail-open
+    intervals; it is not a standalone fail-closed safety interlock.
 - [x] WebSocket live phase stream
 - [x] Streamlit Cloud deployment
 - [x] CI: 12 jobs, 680 tests
@@ -45,6 +48,8 @@
 
 ### v0.4.0 — 2026-03-01
 - [x] Real-time adaptive Knm engine (beta, MHD, coherence PI, rate limit, Lyapunov veto)
+  - Public-claim boundary: the Lyapunov veto inherits the advisory monitor
+    boundary above and must not be described as facility safety approval.
 - [x] Zenodo metadata (.zenodo.json, CITATION.cff)
 - [x] CI: 15 jobs, 1888 tests
 
@@ -193,6 +198,9 @@
 - [x] 3,015 tests, 100% coverage, 20 CI jobs
 - [x] **Electromagnetic GK extension** — KBM (Tang 1980) + MTM (Drake & Lee 1977),
   mode classification extended, beta_e=0 reproduces ES exactly. 19 tests.
+  Public-claim boundary: this is repository research-prototype evidence; the
+  nonlinear electromagnetic extension, A_parallel path, external-code
+  revalidation, and facility validation remain open revalidation items.
 - [x] **JAX GK backend** (`jax_gk_solver.py`) — `jax.vmap` over k_y,
   `jax.grad` transport stiffness, JIT hot path, NumPy fallback. 10 tests.
 - [x] **IMAS round-trip tests** — real `omas` ODS for equilibrium + core_profiles,
@@ -292,6 +300,8 @@ below are closed and a real tag is cut.
 - [ ] Confirm JOSS paper citation count and test metrics against the final
       release commit.
 - [ ] Reconfirm electromagnetic nonlinear extension evidence (A_∥, KBM, MTM)
+      including the A_parallel nonlinear branch and public fail-open caveats
+      before describing the EM surface beyond repository research evidence.
       against the final release commit.
 - [ ] Reconfirm physics invariant and physics-deepening test counts against the
       final release commit.

@@ -20,6 +20,14 @@ plasma control combining Stochastic Petri Net (SPN) compilation into spiking
 neural network (SNN) controllers, a five-tier gyrokinetic transport system,
 and an 8-layer Kuramoto-Sakaguchi phase dynamics engine.
 
+The electromagnetic gyrokinetic and Lyapunov-monitor surfaces are repository
+research-prototype evidence, not facility-control guarantees. The finite-beta
+KBM/MTM branch logic has regression coverage, but nonlinear electromagnetic
+extension evidence and external-code or facility validation remain open. The
+Lyapunov guard is an advisory sliding-window monitor: it can approve during
+warm-up and until the configured consecutive-violation threshold is exceeded,
+so it is not a standalone fail-closed safety interlock.
+
 The package provides: a Grad-Shafranov equilibrium solver (fixed and free
 boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
@@ -81,7 +89,9 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
    UPDE engine [@kuramoto1975; @sotek2026knm] encoding experimentally
    grounded interactions (drift-wave/zonal-flow, NTM/bootstrap-current,
    ELM/pedestal), with GK-driven adaptive $K_{nm}$ coupling and Lyapunov
-   stability monitoring.
+   stability monitoring. The monitor is a research-prototype advisory guard
+   with warm-up and consecutive-window fail-open intervals, not a replacement
+   for an independent facility safety interlock.
 
 ## Implementation
 
@@ -112,7 +122,9 @@ The Python package is organised into four layers:
       Gauss-Legendre velocity grid, Sugama collision operator [@sugama2006],
       response-matrix eigenvalue solver, mixing-length quasilinear fluxes.
       Electromagnetic extension adds KBM [@tang1980] and microtearing
-      [@drake1977] modes via $A_\parallel$ and $\delta B_\parallel$.
+      [@drake1977] modes via $A_\parallel$ and $\delta B_\parallel$ as
+      repository research-prototype evidence pending nonlinear EM and
+      external-code revalidation.
     - *External GK*: TGLF [@staebler2007], GENE [@jenko2000], GS2
       [@kotschenreuther1995], CGYRO [@candy2003], QuaLiKiz [@bourdelle2007]
       via subprocess with automatic input deck generation and output parsing.

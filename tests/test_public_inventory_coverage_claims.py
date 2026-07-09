@@ -162,3 +162,24 @@ def test_faq_controller_registry_guidance_matches_code() -> None:
     assert "validation/controller_comparison.py" in faq
     assert "`tokamak_flight_sim.py` provides the" in faq
     assert "within `tokamak_flight_sim.py` or" not in faq
+
+
+def test_public_physics_monitor_claims_keep_open_issue_caveats() -> None:
+    """EM and Lyapunov public claims must carry the live research boundary."""
+
+    checked_paths = (
+        ROOT / "ROADMAP.md",
+        ROOT / "paper.md",
+        ROOT / "docs" / "joss_paper.md",
+    )
+    required_fragments = (
+        "research-prototype",
+        "warm-up and consecutive-window fail-open",
+        "not a standalone fail-closed safety interlock",
+        "external-code revalidation",
+    )
+
+    for path in checked_paths:
+        text = path.read_text(encoding="utf-8")
+        for fragment in required_fragments:
+            assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
