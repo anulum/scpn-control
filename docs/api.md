@@ -1131,6 +1131,13 @@ this value, artifact loading validates it as finite and non-negative, and the
 controller consumes it directly instead of falling back to an implicit runtime
 constant. Legacy artifacts without the field still load with the historical
 `0.05` default so archived evidence remains readable.
+`Artifact(...)` validates direct construction by default, `load_artifact()` calls
+the same public `validate_artifact()` surface after parsing, and
+`NeuroSymbolicController` calls `validate_artifact()` before runtime arrays,
+runtime certificates, or controller state are admitted. Validator branch tests
+can pass `validate_on_init=False` only to build a deliberately malformed object;
+that object is still rejected by `validate_artifact()`, `save_artifact()`, and
+controller construction.
 When callers provide `formal_report_root`, the loader resolves the report URI
 under that root and verifies the report bytes against the declared SHA-256.
 Z3 and Lean report files reached through an artifact manifest are loaded through
@@ -1179,6 +1186,8 @@ runtime validator.
 ::: scpn_control.scpn.artifact.FormalVerificationEvidence
 
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
+
+::: scpn_control.scpn.artifact.validate_artifact
 
 ::: scpn_control.scpn.artifact.get_artifact_json_schema
 

@@ -28,6 +28,7 @@ from scpn_control.scpn.artifact import (
     get_artifact_json_schema,
     load_artifact,
     save_artifact,
+    validate_artifact,
 )
 from scpn_control.scpn.compiler import CompiledNet, FusionCompiler
 from scpn_control.scpn.contracts import (
@@ -321,6 +322,7 @@ __all__ = [
     "Artifact",
     "load_artifact",
     "save_artifact",
+    "validate_artifact",
     "get_artifact_json_schema",
     "NeuroSymbolicController",
     "FormalPetriNetVerifier",

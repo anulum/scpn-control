@@ -10,7 +10,7 @@ SCPN Controller Artifact (``.scpnctl.json``) loader / saver.
 
 Defines the ``Artifact`` dataclass that mirrors the JSON schema sections
 (meta, topology, weights, readout, initial_state) and provides lightweight
-validation on load.
+validation on direct construction, load, save, and controller admission.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import json
 import math
 import zlib
 from collections.abc import Callable
-from dataclasses import MISSING, dataclass, fields
+from dataclasses import MISSING, InitVar, dataclass, fields
 from pathlib import Path, PurePosixPath
 from typing import Any, Dict, List
 
@@ -436,6 +436,12 @@ class Artifact:
     readout: Readout
     initial_state: InitialState
     formal_verification: FormalVerificationEvidence | None = None
+    validate_on_init: InitVar[bool] = True
+
+    def __post_init__(self, validate_on_init: bool) -> None:
+        """Validate direct artifact construction unless explicitly disabled."""
+        if validate_on_init:
+            validate_artifact(self)
 
     @property
     def nP(self) -> int:
@@ -1157,6 +1163,24 @@ def _validate(artifact: Artifact) -> None:
             raise ArtifactValidationError("readout.slew_per_s must contain finite numeric values >= 0")
 
 
+def validate_artifact(artifact: Artifact) -> None:
+    """Validate a controller artifact before runtime use.
+
+    Parameters
+    ----------
+    artifact
+        Parsed or directly constructed artifact to validate.
+
+    Raises
+    ------
+    ArtifactValidationError
+        If metadata, topology, weights, readout, initial state, or formal
+        evidence fields violate the controller artifact contract.
+    """
+
+    _validate(artifact)
+
+
 # ── Load / Save ─────────────────────────────────────────────────────────────
 
 
@@ -1304,8 +1328,9 @@ def load_artifact(
         readout=readout,
         initial_state=initial_state,
         formal_verification=_parse_formal_verification(obj.get("formal_verification")),
+        validate_on_init=False,
     )
-    _validate(artifact)
+    validate_artifact(artifact)
     if require_formal_verification:
         validate_safety_critical_artifact(artifact, formal_report_root=formal_report_root)
     return artifact
@@ -1581,7 +1606,7 @@ def save_artifact(
     compact_packed: bool = False,
 ) -> None:
     """Serialize an ``Artifact`` to indented JSON."""
-    _validate(artifact)
+    validate_artifact(artifact)
     obj = _artifact_payload_dict(artifact, compact_packed=compact_packed)
 
     if artifact.formal_verification is not None:
