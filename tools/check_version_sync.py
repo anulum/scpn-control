@@ -36,7 +36,7 @@ def _require_contains(path: Path, substring: str, label: str) -> str | None:
     """Return an error message when ``path`` does not contain ``substring``."""
 
     if not path.exists():
-        return f"MISSING: {label} file {path.relative_to(ROOT)} does not exist"
+        return f"MISSING: {label} file {path.relative_to(ROOT).as_posix()} does not exist"
     if substring not in path.read_text(encoding="utf-8"):
         return f"MISMATCH: {label} missing {substring!r}"
     return None

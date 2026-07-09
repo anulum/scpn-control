@@ -127,8 +127,20 @@ jobs:
         run: pnpm exec vitest run --coverage
       - name: Build (Module Federation remote)
         run: pnpm build
-      - name: Configure Studio deploy SSH
+      - name: Detect Studio deploy credentials
+        id: studio-deploy-credentials
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env:
+          SCPN_CONTROL_STUDIO_DEPLOY_KEY: ${{ secrets.SCPN_CONTROL_STUDIO_DEPLOY_KEY }}
+          SCPN_CONTROL_STUDIO_KNOWN_HOSTS: ${{ secrets.SCPN_CONTROL_STUDIO_KNOWN_HOSTS }}
+        run: |
+          if [ -n "$SCPN_CONTROL_STUDIO_DEPLOY_KEY" ] && [ -n "$SCPN_CONTROL_STUDIO_KNOWN_HOSTS" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Configure Studio deploy SSH
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.studio-deploy-credentials.outputs.configured == 'true'
         env:
           SCPN_CONTROL_STUDIO_DEPLOY_KEY: ${{ secrets.SCPN_CONTROL_STUDIO_DEPLOY_KEY }}
           SCPN_CONTROL_STUDIO_KNOWN_HOSTS: ${{ secrets.SCPN_CONTROL_STUDIO_KNOWN_HOSTS }}
@@ -141,7 +153,7 @@ jobs:
           printf '%s\n' "$SCPN_CONTROL_STUDIO_KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
       - name: Deploy Studio remote
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main' && steps.studio-deploy-credentials.outputs.configured == 'true'
         run: |
           test -f dist/remoteEntry.js
           test -f dist/manifest.json
