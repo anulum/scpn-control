@@ -15,6 +15,7 @@
   },
   "synthetic_generator": "tests.mock_diiid.generate_mock_shot",
   "synthetic_seed": 42,
+  "claim_boundary": "Synthetic CI fixture; not DIII-D facility, MDSplus, or measured-shot evidence.",
   "signals": [
     {
       "name": "time",

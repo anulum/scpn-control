@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
@@ -26,6 +27,7 @@ from scpn_control.core.real_data_manifest import (
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_DIR = ROOT / "validation" / "reference_data" / "diiid" / "manifests"
+PayloadMutation = Callable[[dict[str, object]], object]
 
 
 def _real_payload() -> dict[str, object]:
@@ -93,7 +95,7 @@ def test_real_manifest_accepts_physical_provenance() -> None:
     assert manifest.signals[0].units == "A"
 
 
-def test_load_real_data_manifest_from_json(tmp_path) -> None:
+def test_load_real_data_manifest_from_json(tmp_path: Path) -> None:
     path = tmp_path / "real_manifest.json"
     path.write_text(json.dumps(_real_payload()), encoding="utf-8")
 
@@ -102,7 +104,7 @@ def test_load_real_data_manifest_from_json(tmp_path) -> None:
     assert manifest.dataset_id == "diii-d-163303-control-replay"
 
 
-def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path) -> None:
+def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path: Path) -> None:
     path = tmp_path / "duplicate_manifest.json"
     path.write_text(
         '{"schema_version":"1.0","dataset_id":"first","dataset_id":"second"}',
@@ -113,7 +115,7 @@ def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path) -> None:
         load_real_data_manifest(path)
 
 
-def test_load_real_data_manifest_rejects_non_object_root(tmp_path) -> None:
+def test_load_real_data_manifest_rejects_non_object_root(tmp_path: Path) -> None:
     path = tmp_path / "array_manifest.json"
     path.write_text(json.dumps(["not", "a", "manifest"]), encoding="utf-8")
 
@@ -133,11 +135,19 @@ def test_load_real_data_manifest_rejects_non_object_root(tmp_path) -> None:
         (lambda payload: payload.update({"retrieved_at": ""}), "retrieved_at must be a non-empty string"),
     ],
 )
-def test_manifest_rejects_malformed_top_level_provenance(mutation, message) -> None:
+def test_manifest_rejects_malformed_top_level_provenance(mutation: PayloadMutation, message: str) -> None:
     payload = _real_payload()
     mutation(payload)
 
     with pytest.raises(RealDataManifestError, match=message):
+        validate_real_data_manifest(payload)
+
+
+def test_manifest_requires_mandatory_top_level_keys() -> None:
+    payload = _real_payload()
+    payload.pop("dataset_id")
+
+    with pytest.raises(RealDataManifestError, match=r"manifest missing required key\(s\): dataset_id"):
         validate_real_data_manifest(payload)
 
 
@@ -157,7 +167,7 @@ def test_manifest_rejects_non_object_signal() -> None:
         ([{"uri": "shot.npz", "checksum_sha256": "ABC"}], r"artifacts\[0\]\.checksum_sha256"),
     ],
 )
-def test_manifest_rejects_malformed_artifact_entries(artifacts, message) -> None:
+def test_manifest_rejects_malformed_artifact_entries(artifacts: object, message: str) -> None:
     payload = _real_payload()
     payload["artifacts"] = artifacts
     payload.pop("checksum_sha256")
@@ -255,8 +265,8 @@ def test_synthetic_manifest_accepts_ci_fixture_metadata() -> None:
 @pytest.mark.parametrize(
     ("filename", "kind", "source_kind"),
     [
-        ("diiid_hmode_1p5MA.geqdsk.manifest.json", "real", "geqdsk"),
-        ("shot_163303_hmode.npz.manifest.json", "real", "local_archive"),
+        ("diiid_hmode_1p5MA.geqdsk.manifest.json", "synthetic", "synthetic"),
+        ("shot_163303_hmode.npz.manifest.json", "synthetic", "synthetic"),
         ("mock_diiid_ci.manifest.json", "synthetic", "synthetic"),
     ],
 )
@@ -267,13 +277,13 @@ def test_repository_reference_manifests_validate(filename: str, kind: str, sourc
     assert manifest.source.kind == source_kind
 
 
-def test_verify_manifest_artifact_ignores_remote_real_sources(tmp_path) -> None:
+def test_verify_manifest_artifact_ignores_remote_real_sources(tmp_path: Path) -> None:
     manifest = validate_real_data_manifest(_real_payload())
 
     assert verify_manifest_artifact(manifest, manifest_path=tmp_path / "manifest.json") is None
 
 
-def test_verify_manifest_artifact_requires_checksum_for_local_source(tmp_path) -> None:
+def test_verify_manifest_artifact_requires_checksum_for_local_source(tmp_path: Path) -> None:
     manifest = RealDataManifest(
         schema_version="1.0",
         dataset_id="local-shot",
@@ -299,7 +309,7 @@ def test_repository_manifest_verifies_local_artifact_checksum() -> None:
     assert manifest.dataset_id == "diiid-hmode-1p5ma-geqdsk"
 
 
-def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path) -> None:
+def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path: Path) -> None:
     artefact = tmp_path / "shot.npz"
     artefact.write_bytes(b"not the recorded shot")
     manifest_path = tmp_path / "manifest.json"
@@ -316,7 +326,7 @@ def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path) -> N
         load_real_data_manifest(manifest_path, verify_artifact=True)
 
 
-def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path) -> None:
+def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path: Path) -> None:
     artefact = tmp_path / "shot.npz"
     content = b"measured archive payload"
     artefact.write_bytes(content)
@@ -336,6 +346,23 @@ def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path) -> None:
     assert manifest.artifacts[0].uri == artefact.name
 
 
+def test_synthetic_manifest_single_local_artifact_verifies_checksum(tmp_path: Path) -> None:
+    artefact = tmp_path / "synthetic-shot.npz"
+    content = b"synthetic archive payload"
+    artefact.write_bytes(content)
+    payload = _synthetic_payload()
+    source = payload["source"]
+    assert isinstance(source, dict)
+    source["uri"] = artefact.name
+    payload["checksum_sha256"] = sha256(content).hexdigest()
+    manifest_path = tmp_path / "manifest.json"
+    manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    manifest = load_real_data_manifest(manifest_path, verify_artifact=True)
+
+    assert manifest.kind == "synthetic"
+
+
 @pytest.mark.parametrize(
     ("uri", "message"),
     [
@@ -345,7 +372,9 @@ def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path) -> None:
         ("missing-shot.npz", "artifact file not found"),
     ],
 )
-def test_manifest_artifact_verification_rejects_unresolvable_local_artifacts(tmp_path, uri: str, message: str) -> None:
+def test_manifest_artifact_verification_rejects_unresolvable_local_artifacts(
+    tmp_path: Path, uri: str, message: str
+) -> None:
     manifest = RealDataManifest(
         schema_version="1.0",
         dataset_id="local-shot",
@@ -363,7 +392,7 @@ def test_manifest_artifact_verification_rejects_unresolvable_local_artifacts(tmp
         verify_manifest_artifact(manifest, manifest_path=tmp_path / "manifest.json")
 
 
-def test_manifest_artifact_list_rejects_checksum_mismatch(tmp_path) -> None:
+def test_manifest_artifact_list_rejects_checksum_mismatch(tmp_path: Path) -> None:
     artefact = tmp_path / "shot.npz"
     artefact.write_bytes(b"measured archive payload")
     payload = _real_payload()

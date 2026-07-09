@@ -7,15 +7,18 @@
   "dataset_id": "diii-d-163303-hmode-local-archive",
   "machine": "DIII-D",
   "shot": "163303",
-  "synthetic": false,
+  "synthetic": true,
   "source": {
-    "kind": "local_archive",
+    "kind": "synthetic",
     "uri": "validation/reference_data/diiid/disruption_shots/shot_163303_hmode.npz",
-    "access": "repository reference archive"
+    "access": "repository synthetic reference fixture"
   },
   "retrieved_at": "2026-05-18T01:30:00Z",
   "checksum_sha256": "b828cdcfa5c5785deddb06c42ba01378e18d438596d97d7fbdfb116160675d0b",
-  "licence": "DIII-D facility data policy or repository reference data terms",
+  "licence": "repository synthetic reference fixture terms",
+  "synthetic_generator": "repository-curated DIII-D-like disruption fixture",
+  "synthetic_seed": 20260518,
+  "claim_boundary": "Synthetic repository fixture; not DIII-D facility, MDSplus, or measured-shot evidence.",
   "signals": [
     {
       "name": "time",

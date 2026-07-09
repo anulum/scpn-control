@@ -254,18 +254,12 @@ def _validate_signal_specs(signals: list[object]) -> None:
         if not isinstance(signal_payload, dict):
             raise ValueError("MDSplus signal specification must be a JSON object")
         name = _required_str(signal_payload, "name")
-        node = _required_str(signal_payload, "node")
-        units = _required_str(signal_payload, "units")
-        timebase = _required_str(signal_payload, "timebase")
+        _required_str(signal_payload, "node")
+        _required_str(signal_payload, "units")
+        _required_str(signal_payload, "timebase")
         if name in seen:
             raise ValueError(f"duplicate MDSplus signal name: {name}")
         seen.add(name)
-        if not node.strip():
-            raise ValueError(f"MDSplus signal {name!r} requires a node path")
-        if not units.strip():
-            raise ValueError(f"MDSplus signal {name!r} requires units")
-        if not timebase.strip():
-            raise ValueError(f"MDSplus signal {name!r} requires a timebase")
 
 
 def _required_str(payload: dict[str, Any], key: str) -> str:
@@ -276,10 +270,10 @@ def _required_str(payload: dict[str, Any], key: str) -> str:
 
 
 def _covered_artifact_uris(manifest: Any) -> list[str]:
-    if manifest.synthetic:
-        return []
     if manifest.artifacts:
         return [artifact.uri for artifact in manifest.artifacts]
+    if manifest.synthetic and manifest.checksum_sha256 is not None and "://" not in manifest.source.uri:
+        return [manifest.source.uri]
     if manifest.source.kind in {"geqdsk", "local_archive"} and "://" not in manifest.source.uri:
         return [manifest.source.uri]
     return []

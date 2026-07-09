@@ -115,7 +115,9 @@
 ### v0.10.0 — 2026-03-10
 - [x] JAX-accelerated transport primitives (Thomas solver, Crank-Nicolson, vmap batching)
 - [x] Autodifferentiation through transport solver (`jax.grad`)
-- [x] Real DIII-D shot validation (17 shots, 95 tests, CI job)
+- [x] Synthetic DIII-D-like reference fixture validation (manifest checksums,
+  parser contract, phase-monitor ingestion, CI job; measured DIII-D replay
+  remains a validation gap)
 - [x] JOSS paper draft (`paper.md`, `paper.bib`)
 - [x] 25 CI jobs, 2024+ tests
 

@@ -10,36 +10,38 @@
   "entries": [
     {
       "component": "DIII-D experimental replay",
-      "equation_contract": "Replay claims require measured signal arrays, physical units, shot identifiers, retrieval timestamp, licence policy, immutable checksums, and source URI provenance.",
-      "fidelity_status": "reference_validated",
+      "equation_contract": "Facility replay claims require measured signal arrays, physical units, shot identifiers, retrieval timestamp, licence policy, immutable checksums, and source URI provenance. Current repository DIII-D-like artefacts are synthetic reference fixtures only.",
+      "fidelity_status": "validation_gap",
       "model_references": [
         "DIII-D MDSplus facility data access contract",
-        "Repository real-data manifest schema 1.0"
+        "Repository real/synthetic data manifest schema 1.0",
+        "Repository-curated synthetic DIII-D-like fixture manifests"
       ],
       "module_path": "validation/reference_data/diiid",
-      "public_claim_allowed": true,
+      "public_claim_allowed": false,
       "required_actions": [
-        "Keep GEQDSK and disruption-shot reference manifests covered by checksum verification",
-        "Use the MDSplus acquisition spec path for new facility artefacts instead of synthetic fixtures"
+        "Keep synthetic GEQDSK and disruption-shot fixture manifests covered by checksum verification",
+        "Acquire measured DIII-D artefacts through the MDSplus acquisition spec path before restoring any real replay claim"
       ],
-      "unit_contract": "Signal-specific SI or dimensionless units; arbitrary units are rejected for real-shot evidence.",
+      "unit_contract": "Synthetic fixture signals retain declared SI or dimensionless units for parser and control-path tests, but units do not promote the fixtures to measured-shot evidence.",
       "validation_evidence": [
         "validation/validate_data_manifests.py",
         "src/scpn_control/core/real_data_manifest.py",
-        "tests/test_real_diiid_shots.py",
+        "tests/test_synthetic_diiid_reference_shots.py",
         "tests/test_validate_data_manifests.py",
-        "strict acquisition-readiness gate via --require-real-acquisition"
+        "strict acquisition-readiness gate via --require-real-acquisition blocks missing measured MDSplus manifests"
       ],
       "evidence_paths": [
         "validation/validate_data_manifests.py",
         "src/scpn_control/core/real_data_manifest.py",
         "validation/reference_data/diiid/manifests/diiid_geqdsk_archive.manifest.json",
         "validation/reference_data/diiid/manifests/diiid_disruption_shots_archive.manifest.json",
-        "tests/test_real_diiid_shots.py",
+        "tests/test_synthetic_diiid_reference_shots.py",
         "tests/test_validate_data_manifests.py",
         "docs/validation.md"
       ],
-      "validity_domain": "Immutable repository DIII-D GEQDSK and disruption-shot reference artefacts with manifest checksums; not an online facility-control or live MDSplus availability claim."
+      "validity_domain": "Immutable synthetic DIII-D-like repository fixtures with manifest checksums; not an online facility-control, measured-shot replay, or live MDSplus availability claim.",
+      "external_validation_tracker_issue": 48
     },
     {
       "component": "federated disruption prediction",

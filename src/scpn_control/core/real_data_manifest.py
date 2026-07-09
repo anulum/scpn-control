@@ -113,8 +113,6 @@ def verify_manifest_artifact(manifest: RealDataManifest, *, manifest_path: str |
     Remote acquisition sources such as MDSplus URIs are provenance records rather
     than local files, so they return ``None`` here.
     """
-    if manifest.synthetic or manifest.source.kind not in {"geqdsk", "local_archive"}:
-        return None
     if manifest.artifacts:
         for artifact in manifest.artifacts:
             artifact_path = _resolve_local_artifact(artifact.uri, Path(manifest_path))
@@ -123,6 +121,10 @@ def verify_manifest_artifact(manifest: RealDataManifest, *, manifest_path: str |
                 raise RealDataManifestError(
                     f"artifact checksum mismatch for {artifact_path}: expected {artifact.checksum_sha256}, got {digest}"
                 )
+        return None
+    if manifest.synthetic and manifest.checksum_sha256 is None:
+        return None
+    if not manifest.synthetic and manifest.source.kind not in {"geqdsk", "local_archive"}:
         return None
     if manifest.checksum_sha256 is None:
         raise RealDataManifestError("artifact verification requires checksum_sha256")

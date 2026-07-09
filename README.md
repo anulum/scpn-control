@@ -592,9 +592,10 @@ git push --tags
 > constraints that users must understand.
 
 - **No facility deployment**: DIII-D replay evidence is limited to immutable
-  repository reference artefacts with manifest checksums. Synthetic fixtures
-  remain for CI plumbing only, not public physics evidence. No live MDSplus,
-  no experimental control-room replay, and no real-world validation.
+  synthetic repository fixtures with manifest checksums. These fixtures exercise
+  data-plumbing and control-path contracts only, not public physics evidence. No
+  live MDSplus, no measured DIII-D replay, no experimental control-room replay,
+  and no real-world validation.
 - **No peer-reviewed fusion-control publication yet**: Paper 27 is public as
   a project manuscript, and arXiv:2004.06344 is a related
   Kuramoto-Sakaguchi finite-size reference, but this repository still needs a

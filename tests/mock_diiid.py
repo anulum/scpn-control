@@ -9,17 +9,20 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Mock DIII-D Shot Generator
 # ──────────────────────────────────────────────────────────────────────
-"""Generate synthetic DIII-D-format shot data for CI end-to-end tests.
+"""Generate synthetic DIII-D-like shot data for CI end-to-end tests.
 
 Each shot has 1000 timesteps at 1 kHz with the same field structure as
-real DIII-D disruption shots (time_s, Ip_MA, BT_T, beta_N, q95, etc.).
+DIII-D-like disruption reference fixtures (time_s, Ip_MA, BT_T, beta_N, q95, etc.).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, TypeAlias
 
 import numpy as np
+
+MockShot: TypeAlias = dict[str, Any]
 
 
 def generate_mock_shot(
@@ -28,8 +31,8 @@ def generate_mock_shot(
     disruption: bool = True,
     disruption_type: str = "hmode",
     seed: int = 42,
-) -> dict:
-    """Return a dict of arrays matching real DIII-D shot npz format."""
+) -> MockShot:
+    """Return arrays matching the synthetic DIII-D-like fixture format."""
     rng = np.random.default_rng(seed)
 
     time_s = np.linspace(0.0, 5.0, n_steps)
@@ -78,7 +81,7 @@ def generate_mock_shot(
     }
 
 
-def save_mock_shot(directory: Path, shot_id: int = 999999, **kwargs) -> Path:
+def save_mock_shot(directory: Path, shot_id: int = 999999, **kwargs: Any) -> Path:
     """Generate and save a mock shot to npz."""
     directory.mkdir(parents=True, exist_ok=True)
     data = generate_mock_shot(shot_id=shot_id, **kwargs)

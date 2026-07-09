@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Reclassified DIII-D repository reference artefacts as synthetic fixtures with
+  generator/seed provenance, retained local checksum coverage for those
+  fixtures, and renamed the CI/test surface away from real-shot validation.
 - Moved the untagged `v1.0.0` roadmap block out of shipped history and reset it
   as a future production-readiness target gated by real release evidence.
 - Separated the public Paper 27 manuscript references from the related
@@ -1291,12 +1294,14 @@
   Thomas tridiagonal solver, Crank-Nicolson diffusion operator, and batched
   transport via `jax.vmap` — all JIT-compiled, GPU-compatible, and
   differentiable via `jax.grad` for sensitivity analysis
-- **Real DIII-D shot validation** (`tests/test_real_diiid_shots.py`): 95 tests
+- **Synthetic DIII-D-like reference fixture validation**
+  (`tests/test_synthetic_diiid_reference_shots.py`): 95 tests
   validating data integrity, physical ranges, disruption labels, phase-sync
   pipeline handling, and disruption-precursor feature extraction against 17
-  real DIII-D disruption shots (H-mode, VDE, beta-limit, locked-mode,
+  synthetic DIII-D-like disruption fixtures (H-mode, VDE, beta-limit, locked-mode,
   density-limit, tearing, snowflake, negative-delta, high-beta)
-- CI Job: `real-diiid` — validates against real DIII-D shot data (25 CI jobs total)
+- CI Job: `synthetic-diiid-reference` — validates synthetic DIII-D-like
+  reference fixtures (25 CI jobs total)
 - CI: JAX solver parity tests added to `jax-parity` job
 - **JOSS paper** (`paper.md`, `paper.bib`): submission-ready for Journal of
   Open Source Software review

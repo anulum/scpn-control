@@ -7,14 +7,17 @@
   "dataset_id": "diiid-geqdsk-reference-archive",
   "machine": "DIII-D",
   "shot": "geqdsk-reference-archive",
-  "synthetic": false,
+  "synthetic": true,
   "source": {
-    "kind": "geqdsk",
+    "kind": "synthetic",
     "uri": "validation/reference_data/diiid",
-    "access": "repository reference archive"
+    "access": "repository synthetic GEQDSK reference fixture archive"
   },
   "retrieved_at": "2026-05-18T01:30:00Z",
-  "licence": "repository reference data terms",
+  "licence": "repository synthetic reference fixture terms",
+  "synthetic_generator": "repository-curated DIII-D-like GEQDSK fixture archive",
+  "synthetic_seed": 20260518,
+  "claim_boundary": "Synthetic repository GEQDSK fixture archive; not DIII-D facility, EFIT, MDSplus, or measured-equilibrium evidence.",
   "artifacts": [
     {
       "uri": "validation/reference_data/diiid/diiid_hmode_1p5MA.geqdsk",
