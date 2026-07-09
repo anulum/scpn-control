@@ -203,7 +203,7 @@ def scan_repository(repo: Path) -> list[Finding]:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
-        findings.extend(scan_text(str(path.relative_to(repo)), text))
+        findings.extend(scan_text(path.relative_to(repo).as_posix(), text))
     return findings
 
 

@@ -28,11 +28,21 @@ from scpn_control._typing import AnyFloatArray, FloatArray
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
 
-try:
-    import matplotlib.pyplot as plt
-    from matplotlib.animation import FuncAnimation, PillowWriter
-    from matplotlib.patches import Rectangle
+plt: Any = None
+FuncAnimation: Any = None
+PillowWriter: Any = None
+Rectangle: Any = None
 
+try:
+    import matplotlib.pyplot as _plt
+    from matplotlib.animation import FuncAnimation as _FuncAnimation
+    from matplotlib.animation import PillowWriter as _PillowWriter
+    from matplotlib.patches import Rectangle as _Rectangle
+
+    plt = _plt
+    FuncAnimation = _FuncAnimation
+    PillowWriter = _PillowWriter
+    Rectangle = _Rectangle
     HAS_MPL = True
 except ImportError:
     HAS_MPL = False
