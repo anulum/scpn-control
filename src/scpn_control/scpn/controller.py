@@ -35,6 +35,7 @@ from .contracts import (
     FeatureAxisSpec,
     _seed64,
 )
+from .observation import AERControlObservation
 from .runtime_safety_certificate import (
     CertificateReplayResult,
     ControllerRuntimeBinding,
@@ -43,6 +44,7 @@ from .runtime_safety_certificate import (
 )
 
 FloatArray = NDArray[np.float64]
+ControllerObservation = Mapping[str, float] | AERControlObservation
 
 _HAS_RUST_SCPN_RUNTIME = False
 _rust_dense_activations: Callable[[FloatArray, FloatArray], object] | None = None
@@ -464,12 +466,16 @@ class NeuroSymbolicController:
 
     def step(
         self,
-        obs: Mapping[str, float],
+        obs: ControllerObservation,
         k: int,
         log_path: str | None = None,
         log_root: str | Path | None = None,
     ) -> ControlAction:
         """Execute one control tick.
+
+        ``obs`` accepts the existing mapping contract or a typed
+        ``AERControlObservation`` decoded through the same feature-injection
+        path.
 
         Steps:
             1. ``extract_features(obs)`` → 4 unipolar features
@@ -480,15 +486,16 @@ class NeuroSymbolicController:
             6. Optional JSONL logging
         """
         t0 = time.perf_counter()
+        obs_map, aer_admission = self._normalise_observation(obs)
 
         # 1. Feature extraction (fast compiled mapping)
-        pos_vals, neg_vals = self._compute_feature_components(obs)
-        feats = self._build_feature_dict(obs, pos_vals, neg_vals) if log_path is not None else None
+        pos_vals, neg_vals = self._compute_feature_components(obs_map)
+        feats = self._build_feature_dict(obs_map, pos_vals, neg_vals) if log_path is not None else None
 
         # 2. Inject features into marking
         m = self._tmp_marking_input
         np.copyto(m, self._marking)
-        self._inject_places(m, obs, pos_vals, neg_vals)
+        self._inject_places(m, obs_map, pos_vals, neg_vals)
 
         # 3. Oracle float path (optional)
         if self._enable_oracle_diagnostics:
@@ -519,8 +526,9 @@ class NeuroSymbolicController:
             safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             rec = {
                 "k": int(k),
-                "obs": dict(obs),
+                "obs": dict(obs_map),
                 "features": feats,
+                "aer_admission": aer_admission,
                 "f_oracle": f_oracle.tolist(),
                 "f_sc": f_sc.tolist(),
                 "marking": m_sc.tolist(),
@@ -589,6 +597,13 @@ class NeuroSymbolicController:
         return actions_vec
 
     # ── Internal ─────────────────────────────────────────────────────────
+
+    def _normalise_observation(
+        self, obs: ControllerObservation
+    ) -> tuple[Mapping[str, float], dict[str, int | bool] | None]:
+        if isinstance(obs, AERControlObservation):
+            return obs.to_feature_mapping(), obs.admission_report()
+        return obs, None
 
     def _compute_feature_components(self, obs_map: Mapping[str, float]) -> tuple[FloatArray, FloatArray]:
         if self._axis_count == 0:

@@ -28,16 +28,22 @@ scpn_control.PhysicsDebugAssistant
 ## SCPN — AER Control Observation
 
 `scpn_control.scpn.observation` adapts asynchronous Address-Event
-Representation spike streams into bounded controller features without changing
-the existing `ControlObservation` consumers. The Python surface provides
+Representation spike streams into bounded controller features while preserving
+the existing mapping-based observation contract. The Python surface provides
 `SpikeEvent`, `SpikeBuffer`, rate/temporal/ISI decoders, and
-`AERControlObservation.to_features()`. The matching Rust implementation lives in
+`AERControlObservation.to_features()`. `NeuroSymbolicController.step()` accepts
+either the existing `Mapping[str, float]` observation or an
+`AERControlObservation`; typed AER input is decoded through
+`AERControlObservation.to_feature_mapping()` before the same feature-injection
+path runs. When JSONL controller logging is enabled, the record includes the
+decoded `obs` mapping plus `aer_admission` metadata from
+`SpikeBuffer.admission_report()`. The matching Rust implementation lives in
 `control_core::spike_buffer`, with optional PyO3 bindings exposed as
 `scpn_control_rs.PySpikeBuffer` and `scpn_control_rs.aer_decode_*`.
-`SpikeBuffer.admission_report()`, `monotonic_input`, and
-`out_of_order_event_count` provide bounded ingress evidence. Observations may
-set `require_monotonic=True` to fail closed before decoding if upstream AER
-timestamps violate the monotonic admission contract.
+`monotonic_input` and `out_of_order_event_count` provide bounded ingress
+evidence. Observations may set `require_monotonic=True` to fail closed before
+controller injection if upstream AER timestamps violate the monotonic admission
+contract.
 
 This is an ingress adapter and feature-decoding contract. It does not claim
 hardware AER signal integrity, target neuromorphic-device deployment, FPGA
