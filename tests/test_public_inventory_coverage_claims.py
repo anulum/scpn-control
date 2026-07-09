@@ -228,3 +228,35 @@ def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
     source = (ROOT / "src" / "scpn_control" / "core" / "neural_transport.py").read_text(encoding="utf-8")
     assert "Quantitative QLKNN or QuaLiKiz claims are" in source
     assert "reproduces gyrokinetic-level predictions" not in source
+
+
+def test_joss_mu_synthesis_claim_matches_static_bound_report() -> None:
+    """JOSS mu-synthesis wording must match the bounded static report."""
+
+    raw: Any = json.loads((ROOT / "validation" / "reports" / "mu_synthesis_claims.json").read_text(encoding="utf-8"))
+    report = cast(dict[str, Any], raw)
+
+    assert report["claim_status"] == "bounded_static_mu_evidence"
+    assert report["static_dc_analysis_only"] is True
+    assert report["validated_claim_allowed"] is False
+
+    checked_paths = (
+        ROOT / "paper.md",
+        ROOT / "docs" / "joss_paper.md",
+    )
+    required_fragments = (
+        "D-scaling upper bound",
+        "bounded static $\\mu$-analysis",
+        "not validated full DK synthesis",
+    )
+    stale_fragments = (
+        "$\\mu$-synthesis (D-K iteration)",
+        "$\\mu$-synthesis (DK-iteration",
+    )
+
+    for path in checked_paths:
+        text = _normalized_prose(path)
+        for fragment in required_fragments:
+            assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
+        for fragment in stale_fragments:
+            assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment!r}"

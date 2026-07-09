@@ -162,7 +162,8 @@ The Python package is organised into four layers:
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
   artifact serialisation, FPGA HDL project export evidence.
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
-  $\mu$-synthesis (D-K iteration), NMPC (SQP), gain-scheduled PID,
+  $\mu$-synthesis (D-scaling upper bound; bounded static $\mu$-analysis,
+  not validated full DK synthesis), NMPC (SQP), gain-scheduled PID,
   shape controller, safe RL (CPO-formulated Lagrangian constraints with
   control barrier functions, Ames 2017), sliding-mode vertical stability,
   scenario scheduler, fault-tolerant control, digital
