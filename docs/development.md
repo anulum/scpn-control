@@ -156,6 +156,16 @@ self-applied promotion terms. Internal planning surfaces under `docs/internal/`
 and `.coordination/` are excluded; bounded negative language and candidate
 labels remain allowed because they do not assert an achieved public claim.
 
+## Changelog Mirror
+
+```bash
+python tools/check_changelog_sync.py
+```
+
+`CHANGELOG.md` is the authoritative release history. `docs/changelog.md` is the
+rendered MkDocs mirror and must stay byte-identical to the root file. The guard
+runs in CI, local preflight, pre-commit, and `make lint`.
+
 ## Public API Docstrings
 
 ```bash

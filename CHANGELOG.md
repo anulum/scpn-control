@@ -11,6 +11,8 @@
 ## Unreleased
 
 ### Changed
+- Synced the rendered MkDocs changelog mirror with the root changelog and added
+  a CI/preflight drift guard to keep future release notes single-sourced.
 - Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear
   policy updated by clipped policy-gradient returns and Lagrangian safety costs.
 - Extended the version-sync guard to cover release notes, README PyPI/Python

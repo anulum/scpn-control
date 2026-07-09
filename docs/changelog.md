@@ -10,15 +10,9 @@
 
 ## Unreleased
 
-### Added
-- Added architecture decision records for module and repository boundaries,
-  Python/Rust/PyO3 dispatch, solver and algorithm selection, validation evidence
-  strategy, and public versus internal API boundaries.
-- Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
-  sealed validation evidence contract and refreshed the Rust multigrid
-  informational record.
-
 ### Changed
+- Synced the rendered MkDocs changelog mirror with the root changelog and added
+  a CI/preflight drift guard to keep future release notes single-sourced.
 - Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear
   policy updated by clipped policy-gradient returns and Lagrangian safety costs.
 - Extended the version-sync guard to cover release notes, README PyPI/Python
@@ -28,6 +22,40 @@
 - Added the SCPN Studio Web CI deploy step for the provisioned
   `scpn-control` remote, corrected the Windows CI runner label, and extended
   the deploy-key guard to verify the workflow.
+- Promoted Grad-Shafranov Python multigrid Solov'ev reconstruction into the
+  sealed validation evidence contract and refreshed the Rust multigrid
+  informational record.
+- Hardened the GitHub installation-token format readiness guard with canonical
+  source headers, public API docstrings, repository traversal tests, binary-file
+  skip coverage, and explicit development documentation.
+- Tightened the strict-mypy debt ratchet tests to cover subprocess wrappers,
+  malformed ledger totals, and improvement reporting at 100% focused coverage,
+  with development-guide documentation for the local preflight gate.
+- Aligned the generated SCPN Studio manifest with the deployed federation
+  remote entry and stable `./Panel` exposure, with focused emitter CLI tests
+  and documentation for the generated Studio artifact.
+- Added a public-surface claim hygiene guard for outward-facing promotion terms,
+  wired it into local preflight and CI, and cleaned existing public test labels.
+- Crosswired the Studio Web Vite remote to the generated manifest contract by
+  building under `/studios/scpn-control/`, exposing `./Panel`, and testing the
+  shared federation constants.
+- Added the deployed Studio Web `manifest.json` sync guard, public artifact, CI
+  check, focused 100% coverage, and documentation for keeping it aligned with
+  the generated schema-A Studio manifest.
+- Added the SCPN Studio deploy public key artifact with a CI/preflight guard
+  that validates the ed25519 public key and rejects private key-like tracked
+  paths.
+- Wired Studio Web to the portal-owned identity path by loading
+  `GET /api/v1/auth/me` with same-origin cookies and rendering only the portal
+  session state in the federated panel.
+- Added a Studio offline-sealing guard that keeps publication signing keys out
+  of tracked CI and deploy policy surfaces while preserving deploy-only
+  credential lanes.
+- Wired the zero-debt public API docstring quality gate into local preflight and
+  `make lint`, matching the existing CI documentation coverage lane.
+- Added architecture decision records for module and repository boundaries,
+  Python/Rust/PyO3 dispatch, solver and algorithm selection, validation evidence
+  strategy, and public versus internal API boundaries.
 
 ## [0.22.1] - 2026-07-03
 
@@ -1573,4 +1601,4 @@
 - Rust workspace reduced from 11 crates to 5
 - CI reduced from 13 jobs to 6
 - `hpc_bridge.py` relocated from `hpc/` to `core/` subpackage
-- Import guards added for excluded modules (stability_analyzer, imas_connector, diagnostics.forward, fusion_ignition_sim); `global_design_scanner` is now provided by SCPN Control.
+- Import guards added for excluded modules (stability_analyzer, global_design_scanner, imas_connector, diagnostics.forward, fusion_ignition_sim)

@@ -55,6 +55,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
     ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
+    ("changelog-sync", [_PY, "tools/check_changelog_sync.py"], None),
     ("joss-submission", [_PY, "tools/check_joss_submission.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),

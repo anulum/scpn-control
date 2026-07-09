@@ -51,6 +51,13 @@ repos:
         pass_filenames: false
         files: (pyproject\.toml|CITATION\.cff|\.zenodo\.json|docs/api\.md)
 
+      - id: check-changelog-sync
+        name: changelog mirror sync
+        entry: python tools/check_changelog_sync.py
+        language: system
+        pass_filenames: false
+        files: ^(CHANGELOG\.md|docs/changelog\.md|tools/check_changelog_sync\.py)
+
       - id: check-docs-coverage
         name: documentation coverage
         entry: python tools/check_docs_coverage.py

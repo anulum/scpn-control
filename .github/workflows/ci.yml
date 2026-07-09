@@ -560,6 +560,8 @@ jobs:
         run: ruff check src/scpn_control/
       - name: Ruff format check
         run: ruff format --check src/scpn_control/ tests/
+      - name: Changelog mirror sync
+        run: python tools/check_changelog_sync.py
       - name: Documentation coverage
         run: python tools/check_docs_coverage.py
       - name: Public-API docstring coverage

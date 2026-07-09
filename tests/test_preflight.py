@@ -65,6 +65,17 @@ def test_preflight_runs_joss_submission_gate() -> None:
     assert "joss-submission" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_changelog_sync_gate() -> None:
+    """Local preflight must reject rendered changelog drift."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["changelog-sync"] == [preflight._PY, "tools/check_changelog_sync.py"]
+    assert "changelog-sync" not in preflight.TEST_GATES
+    assert "changelog-sync" not in preflight.RUST_GATES
+
+
 def test_preflight_runs_runtime_wiring_gate() -> None:
     """Local preflight must fail closed on source modules with no repository wiring."""
     preflight = _load_preflight_module()
