@@ -217,7 +217,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 428 |
+| Python test files | 429 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -401,12 +401,12 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 3,700+ collected Python tests
+tests/                 # 429 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
 +-- test_rust_realtime_parity.py  # Rust PyRealtimeMonitor parity
-+-- ...                # 170+ more test files
++-- ...                # Full list tracked in docs/_generated/capability_manifest.json
 ```
 
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)

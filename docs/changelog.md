@@ -1236,7 +1236,7 @@
 
 ### Changed
 - MG parity tolerance widened (Rust multigrid uses Cartesian smoother)
-- 2,417 tests, 99.99% coverage, 26 CI jobs
+- Historical v0.14 snapshot: 2,417 tests, 99.99% coverage, 26 CI jobs
 
 ## [0.14.0] — 2026-03-10
 

@@ -194,7 +194,7 @@ The solver is validated against:
 The test suite comprises Python module tests and Rust workspace tests across
 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
 CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
-configuration currently enforces a 99% package-coverage gate while publishing
+configuration currently enforces a 100% package-coverage gate while publishing
 XML coverage artefacts. The project holds an OpenSSF CII Best Practices badge.
 All physics equations cite their source papers; ~80 citations spanning
 Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Stix (1972),

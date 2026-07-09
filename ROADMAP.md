@@ -157,9 +157,10 @@
 - [x] Benchmark artifact records PPO standard deviation 31.5 over 50 episodes
 - [x] Cloud training script (`tools/train_rl_upcloud.sh`)
 - [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
-- [x] 100% test coverage: 2,417 tests, 9,672 statements, 1 missed (99.99%)
-- [x] Coverage gate ratcheted: 85% → 99%
-- [x] 25 CI jobs all green
+- [x] Historical v0.14 coverage snapshot: 2,417 tests, 9,672 statements,
+  1 missed (99.99%)
+- [x] Historical coverage gate ratcheted: 85% -> 99%
+- [x] Historical v0.14 CI snapshot: 25 jobs green
 
 ### v0.15.0 — 2026-03-11
 - [x] GS* stencil sign bug fix (cylindrical Laplacian → GS* operator)
