@@ -71,14 +71,18 @@ surrogate validation), and multi-layer phase dynamics in one coherent stack.
 `scpn-control` fills this gap with three distinguishing capabilities:
 
 1. **Five-tier gyrokinetic transport** — critical-gradient baseline,
-   QLKNN surrogate [@plassche2020], native linear GK eigenvalue solver
+   a QLKNN-style neural-transport facade with a compact MLP loader and
+   analytic critical-gradient fallback, native linear GK eigenvalue solver
    in ballooning space (Miller geometry, Sugama collision operator)
    [@dimits2000; @miller1998; @sugama2006], native TGLF-like approximation
    (SAT0/SAT1/SAT2, no Fortran binary), and nonlinear δf GK (5D Vlasov,
    JAX-accelerable). Interfaces to five external GK codes via subprocess are
    present, but quantitative external-code claims remain blocked until real
    artefacts are admitted; the hybrid layer validates the surrogate against
-   GK spot-checks with OOD detection, correction, and online retraining.
+   GK spot-checks with OOD detection, correction, and online retraining. The
+   current public neural-transport claim report is `analytic_fallback`;
+   quantitative QLKNN/QuaLiKiz claims remain blocked unless trained weights and
+   strict reference artefacts are supplied.
 
 2. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding

@@ -6,13 +6,12 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural Transport
 """
-Neural-network surrogate for turbulent transport coefficients.
+Neural-transport facade for turbulent transport coefficients.
 
-Replaces the simple critical-gradient transport model with a trained
-MLP that reproduces gyrokinetic-level predictions at millisecond
-inference speeds.  When no trained weights are available the module
-falls back to an analytic critical-gradient model, so existing code
-keeps working without any neural network dependency.
+The module provides a compact MLP weight loader and an analytic
+critical-gradient fallback.  Quantitative QLKNN or QuaLiKiz claims are
+admissible only when the loaded weights are paired with strict reference
+artifacts; otherwise the public claim path remains the analytic fallback.
 
 Inspired by the QLKNN paradigm (van de Plassche et al.,
 *Phys. Plasmas* 27, 022310, 2020).  The current implementation is a
@@ -27,8 +26,8 @@ The module is designed for the QLKNN-10D public dataset:
     https://doi.org/10.5281/zenodo.3700755
 
 Download the dataset and run the training recipe in
-``docs/NEURAL_TRANSPORT_TRAINING.md`` (to be created) to produce an
-``.npz`` weight file that this module loads at construction time.
+``docs/neural_transport_training.md`` to produce an ``.npz`` weight file
+that this module loads at construction time.
 
 References
 ----------

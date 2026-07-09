@@ -86,7 +86,8 @@ in one coherent stack.
 `scpn-control` fills this gap with four distinguishing capabilities:
 
 1. **Five-tier gyrokinetic transport** — spanning critical-gradient models
-   ($\sim\mu$s), QLKNN surrogates ($\sim$24 ns), a native linear GK
+   ($\sim\mu$s), a QLKNN-style neural-transport facade with a compact MLP
+   loader and analytic critical-gradient fallback, a native linear GK
    eigenvalue solver ($\sim$0.3 s per flux surface) [@dimits2000; @miller1998],
    a native TGLF-equivalent model with SAT0/SAT1/SAT2 spectral saturation
    [@staebler2007; @staebler2017; @maeyama2015], and a nonlinear $\delta f$
@@ -96,7 +97,9 @@ in one coherent stack.
    kinetic electrons via semi-implicit backward-Euler treatment.
    JAX GPU acceleration is reported as a bounded local benchmark result
    (62$\times$ in the recorded GPU context), not as a facility or production
-   timing claim.
+   timing claim. The current public neural-transport claim report is
+   `analytic_fallback`; quantitative QLKNN/QuaLiKiz claims remain blocked
+   unless trained weights and strict reference artefacts are supplied.
 
 2. **Cyclone Base Case validation harness** — the repository includes CBC
    scenarios, grid scans, kinetic-electron lanes, and published-code interface

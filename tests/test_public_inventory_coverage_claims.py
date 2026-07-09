@@ -48,6 +48,12 @@ def _rust_snn_ci_latency() -> tuple[float, float]:
     raise AssertionError("Rust SNN controller latency row is missing")
 
 
+def _normalized_prose(path: Path) -> str:
+    """Return Markdown prose with line wrapping collapsed for claim checks."""
+
+    return " ".join(path.read_text(encoding="utf-8").split())
+
+
 def test_pitch_inventory_claim_matches_generated_manifest() -> None:
     """The pitch inventory summary must match generated capability counts."""
 
@@ -180,6 +186,45 @@ def test_public_physics_monitor_claims_keep_open_issue_caveats() -> None:
     )
 
     for path in checked_paths:
-        text = path.read_text(encoding="utf-8")
+        text = _normalized_prose(path)
         for fragment in required_fragments:
             assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
+
+
+def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
+    """JOSS neural-transport wording must match the public claim report."""
+
+    raw: Any = json.loads(
+        (ROOT / "validation" / "reports" / "neural_transport_claims.json").read_text(encoding="utf-8")
+    )
+    report = cast(dict[str, Any], raw)
+    evidence = cast(dict[str, Any], report["claim_evidence"])
+
+    assert evidence["surrogate_mode"] == "analytic_fallback"
+    assert evidence["quantitative_claim_allowed"] is False
+
+    checked_paths = (
+        ROOT / "paper.md",
+        ROOT / "docs" / "joss_paper.md",
+    )
+    required_fragments = (
+        "QLKNN-style neural-transport facade",
+        "analytic critical-gradient fallback",
+        "current public neural-transport claim report is `analytic_fallback`",
+        "quantitative QLKNN/QuaLiKiz claims remain blocked unless trained weights",
+    )
+    stale_fragments = (
+        "QLKNN surrogates ($\\sim$24 ns)",
+        "QLKNN surrogate [@plassche2020]",
+    )
+
+    for path in checked_paths:
+        text = _normalized_prose(path)
+        for fragment in required_fragments:
+            assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
+        for fragment in stale_fragments:
+            assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment!r}"
+
+    source = (ROOT / "src" / "scpn_control" / "core" / "neural_transport.py").read_text(encoding="utf-8")
+    assert "Quantitative QLKNN or QuaLiKiz claims are" in source
+    assert "reproduces gyrokinetic-level predictions" not in source
