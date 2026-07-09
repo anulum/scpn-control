@@ -230,7 +230,6 @@ ignore = [
     "E501",   # line length handled by formatter
     "E741",   # ambiguous variable (physics code uses l, I, O)
     "UP006", "UP012", "UP015", "UP031", "UP034", "UP035", "UP037", "UP045",
-    "F841",   # unused variable (common in demo/experiment scripts)
     "SIM102", "SIM105", "SIM108", "SIM300",
     "B007", "B017", "B018", "B023", "B028", "B904", "B905",
 ]

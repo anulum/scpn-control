@@ -417,7 +417,7 @@ class TrainingDataGenerator:
 
         for i in range(n_samples):
             R_L_Ti = inputs[i, 0]
-            R_L_Te = inputs[i, 1]
+            R_L_Te = inputs[i, 1]  # noqa: F841  # electron-temp-gradient feature unused in synthetic target; verify (CONTROL-F841-REVIEW)
             R_L_ne = inputs[i, 2]
             q = inputs[i, 3]
             s_hat = inputs[i, 4]

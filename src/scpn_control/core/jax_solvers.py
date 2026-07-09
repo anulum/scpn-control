@@ -203,21 +203,9 @@ if _HAS_JAX:
     ) -> jnp.ndarray:
         """Vectorised cylindrical diffusion (no Python loops)."""
         n = T.shape[0]
-        # Half-grid diffusivities
-        chi_ip = 0.5 * (chi[:-1] + chi[1:])  # (n-1,)
-        chi_im = chi_ip  # shifted view
-        r_ip = rho[:-1] + 0.5 * drho  # (n-1,)
-        r_im = rho[:-1] - 0.5 * drho
-
-        # Fluxes on half-grid
-        dT = jnp.diff(T)  # (n-1,)
-        flux_ip = chi_ip * r_ip * dT / drho  # flux at i+1/2
-        flux_im = chi_im[:-1] * r_im[:-1] * dT[:-1] / drho  # flux at i-1/2 (shifted)
-
-        # Actually need flux_ip[i] and flux_im[i] = flux at (i-1/2)
-        # flux at i+1/2 = chi_{i+1/2} * r_{i+1/2} * (T[i+1] - T[i]) / dr
-        # flux at i-1/2 = chi_{i-1/2} * r_{i-1/2} * (T[i] - T[i-1]) / dr
-        # Recompute cleanly for interior i=1..n-2:
+        # Conservative half-grid fluxes for interior i=1..n-2:
+        #   flux at i+1/2 = chi_{i+1/2} * r_{i+1/2} * (T[i+1] - T[i]) / dr
+        #   flux at i-1/2 = chi_{i-1/2} * r_{i-1/2} * (T[i] - T[i-1]) / dr
         chi_right = 0.5 * (chi[1:-1] + chi[2:])  # chi at (i+1/2) for i=1..n-2
         chi_left = 0.5 * (chi[1:-1] + chi[:-2])  # chi at (i-1/2) for i=1..n-2
         r_right = rho[1:-1] + 0.5 * drho

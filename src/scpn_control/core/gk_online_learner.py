@@ -267,7 +267,6 @@ class OnlineLearner:
             h1 = np.maximum(0, X_train @ w1 + b1)
             h2 = np.maximum(0, h1 @ w2 + b2)
             pred = h2 @ w3 + b3
-            loss_train = float(np.mean((pred - Y_train) ** 2))
 
             # Backprop (simplified, output layer only for stability)
             grad_out = 2.0 * (pred - Y_train) / n_train

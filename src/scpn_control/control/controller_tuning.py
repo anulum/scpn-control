@@ -47,8 +47,8 @@ def tune_pid(env: Any, n_trials: int = 50) -> dict[str, float]:
 
     def objective(trial: optuna.Trial) -> float:
         kp = trial.suggest_float("Kp", 0.1, 10.0, log=True)
-        ki = trial.suggest_float("Ki", 0.01, 1.0, log=True)
-        kd = trial.suggest_float("Kd", 0.01, 1.0, log=True)
+        ki = trial.suggest_float("Ki", 0.01, 1.0, log=True)  # noqa: F841  # P-only objective; full PID tracked (CONTROL-F841-REVIEW)
+        kd = trial.suggest_float("Kd", 0.01, 1.0, log=True)  # noqa: F841  # P-only objective; full PID tracked (CONTROL-F841-REVIEW)
 
         total_iae = 0.0
         n_episodes = 5

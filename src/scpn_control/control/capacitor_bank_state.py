@@ -293,14 +293,15 @@ def _build_exact_rlc_step(spec: CapacitorBankSpec, dt: float) -> _ExactRLCStep:
     m1_11 = ainv_11 * pm11 + ainv_12 * pm21
     m1_12 = ainv_11 * pm12 + ainv_12 * pm22
     m1_21 = ainv_21 * pm11 + ainv_22 * pm21
-    m1_22 = ainv_21 * pm12 + ainv_22 * pm22
 
     b0 = -1.0 / capacitance
     gamma_v = m1_11 * b0
     gamma_i = m1_21 * b0
 
     # N = A^{-1}(M1 - dt I) B, giving the constant-load contribution to int v dt.
-    md_11, md_12, md_21, md_22 = m1_11 - dt, m1_12, m1_21, m1_22 - dt
+    # B has only a first-column entry (b0), so only the first column of (M1 - dt I) is needed.
+    md_11 = m1_11 - dt
+    md_21 = m1_21
     mdb0 = md_11 * b0
     mdb1 = md_21 * b0
     n0 = ainv_11 * mdb0 + ainv_12 * mdb1

@@ -343,7 +343,6 @@ def mse_pitch_angle(B_R: float, B_Z: float, B_phi: float, v_beam: float, R: floa
     """
     Forward motional-Stark-effect pitch-angle estimate for a tangential beam.
     """
-    B_pol = np.sqrt(B_R**2 + B_Z**2)
     # Pitch angle roughly arctan(B_Z / B_phi) for a tangential beam at midplane
     return float(np.degrees(np.arctan2(B_Z, B_phi)))
 

@@ -304,8 +304,6 @@ class GuidingCenterOrbit:
             # mu = m v_perp² / (2B) — magnetic moment (adiabatic invariant)
             self.mu = self.m * self.v_perp_0**2 / (2.0 * B_mag)
 
-        omega_c = self.Z_charge * B_mag / self.m
-
         # ── grad B via one-sided finite difference ────────────────────────
         _h = 1e-4  # [m]; step small vs. ρ_L ≈ 0.05 m for 3.5 MeV alpha
         B_R_p, B_Z_p, B_phi_p = B_field(R + _h, Z)

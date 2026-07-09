@@ -427,7 +427,6 @@ def solve_eigenvalue_single_ky(
 
     ion = _require_species_and_velocity_grid(species_list, vgrid)
     theta, B_mag = _require_geometry_grid(geom)
-    n_theta = len(theta)
     B_ratio = B_mag / np.mean(B_mag)
     has_kinetic_e = any(not s.is_adiabatic and s.charge_e < 0 for s in species_list)
 

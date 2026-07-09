@@ -355,7 +355,7 @@ class AlphaHeating:
         ITER Physics Basis 1999, Nucl. Fusion 39, 2137, Eq. (2.2.1).
         """
         ne_arr = _require_nonnegative_profile("ne_20", ne_20)
-        te_arr = _require_nonnegative_profile("Te_keV", Te_keV, ne_arr.shape)
+        _require_nonnegative_profile("Te_keV", Te_keV, ne_arr.shape)
         ti_arr = _require_nonnegative_profile("Ti_keV", Ti_keV, ne_arr.shape)
 
         ne_m3 = ne_arr * 1e20

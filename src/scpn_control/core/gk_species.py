@@ -309,7 +309,6 @@ def collision_frequencies(
 
     # Braginskii ion-ion: nu_ii = 4 sqrt(pi) n Z^4 e^4 ln(Lambda) / (3 m^0.5 (2T)^1.5)
     # Simplified to order-of-magnitude for the linearised operator
-    v_th = species.thermal_speed
     eps_0 = 8.8541878128e-12
 
     q_s = abs(species.charge_e) * _E_CHARGE
@@ -381,7 +380,6 @@ def pitch_angle_operator(
     Returns shape (n_lambda, n_lambda).
     """
     n_lambda, lam, B_ratio = _require_lambda_grid(n_lambda, lam, B_ratio)
-    xi = np.sqrt(np.maximum(1.0 - lam * B_ratio, 0.0))
     d_lam = np.diff(lam, prepend=0.0, append=1.0)
     d_lam_mid = 0.5 * (d_lam[:-1] + d_lam[1:])
 

@@ -559,7 +559,6 @@ def _verilog_top(net: CompiledNet, config: FPGAConfig) -> str:
     leak = _leak_shift(net.lif_tau_mem, net.lif_dt)
     rom_depth = n * n
     rom_addr_bits = max(1, int(math.ceil(math.log2(max(rom_depth, 2)))))
-    place_addr_bits = max(1, int(math.ceil(math.log2(max(net.n_places, 2)))))
     idx_bits = max(1, int(math.ceil(math.log2(max(n, 2)))))
     acc_width = bw + int(math.ceil(math.log2(max(n, 2))))
 
