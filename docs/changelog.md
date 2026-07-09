@@ -11,6 +11,8 @@
 ## Unreleased
 
 ### Changed
+- Moved the untagged `v1.0.0` roadmap block out of shipped history and reset it
+  as a future production-readiness target gated by real release evidence.
 - Separated the public Paper 27 manuscript references from the related
   Kuramoto-Sakaguchi arXiv reference across pitch, README, and reviewer
   handoff surfaces.

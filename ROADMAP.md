@@ -279,12 +279,23 @@
 - [x] Python 3.14 added to CI matrix (continue-on-error until scipy wheels ship)
 - [x] 3,300+ tests, 0 failures
 
-### v1.0.0 — Production readiness
-- [x] JOSS paper updated with citation count and test metrics
-- [x] Electromagnetic nonlinear extension (A_∥, KBM, MTM)
-- [x] 42 CI-gated physics invariant tests + 118 physics deepening tests
-- [x] Backup: `stable-v0.18.0-20260317` tag + bundle
-- [x] JOSS submission review + editorial workflow guard
+## Next / Future Release Targets
+
+### v1.0.0 — Production readiness target (not tagged)
+
+No `v1.0.0` tag exists yet; latest released tag is `v0.22.1`. Keep this block
+as a future readiness target until the external validation and release gates
+below are closed and a real tag is cut.
+
+- [ ] Confirm JOSS paper citation count and test metrics against the final
+      release commit.
+- [ ] Reconfirm electromagnetic nonlinear extension evidence (A_∥, KBM, MTM)
+      against the final release commit.
+- [ ] Reconfirm physics invariant and physics-deepening test counts against the
+      final release commit.
+- [ ] Prepare the v1.0.0 release backup tag and bundle.
+- [ ] Complete JOSS submission review + editorial workflow guard for the final
+      release commit.
 - [ ] External JOSS submission and reviewer/editorial issue lifecycle
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
