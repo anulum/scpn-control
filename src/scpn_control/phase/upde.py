@@ -46,9 +46,9 @@ from scpn_control.phase.kuramoto import (
 
 # Try to import Rust UPDE fast-path
 try:
-    from scpn_control_rs import upde_tick as _rust_upde_tick  # pragma: no cover - optional Rust UPDE backend path
+    from scpn_control_rs import upde_tick as _rust_upde_tick
 
-    HAS_RUST_UPDE = True  # pragma: no cover - optional Rust UPDE backend path
+    HAS_RUST_UPDE = True
 except ImportError:
     HAS_RUST_UPDE = False
 
@@ -124,7 +124,7 @@ class UPDESystem:
 
         # Attempt Rust fast-path if L > 1 and all layers have same N (rust absent on the CI
         # coverage job; the numpy path below is what runs there).
-        if HAS_RUST_UPDE and L > 0:  # pragma: no cover - optional Rust UPDE backend path
+        if HAS_RUST_UPDE and L > 0:
             n_per = len(theta_arr[0])
             if all(len(t) == n_per for t in theta_arr):
                 theta_flat = np.concatenate(theta_arr).astype(np.float64)

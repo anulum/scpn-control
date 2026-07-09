@@ -7,11 +7,53 @@
 # SCPN Control — UPDE non-uniform fallback and step-input validation tests.
 from __future__ import annotations
 
+import importlib.util
+import sys
+import types
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Callable, Protocol, cast
+
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
+import scpn_control.phase.upde as upde_module
 from scpn_control.phase.knm import KnmSpec
 from scpn_control.phase.upde import UPDESystem
+
+_UpdeTick = Callable[
+    [
+        NDArray[np.float64],
+        NDArray[np.float64],
+        NDArray[np.float64],
+        NDArray[np.float64],
+        NDArray[np.float64],
+        int,
+        int,
+        float,
+        float,
+        float,
+    ],
+    object,
+]
+
+
+class _NativeUpdeModule(Protocol):
+    upde_tick: _UpdeTick
+
+
+class _UpdeProbeModule(Protocol):
+    HAS_RUST_UPDE: bool
+    _rust_upde_tick: _UpdeTick
+
+
+@dataclass(frozen=True)
+class _FakeRustUpdeResult:
+    theta_flat: NDArray[np.float64]
+    r_layer: NDArray[np.float64]
+    v_layer: NDArray[np.float64]
+    r_global: float
 
 
 def _two_layer_spec() -> KnmSpec:
@@ -19,6 +61,99 @@ def _two_layer_spec() -> KnmSpec:
         K=np.array([[0.5, 0.2], [0.3, 0.6]], dtype=np.float64),
         zeta=np.array([0.1, 0.1], dtype=np.float64),
     )
+
+
+def test_import_enables_rust_upde_when_symbol_present(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise import-time wiring for the optional Rust UPDE tick."""
+
+    def fake_upde_tick(
+        theta_flat: NDArray[np.float64],
+        _omega_flat: NDArray[np.float64],
+        _k_flat: NDArray[np.float64],
+        _alpha_flat: NDArray[np.float64],
+        _zeta: NDArray[np.float64],
+        _layers: int,
+        _n_per_layer: int,
+        _dt: float,
+        _psi_global: float,
+        _pac_gamma: float,
+    ) -> _FakeRustUpdeResult:
+        return _FakeRustUpdeResult(
+            theta_flat=theta_flat,
+            r_layer=np.array([1.0], dtype=np.float64),
+            v_layer=np.array([0.0], dtype=np.float64),
+            r_global=1.0,
+        )
+
+    native = types.ModuleType("scpn_control_rs")
+    cast(_NativeUpdeModule, native).upde_tick = fake_upde_tick
+
+    module_path = Path(upde_module.__file__).resolve()
+    spec = importlib.util.spec_from_file_location("_scpn_control_upde_cov1_probe", module_path)
+    assert spec is not None
+    assert spec.loader is not None
+    probe = importlib.util.module_from_spec(spec)
+
+    with monkeypatch.context() as patch:
+        patch.setitem(sys.modules, "scpn_control_rs", native)
+        patch.setitem(sys.modules, spec.name, probe)
+        spec.loader.exec_module(probe)
+
+        probe_view = cast(_UpdeProbeModule, probe)
+        assert probe_view.HAS_RUST_UPDE is True
+        assert probe_view._rust_upde_tick is fake_upde_tick
+
+
+def test_step_uses_rust_fast_path_for_uniform_layers(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Exercise the optional Rust UPDE path with a typed fake native result."""
+
+    calls: list[tuple[int, int, float, float, float]] = []
+
+    def fake_upde_tick(
+        theta_flat: NDArray[np.float64],
+        omega_flat: NDArray[np.float64],
+        _k_flat: NDArray[np.float64],
+        _alpha_flat: NDArray[np.float64],
+        _zeta: NDArray[np.float64],
+        layers: int,
+        n_per_layer: int,
+        dt: float,
+        psi_global: float,
+        pac_gamma: float,
+    ) -> _FakeRustUpdeResult:
+        calls.append((layers, n_per_layer, dt, psi_global, pac_gamma))
+        return _FakeRustUpdeResult(
+            theta_flat=theta_flat + dt * omega_flat,
+            r_layer=np.array([0.8, 0.6], dtype=np.float64),
+            v_layer=np.array([0.1, -0.2], dtype=np.float64),
+            r_global=0.7,
+        )
+
+    monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", True)
+    monkeypatch.setattr(upde_module, "_rust_upde_tick", fake_upde_tick, raising=False)
+
+    system = upde_module.UPDESystem(spec=_two_layer_spec(), dt=0.25, psi_mode="external", wrap=True)
+    theta = [
+        np.array([0.0, 0.5], dtype=np.float64),
+        np.array([1.0, -0.5], dtype=np.float64),
+    ]
+    omega = [
+        np.array([0.2, -0.1], dtype=np.float64),
+        np.array([0.3, 0.4], dtype=np.float64),
+    ]
+
+    out = system.step(theta, omega, psi_driver=0.4, pac_gamma=0.2)
+
+    assert calls == [(2, 2, 0.25, 0.4, 0.2)]
+    assert len(out["theta1"]) == 2
+    np.testing.assert_allclose(out["theta1"][0], np.array([0.05, 0.475]))
+    np.testing.assert_allclose(out["theta1"][1], np.array([1.075, -0.4]))
+    np.testing.assert_allclose(out["R_layer"], np.array([0.8, 0.6]))
+    np.testing.assert_allclose(out["Psi_layer"], np.array([0.1, -0.2]))
+    assert float(out["R_global"]) == 0.7
+    assert float(out["Psi_global"]) == 0.4
+    assert np.asarray(out["V_layer"]).shape == (2,)
+    assert np.isfinite(float(out["V_global"]))
 
 
 def test_step_uses_python_fallback_for_non_uniform_layers() -> None:
