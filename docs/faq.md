@@ -26,9 +26,10 @@ pedestal-top stability (ELMs) beyond simple heuristic models.
 The native (Rust) integrated control cycle has a median latency of **~5 µs**
 (P50) on the CI runner (AMD EPYC 7763) and **2.85 µs** on the local workstation
 (Intel i5-11600K); the Python-orchestrated path is ~9 µs (CI) / ~4 µs (local).
-The isolated Rust SNN controller steps in 0.92 µs (P50, CI). The JAX-accelerated
-solver can take up to 1 ms due to JIT compilation and dispatch overhead. See
-[benchmarks](benchmarks.md) for the full per-controller and per-backend tables.
+The isolated Rust SNN controller report records **0.881 µs P50** and
+**0.932 µs P95** on the CI runner. The JAX-accelerated solver can take up to
+1 ms due to JIT compilation and dispatch overhead. See [benchmarks](benchmarks.md)
+for the full per-controller and per-backend tables.
 
 ## Architecture & Development
 

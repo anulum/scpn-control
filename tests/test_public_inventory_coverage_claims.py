@@ -35,6 +35,19 @@ def _coverage_gate() -> int:
     return int(match.group("gate"))
 
 
+def _rust_snn_ci_latency() -> tuple[float, float]:
+    """Return Rust SNN CI P50 and P95 latencies from the committed report."""
+
+    raw: Any = json.loads((ROOT / "validation" / "reports" / "controller_latency.json").read_text(encoding="utf-8"))
+    report = cast(dict[str, Any], raw)
+    controllers = cast(list[dict[str, Any]], report["controllers"])
+    for controller in controllers:
+        if controller["name"] == "SNN" and controller["backend"] == "rust":
+            stats = cast(dict[str, float], controller["stats"])
+            return stats["p50_us"], stats["p95_us"]
+    raise AssertionError("Rust SNN controller latency row is missing")
+
+
 def test_pitch_inventory_claim_matches_generated_manifest() -> None:
     """The pitch inventory summary must match generated capability counts."""
 
@@ -124,3 +137,14 @@ def test_neural_equilibrium_latency_claim_is_not_uncited() -> None:
     assert "validation/reports/neural_equilibrium_pretraining.json" in pitch
     assert "real EFIT/P-EFIT" in pitch
     assert "latency or accuracy claims remain blocked" in pitch
+
+
+def test_faq_rust_snn_latency_claim_matches_report() -> None:
+    """The FAQ Rust SNN latency claim must match the committed CI report."""
+
+    p50_us, p95_us = _rust_snn_ci_latency()
+    faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
+
+    assert f"{p50_us:.3f} µs P50" in faq
+    assert f"{p95_us:.3f} µs P95" in faq
+    assert "0.92 µs (P50, CI)" not in faq
