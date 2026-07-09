@@ -35,6 +35,18 @@ def test_rejects_bare_sota_abbreviation() -> None:
     assert "SOTA" in _categories("The benchmark proves SOTA performance.\n")
 
 
+def test_rejects_crown_jewel_label() -> None:
+    """Product-ranking labels are rejected on outward surfaces."""
+
+    assert "crown jewel" in _categories("The optional backend is the crown jewel.\n")
+
+
+def test_rejects_unsupported_uniqueness_claim() -> None:
+    """Unsupported exclusivity wording is rejected on outward surfaces."""
+
+    assert "unsupported uniqueness" in _categories("This path does not exist elsewhere for fusion.\n")
+
+
 def test_accepts_bounded_negative_state_of_the_art_language() -> None:
     """Bounded negative comparison language is allowed."""
 

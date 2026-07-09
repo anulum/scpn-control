@@ -73,6 +73,8 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("revolutionary", re.compile(r"\brevolutionary\b", re.IGNORECASE)),
     ("groundbreaking", re.compile(r"\bgroundbreaking\b", re.IGNORECASE)),
     ("unrivalled", re.compile(r"\bunrival(?:led|ed)\b", re.IGNORECASE)),
+    ("crown jewel", re.compile(r"\bcrown jewel\b", re.IGNORECASE)),
+    ("unsupported uniqueness", re.compile(r"\bdoes not exist elsewhere\b", re.IGNORECASE)),
 )
 
 PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] = {

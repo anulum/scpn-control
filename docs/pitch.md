@@ -32,8 +32,8 @@ The differentiator is the architecture, not raw speed:
 
 - **Petri Net → SNN compilation.** A control specification written as a
   Stochastic Petri Net is compiled into leaky integrate-and-fire neuron pools —
-  an open-source neuro-symbolic control path that does not exist elsewhere for
-  fusion.
+  a documented open-source neuro-symbolic control path for fusion-control
+  experiments.
 - **Formal safety contracts on every action.** Pre/post-condition contracts
   (Z3-backed, certificate-bundled) are checked on every control observation and
   command, fail-closed.

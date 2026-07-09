@@ -1560,7 +1560,7 @@
 - VectorizedSCLayer + Rust backend path in SNN compiler (512× real-time)
 - Two-tier import: v3.8.0+ preferred → legacy bit-ops → numpy float fallback
 - Test for v3.8 detection and VectorizedSCLayer forward-path benchmark
-- sc-neurocore listed first in optional deps table (crown jewel)
+- sc-neurocore listed first in optional deps table as the preferred SNN backend
 
 ### Changed
 - README: engine callout and dep table updated for sc-neurocore
