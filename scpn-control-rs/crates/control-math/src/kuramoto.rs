@@ -177,11 +177,15 @@ pub fn kuramoto_run_lyapunov(
 pub struct UpdeTick {
     /// Updated per-layer phases (concatenated: L × N_per).
     pub theta_flat: Vec<f64>,
+    /// Per-oscillator phase derivatives used for the Euler step.
+    pub dtheta_flat: Vec<f64>,
     /// Per-layer order parameter R.
     pub r_layer: Vec<f64>,
+    /// Per-layer mean phase ψ.
+    pub psi_layer: Vec<f64>,
     /// Global order parameter R.
     pub r_global: f64,
-    /// Global mean phase Ψ.
+    /// Output-state global mean phase Ψ.
     pub psi_global: f64,
     /// Per-layer Lyapunov V.
     pub v_layer: Vec<f64>,
@@ -223,10 +227,9 @@ pub fn upde_tick(
         psi_layer[m] = psi;
     }
 
-    let psi_global = psi_driver;
-
     // Advance each layer
     let mut theta_out = vec![0.0_f64; n_layers * n_per];
+    let mut dtheta_flat = vec![0.0_f64; n_layers * n_per];
 
     for m in 0..n_layers {
         let start = m * n_per;
@@ -244,7 +247,7 @@ pub fn upde_tick(
 
             // ζ sin(Ψ - θ)
             if z != 0.0 {
-                dth += z * (psi_global - th).sin();
+                dth += z * (psi_driver - th).sin();
             }
 
             // Inter-layer coupling
@@ -265,27 +268,35 @@ pub fn upde_tick(
                 dth += gain;
             }
 
+            dtheta_flat[idx] = dth;
             theta_out[idx] = wrap_phase(th + dt * dth);
         }
     }
 
     // Post-step order parameters
     let mut r_layer_out = vec![0.0_f64; n_layers];
-    let mut v_layer = vec![0.0_f64; n_layers];
+    let mut psi_layer_out = vec![0.0_f64; n_layers];
     for m in 0..n_layers {
         let start = m * n_per;
-        let (r, _) = order_parameter(&theta_out[start..start + n_per]);
+        let (r, psi) = order_parameter(&theta_out[start..start + n_per]);
         r_layer_out[m] = r;
-        v_layer[m] = lyapunov_v(&theta_out[start..start + n_per], psi_global);
+        psi_layer_out[m] = psi;
     }
-    let (r_global_out, _) = order_parameter(&theta_out);
-    let v_global = lyapunov_v(&theta_out, psi_global);
+    let (r_global_out, psi_global_out) = order_parameter(&theta_out);
+    let mut v_layer = vec![0.0_f64; n_layers];
+    for (m, v) in v_layer.iter_mut().enumerate() {
+        let start = m * n_per;
+        *v = lyapunov_v(&theta_out[start..start + n_per], psi_global_out);
+    }
+    let v_global = lyapunov_v(&theta_out, psi_global_out);
 
     UpdeTick {
         theta_flat: theta_out,
+        dtheta_flat,
         r_layer: r_layer_out,
+        psi_layer: psi_layer_out,
         r_global: r_global_out,
-        psi_global,
+        psi_global: psi_global_out,
         v_layer,
         v_global,
     }
@@ -385,9 +396,13 @@ mod tests {
         let alpha = vec![0.0; l * l];
         let res = upde_tick(&theta, &omega, &knm, &alpha, &zeta, l, n, 0.01, 0.3, 0.0);
         assert_eq!(res.theta_flat.len(), l * n);
+        assert_eq!(res.dtheta_flat.len(), l * n);
         assert_eq!(res.r_layer.len(), l);
+        assert_eq!(res.psi_layer.len(), l);
         assert_eq!(res.v_layer.len(), l);
         assert!(res.r_global >= 0.0 && res.r_global <= 1.0);
+        let (_, expected_psi) = order_parameter(&res.theta_flat);
+        assert!((res.psi_global - expected_psi).abs() < 1e-12);
     }
 
     #[test]

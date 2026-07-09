@@ -392,7 +392,8 @@ Matches `control-math/kuramoto.rs::lyapunov_v` and `kuramoto_run_lyapunov`.
 
 ### 9.2 UPDE Lyapunov Tracking
 
-`UPDESystem.step()` now returns `V_layer` (per-layer) and `V_global`.
+`UPDESystem.step()` returns a completed-tick snapshot: `theta1`, `dtheta`,
+`R_layer`, `Psi_layer`, `R_global`, `Psi_global`, `V_layer`, and `V_global`.
 `UPDESystem.run_lyapunov()` returns full V histories and per-layer + global λ:
 
 ```python
@@ -511,7 +512,8 @@ for sample in sensor_stream:
 
 Each `tick()` returns: `R_global`, `R_layer`, `Psi_global`, `V_global`,
 `V_layer`, `lambda_exp`, `guard_approved`, `guard_score`, `latency_us`,
-and a `director_ai` dict ready for AuditLogger.
+and a `director_ai` dict ready for AuditLogger. Native Rust monitor ticks
+also expose the raw `dtheta_flat` and `Psi_layer` arrays for parity checks.
 
 Runtime tick failures fail closed: `tick()` returns the same dashboard fields
 with `guard_approved=False`, `guard_score=0.0`, and `error`/`error_type`
@@ -551,7 +553,9 @@ multi-layer kernel:
 ```python
 import scpn_control_rs as rs
 mon = rs.PyRealtimeMonitor(knm_flat, zeta, theta_flat, omega_flat, L, N_per)
-snap = mon.tick()  # returns {R_global, R_layer, V_global, V_layer, Psi_global, tick}
+snap = mon.tick()
+# returns {tick, theta_flat, dtheta_flat, R_global, R_layer,
+#          Psi_global, Psi_layer, V_global, V_layer}
 ```
 
 Rust `upde_tick` in `control-math/src/kuramoto.rs`: per-layer Kuramoto +

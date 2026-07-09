@@ -2040,7 +2040,9 @@ impl PyRealtimeMonitor {
         let dict = PyDict::new(py);
         dict.set_item("tick", self.tick_count)?;
         dict.set_item("theta_flat", result.theta_flat.into_pyarray(py))?;
+        dict.set_item("dtheta_flat", result.dtheta_flat.into_pyarray(py))?;
         dict.set_item("R_layer", result.r_layer.into_pyarray(py))?;
+        dict.set_item("Psi_layer", result.psi_layer.into_pyarray(py))?;
         dict.set_item("R_global", result.r_global)?;
         dict.set_item("Psi_global", result.psi_global)?;
         dict.set_item("V_layer", result.v_layer.into_pyarray(py))?;
@@ -2517,11 +2519,19 @@ struct PyUpdeTick {
     #[pyo3(get)]
     theta_flat: Py<PyArray1<f64>>,
     #[pyo3(get)]
+    dtheta_flat: Py<PyArray1<f64>>,
+    #[pyo3(get)]
     r_layer: Py<PyArray1<f64>>,
+    #[pyo3(get)]
+    psi_layer: Py<PyArray1<f64>>,
     #[pyo3(get)]
     v_layer: Py<PyArray1<f64>>,
     #[pyo3(get)]
     r_global: f64,
+    #[pyo3(get)]
+    psi_global: f64,
+    #[pyo3(get)]
+    v_global: f64,
 }
 
 #[pyfunction]
@@ -2551,9 +2561,13 @@ fn upde_tick<'py>(
 
     Ok(PyUpdeTick {
         theta_flat: Array1::from_vec(res.theta_flat).into_pyarray(py).unbind(),
+        dtheta_flat: Array1::from_vec(res.dtheta_flat).into_pyarray(py).unbind(),
         r_layer: Array1::from_vec(res.r_layer).into_pyarray(py).unbind(),
+        psi_layer: Array1::from_vec(res.psi_layer).into_pyarray(py).unbind(),
         v_layer: Array1::from_vec(res.v_layer).into_pyarray(py).unbind(),
         r_global: res.r_global,
+        psi_global: res.psi_global,
+        v_global: res.v_global,
     })
 }
 

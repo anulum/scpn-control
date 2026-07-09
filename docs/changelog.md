@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Unified UPDE tick snapshots across NumPy, Rust, and PyO3 paths: all runtime
+  paths now return output-state `R_layer`, `Psi_layer`, `R_global`,
+  `Psi_global`, Lyapunov fields, and per-oscillator `dtheta` derivatives.
 - Made controller artifact admission fail closed on inhibitor arcs: structure
   and formal-analysis paths may still opt into inhibitor compilation, but
   artifact export, artifact loading, and controller construction now reject

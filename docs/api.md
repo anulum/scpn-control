@@ -1264,6 +1264,14 @@ reports that omit it are rejected before safety-critical artifact admission.
 
 ::: scpn_control.phase.upde.UPDESystem
 
+`UPDESystem.step()` returns a single output-state snapshot contract across the
+NumPy fallback and the optional Rust/PyO3 path. `theta1`, `dtheta`, `R_layer`,
+`Psi_layer`, `R_global`, `Psi_global`, `V_layer`, and `V_global` describe the
+same completed tick. The input `psi_driver` still drives the derivative term,
+but the returned `Psi_global` is the mean phase of `theta1`. Stale Rust bindings
+that cannot provide the full contract fall back to the NumPy implementation
+instead of returning partial snapshots.
+
 ### Lyapunov Guard
 
 ::: scpn_control.phase.lyapunov_guard.LyapunovGuard

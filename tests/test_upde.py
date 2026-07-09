@@ -20,6 +20,7 @@ from numpy.typing import NDArray
 
 import scpn_control.phase.upde as upde_module
 from scpn_control.phase.knm import KnmSpec
+from scpn_control.phase.kuramoto import order_parameter
 from scpn_control.phase.upde import UPDESystem
 
 _UpdeTick = Callable[
@@ -51,9 +52,13 @@ class _UpdeProbeModule(Protocol):
 @dataclass(frozen=True)
 class _FakeRustUpdeResult:
     theta_flat: NDArray[np.float64]
+    dtheta_flat: NDArray[np.float64]
     r_layer: NDArray[np.float64]
-    v_layer: NDArray[np.float64]
+    psi_layer: NDArray[np.float64]
     r_global: float
+    psi_global: float
+    v_layer: NDArray[np.float64]
+    v_global: float
 
 
 def _two_layer_spec() -> KnmSpec:
@@ -80,9 +85,13 @@ def test_import_enables_rust_upde_when_symbol_present(monkeypatch: pytest.Monkey
     ) -> _FakeRustUpdeResult:
         return _FakeRustUpdeResult(
             theta_flat=theta_flat,
+            dtheta_flat=np.zeros_like(theta_flat),
             r_layer=np.array([1.0], dtype=np.float64),
-            v_layer=np.array([0.0], dtype=np.float64),
+            psi_layer=np.array([0.0], dtype=np.float64),
             r_global=1.0,
+            psi_global=0.0,
+            v_layer=np.array([0.0], dtype=np.float64),
+            v_global=0.0,
         )
 
     native = types.ModuleType("scpn_control_rs")
@@ -124,9 +133,13 @@ def test_step_uses_rust_fast_path_for_uniform_layers(monkeypatch: pytest.MonkeyP
         calls.append((layers, n_per_layer, dt, psi_global, pac_gamma))
         return _FakeRustUpdeResult(
             theta_flat=theta_flat + dt * omega_flat,
+            dtheta_flat=omega_flat,
             r_layer=np.array([0.8, 0.6], dtype=np.float64),
-            v_layer=np.array([0.1, -0.2], dtype=np.float64),
+            psi_layer=np.array([0.1, -0.2], dtype=np.float64),
             r_global=0.7,
+            psi_global=0.9,
+            v_layer=np.array([0.03, 0.04], dtype=np.float64),
+            v_global=0.05,
         )
 
     monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", True)
@@ -148,12 +161,67 @@ def test_step_uses_rust_fast_path_for_uniform_layers(monkeypatch: pytest.MonkeyP
     assert len(out["theta1"]) == 2
     np.testing.assert_allclose(out["theta1"][0], np.array([0.05, 0.475]))
     np.testing.assert_allclose(out["theta1"][1], np.array([1.075, -0.4]))
+    np.testing.assert_allclose(out["dtheta"][0], omega[0])
+    np.testing.assert_allclose(out["dtheta"][1], omega[1])
     np.testing.assert_allclose(out["R_layer"], np.array([0.8, 0.6]))
     np.testing.assert_allclose(out["Psi_layer"], np.array([0.1, -0.2]))
     assert float(out["R_global"]) == 0.7
-    assert float(out["Psi_global"]) == 0.4
-    assert np.asarray(out["V_layer"]).shape == (2,)
-    assert np.isfinite(float(out["V_global"]))
+    assert float(out["Psi_global"]) == 0.9
+    np.testing.assert_allclose(out["V_layer"], np.array([0.03, 0.04]))
+    assert float(out["V_global"]) == 0.05
+
+
+def test_step_falls_back_when_rust_result_shape_is_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject native UPDE snapshots that cannot satisfy the public contract."""
+
+    calls = 0
+
+    def malformed_upde_tick(
+        theta_flat: NDArray[np.float64],
+        omega_flat: NDArray[np.float64],
+        _k_flat: NDArray[np.float64],
+        _alpha_flat: NDArray[np.float64],
+        _zeta: NDArray[np.float64],
+        _layers: int,
+        _n_per_layer: int,
+        dt: float,
+        _psi_global: float,
+        _pac_gamma: float,
+    ) -> _FakeRustUpdeResult:
+        nonlocal calls
+        calls += 1
+        return _FakeRustUpdeResult(
+            theta_flat=theta_flat + dt * omega_flat,
+            dtheta_flat=np.array([0.0], dtype=np.float64),
+            r_layer=np.array([0.1, 0.2], dtype=np.float64),
+            psi_layer=np.array([0.3, 0.4], dtype=np.float64),
+            r_global=0.123,
+            psi_global=0.456,
+            v_layer=np.array([0.5, 0.6], dtype=np.float64),
+            v_global=0.789,
+        )
+
+    monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", True)
+    monkeypatch.setattr(upde_module, "_rust_upde_tick", malformed_upde_tick, raising=False)
+
+    system = upde_module.UPDESystem(spec=_two_layer_spec(), dt=0.25, psi_mode="external", wrap=True)
+    theta = [
+        np.array([0.0, 0.5], dtype=np.float64),
+        np.array([1.0, -0.5], dtype=np.float64),
+    ]
+    omega = [
+        np.array([0.2, -0.1], dtype=np.float64),
+        np.array([0.3, 0.4], dtype=np.float64),
+    ]
+
+    out = system.step(theta, omega, psi_driver=0.4, pac_gamma=0.2)
+
+    assert calls == 1
+    assert len(out["dtheta"]) == 2
+    assert out["dtheta"][0].shape == (2,)
+    assert float(out["R_global"]) != pytest.approx(0.123)
+    _expected_r, expected_psi = order_parameter(np.concatenate(out["theta1"]))
+    assert float(out["Psi_global"]) == pytest.approx(expected_psi)
 
 
 def test_step_uses_python_fallback_for_non_uniform_layers() -> None:
@@ -179,6 +247,13 @@ def test_step_uses_python_fallback_for_non_uniform_layers() -> None:
     assert np.isfinite(out["R_global"])
     assert np.isfinite(out["V_global"])
     assert np.all(np.abs(out["theta1"][0]) <= np.pi + 1e-9)
+    expected_global_r, expected_global_psi = order_parameter(np.concatenate(out["theta1"]))
+    assert float(out["R_global"]) == pytest.approx(expected_global_r)
+    assert float(out["Psi_global"]) == pytest.approx(expected_global_psi)
+    for layer_index, theta_next in enumerate(out["theta1"]):
+        expected_r, expected_psi = order_parameter(theta_next)
+        assert float(out["R_layer"][layer_index]) == pytest.approx(expected_r)
+        assert float(out["Psi_layer"][layer_index]) == pytest.approx(expected_psi)
 
 
 def test_step_requires_external_psi_driver() -> None:
@@ -205,6 +280,8 @@ def test_step_supports_global_mean_field_without_wrapping() -> None:
 
     assert len(out["theta1"]) == 2
     assert np.isfinite(out["Psi_global"])
+    _expected_r, expected_psi = order_parameter(np.concatenate(out["theta1"]))
+    assert float(out["Psi_global"]) == pytest.approx(expected_psi)
     assert np.asarray(out["V_layer"]).shape == (2,)
 
 

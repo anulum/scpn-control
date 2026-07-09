@@ -89,6 +89,15 @@ class UPDESystem:
             (1 + pac_gamma·(1 − R_source)).
         K_override : array or None
             Per-tick replacement for spec.K (adaptive coupling).
+
+        Returns
+        -------
+        dict[str, Any]
+            Output-state snapshot containing ``theta1``, ``dtheta``,
+            ``R_layer``, ``Psi_layer``, ``R_global``, ``Psi_global``,
+            ``V_layer``, and ``V_global`` for the completed Euler tick.
+            The resolved global-field driver influences ``dtheta``; the
+            returned ``Psi_global`` is the mean phase of ``theta1``.
         """
         K = np.asarray(K_override if K_override is not None else self.spec.K, dtype=np.float64)
         L = int(np.asarray(self.spec.K).shape[0])
@@ -113,10 +122,10 @@ class UPDESystem:
         if self.psi_mode == "external":
             if psi_driver is None:
                 raise ValueError("psi_driver required when psi_mode='external'")
-            Psi_global = float(psi_driver)
+            psi_step = float(psi_driver)
         elif self.psi_mode == "global_mean_field":
             z = np.sum(Rm * np.exp(1j * Psim))
-            Psi_global = float(np.angle(z))
+            psi_step = float(np.angle(z))
         else:
             raise ValueError(f"Unknown psi_mode: {self.psi_mode}")
         alpha = np.zeros_like(K) if self.spec.alpha is None else np.asarray(self.spec.alpha, dtype=np.float64)
@@ -139,23 +148,51 @@ class UPDESystem:
                     L,
                     n_per,
                     self.dt,
-                    Psi_global,
+                    psi_step,
                     float(pac_gamma),
                 )
 
-                # Reshape theta1 back to layers
-                theta1_flat = np.asarray(res.theta_flat)
-                theta1_rust = [theta1_flat[m * n_per : (m + 1) * n_per] for m in range(L)]
+                required_rust_fields = (
+                    "theta_flat",
+                    "dtheta_flat",
+                    "r_layer",
+                    "psi_layer",
+                    "r_global",
+                    "psi_global",
+                    "v_layer",
+                    "v_global",
+                )
+                if all(hasattr(res, field_name) for field_name in required_rust_fields):
+                    # Reshape theta1 and dtheta back to layers.
+                    theta1_flat = np.asarray(res.theta_flat, dtype=np.float64)
+                    dtheta_flat = np.asarray(res.dtheta_flat, dtype=np.float64)
+                    r_layer = np.asarray(res.r_layer, dtype=np.float64)
+                    psi_layer = np.asarray(res.psi_layer, dtype=np.float64)
+                    v_layer = np.asarray(res.v_layer, dtype=np.float64)
+                    rust_arrays = (theta1_flat, dtheta_flat, r_layer, psi_layer, v_layer)
+                    rust_scalars = (float(res.r_global), float(res.psi_global), float(res.v_global))
+                    if (
+                        theta1_flat.shape == (L * n_per,)
+                        and dtheta_flat.shape == (L * n_per,)
+                        and r_layer.shape == (L,)
+                        and psi_layer.shape == (L,)
+                        and v_layer.shape == (L,)
+                        and all(np.isfinite(array).all() for array in rust_arrays)
+                        and all(np.isfinite(value) for value in rust_scalars)
+                    ):
+                        theta1_rust = [theta1_flat[m * n_per : (m + 1) * n_per] for m in range(L)]
+                        dtheta_rust = [dtheta_flat[m * n_per : (m + 1) * n_per] for m in range(L)]
 
-                return {
-                    "theta1": theta1_rust,
-                    "R_layer": np.asarray(res.r_layer),
-                    "Psi_layer": np.asarray(res.v_layer),  # Rust v_layer is psi_layer
-                    "R_global": res.r_global,
-                    "Psi_global": Psi_global,
-                    "V_layer": np.array([lyapunov_v(theta1_rust[m], Psi_global) for m in range(L)]),
-                    "V_global": lyapunov_v(theta1_flat, Psi_global),
-                }
+                        return {
+                            "theta1": theta1_rust,
+                            "dtheta": dtheta_rust,
+                            "R_layer": r_layer,
+                            "Psi_layer": psi_layer,
+                            "R_global": rust_scalars[0],
+                            "Psi_global": rust_scalars[1],
+                            "V_layer": v_layer,
+                            "V_global": rust_scalars[2],
+                        }
 
         # Python fallback (supports non-uniform N)
         theta1: list[FloatArray] = []
@@ -177,7 +214,7 @@ class UPDESystem:
 
             # Global driver: ζ_m sin(Ψ − θ)
             if zeta[m] != 0.0:
-                dth += zeta[m] * np.sin(Psi_global - th)
+                dth += zeta[m] * np.sin(psi_step - th)
 
             th_next = th + self.dt * dth
             if self.wrap:
@@ -186,20 +223,22 @@ class UPDESystem:
             theta1.append(th_next)
             dtheta_all.append(dth)
 
-        R_global, Psi_r_global = order_parameter(np.concatenate([np.asarray(t).ravel() for t in theta_layers]))
+        theta1_flat = np.concatenate([np.asarray(t).ravel() for t in theta1])
+        R_global, Psi_global = order_parameter(theta1_flat)
+        R_layer_out = np.empty(L)
+        Psi_layer_out = np.empty(L)
+        for m in range(L):
+            R_layer_out[m], Psi_layer_out[m] = order_parameter(theta1[m])
 
-        # Per-layer Lyapunov V_m(t) = (1/N_m) Σ (1 − cos(θ_{m,i} − Ψ))
+        # Per-layer Lyapunov V_m(t) = (1/N_m) Σ (1 − cos(θ_{m,i} − Ψ)).
         V_layer = np.array([lyapunov_v(theta1[m], Psi_global) for m in range(L)])
-        V_global = lyapunov_v(
-            np.concatenate([np.asarray(t).ravel() for t in theta1]),
-            Psi_global,
-        )
+        V_global = lyapunov_v(theta1_flat, Psi_global)
 
         return {
             "theta1": theta1,
             "dtheta": dtheta_all,
-            "R_layer": Rm.copy(),
-            "Psi_layer": Psim.copy(),
+            "R_layer": R_layer_out,
+            "Psi_layer": Psi_layer_out,
             "R_global": R_global,
             "Psi_global": Psi_global,
             "V_layer": V_layer,
