@@ -144,7 +144,9 @@ python tools/check_public_surface_hygiene.py
 ```
 
 This guard scans tracked outward-facing text files and fails on bare
-self-applied promotion terms. Internal planning surfaces under `docs/internal/`
+self-applied promotion terms. It also blocks path-specific leaks where a public
+surface would expose internal implementation names, local-host details, or
+operational gateway wording. Internal planning surfaces under `docs/internal/`
 and `.coordination/` are excluded; bounded negative language and candidate
 labels remain allowed because they do not assert an achieved public claim.
 

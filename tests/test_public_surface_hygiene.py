@@ -73,6 +73,51 @@ def test_rejects_readme_internal_scorer_name() -> None:
     ]
 
 
+def test_rejects_public_changelog_internal_ai_profile() -> None:
+    """The public changelog must not expose internal AI profile names."""
+
+    assert scan_text("CHANGELOG.md", "uses the default director-ai profile\n") == [
+        Finding(
+            path="CHANGELOG.md",
+            line=1,
+            category="public changelog internal AI profile",
+            detail="uses the default director-ai profile",
+        )
+    ]
+
+
+def test_rejects_public_changelog_workstation_details() -> None:
+    """The public changelog must not expose local workstation details."""
+
+    assert scan_text("docs/changelog.md", "training runs on this workstation\n") == [
+        Finding(
+            path="docs/changelog.md",
+            line=1,
+            category="public changelog internal workstation detail",
+            detail="training runs on this workstation",
+        )
+    ]
+
+
+def test_rejects_public_changelog_facility_gateway_details() -> None:
+    """The public changelog must not expose internal facility-gateway details."""
+
+    assert scan_text("CHANGELOG.md", "allowlisting for facility gateways\n") == [
+        Finding(
+            path="CHANGELOG.md",
+            line=1,
+            category="public changelog facility gateway detail",
+            detail="allowlisting for facility gateways",
+        )
+    ]
+
+
+def test_allows_bounded_public_changelog_compute_host_language() -> None:
+    """The public changelog may describe admitted compute-host evidence."""
+
+    assert scan_text("CHANGELOG.md", "training must run on an admitted compute host\n") == []
+
+
 def test_rejects_rendered_markdown_legal_header() -> None:
     """Rendered Markdown must open with user-facing content."""
 

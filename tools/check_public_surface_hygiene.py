@@ -77,6 +77,24 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("unsupported uniqueness", re.compile(r"\bdoes not exist elsewhere\b", re.IGNORECASE)),
 )
 
+CHANGELOG_INTERNAL_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    (
+        "public changelog internal AI profile",
+        re.compile(r"\bdirector[-_ ]ai\b.*\bprofile\b", re.IGNORECASE),
+    ),
+    (
+        "public changelog internal workstation detail",
+        re.compile(r"\b(?:local\s+)?workstation\b", re.IGNORECASE),
+    ),
+    (
+        "public changelog facility gateway detail",
+        re.compile(
+            r"\bfacility[- ]gateway|\bfacility gateways\b|\blocal gateway protocols\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
 PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] = {
     "README.md": (
         (
@@ -84,6 +102,8 @@ PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] 
             re.compile(r"\bDIRECTOR_AI\s+CoherenceScorer\b"),
         ),
     ),
+    "CHANGELOG.md": CHANGELOG_INTERNAL_PATTERNS,
+    "docs/changelog.md": CHANGELOG_INTERNAL_PATTERNS,
 }
 
 RENDERED_MARKDOWN_HEADER_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (

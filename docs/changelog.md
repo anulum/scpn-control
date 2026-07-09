@@ -101,8 +101,8 @@
   failures in SPI diagnostics and halo/runaway post-disruption summaries.
 - Hardened `RZIPController` so SciPy/NumPy Riccati validation failures fall
   back to a bounded NumPy discrete-Riccati gain before the zero-gain fail-closed
-  path, preserving the vertical-feedback contract in the local workstation
-  numerical stack.
+  path, preserving the vertical-feedback contract across validated numerical
+  fallback paths.
 
 ### Changed
 - Refreshed generated capability inventory metadata for the NTM coverage and
@@ -286,7 +286,7 @@
 - Added digest-bound pulsed-MPC admission decision evidence across Python,
   Rust, PyO3, and benchmark reports.
 - Added PyO3-inclusive pulsed-MPC local regression evidence and documented the
-  editable bridge rebuild protocol for this workstation.
+  editable bridge rebuild protocol for local native-extension development.
 - Added the CONTROL-owned multi-shot campaign orchestrator with Python, Rust,
   and optional PyO3 surfaces, deterministic lifecycle admission, replay v1.1
   metadata fields, module-specific tests, public documentation, and local
@@ -407,9 +407,9 @@
 - Added a MAST EFM feature-provenance audit and storage host dry-run launch evidence showing the prepared storage-host dataset validates on the storage host while `Ip_MA`, `Bt_T`, and `ffprime_scale` remain blocked because the converted public EFM bundles do not contain direct source keys.
 - Added an original public MAST Level 1 EFM Zarr source audit that admits `plasma_current_x` for `Ip_MA` and `bphi_rmag` for `Bt_T`, while keeping dataset rebuild blocked until the `ffprime` profile-to-scalar policy for `ffprime_scale` is declared.
 - Declared and implemented the public `ffprime` RMS-to-campaign-median policy, regenerated the MAST EFM converted references and supervised dataset on storage-host dataset storage, and updated the dataset, provenance, original-source, and dry-run launch reports so the former fallback feature list is empty.
-- Clarified neural-equilibrium campaign execution policy: The storage host is storage-only, while any `--execute` training must run on this workstation or external cloud compute with storage-mounted or copied data.
-- Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit workstation or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-storage-host weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
-- Hardened the MAST EFM neural-equilibrium launch and result-template evidence path with explicit report validators, canonical payload digests, storage-host storage-only output checks, and tamper-detection tests before any future workstation or cloud training run can be cited.
+- Clarified neural-equilibrium campaign execution policy: the storage host is storage-only, while any `--execute` training must run on an admitted compute host or external cloud compute with storage-mounted or copied data.
+- Added a fail-closed MAST EFM compute-execution package: `--execute` now requires explicit compute-host or external-cloud admission, matching dataset SHA-256, passing feature/source provenance reports, non-storage-host weight output, and repository-published result templates for holdout, latency, GPU-cost, and admission-certificate evidence.
+- Hardened the MAST EFM neural-equilibrium launch and result-template evidence path with explicit report validators, canonical payload digests, storage-host storage-only output checks, and tamper-detection tests before any future admitted compute run can be cited.
 - Hardened JAX gyrokinetic parity evidence with aggregate case/backend coverage digests, portable report paths, a separate local CPU timing benchmark report, and refreshed CPU parity artifacts while preserving the backend-parity-only claim boundary.
 
 ## [0.19.3] - 2026-06-01
@@ -658,8 +658,7 @@
   replay digests over controller, timing, target-hardware, interlock, and
   backpressure fields, fail-closed target-hardware promotion checks, duplicate
   JSON key rejection on load, and module-specific behavioural tests that keep
-  local workstation replay evidence separate from qualified deployment
-  evidence.
+  local replay evidence separate from qualified deployment evidence.
 - Hardened reviewed control-runtime defects by replacing fixed-window
   WebSocket command limiting with token buckets per connection and peer,
   adding structured WebSocket security audit logs, arming native-solver cleanup
@@ -695,14 +694,9 @@
   physics-debugging surfaces expanded; the policy remains module-specific
   behavioural tests only, with no synthetic gate-chasing tests.
 - Added a local-first physics debugging assistant for validation-gap analysis,
-  falsifiable hypothesis generation, and campaign suggestions with loopback
-  provider defaults, explicit endpoint allowlisting for facility gateways,
-  onsite provider profiles, response normalization for common local gateway
-  protocols, secret redaction, cited-evidence enforcement, risk-control checks,
-  prompt-injection neutralization for evidence text, advisory safety-policy
-  admission, optional hallucination guardrail review with a default
-  `director-ai` profile, reviewed-draft digest binding, high-severity
-  fail-closed enforcement, provider and policy replay binding, provider quorum
+  falsifiable hypothesis generation, and campaign suggestions with endpoint
+  allowlisting, secret redaction, cited-evidence enforcement, advisory
+  safety-policy admission, reviewed-draft digest binding, provider quorum
   admission, and tamper-evident advisory report digests.
 - Added hash-addressed formal safety certificate bundle artifact admission so
   release gates verify safe relative bundle URIs, bundle SHA-256 bytes,
