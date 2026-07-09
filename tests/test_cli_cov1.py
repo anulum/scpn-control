@@ -24,6 +24,8 @@ def test_validate_reports_contaminated_import_without_external_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The validate command reports prohibited eager imports before evidence gates."""
+    monkeypatch.delitem(sys.modules, "matplotlib", raising=False)
+    monkeypatch.delitem(sys.modules, "torch", raising=False)
     monkeypatch.setitem(sys.modules, "streamlit", ModuleType("streamlit"))
     result = CliRunner().invoke(
         main,
