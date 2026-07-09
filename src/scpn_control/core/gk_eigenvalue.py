@@ -31,6 +31,7 @@ References:
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -367,6 +368,31 @@ def _classify_mode(
     return "stable"
 
 
+def _newton_refine_dispersion(
+    omega0: complex,
+    *,
+    scale: float,
+    dispersion: Callable[[complex], complex],
+    dispersion_deriv: Callable[[complex], complex],
+    max_steps: int = 60,
+) -> complex:
+    """Refine a local dispersion root with a damped Newton iteration."""
+    omega = complex(omega0)
+    scale = max(float(scale), 1.0e-30)
+    for _ in range(max_steps):
+        residual = dispersion(omega)
+        derivative = dispersion_deriv(omega)
+        if abs(derivative) < 1.0e-30:
+            return omega
+        step = residual / derivative
+        if abs(step) > 2.0 * scale:
+            step *= 2.0 * scale / abs(step)
+        omega -= step
+        if abs(step) < 1.0e-10 * max(abs(omega), 1.0e-6):
+            return omega
+    return omega
+
+
 def solve_eigenvalue_single_ky(
     k_y_rho_s: float,
     species_list: list[GKSpecies],
@@ -483,23 +509,12 @@ def solve_eigenvalue_single_ky(
     ]
 
     for omega0 in guesses:
-        omega = complex(omega0)
-        for _ in range(60):
-            d = _dispersion(omega)
-            dd = _dispersion_deriv(omega)
-            if abs(dd) < 1e-30:
-                # Defensive: a vanishing dispersion derivative is a degenerate,
-                # measure-zero condition that physical inputs do not reach; the
-                # guard prevents a division by zero in the Newton step below.
-                break  # pragma: no cover - defensive iterative-convergence exit
-            step = d / dd
-            # Damped Newton to prevent overshoot
-            if abs(step) > 2.0 * scale:
-                step *= 2.0 * scale / abs(step)
-            omega -= step
-            if abs(step) < 1e-10 * max(abs(omega), 1e-6):
-                break
-
+        omega = _newton_refine_dispersion(
+            omega0,
+            scale=scale,
+            dispersion=_dispersion,
+            dispersion_deriv=_dispersion_deriv,
+        )
         if np.isfinite(omega) and omega.imag > best_gamma:
             # Only accept if Newton actually converged (|D(ω)| small)
             residual = abs(_dispersion(omega))

@@ -27,6 +27,7 @@ References:
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -35,6 +36,49 @@ from numpy.typing import NDArray
 _E_CHARGE = 1.602176634e-19  # C
 _M_PROTON = 1.67262192369e-27  # kg
 _M_ELECTRON = 9.1093837015e-31  # kg
+
+
+def _legendre_polynomial_and_derivative(order: int, x_value: float) -> tuple[float, float]:
+    """Evaluate ``P_order(x)`` and its derivative by stable recurrence."""
+    p_previous = 0.0
+    p_current = 1.0
+    for degree in range(1, order + 1):
+        p_next = ((2 * degree - 1) * x_value * p_current - (degree - 1) * p_previous) / degree
+        p_previous, p_current = p_current, p_next
+    derivative = order * (x_value * p_current - p_previous) / (x_value * x_value - 1.0)
+    return p_current, derivative
+
+
+def _gauss_legendre_nodes_weights(order: int) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+    """Return Gauss-Legendre nodes and weights on ``[-1, 1]``.
+
+    The implementation avoids ``numpy.polynomial.legendre.leggauss`` because
+    NumPy reloads in the optional native-extension test matrix can leave its
+    internal reduction sentinel incompatible with array ``max()``.
+    """
+    order = _require_positive_int("order", order, minimum=2)
+    nodes = np.empty(order, dtype=np.float64)
+    weights = np.empty(order, dtype=np.float64)
+    midpoint = (order + 1) // 2
+
+    for root_index in range(midpoint):
+        root = math.cos(math.pi * (root_index + 0.75) / (order + 0.5))
+        derivative = 0.0
+        for _ in range(100):
+            value, derivative = _legendre_polynomial_and_derivative(order, root)
+            next_root = root - value / derivative
+            if abs(next_root - root) <= 1.0e-15:
+                root = next_root
+                break
+            root = next_root
+        _, derivative = _legendre_polynomial_and_derivative(order, root)
+        weight = 2.0 / ((1.0 - root * root) * derivative * derivative)
+        nodes[root_index] = -root
+        nodes[order - 1 - root_index] = root
+        weights[root_index] = weight
+        weights[order - 1 - root_index] = weight
+
+    return nodes, weights
 
 
 @dataclass
@@ -166,13 +210,13 @@ class VelocityGrid:
         self.n_energy = _require_positive_int("n_energy", self.n_energy, minimum=2)
         self.n_lambda = _require_positive_int("n_lambda", self.n_lambda, minimum=2)
         # Gauss-Legendre on [0, E_max] for energy (E_max ~ 6 T)
-        e_nodes, e_weights = np.polynomial.legendre.leggauss(self.n_energy)
+        e_nodes, e_weights = _gauss_legendre_nodes_weights(self.n_energy)
         self.E_max = 6.0
         self.energy = 0.5 * self.E_max * (e_nodes + 1.0)  # map [-1,1] → [0, E_max]
         self.energy_weights = 0.5 * self.E_max * e_weights
 
         # Gauss-Legendre on [0, 1] for lambda
-        l_nodes, l_weights = np.polynomial.legendre.leggauss(self.n_lambda)
+        l_nodes, l_weights = _gauss_legendre_nodes_weights(self.n_lambda)
         self.lam = 0.5 * (l_nodes + 1.0)
         self.lambda_weights = 0.5 * l_weights
 
