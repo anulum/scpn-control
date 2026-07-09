@@ -2677,7 +2677,7 @@ mod native_pacing_tests {
     #[cfg(not(feature = "extension-module"))]
     use pyo3::types::{PyAnyMethods, PyDictMethods};
     #[cfg(not(feature = "extension-module"))]
-    use pyo3::{prepare_freethreaded_python, Python};
+    use pyo3::Python;
 
     #[test]
     fn pacing_mode_parser_accepts_supported_aliases() {
@@ -2699,8 +2699,8 @@ mod native_pacing_tests {
     #[cfg(not(feature = "extension-module"))]
     #[test]
     fn runtime_admission_snapshot_binds_kernel_and_core_contract() {
-        prepare_freethreaded_python();
-        Python::with_gil(|py| {
+        Python::initialize();
+        Python::attach(|py| {
             let snapshot = runtime_admission_snapshot(py, 4, 5, 6, 7, 0.0001, "spin")
                 .expect("runtime admission snapshot should be constructible");
 

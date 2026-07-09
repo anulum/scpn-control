@@ -175,7 +175,7 @@ rather than synthetic line-hit tests.
 cd scpn-control-rs
 cargo build --workspace
 cargo clippy --workspace -- -D warnings
-cargo test --workspace --exclude scpn-control-rs
+cargo test --workspace
 ```
 
 ## Rust/Python interop checks (PyO3 + maturin)
@@ -189,7 +189,7 @@ python -m maturin develop --release
 cd ../../..
 python -m pip install -e .
 python -c "import importlib.util; from scpn_control.core._rust_compat import _rust_available; assert importlib.util.find_spec('scpn_control_rs') and _rust_available()"
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py tests/test_rust_realtime_parity.py -v
 ```
 
 Native-dependent coverage uses two CI data files and a merged report:
@@ -1863,7 +1863,7 @@ declared tolerances.
 - `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests, and
   strict persisted CPU/GPU JAX GK parity evidence admission)
 - `nengo-loihi` (LIF+NEF SNN wrapper emulator tests)
-- `rust-tests` (`cargo test --workspace --exclude scpn-control-rs` + clippy + fmt)
+- `rust-tests` (`cargo test --workspace` + clippy + fmt)
 - `rust-python-interop` (maturin build + PyO3 parity)
 - `rust-benchmarks` (Criterion, uploads `bench-results` artifact)
 - `rust-audit` (cargo-audit vulnerability scan)

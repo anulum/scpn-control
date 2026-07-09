@@ -206,7 +206,7 @@ scpn-control live --zeta 0.5      # Real-time WS phase sync
 ```bash
 # Rust acceleration (optional)
 cd scpn-control-rs
-cargo test --workspace --exclude scpn-control-rs
+cargo test --workspace
 cd crates/control-python && maturin develop --release
 ```
 

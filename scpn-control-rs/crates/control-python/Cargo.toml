@@ -41,6 +41,6 @@ sha2 = "0.11"
 io-uring = { version = "0.7", optional = true }
 
 [features]
-default = ["extension-module"]
+default = []
 extension-module = ["pyo3/extension-module"]
 io-uring = ["dep:io-uring"]

@@ -344,7 +344,7 @@ jobs:
       - name: Clippy
         run: cargo clippy -- -D warnings
       - name: Test
-        run: cargo test --workspace --exclude scpn-control-rs
+        run: cargo test --workspace
 
   # ─── Job 7: Rust-Python interop ───
   rust-python-interop:
@@ -385,7 +385,7 @@ jobs:
       - name: Parity tests
         run: |
           . .venv/bin/activate
-          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 COVERAGE_FILE=.coverage.rust python -m coverage run --context=rust-present --source=scpn_control -m pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py -v
+          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 COVERAGE_FILE=.coverage.rust python -m coverage run --context=rust-present --source=scpn_control -m pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py tests/test_rust_realtime_parity.py -v
           mkdir -p artifacts/coverage/rust
           mv .coverage.rust artifacts/coverage/rust/.coverage.rust
       - name: Upload Rust-present coverage data

@@ -11,6 +11,10 @@
 ## Unreleased
 
 ### Changed
+- Made the PyO3 crate testable in the Rust workspace: `scpn-control-rs` no
+  longer enables PyO3 `extension-module` as a default Cargo feature, the native
+  admission test uses the PyO3 0.29 initialization API, and CI now runs
+  `cargo test --workspace` plus realtime PyO3 parity after the maturin build.
 - Unified UPDE tick snapshots across NumPy, Rust, and PyO3 paths: all runtime
   paths now return output-state `R_layer`, `Psi_layer`, `R_global`,
   `Psi_global`, Lyapunov fields, and per-oscillator `dtheta` derivatives.
