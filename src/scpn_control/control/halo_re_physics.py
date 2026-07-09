@@ -56,6 +56,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.core._statistics import linear_percentile
 from scpn_control.core._validators import (
     require_finite_float,
     require_non_negative_float,
@@ -409,7 +410,7 @@ class RunawayElectronModel:
         E_D = self.n_e_free * _E_CHARGE**3 * _LN_LAMBDA / (4.0 * np.pi * _EPSILON0**2 * T_joules)
 
         ratio = E_D / max(E, 1e-6)
-        if not np.isfinite(ratio) or ratio <= 0.0:  # pragma: no cover — numerical safety guard
+        if not np.isfinite(ratio) or ratio <= 0.0:
             return 0.0
         if ratio > 200.0:  # negligible generation
             return 0.0
@@ -423,7 +424,7 @@ class RunawayElectronModel:
         ratio_term = float(np.exp(-h_z * np.log(max(ratio, 1e-20))))
         exp_arg = float(np.clip(-ratio / 4.0 - nu_eff, -700.0, 0.0))
         rate = (self.n_e_free / max(self.tau_coll, 1e-20)) * C_D * ratio_term * np.exp(exp_arg)
-        if not np.isfinite(rate):  # pragma: no cover — numerical safety guard
+        if not np.isfinite(rate):
             return 0.0
         return max(float(rate), 0.0)
 
@@ -445,7 +446,7 @@ class RunawayElectronModel:
             deconfinement_factor = 0.001
 
         growth = n_re * (E / self.E_c - 1.0) / (max(self.tau_av, 1e-20) * _LN_LAMBDA)
-        if not np.isfinite(growth):  # pragma: no cover — numerical safety guard
+        if not np.isfinite(growth):
             return 0.0
         return max(float(growth * deconfinement_factor), 0.0)
 
@@ -464,8 +465,11 @@ class RunawayElectronModel:
         e_ratio = E / self.E_c
 
         # Empirical FP-like growth term
-        fp_rate = n_re * max(e_ratio - 1.0, 0.0) ** 1.5 / max(self.tau_av * 5.0, 1e-20)
-        if not np.isfinite(fp_rate):  # pragma: no cover — numerical safety guard
+        try:
+            fp_rate = n_re * max(e_ratio - 1.0, 0.0) ** 1.5 / max(self.tau_av * 5.0, 1e-20)
+        except OverflowError:
+            return 0.0
+        if not np.isfinite(fp_rate):
             return 0.0
         return float(max(fp_rate, 0.0))
 
@@ -488,7 +492,7 @@ class RunawayElectronModel:
         tau_brem = 0.12 / max((1.0 + 0.08 * self.Z_eff) * (self.n_e_tot / 1e20) * gamma_eff, 1e-12)
         tau_rel = max(min(tau_sync, tau_brem), 1e-6)
         loss = n_re / tau_rel
-        if not np.isfinite(loss):  # pragma: no cover — numerical safety guard
+        if not np.isfinite(loss):
             return 0.0
         return float(max(loss, 0.0))
 
@@ -564,15 +568,15 @@ class RunawayElectronModel:
 
             # 4. Collisional loss
             loss_rate = n_re / max(self.tau_av * 5.0, 1e-12) if E_tor < self.E_c else 0.0
-            if not np.isfinite(loss_rate):  # pragma: no cover — numerical safety
+            if not np.isfinite(loss_rate):
                 loss_rate = 0.0
 
             # 5. Evolution
             dn_re = (gamma_D + gamma_av + gamma_FP - loss_rate - relativistic_loss) * dt
-            if not np.isfinite(dn_re):  # pragma: no cover — numerical safety guard
+            if not np.isfinite(dn_re):
                 dn_re = 0.0
             n_re = max(n_re + dn_re, 0.0)
-            if not np.isfinite(n_re):  # pragma: no cover — numerical safety
+            if not np.isfinite(n_re):
                 n_re = 0.0
 
             # 6. Current conversion
@@ -755,20 +759,18 @@ def run_disruption_ensemble(
     halo_peaks = [r["halo_peak_ma"] for r in per_run]
     re_peaks = [r["re_peak_ma"] for r in per_run]
     tpf_products = [r["tpf_product"] for r in per_run]
+    p95_halo_peak_ma = linear_percentile(halo_peaks, 95.0)
+    p95_re_peak_ma = linear_percentile(re_peaks, 95.0)
 
-    passes_iter = (
-        prevention_rate >= 0.90
-        and float(np.percentile(halo_peaks, 95)) <= 3.4
-        and float(np.percentile(re_peaks, 95)) <= 1.0
-    )
+    passes_iter = prevention_rate >= 0.90 and p95_halo_peak_ma <= 3.4 and p95_re_peak_ma <= 1.0
 
     return DisruptionMitigationReport(
         ensemble_runs=ensemble_runs,
         prevention_rate=prevention_rate,
         mean_halo_peak_ma=float(np.mean(halo_peaks)),
-        p95_halo_peak_ma=float(np.percentile(halo_peaks, 95)),
+        p95_halo_peak_ma=p95_halo_peak_ma,
         mean_re_peak_ma=float(np.mean(re_peaks)),
-        p95_re_peak_ma=float(np.percentile(re_peaks, 95)),
+        p95_re_peak_ma=p95_re_peak_ma,
         mean_tpf_product=float(np.mean(tpf_products)),
         passes_iter_limits=passes_iter,
         per_run_details=per_run,
