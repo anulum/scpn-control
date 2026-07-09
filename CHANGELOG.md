@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+### Added
+- Exposed the GK->UPDE coupling modulation gains as a configurable
+  `GKCouplingGains` dataclass on `phase.gk_upde_bridge.adaptive_knm`, replacing
+  the hard-coded turbulence/transport/pedestal gains and the diffusivity floor
+  with documented, validated fields.
+
 ### Changed
+- `adaptive_knm` now logs a warning when handed a coupling matrix with fewer
+  than six layers instead of silently returning it unmodulated.
 - Made the PyO3 crate testable in the Rust workspace: `scpn-control-rs` no
   longer enables PyO3 `extension-module` as a default Cargo feature, the native
   admission test uses the PyO3 0.29 initialization API, and CI now runs

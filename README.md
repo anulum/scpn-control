@@ -196,7 +196,7 @@ blocked until the required external artefacts exist.
 | Project scripts | 5 |
 | Public API exports | 44 |
 | Python control/physics modules | 149 |
-| Python public classes | 531 |
+| Python public classes | 532 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |

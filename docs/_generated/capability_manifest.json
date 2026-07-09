@@ -23,7 +23,7 @@
   "counts": {
     "project_script_count": 5,
     "public_api_export_count": 44,
-    "public_class_count": 531,
+    "public_class_count": 532,
     "public_markdown_count": 61,
     "pyo3_export_count": 39,
     "python_test_file_count": 442,
@@ -367,6 +367,7 @@
       "GENESolver",
       "GEqdsk",
       "GKCorrector",
+      "GKCouplingGains",
       "GKLocalParams",
       "GKOutput",
       "GKScheduler",

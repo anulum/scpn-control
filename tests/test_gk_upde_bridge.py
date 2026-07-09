@@ -7,12 +7,14 @@
 # SCPN Control — GK → UPDE Bridge Tests
 from __future__ import annotations
 
+import logging
+
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 
 from scpn_control.core.gk_interface import GKOutput
-from scpn_control.phase.gk_upde_bridge import adaptive_knm, gk_natural_frequencies
+from scpn_control.phase.gk_upde_bridge import GKCouplingGains, adaptive_knm, gk_natural_frequencies
 
 
 @pytest.fixture
@@ -122,11 +124,46 @@ def test_adaptive_knm_rejects_invalid_pedestal_profile(k_base, gk_output_unstabl
         adaptive_knm(k_base, gk_output_unstable, chi_i_profile=chi_i_profile)
 
 
-def test_adaptive_knm_no_modify_small_matrix():
+def test_adaptive_knm_small_matrix_warns_and_returns_unchanged(caplog):
     K_small = np.eye(4) * 0.3
     gk = GKOutput(chi_i=1.0, chi_e=0.8, D_e=0.1, gamma=np.array([0.2]), omega_r=np.array([-0.3]), k_y=np.array([0.3]))
-    K_out = adaptive_knm(K_small, gk)
+    with caplog.at_level(logging.WARNING, logger="scpn_control.phase.gk_upde_bridge"):
+        K_out = adaptive_knm(K_small, gk)
     np.testing.assert_array_equal(K_out, K_small)
+    assert any(record.levelno == logging.WARNING for record in caplog.records)
+    assert "unmodulated" in caplog.text
+
+
+def test_gk_coupling_gains_defaults_are_documented_values():
+    gains = GKCouplingGains()
+    assert gains.p0_p1_turbulence == 0.5
+    assert gains.p1_p4_transport == 0.3
+    assert gains.p1_p4_chi_clip_max == 2.0
+    assert gains.p3_p4_pedestal == 0.4
+    assert gains.diffusivity_floor == 1e-10
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "match"),
+    [
+        ({"p0_p1_turbulence": -0.1}, "p0_p1_turbulence must be finite and non-negative"),
+        ({"p1_p4_transport": float("nan")}, "p1_p4_transport must be finite and non-negative"),
+        ({"p3_p4_pedestal": float("-inf")}, "p3_p4_pedestal must be finite and non-negative"),
+        ({"p1_p4_chi_clip_max": 0.0}, "p1_p4_chi_clip_max must be finite and positive"),
+        ({"diffusivity_floor": 0.0}, "diffusivity_floor must be finite and positive"),
+    ],
+)
+def test_gk_coupling_gains_rejects_invalid(kwargs, match):
+    with pytest.raises(ValueError, match=match):
+        GKCouplingGains(**kwargs)
+
+
+def test_adaptive_knm_custom_gains_strengthen_coupling(k_base, gk_output_unstable):
+    default = adaptive_knm(k_base, gk_output_unstable)
+    stronger = adaptive_knm(k_base, gk_output_unstable, gains=GKCouplingGains(p0_p1_turbulence=1.0))
+    # A larger turbulence gain yields stronger P0<->P1 coupling for the same drive.
+    assert stronger[0, 1] > default[0, 1]
+    assert stronger[1, 0] == stronger[0, 1]
 
 
 def test_gk_natural_frequencies(gk_output_unstable):
