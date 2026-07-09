@@ -212,7 +212,10 @@ cd crates/control-python && maturin develop --release
 ## Publications
 
 - **Paper 27:** "The Knm Matrix" — 16-layer Kuramoto-Sakaguchi phase dynamics
-  with exogenous global field driver. [arXiv:2004.06344](https://arxiv.org/abs/2004.06344)
+  with exogenous global field driver.
+  [Paper 27 manuscript](https://www.academia.edu/143833534/27_SCPN_The_Knm_Matrix).
+- **Related Kuramoto-Sakaguchi finite-size reference:**
+  [arXiv:2004.06344](https://arxiv.org/abs/2004.06344).
 - **Competitive Analysis:** [Full benchmark comparison](competitive_analysis.md)
   against DIII-D PCS, TORAX, FUSE, GENE, JINTRAC, P-EFIT
 

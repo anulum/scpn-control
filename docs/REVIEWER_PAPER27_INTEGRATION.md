@@ -7,7 +7,8 @@
 **Commits:** `81704be..HEAD`
 **Date:** 2026-02-26
 **Author:** Miroslav Šotek — ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
-**Paper 27:** [academia.edu](https://www.academia.edu/) | arXiv: [2004.06344](https://arxiv.org/abs/2004.06344) (Kuramoto–Sakaguchi finite-size)
+**Paper 27 source:** [academia.edu](https://www.academia.edu/143833534/27_SCPN_The_Knm_Matrix)
+**Related Kuramoto–Sakaguchi finite-size reference:** [arXiv:2004.06344](https://arxiv.org/abs/2004.06344)
 **PDF export:** [`REVIEWER_PAPER27_INTEGRATION.pdf`](REVIEWER_PAPER27_INTEGRATION.pdf)
 
 ---
@@ -803,7 +804,7 @@ b11228b docs: add Paper 27 phase dynamics demo notebook
 M. Šotek, "The Knm Matrix: A Simulation Framework for Modelling Multi-Scale
 Bidirectional Causality in the Self-Consistent Phenomenological Network,"
 SCPN Paper 27, 2026.
-Available: [academia.edu](https://www.academia.edu/) | ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
+Available: [academia.edu](https://www.academia.edu/143833534/27_SCPN_The_Knm_Matrix) | ORCID [0009-0009-3560-0851](https://orcid.org/0009-0009-3560-0851)
 
 ## Practical use and scope
 

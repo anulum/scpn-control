@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Separated the public Paper 27 manuscript references from the related
+  Kuramoto-Sakaguchi arXiv reference across pitch, README, and reviewer
+  handoff surfaces.
 - Neutralized and guarded the README Lyapunov guard description so the public
   phase table names the bounded trajectory-coherence role instead of an
   internal scorer.

@@ -20,7 +20,7 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
   <a href="https://www.bestpractices.dev/projects/12176"><img src="https://www.bestpractices.dev/projects/12176/badge" alt="OpenSSF Best Practices"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
-  <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/arXiv-2004.06344-b31b1b.svg" alt="arXiv"></a>
+  <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/Kuramoto_ref-2004.06344-b31b1b.svg" alt="Kuramoto-Sakaguchi reference"></a>
   <a href="docs/REVIEWER_PAPER27_INTEGRATION.pdf"><img src="https://img.shields.io/badge/Paper_27-PDF-informational.svg" alt="Paper 27 PDF"></a>
   <a href="https://codecov.io/gh/anulum/scpn-control"><img src="https://codecov.io/gh/anulum/scpn-control/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://doi.org/10.5281/zenodo.18804939"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18804939.svg" alt="DOI"></a>
@@ -217,7 +217,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 421 |
+| Python test files | 422 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -595,9 +595,10 @@ git push --tags
   repository reference artefacts with manifest checksums. Synthetic fixtures
   remain for CI plumbing only, not public physics evidence. No live MDSplus,
   no experimental control-room replay, and no real-world validation.
-- **No peer-reviewed fusion-control publication yet**: Paper 27
-  (arXiv:2004.06344) is public, but this repository still needs a dedicated
-  peer-reviewed fusion-control software paper for the current stack.
+- **No peer-reviewed fusion-control publication yet**: Paper 27 is public as
+  a project manuscript, and arXiv:2004.06344 is a related
+  Kuramoto-Sakaguchi finite-size reference, but this repository still needs a
+  dedicated peer-reviewed fusion-control software paper for the current stack.
 - **Not a production PCS**: Alpha-stage research software. CODAC/EPICS support
   and WebSocket control-stream support are research adapters and
   evidence-admission contracts, not a certified ITER plant deployment. No
