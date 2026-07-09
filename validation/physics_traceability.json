@@ -832,6 +832,44 @@
       "external_validation_tracker_issue": 52
     },
     {
+      "component": "global tokamak design scanner for disruption episodes",
+      "equation_contract": "Design-scanner claims must declare the aspect-ratio minor-radius inference, elongated-volume estimate, Greenwald-density fraction, bounded temperature and DT-reactivity proxies, confinement-time proxy, auxiliary-power Q denominator, neutron-wall-loading geometry, beta-p proxy, and relative cost index before disruption-episode use.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Greenwald density limit scaling",
+        "DT fusion power density and neutron wall loading contracts",
+        "IPB98-like confinement-time scaling used as a bounded repository proxy"
+      ],
+      "module_path": "src/scpn_control/core/global_design_scanner.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Replace bounded scalar design proxies with a systems-code design scan before device-design optimisation claims",
+        "Validate Q, confinement, beta, wall loading, and cost metrics against matched reference designs before facility or economics claims",
+        "Keep disruption episodes labelled as bounded contract exercises until measured disruption and design evidence pass strict admission"
+      ],
+      "unit_contract": "Major and minor radii in metres, toroidal magnetic field in tesla, plasma current in mega-amperes, density in m^-3, volume in m^3, power in MW, wall loading in MW/m^2, confinement time in seconds, and Q, beta_p_proxy, Greenwald fraction, and cost index dimensionless.",
+      "validation_evidence": [
+        "tests/test_global_design_scanner.py positive-domain, metric-shape, and configuration tests",
+        "tests/test_disruption_contracts.py production-surface disruption episode smoke coverage with the real scanner",
+        "tests/test_disruption_episode.py real GlobalDesignExplorer episode coverage",
+        "docs/api.md public API documentation for the bounded scanner"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/global_design_scanner.py",
+        "src/scpn_control/control/disruption_contracts.py",
+        "tests/test_global_design_scanner.py",
+        "tests/test_disruption_contracts.py",
+        "tests/test_disruption_episode.py",
+        "docs/api.md",
+        "docs/changelog.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/global_design_scanner.py"
+      ],
+      "validity_domain": "Bounded deterministic scalar design metrics for disruption-contract episodes; not a systems-code design optimisation, external neutronics campaign, or facility/economics validation claim.",
+      "external_validation_tracker_issue": 52
+    },
+    {
       "component": "tokamak digital twin topology and diffusion model",
       "equation_contract": "Digital-twin claims must declare the 2D poloidal grid, q-profile topology update, rational-surface island mask, finite-difference diffusion, radiation-loss scaling with density and effective charge, actuator latency, RNG seed, IDS export assumptions, external simulator artifact provenance, and bounded online model-update parameters.",
       "fidelity_status": "bounded_model",
