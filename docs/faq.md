@@ -35,9 +35,11 @@ for the full per-controller and per-backend tables.
 
 ### 5. How do I add a new controller?
 Implement the standard controller interface (a `step(error, dt)` or similar method)
-and register it in the `CONTROLLERS` registry within `tokamak_flight_sim.py` or
-`controller_comparison.py`. See `scpn_control.control.h_infinity_controller`
-for a reference implementation.
+in a dedicated `scpn_control.control` module. To include the controller in the
+repository comparison workflow, add a runner function and `CONTROLLERS` entry in
+`validation/controller_comparison.py`; `tokamak_flight_sim.py` provides the
+`IsoFluxController` simulation harness but does not own a controller registry.
+See `scpn_control.control.h_infinity_controller` for a reference implementation.
 
 ### 6. Why use Stochastic Petri Nets (SPN) instead of direct neural networks?
 SPNs provide a formal, graph-based representation of control logic that

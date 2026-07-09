@@ -148,3 +148,17 @@ def test_faq_rust_snn_latency_claim_matches_report() -> None:
     assert f"{p50_us:.3f} µs P50" in faq
     assert f"{p95_us:.3f} µs P95" in faq
     assert "0.92 µs (P50, CI)" not in faq
+
+
+def test_faq_controller_registry_guidance_matches_code() -> None:
+    """The FAQ controller-extension guidance must name the real registry."""
+
+    faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
+    comparison = (ROOT / "validation" / "controller_comparison.py").read_text(encoding="utf-8")
+    flight_sim = (ROOT / "src" / "scpn_control" / "control" / "tokamak_flight_sim.py").read_text(encoding="utf-8")
+
+    assert "CONTROLLERS = {" in comparison
+    assert "CONTROLLERS =" not in flight_sim
+    assert "validation/controller_comparison.py" in faq
+    assert "`tokamak_flight_sim.py` provides the" in faq
+    assert "within `tokamak_flight_sim.py` or" not in faq
