@@ -14,6 +14,7 @@ Loads a ``.scpnctl.json`` artifact and provides deterministic
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import time
@@ -33,6 +34,12 @@ from .contracts import (
     ControlTargets,
     FeatureAxisSpec,
     _seed64,
+)
+from .runtime_safety_certificate import (
+    CertificateReplayResult,
+    ControllerRuntimeBinding,
+    RuntimeTarget,
+    assert_runtime_certificate_admissible,
 )
 
 FloatArray = NDArray[np.float64]
@@ -98,6 +105,45 @@ def _append_jsonl_record(path: Path, record: Mapping[str, object]) -> None:
         fh.write(json.dumps(record, separators=(",", ":")) + "\n")
 
 
+def _canonical_json(value: object) -> str:
+    """Return the canonical JSON representation used for controller digests."""
+    return json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
+
+def _matrix_entries(data: Sequence[float], shape: Sequence[int]) -> list[list[int | float]]:
+    """Return sorted non-zero dense matrix entries in sparse-coordinate form."""
+    if len(shape) != 2:
+        raise ValueError("artifact weight matrix shape must have two dimensions")
+    rows = require_int("artifact weight matrix rows", shape[0], 1)
+    cols = require_int("artifact weight matrix cols", shape[1], 1)
+    if len(data) != rows * cols:
+        raise ValueError("artifact weight matrix data length does not match its shape")
+    entries: list[list[int | float]] = []
+    for idx, value in enumerate(data):
+        scalar = float(value)
+        if scalar != 0.0:
+            entries.append([idx // cols, idx % cols, scalar])
+    return sorted(entries)
+
+
+def _artifact_topology_digest(artifact: Artifact) -> str:
+    """Return the runtime-certificate topology digest for a loaded artifact."""
+    signature = {
+        "places": [place.name for place in artifact.topology.places],
+        "transitions": [
+            {
+                "name": transition.name,
+                "threshold": float(transition.threshold),
+                "delay_ticks": int(transition.delay_ticks),
+            }
+            for transition in artifact.topology.transitions
+        ],
+        "w_in": _matrix_entries(artifact.weights.w_in.data, artifact.weights.w_in.shape),
+        "w_out": _matrix_entries(artifact.weights.w_out.data, artifact.weights.w_out.shape),
+    }
+    return hashlib.sha256(_canonical_json(signature).encode("utf-8")).hexdigest()
+
+
 class NeuroSymbolicController:
     """Reference controller with oracle float and stochastic paths.
 
@@ -109,6 +155,10 @@ class NeuroSymbolicController:
     scales : normalisation scales.
     allow_fault_injection : explicit opt-in for stochastic bit-flip fault
         injection. Nonzero ``sc_bitflip_rate`` is rejected unless this is true.
+    runtime_safety_certificate : optional runtime-bound formal certificate.
+        When provided, ``runtime_safety_binding``, ``runtime_safety_target``, and
+        ``runtime_safety_replay`` are also required and must pass admission
+        before the controller instance is usable.
     """
 
     def __init__(
@@ -130,8 +180,43 @@ class NeuroSymbolicController:
         allow_legacy_runtime_backend_fallback: bool = False,
         rust_backend_min_problem_size: int = 1,
         sc_antithetic_chunk_size: int = 2048,
+        runtime_safety_certificate: dict[str, Any] | None = None,
+        runtime_safety_binding: ControllerRuntimeBinding | None = None,
+        runtime_safety_target: RuntimeTarget | None = None,
+        runtime_safety_replay: CertificateReplayResult | None = None,
     ) -> None:
         self.artifact = artifact
+        self.runtime_safety_certificate_payload: dict[str, Any] | None = None
+        self.runtime_safety_certificate_sha256: str | None = None
+        if any(
+            item is not None
+            for item in (
+                runtime_safety_certificate,
+                runtime_safety_binding,
+                runtime_safety_target,
+                runtime_safety_replay,
+            )
+        ):
+            if (
+                runtime_safety_certificate is None
+                or runtime_safety_binding is None
+                or runtime_safety_target is None
+                or runtime_safety_replay is None
+            ):
+                raise ValueError(
+                    "runtime safety certificate admission requires certificate, binding, target, and replay inputs"
+                )
+            artifact_topology_sha256 = _artifact_topology_digest(artifact)
+            if runtime_safety_binding.petri_topology_sha256 != artifact_topology_sha256:
+                raise ValueError("runtime safety certificate topology does not match the controller artifact")
+            admitted = assert_runtime_certificate_admissible(
+                runtime_safety_certificate,
+                live_binding=runtime_safety_binding,
+                live_runtime_target=runtime_safety_target,
+                replay=runtime_safety_replay,
+            )
+            self.runtime_safety_certificate_payload = admitted
+            self.runtime_safety_certificate_sha256 = cast(str, admitted["payload_sha256"])
         self.seed_base = int(seed_base)
         self.targets = targets
         self.scales = scales
@@ -361,6 +446,11 @@ class NeuroSymbolicController:
     def runtime_profile_name(self) -> str:
         """Name of the active controller runtime profile."""
         return self._runtime_profile
+
+    @property
+    def runtime_safety_admitted(self) -> bool:
+        """Whether a runtime safety certificate was admitted for this instance."""
+        return self.runtime_safety_certificate_payload is not None
 
     @property
     def marking(self) -> list[float]:

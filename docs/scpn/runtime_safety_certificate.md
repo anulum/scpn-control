@@ -56,6 +56,12 @@ only when `0 < worst_case_response_us <= deadline_us <= control_period_us`, and
   the declared stack: the certificate holds, its binding digest matches the live
   controller binding, its declared runtime target matches the live target, its
   timing envelope is schedulable, and the proof replay passed.
+* **Construct** — `NeuroSymbolicController` accepts an explicit
+  `runtime_safety_certificate`, `runtime_safety_binding`,
+  `runtime_safety_target`, and `runtime_safety_replay`. Supplying any one input
+  requires all four. The constructor checks that the binding's Petri topology
+  digest matches the loaded `.scpnctl` artifact before calling
+  `assert_runtime_certificate_admissible`.
 
 ```python
 from scpn_control.scpn.runtime_safety_certificate import (
@@ -80,6 +86,21 @@ certificate = issue_runtime_safety_certificate(net, binding, formal_certificate=
 replay = replay_runtime_safety_certificate(net, certificate, reverify=lambda: reprove(net))
 assert_runtime_certificate_admissible(
     certificate, live_binding=binding, live_runtime_target=binding.runtime_target, replay=replay,
+)
+```
+
+Safety-critical controller construction uses the same evidence:
+
+```python
+controller = NeuroSymbolicController(
+    artifact=artifact,
+    seed_base=42,
+    targets=targets,
+    scales=scales,
+    runtime_safety_certificate=certificate,
+    runtime_safety_binding=binding,
+    runtime_safety_target=binding.runtime_target,
+    runtime_safety_replay=replay,
 )
 ```
 

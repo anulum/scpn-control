@@ -1089,6 +1089,15 @@ provided. Relative and absolute log paths must resolve under that root and use a
 helper that rejects symlink targets where the platform exposes no-follow open
 semantics.
 
+Runtime-bound safety admission is available through the explicit
+`runtime_safety_certificate`, `runtime_safety_binding`, `runtime_safety_target`,
+and `runtime_safety_replay` constructor arguments. Supplying any one of these
+requires all four. The controller first checks that the runtime binding's Petri
+topology digest matches the loaded `.scpnctl` artifact, then delegates to
+`assert_runtime_certificate_admissible`. This keeps ordinary local experiments
+unchanged while making safety-critical construction fail closed unless artifact,
+binding, target, and proof replay evidence all match.
+
 ::: scpn_control.scpn.controller.NeuroSymbolicController
 
 ### Contracts

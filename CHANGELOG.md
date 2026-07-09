@@ -11,6 +11,10 @@
 ## Unreleased
 
 ### Changed
+- Wired runtime-bound safety certificate admission into
+  `NeuroSymbolicController`, including loaded-artifact topology matching,
+  certificate/binding/target/replay fail-closed admission, and focused 100%
+  controller coverage.
 - Added bounded integrated-scenario closed-loop wiring for the combined CLI
   demo, connecting `ScenarioSchedule` feedback to
   `IntegratedScenarioSimulator`, exposing replay-audit evidence, and keeping

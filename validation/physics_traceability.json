@@ -2402,13 +2402,16 @@
         "tests/test_scpn_formal_verification.py Z3 pass-report unavailable-solver rejection checks",
         "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 pass-report unavailable-solver rejection checks",
         "tests/test_scpn_formal_verification.py Z3 pass-report non-Z3 solver-label rejection checks",
-        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 pass-report non-Z3 solver-label rejection checks"
+        "tests/test_artifact_codec.py safety-critical artifact-manifest Z3 pass-report non-Z3 solver-label rejection checks",
+        "tests/test_controller_runtime_safety_admission.py live NeuroSymbolicController runtime-certificate admission, artifact-topology drift, partial-evidence, and failed-replay rejection checks"
       ],
       "evidence_paths": [
         "src/scpn_control/scpn/formal_verification.py",
+        "src/scpn_control/scpn/controller.py",
         "src/scpn_control/scpn/lean_verification.py",
         "src/scpn_control/scpn/z3_model_checking.py",
         "tests/test_scpn_formal_verification.py",
+        "tests/test_controller_runtime_safety_admission.py",
         "validation/validate_scpn_lean_formal.py",
         "tests/test_scpn_lean_verification.py",
         "tests/test_scpn_lean_formal_validation.py",
