@@ -11,6 +11,8 @@
 ## Unreleased
 
 ### Changed
+- Added the missing root `streamlit_app.py` Streamlit Cloud entry point as a
+  thin adapter to the existing embedded WebSocket dashboard.
 - Synced the rendered MkDocs changelog mirror with the root changelog and added
   a CI/preflight drift guard to keep future release notes single-sourced.
 - Replaced `LagrangianPPO` random-action rollouts with a learned NumPy linear

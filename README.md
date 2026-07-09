@@ -217,7 +217,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 420 |
+| Python test files | 421 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -518,7 +518,8 @@ Phase Sync Monitor (live R/V/λ plots), Benchmark Plots (interactive Vega).
 **Live dashboard:** [scpn-control.streamlit.app](https://scpn-control.streamlit.app)
 
 The phase sync dashboard runs on Streamlit Cloud with embedded server mode
-(no external WS server needed). Entry point: `streamlit_app.py`.
+(no external WS server needed). Entry point: `streamlit_app.py`, which delegates
+to the same `examples/streamlit_ws_client.py` dashboard used locally.
 
 To deploy your own instance:
 1. Fork to your GitHub
