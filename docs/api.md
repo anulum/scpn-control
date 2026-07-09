@@ -1349,6 +1349,14 @@ instead of returning partial snapshots.
 
 ::: scpn_control.phase.adaptive_knm.DiagnosticSnapshot
 
+The adaptive Knm engine uses every required diagnostic field in
+`DiagnosticSnapshot`: `R_layer` and `V_layer` drive the diagonal coherence
+channel, while `lambda_exp`, `q95`, `disruption_risk`, and `mirnov_rms`
+contribute to a bounded MHD-pair risk drive. The configuration defaults are
+dimensionless local-control gains except `lambda_risk_gain_s`, which converts a
+Lyapunov exponent in `1/s` into a dimensionless stress contribution. These
+settings are bounded heuristics, not facility-calibrated stability claims.
+
 ### Plasma Knm
 
 ::: scpn_control.phase.plasma_knm.build_knm_plasma
