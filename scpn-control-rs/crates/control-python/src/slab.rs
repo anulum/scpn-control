@@ -38,6 +38,12 @@ impl<const PACKET_SIZE: usize, const CAPACITY: usize> PacketSlab<PACKET_SIZE, CA
                 .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
                 .is_ok()
             {
+                // SAFETY: the compare_exchange above claimed slot `i` exclusively
+                // (false -> true, AcqRel), so this thread has sole access to its
+                // PACKET_SIZE bytes. `i < CAPACITY` and `data.len() == PACKET_SIZE`
+                // (both checked), so `dest = base + i * PACKET_SIZE` and the
+                // PACKET_SIZE-byte copy stay within the contiguous
+                // CAPACITY * PACKET_SIZE backing array; source and dest never overlap.
                 unsafe {
                     let dest = self.memory.get().cast::<u8>().add(i * PACKET_SIZE);
                     ptr::copy_nonoverlapping(data.as_ptr(), dest, PACKET_SIZE);
@@ -54,6 +60,10 @@ impl<const PACKET_SIZE: usize, const CAPACITY: usize> PacketSlab<PACKET_SIZE, CA
             return None;
         }
 
+        // SAFETY: `index < CAPACITY` (checked above), so indexing the backing
+        // array is in bounds. The pointer aliases slot `index`; the caller
+        // contract (only queried for a slot it currently leases) keeps that slot
+        // stable until released, so no concurrent writer touches those bytes.
         Some(unsafe { (*self.memory.get())[index].as_ptr() })
     }
 
@@ -73,6 +83,12 @@ impl<const PACKET_SIZE: usize, const CAPACITY: usize> PacketSlab<PACKET_SIZE, CA
     }
 }
 
+// SAFETY: every access to the `UnsafeCell` payload is gated by the per-slot
+// `status_flags` atomics acting as a lock. A slot's bytes are written only after
+// its flag is claimed (compare_exchange false -> true, AcqRel) and read only via a
+// pointer handed out for a slot the caller still leases, with a Release fence after
+// each write and Acquire on each claim. No two threads ever touch the same slot's
+// bytes concurrently, so sharing `&PacketSlab` across threads is data-race-free.
 unsafe impl<const PACKET_SIZE: usize, const CAPACITY: usize> Sync
     for PacketSlab<PACKET_SIZE, CAPACITY>
 {

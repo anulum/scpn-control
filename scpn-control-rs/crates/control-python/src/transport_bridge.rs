@@ -373,6 +373,10 @@ impl PyUdpTransportBridge {
             reserve2: 0,
         };
 
+        // SAFETY: `frame` is a live, fully-initialised `#[repr(C)]` value with no
+        // padding, and `FRAME_SIZE == size_of::<TransportSnapshotFrame>()`. The
+        // byte slice borrows `frame` for this call only and is read (copied into
+        // the slab) before `frame` goes out of scope.
         let frame_bytes = unsafe {
             std::slice::from_raw_parts(
                 (&frame as *const TransportSnapshotFrame).cast::<u8>(),
@@ -466,6 +470,10 @@ fn run_udp_publisher(
                     slab.release(index);
                     continue;
                 };
+                // SAFETY: `index` was leased by the producer and handed over the
+                // channel, transferring ownership to this thread; `get_ptr_for_io`
+                // returned a pointer to that slot's FRAME_SIZE initialised bytes,
+                // which stay valid until the `slab.release(index)` below.
                 let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
 
                 if socket.send(frame_bytes).is_err() {
@@ -493,6 +501,8 @@ fn run_udp_publisher(
 
     while let Ok(index) = rx.try_recv() {
         if let Some(frame_ptr) = slab.get_ptr_for_io(index) {
+            // SAFETY: as above — `index` owns a leased slot whose FRAME_SIZE bytes
+            // are initialised and stay valid until the `slab.release(index)` below.
             let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
             let _ = socket.send(frame_bytes);
         }
@@ -725,10 +735,15 @@ fn submit_or_fallback_to_std(
     heartbeat_timeout_ns: u64,
     index: usize,
 ) -> Result<(), &'static str> {
+    // SAFETY: the SQE references `frame_ptr`, which addresses slot `index`'s leased
+    // bytes; that slot is not released until its completion is reaped in
+    // `drain_io_uring_completion`, so the buffer outlives the kernel's async read.
     let pushed = unsafe { ring.submission().push(sqe).is_ok() };
 
     if !pushed {
         if let Some(false) = drain_or_submit(ring, slab)? {
+            // SAFETY: `frame_ptr` addresses slot `index`'s initialised FRAME_SIZE
+            // bytes, still leased here; read once for the std fallback send.
             let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
             let _ = socket.send(frame_bytes);
             slab.release(index);
@@ -736,7 +751,11 @@ fn submit_or_fallback_to_std(
             return Ok(());
         }
 
+        // SAFETY: same invariant as the first push — the SQE's `frame_ptr` slot
+        // stays leased until its completion is drained.
         if !unsafe { ring.submission().push(sqe).is_ok() } {
+            // SAFETY: `frame_ptr` addresses slot `index`'s initialised FRAME_SIZE
+            // bytes, still leased here; read once for the std fallback send.
             let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
             let _ = socket.send(frame_bytes);
             slab.release(index);
@@ -752,6 +771,8 @@ fn submit_or_fallback_to_std(
             return Err("io_uring submit failed");
         }
 
+        // SAFETY: `frame_ptr` addresses slot `index`'s initialised FRAME_SIZE
+        // bytes, still leased here; read once for the std fallback send.
         let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
         let _ = socket.send(frame_bytes);
         slab.release(index);
@@ -760,6 +781,8 @@ fn submit_or_fallback_to_std(
     }
 
     if let Some(false) = drain_io_uring_completion(ring, slab) {
+        // SAFETY: `frame_ptr` addresses slot `index`'s initialised FRAME_SIZE
+        // bytes, still leased here; read once for the std fallback send.
         let frame_bytes = unsafe { std::slice::from_raw_parts(frame_ptr, FRAME_SIZE) };
         let _ = socket.send(frame_bytes);
         slab.release(index);
@@ -900,6 +923,9 @@ mod tests {
             .get_ptr_for_io(index)
             .expect("leased slot should provide a valid pointer");
 
+        // SAFETY: `ptr` came from `get_ptr_for_io` for the slot just leased and
+        // written above; it addresses FRAME_SIZE initialised bytes that stay valid
+        // until the slot is released below.
         let frame = unsafe { std::slice::from_raw_parts(ptr, FRAME_SIZE) };
         assert_eq!(frame, &payload);
         assert_eq!(slab.in_use_count(), 1);

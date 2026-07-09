@@ -44,3 +44,9 @@ io-uring = { version = "0.7", optional = true }
 default = []
 extension-module = ["pyo3/extension-module"]
 io-uring = ["dep:io-uring"]
+
+[lints.clippy]
+# Every `unsafe` block in this FFI/transport crate must carry a `// SAFETY:`
+# comment justifying its soundness invariant. Enforced (with `-D warnings`) so
+# new unsafe code cannot land undocumented.
+undocumented_unsafe_blocks = "warn"

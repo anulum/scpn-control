@@ -114,6 +114,9 @@ fn build_frame() -> [u8; PAYLOAD_SIZE_BYTES] {
     };
 
     let mut bytes = [0u8; PAYLOAD_SIZE_BYTES];
+    // SAFETY: `frame` is a live, fully-initialised `#[repr(C)]` value and
+    // PAYLOAD_SIZE_BYTES == its size; the slice borrows it only to copy the bytes
+    // out into `bytes` before `frame` is dropped.
     let source = unsafe {
         std::slice::from_raw_parts((frame_addr(&frame)).cast::<u8>(), PAYLOAD_SIZE_BYTES)
     };
@@ -160,6 +163,10 @@ fn run_uring_udp(endpoint: &str, burst: usize) -> io::Result<Duration> {
         for idx in 0..batch {
             let mut sqe = opcode::Send::new(types::Fd(fd), frame_ptr, frame_len).build();
             sqe.set_user_data((sent + idx + 1) as u64);
+            // SAFETY: the SQE references `frame_ptr`, a stack buffer that lives for
+            // the whole burst loop and outlives every submission and its completion
+            // (drained before this function returns), so the kernel's async read
+            // always sees valid memory.
             unsafe {
                 if ring.submission().push(&sqe).is_err() {
                     return Err(io::Error::other("io_uring submission queue full"));
@@ -171,10 +178,10 @@ fn run_uring_udp(endpoint: &str, burst: usize) -> io::Result<Duration> {
         ring.submit_and_wait(1)?;
         while let Some(cqe) = ring.completion().next() {
             if cqe.result() < 0 {
-                return Err(io::Error::new(
-                    io::ErrorKind::Other,
-                    format!("io_uring completion error: {}", cqe.result()),
-                ));
+                return Err(io::Error::other(format!(
+                    "io_uring completion error: {}",
+                    cqe.result()
+                )));
             }
         }
     }
