@@ -33,11 +33,7 @@ from scpn_control.core._validators import (
     require_positive_float,
 )
 from scpn_control.core._statistics import linear_percentile
-
-try:
-    from scpn_control.core.global_design_scanner import GlobalDesignExplorer
-except ImportError:
-    GlobalDesignExplorer = None
+from scpn_control.core.global_design_scanner import GlobalDesignExplorer
 
 # Blanket neutronics MCNP→volumetric-code calibration factor;
 # Abdou et al., Fusion Eng. Des. 100 (2015), Table 3

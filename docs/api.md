@@ -526,6 +526,16 @@ when supplied.
 
 ::: scpn_control.core.fusion_kernel.FusionKernel
 
+### Global Design Scanner
+
+`GlobalDesignExplorer` provides the bounded scalar design metrics consumed by
+the disruption-contract episode path. It estimates `Q`, fusion power, neutron
+wall load, and a relative cost proxy from validated tokamak design inputs.
+
+::: scpn_control.core.global_design_scanner.GlobalDesignExplorer
+
+::: scpn_control.core.global_design_scanner.DesignScannerConfig
+
 ### TokamakConfig
 
 ::: scpn_control.core.tokamak_config.TokamakConfig

@@ -1573,4 +1573,4 @@
 - Rust workspace reduced from 11 crates to 5
 - CI reduced from 13 jobs to 6
 - `hpc_bridge.py` relocated from `hpc/` to `core/` subpackage
-- Import guards added for excluded modules (stability_analyzer, global_design_scanner, imas_connector, diagnostics.forward, fusion_ignition_sim)
+- Import guards added for excluded modules (stability_analyzer, imas_connector, diagnostics.forward, fusion_ignition_sim); `global_design_scanner` is now provided by SCPN Control.

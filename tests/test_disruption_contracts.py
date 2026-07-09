@@ -22,15 +22,7 @@ from scpn_control.control.disruption_contracts import (
     run_disruption_episode,
     run_real_shot_replay,
 )
-
-try:
-    from scpn_control.core.global_design_scanner import GlobalDesignExplorer
-except ImportError:
-    GlobalDesignExplorer = None
-try:
-    from scpn_control.nuclear.blanket_neutronics import BreedingBlanket
-except ImportError:
-    BreedingBlanket = None
+from scpn_control.core.global_design_scanner import GlobalDesignExplorer
 
 
 def _build_replay_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | int]:
@@ -51,26 +43,11 @@ def _build_replay_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | i
     }
 
 
-@pytest.mark.skipif(
-    GlobalDesignExplorer is None or BreedingBlanket is None,
-    reason="global_design_scanner or blanket_neutronics not available",
-)
 def test_run_disruption_episode_contract_smoke() -> None:
     rng = np.random.default_rng(42)
     agent = FusionAIAgent(epsilon=0.05)
-    explorer = GlobalDesignExplorer("dummy")
-    base_tbr = float(
-        BreedingBlanket(thickness_cm=260.0, li6_enrichment=1.0)
-        .calculate_volumetric_tbr(
-            major_radius_m=6.2,
-            minor_radius_m=2.0,
-            elongation=1.7,
-            radial_cells=8,
-            poloidal_cells=16,
-            toroidal_cells=12,
-        )
-        .tbr
-    )
+    explorer = GlobalDesignExplorer("disruption-contract-smoke")
+    base_tbr = 1.15
     out = run_disruption_episode(
         rng=rng,
         rl_agent=agent,
@@ -146,14 +123,10 @@ def test_run_real_shot_replay_rejects_bad_vector_lengths_and_indices() -> None:
         )
 
 
-@pytest.mark.skipif(
-    GlobalDesignExplorer is None,
-    reason="global_design_scanner not available",
-)
 def test_run_disruption_episode_rejects_nonpositive_base_tbr() -> None:
     rng = np.random.default_rng(42)
     agent = FusionAIAgent(epsilon=0.05)
-    explorer = GlobalDesignExplorer("dummy")
+    explorer = GlobalDesignExplorer("invalid-base-tbr")
     with pytest.raises(ValueError, match="base_tbr must be > 0"):
         run_disruption_episode(
             rng=rng,
@@ -295,7 +268,7 @@ def test_run_real_shot_replay_rejects_short_time_s() -> None:
 # ── SPI-triggered replay path ───────────────────────────────────
 
 
-def _build_severe_disruption_shot(n: int = 220) -> dict:
+def _build_severe_disruption_shot(n: int = 220) -> dict[str, NDArray[np.float64] | bool | int]:
     """Shot with extreme perturbation: forces SPI trigger in replay."""
     t = np.linspace(0.0, 0.22, n, dtype=np.float64)
     dBdt = 2.0 + 5.0 * np.exp(-(((t - 0.18) / 0.015) ** 2))

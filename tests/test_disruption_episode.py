@@ -15,36 +15,35 @@
 
 from __future__ import annotations
 
+from typing import TypeAlias
+
 import numpy as np
 
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_contracts import run_disruption_episode
+from scpn_control.core.global_design_scanner import GlobalDesignExplorer
+
+EpisodeResult: TypeAlias = dict[str, float | bool]
 
 
-class _MockDesignExplorer:
-    """Minimal GlobalDesignExplorer stand-in returning a synthetic design dict."""
-
-    def evaluate_design(self, r_maj: float, b_t: float, ip: float) -> dict:
-        return {
-            "Q": 12.0,
-            "P_fusion_MW": 500.0,
-            "neutron_wall_load_MW_m2": 1.2,
-            "cost_index": 1.0,
-        }
-
-
-def _make_agent():
+def _make_agent() -> FusionAIAgent:
     return FusionAIAgent(n_states_turb=4, n_states_flow=4, n_actions=3)
 
 
+def _make_explorer() -> GlobalDesignExplorer:
+    """Return the production design explorer used by disruption episodes."""
+
+    return GlobalDesignExplorer("episode-test")
+
+
 class TestRunDisruptionEpisode:
-    def test_returns_expected_keys(self):
+    def test_returns_expected_keys(self) -> None:
         rng = np.random.default_rng(42)
         result = run_disruption_episode(
             rng=rng,
             rl_agent=_make_agent(),
             base_tbr=1.15,
-            explorer=_MockDesignExplorer(),
+            explorer=_make_explorer(),
         )
         for key in (
             "disturbance",
@@ -63,35 +62,35 @@ class TestRunDisruptionEpisode:
         ):
             assert key in result, f"Missing key: {key}"
 
-    def test_risk_bounded(self):
+    def test_risk_bounded(self) -> None:
         rng = np.random.default_rng(99)
         result = run_disruption_episode(
             rng=rng,
             rl_agent=_make_agent(),
             base_tbr=1.10,
-            explorer=_MockDesignExplorer(),
+            explorer=_make_explorer(),
         )
         assert 0.0 <= result["risk_before"] <= 1.0
         assert 0.0 <= result["risk_after"] <= 1.0
 
-    def test_wall_damage_bounded(self):
+    def test_wall_damage_bounded(self) -> None:
         rng = np.random.default_rng(7)
         result = run_disruption_episode(
             rng=rng,
             rl_agent=_make_agent(),
             base_tbr=1.20,
-            explorer=_MockDesignExplorer(),
+            explorer=_make_explorer(),
         )
         assert 0.0 <= result["wall_damage_index"] <= 3.0
 
-    def test_deterministic_with_seed(self):
-        def _run(seed):
+    def test_deterministic_with_seed(self) -> None:
+        def _run(seed: int) -> EpisodeResult:
             rng = np.random.default_rng(seed)
             return run_disruption_episode(
                 rng=rng,
                 rl_agent=_make_agent(),
                 base_tbr=1.15,
-                explorer=_MockDesignExplorer(),
+                explorer=_make_explorer(),
             )
 
         r1 = _run(123)
@@ -99,10 +98,10 @@ class TestRunDisruptionEpisode:
         assert r1["disturbance"] == r2["disturbance"]
         assert r1["risk_before"] == r2["risk_before"]
 
-    def test_multiple_episodes_train_agent(self):
+    def test_multiple_episodes_train_agent(self) -> None:
         rng = np.random.default_rng(0)
         agent = _make_agent()
-        explorer = _MockDesignExplorer()
+        explorer = _make_explorer()
         for _ in range(5):
             result = run_disruption_episode(
                 rng=rng,
