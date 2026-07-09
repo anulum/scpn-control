@@ -19,13 +19,20 @@ from click.testing import CliRunner
 
 from scpn_control.cli import main
 
+_OPTIONAL_IMPORT_GUARDS = ("matplotlib", "torch", "streamlit")
+
+
+def _clear_optional_import_guards(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove optional-module sentinels that affect CLI import hygiene checks."""
+    for module_name in _OPTIONAL_IMPORT_GUARDS:
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
+
 
 def test_validate_reports_contaminated_import_without_external_evidence(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The validate command reports prohibited eager imports before evidence gates."""
-    monkeypatch.delitem(sys.modules, "matplotlib", raising=False)
-    monkeypatch.delitem(sys.modules, "torch", raising=False)
+    _clear_optional_import_guards(monkeypatch)
     monkeypatch.setitem(sys.modules, "streamlit", ModuleType("streamlit"))
     result = CliRunner().invoke(
         main,
