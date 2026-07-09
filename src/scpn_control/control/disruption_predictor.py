@@ -896,6 +896,49 @@ class _DisruptionTransformerImpl:  # pragma: no cover - requires torch for full 
                 samples.append(float(self.forward(src).item()))
         return float(np.mean(samples)), float(np.std(samples))
 
+    def predict(self, seq: Any) -> float:
+        """Return a bounded disruption risk for one input sequence.
+
+        Parameters
+        ----------
+        seq
+            One sequence as ``(seq,)``, ``(seq, 1)``, or ``(1, seq, 1)``. The
+            input is converted to a ``float32`` tensor and validated by
+            ``forward`` before inference.
+
+        Returns
+        -------
+        float
+            Disruption risk clipped to ``[0, 1]``.
+
+        Raises
+        ------
+        RuntimeError
+            If torch is unavailable.
+        ValueError
+            If ``seq`` is not a single sequence accepted by ``forward``.
+        """
+
+        if torch is None:
+            raise RuntimeError("Torch is required for DisruptionTransformer.")
+        tensor = torch.as_tensor(seq, dtype=torch.float32)
+        if tensor.ndim == 1:
+            tensor = tensor.reshape(1, -1, 1)
+        elif tensor.ndim == 2:
+            if tensor.shape[1] != 1:
+                raise ValueError(f"Input feature dimension must be 1; got {tensor.shape[1]}.")
+            tensor = tensor.unsqueeze(0)
+        elif tensor.ndim != 3:
+            raise ValueError(f"Input sequence must have rank 1, 2, or 3; got rank {tensor.ndim}.")
+
+        cast(Any, self).eval()
+        with torch.no_grad():
+            score = self.forward(tensor)
+        if score.numel() != 1:
+            raise ValueError("predict expects exactly one sequence.")
+        risk = float(score.reshape(-1)[0].item())
+        return min(1.0, max(0.0, risk))
+
 
 if TYPE_CHECKING:
 
