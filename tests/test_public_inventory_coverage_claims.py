@@ -75,6 +75,40 @@ def test_readme_tree_test_count_matches_generated_manifest() -> None:
     assert f"tests/                 # {counts['python_test_file_count']} Python test files" in readme
 
 
+def test_architecture_maps_are_bound_to_generated_inventory() -> None:
+    """Architecture maps must identify the generated manifest as authoritative."""
+
+    counts = _manifest_counts()
+    checked_paths = (
+        ROOT / "ARCHITECTURE.md",
+        ROOT / "docs" / "architecture.md",
+    )
+    required_fragments = (
+        "illustrative subset",
+        "docs/_generated/capability_manifest.json",
+        "tools/capability_manifest.py",
+        "python tools/capability_manifest.py --check",
+    )
+    stale_fragments = (
+        "3,300+ tests (235 files)",
+        "154 Python modules (149 non-init)",
+        "69 non-init modules",
+        "51 non-init modules",
+        "6 notebooks + 3 scripts",
+        "99% coverage gate",
+    )
+
+    assert counts["source_module_count"] >= 1
+    assert counts["python_test_file_count"] >= 1
+
+    for path in checked_paths:
+        text = _normalized_prose(path)
+        for fragment in required_fragments:
+            assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
+        for fragment in stale_fragments:
+            assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment!r}"
+
+
 def test_public_coverage_gate_claims_match_configuration() -> None:
     """Current public coverage-gate claims must match ``pyproject.toml``."""
 
