@@ -7,9 +7,11 @@
 # SCPN Control — Sawtooth Model Tests
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
-from scipy.integrate import trapezoid
+from numpy.typing import NDArray
 
 from scpn_control.core.sawtooth import (
     PorcelliParams,
@@ -21,12 +23,16 @@ from scpn_control.core.sawtooth import (
     _poloidal_beta_q1,
     _resistive_crit_dW,
     _resistive_time,
+    _trapezoid,
     kadomtsev_crash,
     porcelli_trigger,
 )
 
+trapezoid = _trapezoid
+FloatArray = NDArray[np.floating[Any]]
 
-def test_no_crash_q_above_1():
+
+def test_no_crash_q_above_1() -> None:
     rho = np.linspace(0, 1, 50)
     q = np.linspace(1.1, 3.0, 50)
     shear = np.linspace(0.1, 1.0, 50)
@@ -36,7 +42,7 @@ def test_no_crash_q_above_1():
     assert not monitor.check_trigger(q, shear)
 
 
-def test_monitor_rejects_nonphysical_radial_or_q_domains():
+def test_monitor_rejects_nonphysical_radial_or_q_domains() -> None:
     rho = np.linspace(0, 1, 50)
 
     with pytest.raises(ValueError, match="rho must be one-dimensional"):
@@ -54,7 +60,7 @@ def test_monitor_rejects_nonphysical_radial_or_q_domains():
         monitor.find_q1_radius(np.zeros_like(rho))
 
 
-def test_trigger_q_below_1():
+def test_trigger_q_below_1() -> None:
     rho = np.linspace(0, 1, 50)
     q = np.linspace(0.8, 3.0, 50)
     # q=1 is at rho ~ 0.09
@@ -69,7 +75,7 @@ def test_trigger_q_below_1():
     assert monitor.check_trigger(q, shear_high)
 
 
-def test_kadomtsev_crash():
+def test_kadomtsev_crash() -> None:
     rho = np.linspace(0, 1, 100)
     q = 0.8 + 2.0 * rho**2  # q=1 at rho=sqrt(0.1) ~ 0.316
     T = 5.0 * (1 - rho**2) ** 2
@@ -91,7 +97,7 @@ def test_kadomtsev_crash():
     assert np.allclose(q_new[idx_mix - 1], 1.01)
 
 
-def test_density_conservation():
+def test_density_conservation() -> None:
     rho = np.linspace(0, 1, 100)
     q = 0.8 + 2.0 * rho**2
     T = 5.0 * (1 - rho**2)
@@ -99,7 +105,7 @@ def test_density_conservation():
 
     T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
 
-    def total_particles(n_prof):
+    def total_particles(n_prof: FloatArray) -> float:
         return trapezoid(n_prof * rho, rho)
 
     N_before = total_particles(n)
@@ -108,7 +114,7 @@ def test_density_conservation():
     assert np.isclose(N_before, N_after, rtol=1e-2)
 
 
-def test_sawtooth_cycler():
+def test_sawtooth_cycler() -> None:
     rho = np.linspace(0, 1, 50)
     q = 0.8 + 2.0 * rho**2
     shear = np.full(50, 0.2)
@@ -132,7 +138,7 @@ def test_sawtooth_cycler():
 # ---------------------------------------------------------------------------
 
 
-def _base_profile(N: int = 100):
+def _base_profile(N: int = 100) -> tuple[FloatArray, FloatArray, FloatArray]:
     """Shared analytic profile: q=1 at rho~0.316, parabolic T, flat-ish n."""
     rho = np.linspace(0, 1, N)
     q = 0.8 + 2.0 * rho**2  # q=1 at rho=sqrt(0.1)≈0.316
@@ -140,7 +146,7 @@ def _base_profile(N: int = 100):
     return rho, q, shear
 
 
-def test_porcelli_condition1_triggers():
+def test_porcelli_condition1_triggers() -> None:
     """High β_p1, low shear → Condition 1 fires.
 
     High pressure inside q=1 makes β_p1 large → δW_MHD << 0.
@@ -158,7 +164,7 @@ def test_porcelli_condition1_triggers():
     assert result, "High β_p1 profile should trigger Condition 1"
 
 
-def test_porcelli_stable():
+def test_porcelli_stable() -> None:
     """Low β_p1, high shear → Porcelli trigger stays false.
 
     Low-pressure flat profile → δW_MHD ~ 0.
@@ -179,7 +185,7 @@ def test_porcelli_stable():
     assert not result, "Low-pressure, high-shear profile should not trigger"
 
 
-def test_porcelli_vs_shear_consistency():
+def test_porcelli_vs_shear_consistency() -> None:
     """Both trigger models fire for a strongly unstable profile.
 
     A strongly peaked, low-shear profile should be flagged by both
@@ -209,7 +215,7 @@ def test_porcelli_vs_shear_consistency():
     assert porcelli_fires, "Porcelli model should also fire for this profile"
 
 
-def test_crash_energy_conservation():
+def test_crash_energy_conservation() -> None:
     """Total thermal energy is conserved within 5% across a Kadomtsev crash.
 
     Kadomtsev reconnection redistributes but does not destroy energy.
@@ -222,7 +228,7 @@ def test_crash_energy_conservation():
 
     R0, a = 3.0, 1.0
 
-    def _total_energy(Te, ne):
+    def _total_energy(Te: FloatArray, ne: FloatArray) -> float:
         # W = 3/2 ∫ n T dV,  dV = 4π² R₀ a² ρ dρ
         energy_dens = 1.5 * (ne * 1e19) * (Te * 1e3 * 1.602e-19)
         vol_element = 4.0 * np.pi**2 * R0 * a**2 * rho
@@ -244,7 +250,7 @@ def test_crash_energy_conservation():
 # ---------------------------------------------------------------------------
 
 
-def test_poloidal_beta_q1_small_idx():
+def test_poloidal_beta_q1_small_idx() -> None:
     """_poloidal_beta_q1 returns 0 when the q=1 surface is at rho < 2 grid pts (line 64)."""
     rho = np.linspace(0, 1, 100)
     T = 5.0 * np.ones_like(rho)
@@ -254,7 +260,7 @@ def test_poloidal_beta_q1_small_idx():
     assert result == 0.0
 
 
-def test_porcelli_no_q1_surface():
+def test_porcelli_no_q1_surface() -> None:
     """porcelli_trigger returns False when q > 1 everywhere (line 160)."""
     rho = np.linspace(0, 1, 50)
     q = np.linspace(1.1, 3.0, 50)
@@ -264,7 +270,7 @@ def test_porcelli_no_q1_surface():
     assert not porcelli_trigger(rho, T, n, q, shear, R0=3.0, a=1.0)
 
 
-def test_porcelli_condition2_ideal_kink():
+def test_porcelli_condition2_ideal_kink() -> None:
     """Condition 2 (ideal kink) fires with high beta_p1 and very low resistivity.
 
     Porcelli 1996, Eq. 14 — ideal-kink trigger with very low eta so
@@ -281,7 +287,7 @@ def test_porcelli_condition2_ideal_kink():
     assert result, "High beta_p1 + low eta should fire Condition 2 (ideal kink)"
 
 
-def test_resistive_crit_dW_formula():
+def test_resistive_crit_dW_formula() -> None:
     """_resistive_crit_dW matches Porcelli 1996, Eq. 18 hand computation."""
     eps_1 = 0.1
     omega_star_i = 1e4
@@ -291,19 +297,19 @@ def test_resistive_crit_dW_formula():
     assert _resistive_crit_dW(eps_1, omega_star_i, tau_R, s1) == pytest.approx(expected)
 
 
-def test_alfven_time_formula():
+def test_alfven_time_formula() -> None:
     """_alfven_time matches tau_A = R / (v_A * s1)."""
     assert _alfven_time(R0=3.0, v_A=1e7, s1=0.5) == pytest.approx(3.0 / (1e7 * 0.5))
 
 
-def test_alfven_time_near_zero_shear():
+def test_alfven_time_near_zero_shear() -> None:
     """_alfven_time clamps s1 to 1e-6 to avoid division by zero (line 80)."""
     tau = _alfven_time(R0=3.0, v_A=1e7, s1=0.0)
     assert np.isfinite(tau)
     assert tau > 0
 
 
-def test_resistive_time_formula():
+def test_resistive_time_formula() -> None:
     """_resistive_time matches tau_R = mu_0 * r1^2 / (1.22 * eta)."""
     from scpn_control.core.sawtooth import MU_0
 
@@ -313,7 +319,7 @@ def test_resistive_time_formula():
     assert _resistive_time(r1, eta) == pytest.approx(expected)
 
 
-def test_ion_diamagnetic_freq_formula():
+def test_ion_diamagnetic_freq_formula() -> None:
     """_ion_diamagnetic_freq matches omega_*i = k_theta * T_i / (e * B * r1)."""
     from scpn_control.core.sawtooth import E_CHARGE
 
@@ -326,14 +332,27 @@ def test_ion_diamagnetic_freq_formula():
     assert _ion_diamagnetic_freq(k_theta, Ti_keV, B_T, r1) == pytest.approx(expected)
 
 
-def test_bussac_dW_mhd_formula():
+def test_bussac_dW_mhd_formula() -> None:
     """_bussac_dW_mhd = -0.5*(beta_p1 - s1^2)."""
     assert _bussac_dW_mhd(beta_p1=1.0, s1=0.5) == pytest.approx(-0.5 * (1.0 - 0.25))
     # Stable case: s1^2 > beta_p1 → dW > 0
     assert _bussac_dW_mhd(beta_p1=0.1, s1=1.0) > 0
 
 
-def test_kadomtsev_crash_no_q1():
+def test_trapezoid_rejects_malformed_inputs() -> None:
+    """The local trapezoid helper rejects non-vector and mismatched profiles."""
+    with pytest.raises(ValueError, match="one-dimensional"):
+        _trapezoid(np.ones((2, 2)), np.ones((2, 2)))
+    with pytest.raises(ValueError, match="matching shapes"):
+        _trapezoid(np.ones(3), np.ones(4))
+
+
+def test_trapezoid_short_profile_integrates_to_zero() -> None:
+    """A one-point profile has no interval and integrates to zero."""
+    assert _trapezoid(np.array([1.0]), np.array([0.0])) == 0.0
+
+
+def test_kadomtsev_crash_no_q1() -> None:
     """kadomtsev_crash returns copies unchanged when q > 1 everywhere (line 283)."""
     rho = np.linspace(0, 1, 50)
     q = np.linspace(1.5, 3.0, 50)
@@ -346,7 +365,7 @@ def test_kadomtsev_crash_no_q1():
     assert rho_mix == 0.0
 
 
-def test_kadomtsev_crash_idx_mix_zero():
+def test_kadomtsev_crash_idx_mix_zero() -> None:
     """kadomtsev_crash handles degenerate case where mixing radius is at edge (line 303)."""
     rho = np.linspace(0, 1, 50)
     # q slightly below 1 at the very core only, mixing radius at rho=0 effectively
@@ -358,7 +377,7 @@ def test_kadomtsev_crash_idx_mix_zero():
     assert np.all(np.isfinite(n_new))
 
 
-def test_monitor_check_trigger_porcelli_missing_profiles():
+def test_monitor_check_trigger_porcelli_missing_profiles() -> None:
     """SawtoothMonitor.check_trigger raises ValueError when porcelli model lacks T/n."""
     rho = np.linspace(0, 1, 50)
     q = 0.8 + 2.0 * rho**2
@@ -368,7 +387,7 @@ def test_monitor_check_trigger_porcelli_missing_profiles():
         monitor.check_trigger(q, shear, trigger_model="porcelli")
 
 
-def test_monitor_find_q1_equal_values():
+def test_monitor_find_q1_equal_values() -> None:
     """find_q1_radius handles q1 == q2 at crossing (line 211)."""
     rho = np.linspace(0, 1, 50)
     q = 0.8 + 2.0 * rho**2
@@ -382,7 +401,7 @@ def test_monitor_find_q1_equal_values():
     assert rho_1 == pytest.approx(rho[idx])
 
 
-def test_monitor_check_trigger_shear_edge_cases():
+def test_monitor_check_trigger_shear_edge_cases() -> None:
     """check_trigger handles idx==0 and idx>=len(rho) shear interpolation (lines 246-248)."""
     rho = np.linspace(0, 1, 50)
     # q=1 right at the first grid point
@@ -399,24 +418,24 @@ def test_monitor_check_trigger_shear_edge_cases():
 # ── Coverage completion: monitor guards, crossings, porcelli/kadomtsev branches ──
 
 
-def test_monitor_rejects_empty_radial_grid():
+def test_monitor_rejects_empty_radial_grid() -> None:
     with pytest.raises(ValueError, match="rho must not be empty"):
         SawtoothMonitor(np.array([]))
 
 
-def test_find_q1_radius_rejects_two_dimensional_q():
+def test_find_q1_radius_rejects_two_dimensional_q() -> None:
     monitor = SawtoothMonitor(np.linspace(0.0, 1.0, 4))
     with pytest.raises(ValueError, match="q must be one-dimensional"):
         monitor.find_q1_radius(np.ones((2, 2)))
 
 
-def test_find_q1_radius_returns_none_without_crossing():
+def test_find_q1_radius_returns_none_without_crossing() -> None:
     monitor = SawtoothMonitor(np.linspace(0.0, 1.0, 10))
     # q strictly below 1 everywhere: no q=1 crossing despite min < 1.
     assert monitor.find_q1_radius(np.full(10, 0.5)) is None
 
 
-def test_porcelli_trigger_fires_on_resistive_internal_kink():
+def test_porcelli_trigger_fires_on_resistive_internal_kink() -> None:
     rho = np.linspace(0.0, 1.0, 50)
     q = np.clip(1.0 + 0.8 * (rho - 0.4), 0.3, 5.0)
     shear = np.gradient(q, rho) * rho / np.maximum(q, 1e-3)

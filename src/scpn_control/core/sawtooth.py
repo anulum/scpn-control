@@ -14,7 +14,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray
-from scipy.integrate import trapezoid
 
 # Physical constants
 MU_0: float = 4.0 * np.pi * 1e-7  # H/m
@@ -23,6 +22,20 @@ E_CHARGE: float = 1.602176634e-19  # C  — CODATA 2018
 # Porcelli 1996 geometric coefficient for ideal-kink term
 # Porcelli et al. 1996, PPCF 38, 2163, Eq. (14) — c_rho ~ 0.1 (Table 1)
 _C_RHO: float = 0.1
+
+
+def _trapezoid(y_values: AnyFloatArray, x_values: AnyFloatArray) -> float:
+    """Integrate a one-dimensional profile with the trapezoid rule."""
+    y_arr = np.asarray(y_values, dtype=np.float64)
+    x_arr = np.asarray(x_values, dtype=np.float64)
+    if y_arr.ndim != 1 or x_arr.ndim != 1:
+        raise ValueError("trapezoid inputs must be one-dimensional")
+    if y_arr.shape != x_arr.shape:
+        raise ValueError("trapezoid inputs must have matching shapes")
+    if y_arr.size < 2:
+        return 0.0
+    dx = x_arr[1:] - x_arr[:-1]
+    return float(np.sum(0.5 * (y_arr[1:] + y_arr[:-1]) * dx))
 
 
 @dataclass
@@ -85,8 +98,8 @@ def _poloidal_beta_q1(
     rho_in = rho[:idx]
     # p in Pa: n in 10¹⁹ m⁻³, T in keV
     p_in = (n[:idx] * 1e19) * (T[:idx] * 1e3 * E_CHARGE)
-    vol_int = trapezoid(p_in * rho_in, rho_in)
-    vol_tot = trapezoid(rho_in, rho_in)
+    vol_int = _trapezoid(p_in * rho_in, rho_in)
+    vol_tot = _trapezoid(rho_in, rho_in)
     p_avg = vol_int / vol_tot if vol_tot > 0.0 else p_in[0]
     return float(2.0 * MU_0 * p_avg / B_pol**2)
 
@@ -250,10 +263,6 @@ class SawtoothMonitor:
         idx = crossings[0]
         r1, r2 = self.rho[idx], self.rho[idx + 1]
         q1, q2 = q[idx], q[idx + 1]
-        # A detected q=1 sign change requires q1 and q2 to straddle 1.0, so they
-        # cannot be equal; this guards a degenerate input and is unreachable.
-        if q1 == q2:
-            return float(r1)  # pragma: no cover - defensive sawtooth edge-case branch
         frac = (1.0 - q1) / (q2 - q1)
         return float(r1 + frac * (r2 - r1))
 
@@ -286,22 +295,10 @@ class SawtoothMonitor:
         if rho_1 is None:
             return False
         idx = np.searchsorted(self.rho, rho_1)
-        # find_q1_radius returns a crossing strictly interior to the grid, so the
-        # insertion index is in [1, len-1]; the idx==0 and idx>=len arms are
-        # defensive and unreachable, as is the equal-abscissa arm (rho is
-        # strictly increasing).
-        if idx == 0:
-            s1 = shear[0]  # pragma: no cover - defensive sawtooth edge-case branch
-        elif idx >= len(self.rho):
-            s1 = shear[-1]  # pragma: no cover - defensive sawtooth edge-case branch
-        else:
-            r1, r2 = self.rho[idx - 1], self.rho[idx]
-            s_1, s_2 = shear[idx - 1], shear[idx]
-            if r1 == r2:
-                s1 = s_1  # pragma: no cover - defensive sawtooth edge-case branch
-            else:
-                frac = (rho_1 - r1) / (r2 - r1)
-                s1 = s_1 + frac * (s_2 - s_1)
+        r1, r2 = self.rho[idx - 1], self.rho[idx]
+        s_1, s_2 = shear[idx - 1], shear[idx]
+        frac = (rho_1 - r1) / (r2 - r1)
+        s1 = s_1 + frac * (s_2 - s_1)
         return bool(s1 > self.s_crit)
 
 
@@ -340,28 +337,19 @@ def kadomtsev_crash(
 
     for i in range(idx_1, len(rho)):
         if psi_star[i] <= 0.0:
+            rho_mix = rho[i]
             if i > 0 and psi_star[i - 1] > 0.0:
                 frac = psi_star[i - 1] / (psi_star[i - 1] - psi_star[i])
                 rho_mix = rho[i - 1] + frac * (rho[i] - rho[i - 1])
-            else:
-                # ψ* is positive at the q=1 surface (q<1 inside) and decreases
-                # outward, so the first non-positive sample always has a positive
-                # predecessor; this else is defensive and unreachable.
-                rho_mix = rho[i]  # pragma: no cover - defensive sawtooth edge-case branch
             break
 
     idx_mix = np.searchsorted(rho, rho_mix)
-    # rho_mix lies at or beyond the q=1 surface (>= rho[1]), so its insertion
-    # index is always >= 1; this guard is defensive and unreachable.
-    if idx_mix == 0:
-        return T.copy(), n.copy(), q.copy(), rho_1, rho_mix  # pragma: no cover - defensive sawtooth edge-case branch
-
     rho_inner = rho[:idx_mix]
 
     def _volume_average(prof: AnyFloatArray) -> float:
         # dV ∝ ρ dρ in circular cross-section
-        vol_int = trapezoid(prof[:idx_mix] * rho_inner, rho_inner)
-        vol_tot = trapezoid(rho_inner, rho_inner)
+        vol_int = _trapezoid(prof[:idx_mix] * rho_inner, rho_inner)
+        vol_tot = _trapezoid(rho_inner, rho_inner)
         return float(vol_int / vol_tot) if vol_tot > 0.0 else float(prof[0])
 
     T_mix = _volume_average(T)
@@ -453,7 +441,7 @@ class SawtoothCycler:
             # W = 3/2 ∫ n T dV,  dV = 4π² R₀ a² ρ dρ  (toroidal volume element)
             energy_dens = 1.5 * (ne * 1e19) * (Te * 1e3 * E_CHARGE)
             vol_element = 4.0 * np.pi**2 * self.R0 * self.a**2 * self.rho
-            return float(trapezoid(energy_dens * vol_element, self.rho))
+            return _trapezoid(energy_dens * vol_element, self.rho)
 
         W_before = _plasma_energy(T, n)
         T_new, n_new, q_new, rho_1, rho_mix = kadomtsev_crash(self.rho, T, n, q, self.R0, self.a)
