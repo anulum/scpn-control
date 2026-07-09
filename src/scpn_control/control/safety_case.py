@@ -19,13 +19,13 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from pathlib import Path
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
 from scpn_control.control.codac_interface import load_codac_runtime_evidence
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
 from scpn_control.core.differentiable_transport import TransportDifferentiabilityEvidence
+from scpn_control.phase.ws_phase_stream import load_websocket_runtime_evidence
 from scpn_control.scpn.artifact import (
     Artifact,
     ArtifactValidationError,
@@ -34,7 +34,6 @@ from scpn_control.scpn.artifact import (
     validate_safety_critical_artifact,
 )
 from scpn_control.scpn.fpga_export import load_hdl_export_evidence
-from scpn_control.phase.ws_phase_stream import load_websocket_runtime_evidence
 
 _SAFETY_CASE_MANIFEST_SCHEMA_VERSION = 1
 _READINESS_ARTIFACT_KINDS = (

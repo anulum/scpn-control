@@ -33,19 +33,17 @@ Sauter 1999    : O. Sauter et al., Phys. Plasmas 6, 2834 (1999).
 
 from __future__ import annotations
 
-from typing import Any
-
-import json
 import hashlib
+import json
 import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.integrate import trapezoid
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.current_diffusion import (
     CurrentDiffusionSolver,
     psi_from_q,
@@ -53,6 +51,7 @@ from scpn_control.core.current_diffusion import (
 )
 from scpn_control.core.current_drive import CurrentDriveMix, ECCDSource, NBISource
 from scpn_control.core.elm_model import ELMCrashModel, ELMCycler, PeelingBallooningBoundary
+from scpn_control.core.gk_interface import GKOutput
 from scpn_control.core.integrated_transport_solver import (
     TransportSolver,
     chang_hinton_chi_profile,
@@ -68,7 +67,6 @@ from scpn_control.core.stability_mhd import (
     troyon_beta_limit,
 )
 from scpn_control.core.tearing_mode_coupling import SawtoothNTMSeeding
-from scpn_control.core.gk_interface import GKOutput
 from scpn_control.phase.gk_upde_bridge import adaptive_knm, gk_natural_frequencies
 
 # ── Physical constants (CODATA 2018) ─────────────────────────────────────────

@@ -40,7 +40,6 @@ from typing import Any, Mapping
 
 from scpn_control.scpn.contracts import ControlObservation
 
-
 CODAC_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.codac-runtime-evidence.v1"
 CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY = "bounded_codac_runtime_evidence_only"
 CODAC_RUNTIME_EVIDENCE_QUALIFIED = "qualified_codac_runtime_evidence"

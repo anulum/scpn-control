@@ -19,7 +19,6 @@ import logging
 import tempfile
 from pathlib import Path
 
-
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
 
 _logger = logging.getLogger(__name__)

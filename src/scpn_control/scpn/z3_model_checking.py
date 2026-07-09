@@ -10,9 +10,9 @@
 
 from __future__ import annotations
 
-import math
-import json
 import hashlib
+import json
+import math
 from dataclasses import asdict, dataclass, field
 from fractions import Fraction
 from pathlib import Path

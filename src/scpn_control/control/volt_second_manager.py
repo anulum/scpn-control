@@ -19,7 +19,6 @@ from __future__ import annotations
 #
 # Flat-top duration: τ_flat = (Ψ_avail − Ψ_startup) / (R_p I_p).
 # Reference: ITER Physics Basis 1999, Nucl. Fusion 39, 2137, §3.
-
 import json
 import math
 from dataclasses import asdict, dataclass

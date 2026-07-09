@@ -23,7 +23,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import numpy as np
-
 from numpy.typing import NDArray
 
 from scpn_control.core.gk_eigenvalue import LinearGKResult, solve_linear_gk

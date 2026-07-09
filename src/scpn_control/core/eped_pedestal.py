@@ -15,10 +15,9 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 # ── References ────────────────────────────────────────────────────────────────
 # [S09]  Snyder et al. 2009, Phys. Plasmas 16, 056118  — EPED-1 model

@@ -9,10 +9,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import math
+from dataclasses import dataclass
 from typing import Mapping
-
 
 _FAULT_MODE_SUPPORT: dict[str, frozenset[str]] = {
     "stuck": frozenset({"stuck", "stuck_supported", "stuck_at_last_value"}),

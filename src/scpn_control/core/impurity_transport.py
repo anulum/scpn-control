@@ -16,7 +16,6 @@ import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
 
-
 # Neoclassical impurity pinch velocity:
 #   V_neo = -D_neo (Z/T_i) dT_i/dr
 # Hirshman & Sigmar 1981, Nucl. Fusion 21, 1079, Eq. 4.17.

@@ -17,7 +17,6 @@ from pathlib import Path
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
 
 # Greenwald density limit: n_GW = I_p / (π a²) [10^20 m^-3]

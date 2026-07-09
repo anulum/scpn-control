@@ -16,7 +16,6 @@ from enum import Enum, auto
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.core.impurity_transport import CoolingCurve
 
 # ── Townsend ionisation coefficients for D₂ ───────────────────────────────

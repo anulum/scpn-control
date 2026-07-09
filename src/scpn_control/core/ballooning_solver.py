@@ -16,10 +16,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 from scipy.integrate import solve_ivp
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.stability_mhd import QProfile
 
 

@@ -17,7 +17,6 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
-
 # ── named constants ─────────────────────────────────────────────────────────
 # Sentinel for the ideal-kink (β > β_wall) regime; a finite resistive-wall-mode
 # growth rate is physically undefined beyond the ideal-wall limit.

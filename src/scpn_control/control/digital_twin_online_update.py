@@ -9,17 +9,16 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
 import hashlib
 import json
 import math
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.control.tokamak_digital_twin import run_digital_twin
 
 SUPPORTED_EXTERNAL_SIMULATORS = ("TRANSP", "TSC")

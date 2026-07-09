@@ -34,10 +34,9 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
+from scpn_control.control.state_estimator import ExtendedKalmanFilter
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
-from scpn_control.control.state_estimator import ExtendedKalmanFilter
 
 logger = logging.getLogger(__name__)
 _FREE_BOUNDARY_CLAIM_SCHEMA_VERSION = 1

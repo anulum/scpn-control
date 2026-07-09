@@ -29,7 +29,6 @@ from dataclasses import dataclass
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.core.sawtooth import SawtoothCycler
 
 # MRE bootstrap drive coefficient.

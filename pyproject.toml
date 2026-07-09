@@ -229,7 +229,6 @@ ignore = [
     "E402",   # module-level import after try/except (conditional deps)
     "E501",   # line length handled by formatter
     "E741",   # ambiguous variable (physics code uses l, I, O)
-    "I001",   # import sorting (enable once codebase is clean)
     "UP006", "UP012", "UP015", "UP031", "UP034", "UP035", "UP037", "UP045",
     "F841",   # unused variable (common in demo/experiment scripts)
     "SIM102", "SIM105", "SIM108", "SIM300",

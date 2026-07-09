@@ -38,16 +38,16 @@ Physical uncertainty blocks for tokamak control (Ariola & Pironti 2008,
 
 from __future__ import annotations
 
-import json
 import hashlib
+import json
 from dataclasses import asdict, dataclass, fields, replace
 from pathlib import Path
 from typing import Any, Mapping
 
 import numpy as np
+from scipy.linalg import LinAlgError, solve_continuous_are
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-from scipy.linalg import LinAlgError, solve_continuous_are
 
 _VALID_BLOCK_TYPES = frozenset({"real_scalar", "complex_scalar", "full"})
 _MU_CLAIM_SCHEMA_VERSION = 1

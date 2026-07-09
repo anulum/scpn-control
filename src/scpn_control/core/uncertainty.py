@@ -28,7 +28,6 @@ from typing import Any, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.core.scaling_laws import load_ipb98y2_coefficients
 
 # Load central values and uncertainties from the global registry

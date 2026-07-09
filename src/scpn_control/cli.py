@@ -54,9 +54,9 @@ from __future__ import annotations
 
 import json
 import logging
+import statistics
 import sys
 import time
-import statistics
 from collections.abc import Callable
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
@@ -698,6 +698,8 @@ def validate(
     else:
         from validation.validate_runtime_admission_evidence import (
             DEFAULT_REPORT as DEFAULT_RUNTIME_ADMISSION_REPORT,
+        )
+        from validation.validate_runtime_admission_evidence import (
             validate_runtime_admission_evidence,
         )
 

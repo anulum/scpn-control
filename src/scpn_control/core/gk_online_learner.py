@@ -15,15 +15,13 @@ automatic rollback if performance degrades.
 
 from __future__ import annotations
 
-from typing import Any
-
 import json
 import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import numpy as np
-
 from numpy.typing import NDArray
 
 _logger = logging.getLogger(__name__)

@@ -51,9 +51,11 @@ from scpn_control.core._validators import (
     require_bounded_float,
     require_finite_array,
     require_fraction,
-    require_int as _require_int,
     require_non_negative_float,
     require_positive_float,
+)
+from scpn_control.core._validators import (
+    require_int as _require_int,
 )
 
 logger = logging.getLogger(__name__)

@@ -42,15 +42,6 @@ from scpn_control.scpn.contracts import (
     extract_features,
     feature_error_components,
 )
-from scpn_control.scpn.geometry_neutral_contracts import (
-    ActuatorChannel,
-    ActuatorSet,
-    ControlObjective,
-    DiagnosticChannel,
-    DiagnosticFrame,
-    MagneticConfiguration,
-    ReplayScenario,
-)
 from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
@@ -74,12 +65,33 @@ from scpn_control.scpn.formal_verification import (
     build_safety_certificate_bundle_payload,
     build_safety_certificate_payload,
     generate_safety_certificate,
+    validate_safety_certificate_bundle_artifact,
     validate_safety_certificate_bundle_payload,
     validate_safety_certificate_payload,
-    validate_safety_certificate_bundle_artifact,
     verify_formal_contracts,
-    write_safety_certificate_bundle,
     write_safety_certificate,
+    write_safety_certificate_bundle,
+)
+from scpn_control.scpn.fpga_export import (
+    FPGAConfig,
+    HDLExportEvidence,
+    assert_hdl_export_claim_admissible,
+    compile_to_verilog,
+    compile_to_vhdl,
+    estimate_resources,
+    export_bitstream_project,
+    hdl_export_evidence,
+    load_hdl_export_evidence,
+    save_hdl_export_evidence,
+)
+from scpn_control.scpn.geometry_neutral_contracts import (
+    ActuatorChannel,
+    ActuatorSet,
+    ControlObjective,
+    DiagnosticChannel,
+    DiagnosticFrame,
+    MagneticConfiguration,
+    ReplayScenario,
 )
 from scpn_control.scpn.lean_verification import (
     LeanFormalVerificationError,
@@ -112,18 +124,6 @@ from scpn_control.scpn.runtime_safety_certificate import (
     issue_runtime_safety_certificate,
     replay_runtime_safety_certificate,
     validate_runtime_safety_certificate_payload,
-)
-from scpn_control.scpn.fpga_export import (
-    FPGAConfig,
-    HDLExportEvidence,
-    assert_hdl_export_claim_admissible,
-    compile_to_verilog,
-    compile_to_vhdl,
-    estimate_resources,
-    export_bitstream_project,
-    hdl_export_evidence,
-    load_hdl_export_evidence,
-    save_hdl_export_evidence,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 

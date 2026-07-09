@@ -37,11 +37,10 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 import numpy.typing as npt
 from scipy.linalg import expm, solve_continuous_are, solve_discrete_are
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core._validators import (
     require_bounded_float,
     require_finite_array,

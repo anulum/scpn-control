@@ -31,7 +31,6 @@ from scpn_control.control.realtime_efit import (
     ReconstructionResult,
 )
 
-
 _KINETIC_EFIT_CLAIM_SCHEMA_VERSION = 1
 _FACILITY_REFERENCE_SOURCES = frozenset(
     {"documented_public_reference", "efit_reference", "p_efit_reference", "measured_discharge"}

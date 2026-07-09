@@ -30,7 +30,6 @@ import numpy as np
 
 from scpn_control._typing import FloatArray
 
-
 ITER_B0_VACUUM_T = 5.3  # T, ITER Design Description Document §2.1
 
 

@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import numpy as np
+from scipy.linalg import solve_banded
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-from scipy.linalg import solve_banded
 
 # Physical constants
 MU_0 = 4.0 * np.pi * 1e-7  # H m⁻¹

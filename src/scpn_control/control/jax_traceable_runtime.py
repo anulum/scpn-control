@@ -9,9 +9,9 @@
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import Any, cast
-import warnings
 
 import numpy as np
 from numpy.typing import NDArray

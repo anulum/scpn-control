@@ -20,10 +20,10 @@ from __future__ import annotations
 from enum import Enum, auto
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 from numpy.typing import NDArray
 from scipy import sparse
+
+from scpn_control._typing import AnyFloatArray, FloatArray
 
 
 class _NodeKind(Enum):

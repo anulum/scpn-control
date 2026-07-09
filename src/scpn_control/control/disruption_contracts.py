@@ -25,6 +25,7 @@ from numpy.typing import NDArray
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_predictor import predict_disruption_risk
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
+from scpn_control.core._statistics import linear_percentile
 from scpn_control.core._validators import (
     require_1d_array,
     require_finite_float,
@@ -32,7 +33,6 @@ from scpn_control.core._validators import (
     require_int,
     require_positive_float,
 )
-from scpn_control.core._statistics import linear_percentile
 from scpn_control.core.global_design_scanner import GlobalDesignExplorer
 
 # Blanket neutronics MCNP→volumetric-code calibration factor;

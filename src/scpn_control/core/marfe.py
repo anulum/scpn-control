@@ -14,9 +14,7 @@ import math
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-
 from scpn_control.core.impurity_transport import CoolingCurve
-
 
 # Radiation instability growth rate:
 #   γ = -(κ_∥ k_∥² + n_e n_Z dL_Z/dT) / (n c_v)

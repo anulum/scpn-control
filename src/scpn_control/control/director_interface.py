@@ -9,9 +9,9 @@
 
 from __future__ import annotations
 
-from importlib import import_module
 import logging
 import re
+from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, cast
 
@@ -52,8 +52,8 @@ def _load_fusion_kernel() -> tuple[type[Any], bool]:
 
 FusionKernel, RUST_BACKEND = _load_fusion_kernel()
 
-from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 from scpn_control.control import solve_kernel
+from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 
 
 class _RuleBasedDirector:

@@ -24,7 +24,6 @@ from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
-
 from numpy.typing import NDArray
 
 logger = logging.getLogger(__name__)

@@ -30,12 +30,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
-from scpn_control._typing import AnyFloatArray, FloatArray
 from numpy.typing import NDArray
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 from scipy.special import ellipe, ellipk
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.hpc_bridge import HPCBridge
 
 logger = logging.getLogger(__name__)

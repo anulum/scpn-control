@@ -19,8 +19,8 @@ from __future__ import annotations
 
 import os
 import platform
-import time
 import sys
+import time
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
