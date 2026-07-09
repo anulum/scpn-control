@@ -22,27 +22,40 @@ import importlib.metadata
 from pathlib import Path
 from typing import Any
 
+import numpy as np
 import pytest
 
 from scpn_control.scpn import (
     GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION,
     GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSION_V1_1,
     AERControlObservation,
+    CertificateReplayResult,
+    ControllerRuntimeBinding,
+    FeatureAxisSpec,
+    RuntimeTarget,
     SpikeBuffer,
     SpikeEvent,
+    TimingEnvelope,
     assert_geometry_neutral_replay_claim_admissible,
     assert_geometry_neutral_v1_replay_loadable_under_v1_1_schema_bundle,
+    assert_runtime_certificate_admissible,
     attach_geometry_neutral_aer_admission_metadata,
     build_geometry_neutral_aer_admission_metadata,
+    compute_petri_topology_digest,
+    decode_action_vector,
+    feature_error_components,
     generate_geometry_neutral_report,
     geometry_neutral_replay_evidence,
+    issue_runtime_safety_certificate,
     load_geometry_neutral_replay_evidence,
     load_geometry_neutral_replay_report,
     load_geometry_neutral_replay_schema,
     register_geometry_neutral_replay_v1_1_schema,
     render_geometry_neutral_markdown,
+    replay_runtime_safety_certificate,
     save_geometry_neutral_replay_evidence,
     save_geometry_neutral_replay_report,
+    validate_runtime_safety_certificate_payload,
     validate_geometry_neutral_report,
 )
 
@@ -127,6 +140,48 @@ class TestAerAdmissionWrappers:
         # the attached report must still survive a save/load round trip.
         path = save_geometry_neutral_replay_report(attached, tmp_path / "aer_replay.json")
         assert load_geometry_neutral_replay_report(path) == attached
+
+
+class TestContractAndRuntimeSafetyExports:
+    def test_feature_axis_and_kernel_exports_are_available(self) -> None:
+        axis = FeatureAxisSpec(obs_key="beta_n", target=2.0, scale=0.5, pos_key="beta_pos", neg_key="beta_neg")
+        pos, neg = feature_error_components([1.75], [axis.target], [axis.scale], axis_names=[axis.obs_key])
+        previous = np.zeros(1, dtype=np.float64)
+
+        decoded = decode_action_vector([0.9, 0.2], [0], [1], [10.0], [5.0], [100.0], 0.01, previous)
+
+        assert float(pos[0]) == pytest.approx(0.5)
+        assert float(neg[0]) == pytest.approx(0.0)
+        assert decoded is previous
+        assert float(decoded[0]) == pytest.approx(1.0)
+
+    def test_runtime_safety_types_and_helpers_are_available(self) -> None:
+        target = RuntimeTarget(name="pytest-target", architecture="x86_64", runtime="numpy", toolchain="pytest")
+        envelope = TimingEnvelope(
+            control_period_us=1000.0,
+            worst_case_response_us=100.0,
+            deadline_us=500.0,
+            proof_firing_depth=4,
+        )
+        binding = ControllerRuntimeBinding(
+            controller_id="export-test",
+            controller_config={"runtime_backend": "numpy"},
+            petri_topology_sha256="a" * 64,
+            snn_parameters={"bitstream_length": 64},
+            solver_mode="scpn-numpy",
+            runtime_target=target,
+            timing_envelope=envelope,
+        )
+        replay = CertificateReplayResult(True, True, True, True)
+
+        assert target.digest()
+        assert binding.digest()
+        assert replay.passed is True
+        assert callable(compute_petri_topology_digest)
+        assert callable(issue_runtime_safety_certificate)
+        assert callable(validate_runtime_safety_certificate_payload)
+        assert callable(replay_runtime_safety_certificate)
+        assert callable(assert_runtime_certificate_admissible)
 
 
 class TestEvidenceWrappers:

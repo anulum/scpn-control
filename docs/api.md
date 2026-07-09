@@ -1126,6 +1126,11 @@ and `NeuroSymbolicController.step()` use the same signed-error component kernel;
 absolute-limit action-vector kernel. This keeps standalone contract checks and
 compiled controller execution aligned.
 
+The `scpn_control.scpn` package root re-exports `FeatureAxisSpec`, the shared
+feature/action kernels, and the runtime-safety certificate dataclasses and
+helpers so installed-package consumers do not need to reach into private module
+paths for controller construction and certificate admission.
+
 ::: scpn_control.scpn.contracts.ControlObservation
 
 ::: scpn_control.scpn.contracts.ControlAction
