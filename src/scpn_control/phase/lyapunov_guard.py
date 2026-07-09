@@ -33,6 +33,7 @@ Integration with DIRECTOR_AI (optional):
 from __future__ import annotations
 
 import logging
+import math
 from collections import deque
 from dataclasses import dataclass
 
@@ -58,11 +59,11 @@ class LyapunovVerdict:
         """Stability score ∈ [0, 1].  1 = fully stable (λ ≪ 0)."""
         scaled_lambda = 10.0 * self.lambda_exp
         if scaled_lambda >= 0.0:
-            exp_neg = np.exp(-scaled_lambda)
+            exp_neg = math.exp(-scaled_lambda)
             score = exp_neg / (1.0 + exp_neg)
         else:
-            score = 1.0 / (1.0 + np.exp(scaled_lambda))
-        return float(np.clip(score, 0.0, 1.0))
+            score = 1.0 / (1.0 + math.exp(scaled_lambda))
+        return min(1.0, max(0.0, float(score)))
 
 
 class LyapunovGuard:

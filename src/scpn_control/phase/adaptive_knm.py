@@ -34,6 +34,7 @@ the Frontiers submission.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -190,11 +191,14 @@ class AdaptiveKnmEngine:
     def adaptation_summary(self) -> dict[str, float]:
         """Snapshot of engine state for dashboard export."""
         diff = self._K_current - self._baseline
+        k_values = [float(value) for value in self._K_current.ravel()]
+        diff_values = [abs(float(value)) for value in diff.ravel()]
+        integral_values = [float(value) for value in self._integral.ravel()]
         return {
             "L": self._L,
-            "K_mean": float(self._K_current.mean()),
-            "K_max": float(self._K_current.max()),
-            "delta_frobenius": float(np.linalg.norm(diff)),
-            "delta_max_element": float(np.abs(diff).max()),
-            "integral_sum": float(self._integral.sum()),
+            "K_mean": math.fsum(k_values) / len(k_values),
+            "K_max": max(k_values),
+            "delta_frobenius": math.sqrt(math.fsum(value * value for value in diff_values)),
+            "delta_max_element": max(diff_values),
+            "integral_sum": math.fsum(integral_values),
         }

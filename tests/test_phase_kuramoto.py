@@ -904,8 +904,10 @@ class TestRealtimeMonitor:
         mon = RealtimeMonitor.from_paper27(L=4, N_per=10)
         mon.psi_driver = np.inf
 
-        with pytest.raises(ValueError, match="psi_driver"):
-            mon.tick()
+        snap = mon.tick()
+        assert snap["guard_approved"] is False
+        assert snap["error_type"] == "ValueError"
+        assert snap["error"] == "psi_driver must be finite"
 
     def test_tick_returns_snapshot(self):
         mon = RealtimeMonitor.from_paper27(L=4, N_per=10, dt=0.005)

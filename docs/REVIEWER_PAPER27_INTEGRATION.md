@@ -512,6 +512,10 @@ Each `tick()` returns: `R_global`, `R_layer`, `Psi_global`, `V_global`,
 `V_layer`, `lambda_exp`, `guard_approved`, `guard_score`, `latency_us`,
 and a `director_ai` dict ready for AuditLogger.
 
+Runtime tick failures fail closed: `tick()` returns the same dashboard fields
+with `guard_approved=False`, `guard_score=0.0`, and `error`/`error_type`
+metadata so live controllers can halt without losing the telemetry contract.
+
 ### 11.2 Interactive Benchmark Visualisation
 
 [`docs/bench_interactive.vl.json`](bench_interactive.vl.json) — single Vega-Lite

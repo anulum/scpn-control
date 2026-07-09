@@ -33,6 +33,7 @@ Usage::
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -212,12 +213,44 @@ class RealtimeMonitor:
         disruption_risk: float = 0.0,
         mirnov_rms: float = 0.0,
     ) -> dict[str, Any]:
-        """Advance one UPDE step and return dashboard snapshot."""
+        """Advance one UPDE step and return dashboard snapshot.
+
+        Tick failures are fail-closed: the monitor returns a complete snapshot
+        with ``guard_approved=False`` instead of raising from the live control
+        loop.
+        """
+        t0 = time.perf_counter_ns()
+        attempt_tick = self._tick_count + 1
+        try:
+            snap = self._advance_tick(
+                tick_id=attempt_tick,
+                started_ns=t0,
+                beta_n=beta_n,
+                q95=q95,
+                disruption_risk=disruption_risk,
+                mirnov_rms=mirnov_rms,
+            )
+        except Exception as exc:
+            snap = self._fail_closed_snapshot(exc, tick_id=attempt_tick, started_ns=t0)
+        if record:
+            self._recorder.record(snap)
+        return snap
+
+    def _advance_tick(
+        self,
+        *,
+        tick_id: int,
+        started_ns: int,
+        beta_n: float,
+        q95: float,
+        disruption_risk: float,
+        mirnov_rms: float,
+    ) -> dict[str, Any]:
+        """Run the normal UPDE and guard path for one monitor tick."""
         if not np.isfinite(self.psi_driver):
             raise ValueError("psi_driver must be finite")
         if not np.isfinite(self.pac_gamma):
             raise ValueError("pac_gamma must be finite")
-        t0 = time.perf_counter_ns()
 
         # Build adaptive K_override if engine is present
         K_override = None
@@ -245,7 +278,7 @@ class RealtimeMonitor:
             K_override=K_override,
         )
         self.theta_layers = out["theta1"]
-        self._tick_count += 1
+        self._tick_count = tick_id
 
         all_theta = np.concatenate([t.ravel() for t in self.theta_layers])
         verdict = self.guard.check(all_theta, out["Psi_global"])
@@ -256,7 +289,7 @@ class RealtimeMonitor:
         self._last_lambda = verdict.lambda_exp
         self._last_guard_approved = verdict.approved
 
-        elapsed_us = (time.perf_counter_ns() - t0) / 1000.0
+        elapsed_us = (time.perf_counter_ns() - started_ns) / 1000.0
 
         snap = {
             "tick": self._tick_count,
@@ -274,9 +307,43 @@ class RealtimeMonitor:
         }
         if self.adaptive_engine is not None:
             snap["adaptive"] = self.adaptive_engine.adaptation_summary
-        if record:
-            self._recorder.record(snap)
         return snap
+
+    def _fail_closed_snapshot(self, exc: Exception, *, tick_id: int, started_ns: int) -> dict[str, Any]:
+        """Build a complete refusal snapshot after a live tick failure."""
+        self._tick_count = max(self._tick_count, tick_id)
+        self._last_guard_approved = False
+        elapsed_us = (time.perf_counter_ns() - started_ns) / 1000.0
+        layer_count = len(self.theta_layers)
+        r_layer = self._last_R_layer if self._last_R_layer is not None else np.zeros(layer_count)
+        v_layer = self._last_V_layer if self._last_V_layer is not None else np.zeros(layer_count)
+        r_values = [float(value) for value in r_layer.ravel()]
+        v_values = [float(value) for value in v_layer.ravel()]
+        lambda_exp = float(self._last_lambda)
+        return {
+            "tick": self._tick_count,
+            "R_global": math.fsum(r_values) / len(r_values) if r_values else 0.0,
+            "R_layer": r_layer.tolist(),
+            "Psi_global": 0.0,
+            "V_global": math.fsum(v_values) / len(v_values) if v_values else 0.0,
+            "V_layer": v_layer.tolist(),
+            "lambda_exp": lambda_exp,
+            "guard_approved": False,
+            "guard_score": 0.0,
+            "guard_violations": 0,
+            "latency_us": elapsed_us,
+            "director_ai": {
+                "query": "realtime_monitor_tick",
+                "response": f"{type(exc).__name__}: {exc}",
+                "approved": False,
+                "score": 0.0,
+                "h_logical": 1.0,
+                "h_factual": max(0.0, lambda_exp),
+                "halt_reason": "RealtimeMonitor tick failed closed",
+            },
+            "error": str(exc),
+            "error_type": type(exc).__name__,
+        }
 
     @property
     def recorder(self) -> TrajectoryRecorder:
