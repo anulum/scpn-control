@@ -1125,6 +1125,12 @@ evidence and accepts only hash-addressed bounded proof manifests tied to the
 compiled controller artifact. The proof manifest must include the canonical
 artifact payload SHA-256, report SHA-256, bounded proof depth, checked
 specification names, backend/solver metadata, and a safe relative report URI.
+Controller artifacts also carry `meta.firing_margin`, the default fractional
+firing margin used when a transition omits its own margin. The compiler writes
+this value, artifact loading validates it as finite and non-negative, and the
+controller consumes it directly instead of falling back to an implicit runtime
+constant. Legacy artifacts without the field still load with the historical
+`0.05` default so archived evidence remains readable.
 When callers provide `formal_report_root`, the loader resolves the report URI
 under that root and verifies the report bytes against the declared SHA-256.
 Z3 and Lean report files reached through an artifact manifest are loaded through

@@ -321,12 +321,9 @@ class NeuroSymbolicController:
         self._oracle_cursor = 0
         self._sc_cursor = 0
         self._firing_mode = artifact.meta.firing_mode
-        default_margin = float(getattr(artifact.meta, "firing_margin", 0.05) or 0.05)
+        default_margin = float(artifact.meta.firing_margin)
         self._margins = np.asarray(
-            [
-                float(((tr.margin if tr.margin is not None else default_margin) or default_margin))
-                for tr in artifact.topology.transitions
-            ],
+            [float(tr.margin if tr.margin is not None else default_margin) for tr in artifact.topology.transitions],
             dtype=np.float64,
         )
         if sc_binary_margin is None:

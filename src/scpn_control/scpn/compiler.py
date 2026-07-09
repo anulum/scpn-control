@@ -315,6 +315,7 @@ class CompiledNet:
             stream_length=self.bitstream_length,
             fixed_point=artifact_mod.FixedPoint(data_width=16, fraction_bits=10, signed=False),
             firing_mode=self.firing_mode,
+            firing_margin=self.firing_margin,
             seed_policy=artifact_mod.SeedPolicy(id="default", hash_fn="splitmix64", rng_family="xoshiro256++"),
             created_utc=datetime.now(timezone.utc).isoformat(),
             compiler=artifact_mod.CompilerInfo(
@@ -514,6 +515,11 @@ class FusionCompiler:
         """
         if firing_mode not in ("binary", "fractional"):
             raise ValueError(f"firing_mode must be 'binary' or 'fractional', got '{firing_mode}'")
+        if isinstance(firing_margin, bool) or not isinstance(firing_margin, (int, float)):
+            raise ValueError("firing_margin must be finite and >= 0")
+        firing_margin_value = float(firing_margin)
+        if not np.isfinite(firing_margin_value) or firing_margin_value < 0.0:
+            raise ValueError("firing_margin must be finite and >= 0")
         validate = bool(validate_topology or strict_topology)
         if (not net.is_compiled) or allow_inhibitor or validate:
             net.compile(
@@ -574,7 +580,7 @@ class FusionCompiler:
             initial_marking=initial_marking,
             seed=self.seed,
             firing_mode=firing_mode,
-            firing_margin=firing_margin,
+            firing_margin=firing_margin_value,
             lif_tau_mem=self.lif_tau_mem,
             lif_noise_std=self.lif_noise_std,
             lif_dt=self.lif_dt,

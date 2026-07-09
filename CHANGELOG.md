@@ -11,6 +11,9 @@
 ## Unreleased
 
 ### Changed
+- Added artifact-level firing-margin metadata to compiled controller artifacts
+  so save/load, JSON schema validation, compiler export, and controller runtime
+  share one explicit default margin contract.
 - Shipped the native Grad-Shafranov solver source and checksum manifest as
   `scpn_control.core` package data, with opt-in compile/load regression coverage
   for the package-local bridge path.

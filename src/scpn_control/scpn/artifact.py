@@ -125,6 +125,9 @@ class ArtifactMeta:
         Fixed-point format of the packed weights.
     firing_mode
         Transition firing mode.
+    firing_margin
+        Default fractional firing margin used when a transition has no
+        transition-specific margin.
     seed_policy
         Deterministic seed policy.
     created_utc
@@ -144,6 +147,7 @@ class ArtifactMeta:
     seed_policy: SeedPolicy
     created_utc: str
     compiler: CompilerInfo
+    firing_margin: float = 0.05
     notes: str | None = None
 
 
@@ -549,6 +553,7 @@ def _artifact_payload_dict(
                 "signed": artifact.meta.fixed_point.signed,
             },
             "firing_mode": artifact.meta.firing_mode,
+            "firing_margin": artifact.meta.firing_margin,
             "seed_policy": {
                 "id": artifact.meta.seed_policy.id,
                 "hash_fn": artifact.meta.seed_policy.hash_fn,
@@ -994,6 +999,10 @@ def _validate(artifact: Artifact) -> None:
 
     if meta.firing_mode not in ("binary", "fractional"):
         raise ArtifactValidationError(f"firing_mode must be 'binary' or 'fractional', got '{meta.firing_mode}'")
+    if isinstance(meta.firing_margin, bool) or not isinstance(meta.firing_margin, (int, float)):
+        raise ArtifactValidationError("firing_margin must be finite and >= 0")
+    if not math.isfinite(meta.firing_margin) or meta.firing_margin < 0.0:
+        raise ArtifactValidationError("firing_margin must be finite and >= 0")
 
     if isinstance(meta.fixed_point.data_width, bool) or not isinstance(meta.fixed_point.data_width, int):
         raise ArtifactValidationError("fixed_point.data_width must be an integer >= 1")
@@ -1134,6 +1143,7 @@ def load_artifact(
             signed=m["fixed_point"]["signed"],
         ),
         firing_mode=m["firing_mode"],
+        firing_margin=m.get("firing_margin", 0.05),
         seed_policy=SeedPolicy(
             id=m["seed_policy"]["id"],
             hash_fn=m["seed_policy"]["hash_fn"],
@@ -1262,12 +1272,13 @@ def get_artifact_json_schema() -> Dict[str, Any]:
         "properties": {
             "meta": {
                 "type": "object",
-                "required": ["artifact_version", "name", "stream_length"],
+                "required": ["artifact_version", "name", "stream_length", "firing_margin"],
                 "properties": {
                     "artifact_version": {"type": "string"},
                     "name": {"type": "string"},
                     "dt_control_s": {"type": "number"},
                     "stream_length": {"type": "integer"},
+                    "firing_margin": {"type": "number", "minimum": 0},
                     "fixed_point": {
                         "type": "object",
                         "properties": {
