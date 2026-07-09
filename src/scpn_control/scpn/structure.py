@@ -1,18 +1,10 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Structure
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# ──────────────────────────────────────────────────────────────────────
-
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Neuro-Symbolic Logic Compiler
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Stochastic Petri net structure.
 """
 Packet A — Stochastic Petri Net structure definition.
 
@@ -533,18 +525,30 @@ class StochasticPetriNet:
     def verify_liveness(self, n_steps: int = 200, n_trials: int = 1000) -> dict[str, object]:
         """Verify that all transitions fire at least once in random campaigns.
 
+        The random campaign also validates every raw post-firing marking before
+        controller-style clipping. A campaign that reaches a non-finite marking
+        or a marking outside ``[0, 1]`` is reported as not live because the
+        transition-fire percentages were measured on an invalid walk.
+
         Returns
         -------
         dict
             {"live": bool, "transition_fire_pct": dict[str, float],
-             "min_fire_pct": float}
+             "min_fire_pct": float, "marking_bounds_valid": bool,
+             "marking_violation": dict[str, object] | None}
         """
         if not self._compiled:
             raise RuntimeError("Net must be compiled before verification.")
 
+        n_steps = self._require_positive_verification_count("n_steps", n_steps)
+        n_trials = self._require_positive_verification_count("n_trials", n_trials)
         rng = np.random.default_rng(42)
         n_T = self.n_transitions
         fire_counts = np.zeros(n_T, dtype=int)
+        min_marking = np.inf
+        max_marking = -np.inf
+        marking_bounds_valid = True
+        marking_violation: dict[str, object] | None = None
 
         _W_in = self.W_in
         _W_out = self.W_out
@@ -555,11 +559,11 @@ class StochasticPetriNet:
         W_out_dense: AnyFloatArray = _W_out.toarray() if hasattr(_W_out, "toarray") else np.asarray(_W_out)
         thresholds = self.get_thresholds()
 
-        for _ in range(n_trials):
+        for trial_index in range(n_trials):
             marking = self.get_initial_marking().copy()
             fired_this_trial = np.zeros(n_T, dtype=bool)
 
-            for _ in range(n_steps):
+            for step_index in range(n_steps):
                 enabled = np.all(W_in_dense <= marking[np.newaxis, :] + 1e-9, axis=1)
                 enabled &= rng.random(n_T) < thresholds
 
@@ -567,8 +571,22 @@ class StochasticPetriNet:
                     marking -= W_in_dense[t, :]
                     marking += W_out_dense[:, t]
                     fired_this_trial[t] = True
+                    min_marking = min(min_marking, float(np.min(marking)))
+                    max_marking = max(max_marking, float(np.max(marking)))
+                    violation = self._marking_bounds_violation(
+                        marking,
+                        trial_index=trial_index,
+                        step_index=step_index,
+                        transition_name=self._transitions[int(t)],
+                    )
+                    if violation is not None:
+                        marking_bounds_valid = False
+                        if marking_violation is None:
+                            marking_violation = violation
 
                 marking = np.clip(marking, 0.0, 1.0)
+                min_marking = min(min_marking, float(np.min(marking)))
+                max_marking = max(max_marking, float(np.max(marking)))
 
             fire_counts += fired_this_trial.astype(int)
 
@@ -576,9 +594,51 @@ class StochasticPetriNet:
         min_pct = float(np.min(fire_counts)) / n_trials
 
         return {
-            "live": min_pct >= 0.99,
+            "live": bool(marking_bounds_valid and min_pct >= 0.99),
             "transition_fire_pct": fire_pct,
             "min_fire_pct": round(min_pct, 4),
+            "marking_bounds_valid": marking_bounds_valid,
+            "marking_violation": marking_violation,
+            "max_marking": round(max_marking, 4),
+            "min_marking": round(min_marking, 4),
             "n_trials": n_trials,
             "n_steps": n_steps,
         }
+
+    @staticmethod
+    def _require_positive_verification_count(name: str, value: int) -> int:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise TypeError(f"{name} must be an integer")
+        if value <= 0:
+            raise ValueError(f"{name} must be positive")
+        return value
+
+    @staticmethod
+    def _marking_bounds_violation(
+        marking: FloatArray,
+        *,
+        trial_index: int,
+        step_index: int,
+        transition_name: str,
+    ) -> dict[str, object] | None:
+        if not np.all(np.isfinite(marking)):
+            return {
+                "reason": "non_finite_marking",
+                "trial": trial_index,
+                "step": step_index,
+                "transition": transition_name,
+                "min_marking": float(np.nanmin(marking)),
+                "max_marking": float(np.nanmax(marking)),
+            }
+        min_marking = float(np.min(marking))
+        max_marking = float(np.max(marking))
+        if min_marking < -1.0e-9 or max_marking > 1.0 + 1.0e-9:
+            return {
+                "reason": "marking_out_of_bounds",
+                "trial": trial_index,
+                "step": step_index,
+                "transition": transition_name,
+                "min_marking": min_marking,
+                "max_marking": max_marking,
+            }
+        return None

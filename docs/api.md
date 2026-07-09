@@ -988,6 +988,12 @@ fails closed before calling the dynamic loader.
 
 ### StochasticPetriNet
 
+`verify_liveness()` reports random-campaign transition-fire coverage only when
+the sampled Petri-net walk also preserves finite `[0, 1]` markings before any
+controller-style clipping. If a firing step produces an out-of-range or
+non-finite marking, the report includes `marking_bounds_valid=false`, records
+the first violating transition, and returns `live=false`.
+
 ::: scpn_control.scpn.structure.StochasticPetriNet
 
 ### Formal Verification
