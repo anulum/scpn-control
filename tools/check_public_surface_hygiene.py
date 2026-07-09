@@ -84,6 +84,17 @@ PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] 
     ),
 }
 
+RENDERED_MARKDOWN_HEADER_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (
+    re.compile(r"^\s*<!--\s*SPDX-License-Identifier:", re.IGNORECASE),
+    re.compile(r"^\s*<!--\s*Commercial license available", re.IGNORECASE),
+    re.compile(r"^\s*SPDX-License-Identifier:", re.IGNORECASE),
+    re.compile(r"^\s*Commercial license available", re.IGNORECASE),
+    re.compile(r"^\s*©\s+(?:Concepts|Code)\b", re.IGNORECASE),
+    re.compile(r"^\s*\(c\)\s+(?:Concepts|Code)\b", re.IGNORECASE),
+    re.compile(r"^\s*ORCID:", re.IGNORECASE),
+    re.compile(r"^\s*Contact:", re.IGNORECASE),
+)
+
 ALLOWED_CONTEXTS: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(r"\bnot yet SOTA\b", re.IGNORECASE),
     re.compile(r"\bSOTA[- ]candidate\b", re.IGNORECASE),
@@ -160,6 +171,25 @@ def _is_allowed_context(line: str) -> bool:
     return any(pattern.search(line) is not None for pattern in ALLOWED_CONTEXTS)
 
 
+def _rendered_markdown_header_finding(path: str, text: str) -> Finding | None:
+    """Return a finding when rendered Markdown opens with legal metadata."""
+
+    if not path.endswith(".md"):
+        return None
+    for line_number, line in enumerate(text.splitlines()[:8], start=1):
+        if line.strip() == "":
+            continue
+        if any(pattern.search(line) is not None for pattern in RENDERED_MARKDOWN_HEADER_PATTERNS):
+            return Finding(
+                path=path,
+                line=line_number,
+                category="rendered markdown legal header",
+                detail=line.strip(),
+            )
+        return None
+    return None
+
+
 def scan_text(path: str, text: str) -> list[Finding]:
     """Scan one text payload for outward-facing promotion terms.
 
@@ -178,6 +208,9 @@ def scan_text(path: str, text: str) -> list[Finding]:
     """
 
     findings: list[Finding] = []
+    rendered_header_finding = _rendered_markdown_header_finding(path, text)
+    if rendered_header_finding is not None:
+        findings.append(rendered_header_finding)
     for line_number, line in enumerate(text.splitlines(), start=1):
         if _is_allowed_context(line):
             continue

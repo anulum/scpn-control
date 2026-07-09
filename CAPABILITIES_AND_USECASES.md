@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # SCPN Control: Architectural Capabilities & Use-Case Scenarios
 
 ## 1. Core Architecture: Neuro-Symbolic Actuation

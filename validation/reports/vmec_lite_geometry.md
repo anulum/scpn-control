@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # VMEC-lite Spectral-Geometry Validation
 
 - Schema: `scpn-control.vmec-lite-geometry-validation.v1`

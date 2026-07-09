@@ -61,6 +61,50 @@ def test_rejects_readme_internal_scorer_name() -> None:
     ]
 
 
+def test_rejects_rendered_markdown_legal_header() -> None:
+    """Rendered Markdown must open with user-facing content."""
+
+    assert scan_text("docs/index.md", "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->\n# Title\n") == [
+        Finding(
+            path="docs/index.md",
+            line=1,
+            category="rendered markdown legal header",
+            detail="<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
+        )
+    ]
+
+
+def test_rejects_bare_rendered_markdown_legal_header() -> None:
+    """Bare legal metadata at the top of Markdown is rejected."""
+
+    assert scan_text("docs/index.md", "SPDX-License-Identifier: AGPL-3.0-or-later\n# Title\n") == [
+        Finding(
+            path="docs/index.md",
+            line=1,
+            category="rendered markdown legal header",
+            detail="SPDX-License-Identifier: AGPL-3.0-or-later",
+        )
+    ]
+
+
+def test_allows_source_file_headers() -> None:
+    """Source-code SPDX headers remain valid outside rendered Markdown."""
+
+    assert scan_text("module.py", "# SPDX-License-Identifier: AGPL-3.0-or-later\n") == []
+
+
+def test_allows_markdown_that_opens_after_blank_line() -> None:
+    """A blank line before content is not a legal-header finding."""
+
+    assert scan_text("docs/index.md", "\n# Title\n") == []
+
+
+def test_allows_empty_markdown() -> None:
+    """Empty tracked Markdown does not produce a header finding."""
+
+    assert scan_text("docs/empty.md", "") == []
+
+
 def test_allows_same_token_outside_readme_until_dedicated_rows_are_closed() -> None:
     """Reviewer integration references remain controlled by their own TODO rows."""
 
@@ -127,6 +171,22 @@ def test_scan_repository_reports_relative_paths(tmp_path: Path) -> None:
             line=1,
             category="best-in-class",
             detail="Best-in-class control claim",
+        )
+    ]
+
+
+def test_scan_repository_reports_rendered_markdown_header(tmp_path: Path) -> None:
+    """The repository scan rejects top legal blocks in tracked Markdown."""
+
+    repo = _tracked_repo(tmp_path)
+    _track(repo, "docs/index.md", b"<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->\n# Public docs\n")
+
+    assert scan_repository(repo) == [
+        Finding(
+            path="docs/index.md",
+            line=1,
+            category="rendered markdown legal header",
+            detail="<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         )
     ]
 

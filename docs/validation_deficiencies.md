@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Validation Deficiencies — scpn-control
 
 This document records physics and model-data alignment deficiencies revealed by

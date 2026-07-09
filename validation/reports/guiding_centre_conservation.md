@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Guiding-Centre Orbit Conservation Validation
 
 - Schema: `scpn-control.guiding-centre-conservation-validation.v1`

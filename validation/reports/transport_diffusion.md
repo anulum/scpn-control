@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Transport Heat-Diffusion Validation
 
 - Schema: `scpn-control.transport-diffusion-validation.v1`

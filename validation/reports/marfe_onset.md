@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # MARFE Radiation-Condensation Validation
 
 - Schema: `scpn-control.marfe-onset-validation.v1`

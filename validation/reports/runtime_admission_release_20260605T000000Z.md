@@ -1,11 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Runtime admission benchmark report. -->
-
 # Runtime Admission Benchmark
 
 - Generated UTC: `2026-06-05T00:33:21Z`

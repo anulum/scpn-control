@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Neural Transport Surrogate Training Recipe
 
 This guide describes how to train or retrain the neural transport surrogate

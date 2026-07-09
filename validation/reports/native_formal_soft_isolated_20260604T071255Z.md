@@ -1,10 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Native runtime validation report. -->
 # Native formal worker soft-isolated benchmark
 
 Generated: 2026-06-04T07:13:05.596607+00:00

@@ -1,11 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Public project overview and quick start. -->
-
 <p align="center">
   <img src="docs/scpn_control_header.png" alt="SCPN-CONTROL — Formal Stochastic Petri Net Engine" width="100%">
 </p>
@@ -195,14 +187,6 @@ blocked until the required external artefacts exist.
 ## Capability Inventory
 
 <!-- capability-snapshot:start -->
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Generated capability snapshot. -->
-
 **Capability Inventory**
 
 | Surface | Count |

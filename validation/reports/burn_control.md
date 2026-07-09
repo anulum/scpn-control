@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # DT Burn-Control Alpha-Heating Validation
 
 - Schema: `scpn-control.burn-control-validation.v1`

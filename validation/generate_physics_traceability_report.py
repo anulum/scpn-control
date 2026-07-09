@@ -21,22 +21,11 @@ if str(ROOT) not in sys.path:
 
 from validation.validate_physics_traceability import validate_physics_traceability
 
-_MARKDOWN_HEADER = """<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Physics Traceability and Bounded Claims -->
-"""
-
 
 def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
     """Generate a public Markdown report from the checked traceability registry."""
     report = validate_physics_traceability(registry_path)
     lines = [
-        _MARKDOWN_HEADER,
-        "",
         "# Physics Traceability and Bounded Claims",
         "",
         "This report is generated from `validation/physics_traceability.json`.",
@@ -73,8 +62,8 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
         [
             "## Module Traceability Table",
             "",
-        "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |",
-        "|--------|----------------------|------------|---------------|---------------------|--------|---------|",
+            "| Module | Equation or contract | References | Unit contract | Validation evidence | Status | Tracker |",
+            "|--------|----------------------|------------|---------------|---------------------|--------|---------|",
         ]
     )
     for entry in sorted(_entries(report), key=lambda item: str(item["component"])):

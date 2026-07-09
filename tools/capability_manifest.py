@@ -16,9 +16,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
+else:  # pragma: no cover - exercised on Python 3.10 CI.
     import tomli as tomllib
 
 
@@ -251,14 +251,6 @@ def render_markdown(manifest: dict[str, Any]) -> str:
         ("GitHub Actions workflows", counts["workflow_count"]),
     ]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-        "<!-- Commercial license available -->",
-        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- ORCID: 0009-0009-3560-0851 -->",
-        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-        "<!-- SCPN Control — Generated capability snapshot. -->",
-        "",
         "**Capability Inventory**",
         "",
         "| Surface | Count |",

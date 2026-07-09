@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Plasma Physics Primer for Tokamak Control
 
 A ground-up introduction to fusion plasma physics, written for engineers and

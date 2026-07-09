@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Theory
 
 This page summarises the mathematical foundations implemented in `scpn_control.phase`.

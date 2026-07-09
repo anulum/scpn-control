@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Ideal-MHD Stability Metric Validation
 
 - Schema: `scpn-control.mhd-stability-validation.v1`

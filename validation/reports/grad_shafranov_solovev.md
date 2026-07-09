@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Grad-Shafranov Solov'ev Validation
 
 - Schema: `scpn-control.grad-shafranov-solovev-validation.v2`

@@ -8,9 +8,15 @@
 
 from __future__ import annotations
 
+import importlib.util
 from pathlib import Path
 import re
+import sys
+from types import ModuleType
+from typing import Any
 
+import pytest
+import validation.generate_physics_traceability_report as traceability_report
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown, main
 from validation.validate_physics_traceability import validate_physics_traceability
 
@@ -33,7 +39,8 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
             tracker_status_counts[issue][status] = tracker_status_counts[issue].get(status, 0) + 1
     markdown = generate_physics_traceability_markdown(registry_path)
 
-    assert markdown.startswith("<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->")
+    assert markdown.startswith("# Physics Traceability and Bounded Claims\n")
+    assert "SPDX-License-Identifier" not in "\n".join(markdown.splitlines()[:8])
     assert "# Physics Traceability and Bounded Claims" in markdown
     assert f"Open fidelity gaps: {report['open_fidelity_gaps']}" in markdown
     assert f"Full-fidelity public claims blocked: {report['public_claim_blocked']}" in markdown
@@ -68,7 +75,6 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
         in markdown
     )
     assert "External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47)" in markdown
-    assert "External validation tracker: none" in markdown
     assert "`src/scpn_control/core/gk_nonlinear.py`" in markdown
     assert "Five-dimensional delta-f flux-tube Vlasov evolution" in markdown
     assert "Dimits et al. 2000 Cyclone Base Case" in markdown
@@ -123,6 +129,117 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "Full-fidelity public claim: blocked" in markdown
     for banned_identity in ("Co" + "dex", "Open" + "AI"):
         assert banned_identity not in markdown
+
+
+def test_generate_markdown_handles_missing_optional_report_shapes(monkeypatch: pytest.MonkeyPatch) -> None:
+    report: dict[str, Any] = {
+        "status": "fail",
+        "total": 1,
+        "open_fidelity_gaps": 1,
+        "public_claim_blocked": 1,
+        "resolved_module_paths": 0,
+        "resolved_evidence_paths": 0,
+        "external_validation_tracker_count": 0,
+        "source_marker_coverage": "unknown",
+        "external_validation_trackers": "not-a-list",
+        "entries": [
+            {
+                "component": "pipe component",
+                "module_path": "src/example|module.py",
+                "equation_contract": "contract",
+                "model_references": "not-a-list",
+                "unit_contract": "unit",
+                "validation_evidence": ["evidence"],
+                "fidelity_status": "validation_gap",
+                "public_claim_allowed": False,
+                "required_actions": ["add evidence"],
+            }
+        ],
+        "errors": [{"field": "entries[0]", "error": "synthetic failure"}],
+    }
+    monkeypatch.setattr(traceability_report, "validate_physics_traceability", lambda _registry: report)
+
+    markdown = traceability_report.generate_physics_traceability_markdown("registry.json")
+
+    assert "Source marker coverage: 0/0" in markdown
+    assert "`entries[0]`: synthetic failure" in markdown
+    assert "`src/example\\|module.py`" in markdown
+    assert "External validation tracker: none" in markdown
+
+
+def test_generate_markdown_handles_invalid_entries_and_marker_counts(monkeypatch: pytest.MonkeyPatch) -> None:
+    report: dict[str, Any] = {
+        "status": "pass",
+        "total": 0,
+        "open_fidelity_gaps": 0,
+        "public_claim_blocked": 0,
+        "resolved_module_paths": 0,
+        "resolved_evidence_paths": 0,
+        "external_validation_tracker_count": 0,
+        "source_marker_coverage": {"covered": "0", "total": 0},
+        "external_validation_trackers": [],
+        "entries": "not-a-list",
+        "errors": [],
+    }
+    monkeypatch.setattr(traceability_report, "validate_physics_traceability", lambda _registry: report)
+
+    markdown = traceability_report.generate_physics_traceability_markdown("registry.json")
+
+    assert "Source marker coverage: 0/0" in markdown
+    assert "## Components\n" in markdown
+
+
+def test_generate_markdown_skips_invalid_tracker_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    report: dict[str, Any] = {
+        "status": "pass",
+        "total": 1,
+        "open_fidelity_gaps": 0,
+        "public_claim_blocked": 0,
+        "resolved_module_paths": 1,
+        "resolved_evidence_paths": 1,
+        "external_validation_tracker_count": 1,
+        "source_marker_coverage": {"covered": 1, "total": 1},
+        "external_validation_trackers": [
+            {"issue": 1, "title": "Tracker", "url": "https://example.invalid/1", "scope": "scope"}
+        ],
+        "entries": [
+            {
+                "component": "tracked",
+                "module_path": "src/tracked.py",
+                "equation_contract": "contract",
+                "model_references": [],
+                "unit_contract": "unit",
+                "validation_evidence": [],
+                "fidelity_status": 7,
+                "external_validation_tracker_issue": 1,
+                "public_claim_allowed": True,
+                "required_actions": [],
+            }
+        ],
+        "errors": [],
+    }
+    monkeypatch.setattr(traceability_report, "validate_physics_traceability", lambda _registry: report)
+
+    markdown = traceability_report.generate_physics_traceability_markdown("registry.json")
+
+    assert "Tracker: [#1](https://example.invalid/1) — 1 open claim(s) — scope" in markdown
+    assert "External validation tracker: [#1](https://example.invalid/1) — Tracker" in markdown
+
+
+def test_module_bootstrap_adds_repo_root_to_sys_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    root = str(ROOT)
+    monkeypatch.setattr(sys, "path", [path for path in sys.path if path != root])
+    spec = importlib.util.spec_from_file_location(
+        "physics_traceability_bootstrap_test",
+        ROOT / "validation" / "generate_physics_traceability_report.py",
+    )
+    assert spec is not None
+    assert spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert isinstance(module, ModuleType)
+    assert root in sys.path
 
 
 def test_generate_physics_traceability_report_writes_file(tmp_path: Path) -> None:

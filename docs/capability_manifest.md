@@ -1,11 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — Capability Manifest Adoption -->
-
 # Capability Manifest
 
 The SCPN-CONTROL capability manifest is the repository-local inventory for
@@ -38,8 +30,9 @@ python tools/capability_manifest.py --check
 ```
 
 The README embeds `docs/_generated/capability_snapshot.md` between
-`capability-snapshot` markers. The generated fragment uses HTML comments for
-metadata so SPDX and provenance lines do not render as large page titles.
+`capability-snapshot` markers. The generated fragment starts with the capability
+inventory content; legal metadata belongs in the repository licence file and the
+MkDocs footer, not at the top of rendered Markdown.
 
 ## Why this manifest exists
 

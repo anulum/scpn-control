@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Sawtooth Kadomtsev Crash Validation
 
 - Schema: `scpn-control.sawtooth-kadomtsev-validation.v1`

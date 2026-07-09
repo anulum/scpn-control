@@ -1,11 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: AER observation benchmark report. -->
-
 # AER Observation Benchmark
 
 - JSON evidence: `validation/reports/aer_observation_soft_isolated_20260604T121529Z.json`

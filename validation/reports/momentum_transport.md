@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Toroidal Momentum-Transport Validation
 
 - Schema: `scpn-control.momentum-transport-validation.v1`

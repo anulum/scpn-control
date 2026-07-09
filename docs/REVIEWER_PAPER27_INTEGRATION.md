@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Paper 27 Integration — Reviewer Summary
 
 **Repository:** [anulum/scpn-control](https://github.com/anulum/scpn-control)

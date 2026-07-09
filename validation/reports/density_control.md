@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Density-Control Particle-Balance Validation
 
 - Schema: `scpn-control.density-control-validation.v1`

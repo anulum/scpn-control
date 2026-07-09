@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # NTM Island Dynamics Validation (Modified Rutherford Equation)
 
 - Schema: `scpn-control.ntm-island-dynamics-validation.v1`

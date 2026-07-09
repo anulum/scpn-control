@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # VMEC-lite Claim-Admission Benchmark
 
 This report records bounded synthetic-regression evidence for the

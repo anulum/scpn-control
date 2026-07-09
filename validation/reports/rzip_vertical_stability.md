@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # RZIP Rigid Vertical Stability Validation
 
 - Schema: `scpn-control.rzip-vertical-stability-validation.v1`

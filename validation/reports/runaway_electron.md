@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Runaway-Electron Avalanche Validation
 
 - Schema: `scpn-control.runaway-electron-validation.v1`

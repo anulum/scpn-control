@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Two-Point Scrape-Off-Layer Model Validation
 
 - Schema: `scpn-control.sol-two-point-validation.v1`

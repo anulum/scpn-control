@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 ## What
 
 <!-- One-sentence summary of the change. -->

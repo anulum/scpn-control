@@ -3,6 +3,9 @@ site_description: Neuro-symbolic stochastic Petri net control for fusion plasma 
 site_url: https://anulum.github.io/scpn-control/
 repo_url: https://github.com/anulum/scpn-control
 repo_name: anulum/scpn-control
+copyright: >-
+  © 1996–2026 Miroslav Šotek · AGPL-3.0-or-later · commercial licence available ·
+  ORCID 0009-0009-3560-0851 · <a href="https://www.anulum.li">anulum.li</a>
 
 docs_dir: docs
 site_dir: site

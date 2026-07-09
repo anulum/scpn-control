@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Notebook Gallery
 
 The notebooks demonstrate workflows visually. They are useful for onboarding,

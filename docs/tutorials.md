@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Tutorials
 
 Tutorials are organised by learning goal. Start with Tutorial 01 if you are new

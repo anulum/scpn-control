@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # SCPN Control
 
 SCPN Control is a neuro-symbolic fusion-control package for turning controller

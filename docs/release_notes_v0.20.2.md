@@ -1,11 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- Project: SCPN Control -->
-<!-- Description: v0.20.2 release notes. -->
-
 # SCPN Control v0.20.2 Release Notes
 
 v0.20.2 is a documentation, release-readiness, security-boundary, and

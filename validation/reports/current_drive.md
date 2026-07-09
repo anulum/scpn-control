@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Auxiliary Current-Drive Validation
 
 - Schema: `scpn-control.current-drive-validation.v1`

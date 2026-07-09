@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Resistive-Wall-Mode Feedback Validation
 
 - Schema: `scpn-control.rwm-feedback-validation.v1`

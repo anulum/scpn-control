@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Underdeveloped Register — scpn-control
 
 Tracks known gaps, stubs, and incomplete implementations.

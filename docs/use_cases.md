@@ -1,5 +1,3 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-
 # Use Cases and Market Value
 
 SCPN Control is aimed at the gap between fusion-control research and facility
