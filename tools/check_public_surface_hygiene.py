@@ -95,15 +95,31 @@ CHANGELOG_INTERNAL_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ),
 )
 
+PUBLIC_PAYMENT_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    (
+        "public payment bank account detail",
+        re.compile(r"\bIBAN\b|\bBIC\s+[A-Z0-9]{8,11}\b|\bCH\d{2}(?:\s*\d{4}){4,5}\b", re.IGNORECASE),
+    ),
+    (
+        "public payment crypto address",
+        re.compile(
+            r"\bbc1[ac-hj-np-z02-9]{20,}\b|\bltc1[ac-hj-np-z02-9]{20,}\b|\b0x[a-f0-9]{40}\b",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
 PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] = {
     "README.md": (
         (
             "README internal scorer name",
             re.compile(r"\bDIRECTOR_AI\s+CoherenceScorer\b"),
         ),
-    ),
+    )
+    + PUBLIC_PAYMENT_IDENTIFIER_PATTERNS,
     "CHANGELOG.md": CHANGELOG_INTERNAL_PATTERNS,
     "docs/changelog.md": CHANGELOG_INTERNAL_PATTERNS,
+    "docs/pricing.md": PUBLIC_PAYMENT_IDENTIFIER_PATTERNS,
 }
 
 RENDERED_MARKDOWN_HEADER_PATTERNS: Final[tuple[re.Pattern[str], ...]] = (

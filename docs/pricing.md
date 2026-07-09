@@ -33,11 +33,8 @@ The code is free. These tiers fund compute, validation data, and development tim
 |--------|---------|
 | PayPal | [Donate via PayPal](https://www.paypal.com/donate?hosted_button_id=4X5F6DNT934HY) |
 | TWINT | [Pay via TWINT](https://go.twint.ch/1/e/tw?tw=acq.lJTAypb8SL2s8vPg7fL0ubi2C220ajOH0BEQn1aKfEJIiIakLpt8jlEv8XdQ9tCp.) |
-| Bank (CHF) | IBAN CH14 8080 8002 1898 7544 1 / BIC RAIFCH22 |
-| Bank (EUR) | IBAN CH66 8080 8002 8173 6061 8 / BIC RAIFCH22 |
-| BTC | `bc1qg48gdmrjrjumn6fqltvt0cf0w6nvs0wggy37zd` |
-| ETH | `0xd9b07F617bEff4aC9CAdC2a13Dd631B1980905FF` |
-| LTC | `ltc1q886tmvtlnj86kmg2urd8f5td3lmfh32xtpdrut` |
+| Bank transfer | Request a written invoice; bank coordinates are issued only on the invoice or customer portal. |
+| Crypto settlement | Request an invoice or portal quote before payment; public repository docs do not publish wallet addresses. |
 
 ## What Funding Supports
 

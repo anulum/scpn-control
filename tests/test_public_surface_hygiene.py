@@ -118,6 +118,44 @@ def test_allows_bounded_public_changelog_compute_host_language() -> None:
     assert scan_text("CHANGELOG.md", "training must run on an admitted compute host\n") == []
 
 
+def test_rejects_public_pricing_bank_identifiers() -> None:
+    """The public pricing page must not publish bank account coordinates."""
+
+    assert scan_text("docs/pricing.md", "IBAN CH14 8080 8002 1898 7544 1 / BIC RAIFCH22\n") == [
+        Finding(
+            path="docs/pricing.md",
+            line=1,
+            category="public payment bank account detail",
+            detail="IBAN CH14 8080 8002 1898 7544 1 / BIC RAIFCH22",
+        )
+    ]
+
+
+def test_rejects_public_readme_crypto_addresses() -> None:
+    """The public README must not publish crypto settlement addresses."""
+
+    assert scan_text("README.md", "ETH 0xd9b07F617bEff4aC9CAdC2a13Dd631B1980905FF\n") == [
+        Finding(
+            path="README.md",
+            line=1,
+            category="public payment crypto address",
+            detail="ETH 0xd9b07F617bEff4aC9CAdC2a13Dd631B1980905FF",
+        )
+    ]
+
+
+def test_allows_invoice_or_portal_payment_flow() -> None:
+    """Public payment docs may route settlement through an invoice flow."""
+
+    assert (
+        scan_text(
+            "docs/pricing.md",
+            "Request a written invoice; bank coordinates are issued only on the invoice or customer portal.\n",
+        )
+        == []
+    )
+
+
 def test_rejects_rendered_markdown_legal_header() -> None:
     """Rendered Markdown must open with user-facing content."""
 
