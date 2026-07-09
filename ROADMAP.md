@@ -151,9 +151,10 @@
 
 ### v0.14.0 — 2026-03-10
 - [x] PPO 500K training on JarvisLabs RTX5000 (3 seeds, best-seed selection)
-- [x] PPO beats MPC and PID: reward=143.7 vs MPC=58.1 vs PID=-912.3
+- [x] PPO benchmark artifact: reward=121.1 vs MPC=59.4 vs PID=-911.2 over
+  50 episodes
 - [x] 0% disruption rate across all controllers
-- [x] Reproducible: 3 seeds within +-0.2 mean reward
+- [x] Benchmark artifact records PPO standard deviation 31.5 over 50 episodes
 - [x] Cloud training script (`tools/train_rl_upcloud.sh`)
 - [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
 - [x] 100% test coverage: 2,417 tests, 9,672 statements, 1 missed (99.99%)

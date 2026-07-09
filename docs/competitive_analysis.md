@@ -103,7 +103,7 @@
 | ~~Equilibrium autodiff depth~~ | **RESOLVED** v0.13.0: JAX Picard GS solver with `jax.grad` through full solve | — |
 | No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
 | Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
-| ~~RL agent maturity~~ | **RESOLVED** v0.15.0: PPO 500K beats MPC (143.7 vs 58.1), 0% disruption | — |
+| ~~RL agent maturity~~ | **RESOLVED** v0.15.0: PPO 500K benchmark artifact records PPO 121.1 vs MPC 59.4 over 50 episodes, 0% disruption | — |
 
 ### Resolved since v0.10.0
 - GPU equilibrium: JAX neural eq with GPU dispatch (v0.11.0)
