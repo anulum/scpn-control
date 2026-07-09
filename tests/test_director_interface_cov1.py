@@ -195,6 +195,26 @@ def test_load_fusion_kernel_falls_back_when_rust_compat_lacks_kernel(monkeypatch
     assert rust_backend is False
 
 
+def test_load_fusion_kernel_uses_native_kernel_when_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The loader returns the native FusionKernel when rust-compat exposes it."""
+    rust_compat_module = ModuleType("scpn_control.core._rust_compat")
+    cast(Any, rust_compat_module).FusionKernel = _FallbackKernel
+    cast(Any, rust_compat_module).RUST_BACKEND = True
+
+    def fake_import(name: str, package: str | None = None) -> ModuleType:
+        assert package is None
+        if name == "scpn_control.core._rust_compat":
+            return rust_compat_module
+        raise AssertionError(f"unexpected import: {name}")
+
+    monkeypatch.setattr(director_module, "import_module", fake_import)
+
+    kernel_type, rust_backend = director_module._load_fusion_kernel()
+
+    assert kernel_type is _FallbackKernel
+    assert rust_backend is True
+
+
 def test_load_fusion_kernel_reports_missing_backends(monkeypatch: pytest.MonkeyPatch) -> None:
     """The loader raises the operator-facing import guidance when both backends fail."""
 

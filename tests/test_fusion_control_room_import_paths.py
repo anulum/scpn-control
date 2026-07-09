@@ -118,6 +118,51 @@ def test_render_outputs_reports_backend_setup_failure(monkeypatch: pytest.Monkey
     assert report_error == "backend setup failed"
 
 
+def test_render_outputs_closes_partial_figure_after_backend_setup_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Renderer setup errors after figure creation still close the partial figure."""
+    import scpn_control.control.fusion_control_room as fcr
+
+    class _BrokenFigure:
+        """Figure stand-in that fails after construction."""
+
+        def add_gridspec(self, *_args: object) -> object:
+            raise ValueError("grid setup failed")
+
+    class _ClosingPyplot:
+        """Pyplot stand-in that records cleanup for partially-created figures."""
+
+        def __init__(self) -> None:
+            self.figure_instance = _BrokenFigure()
+            self.closed: object | None = None
+
+        def figure(self, **_kwargs: object) -> _BrokenFigure:
+            return self.figure_instance
+
+        def close(self, fig: object) -> None:
+            self.closed = fig
+
+    fake_pyplot = _ClosingPyplot()
+    monkeypatch.setattr(fcr, "HAS_MPL", True)
+    monkeypatch.setattr(fcr, "plt", fake_pyplot)
+
+    animation_saved, animation_error, report_saved, report_error = fcr._render_outputs(
+        [{"density": [[0.0]], "r_min": 1.0, "r_max": 2.0, "z_min": -1.0, "z_max": 1.0}],
+        [0.0],
+        [0.0],
+        [0.0],
+        save_animation=True,
+        save_report=True,
+        output_gif="unused.gif",
+        output_report="unused.png",
+    )
+
+    assert fake_pyplot.closed is fake_pyplot.figure_instance
+    assert animation_saved is False
+    assert animation_error == "grid setup failed"
+    assert report_saved is False
+    assert report_error == "grid setup failed"
+
+
 def test_render_outputs_reports_partial_backend_setup_failure(monkeypatch: pytest.MonkeyPatch) -> None:
     """Renderer setup errors are mapped only to requested output channels."""
     import scpn_control.control.fusion_control_room as fcr
