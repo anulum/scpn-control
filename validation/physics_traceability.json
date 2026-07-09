@@ -1921,7 +1921,7 @@
     },
     {
       "component": "integrated scenario coupling contract",
-      "equation_contract": "Integrated scenario claims must declare coupling order, current diffusion, transport, pedestal, ELM, NTM, sawtooth, burn, and control interactions, timestep policy, state exchange units, and failure isolation boundaries.",
+      "equation_contract": "Integrated scenario claims must declare coupling order, current diffusion, transport, pedestal, ELM, NTM, sawtooth, burn, controller-feedback interactions, actuator bounds, timestep policy, state exchange units, and failure isolation boundaries.",
       "fidelity_status": "validation_gap",
       "model_references": [
         "integrated tokamak scenario modelling references",
@@ -1937,6 +1937,8 @@
       "validation_evidence": [
         "tests/test_integrated_scenario.py",
         "tests/test_cross_module_physics.py",
+        "tests/test_closed_loop_scenario.py",
+        "tests/test_cli_closed_loop_demo.py",
         "validation/benchmark_integrated_scenario_coupling.py",
         "validation/reports/integrated_scenario_coupling.json",
         "validation/reports/integrated_scenario_coupling.md"
@@ -1944,7 +1946,12 @@
       "evidence_paths": [
         "tests/test_integrated_scenario.py",
         "tests/test_cross_module_physics.py",
+        "tests/test_closed_loop_scenario.py",
+        "tests/test_cli_closed_loop_demo.py",
         "src/scpn_control/core/integrated_scenario.py",
+        "src/scpn_control/control/closed_loop_scenario.py",
+        "src/scpn_control/control/scenario_scheduler.py",
+        "src/scpn_control/cli.py",
         "validation/benchmark_integrated_scenario_coupling.py",
         "validation/reports/integrated_scenario_coupling.json",
         "validation/reports/integrated_scenario_coupling.md",
@@ -1953,7 +1960,7 @@
       "covered_source_paths": [
         "src/scpn_control/core/integrated_scenario.py"
       ],
-      "validity_domain": "Coupled scenario regression plus deterministic replay audit for module exchange, timestep consistency, finite state transfer, current deviation, and thermal-energy step bounds; not validated full-discharge predictive modelling.",
+      "validity_domain": "Coupled scenario regression plus deterministic replay audit for module exchange, bounded scheduler-feedback command application, timestep consistency, finite state transfer, current deviation, and thermal-energy step bounds; not validated full-discharge predictive modelling or facility PCS behaviour.",
       "external_validation_tracker_issue": 49
     },
     {

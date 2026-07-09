@@ -976,6 +976,10 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
 
+::: scpn_control.control.closed_loop_scenario.run_integrated_scenario_closed_loop
+
+::: scpn_control.control.closed_loop_scenario.closed_loop_scenario_result_to_dict
+
 ---
 
 ## SCPN — Petri Net Compiler
@@ -1722,6 +1726,22 @@ analysis and preserves the failed audit evidence in the returned result.
 ### Scenario Scheduler (v0.16.0)
 
 ::: scpn_control.control.scenario_scheduler.ScenarioOptimizer
+
+### Closed-Loop Integrated Scenario Demo (v0.22.1)
+
+`scpn_control.control.closed_loop_scenario` wires the reusable
+`ScenarioSchedule` / `FeedforwardController` surface into
+`IntegratedScenarioSimulator` for the `scpn-control demo --scenario combined`
+path. The exported result carries controller commands, bounded auxiliary-power
+application, and a replay coupling audit. It is a deterministic repository
+wiring contract; measured-discharge validation remains gated by the physics
+traceability registry.
+
+::: scpn_control.control.closed_loop_scenario.ClosedLoopScenarioStep
+
+::: scpn_control.control.closed_loop_scenario.ClosedLoopScenarioResult
+
+::: scpn_control.control.closed_loop_scenario.run_integrated_scenario_closed_loop
 
 ### Fault-Tolerant Control (v0.16.0)
 

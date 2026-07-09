@@ -95,11 +95,12 @@ graph TD
         ISS2[integrated_scenario.py]
     end
 
-    subgraph "control/ — Controllers (50 non-init modules)"
+    subgraph "control/ — Controllers (51 non-init modules)"
         HINF2[h_infinity_controller.py]
         MU2[mu_synthesis.py]
         NMPC2[nmpc_controller.py]
         GS_C[gain_scheduled_controller.py]
+        CLS[closed_loop_scenario.py]
         SM2[sliding_mode_vertical.py]
         FT2[fault_tolerant_control.py]
         SC2[shape_controller.py]
@@ -150,6 +151,27 @@ NeuralEquilibrium   IntegratedTransportSolver
            ↓
     Rust control cycle (~5 µs P50 CI, PyO3)
 ```
+
+The diagram is a module map and claim-boundary guide, not a statement that every
+listed controller is exercised in one runtime path. The currently wired bounded
+closed-loop E2E demo path is:
+
+```text
+scpn-control demo --scenario combined
+    ↓
+control.closed_loop_scenario.run_integrated_scenario_closed_loop
+    ↓
+control.scenario_scheduler.FeedforwardController
+    ↓
+core.integrated_scenario.IntegratedScenarioSimulator
+    ↓
+core.integrated_scenario.audit_scenario_coupling
+```
+
+That path applies the scheduled-plus-feedback auxiliary-heating command before
+each integrated-scenario plant step, records the bounded actuator command, and
+emits a replay coupling audit. It is repository wiring evidence only; measured
+discharge validation and target-hardware admission remain separate gates.
 
 ## Practical architecture framing
 
@@ -287,10 +309,10 @@ sequenceDiagram
 
 ```
 scpn-control/
-├── src/scpn_control/     # 153 Python modules (148 non-init)
+├── src/scpn_control/     # 154 Python modules (149 non-init)
 │   ├── scpn/             # SPN → SNN compiler (8 non-init modules)
 │   ├── core/             # Equilibrium, transport, scaling (69 non-init modules)
-│   ├── control/          # Controllers (50 modules, optional deps guarded)
+│   ├── control/          # Controllers (51 modules, optional deps guarded)
 │   └── phase/            # Kuramoto/UPDE engine (9 modules)
 ├── scpn-control-rs/      # Rust workspace (5 crates)
 ├── tests/                # Module-specific tests with a 99% coverage gate

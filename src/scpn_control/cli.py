@@ -229,7 +229,7 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
         trajectory.append({"step": step, "state": float(state), "error": float(error)})
 
     final_error = abs(trajectory[-1]["error"])
-    result = {
+    result: dict[str, object] = {
         "scenario": scenario,
         "steps": steps,
         "final_state": trajectory[-1]["state"],
@@ -239,15 +239,30 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
         "net_transitions": net.n_transitions,
         "compiled_neurons": compiled.n_neurons if hasattr(compiled, "n_neurons") else "N/A",
     }
+    if scenario == "combined":
+        from scpn_control.control.closed_loop_scenario import (
+            closed_loop_scenario_result_to_dict,
+            run_integrated_scenario_closed_loop,
+        )
+
+        closed_loop = run_integrated_scenario_closed_loop(max_steps=min(max(1, steps), 5))
+        result["integrated_scenario_closed_loop"] = closed_loop_scenario_result_to_dict(closed_loop)
 
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
         click.echo(f"Scenario: {scenario}")
         click.echo(f"Steps: {steps}")
-        click.echo(f"Final state: {result['final_state']:.4f}")
-        click.echo(f"Final error: {result['final_error']:.4f}")
+        click.echo(f"Final state: {float(cast(float, result['final_state'])):.4f}")
+        click.echo(f"Final error: {float(cast(float, result['final_error'])):.4f}")
         click.echo(f"Converged: {result['converged']}")
+        if scenario == "combined":
+            closed_loop_summary = cast(dict[str, object], result["integrated_scenario_closed_loop"])
+            click.echo(
+                "Integrated scenario closed loop: "
+                f"steps={len(cast(list[object], closed_loop_summary['steps']))} "
+                f"audit_passed={cast(dict[str, object], closed_loop_summary['coupling_audit'])['passed']}"
+            )
 
 
 @main.command()

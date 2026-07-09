@@ -1853,7 +1853,8 @@ declared tolerances.
 - `package-quality` (`build` + `twine check`)
 - `rmse-gate` (SPARC and DIII-D GEQDSK regression bounds)
 - `e2e-diiid` (end-to-end DIII-D replay plumbing with synthetic fixtures, not public physics evidence)
-- `real-diiid` (DIII-D reference disruption-shot archive)
+- `synthetic-diiid-reference` (DIII-D-like synthetic fixture replay plumbing,
+  not public physics evidence)
 - `jax-parity` (JAX transport, neural equilibrium, GS solver parity tests, and
   strict persisted CPU/GPU JAX GK parity evidence admission)
 - `nengo-loihi` (LIF+NEF SNN wrapper emulator tests)

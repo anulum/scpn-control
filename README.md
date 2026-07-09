@@ -211,13 +211,13 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.10 |
 | Project scripts | 5 |
 | Public API exports | 44 |
-| Python control/physics modules | 148 |
-| Python public classes | 529 |
+| Python control/physics modules | 149 |
+| Python public classes | 531 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 119 |
 | Optional extras | 18 |
-| Python test files | 423 |
+| Python test files | 425 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -369,7 +369,7 @@ src/scpn_control/
 |   +-- neural_transport.py        # QLKNN-10D trained surrogate
 |   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (research-path speedup, not P-EFIT validated)
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
-+-- control/           # Controllers (50 modules, optional deps guarded)
++-- control/           # Controllers (51 modules, optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
 |   +-- mu_synthesis.py            # Static D-scaled structured singular value bound
 |   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
@@ -379,6 +379,7 @@ src/scpn_control/
 |   +-- shape_controller.py        # Plasma shape via boundary Jacobian
 |   +-- safe_rl_controller.py      # Clipped policy gradient + MHD constraint costs
 |   +-- scenario_scheduler.py      # Shot timeline + actuator scheduling
+|   +-- closed_loop_scenario.py    # Bounded scheduler -> scenario simulator loop
 |   +-- realtime_efit.py           # Streaming equilibrium reconstruction
 |   +-- control_benchmark_suite.py # Standardised benchmark scenarios
 |   +-- disruption_predictor.py    # ML disruption prediction + SPI
@@ -476,7 +477,7 @@ pytest tests/test_e2e_phase_diiid.py -v
 ## CLI
 
 ```bash
-scpn-control demo --scenario combined --steps 1000   # Closed-loop control demo
+scpn-control demo --scenario combined --steps 1000   # SCPN loop + bounded integrated-scenario audit
 scpn-control benchmark --n-bench 5000                 # PID vs SNN timing benchmark
 scpn-control validate                                 # RMSE validation dashboard
 scpn-control validate-eped-reference --require-reference-artifacts --json-out  # EPED pedestal reference gate

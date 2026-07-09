@@ -11,6 +11,10 @@
 ## Unreleased
 
 ### Changed
+- Added bounded integrated-scenario closed-loop wiring for the combined CLI
+  demo, connecting `ScenarioSchedule` feedback to
+  `IntegratedScenarioSimulator`, exposing replay-audit evidence, and keeping
+  measured-discharge claims blocked behind physics traceability.
 - Reclassified DIII-D repository reference artefacts as synthetic fixtures with
   generator/seed provenance, retained local checksum coverage for those
   fixtures, and renamed the CI/test surface away from real-shot validation.
