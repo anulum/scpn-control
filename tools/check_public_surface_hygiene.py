@@ -75,6 +75,15 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("unrivalled", re.compile(r"\bunrival(?:led|ed)\b", re.IGNORECASE)),
 )
 
+PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] = {
+    "README.md": (
+        (
+            "README internal scorer name",
+            re.compile(r"\bDIRECTOR_AI\s+CoherenceScorer\b"),
+        ),
+    ),
+}
+
 ALLOWED_CONTEXTS: Final[tuple[re.Pattern[str], ...]] = (
     re.compile(r"\bnot yet SOTA\b", re.IGNORECASE),
     re.compile(r"\bSOTA[- ]candidate\b", re.IGNORECASE),
@@ -164,7 +173,8 @@ def scan_text(path: str, text: str) -> list[Finding]:
     Returns
     -------
     list[Finding]
-        Promotion-term findings, excluding explicitly bounded contexts.
+        Promotion-term and path-specific internal-token findings, excluding
+        explicitly bounded contexts.
     """
 
     findings: list[Finding] = []
@@ -172,6 +182,10 @@ def scan_text(path: str, text: str) -> list[Finding]:
         if _is_allowed_context(line):
             continue
         for category, pattern in BANNED_PATTERNS:
+            if pattern.search(line) is not None:
+                findings.append(Finding(path, line_number, category, line.strip()))
+                break
+        for category, pattern in PATH_BANNED_PATTERNS.get(path, ()):
             if pattern.search(line) is not None:
                 findings.append(Finding(path, line_number, category, line.strip()))
                 break

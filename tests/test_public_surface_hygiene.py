@@ -48,6 +48,25 @@ def test_accepts_candidate_maturity_language() -> None:
     assert scan_text("sample.md", "Internal target: SOTA grade evidence before release.\n") == []
 
 
+def test_rejects_readme_internal_scorer_name() -> None:
+    """The public README must not expose internal scorer implementation names."""
+
+    assert scan_text("README.md", "mirrors DIRECTOR_AI CoherenceScorer\n") == [
+        Finding(
+            path="README.md",
+            line=1,
+            category="README internal scorer name",
+            detail="mirrors DIRECTOR_AI CoherenceScorer",
+        )
+    ]
+
+
+def test_allows_same_token_outside_readme_until_dedicated_rows_are_closed() -> None:
+    """Reviewer integration references remain controlled by their own TODO rows."""
+
+    assert scan_text("docs/REVIEWER_PAPER27_INTEGRATION.md", "mirrors DIRECTOR_AI CoherenceScorer\n") == []
+
+
 def _git(repo: Path, *args: str) -> None:
     """Run a Git command in ``repo``."""
 

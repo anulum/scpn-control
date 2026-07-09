@@ -420,7 +420,7 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 | `kuramoto.py` | Kuramoto-Sakaguchi step, order parameter R·e^{iΨ}, Lyapunov V/λ |
 | `knm.py` | Paper 27 16×16 coupling matrix (exponential decay + calibration anchors) |
 | `upde.py` | UPDE multi-layer solver with PAC gating |
-| `lyapunov_guard.py` | Sliding-window stability monitor (mirrors DIRECTOR_AI CoherenceScorer) |
+| `lyapunov_guard.py` | Sliding-window stability monitor for bounded trajectory coherence |
 | `realtime_monitor.py` | Tick-by-tick UPDE + TrajectoryRecorder (HDF5/NPZ export) |
 | `ws_phase_stream.py` | Async WebSocket server streaming R/V/λ per tick |
 
