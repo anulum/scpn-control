@@ -44,6 +44,16 @@ from scpn_control.phase.kuramoto import lyapunov_exponent, lyapunov_v
 
 logger = logging.getLogger(__name__)
 
+# Analytic bounds of the Lyapunov candidate V(t) = (1/N) Σ (1 − cos(θ_i − Ψ)).
+# Floating-point rounding of ``cos`` can push samples a few ULPs (≈1e-15)
+# outside [0, 2]; ``_V_BOUND_TOLERANCE`` is the slack within which such samples
+# are treated as boundary noise (clipped into range) rather than rejected as
+# physically out of range.  It sits three orders of magnitude above the ULP
+# noise floor yet far below any genuine range violation.
+_V_LOWER = 0.0
+_V_UPPER = 2.0
+_V_BOUND_TOLERANCE = 1e-12
+
 
 @dataclass(frozen=True)
 class LyapunovVerdict:
@@ -148,20 +158,45 @@ class LyapunovGuard:
         )
 
     def check_trajectory(self, v_hist: list[float]) -> LyapunovVerdict:
-        """Batch check: compute λ from a full V(t) trajectory."""
+        """Batch check: compute λ from a full V(t) trajectory.
+
+        Parameters
+        ----------
+        v_hist : list of float
+            Sampled Lyapunov candidate values ``V(t)``, analytically bounded by
+            ``[0, 2]``.  Samples within :data:`_V_BOUND_TOLERANCE` of those
+            bounds are treated as floating-point boundary noise and clipped into
+            range before the exponent is computed; samples further outside are
+            rejected as physically out of range.
+
+        Returns
+        -------
+        LyapunovVerdict
+            The batch stability verdict for the trajectory.
+
+        Raises
+        ------
+        ValueError
+            If ``v_hist`` contains non-finite values, or any sample lies more
+            than :data:`_V_BOUND_TOLERANCE` outside ``[0, 2]``.
+        """
         v_arr = np.asarray(v_hist, dtype=np.float64)
         if not np.isfinite(v_arr).all():
             raise ValueError("v_hist must contain only finite values")
-        if np.any((v_arr < 0.0) | (v_arr > 2.0)):
+        if np.any((v_arr < _V_LOWER - _V_BOUND_TOLERANCE) | (v_arr > _V_UPPER + _V_BOUND_TOLERANCE)):
             raise ValueError("v_hist values must stay in [0, 2]")
-        if len(v_hist) < 2:
+        v_clipped = np.clip(v_arr, _V_LOWER, _V_UPPER)
+        if v_clipped.size < 2:
             return LyapunovVerdict(
-                v=v_hist[-1] if v_hist else 0.0, lambda_exp=0.0, approved=True, consecutive_violations=0
+                v=float(v_clipped[-1]) if v_clipped.size else 0.0,
+                lambda_exp=0.0,
+                approved=True,
+                consecutive_violations=0,
             )
-        lam = lyapunov_exponent(v_hist, self._dt)
+        lam = lyapunov_exponent(v_clipped.tolist(), self._dt)
         approved = lam <= self._lambda_threshold
         return LyapunovVerdict(
-            v=v_hist[-1],
+            v=float(v_clipped[-1]),
             lambda_exp=lam,
             approved=approved,
             consecutive_violations=0 if approved else 1,

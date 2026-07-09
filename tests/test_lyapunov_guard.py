@@ -104,6 +104,64 @@ class TestLyapunovGuard:
         assert verdict.approved is True
         assert verdict.v == 0.0
 
+    def test_check_trajectory_absorbs_boundary_fp_noise(self):
+        """ULP-scale excursions outside [0, 2] are clipped, not rejected."""
+        guard = LyapunovGuard(window=20, dt=0.01)
+        # First sample rounds just below 0 (cos > 1); last just above 2.
+        v_hist = [-1e-14, 0.5, 1.0, 1.5, 2.0 + 1e-14]
+        verdict = guard.check_trajectory(v_hist)
+        # Clipped endpoints keep the exponent finite and clip the reported V.
+        assert np.isfinite(verdict.lambda_exp)
+        assert verdict.v == pytest.approx(2.0)
+
+    def test_check_trajectory_single_boundary_noise_sample_is_clipped(self):
+        """A lone below-zero ULP-noise sample is clipped into range."""
+        guard = LyapunovGuard(dt=0.01)
+        verdict = guard.check_trajectory([-1e-14])
+        assert verdict.approved is True
+        assert verdict.v == pytest.approx(0.0)
+
+    def test_check_trajectory_rejects_below_range_beyond_tolerance(self):
+        guard = LyapunovGuard(dt=0.01)
+        with pytest.raises(ValueError, match=r"stay in \[0, 2\]"):
+            guard.check_trajectory([0.5, -0.5, 0.3])
+
+    def test_check_trajectory_rejects_above_range_beyond_tolerance(self):
+        guard = LyapunovGuard(dt=0.01)
+        with pytest.raises(ValueError, match=r"stay in \[0, 2\]"):
+            guard.check_trajectory([0.5, 2.5, 0.3])
+
+    def test_check_trajectory_rejects_non_finite(self):
+        guard = LyapunovGuard(dt=0.01)
+        with pytest.raises(ValueError, match="finite"):
+            guard.check_trajectory([0.5, float("nan")])
+
+    @pytest.mark.parametrize(
+        ("kwargs", "match"),
+        [
+            ({"window": 1}, "window must be an integer >= 2"),
+            ({"dt": 0.0}, "dt must be positive and finite"),
+            ({"dt": float("inf")}, "dt must be positive and finite"),
+            ({"lambda_threshold": float("nan")}, "lambda_threshold must be finite"),
+            ({"max_violations": 0}, "max_violations must be an integer >= 1"),
+        ],
+    )
+    def test_init_rejects_invalid_parameters(self, kwargs, match):
+        with pytest.raises(ValueError, match=match):
+            LyapunovGuard(**kwargs)
+
+    @pytest.mark.parametrize(
+        ("theta", "psi", "match"),
+        [
+            (np.array([0.0, np.nan]), 0.0, "theta must contain only finite values"),
+            (np.zeros(3), np.inf, "psi must be finite"),
+        ],
+    )
+    def test_check_rejects_non_finite_state(self, theta, psi, match):
+        guard = LyapunovGuard(window=5, dt=0.01)
+        with pytest.raises(ValueError, match=match):
+            guard.check(theta, psi)
+
     def test_to_director_ai_dict_approved(self):
         guard = LyapunovGuard()
         verdict = LyapunovVerdict(v=0.1, lambda_exp=-0.5, approved=True, consecutive_violations=0)
