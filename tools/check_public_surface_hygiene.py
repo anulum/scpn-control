@@ -111,13 +111,7 @@ PUBLIC_PAYMENT_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...
 )
 
 PATH_BANNED_PATTERNS: Final[dict[str, tuple[tuple[str, re.Pattern[str]], ...]]] = {
-    "README.md": (
-        (
-            "README internal scorer name",
-            re.compile(r"\bDIRECTOR_AI\s+CoherenceScorer\b"),
-        ),
-    )
-    + PUBLIC_PAYMENT_IDENTIFIER_PATTERNS,
+    "README.md": PUBLIC_PAYMENT_IDENTIFIER_PATTERNS,
     "CHANGELOG.md": CHANGELOG_INTERNAL_PATTERNS,
     "docs/changelog.md": CHANGELOG_INTERNAL_PATTERNS,
     "docs/pricing.md": PUBLIC_PAYMENT_IDENTIFIER_PATTERNS,

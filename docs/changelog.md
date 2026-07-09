@@ -42,9 +42,6 @@
 - Separated the public Paper 27 manuscript references from the related
   Kuramoto-Sakaguchi arXiv reference across pitch, README, and reviewer
   handoff surfaces.
-- Neutralized and guarded the README Lyapunov guard description so the public
-  phase table names the bounded trajectory-coherence role instead of an
-  internal scorer.
 - Added the missing root `streamlit_app.py` Streamlit Cloud entry point as a
   thin adapter to the existing embedded WebSocket dashboard.
 - Synced the rendered MkDocs changelog mirror with the root changelog and added
