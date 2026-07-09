@@ -125,7 +125,9 @@ class StochasticPetriNet:
         ----------
         inhibitor : bool, default False
             If True, arc is encoded as a negative weight inhibitor input arc.
-            Only valid for ``Place -> Transition`` edges.
+            Only valid for ``Place -> Transition`` edges. Controller artifact
+            export and runtime admission reject this negative matrix encoding
+            until the artifact topology carries inhibitor arcs explicitly.
 
         Raises ``ValueError`` for same-kind connections or unknown nodes.
         """
@@ -175,7 +177,9 @@ class StochasticPetriNet:
             dead nodes or unseeded place cycles.
         allow_inhibitor : bool, default False
             Allow negative ``Place -> Transition`` weights for inhibitor arcs.
-            If False, compile fails when inhibitor arcs are present.
+            If False, compile fails when inhibitor arcs are present. This mode
+            is suitable for structure/formal-analysis paths; controller
+            artifacts fail closed on negative input weights.
         """
         nP = len(self._places)
         nT = len(self._transitions)

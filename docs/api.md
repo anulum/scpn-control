@@ -1080,6 +1080,14 @@ fails closed before calling the dynamic loader.
 
 ::: scpn_control.scpn.compiler.CompiledNet
 
+Inhibitor arcs remain a structure/formal-analysis feature. A caller may compile
+them only with `allow_inhibitor=True`, which stores the guard as a negative
+input-matrix entry for analysis paths that still inspect the original Petri-net
+structure. Controller artifacts and controller runtime do not encode inhibitor
+topology yet: `CompiledNet.export_artifact()`, `load_artifact()`, and
+`NeuroSymbolicController` reject negative dense `w_in` weights instead of
+serializing ambiguous inhibitor semantics.
+
 ### NeuroSymbolicController
 
 `NeuroSymbolicController` rejects nonzero `sc_bitflip_rate` unless

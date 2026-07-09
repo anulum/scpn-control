@@ -217,7 +217,8 @@ class WeightMatrix:
     shape
         ``[rows, cols]`` of the matrix.
     data
-        Row-major matrix entries.
+        Row-major matrix entries. Controller artifacts require non-negative
+        weights; inhibitor arcs are not encoded in the dense artifact matrix.
     """
 
     shape: List[int]  # [rows, cols]
@@ -1031,9 +1032,15 @@ def _validate(artifact: Artifact) -> None:
 
     # Weight ranges
     for val in artifact.weights.w_in.data:
-        if not (-1.0 <= val <= 1.0):
-            raise ArtifactValidationError(f"w_in weight {val} outside [-1, 1]")
+        if isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val):
+            raise ArtifactValidationError("w_in weights must be finite numeric values in [0, 1]")
+        if not (0.0 <= val <= 1.0):
+            raise ArtifactValidationError(
+                f"w_in weight {val} outside [0, 1]; controller artifacts do not encode inhibitor arcs"
+            )
     for val in artifact.weights.w_out.data:
+        if isinstance(val, bool) or not isinstance(val, (int, float)) or not math.isfinite(val):
+            raise ArtifactValidationError("w_out weights must be finite numeric values in [0, 1]")
         if not (0.0 <= val <= 1.0):
             raise ArtifactValidationError(f"w_out weight {val} outside [0, 1]")
 
@@ -1121,6 +1128,20 @@ def _validate(artifact: Artifact) -> None:
 # ── Load / Save ─────────────────────────────────────────────────────────────
 
 
+def _parse_dense_weight_data(raw: object, field_name: str) -> List[float]:
+    """Parse one dense artifact weight array without silent type coercion."""
+
+    if not isinstance(raw, list):
+        raise ArtifactValidationError(f"{field_name}.data must be a list")
+
+    parsed: list[float] = []
+    for value in raw:
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+            raise ArtifactValidationError(f"{field_name} weights must be finite numeric values in [0, 1]")
+        parsed.append(float(value))
+    return parsed
+
+
 def load_artifact(
     path: str | Path,
     require_formal_verification: bool = False,
@@ -1175,11 +1196,11 @@ def load_artifact(
     # Weights
     w_in = WeightMatrix(
         shape=obj["weights"]["w_in"]["shape"],
-        data=list(map(float, obj["weights"]["w_in"]["data"])),
+        data=_parse_dense_weight_data(obj["weights"]["w_in"]["data"], "w_in"),
     )
     w_out = WeightMatrix(
         shape=obj["weights"]["w_out"]["shape"],
-        data=list(map(float, obj["weights"]["w_out"]["data"])),
+        data=_parse_dense_weight_data(obj["weights"]["w_out"]["data"], "w_out"),
     )
     packed = None
     if "packed" in obj["weights"]:
@@ -1390,7 +1411,7 @@ def get_artifact_json_schema() -> Dict[str, Any]:
                 "type": "object",
                 "properties": {
                     "shape": {"type": "array", "items": {"type": "integer"}},
-                    "data": {"type": "array", "items": {"type": "number"}},
+                    "data": {"type": "array", "items": {"type": "number", "minimum": 0, "maximum": 1}},
                 },
             }
         },
@@ -1403,6 +1424,7 @@ def save_artifact(
     compact_packed: bool = False,
 ) -> None:
     """Serialize an ``Artifact`` to indented JSON."""
+    _validate(artifact)
     obj = _artifact_payload_dict(artifact, compact_packed=compact_packed)
 
     if artifact.formal_verification is not None:

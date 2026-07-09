@@ -293,6 +293,11 @@ class NeuroSymbolicController:
         self._nT = artifact.nT
         self._W_in = np.asarray(self._w_in, dtype=np.float64).reshape(self._nT, self._nP)
         self._W_out = np.asarray(self._w_out, dtype=np.float64).reshape(self._nP, self._nT)
+        if np.any(self._W_in < 0.0):
+            raise ValueError(
+                "Controller runtime does not support inhibitor arcs in artifacts; load a non-negative "
+                "controller artifact or keep inhibitor nets on structure/formal-verification paths."
+            )
         self._W_in_t = self._W_in.T
         self._tmp_activations = np.zeros(self._nT, dtype=np.float64)
         self._tmp_consumption = np.zeros(self._nP, dtype=np.float64)

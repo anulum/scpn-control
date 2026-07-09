@@ -305,8 +305,21 @@ class CompiledNet:
         readout_config : dict with ``actions``, ``gains``, ``abs_max``,
             ``slew_per_s`` lists.  Required for a complete artifact.
         injection_config : list of place-injection dicts.
+
+        Raises
+        ------
+        ValueError
+            If the compiled input matrix contains negative inhibitor weights.
+            Controller artifacts do not yet carry inhibitor topology, so export
+            fails closed instead of serializing ambiguous negative weights.
         """
         from . import artifact as artifact_mod
+
+        if np.any(self.W_in < 0.0):
+            raise ValueError(
+                "Controller artifact export does not support inhibitor arcs; keep inhibitor nets on "
+                "structure/formal-verification paths until artifact topology carries inhibitor arcs."
+            )
 
         meta = artifact_mod.ArtifactMeta(
             artifact_version=artifact_mod.ARTIFACT_SCHEMA_VERSION,
@@ -504,6 +517,9 @@ class FusionCompiler:
         firing_mode : ``"binary"`` (default) or ``"fractional"``.
         firing_margin : margin for fractional firing (ignored in binary mode).
         allow_inhibitor : enable inhibitor arc compilation.
+            This is not a controller-artifact runtime contract; artifact export
+            rejects negative inhibitor weights until topology serialization
+            carries inhibitor arcs explicitly.
         validate_topology : run topology diagnostics during compile.
         strict_topology : raise if topology diagnostics detect issues.
 

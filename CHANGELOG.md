@@ -11,6 +11,11 @@
 ## Unreleased
 
 ### Changed
+- Made controller artifact admission fail closed on inhibitor arcs: structure
+  and formal-analysis paths may still opt into inhibitor compilation, but
+  artifact export, artifact loading, and controller construction now reject
+  negative dense input weights until the artifact schema carries inhibitor
+  topology explicitly.
 - Added artifact-level firing-margin metadata to compiled controller artifacts
   so save/load, JSON schema validation, compiler export, and controller runtime
   share one explicit default margin contract.
