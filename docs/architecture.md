@@ -148,8 +148,15 @@ NeuralEquilibrium   IntegratedTransportSolver
            ↓
     SPIMitigation → CoilSet actuation
            ↓
-    Rust control cycle (~5 µs P50 CI, PyO3)
+    Native control cycle (PyO3, loopback UDP)
 ```
+
+The native timing label is backed by
+`validation/reports/native_handoff_comparison.json`: the committed report records
+5.619 µs P50 and 6.112 µs P95 native active-cycle latency over 7 repeats of
+5,000 steps on CI, using the standard loopback-UDP transport at `127.0.0.1`
+with port base `55900`. Treat this as a loopback handoff campaign, not
+fielded plant or PCS-cycle latency.
 
 The diagram is a module map and claim-boundary guide, not a statement that every
 listed controller is exercised in one runtime path. The currently wired bounded

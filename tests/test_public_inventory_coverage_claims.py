@@ -48,6 +48,15 @@ def _rust_snn_ci_latency() -> tuple[float, float]:
     raise AssertionError("Rust SNN controller latency row is missing")
 
 
+def _native_handoff_report() -> dict[str, Any]:
+    """Return the committed native handoff comparison report."""
+
+    raw: Any = json.loads(
+        (ROOT / "validation" / "reports" / "native_handoff_comparison.json").read_text(encoding="utf-8")
+    )
+    return cast(dict[str, Any], raw)
+
+
 def _normalized_prose(path: Path) -> str:
     """Return Markdown prose with line wrapping collapsed for claim checks."""
 
@@ -107,6 +116,37 @@ def test_architecture_maps_are_bound_to_generated_inventory() -> None:
             assert fragment in text, f"{path.relative_to(ROOT)} missing {fragment!r}"
         for fragment in stale_fragments:
             assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment!r}"
+
+
+def test_architecture_native_latency_claim_cites_loopback_report() -> None:
+    """Architecture native-latency wording must cite the loopback report."""
+
+    report = _native_handoff_report()
+    native_stats = cast(dict[str, float], cast(dict[str, Any], report["latency_stats"])["native"])
+    parameters = cast(dict[str, Any], report["parameters"])
+    comparison = cast(dict[str, Any], report["comparison"])
+    architecture = _normalized_prose(ROOT / "docs" / "architecture.md")
+
+    assert comparison["native_udp_sink_packets"] == parameters["steps"]
+    assert parameters["transport_backend"] == "std"
+    assert parameters["transport_endpoint"] == "127.0.0.1"
+
+    required_fragments = (
+        "validation/reports/native_handoff_comparison.json",
+        f"{native_stats['p50_us']:.3f} µs P50",
+        f"{native_stats['p95_us']:.3f} µs P95",
+        f"{parameters['repeats']} repeats",
+        f"{parameters['steps']:,} steps",
+        "standard loopback-UDP transport",
+        "`127.0.0.1`",
+        f"port base `{parameters['transport_port_base']}`",
+        "not fielded plant or PCS-cycle latency",
+    )
+
+    for fragment in required_fragments:
+        assert fragment in architecture, f"docs/architecture.md missing {fragment!r}"
+
+    assert "~5 µs P50 CI" not in architecture
 
 
 def test_public_coverage_gate_claims_match_configuration() -> None:
