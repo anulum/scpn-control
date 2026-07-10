@@ -20,12 +20,12 @@ import json
 from pathlib import Path
 
 import numpy as np
-from scipy.integrate import trapezoid
 
 from scpn_control.control.disruption_predictor import (
     predict_disruption_risk,
     simulate_tearing_mode,
 )
+from scpn_control.control.disruption_roc import roc_auc_from_curve
 
 
 def generate_scenario_batch(n_total: int = 100) -> list[dict]:
@@ -99,19 +99,10 @@ def main():
         tpr_list.append(res["tpr"])
         fpr_list.append(res["fpr"])
 
-    # Ensure (0,0) and (1,1)
-    if not any(f == 0.0 for f in fpr_list):
-        fpr_list.append(0.0)
-        tpr_list.append(0.0)
-    if not any(f == 1.0 for f in fpr_list):
-        fpr_list.append(1.0)
-        tpr_list.append(1.0)
-
-    idx = np.argsort(fpr_list)
-    fpr_sorted = np.array(fpr_list)[idx]
-    tpr_sorted = np.array(tpr_list)[idx]
-
-    auc = trapezoid(tpr_sorted, fpr_sorted)
+    # AUC assembly (endpoint forcing, FPR sort, trapezoidal integration) is the
+    # shared disruption_roc.roc_auc_from_curve helper; the reported curve keeps
+    # the raw swept points.
+    auc = roc_auc_from_curve(fpr_list, tpr_list)
 
     results = {"auc": float(auc), "tpr": [float(x) for x in tpr_list], "fpr": [float(x) for x in fpr_list]}
     report_dir = Path("validation/reports")

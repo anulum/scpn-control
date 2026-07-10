@@ -24,6 +24,7 @@ from numpy.typing import NDArray
 
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_predictor import predict_disruption_risk
+from scpn_control.control.disruption_roc import score_risk_series
 from scpn_control.control.spi_mitigation import ShatteredPelletInjection
 from scpn_control.core._statistics import linear_percentile
 from scpn_control.core._validators import (
@@ -517,8 +518,6 @@ def run_real_shot_replay(
         shot_data.get("Ip_MA", np.ones(n_steps, dtype=np.float64)),
         expected_size=n_steps,
     )
-    n3_amp = n2_amp * 0.4  # approximate n3 from n2
-
     is_disruption = bool(shot_data.get("is_disruption", False))
     disruption_time_idx = int(shot_data.get("disruption_time_idx", -1))
     if disruption_time_idx >= n_steps:
@@ -526,33 +525,18 @@ def run_real_shot_replay(
     if disruption_time_idx < -1:
         raise ValueError("disruption_time_idx must be >= -1.")
 
-    risk_series = np.zeros(n_steps, dtype=np.float64)
+    # Canonical per-window scoring lives in disruption_roc.score_risk_series (the
+    # single source of truth shared with the FAIR-MAST evaluation harness). The
+    # validation above guarantees 8 <= window_size <= n_steps and finite inputs,
+    # so every predictor window has enough finite samples.
+    risk_series = score_risk_series(dBdt, n1_amp, n2_amp, window_size=window_size)
     alarm_series = np.zeros(n_steps, dtype=bool)
     first_alarm_idx = -1
     spi_triggered = False
     spi_trigger_idx = -1
 
-    # Slide through the shot. Validation above guarantees window_size >= 8 and
-    # window_size <= n_steps, so every predictor window has enough samples.
     for t in range(window_size, n_steps):
-        signal_window = dBdt[t - window_size : t]
-
-        toroidal = {
-            "toroidal_n1_amp": float(np.clip(n1_amp[t], 0, 10)),
-            "toroidal_n2_amp": float(np.clip(n2_amp[t], 0, 10)),
-            "toroidal_n3_amp": float(np.clip(n3_amp[t], 0, 10)),
-            "toroidal_asymmetry_index": float(np.sqrt(n1_amp[t] ** 2 + n2_amp[t] ** 2 + n3_amp[t] ** 2)),
-            "toroidal_radial_spread": float(0.02 + 0.05 * n1_amp[t]),
-        }
-
-        risk = float(
-            np.clip(
-                require_finite_float("replay_risk", predict_disruption_risk(signal_window, toroidal)),
-                0.0,
-                1.0,
-            )
-        )
-        risk_series[t] = risk
+        risk = float(risk_series[t])
 
         if risk > risk_threshold:
             alarm_series[t] = True
