@@ -1598,6 +1598,29 @@ adapters.
 
 ::: scpn_control.control.disruption_contracts.predict_disruption_risk
 
+### Disruption ROC
+
+`scpn_control.control.disruption_roc` scores a fixed-weight risk series over a
+shot, sweeps alarm thresholds, and reports bounded internal ROC/AUC plus
+warning-time recall. The scoring core is a bounded model (the n=3 toroidal
+amplitude approximates n=2), so its metrics stay internal and admission-blocked.
+
+::: scpn_control.control.disruption_roc.score_risk_series
+
+::: scpn_control.control.disruption_roc.ShotEvaluation
+
+::: scpn_control.control.disruption_roc.first_alarm_index
+
+::: scpn_control.control.disruption_roc.confusion_at_threshold
+
+::: scpn_control.control.disruption_roc.roc_curve
+
+::: scpn_control.control.disruption_roc.roc_auc_from_curve
+
+::: scpn_control.control.disruption_roc.warning_time_recall
+
+::: scpn_control.control.disruption_roc.disruption_metrics
+
 ### SPI Mitigation
 
 ::: scpn_control.control.spi_mitigation.ShatteredPelletInjection
