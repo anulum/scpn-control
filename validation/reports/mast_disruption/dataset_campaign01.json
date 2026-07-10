@@ -1,0 +1,885 @@
+{
+  "admission_ready": false,
+  "blocked_reason": "derived Ip current-quench labels are a bounded detector, not facility-validated; the detector must be cross-checked on manually inspected shots before promotion.",
+  "channel_schema": [
+    "time_s",
+    "Ip_MA",
+    "BT_T",
+    "beta_N",
+    "q95",
+    "ne_1e19",
+    "n1_amp",
+    "n2_amp",
+    "locked_mode_amp",
+    "dBdt_gauss_per_s",
+    "vertical_position_m",
+    "is_disruption",
+    "disruption_time_idx",
+    "disruption_type"
+  ],
+  "dataset_id": "mast-disruption-campaign01",
+  "dataset_sha256": "960f2d72d1bb426629302d0a85ccc93e211deaf12d6aff51a789deb2ef2ea291",
+  "generated_at": "2026-07-10T03:30:00Z",
+  "label_algorithm": {
+    "defuse_cross_check": "level2/defuse HDF5 labels return HTTP 403; labels are derived only, with DEFUSE reserved as a future cross-check if access is granted",
+    "disruption_time": "onset sample of the terminal current quench",
+    "drop_fraction": 0.8,
+    "exclusions": [
+      "cpf abort == 1",
+      "cpf useful != 1",
+      "cpf ip_max below a declared floor"
+    ],
+    "flat_top_reference": "pre-quench Ip flat-top maximum",
+    "method": "ip_current_quench",
+    "quench_criterion": "terminal current quench where |Ip| falls below (1 - drop_fraction) of the flat-top maximum within quench_window_ms",
+    "quench_window_ms": 5.0,
+    "signal": "magnetics/ip",
+    "validation_requirement": "the detector must be cross-checked on >= 50 manually inspected shots before the derived labels are trusted"
+  },
+  "manifest": "mast-disruption-campaign01.manifest.json",
+  "n_disruptive": 65,
+  "n_shots": 93,
+  "payload_sha256": "a9e00079351f788b2bbe5539fb086e1ca22932610648878df786875692c8a384",
+  "schema_version": "scpn-control.mast-disruption-supervised-dataset.v1",
+  "shots": [
+    {
+      "checksum_sha256": "2be2cb4e64cce0b9f6626c42315fd44968d234f109a1fd78800ce7dd9d51ef84",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 588,
+      "npz": "shot_11908.npz",
+      "shot_id": 11908
+    },
+    {
+      "checksum_sha256": "ccd94ca8ad478fbbffe58328b3f775943766f13a773b8fc20d694a6ee967aa27",
+      "disruption_time_idx": 554,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 629,
+      "npz": "shot_12214.npz",
+      "shot_id": 12214
+    },
+    {
+      "checksum_sha256": "a88541aae10a6a1da99eb0d0fc8d4c6381d797c773026ad496579c1d7fc251b6",
+      "disruption_time_idx": 503,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 578,
+      "npz": "shot_12481.npz",
+      "shot_id": 12481
+    },
+    {
+      "checksum_sha256": "536bcb9e2e8cf14ccfb4b5cfe10e8763f3f90e65d7e2e3b9cea3020b0537d8b9",
+      "disruption_time_idx": 271,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 347,
+      "npz": "shot_12646.npz",
+      "shot_id": 12646
+    },
+    {
+      "checksum_sha256": "b9cc1d559e3797488c27742abd0c683f933b6aa46a72796ab623d4f5b96c0ce2",
+      "disruption_time_idx": 469,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 544,
+      "npz": "shot_12763.npz",
+      "shot_id": 12763
+    },
+    {
+      "checksum_sha256": "014a848b528812cdf927a5e50584e73495e1047bebbce7faee5e80b6094c0e2a",
+      "disruption_time_idx": 472,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 548,
+      "npz": "shot_12876.npz",
+      "shot_id": 12876
+    },
+    {
+      "checksum_sha256": "cc05d8945b7f5c27da38b71f61e74c339bdff23d9c9ceb8b7f6e52ff8f837c54",
+      "disruption_time_idx": 423,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 498,
+      "npz": "shot_13300.npz",
+      "shot_id": 13300
+    },
+    {
+      "checksum_sha256": "815f8e000960651646452b25ef7fa7287866a98b6daf30f34f3d007ae82e25c8",
+      "disruption_time_idx": 464,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 541,
+      "npz": "shot_13571.npz",
+      "shot_id": 13571
+    },
+    {
+      "checksum_sha256": "b76de45bb3a88e66f1d7e9d0cf72b26df5f637bc7c790fb603fada8667fc2452",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 603,
+      "npz": "shot_13709.npz",
+      "shot_id": 13709
+    },
+    {
+      "checksum_sha256": "c65ce8041e5c30b3153a46fb77cd4d23c44144ba62f98725d0f770b8678aa1b9",
+      "disruption_time_idx": 407,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 484,
+      "npz": "shot_13824.npz",
+      "shot_id": 13824
+    },
+    {
+      "checksum_sha256": "a178e70552ab789a5bff0b773073937b2f0aafac9960cb6b37dd67a3878dc266",
+      "disruption_time_idx": 259,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 336,
+      "npz": "shot_13994.npz",
+      "shot_id": 13994
+    },
+    {
+      "checksum_sha256": "1fa160bb5b964e03cfe052700c5e1345ba5626321eb53ebc71c8f9befcc6bf34",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 603,
+      "npz": "shot_14207.npz",
+      "shot_id": 14207
+    },
+    {
+      "checksum_sha256": "dcf7cf1b1328088123c03213e07174b3d248c2d7fec706c3cab7ceffdf8ee6fd",
+      "disruption_time_idx": 608,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 683,
+      "npz": "shot_14338.npz",
+      "shot_id": 14338
+    },
+    {
+      "checksum_sha256": "27214d34d841c85b60fdb6f97f2831e5d21f86b713a38329454145549c4a0dd8",
+      "disruption_time_idx": 497,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 572,
+      "npz": "shot_14481.npz",
+      "shot_id": 14481
+    },
+    {
+      "checksum_sha256": "aebc8973c3eb21f55c00cea32ed06195d044f9bd5bef05b80f57f32dd8a56e77",
+      "disruption_time_idx": 468,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 544,
+      "npz": "shot_14611.npz",
+      "shot_id": 14611
+    },
+    {
+      "checksum_sha256": "4499a152cfad90a6aa54107c0549d7461e39cad4364f9fcb3651a676ed280531",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 639,
+      "npz": "shot_14914.npz",
+      "shot_id": 14914
+    },
+    {
+      "checksum_sha256": "2c54583cad4d2b6a3fea3e9b045503bc41a5e30f89c9992293a69248b77a9d2e",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 541,
+      "npz": "shot_15081.npz",
+      "shot_id": 15081
+    },
+    {
+      "checksum_sha256": "4cce586176624dcd4a623dd19a1cad4fc597ff65293c530e2285868c977bf07e",
+      "disruption_time_idx": 426,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 503,
+      "npz": "shot_15209.npz",
+      "shot_id": 15209
+    },
+    {
+      "checksum_sha256": "00784f90855dd495c61da3b86314b718bab18c6b96f63abd58bb2e2540f41900",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 592,
+      "npz": "shot_15337.npz",
+      "shot_id": 15337
+    },
+    {
+      "checksum_sha256": "efd805a0cdb7c08d4607d0a7b4d24419afecb65695d96739da5e5f2a3c2ad9f1",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 647,
+      "npz": "shot_15526.npz",
+      "shot_id": 15526
+    },
+    {
+      "checksum_sha256": "8dcafb663d5a60a3ce1394aa274e3781631a09b4dbe1897150fe19b6f1c76423",
+      "disruption_time_idx": 395,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 471,
+      "npz": "shot_15650.npz",
+      "shot_id": 15650
+    },
+    {
+      "checksum_sha256": "45e866687c7116369bd02500e1cd5aba04489f5a8cf2e10d9db5bb90a38a5e1d",
+      "disruption_time_idx": 372,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 448,
+      "npz": "shot_15958.npz",
+      "shot_id": 15958
+    },
+    {
+      "checksum_sha256": "c2a950b5b461ee33774ffbc3fa1754ceee56c91dae150137030a7f8b5552d37a",
+      "disruption_time_idx": 544,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 620,
+      "npz": "shot_16211.npz",
+      "shot_id": 16211
+    },
+    {
+      "checksum_sha256": "b52d002f4b68d4828aeed3c1af98e6fe4b7dacdbccfbc4f583c90c807a67ec1a",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 641,
+      "npz": "shot_16327.npz",
+      "shot_id": 16327
+    },
+    {
+      "checksum_sha256": "d25b1f0e1ca2d3350883f818394161ca812a6a86b80442b01b95aee35bf6efcb",
+      "disruption_time_idx": 494,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 571,
+      "npz": "shot_16455.npz",
+      "shot_id": 16455
+    },
+    {
+      "checksum_sha256": "5c227f42506c6aefbfdb1945886616908a77613a243a68953d819edceb6f6d93",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 618,
+      "npz": "shot_16678.npz",
+      "shot_id": 16678
+    },
+    {
+      "checksum_sha256": "5ea410751e0cee5fee357a50749249709828ea44d5f39868cb0f632aca50ca34",
+      "disruption_time_idx": 661,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 736,
+      "npz": "shot_17022.npz",
+      "shot_id": 17022
+    },
+    {
+      "checksum_sha256": "27a9f8e7379802ec7bfe002bac6c78e6b2f40365aebba2748c7411b46eb99e58",
+      "disruption_time_idx": 442,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 517,
+      "npz": "shot_17148.npz",
+      "shot_id": 17148
+    },
+    {
+      "checksum_sha256": "c9ebc48ca7fd4033e47929656423702e9b0fa078aa4a5bec1025e502659e2aae",
+      "disruption_time_idx": 276,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 353,
+      "npz": "shot_17384.npz",
+      "shot_id": 17384
+    },
+    {
+      "checksum_sha256": "34cef38da78d79af39d0442e17079c67e8445e7516942b8a59bc031556c1ae06",
+      "disruption_time_idx": 557,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 633,
+      "npz": "shot_17514.npz",
+      "shot_id": 17514
+    },
+    {
+      "checksum_sha256": "9b6a5e94d93efa17eb36258ce38be739e9450dbe74f5df71dd178aec3bc16fc0",
+      "disruption_time_idx": 472,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 549,
+      "npz": "shot_17637.npz",
+      "shot_id": 17637
+    },
+    {
+      "checksum_sha256": "fe33e89a3ed8ce1fdf4b358d884cd3057426a9ac33b8abe94f7e002b51fcc2ce",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 639,
+      "npz": "shot_17757.npz",
+      "shot_id": 17757
+    },
+    {
+      "checksum_sha256": "5a7fa07d1346deeec80b05b87aaf734eb97ac4b6e652943131f9ee27f9e939cc",
+      "disruption_time_idx": 460,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 537,
+      "npz": "shot_17868.npz",
+      "shot_id": 17868
+    },
+    {
+      "checksum_sha256": "5cb2fe147e34d5562931f0f4b788432917cf0118b27fddf00c727531a9ccbcd6",
+      "disruption_time_idx": 548,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 624,
+      "npz": "shot_17985.npz",
+      "shot_id": 17985
+    },
+    {
+      "checksum_sha256": "70b07ea0e89550eb98595ef379a7cd3d94667dfbd36da21991599854376c784a",
+      "disruption_time_idx": 356,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 432,
+      "npz": "shot_18268.npz",
+      "shot_id": 18268
+    },
+    {
+      "checksum_sha256": "4b6100532796ba97dc8d586e8115096083b82710f5ae02054a6425c86bb895f0",
+      "disruption_time_idx": 387,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 464,
+      "npz": "shot_18401.npz",
+      "shot_id": 18401
+    },
+    {
+      "checksum_sha256": "9c75ad08fe549e4ed45ec07f8fcf27c1dcb6fb4defd0a9e2435d6ca9def5e614",
+      "disruption_time_idx": 452,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 529,
+      "npz": "shot_18519.npz",
+      "shot_id": 18519
+    },
+    {
+      "checksum_sha256": "79d27cf964446f2566b66106031f029350bf8087359830e9f5bd03ec3e0d855d",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 749,
+      "npz": "shot_18641.npz",
+      "shot_id": 18641
+    },
+    {
+      "checksum_sha256": "d4f02d37df7fb31021cfc104c89e7656f58518b01c3e639535adcb0f1c8f0c97",
+      "disruption_time_idx": 419,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "npz": "shot_18758.npz",
+      "shot_id": 18758
+    },
+    {
+      "checksum_sha256": "3408251b0063724c4dacbf4de43702363355ea4acb85912a992e296c5f1b5354",
+      "disruption_time_idx": 441,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 517,
+      "npz": "shot_18871.npz",
+      "shot_id": 18871
+    },
+    {
+      "checksum_sha256": "5624e8f304155e5f6264f1eabd764276a14633061175c582accb6ac30452ada0",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 594,
+      "npz": "shot_19834.npz",
+      "shot_id": 19834
+    },
+    {
+      "checksum_sha256": "71d53bfedff432b88d06277ae50af57730a6fa2a610901ec62f08095244d8fac",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 720,
+      "npz": "shot_20011.npz",
+      "shot_id": 20011
+    },
+    {
+      "checksum_sha256": "2ed0350d62302ee740379f263e9b49ceb9ffbb6f273e1fecce1108a80c938430",
+      "disruption_time_idx": 447,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 523,
+      "npz": "shot_20334.npz",
+      "shot_id": 20334
+    },
+    {
+      "checksum_sha256": "5ead67a4188cd0aeff07cb493ea090eb3d981bf4f81de9c5f00ae35c208074f2",
+      "disruption_time_idx": 406,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 482,
+      "npz": "shot_20471.npz",
+      "shot_id": 20471
+    },
+    {
+      "checksum_sha256": "83f92963c406b5e28c6bf4305066d56b44c6736061ae1bd7b1f61ddb180b84a0",
+      "disruption_time_idx": 473,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 549,
+      "npz": "shot_20601.npz",
+      "shot_id": 20601
+    },
+    {
+      "checksum_sha256": "ace3e067c4abe402938a3665fd59e00613d46f7164933db9a40659b83e24789b",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 687,
+      "npz": "shot_20887.npz",
+      "shot_id": 20887
+    },
+    {
+      "checksum_sha256": "a4b55ace31727a18c72c90882e8153616376fd18687b3c1021b97993949833ef",
+      "disruption_time_idx": 447,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 523,
+      "npz": "shot_21532.npz",
+      "shot_id": 21532
+    },
+    {
+      "checksum_sha256": "8b7ee29e7d3fc13f50aa4e2aef046fc38bd783d1391146eb7d200147f6a18af8",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 810,
+      "npz": "shot_21801.npz",
+      "shot_id": 21801
+    },
+    {
+      "checksum_sha256": "d93217f5452ab89f42b58ea3dee171d81e8a634a1d269dd1674d1cebd593b245",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 530,
+      "npz": "shot_21920.npz",
+      "shot_id": 21920
+    },
+    {
+      "checksum_sha256": "bd9344710951d95da58b334b842de66fcfdeea79660155be6b0af0184d87c311",
+      "disruption_time_idx": 584,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 660,
+      "npz": "shot_22036.npz",
+      "shot_id": 22036
+    },
+    {
+      "checksum_sha256": "4351bb8d36e8e306c55ebdc781885511f986cf4973a594f6b9a872f19cc5b8f7",
+      "disruption_time_idx": 383,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 459,
+      "npz": "shot_22154.npz",
+      "shot_id": 22154
+    },
+    {
+      "checksum_sha256": "2c57c40b5782c842b316f32b5ca58a2b678c7a3fceb6fad4a3b1748aed1de6a6",
+      "disruption_time_idx": 428,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 504,
+      "npz": "shot_22274.npz",
+      "shot_id": 22274
+    },
+    {
+      "checksum_sha256": "894678c7a3e062a5927d61519dac13334cf67b010cc58441e39715c9c4c28efb",
+      "disruption_time_idx": 340,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 416,
+      "npz": "shot_22431.npz",
+      "shot_id": 22431
+    },
+    {
+      "checksum_sha256": "639764e8edbb580d1cb2773130eb1d97cbdd71ceb1dc18e0c201ee4eff83c823",
+      "disruption_time_idx": 511,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 587,
+      "npz": "shot_22548.npz",
+      "shot_id": 22548
+    },
+    {
+      "checksum_sha256": "772661c0e0347d5737a6aff4693831fde6f664910eda5e9e6da68365d3cbef7e",
+      "disruption_time_idx": 407,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 483,
+      "npz": "shot_22655.npz",
+      "shot_id": 22655
+    },
+    {
+      "checksum_sha256": "cb280e5502f91ff7976759e43f3df384cf8193a3c6c7270d515007564bf96f0d",
+      "disruption_time_idx": 318,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 394,
+      "npz": "shot_22773.npz",
+      "shot_id": 22773
+    },
+    {
+      "checksum_sha256": "ec68c8e0de35800cbd7ac4e1aeea0998e783fa4a4573c12eb392da35d728114f",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 588,
+      "npz": "shot_22977.npz",
+      "shot_id": 22977
+    },
+    {
+      "checksum_sha256": "74c855b50f22a9fffb96550d3e1193b28d71e153b22abb7524928262e5f71a6d",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 597,
+      "npz": "shot_23325.npz",
+      "shot_id": 23325
+    },
+    {
+      "checksum_sha256": "d505f37a7fa5495f4233a1487e238897a2839056e6bd7334daed15d05eef96a8",
+      "disruption_time_idx": 401,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 477,
+      "npz": "shot_23446.npz",
+      "shot_id": 23446
+    },
+    {
+      "checksum_sha256": "5e6ae8d6b9ec410e8ffae547abe4e5e057e5ef9191ddf2f92e02cc964b9e8309",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 702,
+      "npz": "shot_23744.npz",
+      "shot_id": 23744
+    },
+    {
+      "checksum_sha256": "0546ff6b283844547fce6b75c969287f8b816beebdd91c1372423ce89165c88f",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 297,
+      "npz": "shot_23885.npz",
+      "shot_id": 23885
+    },
+    {
+      "checksum_sha256": "5c2f60305212a000aced0450a2642a065dd27d47d687dd3ce223b3c7c51eada4",
+      "disruption_time_idx": 305,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 380,
+      "npz": "shot_24022.npz",
+      "shot_id": 24022
+    },
+    {
+      "checksum_sha256": "8d8b9d2081b7c8a0c696af5847fdd33c54114db0de9ba30387cde15092b6e7d7",
+      "disruption_time_idx": 541,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 617,
+      "npz": "shot_24171.npz",
+      "shot_id": 24171
+    },
+    {
+      "checksum_sha256": "582787b90eaaab8953506b2a57c681f844252628548417041818fa2dd4583e23",
+      "disruption_time_idx": 475,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 552,
+      "npz": "shot_24359.npz",
+      "shot_id": 24359
+    },
+    {
+      "checksum_sha256": "5489a850f91862eb6b88d5ef0dbe3840890b5450479191d579cdc22eba2d0c88",
+      "disruption_time_idx": 445,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 521,
+      "npz": "shot_24467.npz",
+      "shot_id": 24467
+    },
+    {
+      "checksum_sha256": "59e37805ea38a9595426852ef9b6fe04cd04535ed792a955058c3b5ffcbd6ed3",
+      "disruption_time_idx": 422,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "npz": "shot_24698.npz",
+      "shot_id": 24698
+    },
+    {
+      "checksum_sha256": "07b396cd06d0b4b8393236f6811388e3f1bbe3bab8447921a46adc7271def3dd",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 682,
+      "npz": "shot_24807.npz",
+      "shot_id": 24807
+    },
+    {
+      "checksum_sha256": "d105cc75023343d0ed899d12788ad9fc91fdf24f9aab3a02a7233702a47b3f14",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 728,
+      "npz": "shot_24931.npz",
+      "shot_id": 24931
+    },
+    {
+      "checksum_sha256": "28d1d96f0a1651373118320287143733f7f445bde4b10ffd438f35d301d8a34a",
+      "disruption_time_idx": 415,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 491,
+      "npz": "shot_25100.npz",
+      "shot_id": 25100
+    },
+    {
+      "checksum_sha256": "79c308699d9133d85163a4df050eda1a3bdfdf0f475a862615f6d06d3e97077f",
+      "disruption_time_idx": 418,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "npz": "shot_25224.npz",
+      "shot_id": 25224
+    },
+    {
+      "checksum_sha256": "e803dd60ca4d7f4ae07fe2af6fbd4e13548ef1dd7682aeb793930f1d6518a90f",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 522,
+      "npz": "shot_25351.npz",
+      "shot_id": 25351
+    },
+    {
+      "checksum_sha256": "b60edace04be39e93cdfedb3a7141602e68ff9a4079fde57c2239508fe305086",
+      "disruption_time_idx": 435,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 791,
+      "npz": "shot_26387.npz",
+      "shot_id": 26387
+    },
+    {
+      "checksum_sha256": "8e8f78073ceff6c64f0542040f3de06363d8a0745ba48b5da5467641eef2b575",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 687,
+      "npz": "shot_26541.npz",
+      "shot_id": 26541
+    },
+    {
+      "checksum_sha256": "f488740f4ab0ac978f1087af3d93b724f537b1e6643a08d3513d4c6e0989ea96",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 898,
+      "npz": "shot_26777.npz",
+      "shot_id": 26777
+    },
+    {
+      "checksum_sha256": "39ddc50a49a8d46489ae327b56013fe5b4d1979ecb2c242e47045e9a4bd12de6",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 707,
+      "npz": "shot_26913.npz",
+      "shot_id": 26913
+    },
+    {
+      "checksum_sha256": "9a5866a0e94023d8f2b63610ef08e3bf37493534b59e6ca01f2a6a4bc991fa0d",
+      "disruption_time_idx": 444,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 522,
+      "npz": "shot_27054.npz",
+      "shot_id": 27054
+    },
+    {
+      "checksum_sha256": "2ca3d9dca4da7112427bd5416344594ea32141a946360c6162f266bef437396b",
+      "disruption_time_idx": 456,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 533,
+      "npz": "shot_27177.npz",
+      "shot_id": 27177
+    },
+    {
+      "checksum_sha256": "2cef8e8bb4e29a8716334a950cd403bbdabe800dd141290db44c1f8d22ccdf23",
+      "disruption_time_idx": 561,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 636,
+      "npz": "shot_27407.npz",
+      "shot_id": 27407
+    },
+    {
+      "checksum_sha256": "bd273aa7bae040a1647686bf68c86d161256f62d5594250f433cc68ff6069f8d",
+      "disruption_time_idx": 497,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 622,
+      "npz": "shot_27524.npz",
+      "shot_id": 27524
+    },
+    {
+      "checksum_sha256": "decf42f93f2a8fa9dcdb4165e320ba614cc5ca627879ffc5520b9fa810843026",
+      "disruption_time_idx": 554,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 629,
+      "npz": "shot_27637.npz",
+      "shot_id": 27637
+    },
+    {
+      "checksum_sha256": "3bb905dfd147b2ce69fcce5598048cfd770342189e6d247afcff99bec2cd2d88",
+      "disruption_time_idx": 272,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 348,
+      "npz": "shot_27754.npz",
+      "shot_id": 27754
+    },
+    {
+      "checksum_sha256": "d3b5e66484cb6449ec90d494971278f3e2832ecd7620161b1275c47c5ce217b0",
+      "disruption_time_idx": 389,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 520,
+      "npz": "shot_27881.npz",
+      "shot_id": 27881
+    },
+    {
+      "checksum_sha256": "8d0ea010ad31c5df38ac6146cf1d1fa46bd510f9adfb04a5075e0030d56305cd",
+      "disruption_time_idx": 442,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 518,
+      "npz": "shot_28012.npz",
+      "shot_id": 28012
+    },
+    {
+      "checksum_sha256": "16d99411b950b5102a252e86114675640080dfc99c9a059e72b32a916fad6d90",
+      "disruption_time_idx": 548,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 624,
+      "npz": "shot_28122.npz",
+      "shot_id": 28122
+    },
+    {
+      "checksum_sha256": "cb5dc44dab652bd234d006b41d2c798202a269a57ebdd18994fcdd9e90a18f27",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 671,
+      "npz": "shot_28345.npz",
+      "shot_id": 28345
+    },
+    {
+      "checksum_sha256": "45c07161e0b1693c21eca591562fc22da0edbb7d482891a30c54c0a420c51549",
+      "disruption_time_idx": 457,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 564,
+      "npz": "shot_29048.npz",
+      "shot_id": 29048
+    },
+    {
+      "checksum_sha256": "8517ca99099d7b407aa38d350da394c289282f66126a6161064dce58b90a0692",
+      "disruption_time_idx": 362,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 438,
+      "npz": "shot_29402.npz",
+      "shot_id": 29402
+    },
+    {
+      "checksum_sha256": "10dfabc2521905459d4f6dbd2109c748b3c55ebbbb2311f11fb0c38d71c013c7",
+      "disruption_time_idx": 451,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 527,
+      "npz": "shot_29556.npz",
+      "shot_id": 29556
+    },
+    {
+      "checksum_sha256": "69380a89a00d4d378ee939cca78c78cb8a201e695b4f245c38093a930da787a3",
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 678,
+      "npz": "shot_29702.npz",
+      "shot_id": 29702
+    },
+    {
+      "checksum_sha256": "d9896b161554d8601695f1649d2bb5f9105f40bf62e0fa6b6984ef8a60c6e04d",
+      "disruption_time_idx": 339,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 414,
+      "npz": "shot_29859.npz",
+      "shot_id": 29859
+    },
+    {
+      "checksum_sha256": "76b4979901f54c5f2916afabc1a9cbe2640ed59ad306071f76f1991020d620a1",
+      "disruption_time_idx": 441,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 548,
+      "npz": "shot_29991.npz",
+      "shot_id": 29991
+    },
+    {
+      "checksum_sha256": "4f1c4f03b5cd3175089241e545cc95410e3a703a37ddc1d5adeb56a7d4b578e3",
+      "disruption_time_idx": 433,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 509,
+      "npz": "shot_30117.npz",
+      "shot_id": 30117
+    },
+    {
+      "checksum_sha256": "552002bc8aa74aa16e33ad52667b77a7283b866e0385d5a718b69e90d238431d",
+      "disruption_time_idx": 453,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 529,
+      "npz": "shot_30264.npz",
+      "shot_id": 30264
+    }
+  ],
+  "status": "blocked",
+  "synthetic": false
+}

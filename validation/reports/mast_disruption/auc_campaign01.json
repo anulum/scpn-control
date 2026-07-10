@@ -1,0 +1,823 @@
+{
+  "admission_ready": false,
+  "blocked_reason": "Bounded internal ROC/AUC for the fixed-weight disruption heuristic; the disruption-risk claim boundary remains locked pending a real fit and a sealed reference artefact.",
+  "claim_boundary": {
+    "facility_roc_validated": false,
+    "feature_contract": [
+      "mean",
+      "std",
+      "max",
+      "slope",
+      "energy",
+      "last",
+      "toroidal_n1_amp",
+      "toroidal_n2_amp",
+      "toroidal_n3_amp",
+      "toroidal_asymmetry_index",
+      "toroidal_radial_spread"
+    ],
+    "predictor_id": "predict_disruption_risk",
+    "public_claim_allowed": false,
+    "required_action": "Train or fit on an admitted real disruption database before any facility disruption-prediction claim.",
+    "score_source": "fixed_weight_logistic_heuristic",
+    "training_provenance": "hand_chosen_weights_no_real_disruption_database_fit",
+    "validation_provenance": "synthetic_sanity_check:validation/reports/disruption_replay_pipeline_benchmark.md"
+  },
+  "data_provenance": {
+    "licence": "MIT",
+    "manifest_path": "/media/anulum/GOTM/aaa_God_of_the_Math_Collection/00_DATASETS/mast_disruption/campaign01/dataset/mast-disruption-campaign01.manifest.json",
+    "source_kind": "local_archive",
+    "source_uri": "s3://mast/level2/shots",
+    "synthetic": false
+  },
+  "dataset_id": "mast-disruption-campaign01",
+  "generated_at_utc": "2026-07-10T04:18:20.816351+00:00",
+  "metrics": {
+    "alarm_threshold": 0.65,
+    "auc": 0.53489010989011,
+    "confusion_at_alarm_threshold": {
+      "fn": 21.0,
+      "fp": 17.0,
+      "fpr": 0.6071428571428571,
+      "tn": 11.0,
+      "tp": 44.0,
+      "tpr": 0.676923076923077
+    },
+    "n_disruptive": 65,
+    "n_shots": 93,
+    "recall_at_warning_ms": {
+      "10": 0.676923076923077,
+      "20": 0.676923076923077,
+      "30": 0.676923076923077,
+      "50": 0.676923076923077,
+      "100": 0.676923076923077
+    },
+    "roc_fpr": [
+      1.0,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.6071428571428571,
+      0.0
+    ],
+    "roc_tpr": [
+      1.0,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.676923076923077,
+      0.0
+    ]
+  },
+  "payload_sha256": "38dd25728173cf25892541782f65e9e4e48c2c4589809f2cb4165d444aded419",
+  "predictor": {
+    "feature_note": "scores the dBdt window plus n=1/n=2 toroidal observables; does not consume the Rea-2019 q95/beta_N/li/Greenwald/P_rad features.",
+    "score_source": "fixed_weight_logistic_heuristic"
+  },
+  "schema_version": "scpn-control.mast-disruption-evaluation.v1",
+  "shots": [
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 588,
+      "shot_id": "shot_11908"
+    },
+    {
+      "disruption_time_idx": 554,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 629,
+      "shot_id": "shot_12214"
+    },
+    {
+      "disruption_time_idx": 503,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 578,
+      "shot_id": "shot_12481"
+    },
+    {
+      "disruption_time_idx": 271,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 347,
+      "shot_id": "shot_12646"
+    },
+    {
+      "disruption_time_idx": 469,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 544,
+      "shot_id": "shot_12763"
+    },
+    {
+      "disruption_time_idx": 472,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 548,
+      "shot_id": "shot_12876"
+    },
+    {
+      "disruption_time_idx": 423,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 498,
+      "shot_id": "shot_13300"
+    },
+    {
+      "disruption_time_idx": 464,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 541,
+      "shot_id": "shot_13571"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 603,
+      "shot_id": "shot_13709"
+    },
+    {
+      "disruption_time_idx": 407,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 484,
+      "shot_id": "shot_13824"
+    },
+    {
+      "disruption_time_idx": 259,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 336,
+      "shot_id": "shot_13994"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 603,
+      "shot_id": "shot_14207"
+    },
+    {
+      "disruption_time_idx": 608,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 683,
+      "shot_id": "shot_14338"
+    },
+    {
+      "disruption_time_idx": 497,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 572,
+      "shot_id": "shot_14481"
+    },
+    {
+      "disruption_time_idx": 468,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 544,
+      "shot_id": "shot_14611"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 639,
+      "shot_id": "shot_14914"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 541,
+      "shot_id": "shot_15081"
+    },
+    {
+      "disruption_time_idx": 426,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 503,
+      "shot_id": "shot_15209"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 592,
+      "shot_id": "shot_15337"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 647,
+      "shot_id": "shot_15526"
+    },
+    {
+      "disruption_time_idx": 395,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 471,
+      "shot_id": "shot_15650"
+    },
+    {
+      "disruption_time_idx": 372,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 448,
+      "shot_id": "shot_15958"
+    },
+    {
+      "disruption_time_idx": 544,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 620,
+      "shot_id": "shot_16211"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 641,
+      "shot_id": "shot_16327"
+    },
+    {
+      "disruption_time_idx": 494,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 571,
+      "shot_id": "shot_16455"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 618,
+      "shot_id": "shot_16678"
+    },
+    {
+      "disruption_time_idx": 661,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 736,
+      "shot_id": "shot_17022"
+    },
+    {
+      "disruption_time_idx": 442,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 517,
+      "shot_id": "shot_17148"
+    },
+    {
+      "disruption_time_idx": 276,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 353,
+      "shot_id": "shot_17384"
+    },
+    {
+      "disruption_time_idx": 557,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 633,
+      "shot_id": "shot_17514"
+    },
+    {
+      "disruption_time_idx": 472,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 549,
+      "shot_id": "shot_17637"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 639,
+      "shot_id": "shot_17757"
+    },
+    {
+      "disruption_time_idx": 460,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 537,
+      "shot_id": "shot_17868"
+    },
+    {
+      "disruption_time_idx": 548,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 624,
+      "shot_id": "shot_17985"
+    },
+    {
+      "disruption_time_idx": 356,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 432,
+      "shot_id": "shot_18268"
+    },
+    {
+      "disruption_time_idx": 387,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 464,
+      "shot_id": "shot_18401"
+    },
+    {
+      "disruption_time_idx": 452,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 529,
+      "shot_id": "shot_18519"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 749,
+      "shot_id": "shot_18641"
+    },
+    {
+      "disruption_time_idx": 419,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "shot_id": "shot_18758"
+    },
+    {
+      "disruption_time_idx": 441,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 517,
+      "shot_id": "shot_18871"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 594,
+      "shot_id": "shot_19834"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 720,
+      "shot_id": "shot_20011"
+    },
+    {
+      "disruption_time_idx": 447,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 523,
+      "shot_id": "shot_20334"
+    },
+    {
+      "disruption_time_idx": 406,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 482,
+      "shot_id": "shot_20471"
+    },
+    {
+      "disruption_time_idx": 473,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 549,
+      "shot_id": "shot_20601"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 687,
+      "shot_id": "shot_20887"
+    },
+    {
+      "disruption_time_idx": 447,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 523,
+      "shot_id": "shot_21532"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 810,
+      "shot_id": "shot_21801"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 530,
+      "shot_id": "shot_21920"
+    },
+    {
+      "disruption_time_idx": 584,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 660,
+      "shot_id": "shot_22036"
+    },
+    {
+      "disruption_time_idx": 383,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 459,
+      "shot_id": "shot_22154"
+    },
+    {
+      "disruption_time_idx": 428,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 504,
+      "shot_id": "shot_22274"
+    },
+    {
+      "disruption_time_idx": 340,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 416,
+      "shot_id": "shot_22431"
+    },
+    {
+      "disruption_time_idx": 511,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 587,
+      "shot_id": "shot_22548"
+    },
+    {
+      "disruption_time_idx": 407,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 483,
+      "shot_id": "shot_22655"
+    },
+    {
+      "disruption_time_idx": 318,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 394,
+      "shot_id": "shot_22773"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 588,
+      "shot_id": "shot_22977"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 597,
+      "shot_id": "shot_23325"
+    },
+    {
+      "disruption_time_idx": 401,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 477,
+      "shot_id": "shot_23446"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 702,
+      "shot_id": "shot_23744"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 297,
+      "shot_id": "shot_23885"
+    },
+    {
+      "disruption_time_idx": 305,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 380,
+      "shot_id": "shot_24022"
+    },
+    {
+      "disruption_time_idx": 541,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 617,
+      "shot_id": "shot_24171"
+    },
+    {
+      "disruption_time_idx": 475,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 552,
+      "shot_id": "shot_24359"
+    },
+    {
+      "disruption_time_idx": 445,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 521,
+      "shot_id": "shot_24467"
+    },
+    {
+      "disruption_time_idx": 422,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "shot_id": "shot_24698"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 682,
+      "shot_id": "shot_24807"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 728,
+      "shot_id": "shot_24931"
+    },
+    {
+      "disruption_time_idx": 415,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 491,
+      "shot_id": "shot_25100"
+    },
+    {
+      "disruption_time_idx": 418,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 495,
+      "shot_id": "shot_25224"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 522,
+      "shot_id": "shot_25351"
+    },
+    {
+      "disruption_time_idx": 435,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 791,
+      "shot_id": "shot_26387"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 687,
+      "shot_id": "shot_26541"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 898,
+      "shot_id": "shot_26777"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 707,
+      "shot_id": "shot_26913"
+    },
+    {
+      "disruption_time_idx": 444,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 522,
+      "shot_id": "shot_27054"
+    },
+    {
+      "disruption_time_idx": 456,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 533,
+      "shot_id": "shot_27177"
+    },
+    {
+      "disruption_time_idx": 561,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 636,
+      "shot_id": "shot_27407"
+    },
+    {
+      "disruption_time_idx": 497,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 622,
+      "shot_id": "shot_27524"
+    },
+    {
+      "disruption_time_idx": 554,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 629,
+      "shot_id": "shot_27637"
+    },
+    {
+      "disruption_time_idx": 272,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 348,
+      "shot_id": "shot_27754"
+    },
+    {
+      "disruption_time_idx": 389,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 520,
+      "shot_id": "shot_27881"
+    },
+    {
+      "disruption_time_idx": 442,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 518,
+      "shot_id": "shot_28012"
+    },
+    {
+      "disruption_time_idx": 548,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 624,
+      "shot_id": "shot_28122"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 671,
+      "shot_id": "shot_28345"
+    },
+    {
+      "disruption_time_idx": 457,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 564,
+      "shot_id": "shot_29048"
+    },
+    {
+      "disruption_time_idx": 362,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 438,
+      "shot_id": "shot_29402"
+    },
+    {
+      "disruption_time_idx": 451,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 527,
+      "shot_id": "shot_29556"
+    },
+    {
+      "disruption_time_idx": -1,
+      "disruption_type": "slow_rampdown",
+      "label": 0,
+      "n_samples": 678,
+      "shot_id": "shot_29702"
+    },
+    {
+      "disruption_time_idx": 339,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 414,
+      "shot_id": "shot_29859"
+    },
+    {
+      "disruption_time_idx": 441,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 548,
+      "shot_id": "shot_29991"
+    },
+    {
+      "disruption_time_idx": 433,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 509,
+      "shot_id": "shot_30117"
+    },
+    {
+      "disruption_time_idx": 453,
+      "disruption_type": "current_quench",
+      "label": 1,
+      "n_samples": 529,
+      "shot_id": "shot_30264"
+    }
+  ],
+  "status": "blocked",
+  "window_size": 128
+}
