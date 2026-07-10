@@ -126,6 +126,12 @@ def acquire_mdsplus_shot(
 
     manifest_path = Path(manifest_json)
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    # The artifact URI is stored relative to the manifest's evidence tree so the
+    # manifest stays portable; the validator rejects absolute or parent-escaping URIs.
+    try:
+        artifact_uri = output_path.resolve().relative_to(manifest_path.parent.resolve()).as_posix()
+    except ValueError:
+        artifact_uri = output_path.name
     dataset_id = f"{tree.lower()}-{int(shot)}-mdsplus"
     manifest = {
         "spdx_license_id": "AGPL-3.0-or-later",
@@ -148,7 +154,7 @@ def acquire_mdsplus_shot(
         "licence": licence,
         "artifacts": [
             {
-                "uri": str(output_path),
+                "uri": artifact_uri,
                 "checksum_sha256": checksum,
             }
         ],
