@@ -835,8 +835,15 @@ mod tests {
             active_markings: [11, 0, 0, 0],
         }));
 
-        for _ in 0..500 {
-            if runtime.violation_detected() {
+        // Poll the live flag against a wall-clock deadline rather than a fixed
+        // iteration count: the async worker runs a Z3 solve whose cold-start can
+        // exceed a couple of seconds on a loaded CI runner (the original
+        // 500 x 5 ms = 2.5 s budget flaked there). The loop breaks the instant
+        // the flag is set, so a healthy run still finishes in milliseconds; the
+        // deterministic backstop is the post-shutdown `report.failures` below.
+        let deadline = Instant::now() + Duration::from_secs(20);
+        while !runtime.violation_detected() {
+            if Instant::now() >= deadline {
                 break;
             }
             std::thread::sleep(Duration::from_millis(5));
