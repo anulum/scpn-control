@@ -386,13 +386,22 @@ impl CapacitorBank {
             let v0 = self.voltage_v;
             let i0 = self.current_a;
             let int_v = disc.intv[0] * v0 + disc.intv[1] * i0 + disc.intv[2] * load_current;
-            let int_i_squared = disc.w[0][0] * v0 * v0
+            // ∫i²dt over the ZOH step is non-negative by construction (an integral
+            // of a square). The closed-form quadratic form xᵀWx can dip a few ulp
+            // below zero when the exact-discretisation weight matrix W loses
+            // positive-semidefiniteness to floating-point error under extreme
+            // finite parameters; clamp so the admitted resistive-loss ledger stays
+            // physical (series resistance is validated non-negative, so
+            // resistive_loss = R·∫i²dt is then non-negative too). Found by the
+            // capacitor_bank fuzz target's negative-dissipation assertion.
+            let int_i_squared = (disc.w[0][0] * v0 * v0
                 + disc.w[1][1] * i0 * i0
                 + disc.w[2][2] * load_current * load_current
                 + 2.0
                     * (disc.w[0][1] * v0 * i0
                         + disc.w[0][2] * v0 * load_current
-                        + disc.w[1][2] * i0 * load_current);
+                        + disc.w[1][2] * i0 * load_current))
+                .max(0.0);
             let state = self.step(dt, load_current)?;
             resistive_loss += resistance * int_i_squared;
             load_energy += load_current * int_v;
