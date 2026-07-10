@@ -583,7 +583,22 @@ def compile_cpp() -> str | None:
         temp_out = _prepare_native_output_path(out_dir, out)
         if temp_out is None:
             return None
-        cmd = [compiler, "-shared", "-o", str(temp_out), str(src), "-O3", "-fstack-protector-strong"]
+        # Statically link the MinGW C++/GCC runtime so the produced DLL is
+        # self-contained. ``ctypes.CDLL`` loads it inside the Python process,
+        # whose DLL search path does not include the MinGW ``bin`` directory;
+        # a DLL that dynamically depended on ``libstdc++-6.dll`` /
+        # ``libgcc_s_seh-1.dll`` / ``libwinpthread-1.dll`` would fail to load
+        # with WinError 126, leaving ``HPCBridge.is_available()`` False.
+        cmd = [
+            compiler,
+            "-shared",
+            "-static",
+            "-o",
+            str(temp_out),
+            str(src),
+            "-O3",
+            "-fstack-protector-strong",
+        ]
     else:
         out = out_dir / "libscpn_solver.so"
         temp_out = _prepare_native_output_path(out_dir, out)

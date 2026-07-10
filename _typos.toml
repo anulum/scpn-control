@@ -57,6 +57,8 @@ abl = "abl"
 Strang = "Strang"
 thi = "thi"
 Ane = "Ane"
+# MinGW runtime: Structured Exception Handling (libgcc_s_seh-1.dll), not "she".
+seh = "seh"
 
 [files]
 extend-exclude = [

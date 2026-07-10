@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import ctypes
 import hashlib
 import inspect
 import json
@@ -16,7 +17,6 @@ import os
 import platform
 import shutil
 import subprocess
-import ctypes
 import sys
 from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -591,6 +591,9 @@ def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     assert out is not None
     assert Path(out).name == "scpn_solver.dll"
     assert "-mavx2" not in calls["cmd"]
+    # The Windows DLL must statically link the MinGW runtime so ``ctypes.CDLL``
+    # can load it without the MinGW ``bin`` directory on the DLL search path.
+    assert "-static" in calls["cmd"]
 
 
 def test_compile_cpp_refuses_missing_compiler(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
