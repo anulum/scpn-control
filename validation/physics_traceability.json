@@ -834,6 +834,35 @@
       "external_validation_tracker_issue": 52
     },
     {
+      "component": "disruption ROC scoring and warning-time core",
+      "equation_contract": "Disruption ROC-core claims must declare the per-window risk-scoring convention (the dBdt signal window plus n=1/n=2 toroidal observables with the n=3 amplitude as a bounded 0.4*n=2 approximation and a toroidal-amplitude clip), the endpoint-forced FPR-sorted trapezoidal AUC assembly, and the warning-time convention that an alarm on a disruptive shot is a true positive only if it fires strictly before the labelled disruption sample.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository per-window disruption risk-scoring convention shared with disruption_contracts.run_real_shot_replay",
+        "n=3 toroidal amplitude bounded approximation 0.4 * n=2 (no dedicated n=3 diagnostic channel)",
+        "DisruptionBench-style warning-time convention: true positive only when the alarm precedes the labelled disruption sample"
+      ],
+      "module_path": "src/scpn_control/control/disruption_roc.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Replace the n=3-from-n=2 bounded approximation with a measured n=3 toroidal diagnostic channel when available",
+        "Validate the scoring convention and ROC/warning-time metrics against measured labelled disruption windows before any predictive claim"
+      ],
+      "unit_contract": "dBdt in gauss per second, dimensionless toroidal mode amplitudes clipped to [0, 10], dimensionless risk in [0, 1], false-positive and true-positive rates in [0, 1], and warning lead time in seconds on the shot timebase.",
+      "validation_evidence": [
+        "tests/test_disruption_roc.py ROC, scoring, and warning-time unit checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_roc.py",
+        "tests/test_disruption_roc.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_roc.py"
+      ],
+      "validity_domain": "Internal bounded disruption risk-scoring and ROC/warning-time metric assembly over synthetic or bounded-labelled shots; not a facility-validated disruption-prediction claim.",
+      "external_validation_tracker_issue": 52
+    },
+    {
       "component": "global tokamak design scanner for disruption episodes",
       "equation_contract": "Design-scanner claims must declare the aspect-ratio minor-radius inference, elongated-volume estimate, Greenwald-density fraction, bounded temperature and DT-reactivity proxies, confinement-time proxy, auxiliary-power Q denominator, neutron-wall-loading geometry, beta-p proxy, and relative cost index before disruption-episode use.",
       "fidelity_status": "bounded_model",

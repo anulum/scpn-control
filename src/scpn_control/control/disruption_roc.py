@@ -47,7 +47,8 @@ __all__ = [
 # Upper clip on toroidal mode amplitudes fed to the predictor, matching the
 # real-shot replay convention in ``disruption_contracts.run_real_shot_replay``.
 _TOROIDAL_AMP_CLIP = 10.0
-# n=3 amplitude is approximated from n=2 (no dedicated n=3 diagnostic channel).
+# The n=3 amplitude is a bounded approximation of n=2 (0.4 * n=2; no dedicated
+# n=3 diagnostic channel exists), so this scoring core is a bounded model.
 _N3_FROM_N2 = 0.4
 
 
