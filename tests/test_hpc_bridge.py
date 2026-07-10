@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import _ctypes
 import ctypes
 import hashlib
 import inspect
@@ -526,6 +527,21 @@ def test_packaged_solver_artifacts_are_declared_in_package_data() -> None:
     assert {"solver.cpp", "solver_manifest.json"} <= set(package_data)
 
 
+def _release_library_handle(handle: int) -> None:
+    """Release a loaded library's OS handle so its backing file can be deleted.
+
+    A memory-mapped library — a Windows DLL most visibly — cannot have its file
+    unlinked while it stays loaded. ``FreeLibrary``/``dlclose`` are
+    reference-counted, so this unmaps the library once the last handle goes.
+    """
+    if platform.system() == "Windows":
+        # ``FreeLibrary`` is Windows-only and absent from the POSIX ``_ctypes``
+        # typeshed stub the (Linux-only) mypy job checks; reach it dynamically.
+        cast(Any, _ctypes).FreeLibrary(handle)
+    else:
+        _ctypes.dlclose(handle)
+
+
 def test_compile_cpp_builds_and_loads_packaged_solver(monkeypatch: pytest.MonkeyPatch) -> None:
     """The opt-in native build path compiles and loads the shipped solver."""
 
@@ -538,6 +554,7 @@ def test_compile_cpp_builds_and_loads_packaged_solver(monkeypatch: pytest.Monkey
     out = hpc_mod.compile_cpp()
     assert out is not None
     out_path = Path(out)
+    bridge: HPCBridge | None = None
     try:
         with HPCBridge(out) as bridge:
             assert bridge.is_available()
@@ -560,6 +577,11 @@ def test_compile_cpp_builds_and_loads_packaged_solver(monkeypatch: pytest.Monkey
             assert 0 <= iterations_used <= 5
             assert np.isfinite(final_delta)
     finally:
+        # ``close()`` (via ``__exit__``) destroys the solver instance but ctypes
+        # keeps the library mapped; on Windows the still-loaded DLL cannot be
+        # unlinked (WinError 5) until its handle is released.
+        if bridge is not None and bridge.lib is not None:
+            _release_library_handle(bridge.lib._handle)
         out_path.unlink(missing_ok=True)
         try:
             out_path.parent.rmdir()
