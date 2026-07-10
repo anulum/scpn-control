@@ -434,7 +434,7 @@ jsonschema-specifications==2025.9.1 \
 jupyter==1.1.1 \
     --hash=sha256:7a59533c22af65439b24bbe60373a4e95af8f16ac65a6c00820ad378e3f7cc83 \
     --hash=sha256:d55467bceabdea49d7e3624af7e33d59c37fff53ed3a350e1ac957bed731de7a
-    # via -r ci-notebook.in
+    # via -r requirements/ci-notebook.in
 jupyter-client==8.8.0 \
     --hash=sha256:d556811419a4f2d96c869af34e854e3f059b7cc2d6d01a9cd9c85c267691be3e \
     --hash=sha256:f93a5b99c5e23a507b773d3a1136bd6e16c67883ccdbd9a829b0bbdb98cd7d7a
@@ -603,9 +603,9 @@ matplotlib-inline==0.2.2 \
     # via
     #   ipykernel
     #   ipython
-mistune==3.2.1 \
-    --hash=sha256:78cdb0ba5e938053ccf63651b352508d2efa9411dc8810bfb05f2dc5140c0048 \
-    --hash=sha256:7c8e5501d38bac1582e067e46c8343f17d57ea1aaa735823f3aba1fd59c88a28
+mistune==3.3.0 \
+    --hash=sha256:3074ec4c61b384abe725128e4dcbb483f5a09cc4632012505cdee655d3a113b9 \
+    --hash=sha256:a758e578acda49d8195f9a860b132dae2cf7bf409381393b1c4e6e489a65397b
     # via nbconvert
 nbclient==0.10.4 \
     --hash=sha256:1e54091b16e6da39e297b0ece3e10f6f29f4ac4e8ee515d29f8a7099bd6553c9 \
@@ -615,7 +615,7 @@ nbconvert==7.17.1 \
     --hash=sha256:34d0d0a7e73ce3cbab6c5aae8f4f468797280b01fd8bd2ca746da8569eddd7d2 \
     --hash=sha256:aa85c087b435e7bf1ffd03319f658e285f2b89eccab33bc1ba7025495ab3e7c8
     # via
-    #   -r ci-notebook.in
+    #   -r requirements/ci-notebook.in
     #   jupyter
     #   jupyter-server
 nbformat==5.10.4 \
