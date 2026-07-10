@@ -298,7 +298,7 @@ def test_registry_adapter_maps_a_list() -> None:
     assert bundles[0].claim_boundary.blocked_on[0].dependency == "Acquire external reference"
 
 
-def test_registry_adapter_over_the_real_61_entries() -> None:
+def test_registry_adapter_over_the_real_63_entries() -> None:
     import json
     from pathlib import Path
 
@@ -306,9 +306,10 @@ def test_registry_adapter_over_the_real_61_entries() -> None:
     entries = json.loads(registry.read_text())["entries"]
     bundles = physics_validation_evidences_from_registry(entries, **_WHO, **_TS)
     assert len(bundles) == len(entries)
-    # Exactly the one reference-validated, admitted claim renders as validated;
-    # every other boundary is shown verbatim.
-    assert sum(1 for b in bundles if b.renders_as_validated) == 1
+    # No registry entry is admitted as reference-validated any more (the DIII-D
+    # fixtures were downscoped), so none renders as validated; every boundary is
+    # shown verbatim.
+    assert sum(1 for b in bundles if b.renders_as_validated) == 0
     # Every claim carries its qualitative validity-domain prose.
     assert all(b.claim_boundary.validity_domain is not None for b in bundles)
 

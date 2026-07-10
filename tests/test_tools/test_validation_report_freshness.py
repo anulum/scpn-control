@@ -117,7 +117,6 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
     assert set(refresh_plans) == {
         "validation/reports/aer_observation_admission_20260604T162953Z.json",
         "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json",
-        "validation/reports/e2e_control_latency.json",
         "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
         "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
         "validation/reports/runtime_admission_release_20260605T000000Z.json",
@@ -131,9 +130,13 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
         "bench_aer_observation.py"
         in refresh_plans["validation/reports/aer_observation_admission_20260604T162953Z.json"].commands[0]
     )
-    assert refresh_plans["validation/reports/e2e_control_latency.json"].status == "ready_reconstructed_command"
     assert (
-        "benchmarks/e2e_control_latency.py" in refresh_plans["validation/reports/e2e_control_latency.json"].commands[0]
+        refresh_plans["validation/reports/e2e_control_latency_hardening_20260603T0010.json"].status
+        == "ready_reconstructed_command"
+    )
+    assert (
+        "benchmarks/e2e_control_latency.py"
+        in refresh_plans["validation/reports/e2e_control_latency_hardening_20260603T0010.json"].commands[0]
     )
     assert (
         refresh_plans["validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"].status
