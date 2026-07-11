@@ -174,7 +174,10 @@ def _build_tracking_template(tmp_path: Path) -> dict[str, Any]:
         tol=1.0e-2,
         optimize_shape=False,
     )
-    flux_targets = kernel._sample_flux_at_points(coils.target_flux_points)
+    target_flux_points = coils.target_flux_points
+    if target_flux_points is None:
+        raise ValueError("coilset produced no target flux points to sample")
+    flux_targets = kernel._sample_flux_at_points(target_flux_points)
     cfg["free_boundary"]["target_flux_values"] = [float(v) for v in flux_targets]
     return cfg
 

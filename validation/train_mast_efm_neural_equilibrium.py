@@ -19,7 +19,7 @@ import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
@@ -379,7 +379,7 @@ def _ridge_fit(x: NDArray[np.float64], y: NDArray[np.float64], ridge_alpha: floa
     x_aug = np.column_stack([x, np.ones(x.shape[0])])
     gram = x_aug.T @ x_aug + ridge_alpha * np.eye(x_aug.shape[1])
     gram[-1, -1] -= ridge_alpha
-    return np.linalg.solve(gram, x_aug.T @ y)
+    return cast(NDArray[np.float64], np.linalg.solve(gram, x_aug.T @ y))
 
 
 def _ridge_predict(x: NDArray[np.float64], coeff: NDArray[np.float64]) -> NDArray[np.float64]:

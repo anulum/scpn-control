@@ -177,10 +177,10 @@ def validate_manifest_directory(
                 covered_artifacts.add(resolved)
 
     spec_by_dataset = {spec.expected_dataset_id: index for index, (_, spec) in enumerate(spec_records)}
-    for dataset_id, manifest_path in acquired_mdsplus_manifests.items():
+    for dataset_id, mdsplus_manifest_path in acquired_mdsplus_manifests.items():
         spec_index = spec_by_dataset.get(dataset_id)
         if spec_index is not None:
-            spec_entries[spec_index]["manifest_path"] = manifest_path
+            spec_entries[spec_index]["manifest_path"] = mdsplus_manifest_path
 
     realised = sum(1 for entry in spec_entries if entry.get("manifest_path") is not None)
     pending = len(spec_entries) - realised

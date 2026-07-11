@@ -25,6 +25,7 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -39,7 +40,7 @@ _REF_DIR = Path(__file__).parent / "reference_data" / "cyclone_base"
 _REPORT_DIR = Path(__file__).parent / "reports"
 
 
-def run_cyclone_base_case(n_ky: int = 12, n_theta: int = 32) -> dict:
+def run_cyclone_base_case(n_ky: int = 12, n_theta: int = 32) -> dict[str, Any]:
     """Cyclone Base Case: Dimits et al. 2000."""
     species = [
         deuterium_ion(T_keV=2.0, n_19=5.0, R_L_T=6.9, R_L_n=2.2),
@@ -79,9 +80,9 @@ def run_cyclone_base_case(n_ky: int = 12, n_theta: int = 32) -> dict:
     }
 
 
-def run_critical_gradient_scan() -> dict:
+def run_critical_gradient_scan() -> dict[str, Any]:
     """Scan R/L_Ti to find critical gradient."""
-    rlt = np.linspace(1.0, 12.0, 12)
+    rlt = np.linspace(1.0, 12.0, 12).astype(np.float64)
     _, gamma = critical_gradient_scan(rlt, R0=2.78, a=1.0, B0=2.0, q=1.4, s_hat=0.78, n_ky=4)
     return {
         "case": "critical_gradient_scan",
@@ -90,7 +91,7 @@ def run_critical_gradient_scan() -> dict:
     }
 
 
-def run_multi_code_comparison() -> dict:
+def run_multi_code_comparison() -> dict[str, Any]:
     """Compare native GK vs existing quasilinear model at CBC parameters."""
     from scpn_control.core.gyrokinetic_transport import (
         GyrokineticsParams,
@@ -133,7 +134,7 @@ def run_multi_code_comparison() -> dict:
     }
 
 
-def run_sparc_iter_scans() -> dict:
+def run_sparc_iter_scans() -> dict[str, Any]:
     """Parameter scans at SPARC and ITER-like conditions."""
     results = {}
     for name, R0, a, B0, q, s_hat, T_keV in [
@@ -153,7 +154,7 @@ def run_sparc_iter_scans() -> dict:
     return {"case": "sparc_iter_scans", "results": results}
 
 
-def run_all() -> dict:
+def run_all() -> dict[str, Any]:
     """Run full benchmark suite and save report."""
     report = {
         "cyclone_base": run_cyclone_base_case(),
