@@ -18,6 +18,7 @@ import time
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -28,7 +29,7 @@ MD_REPORT = REPORT_DIR / "differentiable_scenario_readiness.md"
 SCHEMA_VERSION = "scpn-control.differentiable-scenario-readiness.v1"
 
 
-def _profiles(rho: np.ndarray) -> np.ndarray:
+def _profiles(rho: npt.NDArray[np.floating[Any]]) -> npt.NDArray[np.floating[Any]]:
     te = 8.0 * np.exp(-((rho - 0.35) ** 2) / 0.03) + 0.2
     ti = 6.0 * np.exp(-((rho - 0.42) ** 2) / 0.04) + 0.2
     ne = 4.0 + 0.8 * (1.0 - rho**2)
@@ -36,7 +37,7 @@ def _profiles(rho: np.ndarray) -> np.ndarray:
     return np.stack([te, ti, ne, nz])
 
 
-def _scenario_fixture() -> tuple[np.ndarray, ...]:
+def _scenario_fixture() -> tuple[npt.NDArray[np.floating[Any]], ...]:
     from scpn_control.core.differentiable_transport import differentiable_transport_rollout
 
     rho = np.linspace(0.05, 1.0, 16)
@@ -67,7 +68,8 @@ def _scenario_fixture() -> tuple[np.ndarray, ...]:
 
 def _loadavg() -> tuple[float, float, float] | None:
     try:
-        return tuple(float(value) for value in os.getloadavg())
+        load1, load5, load15 = os.getloadavg()
+        return (float(load1), float(load5), float(load15))
     except OSError:
         return None
 
@@ -202,7 +204,7 @@ def main() -> None:
         latency_p95_ms=p95_ms,
         traceability_passed=False,
     )
-    payload: dict[str, Any] = {
+    payload = {
         "schema_version": SCHEMA_VERSION,
         "status": "pass",
         "claim_status": "bounded coupled differentiable scenario evidence only; full-fidelity claim remains blocked",
