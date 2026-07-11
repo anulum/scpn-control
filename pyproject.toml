@@ -62,6 +62,7 @@ studio = ["scpn-studio-platform>=0.1,<0.9"]  # SCPN STUDIO vertical (scpn_contro
 nengo = []  # pure-numpy LIF+NEF engine, no external deps
 loihi = []  # Loihi export deprecated; use export_fpga_weights()
 rl = ["stable-baselines3>=2.0", "gymnasium>=0.29"]
+tuning = ["optuna>=3.0"]  # Bayesian gain tuning (scpn_control.control.controller_tuning)
 benchmark = ["freegs>=0.6"]
 docs = [
     "mkdocs-material>=9.5",
@@ -80,6 +81,7 @@ all = [
     "jaxlib>=0.4.20",
     "stable-baselines3>=2.0",
     "gymnasium>=0.29",
+    "optuna>=3.0",
     "freegs>=0.6",
     "z3-solver>=4.12",
 ]
