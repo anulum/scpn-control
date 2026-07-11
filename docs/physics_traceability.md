@@ -12,7 +12,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Resolved module paths: 63
 - Resolved evidence paths: 570
 - External validation trackers: 8
-- Source marker coverage: 35/35
+- Source marker coverage: 36/36
 
 ## External Validation Collaboration Trackers
 
