@@ -159,6 +159,16 @@ no_implicit_reexport = false
 ignore_missing_imports = true
 follow_imports = "skip"
 
+# Optional heavy data-acquisition dependencies (FAIR-MAST level2 Zarr/S3 pull)
+# that are NOT installed in the CI test-job type-check environment and ship no
+# type stubs; the validation acquisition scripts import them lazily inside
+# functions. The pre-commit mypy hook may resolve them from a fuller local venv,
+# so this override keeps `python -m mypy` green in both environments. Extend the
+# list when a newly un-ignored script imports another such optional dependency.
+[[tool.mypy.overrides]]
+module = ["fsspec", "xarray"]
+ignore_missing_imports = true
+
 # Optional native/sibling components imported behind guards: the Rust extension
 # (built by maturin, absent in the type-check env), sibling GOTM repositories,
 # and optional first-party integrations whose modules ship separately.
