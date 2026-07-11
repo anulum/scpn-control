@@ -331,11 +331,11 @@ def scan_boundary_classification(config: MARFEConfig) -> ScanBoundaryClassificat
 def front_detection_thresholds() -> FrontDetectionThresholds:
     """Confirm the detached-front detector's two strict temperature thresholds."""
     below = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
-    below.T = np.linspace(19.0, 60.0, below.n_s)
+    below.T = np.linspace(19.0, 60.0, below.n_s).astype(np.float64)
     at_threshold = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
-    at_threshold.T = np.linspace(20.0, 60.0, at_threshold.n_s)
+    at_threshold.T = np.linspace(20.0, 60.0, at_threshold.n_s).astype(np.float64)
     hot = MARFEFrontModel(L_par=100.0, kappa_par=20.0, q_perp=10.0, impurity="W", f_imp=1e-2)
-    hot.T = np.linspace(30.0, 80.0, hot.n_s)
+    hot.T = np.linspace(30.0, 80.0, hot.n_s).astype(np.float64)
     return FrontDetectionThresholds(
         below_threshold_is_marfe=below.is_marfe(),
         at_temperature_threshold_is_marfe=at_threshold.is_marfe(),

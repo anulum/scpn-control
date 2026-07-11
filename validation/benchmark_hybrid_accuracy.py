@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -62,10 +63,10 @@ def _gk_chi(R_L_Ti: float) -> tuple[float, float, float]:
     return fluxes.chi_i, fluxes.chi_e, fluxes.D_e
 
 
-def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict:
+def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict[str, Any]:
     """Simulate n_steps of hybrid transport with correction."""
     nr = 20
-    rho = np.linspace(0.05, 0.95, nr)
+    rho = np.linspace(0.05, 0.95, nr).astype(np.float64)
     R_L_Ti_profile = 3.0 + 6.0 * rho  # gradient increases toward edge
 
     scheduler = GKScheduler(SchedulerConfig(strategy="periodic", period=3, budget=3))

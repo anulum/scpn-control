@@ -167,8 +167,8 @@ def crash_conservation(config: SawtoothConfig) -> CrashConservation:
     return CrashConservation(
         rho_1=float(rho_1),
         rho_mix=float(rho_mix),
-        temperature_integral_rel_error=_integral_rel_error(temperature, t_new),
-        density_integral_rel_error=_integral_rel_error(density, n_new),
+        temperature_integral_rel_error=_integral_rel_error(temperature, t_new.astype(np.float64)),
+        density_integral_rel_error=_integral_rel_error(density, n_new.astype(np.float64)),
         helical_flux_residual=abs(psi_at_mix) / max(psi_scale, 1e-300),
         inner_temperature_flatness=float(np.ptp(t_new[inner])) / max(temperature_scale, 1e-300),
         inner_density_flatness=float(np.ptp(n_new[inner])) / max(density_scale, 1e-300),

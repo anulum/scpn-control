@@ -122,7 +122,7 @@ def troyon_boundary_is_consistent() -> bool:
 
 def mercier_rel_error() -> float:
     """Relative error of the Mercier index against ``s(s-1) + alpha(1 - s/2)``."""
-    shear = np.linspace(0.0, 2.0, 41)
+    shear = np.linspace(0.0, 2.0, 41).astype(np.float64)
     alpha = np.full_like(shear, 0.3)
     measured = mercier_stability(_controlled_profile(shear, alpha)).D_M
     analytic = shear * (shear - 1.0) + alpha * (1.0 - shear / 2.0)
@@ -141,7 +141,7 @@ def mercier_marginal_cases_consistent() -> bool:
 
 def ballooning_rel_error() -> float:
     """Relative error of the ballooning ``alpha_crit`` against the Connor-Hastie-Taylor form."""
-    shear = np.linspace(0.0, 2.0, 41)
+    shear = np.linspace(0.0, 2.0, 41).astype(np.float64)
     alpha = np.full_like(shear, 0.3)
     measured = ballooning_stability(_controlled_profile(shear, alpha)).alpha_crit
     analytic = np.maximum(np.where(shear < 1.0, shear * (1.0 - shear / 2.0), 0.6 * shear), 0.0)
@@ -160,7 +160,7 @@ def ballooning_branches_consistent() -> bool:
 
 def kruskal_shafranov_consistent() -> bool:
     """External-kink stability must hold exactly for ``q_edge > 1`` and fail below it."""
-    rho = np.linspace(0.0, 1.0, 11)
+    rho = np.linspace(0.0, 1.0, 11).astype(np.float64)
     shear = np.full_like(rho, 1.0)
     alpha = np.full_like(rho, 0.1)
     stable_profile = QProfile(rho, 1.0 + rho**2, shear, alpha, 1.0, 0.0, 2.0)
