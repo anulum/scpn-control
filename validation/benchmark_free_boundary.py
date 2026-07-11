@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from scipy.special import ellipe, ellipk
@@ -44,7 +45,7 @@ def jackson_psi(Rc: float, Zc: float, R: float, Z: float, I: float = 1.0) -> flo
     return float(pre * term)
 
 
-def run_free_boundary_benchmark() -> dict:
+def run_free_boundary_benchmark() -> dict[str, Any]:
     results = {}
 
     # Setup a minimal kernel
@@ -146,7 +147,7 @@ def run_free_boundary_benchmark() -> dict:
             cfg_path.unlink()
 
 
-def main():
+def main() -> None:
     res = run_free_boundary_benchmark()
 
     report_dir = Path("validation/reports")

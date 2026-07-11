@@ -22,11 +22,12 @@ from __future__ import annotations
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 
-def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 1e-10) -> dict:
+def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 1e-10) -> dict[str, Any]:
     """Run Solov'ev benchmark on a nr x nz grid."""
     R_min, R_max = 1.0, 3.0
     Z_min, Z_max = -1.5, 1.5
@@ -109,7 +110,7 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     }
 
 
-def main():
+def main() -> None:
     resolutions = [17, 33, 65, 129]
     results = []
 

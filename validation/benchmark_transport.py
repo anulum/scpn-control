@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -31,7 +32,7 @@ from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
 PURE_DIFFUSION_MAX_RELATIVE_ERROR = 0.45
 
 
-def run_pure_diffusion_benchmark(nr: int = 200) -> dict:
+def run_pure_diffusion_benchmark(nr: int = 200) -> dict[str, Any]:
     """Benchmark 1: Pure diffusion against analytic steady state."""
     # Dummy config: R0=2.0, a=1.0
     cfg = {
@@ -96,7 +97,7 @@ def run_pure_diffusion_benchmark(nr: int = 200) -> dict:
             cfg_path.unlink()
 
 
-def run_threshold_benchmark() -> dict:
+def run_threshold_benchmark() -> dict[str, Any]:
     """Benchmark 2: Critical gradient threshold behavior."""
     model = NeuralTransportModel(auto_discover=False)
 
@@ -113,14 +114,14 @@ def run_threshold_benchmark() -> dict:
     }
 
 
-def run_iter_scaling_benchmark() -> dict:
+def run_iter_scaling_benchmark() -> dict[str, Any]:
     """Benchmark 3: ITER-like confinement scaling."""
     Ip, BT, ne19, P_loss, R, kappa, epsilon, M = 15.0, 5.3, 10.0, 50.0, 6.2, 1.7, 2.0 / 6.2, 2.5
     tau_pred, sigma = ipb98y2_with_uncertainty(Ip, BT, ne19, P_loss, R, kappa, epsilon, M)
     return {"tau_predicted": float(tau_pred), "uncertainty_sigma": float(sigma), "pass": True}
 
 
-def main():
+def main() -> None:
     results = {
         "pure_diffusion": run_pure_diffusion_benchmark(),
         "threshold": run_threshold_benchmark(),

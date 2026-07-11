@@ -185,20 +185,18 @@ module = [
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-# validation/ is type-checked (see [tool.mypy] files). These 54 modules
+# validation/ is type-checked (see [tool.mypy] files). These 51 modules
 # still carry mypy errors and are ignored pending the SYS-AUDIT-02-MYPY1
-# burn-down; the other 74 validation modules ARE strict-checked. Remove a
+# burn-down; the other 77 validation modules ARE strict-checked. Remove a
 # module from this list once its errors are fixed. Do not add a module
 # here to silence new errors — fix them.
 module = [
     "validation.benchmark_differentiable_scenario",
     "validation.benchmark_differentiable_transport_latency",
     "validation.benchmark_disturbance_rejection",
-    "validation.benchmark_free_boundary",
     "validation.benchmark_free_boundary_tracking_claims",
     "validation.benchmark_gk_linear",
     "validation.benchmark_hybrid_accuracy",
-    "validation.benchmark_transport",
     "validation.build_disruption_replay_channels",
     "validation.build_mast_efm_neural_equilibrium_dataset",
     "validation.code_to_code_benchmark",
@@ -207,7 +205,6 @@ module = [
     "validation.convert_mast_efm_neural_equilibrium_reference",
     "validation.disruption_roc_analysis",
     "validation.free_boundary_tracking_acceptance",
-    "validation.mesh_convergence_study",
     "validation.multi_machine_validation",
     "validation.rmse_dashboard",
     "validation.stress_test_campaign",
