@@ -62,18 +62,19 @@ _MEASURED = (
 
 def _interp(values: NDArray[np.float64], src: NDArray[np.float64], grid: NDArray[np.float64]) -> NDArray[np.float64]:
     value = np.asarray(values, dtype=np.float64).ravel()
-    time = np.asarray(src, dtype=np.float64).ravel()
+    time: NDArray[np.float64] = np.asarray(src, dtype=np.float64).ravel()
     # Some equilibrium channels (e.g. the magnetic-axis Z) carry their own coarser
     # timebase; when the length does not match the group timebase, assume uniform
     # sampling over the grid window (the values are real, only the alignment is
     # approximate, and this channel is not consumed by the scoring core).
     if value.shape[0] != time.shape[0]:
-        time = np.linspace(float(grid[0]), float(grid[-1]), value.shape[0])
+        time = np.linspace(float(grid[0]), float(grid[-1]), value.shape[0]).astype(np.float64)
     finite = np.isfinite(value) & np.isfinite(time)
     if not bool(np.any(finite)):
         raise ValueError("no finite samples to interpolate.")
     order = np.argsort(time[finite])
-    return np.interp(grid, time[finite][order], value[finite][order]).astype(np.float64)
+    interpolated: NDArray[np.float64] = np.interp(grid, time[finite][order], value[finite][order]).astype(np.float64)
+    return interpolated
 
 
 def _peak_to_grid(
@@ -167,7 +168,7 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / "channels.npz"
     payload["shot_ids"] = np.asarray(shot_ids, dtype=np.int64)
-    np.savez(npz_path, **payload)
+    np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
 
     report: dict[str, Any] = {
         "schema_version": REPORT_SCHEMA,
