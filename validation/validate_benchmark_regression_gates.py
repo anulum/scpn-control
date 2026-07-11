@@ -349,7 +349,7 @@ def validate_benchmark_regression_gates(
                 errors.append(f"entries[{index}] must be an object")
                 continue
             gate_id = _validate_entry(
-                cast(JSONMapping, raw_entry),
+                raw_entry,
                 seen_ids,
                 errors,
                 report_root,

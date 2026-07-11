@@ -53,6 +53,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
+import numpy.typing as npt
 
 from scpn_control.control.density_controller import DensityController, ParticleTransportModel
 
@@ -99,7 +100,7 @@ class DensityConfig:
     def controller(self) -> DensityController:
         return DensityController(self.model())
 
-    def density_profile(self) -> np.ndarray:
+    def density_profile(self) -> npt.NDArray[np.floating[Any]]:
         """A monotone ITER-like density profile spanning the grid."""
         return np.linspace(1.1e20, 0.7e20, self.n_rho)
 
@@ -156,7 +157,7 @@ def volume_element_rel_error(config: DensityConfig) -> float:
     return max(err_vp, err_v)
 
 
-def _source_integral(model: ParticleTransportModel, profile: np.ndarray) -> float:
+def _source_integral(model: ParticleTransportModel, profile: npt.NDArray[np.float64]) -> float:
     return float(np.sum(profile * model.V_prime * model.drho))
 
 

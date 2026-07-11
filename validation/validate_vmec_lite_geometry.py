@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 import numpy as np
+import numpy.typing as npt
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -332,7 +333,7 @@ def _solved_initial_geometry(case: VMECLiteGeometryCase) -> VMECLiteSolver:
     return solver
 
 
-def _minimum_major_radius(r_mn: np.ndarray, basis: SpectralBasis) -> float:
+def _minimum_major_radius(r_mn: npt.NDArray[np.floating[Any]], basis: SpectralBasis) -> float:
     theta = np.linspace(0.0, 2.0 * np.pi, 64, endpoint=False)
     zeta = np.linspace(0.0, 2.0 * np.pi, 64, endpoint=False)
     theta_grid, zeta_grid = np.meshgrid(theta, zeta, indexing="ij")
@@ -345,12 +346,12 @@ def _minimum_major_radius(r_mn: np.ndarray, basis: SpectralBasis) -> float:
 
 def _manual_basis_sum(
     basis: SpectralBasis,
-    coeffs: np.ndarray,
-    theta: np.ndarray,
-    zeta: np.ndarray,
+    coeffs: npt.NDArray[np.float64],
+    theta: npt.NDArray[np.float64],
+    zeta: npt.NDArray[np.float64],
     *,
     is_sin: bool,
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     values = np.zeros_like(theta, dtype=float)
     for coeff, (m, n) in zip(coeffs, basis.mn_modes):
         angle = m * theta - n * basis.n_fp * zeta

@@ -105,7 +105,7 @@ def _is_sha256(value: object) -> bool:
 
 def _mapping(value: JSONValue) -> JSONMapping | None:
     if isinstance(value, dict):
-        return cast(JSONMapping, value)
+        return value
     return None
 
 

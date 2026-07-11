@@ -234,7 +234,7 @@ def write_markdown_report(report: dict[str, Any], path: Path = MARKDOWN_REPORT_P
     )
 
 
-def run_linear_recovery() -> dict:
+def run_linear_recovery() -> dict[str, Any]:
     """V1: linear mode growth without nonlinearity."""
     cfg = NonlinearGKConfig(
         n_kx=8,
@@ -271,7 +271,7 @@ def run_linear_recovery() -> dict:
     }
 
 
-def run_energy_conservation() -> dict:
+def run_energy_conservation() -> dict[str, Any]:
     """V2: energy conservation without drive or dissipation."""
     cfg = NonlinearGKConfig(
         n_kx=8,
@@ -314,7 +314,7 @@ def run_energy_conservation() -> dict:
     }
 
 
-def run_zonal_flow() -> dict:
+def run_zonal_flow() -> dict[str, Any]:
     """V3: zonal flow self-generation from noise."""
     cfg = NonlinearGKConfig(
         n_kx=8,
@@ -351,7 +351,7 @@ def run_zonal_flow() -> dict:
     }
 
 
-def run_cbc_saturated() -> dict:
+def run_cbc_saturated() -> dict[str, Any]:
     """V4: CBC saturated state — chi_i finite and simulation stable."""
     cfg = NonlinearGKConfig(
         n_kx=8,

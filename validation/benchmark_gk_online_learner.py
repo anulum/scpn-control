@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner
 
@@ -22,7 +23,7 @@ MD_REPORT = REPORT_DIR / "gk_online_learner.md"
 DECISION_REPORT = REPORT_DIR / "gk_online_learner_decisions.json"
 
 
-def _sample_target(x: np.ndarray) -> np.ndarray:
+def _sample_target(x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     chi_e = 0.15 + 0.04 * x[0] + 0.02 * x[3]
     chi_i = 0.12 + 0.05 * x[1] + 0.01 * x[4]
     d_e = 0.03 + 0.02 * x[2] + 0.01 * x[5]

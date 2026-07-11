@@ -185,9 +185,9 @@ module = [
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-# validation/ is type-checked (see [tool.mypy] files). These 71 modules
+# validation/ is type-checked (see [tool.mypy] files). These 64 modules
 # still carry mypy errors and are ignored pending the SYS-AUDIT-02-MYPY1
-# burn-down; the other 57 validation modules ARE strict-checked. Remove a
+# burn-down; the other 64 validation modules ARE strict-checked. Remove a
 # module from this list once its errors are fixed. Do not add a module
 # here to silence new errors — fix them.
 module = [
@@ -199,9 +199,7 @@ module = [
     "validation.benchmark_free_boundary",
     "validation.benchmark_free_boundary_tracking_claims",
     "validation.benchmark_gk_linear",
-    "validation.benchmark_gk_online_learner",
     "validation.benchmark_hybrid_accuracy",
-    "validation.benchmark_kuramoto_runtime_evidence",
     "validation.benchmark_transport",
     "validation.benchmark_vmec_lite_claims",
     "validation.build_disruption_replay_channels",
@@ -216,19 +214,16 @@ module = [
     "validation.evaluate_mast_efm_neural_equilibrium",
     "validation.extract_mast_disruption_channels",
     "validation.free_boundary_tracking_acceptance",
-    "validation.gk_nonlinear_cyclone",
     "validation.mesh_convergence_study",
     "validation.multi_machine_validation",
     "validation.rmse_dashboard",
     "validation.stress_test_campaign",
     "validation.train_mast_efm_neural_equilibrium",
-    "validation.validate_benchmark_regression_gates",
     "validation.validate_blob_transport_reference",
     "validation.validate_burn_reference",
     "validation.validate_current_drive",
     "validation.validate_current_drive_reference",
     "validation.validate_data_manifests",
-    "validation.validate_density_control",
     "validation.validate_density_reference",
     "validation.validate_differentiable_scenario",
     "validation.validate_digital_twin_reference",
@@ -244,7 +239,6 @@ module = [
     "validation.validate_mu_structured_singular_value",
     "validation.validate_mu_synthesis_reference",
     "validation.validate_multi_shot_campaign_evidence",
-    "validation.validate_native_formal_certificate_evidence",
     "validation.validate_neural_equilibrium_reference",
     "validation.validate_neural_transport_reference",
     "validation.validate_neural_turbulence_reference",
@@ -259,7 +253,6 @@ module = [
     "validation.validate_soc_reference",
     "validation.validate_sol_two_point",
     "validation.validate_uncertainty_reference",
-    "validation.validate_vmec_lite_geometry",
     "validation.validate_vmec_reference",
     "validation.validate_volt_second_reference",
 ]

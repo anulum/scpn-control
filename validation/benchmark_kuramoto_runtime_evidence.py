@@ -13,11 +13,12 @@ import argparse
 from pathlib import Path
 
 import numpy as np
+import numpy.typing as npt
 
 from scpn_control.phase.kuramoto import kuramoto_runtime_evidence, save_kuramoto_runtime_evidence
 
 
-def _deterministic_case(oscillators: int, seed: int) -> tuple[np.ndarray, np.ndarray]:
+def _deterministic_case(oscillators: int, seed: int) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     if oscillators <= 0:
         raise ValueError("oscillators must be positive")
     rng = np.random.default_rng(seed)
