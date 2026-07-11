@@ -3,7 +3,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851  Contact: protoscience@anulum.li
 """
-Full plasma shape controller.
+Plasma shape controller (analytic control-law skeleton).
 
 PF coil current → plasma boundary (LCFS) mapping:
 Ariola & Pironti 2008, "Magnetic Control of Tokamak Plasmas", Ch. 4.
@@ -16,6 +16,22 @@ Vertical stability growth rate for elongated plasmas:
   γ ≈ (n − 1) ω_A² / (μ₀ ρ)
 Lazarus et al. 1990, Nucl. Fusion 30, 111 — vertical stability and
 active feedback control in elongated tokamaks.
+
+Fidelity boundary
+-----------------
+The **control law** here is real and faithful to the references: the
+Tikhonov-regularised ISOFLUX pseudoinverse gain ``K = (JᵀWJ + λI)⁻¹ JᵀW``
+with X-point weighting and rate/current limiting. The **plant signals it acts
+on are synthetic**: :class:`ShapeJacobian` is a fixed well-conditioned random
+matrix (no Grad-Shafranov perturbation is performed) and
+:meth:`PlasmaShapeController._compute_shape_error` returns analytic placeholder
+errors rather than evaluating the flux map at the target boundary points. The
+``kernel`` argument is a reserved plasma-response hook that is currently unused
+(all call sites pass ``None``). A real deployment must wire a Grad-Shafranov /
+Green's-function response so both the Jacobian columns and the shape-error
+vector are derived from a real equilibrium; until then this module is a
+control-law reference and test surface, not a validated real-plasma controller
+(SYS-AUDIT-04-SHAPE: documented synthetic-only).
 """
 
 from __future__ import annotations
@@ -103,13 +119,15 @@ class CoilSet:
 
 
 class ShapeJacobian:
-    """Shape Jacobian J = ∂e_shape / ∂I_coils.
+    """Shape Jacobian J = ∂e_shape / ∂I_coils (synthetic test surface).
 
-    In a real implementation each column is obtained by perturbing coil k
+    In a real implementation each column is obtained by perturbing coil ``k``
     and re-solving the Grad-Shafranov equation to measure LCFS/gap/X-point
-    displacement. Here a random well-conditioned matrix is used for testing.
-
-    Ariola & Pironti 2008, Ch. 4, §4.2.
+    displacement (Ariola & Pironti 2008, Ch. 4, §4.2). This class instead builds
+    a fixed, deterministically-seeded (seed 42), well-conditioned random matrix:
+    it exercises the control-law algebra with a realistic sparsity/scale but is
+    **not** derived from an equilibrium. ``kernel`` is a reserved plasma-response
+    hook, currently unused (see the module-level fidelity boundary).
     """
 
     def __init__(self, kernel: Any, coil_set: CoilSet, target: ShapeTarget):
@@ -140,13 +158,18 @@ class ShapeJacobian:
 
 
 class PlasmaShapeController:
-    """Real-time shape controller using Tikhonov-regularized pseudoinverse.
+    """Shape controller using a Tikhonov-regularised ISOFLUX pseudoinverse.
 
     Gain matrix:
       K = (JᵀWJ + λI)⁻¹ JᵀW
 
     Ferron et al. 1998, Nucl. Fusion 38, 1055: ISOFLUX control law maps
-    ψ differences at boundary points to coil current corrections.
+    ψ differences at boundary points to coil current corrections. The control
+    law and its regularisation/weighting are faithful to the reference; the
+    Jacobian (:class:`ShapeJacobian`) and the shape-error signal
+    (:meth:`_compute_shape_error`) are synthetic placeholders, so this is a
+    control-law reference and test surface rather than a validated real-plasma
+    controller (see the module-level fidelity boundary).
     """
 
     def __init__(self, target: ShapeTarget, coil_set: CoilSet, kernel: Any) -> None:
@@ -172,8 +195,16 @@ class PlasmaShapeController:
     def _compute_shape_error(self, psi: AnyFloatArray) -> FloatArray:
         """Shape error vector e = [ψ_err, gap_err, xpoint_err, strike_err].
 
-        ISOFLUX method: ψ should be constant on the LCFS; deviations define
-        the isoflux error. Ferron et al. 1998, Nucl. Fusion 38, 1055.
+        Under the ISOFLUX method (Ferron et al. 1998, Nucl. Fusion 38, 1055) ψ
+        should be constant on the LCFS, and the error components are the flux
+        deviations at the isoflux points, the signed gap distances along the gap
+        normals, and the X-point/strike-point position offsets. This
+        implementation is a **synthetic placeholder**: it emits fixed nominal
+        offsets when the supplied ``psi`` is active (``max(psi) > 0``) rather than
+        interpolating the flux map at the target boundary points (which requires
+        the grid geometry and a wired plasma-response kernel — see the
+        module-level fidelity boundary). It provides a well-posed, non-trivial
+        error signal for exercising the control law, not a measured shape error.
         """
         e_iso = np.zeros(self.jacobian.n_isoflux)
         e_gap = np.zeros(self.jacobian.n_gaps)
