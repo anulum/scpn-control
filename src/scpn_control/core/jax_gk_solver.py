@@ -148,7 +148,13 @@ def _build_response_matrix_single_ky(
             J0_val = _bessel_j0_jax(b_arg)
 
             xi_sq = jnp.maximum(1.0 - lam_val * B_ratio, 0.0)
-            omega_D = k_y_rho_s * 2.0 * E_norm * (kappa_n * xi_sq + kappa_g * jnp.sqrt(xi_sq))  # noqa: F841  # magnetic-drift term unused in dispersion; verify (CONTROL-F841-REVIEW)
+            # The magnetic-drift frequency omega_D enters the eigenvalue solve via
+            # the scalar local-dispersion path (_solve_local_dispersion_from_payload,
+            # denom = nu_eff + i(wd - omega)), matching the native gk_eigenvalue
+            # contract. This matrix builder feeds only the differentiable
+            # ||R_ion_real||_F^2 transport-stiffness proxy (drive norm ~ R_L_Ti), so
+            # the drift is not recomputed here (CONTROL-F841-REVIEW: verified
+            # vestigial in this path, not a modelling gap).
 
             omega_star_full = omega_star_n_i * (1.0 + eta_i * (E_norm - 1.5))
 
