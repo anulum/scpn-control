@@ -175,7 +175,8 @@ def _rust_benchmarks(
             capture_output=True,
             timeout=180,
         )
-    return json.loads(completed.stdout)
+    parsed: dict[str, object] = json.loads(completed.stdout)
+    return parsed
 
 
 def _measure_ns(n: int, fn: Callable[[], object]) -> list[int]:

@@ -103,7 +103,7 @@ def critical_energy_rel_error(*, te_kev: float = 10.0, a_beam: float = 2.0, a_io
     """Relative error of the Stix critical energy against its closed form."""
     measured = float(nbi_critical_energy(te_kev, A_beam=a_beam, A_ion=a_ion))
     analytic = _E_CRIT_COEFFICIENT * te_kev * (a_beam / a_ion) ** (2.0 / 3.0)
-    return abs(measured - analytic) / analytic
+    return float(abs(measured - analytic) / analytic)
 
 
 def eccd_efficiency_rel_error(

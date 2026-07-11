@@ -250,7 +250,7 @@ def build_channels_npz(
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / "channels.npz"
     payload["shot_ids"] = np.asarray(shot_ids, dtype=np.int64)
-    np.savez(npz_path, **payload)
+    np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
 
     report: dict[str, Any] = {
         "schema_version": EXTRACTION_SCHEMA,

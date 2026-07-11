@@ -165,7 +165,7 @@ def acquire(
             records.append({"shot_id": shot_id, "status": "failed", "error": f"{type(exc).__name__}: {exc}"})
             continue
         shot_path = out_dir / f"shot_{shot_id}.npz"
-        np.savez_compressed(shot_path, **payload)
+        np.savez_compressed(shot_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
         record = {
             "shot_id": shot_id,
             "status": "acquired",

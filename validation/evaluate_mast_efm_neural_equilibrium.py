@@ -515,7 +515,7 @@ def evaluate_reference_bundle(
         reference_path=np.asarray(str(Path(reference_path))),
         weights_sha256=np.asarray(sha256_file(weights_path)),
         coordinate_grid_provenance=np.asarray(geometry_metrics["coordinate_grid_provenance"]),
-        **geometry_arrays,
+        **geometry_arrays,  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
     )
 
     report: dict[str, Any] = {

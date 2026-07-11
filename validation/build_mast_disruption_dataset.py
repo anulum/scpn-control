@@ -155,7 +155,7 @@ def build_shot_npz(
     payload["disruption_type"] = np.asarray(disruption_type)
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / f"shot_{shot_id}.npz"
-    np.savez(npz_path, **payload)
+    np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
     return {
         "shot_id": shot_id,
         "npz": npz_path.name,

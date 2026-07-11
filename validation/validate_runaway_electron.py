@@ -88,7 +88,7 @@ def collision_time_rel_error(*, n_e: float = 1e20, t_e_kev: float = 20.0) -> flo
     model = _model(n_e=n_e, t_e_kev=t_e_kev)
     v_th = math.sqrt(2.0 * t_e_kev * 1e3 * _E_CHARGE / _M_ELECTRON)
     analytic = 6.0 * math.pi**2 * _EPSILON0**2 * _M_ELECTRON**2 * v_th**3 / (n_e * _E_CHARGE**4 * _LN_LAMBDA)
-    return abs(model.tau_coll - analytic) / analytic
+    return float(abs(model.tau_coll - analytic) / analytic)
 
 
 def avalanche_time_rel_error(*, z_eff: float = 1.0) -> float:

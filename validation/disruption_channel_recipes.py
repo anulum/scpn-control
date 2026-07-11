@@ -96,7 +96,8 @@ def dbdt_gauss_per_s(b_tesla: NDArray[np.float64], time_s: NDArray[np.float64]) 
     time = np.asarray(time_s, dtype=np.float64)
     if field.ndim != 1 or field.shape != time.shape:
         raise ValueError("b_tesla and time_s must be matching 1-D arrays.")
-    return np.gradient(field, time) * TESLA_TO_GAUSS
+    result: NDArray[np.float64] = np.gradient(field, time) * TESLA_TO_GAUSS
+    return result
 
 
 def q_at_psi_norm(

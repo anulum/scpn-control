@@ -185,14 +185,12 @@ module = [
 disallow_untyped_decorators = false
 
 [[tool.mypy.overrides]]
-# validation/ is type-checked (see [tool.mypy] files). These 64 modules
+# validation/ is type-checked (see [tool.mypy] files). These 54 modules
 # still carry mypy errors and are ignored pending the SYS-AUDIT-02-MYPY1
-# burn-down; the other 64 validation modules ARE strict-checked. Remove a
+# burn-down; the other 74 validation modules ARE strict-checked. Remove a
 # module from this list once its errors are fixed. Do not add a module
 # here to silence new errors — fix them.
 module = [
-    "validation.acquire_mast_disruption_shots",
-    "validation.benchmark_capacitor_bank_state",
     "validation.benchmark_differentiable_scenario",
     "validation.benchmark_differentiable_transport_latency",
     "validation.benchmark_disturbance_rejection",
@@ -201,18 +199,13 @@ module = [
     "validation.benchmark_gk_linear",
     "validation.benchmark_hybrid_accuracy",
     "validation.benchmark_transport",
-    "validation.benchmark_vmec_lite_claims",
     "validation.build_disruption_replay_channels",
-    "validation.build_mast_disruption_dataset",
     "validation.build_mast_efm_neural_equilibrium_dataset",
     "validation.code_to_code_benchmark",
     "validation.control_benchmark_suite",
     "validation.controller_comparison",
     "validation.convert_mast_efm_neural_equilibrium_reference",
-    "validation.disruption_channel_recipes",
     "validation.disruption_roc_analysis",
-    "validation.evaluate_mast_efm_neural_equilibrium",
-    "validation.extract_mast_disruption_channels",
     "validation.free_boundary_tracking_acceptance",
     "validation.mesh_convergence_study",
     "validation.multi_machine_validation",
@@ -221,7 +214,6 @@ module = [
     "validation.train_mast_efm_neural_equilibrium",
     "validation.validate_blob_transport_reference",
     "validation.validate_burn_reference",
-    "validation.validate_current_drive",
     "validation.validate_current_drive_reference",
     "validation.validate_data_manifests",
     "validation.validate_density_reference",
@@ -245,13 +237,11 @@ module = [
     "validation.validate_ntm_reference",
     "validation.validate_orbit_reference",
     "validation.validate_real_shots",
-    "validation.validate_runaway_electron",
     "validation.validate_runtime_admission_evidence",
     "validation.validate_rzip_reference",
     "validation.validate_rzip_vertical_stability",
     "validation.validate_sawtooth_kadomtsev",
     "validation.validate_soc_reference",
-    "validation.validate_sol_two_point",
     "validation.validate_uncertainty_reference",
     "validation.validate_vmec_reference",
     "validation.validate_volt_second_reference",

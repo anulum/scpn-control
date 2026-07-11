@@ -123,7 +123,7 @@ def conduction_integral_rel_error(config: SOLConfig, p_sol_mw: float, n_u_19: fl
     solution = model.solve(p_sol_mw, n_u_19)
     q_par_from_tu = KAPPA_0_ELECTRON * solution.T_upstream_eV**3.5 / (3.5 * model.L_par)
     analytic = _reconstructed_q_par(config, p_sol_mw)
-    return abs(q_par_from_tu - analytic) / analytic
+    return float(abs(q_par_from_tu - analytic) / analytic)
 
 
 def pressure_balance_rel_error(config: SOLConfig, p_sol_mw: float, n_u_19: float) -> float:

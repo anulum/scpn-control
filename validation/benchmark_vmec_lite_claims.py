@@ -42,7 +42,7 @@ def build_reference_case() -> VMECLiteSolver:
 
 def _load_or_build_geometry_validation() -> dict[str, object]:
     if GEOMETRY_REPORT.exists():
-        payload = json.loads(GEOMETRY_REPORT.read_text(encoding="utf-8"))
+        payload: dict[str, object] = json.loads(GEOMETRY_REPORT.read_text(encoding="utf-8"))
         validate_evidence_payload(payload)
         return payload
     return build_evidence(
