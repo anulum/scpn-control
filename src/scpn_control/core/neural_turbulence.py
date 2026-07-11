@@ -417,7 +417,15 @@ class TrainingDataGenerator:
 
         for i in range(n_samples):
             R_L_Ti = inputs[i, 0]
-            R_L_Te = inputs[i, 1]  # noqa: F841  # electron-temp-gradient feature unused in synthetic target; verify (CONTROL-F841-REVIEW)
+            # Feature index 1 is R/L_Te. This bounded analytic proxy models only
+            # the density-gradient-driven TEM branch (via R/L_ne below); the
+            # electron-temperature-gradient (∇Te) TEM drive is a known
+            # simplification and is deliberately not synthesised here. Faithful
+            # ∇Te-TEM flux requires a matched real gyrokinetic reference — the
+            # surrogate already blocks quantitative claims until one is supplied
+            # (validate_neural_turbulence_reference, issue #50). R/L_Te is still
+            # passed to the network as an input feature. (CONTROL-F841-REVIEW:
+            # verified real modelling limitation, disclosed not hidden.)
             R_L_ne = inputs[i, 2]
             q = inputs[i, 3]
             s_hat = inputs[i, 4]
