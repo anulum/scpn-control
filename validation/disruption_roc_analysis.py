@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -28,9 +29,9 @@ from scpn_control.control.disruption_predictor import (
 from scpn_control.control.disruption_roc import roc_auc_from_curve
 
 
-def generate_scenario_batch(n_total: int = 100) -> list[dict]:
+def generate_scenario_batch(n_total: int = 100) -> list[dict[str, Any]]:
     rng = np.random.default_rng(42)
-    shots = []
+    shots: list[dict[str, Any]] = []
     modes = ["ntm", "density_limit", "vde"]
     n_disrupt_target = n_total // 2
     n_disrupt, n_safe = 0, 0
@@ -47,7 +48,7 @@ def generate_scenario_batch(n_total: int = 100) -> list[dict]:
     return shots
 
 
-def evaluate_batch(shots: list[dict], threshold: float) -> dict:
+def evaluate_batch(shots: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
     tp, fp, tn, fn = 0, 0, 0, 0
     for shot in shots:
         signal, label, t_dis_true, mode = shot["signal"], shot["label"], shot["t_disrupt"], shot["mode"]
@@ -88,7 +89,7 @@ def evaluate_batch(shots: list[dict], threshold: float) -> dict:
     return {"tpr": tp / max(tp + fn, 1), "fpr": fp / max(fp + tn, 1)}
 
 
-def main():
+def main() -> None:
     print("Generating batch...")
     shots = generate_scenario_batch(100)
     thresholds = np.linspace(0.0, 1.0, 51)
