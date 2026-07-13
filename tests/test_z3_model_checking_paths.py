@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import builtins
 import importlib.util
+import json
 from typing import Any
 
 import pytest
@@ -28,12 +29,17 @@ from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
     AlwaysEventuallyMarked,
     CTLFormula,
+    EventuallyFires,
     FireLeadsToMarking,
     LTLFormula,
     NeverCoMarked,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.z3_model_checking import Z3BoundedModelChecker, _require_z3
+from scpn_control.scpn.z3_model_checking import (
+    SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION,
+    Z3BoundedModelChecker,
+    _require_z3,
+)
 
 requires_z3 = pytest.mark.skipif(importlib.util.find_spec("z3") is None, reason="z3-solver optional dependency absent")
 
@@ -429,3 +435,393 @@ def test_build_symbiyosys_contract_rejects_unpaired_trigger_and_budget_violation
         checker.build_symbiyosys_contract(max_depth=5, no_stall_window_ns=0.0)
     with pytest.raises(ValueError, match="tick_period_ns must be finite and > 0"):
         checker.build_symbiyosys_contract(max_depth=5, tick_period_ns=0.0)
+
+
+def _weighted_transfer_net(*, source_tokens: float) -> StochasticPetriNet:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=float(source_tokens))
+    net.add_place("sink", initial_tokens=0.0)
+    net.add_transition("move", threshold=1.0)
+    net.add_arc("source", "move", weight=0.25)
+    net.add_arc("move", "sink", weight=1.0)
+    net.compile()
+    return net
+
+
+def test_z3_checker_rejects_uncompiled_net_before_solver_use() -> None:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=1.0)
+    net.add_transition("move", threshold=1.0)
+    net.add_arc("source", "move", weight=1.0)
+
+    with pytest.raises(RuntimeError, match="compiled"):
+        Z3BoundedModelChecker(net)
+
+
+def test_z3_checker_rejects_invalid_safety_domains_before_solver_use() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="max_depth"):
+        checker.prove_marking_bounds({"source": (0.0, 1.0)}, max_depth=True)
+    with pytest.raises(ValueError, match="must not be empty"):
+        checker.prove_marking_bounds({}, max_depth=1)
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.prove_marking_bounds({"missing": (0.0, 1.0)}, max_depth=1)
+    with pytest.raises(ValueError, match="lower bound exceeds upper bound"):
+        checker.prove_marking_bounds({"source": (1.0, 0.0)}, max_depth=1)
+
+
+def test_z3_checker_rejects_invalid_temporal_domains_before_solver_use() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.verify_temporal_specs([EventuallyFires("missing_fires", "missing")], max_depth=1)
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.verify_temporal_specs([AlwaysEventuallyMarked("missing_marked", "missing")], max_depth=1)
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs([FireLeadsToMarking("bad_window", "move", "sink", within=-1)], max_depth=1)
+
+
+@requires_z3
+def test_z3_model_checker_proves_safe_marking_bounds() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).prove_marking_bounds(
+        {"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.backend == "z3"
+    assert report.solver_status == "unsat"
+    assert report.violations == []
+
+
+@requires_z3
+def test_z3_model_checker_returns_marking_bound_counterexample() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).prove_marking_bounds({"sink": (0.0, 0.5)}, max_depth=2)
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].property_name == "marking_bounds"
+    assert report.violations[0].place == "sink"
+    assert report.violations[0].path == ["move"]
+    assert report.violations[0].marking["sink"] == pytest.approx(1.0)
+
+
+@requires_z3
+def test_z3_model_checker_distinguishes_dead_transition_liveness() -> None:
+    net = StochasticPetriNet()
+    net.add_place("empty", initial_tokens=0.0)
+    net.add_place("marked", initial_tokens=0.0)
+    net.add_transition("needs_token", threshold=1.0)
+    net.add_arc("empty", "needs_token", weight=1.0)
+    net.add_arc("needs_token", "marked", weight=1.0)
+    net.compile()
+
+    report = Z3BoundedModelChecker(net).verify_temporal_specs(
+        [EventuallyFires("dead_transition_detected", "needs_token")],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "unsat"
+    assert report.violations[0].transition == "needs_token"
+    assert "cannot fire" in report.violations[0].message
+
+
+@requires_z3
+def test_z3_temporal_specs_find_exclusivity_counterexample() -> None:
+    net = StochasticPetriNet()
+    net.add_place("armed", initial_tokens=1.0)
+    net.add_place("a", initial_tokens=0.0)
+    net.add_place("b", initial_tokens=0.0)
+    net.add_transition("split", threshold=1.0)
+    net.add_arc("armed", "split", weight=1.0)
+    net.add_arc("split", "a", weight=1.0)
+    net.add_arc("split", "b", weight=1.0)
+    net.compile()
+
+    report = Z3BoundedModelChecker(net).verify_temporal_specs(
+        [NeverCoMarked("a_b_exclusive", "a", "b", threshold=0.5)],
+        max_depth=1,
+    )
+
+    assert report.holds is False
+    assert report.violations[0].property_name == "a_b_exclusive"
+    assert report.violations[0].path == ["split"]
+
+
+@requires_z3
+def test_z3_temporal_specs_prove_exclusivity_for_token_transfer() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [NeverCoMarked("source_sink_exclusive", "source", "sink", threshold=0.5)],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.solver_status == "unsat"
+    assert report.checked_specs == ["source_sink_exclusive"]
+
+
+@requires_z3
+def test_z3_temporal_specs_prove_response_contract() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0)],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == ["move_marks_sink"]
+
+
+@requires_z3
+def test_z3_temporal_specs_report_response_deadline_counterexample() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [FireLeadsToMarking("move_must_restore_source", "move", "source", threshold=0.5, within=0)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].transition == "move"
+    assert report.violations[0].place == "source"
+    assert report.violations[0].path == ["move"]
+
+
+@requires_z3
+def test_z3_temporal_specs_report_nonrecoverable_marking_path() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [AlwaysEventuallyMarked("sink_is_universally_marked", "sink", threshold=0.5)],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].place == "sink"
+    assert report.violations[0].path == []
+
+
+@requires_z3
+def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
+        [
+            AlwaysBounded("bounded_transfer", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            EventuallyFires("move_fires", "move"),
+            NeverCoMarked("exclusive_transfer", "source", "sink", threshold=0.5),
+            AlwaysEventuallyMarked("source_initially_marked", "source", threshold=0.5),
+            FireLeadsToMarking("move_marks_sink", "move", "sink", threshold=0.5, within=0),
+        ],
+        max_depth=2,
+    )
+
+    assert report.holds is True
+    assert report.checked_specs == [
+        "bounded_transfer",
+        "move_fires",
+        "exclusive_transfer",
+        "source_initially_marked",
+        "move_marks_sink",
+    ]
+
+
+@requires_z3
+def test_z3_checker_enforces_parametric_weight_bounds_for_marking_safety() -> None:
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=1.0))
+
+    bounded = checker.prove_marking_bounds(
+        {"sink": (0.0, 4.0)},
+        max_depth=1,
+        weight_bounds={"move": (0.0, 1.0)},
+    )
+    assert bounded.holds is True
+    assert bounded.solver_status == "unsat"
+
+    unbounded = checker.prove_marking_bounds(
+        {"sink": (0.0, 1.5)},
+        max_depth=1,
+        weight_bounds={"move": (2.0, 4.0)},
+    )
+    assert unbounded.holds is False
+    assert unbounded.solver_status == "sat"
+    assert unbounded.violations[0].property_name == "marking_bounds"
+
+
+@requires_z3
+def test_z3_checker_rejects_weight_bound_domain_mismatch_and_invalid_range() -> None:
+    checker = Z3BoundedModelChecker(_weighted_transfer_net(source_tokens=1.0))
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.prove_marking_bounds({"sink": (0.0, 1.0)}, max_depth=1, weight_bounds={"unknown": (0.0, 1.0)})
+
+    with pytest.raises(ValueError, match="lower exceeds"):
+        checker.prove_marking_bounds(
+            {"sink": (0.0, 1.0)},
+            max_depth=1,
+            weight_bounds={"move": (2.0, 1.0)},
+        )
+
+
+def test_z3_checker_builds_symbiyosys_contract_with_parametric_weight_and_latency_contracts() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    contract = checker.build_symbiyosys_contract(
+        max_depth=3,
+        weight_bounds={"trigger": (0.5, 2.0), "stage": (0.25, 0.75), "response": (0.1, 0.9)},
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=30.0,
+        tick_period_ns=10.0,
+        no_stall_window_ns=20.0,
+    )
+    payload = json.loads(contract["metadata"])
+    assert payload["schema_version"] == SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION
+    assert payload["max_depth"] == 3
+    assert payload["trigger_transition"] == "trigger"
+    assert payload["response_transition"] == "response"
+    assert payload["weight_bounds"]["trigger"] == [0.5, 2.0]
+    assert payload["weight_bounds"]["response"] == [0.1, 0.9]
+    for step in range(3):
+        for transition in ("trigger", "stage", "response"):
+            assert f"(assume (>= weight_{step}_{transition}" in contract["smt2"]
+            assert f"(assume (<= weight_{step}_{transition}" in contract["smt2"]
+    assert "(assert (=> fire_0_trigger (or fire_1_response fire_2_response)))" in contract["smt2"]
+    assert "(assert (not fire_2_trigger))" not in contract["smt2"]
+    assert "(assert (not (and idle_0 idle_1)))" in contract["smt2"]
+    assert "(set-logic QF_NRA)" in contract["smt2"]
+
+
+def test_z3_checker_enforces_50ns_symbiyosys_contract_budget_limits() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.build_symbiyosys_contract(
+            max_depth=10,
+            max_latency_ns=60.0,
+            no_stall_window_ns=20.0,
+            trigger_transition="trigger",
+            response_transition="response",
+        )
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.build_symbiyosys_contract(
+            max_depth=10,
+            max_latency_ns=20.0,
+            no_stall_window_ns=60.0,
+            trigger_transition="trigger",
+            response_transition="response",
+        )
+
+
+def test_z3_checker_rejects_symbiyosys_contract_depth_contract_mismatch() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="max_depth must be >= ceil"):
+        checker.build_symbiyosys_contract(
+            max_depth=1, max_latency_ns=30.0, tick_period_ns=10.0, no_stall_window_ns=20.0
+        )
+
+    with pytest.raises(ValueError, match="max_depth must be >= ceil"):
+        checker.build_symbiyosys_contract(
+            max_depth=1, max_latency_ns=10.0, tick_period_ns=10.0, no_stall_window_ns=30.0
+        )
+
+
+@requires_z3
+def test_z3_checker_proves_trigger_to_response_latency_bound() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    report = checker.verify_trigger_response_latency(
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=20.0,
+        tick_period_ns=10.0,
+        max_depth=3,
+    )
+
+    assert report.holds is True
+    assert report.solver_status == "unsat"
+    assert report.checked_specs == ["trigger_response_latency"]
+
+
+@requires_z3
+def test_z3_checker_reports_trigger_to_response_latency_violation() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+    report = checker.verify_trigger_response_latency(
+        trigger_transition="trigger",
+        response_transition="response",
+        max_latency_ns=10.0,
+        tick_period_ns=10.0,
+        max_depth=3,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "sat"
+    assert report.violations[0].property_name == "trigger_response_latency"
+    assert "can fire without" in report.violations[0].message
+
+
+def test_z3_checker_enforces_trigger_latency_contract_budget_before_solver_invoke() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="must not exceed 50.0 ns contract budget"):
+        checker.verify_trigger_response_latency(
+            trigger_transition="trigger",
+            response_transition="response",
+            max_latency_ns=60.0,
+            tick_period_ns=10.0,
+            max_depth=7,
+        )
+
+
+@requires_z3
+def test_z3_checker_accepts_ctl_and_ltl_formula_facades() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    ctl = checker.verify_ctl_specs(
+        [
+            CTLFormula.ag_bounded("AG_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            CTLFormula.ef_fires("EF_move_fires", "move"),
+        ],
+        max_depth=2,
+    )
+    ltl = checker.verify_ltl_specs(
+        [
+            LTLFormula.globally_bounded("G_safe_markings", {"source": (0.0, 1.0), "sink": (0.0, 1.0)}),
+            LTLFormula.eventually_fires("F_move_fires", "move"),
+        ],
+        max_depth=2,
+    )
+
+    assert ctl.holds is True
+    assert ctl.checked_specs == ["CTL:AG_safe_markings:AG", "CTL:EF_move_fires:EF"]
+    assert ltl.holds is True
+    assert ltl.checked_specs == ["LTL:G_safe_markings:G", "LTL:F_move_fires:F"]
+
+
+@requires_z3
+def test_z3_checker_rejects_unknown_domains_and_bad_bound_order() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.prove_marking_bounds({"missing": (0.0, 1.0)}, max_depth=1)
+
+    with pytest.raises(ValueError, match="lower bound"):
+        checker.prove_marking_bounds({"source": (1.0, 0.0)}, max_depth=1)
+
+    with pytest.raises(ValueError, match="unknown transition"):
+        checker.verify_temporal_specs([EventuallyFires("missing_transition_fires", "missing_transition")], max_depth=1)
+
+    with pytest.raises(ValueError, match="unknown place"):
+        checker.verify_temporal_specs(
+            [AlwaysEventuallyMarked("missing_place_recurs", "missing_place", threshold=0.5)], max_depth=1
+        )
+
+
+@requires_z3
+def test_z3_fire_leads_to_marking_rejects_invalid_deadline_domain() -> None:
+    checker = Z3BoundedModelChecker(_transfer_net())
+
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs([FireLeadsToMarking("bad_bool_window", "move", "sink", within=True)], max_depth=2)
+
+    with pytest.raises(ValueError, match="within"):
+        checker.verify_temporal_specs(
+            [FireLeadsToMarking("bad_negative_window", "move", "sink", within=-1)], max_depth=2
+        )
