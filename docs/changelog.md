@@ -11,6 +11,14 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split the `cli` monolith by responsibility: the 27 persisted reference-artifact
+  validation commands (`validate-gk-crosscode`, `validate-*-reference`,
+  `validate-jax-gk-parity`, `validate-gk-ood-calibration`,
+  `validate-gk-interface-artifacts`) moved to a new `cli_reference_validators`
+  module and are folded back onto the root `scpn-control` group via
+  `REFERENCE_VALIDATOR_COMMANDS`. The CLI surface is unchanged — every command
+  name, option, and behaviour is identical; this is an internal reorganisation
+  that keeps the CLI entry point a thinner dispatcher.
 - Split the `control.nmpc_controller` megamodule by responsibility: the
   gradient-based transport-model tuning entry points
   (`tune_transport_coefficients_for_tracking`, `tune_transport_sources_for_tracking`,
