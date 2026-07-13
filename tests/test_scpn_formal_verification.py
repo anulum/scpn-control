@@ -10,8 +10,8 @@
 
 from __future__ import annotations
 
-import importlib.util
 import hashlib
+import importlib.util
 import json
 from pathlib import Path
 
@@ -23,38 +23,39 @@ from scpn_control.scpn.formal_verification import (
     CTLFormula,
     EventuallyFires,
     FireLeadsToMarking,
-    FormalViolation,
     FormalPetriNetVerifier,
+    FormalViolation,
     LTLFormula,
     NeverCoMarked,
     PlaceInvariant,
-    SafetyCertificatePolicy,
     SafetyCertificateBundlePolicy,
+    SafetyCertificatePolicy,
     admit_safety_certificate_bundle_artifact,
     build_safety_certificate_bundle_artifact,
     build_safety_certificate_bundle_payload,
     build_safety_certificate_payload,
     generate_safety_certificate,
+    validate_safety_certificate_bundle_artifact,
     validate_safety_certificate_bundle_payload,
     validate_safety_certificate_payload,
-    validate_safety_certificate_bundle_artifact,
     verify_formal_contracts,
-    write_safety_certificate_bundle,
     write_safety_certificate,
+    write_safety_certificate_bundle,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
-
-from scpn_control.scpn.z3_model_checking import (  # noqa: E402
-    Z3BoundedModelChecker,
+from scpn_control.scpn.z3_formal_report import (  # noqa: E402
     Z3FormalVerificationReport,
-    Z3ModelCheckingReport,
-    SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION,
     build_blocked_z3_formal_report_payload,
     build_z3_formal_report_payload,
     load_z3_formal_report,
     validate_z3_formal_report_payload,
     verify_z3_formal_contracts,
     write_z3_formal_report,
+)
+from scpn_control.scpn.z3_model_checking import (  # noqa: E402
+    SYMBIOSYS_SYMBOLIC_CONTRACT_VERSION,
+    Z3BoundedModelChecker,
+    Z3ModelCheckingReport,
 )
 
 requires_z3 = pytest.mark.skipif(importlib.util.find_spec("z3") is None, reason="z3-solver optional dependency absent")

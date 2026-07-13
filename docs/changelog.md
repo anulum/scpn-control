@@ -21,6 +21,17 @@
   `scpn_control.control.nmpc_transport_tuning`; they are no longer available on
   `scpn_control.control.nmpc_controller`. `NonlinearMPC` and its configuration and
   runtime dataclasses are unchanged.
+- Split the `scpn.z3_model_checking` megamodule by responsibility: the
+  schema-versioned formal-report evidence I/O (`verify_z3_formal_contracts`,
+  `write_z3_formal_report`, `build_z3_formal_report_payload`,
+  `build_blocked_z3_formal_report_payload`, `load_z3_formal_report`,
+  `validate_z3_formal_report_payload`) and the `Z3FormalVerificationReport`
+  dataclass moved to a new `scpn.z3_formal_report` module, keeping report
+  persistence and schema validation separate from the `Z3BoundedModelChecker`
+  proof engine. Import these symbols from `scpn_control.scpn.z3_formal_report`;
+  they are no longer available on `scpn_control.scpn.z3_model_checking`. The
+  checker engine, `Z3ModelCheckingReport`, and the SymbiYosys/RTI contract
+  constants are unchanged.
 - Hardened the phase-stream WebSocket: the `Origin` allowlist can no longer be
   bypassed by a missing `Origin` header when origins are configured, malformed
   and non-object command frames now return a `malformed_frame` error and

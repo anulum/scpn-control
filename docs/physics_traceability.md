@@ -10,7 +10,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Open fidelity gaps: 63
 - Full-fidelity public claims blocked: 63
 - Resolved module paths: 63
-- Resolved evidence paths: 571
+- Resolved evidence paths: 572
 - External validation trackers: 8
 - Source marker coverage: 36/36
 

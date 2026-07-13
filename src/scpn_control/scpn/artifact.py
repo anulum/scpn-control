@@ -878,7 +878,7 @@ def _verify_formal_report_digest(
     if actual != evidence.report_sha256.lower():
         raise ArtifactValidationError("formal_verification.report_sha256 does not match report file")
     if evidence.backend == "z3":
-        from scpn_control.scpn.z3_model_checking import load_z3_formal_report
+        from scpn_control.scpn.z3_formal_report import load_z3_formal_report
 
         try:
             report_payload = load_z3_formal_report(report_path)

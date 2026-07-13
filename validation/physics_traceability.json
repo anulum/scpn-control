@@ -2440,6 +2440,7 @@
         "src/scpn_control/scpn/controller.py",
         "src/scpn_control/scpn/lean_verification.py",
         "src/scpn_control/scpn/z3_model_checking.py",
+        "src/scpn_control/scpn/z3_formal_report.py",
         "tests/test_scpn_formal_verification.py",
         "tests/test_controller_runtime_safety_admission.py",
         "validation/validate_scpn_lean_formal.py",

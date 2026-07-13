@@ -24,7 +24,7 @@ if str(SRC) not in sys.path:
 
 from scpn_control.scpn.formal_verification import EventuallyFires, FireLeadsToMarking, NeverCoMarked
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.z3_model_checking import (
+from scpn_control.scpn.z3_formal_report import (
     build_blocked_z3_formal_report_payload,
     verify_z3_formal_contracts,
     write_z3_formal_report,

@@ -1071,17 +1071,19 @@ on the separate z3 model-checking surface below.
 
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 
-::: scpn_control.scpn.z3_model_checking.verify_z3_formal_contracts
+### Z3 Formal Report I/O
 
-::: scpn_control.scpn.z3_model_checking.build_z3_formal_report_payload
+::: scpn_control.scpn.z3_formal_report.verify_z3_formal_contracts
 
-::: scpn_control.scpn.z3_model_checking.build_blocked_z3_formal_report_payload
+::: scpn_control.scpn.z3_formal_report.build_z3_formal_report_payload
 
-::: scpn_control.scpn.z3_model_checking.validate_z3_formal_report_payload
+::: scpn_control.scpn.z3_formal_report.build_blocked_z3_formal_report_payload
 
-::: scpn_control.scpn.z3_model_checking.load_z3_formal_report
+::: scpn_control.scpn.z3_formal_report.validate_z3_formal_report_payload
 
-::: scpn_control.scpn.z3_model_checking.write_z3_formal_report
+::: scpn_control.scpn.z3_formal_report.load_z3_formal_report
+
+::: scpn_control.scpn.z3_formal_report.write_z3_formal_report
 
 ### FusionCompiler
 

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 
+import scpn_control.scpn.artifact as artifact_module
 from scpn_control.scpn.artifact import (
     ActionReadout,
     Artifact,
@@ -47,20 +48,19 @@ from scpn_control.scpn.artifact import (
     save_artifact,
     validate_safety_critical_artifact,
 )
-import scpn_control.scpn.artifact as artifact_module
 from scpn_control.scpn.compiler import FusionCompiler
-from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.z3_model_checking import (
-    Z3FormalVerificationReport,
-    Z3ModelCheckingReport,
-    build_blocked_z3_formal_report_payload,
-    build_z3_formal_report_payload,
-)
 from scpn_control.scpn.lean_verification import (
     LeanFormalVerificationReport,
     build_lean_formal_report_payload,
     compute_assumption_sha256,
 )
+from scpn_control.scpn.structure import StochasticPetriNet
+from scpn_control.scpn.z3_formal_report import (
+    Z3FormalVerificationReport,
+    build_blocked_z3_formal_report_payload,
+    build_z3_formal_report_payload,
+)
+from scpn_control.scpn.z3_model_checking import Z3ModelCheckingReport
 
 
 def _build_artifact_file(tmp_path: Path) -> Path:
