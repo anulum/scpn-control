@@ -1197,15 +1197,16 @@
       "unit_contract": "Profiles inherit channel units for electron temperature, ion temperature, electron density, and impurity density; chi uses m^2/s or the declared normalised diffusivity convention; sources use profile units per second; rho is dimensionless and uniformly spaced; audit loss, audit errors, and latency percentiles are finite non-negative scalar evidence.",
       "validation_evidence": [
         "tests/test_differentiable_transport.py diffusion, boundary, fallback, optional JAX coefficient-gradient, one-step and multi-step source-schedule-gradient, sampled finite-difference gradient audit, neural and reduced-GK closure coefficient mapping, campaign metadata provenance, schema-versioned replay metadata, replay-drift guard, audit-evidence admission semantics, latency-report runtime-provenance persistence guards, controller-formal readiness digest binding, and one-step plus rollout equilibrium-weighted GS-flux checks",
-        "tests/test_nmpc_controller.py NMPC neural-closure, one-step source-schedule, and multi-step source-rollout tuning fail closed without JAX and preserve gradient-audit admission results",
-        "tests/test_nmpc_controller.py NMPC coefficient, one-step source-schedule, and multi-step source-rollout tuning results carry campaign metadata, closure provenance, finite source bounds, and fail-closed gradient-audit evidence",
+        "tests/test_nmpc_transport_tuning.py NMPC neural-closure, one-step source-schedule, and multi-step source-rollout tuning fail closed without JAX and preserve gradient-audit admission results",
+        "tests/test_nmpc_transport_tuning.py NMPC coefficient, one-step source-schedule, and multi-step source-rollout tuning results carry campaign metadata, closure provenance, finite source bounds, and fail-closed gradient-audit evidence",
         "validation/benchmark_differentiable_transport_latency.py audited one-step and rollout gradient-admission latency benchmarks or fail-closed JAX-unavailable reports",
         "validation/reports/differentiable_transport_latency.json and validation/reports/differentiable_transport_rollout_latency.json bounded latency reports or blocked-backend status"
       ],
       "evidence_paths": [
         "src/scpn_control/core/differentiable_transport.py",
         "tests/test_differentiable_transport.py",
-        "tests/test_nmpc_controller.py",
+        "tests/test_nmpc_transport_tuning.py",
+        "tests/test_nmpc_transport_tuning_error_paths.py",
         "docs/api.md",
         "docs/physics_traceability.md",
         "validation/benchmark_differentiable_transport_latency.py",

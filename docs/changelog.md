@@ -11,6 +11,16 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split the `control.nmpc_controller` megamodule by responsibility: the
+  gradient-based transport-model tuning entry points
+  (`tune_transport_coefficients_for_tracking`, `tune_transport_sources_for_tracking`,
+  `tune_transport_source_rollout_for_tracking`,
+  `tune_neural_transport_closure_for_tracking`) and their result dataclasses moved
+  to a new `control.nmpc_transport_tuning` module, keeping transport-model fitting
+  separate from receding-horizon control. Import these symbols from
+  `scpn_control.control.nmpc_transport_tuning`; they are no longer available on
+  `scpn_control.control.nmpc_controller`. `NonlinearMPC` and its configuration and
+  runtime dataclasses are unchanged.
 - Hardened the phase-stream WebSocket: the `Origin` allowlist can no longer be
   bypassed by a missing `Origin` header when origins are configured, malformed
   and non-object command frames now return a `malformed_frame` error and

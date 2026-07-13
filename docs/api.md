@@ -1759,6 +1759,16 @@ instead of being an unobservable hard-coded loop bound.
 Linearization perturbations are clipped to the configured state/input domain:
 interior points use central differences, while boundary points use one-sided
 finite differences.
+
+::: scpn_control.control.nmpc_controller.NonlinearMPC
+
+### NMPC Transport-Model Tuning (v0.16.0)
+
+The transport-model tuning entry points live in their own
+`scpn_control.control.nmpc_transport_tuning` module: fitting the transport model
+the controller tracks against is a distinct responsibility from receding-horizon
+tracking, so it is separated from `nmpc_controller`. The entry-point signatures
+and fail-closed semantics are unchanged.
 `tune_transport_coefficients_for_tracking()` connects NMPC controller tuning to
 the differentiable transport facade. It updates four-channel transport
 coefficients from the JAX gradient of the transport tracking loss, applies
@@ -1786,23 +1796,21 @@ NMPC tuning. The default audit-failure mode is fail-closed. The explicit
 `gradient_audit_failure_mode="warn"` mode exists only for advisory, non-control
 analysis and preserves the failed audit evidence in the returned result.
 
-::: scpn_control.control.nmpc_controller.NonlinearMPC
+::: scpn_control.control.nmpc_transport_tuning.TransportCoefficientTuningResult
 
-::: scpn_control.control.nmpc_controller.TransportCoefficientTuningResult
+::: scpn_control.control.nmpc_transport_tuning.TransportSourceScheduleTuningResult
 
-::: scpn_control.control.nmpc_controller.TransportSourceScheduleTuningResult
+::: scpn_control.control.nmpc_transport_tuning.TransportSourceRolloutGradientAudit
 
-::: scpn_control.control.nmpc_controller.TransportSourceRolloutGradientAudit
+::: scpn_control.control.nmpc_transport_tuning.TransportSourceRolloutTuningResult
 
-::: scpn_control.control.nmpc_controller.TransportSourceRolloutTuningResult
+::: scpn_control.control.nmpc_transport_tuning.tune_transport_coefficients_for_tracking
 
-::: scpn_control.control.nmpc_controller.tune_transport_coefficients_for_tracking
+::: scpn_control.control.nmpc_transport_tuning.tune_transport_sources_for_tracking
 
-::: scpn_control.control.nmpc_controller.tune_transport_sources_for_tracking
+::: scpn_control.control.nmpc_transport_tuning.tune_transport_source_rollout_for_tracking
 
-::: scpn_control.control.nmpc_controller.tune_transport_source_rollout_for_tracking
-
-::: scpn_control.control.nmpc_controller.tune_neural_transport_closure_for_tracking
+::: scpn_control.control.nmpc_transport_tuning.tune_neural_transport_closure_for_tracking
 
 ### Mu-Synthesis (v0.16.0)
 
