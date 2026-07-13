@@ -14,9 +14,9 @@ from pathlib import Path
 
 import numpy as np
 
-from scpn_control.control.free_boundary_tracking import (
+from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
+from scpn_control.control.free_boundary_tracking_claims import (
     free_boundary_tracking_claim_evidence,
-    run_free_boundary_tracking,
     save_free_boundary_tracking_claim_evidence,
 )
 from scpn_control.core.fusion_kernel import CoilSet

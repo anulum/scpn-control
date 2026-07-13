@@ -720,7 +720,8 @@
       ],
       "unit_contract": "SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains.",
       "validation_evidence": [
-        "tests/test_free_boundary_tracking.py controller, disturbance-observer, and claim-admission checks",
+        "tests/test_free_boundary_tracking.py controller, disturbance-observer, and controller-to-claim pipeline checks",
+        "tests/test_free_boundary_tracking_claims.py fail-closed claim-evidence validation, reference-artifact admission, and persistence checks",
         "tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks",
         "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign",
         "validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate",
@@ -728,7 +729,9 @@
       ],
       "evidence_paths": [
         "src/scpn_control/control/free_boundary_tracking.py",
+        "src/scpn_control/control/free_boundary_tracking_claims.py",
         "tests/test_free_boundary_tracking.py",
+        "tests/test_free_boundary_tracking_claims.py",
         "tests/test_free_boundary_tracking_variants.py",
         "tests/test_free_boundary_tracking_acceptance.py",
         "validation/free_boundary_tracking_acceptance.py",

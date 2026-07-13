@@ -32,6 +32,18 @@
   they are no longer available on `scpn_control.scpn.z3_model_checking`. The
   checker engine, `Z3ModelCheckingReport`, and the SymbiYosys/RTI contract
   constants are unchanged.
+- Split the `control.free_boundary_tracking` megamodule by responsibility: the
+  fail-closed claim-evidence surface (`FreeBoundaryTrackingClaimEvidence`,
+  `free_boundary_tracking_claim_evidence`,
+  `assert_free_boundary_tracking_facility_claim_admissible`,
+  `save_free_boundary_tracking_claim_evidence`, and the summary/reference
+  validators) moved to a new `control.free_boundary_tracking_claims` module,
+  keeping run-summary claim admission separate from the
+  `FreeBoundaryTrackingController` control loop. Import these symbols from
+  `scpn_control.control.free_boundary_tracking_claims`; they are no longer
+  available on `scpn_control.control.free_boundary_tracking`. The controller,
+  `run_free_boundary_tracking`, and the acceptance/claims benchmark evidence are
+  unchanged.
 - Hardened the phase-stream WebSocket: the `Origin` allowlist can no longer be
   bypassed by a missing `Origin` header when origins are configured, malformed
   and non-object command frames now return a `malformed_frame` error and

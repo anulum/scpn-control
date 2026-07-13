@@ -1578,6 +1578,14 @@ print(summary["shape_rms"], summary["objective_converged"], summary["supervisor_
 
 ::: scpn_control.control.free_boundary_tracking.run_free_boundary_tracking
 
+### Free-Boundary Tracking Claim Evidence
+
+::: scpn_control.control.free_boundary_tracking_claims.free_boundary_tracking_claim_evidence
+
+::: scpn_control.control.free_boundary_tracking_claims.assert_free_boundary_tracking_facility_claim_admissible
+
+::: scpn_control.control.free_boundary_tracking_claims.save_free_boundary_tracking_claim_evidence
+
 ### Disruption Predictor
 
 `predict_disruption_risk_safe()` still returns a bounded scalar risk, but its
