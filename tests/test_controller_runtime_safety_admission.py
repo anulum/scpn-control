@@ -19,7 +19,8 @@ from scpn_control.scpn.artifact import Artifact
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController, _artifact_topology_digest, _matrix_entries
-from scpn_control.scpn.formal_verification import CTLFormula, EventuallyFires, LTLFormula, generate_safety_certificate
+from scpn_control.scpn.formal_safety_certificate import generate_safety_certificate
+from scpn_control.scpn.formal_verification import CTLFormula, EventuallyFires, LTLFormula
 from scpn_control.scpn.runtime_safety_certificate import (
     CertificateReplayResult,
     ControllerRuntimeBinding,

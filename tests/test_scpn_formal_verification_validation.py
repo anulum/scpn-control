@@ -27,14 +27,9 @@ from typing import Any, Callable
 
 import pytest
 
+import scpn_control.scpn.formal_safety_certificate as fsc
 import scpn_control.scpn.formal_verification as fv
-from scpn_control.scpn.formal_verification import (
-    CTLFormula,
-    EventuallyFires,
-    FireLeadsToMarking,
-    FormalPetriNetVerifier,
-    LTLFormula,
-    PlaceInvariant,
+from scpn_control.scpn.formal_safety_certificate import (
     SafetyCertificateBundlePolicy,
     SafetyCertificatePolicy,
     build_safety_certificate_bundle_artifact,
@@ -43,8 +38,16 @@ from scpn_control.scpn.formal_verification import (
     validate_safety_certificate_bundle_artifact,
     validate_safety_certificate_bundle_payload,
     validate_safety_certificate_payload,
-    verify_formal_contracts,
     write_safety_certificate,
+)
+from scpn_control.scpn.formal_verification import (
+    CTLFormula,
+    EventuallyFires,
+    FireLeadsToMarking,
+    FormalPetriNetVerifier,
+    LTLFormula,
+    PlaceInvariant,
+    verify_formal_contracts,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 
@@ -553,7 +556,7 @@ class TestBundleArtifact:
     def test_validate_rejects_non_object_bundle_file(self, tmp_path: Path):
         bundle = _valid_bundle()
         bundle_bytes = json.dumps(bundle, sort_keys=True).encode("utf-8")
-        digest = fv.hashlib.sha256(bundle_bytes).hexdigest()
+        digest = fsc.hashlib.sha256(bundle_bytes).hexdigest()
         artifact = build_safety_certificate_bundle_artifact(
             bundle_uri="bundle.json", bundle_sha256=digest, producer="x", created_at="2026-01-01T00:00:00Z"
         )
@@ -565,7 +568,7 @@ class TestBundleArtifact:
         bundle = _valid_bundle()
         bundle_bytes = (json.dumps(bundle, indent=2, sort_keys=True) + "\n").encode("utf-8")
         (tmp_path / "bundle.json").write_bytes(bundle_bytes)
-        digest = fv.hashlib.sha256(bundle_bytes).hexdigest()
+        digest = fsc.hashlib.sha256(bundle_bytes).hexdigest()
         artifact = build_safety_certificate_bundle_artifact(
             bundle_uri="bundle.json", bundle_sha256=digest, producer="x", created_at="2026-01-01T00:00:00Z"
         )
@@ -575,7 +578,7 @@ class TestBundleArtifact:
     def test_validate_rejects_non_object_bundle_after_digest(self, tmp_path: Path):
         raw_bytes = json.dumps([1, 2, 3]).encode("utf-8")
         (tmp_path / "bundle.json").write_bytes(raw_bytes)
-        digest = fv.hashlib.sha256(raw_bytes).hexdigest()
+        digest = fsc.hashlib.sha256(raw_bytes).hexdigest()
         artifact = build_safety_certificate_bundle_artifact(
             bundle_uri="bundle.json", bundle_sha256=digest, producer="x", created_at="2026-01-01T00:00:00Z"
         )
@@ -585,11 +588,11 @@ class TestBundleArtifact:
     def test_admit_rejects_non_object_target(self, tmp_path: Path, monkeypatch):
         artifact = _valid_artifact()
         monkeypatch.setattr(
-            fv, "validate_safety_certificate_bundle_artifact", lambda art, **kw: {"bundle_uri": "bundle.json"}
+            fsc, "validate_safety_certificate_bundle_artifact", lambda art, **kw: {"bundle_uri": "bundle.json"}
         )
         (tmp_path / "bundle.json").write_bytes(json.dumps([1, 2, 3]).encode("utf-8"))
         with pytest.raises(ValueError, match="target must contain a bundle object"):
-            fv.admit_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path)
+            fsc.admit_safety_certificate_bundle_artifact(artifact, artifact_root=tmp_path)
 
 
 # ── helper functions and policy enforcement ───────────────────────────
@@ -597,47 +600,47 @@ class TestBundleArtifact:
 
 class TestHelperBranches:
     def test_checked_specs_from_sections_skips_non_dict(self):
-        assert fv._certificate_checked_specs_from_sections({"temporal": "x"}) == [
+        assert fsc._certificate_checked_specs_from_sections({"temporal": "x"}) == [
             "marking_bounds",
             "transition_liveness",
         ]
 
     def test_policy_from_payload_rejects_non_object(self):
         with pytest.raises(ValueError, match="policy must be an object or null"):
-            fv._policy_from_payload("flat")
+            fsc._policy_from_payload("flat")
 
     def test_policy_from_payload_rejects_non_list_specs(self):
         with pytest.raises(ValueError, match="required_checked_specs must be a list"):
-            fv._policy_from_payload({"name": "p", "required_checked_specs": "x"})
+            fsc._policy_from_payload({"name": "p", "required_checked_specs": "x"})
 
     def test_bundle_policy_from_payload_rejects_non_object(self):
         with pytest.raises(ValueError, match="bundle policy must be an object or null"):
-            fv._bundle_policy_from_payload("flat")
+            fsc._bundle_policy_from_payload("flat")
 
     def test_common_certificate_value_empty(self):
-        assert fv._common_certificate_value([], "backend") is None
+        assert fsc._common_certificate_value([], "backend") is None
 
     def test_jsonable_converts_tuple(self):
-        assert fv._jsonable((1, 2, 3)) == [1, 2, 3]
+        assert fsc._jsonable((1, 2, 3)) == [1, 2, 3]
 
     def test_resolve_artifact_sha256_rejects_invalid_digest(self):
         with pytest.raises(ValueError, match="artifact_sha256 must be a SHA-256"):
-            fv._resolve_artifact_sha256(None, "bad")
+            fsc._resolve_artifact_sha256(None, "bad")
 
     def test_resolve_artifact_sha256_passes_through_valid_digest(self):
-        assert fv._resolve_artifact_sha256(None, "a" * 64) == "a" * 64
+        assert fsc._resolve_artifact_sha256(None, "a" * 64) == "a" * 64
 
     def test_safe_relative_uri_rejects_empty_value(self):
         with pytest.raises(ValueError, match="must be a non-empty relative path"):
-            fv._safe_relative_uri("bundle_uri", "")
+            fsc._safe_relative_uri("bundle_uri", "")
 
     def test_file_sha256_rejects_missing_file(self, tmp_path: Path):
         with pytest.raises(ValueError, match="must be an existing file"):
-            fv._file_sha256(tmp_path / "absent.bin")
+            fsc._file_sha256(tmp_path / "absent.bin")
 
     def test_safe_relative_uri_rejects_scheme(self):
         with pytest.raises(ValueError, match="must be a safe relative path"):
-            fv._safe_relative_uri("bundle_uri", "https://evil/x")
+            fsc._safe_relative_uri("bundle_uri", "https://evil/x")
 
     def test_resolve_under_root_rejects_symlink_escape(self, tmp_path: Path):
         outside = tmp_path / "outside"
@@ -649,7 +652,7 @@ class TestHelperBranches:
         except (OSError, NotImplementedError):
             pytest.skip("symlink creation is not permitted on this platform")
         with pytest.raises(ValueError, match="path escapes artifact_root"):
-            fv._resolve_under_root(root, "link/file.json")
+            fsc._resolve_under_root(root, "link/file.json")
 
 
 class TestPolicyEnforcement:
@@ -666,60 +669,60 @@ class TestPolicyEnforcement:
     def test_requires_min_depth(self):
         policy = SafetyCertificatePolicy(name="p", min_depth=5)
         with pytest.raises(ValueError, match="requires max_depth to meet min_depth"):
-            fv._enforce_safety_certificate_policy(self._payload(max_depth=1), policy)
+            fsc._enforce_safety_certificate_policy(self._payload(max_depth=1), policy)
 
     def test_requires_artifact_binding(self):
         policy = SafetyCertificatePolicy(name="p", require_artifact_binding=True)
         with pytest.raises(ValueError, match="requires artifact binding"):
-            fv._enforce_safety_certificate_policy(self._payload(artifact_sha256=None), policy)
+            fsc._enforce_safety_certificate_policy(self._payload(artifact_sha256=None), policy)
 
     def test_requires_sections_object(self):
         policy = SafetyCertificatePolicy(name="p")
         with pytest.raises(ValueError, match="requires certificate sections"):
-            fv._enforce_safety_certificate_policy(self._payload(sections="flat"), policy)
+            fsc._enforce_safety_certificate_policy(self._payload(sections="flat"), policy)
 
     def test_requires_ctl_evidence(self):
         policy = SafetyCertificatePolicy(name="p", require_ctl=True)
         with pytest.raises(ValueError, match="requires CTL evidence"):
-            fv._enforce_safety_certificate_policy(self._payload(sections={"ctl": None, "ltl": {}}), policy)
+            fsc._enforce_safety_certificate_policy(self._payload(sections={"ctl": None, "ltl": {}}), policy)
 
     def test_requires_checked_specs_list(self):
         policy = SafetyCertificatePolicy(name="p")
         with pytest.raises(ValueError, match="requires checked specs"):
-            fv._enforce_safety_certificate_policy(self._payload(checked_specs="x"), policy)
+            fsc._enforce_safety_certificate_policy(self._payload(checked_specs="x"), policy)
 
     def test_bundle_requires_certificates_list(self):
         policy = SafetyCertificateBundlePolicy(name="b")
         with pytest.raises(ValueError, match="requires certificates"):
-            fv._enforce_safety_certificate_bundle_policy({"certificates": "x"}, policy)
+            fsc._enforce_safety_certificate_bundle_policy({"certificates": "x"}, policy)
 
     def test_bundle_requires_minimum_count(self):
         policy = SafetyCertificateBundlePolicy(name="b", min_certificates=3)
         with pytest.raises(ValueError, match="requires more certificates"):
-            fv._enforce_safety_certificate_bundle_policy({"certificates": [{}]}, policy)
+            fsc._enforce_safety_certificate_bundle_policy({"certificates": [{}]}, policy)
 
     def test_bundle_requires_shared_backend(self):
         policy = SafetyCertificateBundlePolicy(name="b", require_same_backend=True)
         certificates = [{"backend": "explicit-state"}, {"backend": "z3"}]
         with pytest.raises(ValueError, match="requires a shared backend"):
-            fv._enforce_safety_certificate_bundle_policy({"certificates": certificates}, policy)
+            fsc._enforce_safety_certificate_bundle_policy({"certificates": certificates}, policy)
 
     def test_bundle_requires_matching_certificate_policy(self):
         policy = SafetyCertificateBundlePolicy(name="b", required_policy_name="gate")
         with pytest.raises(ValueError, match="requires matching certificate policy"):
-            fv._enforce_safety_certificate_bundle_policy({"certificates": [{"policy": {"name": "other"}}]}, policy)
+            fsc._enforce_safety_certificate_bundle_policy({"certificates": [{"policy": {"name": "other"}}]}, policy)
 
     def test_unique_digests_requires_certificates(self):
         with pytest.raises(ValueError, match="must include at least one certificate"):
-            fv._enforce_unique_certificate_digests([])
+            fsc._enforce_unique_certificate_digests([])
 
     def test_unique_digests_requires_payload_digests(self):
         with pytest.raises(ValueError, match="must carry payload digests"):
-            fv._enforce_unique_certificate_digests([{"payload_sha256": "bad"}])
+            fsc._enforce_unique_certificate_digests([{"payload_sha256": "bad"}])
 
     def test_unique_digests_rejects_duplicates(self):
         with pytest.raises(ValueError, match="certificates must be unique"):
-            fv._enforce_unique_certificate_digests([{"payload_sha256": "a" * 64}, {"payload_sha256": "a" * 64}])
+            fsc._enforce_unique_certificate_digests([{"payload_sha256": "a" * 64}, {"payload_sha256": "a" * 64}])
 
 
 class TestCertificateMarkdownCounterexamples:

@@ -36,7 +36,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Any, Callable
 
-from scpn_control.scpn.formal_verification import validate_safety_certificate_payload
+from scpn_control.scpn.formal_safety_certificate import validate_safety_certificate_payload
 from scpn_control.scpn.structure import StochasticPetriNet
 
 RUNTIME_SAFETY_CERTIFICATE_SCHEMA_VERSION = "scpn-control.runtime-safety-certificate.v1"

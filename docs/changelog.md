@@ -44,6 +44,18 @@
   available on `scpn_control.control.free_boundary_tracking`. The controller,
   `run_free_boundary_tracking`, and the acceptance/claims benchmark evidence are
   unchanged.
+- Split the `scpn.formal_verification` megamodule by responsibility: the bounded
+  formal safety certificate I/O (`SafetyCertificatePolicy`,
+  `SafetyCertificateBundlePolicy`, `build_safety_certificate_payload`,
+  `write_safety_certificate`, `generate_safety_certificate`,
+  `validate_safety_certificate_payload`, and the certificate-bundle and
+  bundle-artifact build/validate/admit functions) moved to a new
+  `scpn.formal_safety_certificate` module, keeping certificate persistence and
+  admission separate from the `FormalPetriNetVerifier` reachability engine.
+  Import these symbols from `scpn_control.scpn.formal_safety_certificate`; they
+  are no longer available on `scpn_control.scpn.formal_verification`. The verifier
+  engine, `verify_formal_contracts`, the reachability/property report dataclasses,
+  and the CTL/LTL temporal specification dataclasses are unchanged.
 - Hardened the phase-stream WebSocket: the `Origin` allowlist can no longer be
   bypassed by a missing `Origin` header when origins are configured, malformed
   and non-object command frames now return a `malformed_frame` error and

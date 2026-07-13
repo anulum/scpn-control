@@ -14,11 +14,11 @@ from typing import Any
 
 import pytest
 
+from scpn_control.scpn.formal_safety_certificate import generate_safety_certificate
 from scpn_control.scpn.formal_verification import (
     CTLFormula,
     EventuallyFires,
     LTLFormula,
-    generate_safety_certificate,
 )
 from scpn_control.scpn.structure import StochasticPetriNet
 from scpn_control.scpn.runtime_safety_certificate import (

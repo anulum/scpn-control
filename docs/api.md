@@ -1011,10 +1011,6 @@ on the separate z3 model-checking surface below.
 
 ::: scpn_control.scpn.formal_verification.PlaceInvariant
 
-::: scpn_control.scpn.formal_verification.SafetyCertificatePolicy
-
-::: scpn_control.scpn.formal_verification.SafetyCertificateBundlePolicy
-
 ::: scpn_control.scpn.formal_verification.CTLFormula
 
 ::: scpn_control.scpn.formal_verification.LTLFormula
@@ -1029,25 +1025,36 @@ on the separate z3 model-checking surface below.
 
 ::: scpn_control.scpn.formal_verification.NeverCoMarked
 
-::: scpn_control.scpn.formal_verification.build_safety_certificate_payload
+### Formal Safety Certificate
 
-::: scpn_control.scpn.formal_verification.build_safety_certificate_bundle_payload
+The bounded safety certificate captures a formal verification report together
+with its admission policy and an optional artifact binding; the bundle
+aggregates independent certificates for a controller release gate. Every payload
+is schema-versioned, self-digested, and fail-closed.
 
-::: scpn_control.scpn.formal_verification.build_safety_certificate_bundle_artifact
+::: scpn_control.scpn.formal_safety_certificate.SafetyCertificatePolicy
 
-::: scpn_control.scpn.formal_verification.generate_safety_certificate
+::: scpn_control.scpn.formal_safety_certificate.SafetyCertificateBundlePolicy
 
-::: scpn_control.scpn.formal_verification.validate_safety_certificate_payload
+::: scpn_control.scpn.formal_safety_certificate.build_safety_certificate_payload
 
-::: scpn_control.scpn.formal_verification.validate_safety_certificate_bundle_payload
+::: scpn_control.scpn.formal_safety_certificate.build_safety_certificate_bundle_payload
 
-::: scpn_control.scpn.formal_verification.validate_safety_certificate_bundle_artifact
+::: scpn_control.scpn.formal_safety_certificate.build_safety_certificate_bundle_artifact
 
-::: scpn_control.scpn.formal_verification.admit_safety_certificate_bundle_artifact
+::: scpn_control.scpn.formal_safety_certificate.generate_safety_certificate
 
-::: scpn_control.scpn.formal_verification.write_safety_certificate
+::: scpn_control.scpn.formal_safety_certificate.validate_safety_certificate_payload
 
-::: scpn_control.scpn.formal_verification.write_safety_certificate_bundle
+::: scpn_control.scpn.formal_safety_certificate.validate_safety_certificate_bundle_payload
+
+::: scpn_control.scpn.formal_safety_certificate.validate_safety_certificate_bundle_artifact
+
+::: scpn_control.scpn.formal_safety_certificate.admit_safety_certificate_bundle_artifact
+
+::: scpn_control.scpn.formal_safety_certificate.write_safety_certificate
+
+::: scpn_control.scpn.formal_safety_certificate.write_safety_certificate_bundle
 
 ### Runtime-Bound Safety Certificate
 
