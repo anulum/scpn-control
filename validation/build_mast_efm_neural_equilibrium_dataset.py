@@ -37,7 +37,7 @@ FEATURE_NAMES = (
     "q95",
 )
 FALLBACK_FEATURES = ("Ip_MA", "Bt_T", "ffprime_scale")
-FEATURE_SOURCE_POLICY = {
+FEATURE_SOURCE_POLICY: dict[str, dict[str, Any]] = {
     "Ip_MA": {
         "source_key": "Ip_MA",
         "original_source": "plasma_current_x",
@@ -476,7 +476,9 @@ def build_dataset(inputs: DatasetInput) -> dict[str, Any]:
         r_grid_m=r_grid,
         z_grid_m=z_grid,
         lcfs_point_count=lcfs_point_count,
-        **target_payload,
+        # numpy savez_compressed stub types **kwds against allow_pickle: bool, so a
+        # dict of arrays unpacked as keyword targets trips arg-type; runtime is correct.
+        **target_payload,  # type: ignore[arg-type]
     )
     split_counts = {name: int(np.count_nonzero(labels == name)) for name in ("train", "validation", "test")}
     report: dict[str, Any] = {
