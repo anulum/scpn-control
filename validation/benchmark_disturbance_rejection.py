@@ -71,6 +71,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Protocol, Tuple
 
 import numpy as np
+import numpy.typing as npt
 from scipy.integrate import trapezoid
 
 # ---------------------------------------------------------------------------
@@ -267,7 +268,7 @@ class LQRRobustController:
         )
 
         self.n = 2
-        self.x_hat = np.zeros(2)
+        self.x_hat: npt.NDArray[np.float64] = np.zeros(2)
         self._is_stable = bool(np.all(np.real(cl_eigs) < 0))
 
     def step(self, error: float, dt: float) -> float:
@@ -355,7 +356,7 @@ class MPCController:
         self._x_hat[1] = -de_dt
 
         # Optimise control sequence over horizon
-        u_seq = np.zeros(self.horizon)
+        u_seq: npt.NDArray[np.float64] = np.zeros(self.horizon)
         for _ in range(self.iterations):
             # Forward simulate and compute gradients
             x = self._x_hat.copy()
@@ -473,7 +474,7 @@ class LinearPlant:
         )
         self.B = np.array([0.0, 1.0])
         self.B_d = np.array([0.0, 0.5])
-        self.x = np.zeros(2)
+        self.x: npt.NDArray[np.float64] = np.zeros(2)
 
     def step(self, u: float, d: float, dt: float) -> float:
         """Advance one timestep. Returns measured position z."""
@@ -489,7 +490,7 @@ class LinearPlant:
     def dz(self) -> float:
         return float(self.x[1])
 
-    def reset(self, x0: Optional[np.ndarray] = None) -> None:
+    def reset(self, x0: Optional[npt.NDArray[np.float64]] = None) -> None:
         if x0 is not None:
             self.x = np.array(x0, dtype=float)
         else:
@@ -606,8 +607,8 @@ class ScenarioMetrics:
 
 
 def _compute_settling_time(
-    times: np.ndarray,
-    errors: np.ndarray,
+    times: npt.NDArray[np.float64],
+    errors: npt.NDArray[np.float64],
     threshold_frac: float,
     reference_amplitude: float,
 ) -> float:
@@ -639,10 +640,10 @@ def _compute_settling_time(
 class TraceData:
     """Time-series data from a simulation run, for plotting."""
 
-    times: np.ndarray
-    positions: np.ndarray
-    errors: np.ndarray
-    controls: np.ndarray
+    times: npt.NDArray[np.float64]
+    positions: npt.NDArray[np.float64]
+    errors: npt.NDArray[np.float64]
+    controls: npt.NDArray[np.float64]
 
 
 def run_scenario(
@@ -743,7 +744,7 @@ def _build_hinf_controller(gamma_growth: float = 100.0) -> Any:
     if not _hinf_available:
         raise RuntimeError("H-infinity module not importable")
     try:
-        ctrl = get_radial_robust_controller(gamma_growth=gamma_growth)
+        ctrl: ControllerProtocol = get_radial_robust_controller(gamma_growth=gamma_growth)
         print("    [H-infinity] Riccati synthesis: OK")
         return ctrl
     except (ValueError, np.linalg.LinAlgError) as exc:
