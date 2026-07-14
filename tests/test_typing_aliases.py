@@ -30,16 +30,23 @@ def test_any_float_array_is_floating_ndarray() -> None:
     assert _typing.AnyFloatArray == npt.NDArray[np.floating[Any]]
 
 
+def test_any_complex_array_is_complexfloating_ndarray() -> None:
+    """``AnyComplexArray`` is the any-precision complex ndarray for μ-analysis inputs."""
+
+    assert _typing.AnyComplexArray == npt.NDArray[np.complexfloating[Any, Any]]
+
+
 def test_float_array_and_any_float_array_differ() -> None:
     """The output and input aliases are distinct types at module boundaries."""
 
     assert _typing.FloatArray != _typing.AnyFloatArray
+    assert _typing.AnyComplexArray != _typing.AnyFloatArray
 
 
 def test_all_exports_sorted_and_complete() -> None:
-    """``__all__`` lists both aliases in sorted order."""
+    """``__all__`` lists all three aliases in sorted order."""
 
-    assert _typing.__all__ == ["AnyFloatArray", "FloatArray"]
+    assert _typing.__all__ == ["AnyComplexArray", "AnyFloatArray", "FloatArray"]
     assert _typing.__all__ == sorted(_typing.__all__)
 
 

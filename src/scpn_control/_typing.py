@@ -28,6 +28,13 @@ Conventions
     A ``FloatArray`` is assignable to ``AnyFloatArray`` but not the reverse, which
     is why the distinction matters at module boundaries.
 
+``AnyComplexArray``
+    Use for *public input parameters* of frequency-domain routines (structured
+    singular value / μ-analysis) that legitimately receive a complex response
+    matrix. Pair it with ``AnyFloatArray`` in a union when a routine accepts a
+    real *or* complex matrix and normalises internally with
+    ``numpy.asarray(..., dtype=complex)``.
+
 Shape typing
 ------------
 ``numpy.typing.NDArray`` is ``ndarray[tuple[int, ...], dtype[T]]`` (any number of
@@ -49,5 +56,6 @@ import numpy.typing as npt
 
 FloatArray: TypeAlias = npt.NDArray[np.float64]
 AnyFloatArray: TypeAlias = npt.NDArray[np.floating[Any]]
+AnyComplexArray: TypeAlias = npt.NDArray[np.complexfloating[Any, Any]]
 
-__all__ = ["AnyFloatArray", "FloatArray"]
+__all__ = ["AnyComplexArray", "AnyFloatArray", "FloatArray"]

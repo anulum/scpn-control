@@ -47,7 +47,7 @@ from typing import Any, Mapping
 import numpy as np
 from scipy.linalg import LinAlgError, solve_continuous_are
 
-from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control._typing import AnyComplexArray, AnyFloatArray, FloatArray
 
 _VALID_BLOCK_TYPES = frozenset({"real_scalar", "complex_scalar", "full"})
 _MU_CLAIM_SCHEMA_VERSION = 1
@@ -432,7 +432,7 @@ class StructuredUncertainty:
 
 
 def _compute_mu_upper_bound_and_scalings(
-    M: AnyFloatArray,
+    M: AnyFloatArray | AnyComplexArray,
     delta_structure: list[tuple[int, str]],
 ) -> tuple[float, FloatArray]:
     """D-scaling upper bound on μ(M).
@@ -503,7 +503,7 @@ def _compute_mu_upper_bound_and_scalings(
     return float(best_mu), best_d
 
 
-def compute_mu_upper_bound(M: AnyFloatArray, delta_structure: list[tuple[int, str]]) -> float:
+def compute_mu_upper_bound(M: AnyFloatArray | AnyComplexArray, delta_structure: list[tuple[int, str]]) -> float:
     """D-scaling upper bound on μ(M).
 
     Computes  min_D  σ̄(D M D^{-1})  where D is block-diagonal with positive
@@ -514,8 +514,8 @@ def compute_mu_upper_bound(M: AnyFloatArray, delta_structure: list[tuple[int, st
 
     Parameters
     ----------
-    M : AnyFloatArray, shape (n, n)
-        Closed-loop transfer matrix evaluated at a single frequency.
+    M : AnyFloatArray | AnyComplexArray, shape (n, n)
+        Closed-loop transfer matrix evaluated at a single frequency (real or complex).
     delta_structure : list of (size, block_type)
         Block sizes and types from StructuredUncertainty.build_Delta_structure().
 
