@@ -33,6 +33,10 @@ else:
         from scpn_control.core.fusion_kernel import FusionKernel
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.core.anomalous_transport import (
+    gk_flux_surface_transport,
+    gyro_bohm_chi_profile,
+)
 from scpn_control.core.momentum_transport import (
     MomentumTransportSolver,
     intrinsic_rotation_torque,
@@ -673,37 +677,21 @@ class TransportSolver(FusionKernel):
             )
 
         p = self.neoclassical_params
-        R0 = p["R0"]
-        a = p["a"]
-        B0 = p["B0"]
-        A_ion = p.get("A_ion", 2.0)
-        q = p["q_profile"]
 
         # Load c_gB: explicit param > JSON file > default
-        if "c_gB" in p:
-            c_gB = p["c_gB"]
-        else:
-            c_gB = _load_gyro_bohm_coefficient()
+        c_gB = p["c_gB"] if "c_gB" in p else _load_gyro_bohm_coefficient()
 
-        e_charge = 1.602176634e-19
-        m_i = A_ion * 1.672621924e-27
-
-        chi_gB = np.zeros_like(self.rho)
-        for i in range(len(self.rho)):
-            Ti_keV = max(self.Ti[i], 0.01)
-            Te_keV = max(self.Te[i], 0.01)
-            qi = max(q[i], 0.5)
-
-            T_i_J = Ti_keV * 1e3 * e_charge
-            T_e_J = Te_keV * 1e3 * e_charge
-
-            rho_s = np.sqrt(T_i_J * m_i) / (e_charge * B0)
-            c_s = np.sqrt(T_e_J / m_i)
-
-            chi_val = c_gB * rho_s**2 * c_s / max(a * qi * R0, 1e-6)
-            chi_gB[i] = max(chi_val, 0.01) if np.isfinite(chi_val) else 0.01
-
-        return chi_gB
+        return gyro_bohm_chi_profile(
+            self.rho,
+            self.Ti,
+            self.Te,
+            p["q_profile"],
+            p["R0"],
+            p["a"],
+            p["B0"],
+            p.get("A_ion", 2.0),
+            c_gB,
+        )
 
     def _external_gk_transport(self, p: dict[str, Any]) -> FloatArray:
         """Run an external GK solver at each flux surface, return chi_i profile.
@@ -713,7 +701,7 @@ class TransportSolver(FusionKernel):
         output. Legacy gyro-Bohm fallback can be explicitly enabled by setting
         ``external_gk_allow_gyrobohm_fallback=True`` on construction.
         """
-        from scpn_control.core.gk_interface import GKLocalParams, GKSolverBase
+        from scpn_control.core.gk_interface import GKSolverBase
 
         solver: GKSolverBase | None = getattr(self, "_gk_solver", None)
         if solver is None:
@@ -722,101 +710,18 @@ class TransportSolver(FusionKernel):
             solver = TGLFSolver()
             self._gk_solver = solver
 
-        R0 = p["R0"]
-        a = p["a"]
-        B0 = p["B0"]
-        q_prof = p["q_profile"]
-        Z_eff = p.get("Z_eff", 1.5)
-        kappa = p.get("kappa", 1.0)
-        delta = p.get("delta", 0.0)
-
-        dTe_dr = np.gradient(self.Te, self.rho * a)
-        dTi_dr = np.gradient(self.Ti, self.rho * a)
-        dne_dr = np.gradient(self.ne, self.rho * a)
-
-        # Magnetic shear: s = (rho/q) * dq/drho
-        dq_drho = np.gradient(q_prof, self.rho)
-        s_hat_profile = self.rho * dq_drho / np.maximum(q_prof, 0.5)
-
-        chi_i_out = np.zeros_like(self.rho)
-        chi_e_out = np.zeros_like(self.rho)
-        D_e_out = np.zeros_like(self.rho)
-
-        for i in range(len(self.rho)):
-            if self.rho[i] <= 0.05 or not np.isfinite(self.ne[i]) or self.ne[i] <= 1e-6:
-                chi_i_out[i] = 0.01
-                chi_e_out[i] = 0.01
-                D_e_out[i] = 0.01
-                continue
-
-            Te_keV = max(self.Te[i], 0.01)
-            Ti_keV = max(self.Ti[i], 0.01)
-            qi = max(q_prof[i], 0.5)
-            eps_i = max(self.rho[i] * a / R0, 1e-3)
-            s_hat_local = float(s_hat_profile[i]) if i < len(s_hat_profile) else 1.0
-
-            R_L_Te = -R0 / Te_keV * dTe_dr[i] if Te_keV > 0.01 else 0.0
-            R_L_Ti = -R0 / Ti_keV * dTi_dr[i] if Ti_keV > 0.01 else 0.0
-            R_L_ne = -R0 / max(self.ne[i], 1e-3) * dne_dr[i]
-
-            params = GKLocalParams(
-                R_L_Ti=max(R_L_Ti, 0.0),
-                R_L_Te=max(R_L_Te, 0.0),
-                R_L_ne=max(R_L_ne, -5.0),
-                q=qi,
-                s_hat=s_hat_local,
-                Te_Ti=Te_keV / Ti_keV,
-                Z_eff=Z_eff,
-                nu_star=0.1,
-                beta_e=0.01,
-                epsilon=eps_i,
-                kappa=kappa,
-                delta=delta,
-                rho=self.rho[i],
-                R0=R0,
-                a=a,
-                B0=B0,
-                n_e=self.ne[i],
-                T_e_keV=Te_keV,
-                T_i_keV=Ti_keV,
-            )
-
-            try:
-                result = solver.run_from_params(params)
-            except Exception as exc:
-                if not (self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations):
-                    raise RuntimeError(
-                        f"external_gk solver execution failed at rho={self.rho[i]:.4f}; "
-                        "configure/repair external solver or select tglf_native"
-                    ) from exc
-                result = None
-
-            if result is not None and result.converged:
-                fluxes_are_valid = (
-                    np.isfinite(result.chi_i)
-                    and np.isfinite(result.chi_e)
-                    and np.isfinite(result.D_e)
-                    and result.chi_i >= 0.0
-                    and result.chi_e >= 0.0
-                    and result.D_e >= 0.0
-                )
-                if fluxes_are_valid:
-                    chi_i_out[i] = max(result.chi_i, 0.01)
-                    chi_e_out[i] = max(result.chi_e, 0.01)
-                    D_e_out[i] = max(result.D_e, 0.001)
-                    continue
-
-            if not (self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations):
-                raise RuntimeError(
-                    f"external_gk returned unconverged transport at rho={self.rho[i]:.4f}; "
-                    "do not continue with degraded fallback transport"
-                )
-
-            # Explicit legacy mode only
-            chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
-            chi_e_out[i] = chi_i_out[i]
-            D_e_out[i] = 0.1 * chi_e_out[i]
-
+        chi_i_out, chi_e_out, D_e_out = gk_flux_surface_transport(
+            solver=solver,
+            rho=self.rho,
+            Te=self.Te,
+            Ti=self.Ti,
+            ne=self.ne,
+            params=p,
+            solver_label="external_gk",
+            catch_execution_errors=True,
+            allow_gyrobohm_fallback=self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations,
+            gyro_bohm_fallback=self._gyro_bohm_chi,
+        )
         self.chi_e = chi_e_out
         self.D_n = D_e_out
         return chi_i_out
@@ -829,7 +734,6 @@ class TransportSolver(FusionKernel):
         native-GK transport is unconverged. Legacy gyro-Bohm fallback can
         be explicitly enabled with ``tglf_native_allow_gyrobohm_fallback=True``.
         """
-        from scpn_control.core.gk_interface import GKLocalParams
         from scpn_control.core.gk_tglf_native import TGLFNativeConfig, TGLFNativeSolver
 
         solver: TGLFNativeSolver | None = getattr(self, "_tglf_native_solver", None)
@@ -837,92 +741,18 @@ class TransportSolver(FusionKernel):
             solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT1", n_ky_ion=12, n_theta=32))
             self._tglf_native_solver = solver
 
-        R0 = p["R0"]
-        a = p["a"]
-        B0 = p["B0"]
-        q_prof = p["q_profile"]
-        Z_eff = p.get("Z_eff", 1.5)
-        kappa = p.get("kappa", 1.0)
-        delta = p.get("delta", 0.0)
-
-        dTe_dr = np.gradient(self.Te, self.rho * a)
-        dTi_dr = np.gradient(self.Ti, self.rho * a)
-        dne_dr = np.gradient(self.ne, self.rho * a)
-
-        # Magnetic shear: s = (rho/q) * dq/drho
-        dq_drho = np.gradient(q_prof, self.rho)
-        s_hat_profile = self.rho * dq_drho / np.maximum(q_prof, 0.5)
-
-        chi_i_out = np.zeros_like(self.rho)
-        chi_e_out = np.zeros_like(self.rho)
-        D_e_out = np.zeros_like(self.rho)
-
-        for i in range(len(self.rho)):
-            if self.rho[i] <= 0.05 or not np.isfinite(self.ne[i]) or self.ne[i] <= 1e-6:
-                chi_i_out[i] = 0.01
-                chi_e_out[i] = 0.01
-                D_e_out[i] = 0.01
-                continue
-
-            Te_keV = max(self.Te[i], 0.01)
-            Ti_keV = max(self.Ti[i], 0.01)
-            qi = max(q_prof[i], 0.5)
-            eps_i = max(self.rho[i] * a / R0, 1e-3)
-            s_hat_local = float(s_hat_profile[i]) if i < len(s_hat_profile) else 1.0
-
-            R_L_Te = -R0 / Te_keV * dTe_dr[i] if Te_keV > 0.01 else 0.0
-            R_L_Ti = -R0 / Ti_keV * dTi_dr[i] if Ti_keV > 0.01 else 0.0
-            R_L_ne = -R0 / max(self.ne[i], 1e-3) * dne_dr[i]
-
-            params = GKLocalParams(
-                R_L_Ti=max(R_L_Ti, 0.0),
-                R_L_Te=max(R_L_Te, 0.0),
-                R_L_ne=max(R_L_ne, -5.0),
-                q=qi,
-                s_hat=s_hat_local,
-                Te_Ti=Te_keV / Ti_keV,
-                Z_eff=Z_eff,
-                nu_star=0.1,
-                beta_e=0.01,
-                epsilon=eps_i,
-                kappa=kappa,
-                delta=delta,
-                rho=self.rho[i],
-                R0=R0,
-                a=a,
-                B0=B0,
-                n_e=self.ne[i],
-                T_e_keV=Te_keV,
-                T_i_keV=Ti_keV,
-            )
-
-            result = solver.run_from_params(params)
-            if result.converged:
-                fluxes_are_valid = (
-                    np.isfinite(result.chi_i)
-                    and np.isfinite(result.chi_e)
-                    and np.isfinite(result.D_e)
-                    and result.chi_i >= 0.0
-                    and result.chi_e >= 0.0
-                    and result.D_e >= 0.0
-                )
-                if fluxes_are_valid:
-                    chi_i_out[i] = max(result.chi_i, 0.01)
-                    chi_e_out[i] = max(result.chi_e, 0.01)
-                    D_e_out[i] = max(result.D_e, 0.001)
-                    continue
-
-            if not (self.tglf_native_allow_gyrobohm_fallback and self.allow_legacy_approximations):
-                raise RuntimeError(
-                    f"tglf_native returned unconverged transport at rho={self.rho[i]:.4f}; "
-                    "do not continue with degraded fallback transport"
-                )
-
-            # Explicit legacy mode only
-            chi_i_out[i] = max(self._gyro_bohm_chi()[i], 0.01)
-            chi_e_out[i] = chi_i_out[i]
-            D_e_out[i] = 0.1 * chi_e_out[i]
-
+        chi_i_out, chi_e_out, D_e_out = gk_flux_surface_transport(
+            solver=solver,
+            rho=self.rho,
+            Te=self.Te,
+            Ti=self.Ti,
+            ne=self.ne,
+            params=p,
+            solver_label="tglf_native",
+            catch_execution_errors=False,
+            allow_gyrobohm_fallback=self.tglf_native_allow_gyrobohm_fallback and self.allow_legacy_approximations,
+            gyro_bohm_fallback=self._gyro_bohm_chi,
+        )
         self.chi_e = chi_e_out
         self.D_n = D_e_out
         return chi_i_out

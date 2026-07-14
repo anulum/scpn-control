@@ -11,6 +11,14 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the anomalous (turbulent)
+  transport-coefficient models moved from private `TransportSolver` methods to a new
+  stateless `core.anomalous_transport` module — the gyro-Bohm diffusivity scaling
+  (`gyro_bohm_chi_profile`) and a single shared gyrokinetic per-flux-surface driver
+  (`gk_flux_surface_transport`) that now backs both the `external_gk` and `tglf_native`
+  transport models, removing ~100 lines of duplicated per-cell solver logic. The radial
+  grid and plasma profiles are passed explicitly; the fail-closed guards, flux validation,
+  and legacy gyro-Bohm fallback are byte-identical, so solver behaviour is unchanged.
 - Split `core.integrated_transport_solver` further: the Crank-Nicolson radial-diffusion
   numerics (the Thomas tridiagonal solve, the explicit cylindrical diffusion operator,
   and the Crank-Nicolson tridiagonal assembly) moved from private `TransportSolver`

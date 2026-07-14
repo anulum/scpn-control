@@ -562,6 +562,12 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.radial_diffusion.build_cn_tridiag
 
+### Anomalous Transport Coefficient Models
+
+::: scpn_control.core.anomalous_transport.gyro_bohm_chi_profile
+
+::: scpn_control.core.anomalous_transport.gk_flux_surface_transport
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e
