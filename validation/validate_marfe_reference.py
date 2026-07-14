@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -114,7 +117,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append({"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"})
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"}
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
@@ -144,7 +149,11 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
     if payload.get("source") == "measured_marfe_campaign" and not _has_measured_campaign(payload):
         errors.append(
-            {"path": str(path), "field": "campaign", "error": "measured MARFE campaigns require machine and shot_id or campaign_id"}
+            {
+                "path": str(path),
+                "field": "campaign",
+                "error": "measured MARFE campaigns require machine and shot_id or campaign_id",
+            }
         )
     if isinstance(payload.get("payload_sha256"), str):
         expected = canonical_artifact_sha256(payload)
@@ -155,15 +164,27 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "units", "error": "units must declare MARFE reference units"})
     if not _ordered_positive_grid(payload.get("temperature_scan_eV")):
         errors.append(
-            {"path": str(path), "field": "temperature_scan_eV", "error": "temperature scan must be finite, positive, and strictly increasing"}
+            {
+                "path": str(path),
+                "field": "temperature_scan_eV",
+                "error": "temperature scan must be finite, positive, and strictly increasing",
+            }
         )
     if not _ordered_positive_grid(payload.get("density_scan_m3")):
         errors.append(
-            {"path": str(path), "field": "density_scan_m3", "error": "density scan must be finite, positive, and strictly increasing"}
+            {
+                "path": str(path),
+                "field": "density_scan_m3",
+                "error": "density scan must be finite, positive, and strictly increasing",
+            }
         )
     if not _valid_impurity_fraction_range(payload.get("impurity_fraction_range")):
         errors.append(
-            {"path": str(path), "field": "impurity_fraction_range", "error": "impurity fraction range must lie inside (0, 1]"}
+            {
+                "path": str(path),
+                "field": "impurity_fraction_range",
+                "error": "impurity fraction range must lie inside (0, 1]",
+            }
         )
     if not _valid_geometry(payload.get("geometry")):
         errors.append(
@@ -255,8 +276,10 @@ def _has_measured_campaign(payload: dict[str, object]) -> bool:
     machine = payload.get("machine")
     shot_id = payload.get("shot_id")
     campaign_id = payload.get("campaign_id")
-    return isinstance(machine, str) and bool(machine.strip()) and any(
-        isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id)
+    return (
+        isinstance(machine, str)
+        and bool(machine.strip())
+        and any(isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id))
     )
 
 
@@ -290,7 +313,12 @@ def _valid_geometry(value: object) -> bool:
     minor = value.get("a_m")
     q95 = value.get("q95")
     connection = value.get("connection_length_m")
-    if not all(_is_positive_finite(item) for item in (r0, minor, q95, connection)):
+    if not (
+        _is_positive_finite(r0)
+        and _is_positive_finite(minor)
+        and _is_positive_finite(q95)
+        and _is_positive_finite(connection)
+    ):
         return False
     return float(minor) < float(r0)
 
@@ -303,15 +331,15 @@ def _valid_power_balance(value: object) -> bool:
     return _is_positive_finite(p_sol) and _is_nonnegative_finite(q_perp)
 
 
-def _is_finite(value: object) -> bool:
+def _is_finite(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) > 0.0
 
 

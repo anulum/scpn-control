@@ -17,7 +17,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -211,10 +214,7 @@ def _valid_equilibrium_metadata(value: object) -> bool:
     if not isinstance(value, dict):
         return False
     integer_fields = ("coil_count", "boundary_point_count", "divertor_point_count")
-    if any(
-        isinstance(value.get(field), bool) or not isinstance(value.get(field), int) or value.get(field) <= 0
-        for field in integer_fields
-    ):
+    if any(isinstance(v := value.get(field), bool) or not isinstance(v, int) or v <= 0 for field in integer_fields):
         return False
     return all(_is_positive_finite(value.get(field)) for field in ("control_dt_s", "coil_slew_limit_MA_s"))
 
@@ -232,15 +232,15 @@ def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _is_finite_number(value: object) -> bool:
+def _is_finite_number(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) > 0.0
 
 

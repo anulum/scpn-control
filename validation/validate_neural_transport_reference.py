@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -277,19 +280,19 @@ def _artifact_uri_error(value: object) -> str | None:
     return None
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return (
         not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
     )
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return (
         not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
     )
 
 
-def _is_unit_interval(value: object) -> bool:
+def _is_unit_interval(value: object) -> TypeIs[float]:
     return (
         not isinstance(value, bool)
         and isinstance(value, int | float)

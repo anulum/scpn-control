@@ -17,7 +17,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -56,7 +59,9 @@ def validate_uncertainty_reference(
     errors: list[dict[str, object]] = report["errors"]
 
     if require_reference_artifacts and not paths:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no uncertainty reference artifacts found"})
+        errors.append(
+            {"path": str(root), "field": "artifact_root", "error": "no uncertainty reference artifacts found"}
+        )
 
     for path in paths:
         try:
@@ -71,7 +76,9 @@ def validate_uncertainty_reference(
             report["reference_artifacts"] += 1
 
     if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no uncertainty reference artifacts found"})
+        errors.append(
+            {"path": str(root), "field": "artifact_root", "error": "no uncertainty reference artifacts found"}
+        )
     if errors:
         report["status"] = "fail"
     return report
@@ -88,14 +95,34 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
     digest = payload.get("reference_artifact_sha256")
     if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append({"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"})
+        errors.append(
+            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
+        )
     source = payload.get("source")
     if source not in _ALLOWED_SOURCES:
-        errors.append({"path": str(path), "field": "source", "error": "source must be real_uq_campaign or documented_public_reference"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "source",
+                "error": "source must be real_uq_campaign or documented_public_reference",
+            }
+        )
     if source == "real_uq_campaign" and not _has_campaign_reference(payload):
-        errors.append({"path": str(path), "field": "campaign_artifact_uri", "error": "real UQ campaigns require campaign_artifact_uri"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "campaign_artifact_uri",
+                "error": "real UQ campaigns require campaign_artifact_uri",
+            }
+        )
     if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append({"path": str(path), "field": "reference", "error": "documented public reference artifacts require reference_url or reference_doi"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "reference",
+                "error": "documented public reference artifacts require reference_url or reference_doi",
+            }
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare uncertainty output units"})
     count = payload.get("reference_case_count")
@@ -139,7 +166,9 @@ def _validate_metric_block(path: Path, metrics: object, tolerances: object, erro
             errors.append({"path": str(path), "field": field, "error": "score must be finite in [0, 1]"})
             continue
         if not _is_unit_interval(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"})
+            errors.append(
+                {"path": str(path), "field": field, "error": "minimum score tolerance must be finite in [0, 1]"}
+            )
             continue
         if float(metric) < float(tolerance):
             errors.append({"path": str(path), "field": field, "error": "score is below declared minimum"})
@@ -150,7 +179,10 @@ def _valid_units(value: object) -> bool:
 
 
 def _has_public_reference(payload: dict[str, object]) -> bool:
-    return any(isinstance(payload.get(field), str) and str(payload[field]).strip() for field in ("reference_url", "reference_doi"))
+    return any(
+        isinstance(payload.get(field), str) and str(payload[field]).strip()
+        for field in ("reference_url", "reference_doi")
+    )
 
 
 def _has_campaign_reference(payload: dict[str, object]) -> bool:
@@ -158,16 +190,25 @@ def _has_campaign_reference(payload: dict[str, object]) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
-def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+def _is_positive_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
-def _is_unit_interval(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and 0.0 <= value <= 1.0
+def _is_unit_interval(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool)
+        and isinstance(value, int | float)
+        and math.isfinite(float(value))
+        and 0.0 <= value <= 1.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -186,12 +227,18 @@ def main(argv: list[str] | None = None) -> int:
         default=str(ROOT / "validation" / "reports" / "uncertainty_reference"),
         help="Directory or JSON artifact containing persisted uncertainty reference evidence",
     )
-    parser.add_argument("--require-reference-artifacts", action="store_true", help="Fail if no uncertainty reference artifacts are present")
+    parser.add_argument(
+        "--require-reference-artifacts",
+        action="store_true",
+        help="Fail if no uncertainty reference artifacts are present",
+    )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_uncertainty_reference(args.artifact_root, require_reference_artifacts=args.require_reference_artifacts)
+    report = validate_uncertainty_reference(
+        args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
+    )
     if args.output_json:
         output_path = Path(args.output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)

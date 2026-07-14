@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -57,7 +60,12 @@ _REQUIRED_METRICS = (
     "bootstrap_current_relative_error",
     "collisionality_width_order_error",
 )
-_ARTIFACT_URI_FIELDS = ("pedestal_profile_uri", "eped_prediction_uri", "bootstrap_current_uri", "peeling_ballooning_uri")
+_ARTIFACT_URI_FIELDS = (
+    "pedestal_profile_uri",
+    "eped_prediction_uri",
+    "bootstrap_current_uri",
+    "peeling_ballooning_uri",
+)
 _SHA256_FIELDS = (
     "pedestal_profile_sha256",
     "eped_prediction_sha256",
@@ -115,7 +123,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append({"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"})
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"}
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
@@ -157,10 +167,16 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         if not hmac.compare_digest(observed.lower(), expected):
             errors.append({"path": str(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"})
     if not _valid_units(payload.get("units")):
-        errors.append({"path": str(path), "field": "units", "error": "units must declare EPED pedestal reference units"})
+        errors.append(
+            {"path": str(path), "field": "units", "error": "units must declare EPED pedestal reference units"}
+        )
     if not _strictly_increasing_unit_grid(payload.get("rho_grid")):
         errors.append(
-            {"path": str(path), "field": "rho_grid", "error": "rho grid must be finite and strictly increasing on [0, 1]"}
+            {
+                "path": str(path),
+                "field": "rho_grid",
+                "error": "rho grid must be finite and strictly increasing on [0, 1]",
+            }
         )
     if not _valid_width_range(payload.get("pedestal_width_range_psi_n")):
         errors.append(
@@ -253,8 +269,10 @@ def _has_measured_campaign(payload: dict[str, object]) -> bool:
     machine = payload.get("machine")
     shot_id = payload.get("shot_id")
     campaign_id = payload.get("campaign_id")
-    return isinstance(machine, str) and bool(machine.strip()) and any(
-        isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id)
+    return (
+        isinstance(machine, str)
+        and bool(machine.strip())
+        and any(isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id))
     )
 
 
@@ -299,22 +317,27 @@ def _valid_shaping(value: object) -> bool:
     delta = value.get("delta")
     r0 = value.get("R0_m")
     minor = value.get("a_m")
-    if not _is_positive_finite(kappa) or not _is_finite(delta) or not _is_positive_finite(r0) or not _is_positive_finite(minor):
+    if (
+        not _is_positive_finite(kappa)
+        or not _is_finite(delta)
+        or not _is_positive_finite(r0)
+        or not _is_positive_finite(minor)
+    ):
         return False
     if abs(float(delta)) >= 1.0:
         return False
     return float(minor) < float(r0)
 
 
-def _is_finite(value: object) -> bool:
+def _is_finite(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) > 0.0
 
 

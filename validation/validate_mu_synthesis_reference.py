@@ -17,7 +17,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 _ALLOWED_SOURCES = {"documented_public_reference", "external_mu_toolbox_benchmark", "measured_control_replay"}
@@ -204,8 +207,7 @@ def _valid_plant_metadata(value: object) -> bool:
     if not isinstance(value, dict):
         return False
     return all(
-        isinstance(value.get(field), int) and not isinstance(value.get(field), bool) and value.get(field) > 0
-        for field in _REQUIRED_PLANT_FIELDS
+        isinstance(v := value.get(field), int) and not isinstance(v, bool) and v > 0 for field in _REQUIRED_PLANT_FIELDS
     )
 
 
@@ -222,15 +224,15 @@ def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _is_finite_number(value: object) -> bool:
+def _is_finite_number(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) > 0.0
 
 

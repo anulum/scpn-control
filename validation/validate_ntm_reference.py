@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -115,7 +118,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append({"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"})
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"}
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
@@ -145,7 +150,11 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
     if payload.get("source") == "measured_ntm_campaign" and not _has_measured_campaign(payload):
         errors.append(
-            {"path": str(path), "field": "campaign", "error": "measured NTM campaigns require machine and shot_id or campaign_id"}
+            {
+                "path": str(path),
+                "field": "campaign",
+                "error": "measured NTM campaigns require machine and shot_id or campaign_id",
+            }
         )
     if isinstance(payload.get("payload_sha256"), str):
         expected = canonical_artifact_sha256(payload)
@@ -155,9 +164,21 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare NTM reference units"})
     if not _strictly_increasing_unit_grid(payload.get("rho_grid")):
-        errors.append({"path": str(path), "field": "rho_grid", "error": "rho grid must be finite and strictly increasing on [0, 1]"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "rho_grid",
+                "error": "rho grid must be finite and strictly increasing on [0, 1]",
+            }
+        )
     if not _valid_q_profile(payload.get("q_profile"), payload.get("rho_grid")):
-        errors.append({"path": str(path), "field": "q_profile", "error": "q profile must be finite, positive, and length-matched to rho_grid"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "q_profile",
+                "error": "q profile must be finite, positive, and length-matched to rho_grid",
+            }
+        )
     if not _valid_rational_surface(payload.get("rational_surface")):
         errors.append(
             {
@@ -253,8 +274,10 @@ def _has_measured_campaign(payload: dict[str, object]) -> bool:
     machine = payload.get("machine")
     shot_id = payload.get("shot_id")
     campaign_id = payload.get("campaign_id")
-    return isinstance(machine, str) and bool(machine.strip()) and any(
-        isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id)
+    return (
+        isinstance(machine, str)
+        and bool(machine.strip())
+        and any(isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id))
     )
 
 
@@ -295,9 +318,11 @@ def _valid_rational_surface(value: object) -> bool:
         return False
     if m <= 0 or n <= 0:
         return False
-    if not all(_is_positive_finite(item) for item in (r_s, q, a, r0)) or not _is_finite(shear):
+    if not (
+        _is_positive_finite(r_s) and _is_positive_finite(q) and _is_positive_finite(a) and _is_positive_finite(r0)
+    ) or not _is_finite(shear):
         return False
-    if not _is_positive_finite(rho) or float(rho) >= 1.0:
+    if not (_is_positive_finite(rho) and float(rho) < 1.0):
         return False
     return float(a) < float(r0) and float(r_s) < float(a)
 
@@ -318,18 +343,23 @@ def _valid_eccd_alignment(value: object) -> bool:
     current = value.get("current_A")
     width = value.get("deposition_width_m")
     error = value.get("alignment_error_m")
-    return _is_nonnegative_finite(power) and _is_nonnegative_finite(current) and _is_positive_finite(width) and _is_nonnegative_finite(error)
+    return (
+        _is_nonnegative_finite(power)
+        and _is_nonnegative_finite(current)
+        and _is_positive_finite(width)
+        and _is_nonnegative_finite(error)
+    )
 
 
-def _is_finite(value: object) -> bool:
+def _is_finite(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite(value) and float(value) > 0.0
 
 
