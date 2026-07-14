@@ -954,7 +954,7 @@ class IntegratedScenarioSimulator:
     # ── internal physics helpers ──────────────────────────────────────────────
 
     def _chi_total(self, q: AnyFloatArray) -> FloatArray:
-        """Combined neoclassical + gyro-Bohm anomalous diffusivity.
+        """Return the combined neoclassical + gyro-Bohm anomalous diffusivity.
 
         Wesson 2011, Ch. 14 — total chi = chi_neo + chi_anom.
         """

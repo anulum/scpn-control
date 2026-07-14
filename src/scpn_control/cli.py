@@ -266,7 +266,7 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
 @click.option("--n-warmup", default=100, type=int, help="Warm-up iterations excluded from timing")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
-    """Timing benchmark: PID vs SNN control step latency.
+    """Benchmark PID versus SNN control-step latency.
 
     A warm-up phase is executed but excluded from timing to isolate steady-state
     micro-benchmark behavior from cold-start effects (JIT, allocator, cache, init).

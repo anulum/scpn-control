@@ -14,8 +14,7 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Unified Phase Dynamics Equation — multi-layer evolution parameterised
-by the Knm coupling matrix from Paper 27.
+Unified Phase Dynamics Equation — multi-layer evolution parameterised by the Knm coupling matrix from Paper 27.
 
 Per-layer equation:
     dθ_{m,i}/dt = ω_{m,i}

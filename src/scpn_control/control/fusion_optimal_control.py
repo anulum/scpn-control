@@ -47,9 +47,7 @@ SHOT_STEPS = 50
 
 
 class OptimalController:
-    """
-    MIMO controller using response-matrix inversion with bounded actuation.
-    """
+    """MIMO controller using response-matrix inversion with bounded actuation."""
 
     def __init__(
         self,
@@ -87,9 +85,7 @@ class OptimalController:
             logger.info(message)
 
     def identify_system(self, perturbation: float = 0.5) -> None:
-        """
-        Perturb each coil and measure plasma-axis response to build Jacobian.
-        """
+        """Perturb each coil and measure plasma-axis response to build Jacobian."""
         self._log("[OptControl] Identifying System Response Matrix...")
         solve_kernel(self.kernel)
         base_r, base_z = self.get_plasma_pos()
@@ -132,9 +128,7 @@ class OptimalController:
         target_pos: AnyFloatArray,
         regularization_limit: float = 1e-2,
     ) -> FloatArray:
-        """
-        Solve Error = J * Delta_I using damped pseudoinverse.
-        """
+        """Solve Error = J * Delta_I using damped pseudoinverse."""
         cur = np.asarray(current_pos, dtype=np.float64).reshape(2)
         tgt = np.asarray(target_pos, dtype=np.float64).reshape(2)
         error = tgt - cur
@@ -339,9 +333,7 @@ def run_optimal_control(
     coil_current_limits: Tuple[float, float] = (-40.0, 40.0),
     current_target_limits: Tuple[float, float] = (5.0, 16.0),
 ) -> Dict[str, Any]:
-    """
-    Run bounded optimal-control shot and return deterministic summary.
-    """
+    """Run bounded optimal-control shot and return deterministic summary."""
     seed_int = int(seed)
     if config_file is None:
         repo_root = Path(__file__).resolve().parents[3]

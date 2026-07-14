@@ -91,6 +91,7 @@ def _require_positive_float(name: str, value: float) -> float:
 class TokamakTopology:
     """
     Handles the magnetic geometry (Safety Factor q-profile).
+
     Instabilities occur at 'Rational Surfaces' (q = 2, q = 3, q = 1.5).
     """
 
@@ -110,8 +111,9 @@ class TokamakTopology:
 
     def update_q_profile(self, current_drive_action: float) -> None:
         """
-        Action modifies the magnetic shear (twisting of lines).
-        current_drive: -1.0 to 1.0 (Non-inductive current drive)
+        Modify the magnetic shear (twisting of field lines) via current drive.
+
+        current_drive: -1.0 to 1.0 (non-inductive current drive).
         """
         # Physical effect: Current drive changes q at the center/edge
         mod_q0 = self.q0 - (0.2 * current_drive_action)
@@ -122,8 +124,9 @@ class TokamakTopology:
 
     def get_rational_surfaces(self) -> FloatArray:
         """
-        Returns a boolean map of where Magnetic Islands are likely to form.
-        Resonances at q = 1.5, 2.0, 2.5, 3.0
+        Return a boolean map of where magnetic islands are likely to form.
+
+        Resonances at q = 1.5, 2.0, 2.5, 3.0.
         """
         resonances = [1.5, 2.0, 2.5, 3.0]
         danger_map = np.zeros((self.size, self.size), dtype=bool)
@@ -173,6 +176,7 @@ class Plasma2D:
     def step(self, action: float) -> tuple[FloatArray, float]:
         """
         Evolves plasma for one time step.
+
         action: Control signal for current drive (modifies q-profile).
         """
         # 1. Update Topology (Magnetic Geometry)
@@ -233,6 +237,7 @@ class Plasma2D:
 class SimpleNeuralNet:
     """
     A lightweight Multi-Layer Perceptron (MLP) written in numpy.
+
     Implements a Policy Network for Continuous Control.
     """
 
@@ -273,6 +278,7 @@ class SimpleNeuralNet:
     def train_step(self, x: AnyFloatArray, target_action: Any, advantage: float) -> float:
         """
         Simplified Policy Gradient update (REINFORCE-like).
+
         We want to move the output closer to 'target_action' scaled by 'advantage'.
         """
         # Forward pass (updates internal activations for backward pass)
@@ -565,9 +571,7 @@ def run_digital_twin_ids(
     run: int = 0,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """
-    Run digital twin and return IDS-like equilibrium payload.
-    """
+    """Run digital twin and return IDS-like equilibrium payload."""
     summary = run_digital_twin(**kwargs)
     return dict(
         digital_twin_summary_to_ids(
@@ -588,9 +592,7 @@ def run_digital_twin_ids_history(
     seed: int = 42,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """
-    Run digital twin at multiple horizons and return IDS-like payload sequence.
-    """
+    """Run digital twin at multiple horizons and return IDS-like payload sequence."""
     if "time_steps" in kwargs:
         raise ValueError("time_steps is controlled by history_steps in history mode.")
     if isinstance(history_steps, (str, bytes, bytearray)) or not isinstance(history_steps, Sequence):
@@ -623,9 +625,7 @@ def run_digital_twin_ids_pulse(
     seed: int = 42,
     **kwargs: Any,
 ) -> dict[str, Any]:
-    """
-    Run digital twin at multiple horizons and return pulse-style IDS container.
-    """
+    """Run digital twin at multiple horizons and return pulse-style IDS container."""
     if "time_steps" in kwargs:
         raise ValueError("time_steps is controlled by history_steps in pulse mode.")
 

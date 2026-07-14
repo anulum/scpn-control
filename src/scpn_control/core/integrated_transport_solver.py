@@ -341,6 +341,7 @@ def calculate_sauter_bootstrap_current_full(
 class TransportSolver(FusionKernel):
     """
     1.5D Integrated Transport Code.
+
     Solves Heat and Particle diffusion equations on flux surfaces,
     coupled self-consistently with the 2D Grad-Shafranov equilibrium.
 
@@ -566,6 +567,7 @@ class TransportSolver(FusionKernel):
     def inject_impurities(self, flux_from_wall_per_sec: float, dt: float) -> None:
         """
         Models impurity influx from PWI erosion.
+
         Simple diffusion model: Source at edge, diffuses inward.
         """
         # Source at edge (last grid point)
@@ -1713,10 +1715,7 @@ class TransportSolver(FusionKernel):
         return avg_ti, core_ti
 
     def map_profiles_to_2d(self) -> None:
-        """
-        Projects the 1D radial profiles back onto the 2D Grad-Shafranov grid,
-        including neoclassical bootstrap current.
-        """
+        """Project the 1D radial profiles back onto the 2D Grad-Shafranov grid, including neoclassical bootstrap current."""
         # 1. Get Flux Topology
         idx_max = np.argmax(self.Psi)
         iz_ax, ir_ax = np.unravel_index(idx_max, self.Psi.shape)

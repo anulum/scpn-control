@@ -132,7 +132,7 @@ class RadiationCondensation:
         return float(gamma)
 
     def is_unstable(self, Te_eV: float, k_par: float, kappa_par: float) -> bool:
-        """True when dL/dT < 0 and radiation term exceeds parallel conduction damping."""
+        """Return True when dL/dT < 0 and the radiation term exceeds parallel-conduction damping."""
         return self.growth_rate(Te_eV, k_par, kappa_par) > 0.0
 
     def onset_temperature(self, Te_scan: AnyFloatArray) -> float:
@@ -284,6 +284,7 @@ class MARFEFrontModel:
     def is_marfe(self) -> bool:
         """
         MARFE criterion: localised cold spot with T_min < 20 eV and T_max > 50 eV.
+
         Lipschultz 1987, J. Nucl. Mater. 145-147, 15.
         """
         T = _front_temperature_state(self.T, self.n_s)
@@ -298,7 +299,7 @@ class DensityLimitPredictor:
     @staticmethod
     def greenwald_limit(Ip_MA: float, a: float) -> float:
         """
-        n_GW = I_p / (π a²)   [10^20 m^-3]
+        n_GW = I_p / (π a²)   [10^20 m^-3].
 
         Greenwald 2002, Plasma Phys. Control. Fusion 44, R27, Eq. 1.
         I_p in MA, a in m.

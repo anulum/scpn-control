@@ -75,9 +75,7 @@ def _evidence_digest(payload: Mapping[str, float | str | bool]) -> str:
 
 
 class NeuralSurrogate:
-    """
-    Linearized surrogate model around current operating point.
-    """
+    """Linearized surrogate model around current operating point."""
 
     def __init__(self, n_coils: int, n_state: int, verbose: bool = True) -> None:
         self.verbose = bool(verbose)
@@ -155,9 +153,7 @@ class NeuralSurrogate:
 
 
 class ModelPredictiveController:
-    """
-    Gradient-based MPC planner over surrogate dynamics.
-    """
+    """Gradient-based MPC planner over surrogate dynamics."""
 
     def __init__(
         self,

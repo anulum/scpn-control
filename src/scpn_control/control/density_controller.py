@@ -215,6 +215,7 @@ class ParticleTransportModel:
     def recycling_source(self, outflux: float, recycling_coeff: float = 0.97) -> FloatArray:
         """
         Recycling_coeff = 0.97 is the standard ITER assumption for a metal wall.
+
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §4.2.
         """
         if not math.isfinite(outflux) or outflux < 0.0:
@@ -444,7 +445,7 @@ class DensityController:
         return float(n_avg / n_GW)
 
     def below_greenwald_safety_margin(self, ne: AnyFloatArray) -> bool:
-        """True if volume-averaged density is within the ITER safety margin.
+        """Return True if the volume-averaged density is within the ITER safety margin.
 
         ITER Physics Basis 1999, Nucl. Fusion 39, 2175, §2.3: n/n_GW < 0.85.
         """

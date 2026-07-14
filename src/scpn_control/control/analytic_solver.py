@@ -69,9 +69,7 @@ except ImportError:
 
 
 class AnalyticEquilibriumSolver:
-    """
-    Analytic vertical-field target and least-norm coil-current solve.
-    """
+    """Analytic vertical-field target and least-norm coil-current solve."""
 
     def __init__(
         self,
@@ -97,9 +95,7 @@ class AnalyticEquilibriumSolver:
         beta_p: float = 0.5,
         li: float = 0.8,
     ) -> float:
-        """
-        Shafranov radial-force balance vertical field estimate.
-        """
+        """Shafranov radial-force balance vertical field estimate."""
         R_geo = _require_positive_scalar("R_geo", R_geo)
         a_min = _require_positive_scalar("a_min", a_min)
         Ip_MA = _require_positive_scalar("Ip_MA", Ip_MA)
@@ -126,9 +122,7 @@ class AnalyticEquilibriumSolver:
         *,
         target_Z: float = 0.0,
     ) -> FloatArray:
-        """
-        Compute dBz/dI per coil at target location using kernel vacuum-field map.
-        """
+        """Compute dBz/dI per coil at target location using kernel vacuum-field map."""
         coils = self.kernel.cfg.get("coils", [])
         n_coils = len(coils)
         if n_coils == 0:
@@ -199,9 +193,7 @@ class AnalyticEquilibriumSolver:
         target_Z: float = 0.0,
         ridge_lambda: float = 0.0,
     ) -> FloatArray:
-        """
-        Solve least-norm coil currents for desired vertical field target.
-        """
+        """Solve least-norm coil currents for desired vertical field target."""
         eff = self.compute_coil_efficiencies(target_R, target_Z=target_Z)
         target_Bv = _require_finite_scalar("target_Bv", target_Bv)
         ridge_lambda = _require_finite_scalar("ridge_lambda", ridge_lambda)
@@ -311,9 +303,7 @@ def run_analytic_solver(
     allow_legacy_config_fallback: bool = False,
     kernel_factory: Callable[[str], Any] = FusionKernel,
 ) -> Dict[str, Any]:
-    """
-    Run analytic equilibrium solve and return deterministic summary.
-    """
+    """Run analytic equilibrium solve and return deterministic summary."""
     if allow_config_fallback and not allow_legacy_config_fallback:
         raise ValueError(
             "allow_config_fallback=True requires allow_legacy_config_fallback=True; "

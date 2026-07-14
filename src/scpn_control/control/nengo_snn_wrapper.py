@@ -47,7 +47,7 @@ _nengo_available = True
 
 
 def nengo_available() -> bool:
-    """Always True — no external dependency required."""
+    """Return True; no external dependency is required."""
     return True
 
 

@@ -1033,7 +1033,7 @@ def pretrain_neural_equilibrium_synthetic(
     n_components: int = 20,
     seed: int = 20240531,
 ) -> PretrainingResult:
-    """Convenience entry point for bounded synthetic pretraining."""
+    """Run bounded synthetic pretraining (convenience entry point)."""
     accel = NeuralEquilibriumAccelerator(
         NeuralEqConfig(
             n_components=n_components,

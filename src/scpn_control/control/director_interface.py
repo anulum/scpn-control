@@ -153,9 +153,7 @@ class DirectorInterface:
         err_z: float,
         brain_activity: list[float],
     ) -> str:
-        """
-        Translate physical telemetry into a semantic prompt for the Director.
-        """
+        """Translate physical telemetry into a semantic prompt for the Director."""
         ip = float(ip)
         err_r = float(err_r)
         err_z = float(err_z)

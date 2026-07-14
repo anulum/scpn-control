@@ -254,7 +254,7 @@ class ScenarioSchedule:
 
 
 def iter_baseline_schedule() -> ScenarioSchedule:
-    """ITER 15 MA inductive scenario baseline waveform.
+    """Return the ITER 15 MA inductive scenario baseline waveform.
 
     Timing and values follow ITER PCDH v3.1 (Polevoi et al. 2014,
     ITER Report ITR-18-001, §4.1, Table 4-1):

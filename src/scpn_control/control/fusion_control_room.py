@@ -71,9 +71,7 @@ FPS = 10
 
 
 class TokamakPhysicsEngine:
-    """
-    Reduced Grad-Shafranov geometry model with optional kernel-Psi ingestion.
-    """
+    """Reduced Grad-Shafranov geometry model with optional kernel-Psi ingestion."""
 
     def __init__(
         self,
@@ -121,10 +119,7 @@ class TokamakPhysicsEngine:
         return psi
 
     def solve_flux_surfaces(self) -> tuple[AnyFloatArray, FloatArray]:
-        """
-        Return `(density, psi)` from kernel state when available, otherwise
-        from analytic Miller-parameterized geometry.
-        """
+        """Return ``(density, psi)`` from kernel state when available, otherwise from analytic Miller-parameterized geometry."""
         psi_kernel = self._kernel_psi()
         if psi_kernel is not None:
             psi_min = float(np.min(psi_kernel))
@@ -147,9 +142,7 @@ class TokamakPhysicsEngine:
         return self.density, psi
 
     def step_dynamics(self, coil_action_top: float, coil_action_bottom: float) -> float:
-        """
-        Reduced vertical-displacement dynamics.
-        """
+        """Reduced vertical-displacement dynamics."""
         instability_growth = 0.1
         control_force = (float(coil_action_bottom) - float(coil_action_top)) * 0.2
         disturbance = float(self.rng.normal(0.0, 0.01))
@@ -384,9 +377,7 @@ def run_control_room(
     allow_output_render_fallback: bool = False,
     allow_legacy_output_render_fallback: bool = False,
 ) -> dict[str, Any]:
-    """
-    Run the control-room loop and return deterministic summary metrics.
-    """
+    """Run the control-room loop and return deterministic summary metrics."""
     steps = int(sim_duration)
     if steps < 1:
         raise ValueError("sim_duration must be >= 1.")

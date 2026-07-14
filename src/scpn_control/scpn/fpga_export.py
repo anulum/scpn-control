@@ -474,7 +474,7 @@ def _verilog_weight_rom(n_neurons: int, bit_width: int) -> str:
 
 
 def _verilog_bitstream_decoder(n_places: int, bit_width: int) -> str:
-    """Decoder: maps SPN bitstream-encoded place tokens to neuron input currents."""
+    """Decode SPN bitstream-encoded place tokens into neuron input currents."""
     addr_bits = max(1, int(math.ceil(math.log2(max(n_places, 2)))))
     return textwrap.dedent(f"""\
         module bitstream_decoder #(

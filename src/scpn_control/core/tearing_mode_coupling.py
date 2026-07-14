@@ -117,7 +117,7 @@ class ChirikovOverlap:
 
     @staticmethod
     def is_stochastic(sigma: float) -> bool:
-        """True when σ > 1 (Chirikov 1979, Eq. 3.1)."""
+        """Return True when σ > 1 (Chirikov 1979, Eq. 3.1)."""
         sigma = _finite_scalar("sigma", sigma, nonnegative=True)
         return sigma > 1.0
 

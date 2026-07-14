@@ -231,9 +231,7 @@ def solve_dispersion(
 
 
 def compute_spectrum(params: GyrokineticsParams, n_modes: int = 16, include_etg: bool = False) -> SpectrumResult:
-    """
-    Scan k_theta rho_s and compute growth rate spectrum over a positive mode count.
-    """
+    """Scan k_theta rho_s and compute growth rate spectrum over a positive mode count."""
     params = _validate_params(params)
     n_modes = _positive_int("n_modes", n_modes)
     k_y_list = []
@@ -274,9 +272,7 @@ def compute_spectrum(params: GyrokineticsParams, n_modes: int = 16, include_etg:
 
 
 def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> TransportFluxes:
-    """
-    Apply saturation rule and return effective diffusivities for a valid spectrum.
-    """
+    """Apply saturation rule and return effective diffusivities for a valid spectrum."""
     params = _validate_params(params)
     spectrum = _validate_spectrum(spectrum)
     # The mixing-length growth-rate cap gamma_max = c_s/(q R) (= 1/q in c_s/R
@@ -360,9 +356,7 @@ class GyrokineticTransportModel:
         self.c_tune = 0.5
 
     def evaluate(self, rho: float, profiles: dict[str, Any]) -> tuple[float, float, float]:
-        """
-        Evaluate transport coefficients at a single radial point.
-        """
+        """Evaluate transport coefficients at a single radial point."""
         rho = _unit_interval("rho", rho)
         if rho <= 0.05:
             # Axis boundary
@@ -442,9 +436,7 @@ class GyrokineticTransportModel:
     def evaluate_profile(
         self, rho: AnyFloatArray, profiles: dict[str, AnyFloatArray]
     ) -> tuple[FloatArray, FloatArray, FloatArray]:
-        """
-        Evaluate full radial profile over a finite one-dimensional rho grid in [0, 1].
-        """
+        """Evaluate full radial profile over a finite one-dimensional rho grid in [0, 1]."""
         rho = np.asarray(rho, dtype=float)
         if rho.ndim != 1 or not np.all(np.isfinite(rho)) or np.any(rho < 0.0) or np.any(rho > 1.0):
             raise ValueError("rho must be a finite one-dimensional profile within [0, 1]")

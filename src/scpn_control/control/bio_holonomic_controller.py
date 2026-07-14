@@ -86,9 +86,7 @@ class BioHolonomicController:
         self.l5_adapter = L5_OrganismalAdapter(L5_HolonomicParameters(), seed=seed + 1)
 
     def step(self, telemetry: BioTelemetrySnapshot) -> Dict[str, Any]:
-        """
-        Advances the bio-controller one tick using incoming telemetry.
-        """
+        """Advances the bio-controller one tick using incoming telemetry."""
         # 1. Modulate L4 (Cellular/Tissue) based on empirical EEG coherence
         # Higher global coherence drives stronger low-level cellular synchronization
         self.l4_adapter.params.k_coupling = 0.3 * (1.0 + telemetry.eeg_coherence_r)

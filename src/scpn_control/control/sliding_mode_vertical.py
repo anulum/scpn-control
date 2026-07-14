@@ -54,7 +54,7 @@ class SuperTwistingSMC:
         self.v = 0.0
 
     def sliding_surface(self, e: float, de_dt: float) -> float:
-        """s = e + c ė  (Utkin 1992, Ch. 2)."""
+        """Return the sliding surface ``s = e + c ė`` (Utkin 1992, Ch. 2)."""
         return e + self.c * de_dt
 
     def step(self, e: float, de_dt: float, dt: float) -> float:

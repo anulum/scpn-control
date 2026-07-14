@@ -459,7 +459,7 @@ class BurnStabilityAnalysis:
         return float(d_ln_sv / d_ln_T)
 
     def is_thermally_stable(self, Ti_keV: float) -> bool:
-        """True if d(ln <σv>)/d(ln T) < 2 (Mitarai & Muraoka 1999)."""
+        """Return True if d(ln <σv>)/d(ln T) < 2 (Mitarai & Muraoka 1999)."""
         return self.reactivity_exponent(Ti_keV) < 2.0
 
     def stability_boundary_keV(self) -> float:

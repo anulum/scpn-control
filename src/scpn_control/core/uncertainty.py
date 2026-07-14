@@ -517,8 +517,7 @@ class TransportUncertainty:
 
 @dataclass
 class FullChainUQResult:
-    """Extended uncertainty-quantified prediction covering the full
-    equilibrium -> transport -> fusion power chain.
+    """Extended uncertainty-quantified prediction covering the full equilibrium -> transport -> fusion power chain.
 
     All ``*_bands`` fields are length-3 arrays: [5th, 50th, 95th] percentiles.
     """
@@ -586,8 +585,7 @@ def quantify_full_chain(
     boundary_sigma: float = 0.02,
 ) -> FullChainUQResult:
     """
-    Full-chain Monte Carlo uncertainty propagation:
-    equilibrium -> transport -> fusion power -> gain.
+    Full-chain Monte Carlo uncertainty propagation: equilibrium -> transport -> fusion power -> gain.
 
     Now uses correlated sampling for IPB98 coefficients.
     """
@@ -722,8 +720,7 @@ def quantify_full_chain(
 
 def summarize_uq(result: FullChainUQResult) -> dict[str, Any]:
     """
-    Pretty-print a FullChainUQResult as a plain dict suitable for
-    ``json.dumps()``.
+    Pretty-print a FullChainUQResult as a plain dict suitable for ``json.dumps()``.
 
     All numpy arrays are converted to Python lists; floats are rounded
     to 6 significant figures.

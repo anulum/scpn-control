@@ -268,7 +268,7 @@ class PlasmaShapeController:
 
 
 def iter_lower_single_null_target() -> ShapeTarget:
-    """ITER lower single-null equilibrium shape control target.
+    """Return the ITER lower single-null equilibrium shape-control target.
 
     Geometry based on ITER Design Description Document, §2.2 (plasma shape).
     Elongation κ = 1.7, triangularity δ = 0.33 at 85% flux surface.

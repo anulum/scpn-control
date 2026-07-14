@@ -246,6 +246,7 @@ class EPEDValidationPoint:
 def eped_validation_database() -> list[EPEDValidationPoint]:
     """
     Synthetic test data for EPED model validation.
+
     Values are approximate and do not represent real experimental measurements.
     """
     return [
@@ -320,7 +321,7 @@ def _collisionality_width_correction(delta_kbm: float, nu_star_e: float) -> floa
 
 def eped1_predict(config: EPEDConfig) -> EPEDResult:
     """
-    Self-consistent (p_ped, Δ_ped) from PB + KBM constraints. [S09]
+    Self-consistent (p_ped, Δ_ped) from PB + KBM constraints. [S09].
 
     Iteration: guess Δ → α_crit(Δ) → p_ped → β_p,ped → Δ_KBM.
     Collisionality correction applied after convergence. [S11]

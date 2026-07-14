@@ -6,8 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Stellarator Geometry and ISS04 Scaling
 """
-Stellarator flux-surface geometry in Boozer coordinates, neoclassical
-transport, and ISS04 confinement scaling.
+Stellarator flux-surface geometry in Boozer coordinates, neoclassical transport, and ISS04 confinement scaling.
 
 References
 ----------

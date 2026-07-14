@@ -437,11 +437,11 @@ class CapacitorBank:
         return self.state
 
     def discharge(self, pulse: PulseSpec, dt: float, n_steps: int) -> EnergyReport:
-        """Drive the bank with ``pulse`` using midpoint-sampled load current.
+        r"""Drive the bank with ``pulse`` using midpoint-sampled load current.
 
         The bank dynamics advance with the exact zero-order-hold stepper, and each
-        step's ohmic dissipation :math:`R\\int i^2\\,dt` and load extraction
-        :math:`\\int v\\,u\\,dt` are integrated in closed form, so the energy ledger
+        step's ohmic dissipation :math:`R\int i^2\,dt` and load extraction
+        :math:`\int v\,u\,dt` are integrated in closed form, so the energy ledger
         closes to machine precision instead of carrying second-order quadrature
         error.
         """

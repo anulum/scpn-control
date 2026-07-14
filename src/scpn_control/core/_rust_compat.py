@@ -14,8 +14,7 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Backward compatibility layer: imports from Rust (scpn_control_rs) if available,
-falls back to pure-Python implementations.
+Backward compatibility layer: imports from Rust (scpn_control_rs) if available, falls back to pure-Python implementations.
 
 Usage:
     from scpn_control.core._rust_compat import FusionKernel, RUST_BACKEND
@@ -97,11 +96,11 @@ def _normalise_rust_config_path(config_path: str) -> tuple[dict[str, Any], str, 
 
 class RustAcceleratedKernel:
     """
-    Drop-in wrapper around Rust PyFusionKernel that mirrors the Python
-    FusionKernel attribute interface (.Psi, .R, .Z, .RR, .ZZ, .cfg, etc.).
+    Drop-in wrapper around Rust PyFusionKernel mirroring the Python FusionKernel attribute interface.
 
-    Delegates equilibrium solve to Rust for ~20x speedup while keeping
-    all attribute accesses compatible with downstream code.
+    Mirrors ``.Psi``, ``.R``, ``.Z``, ``.RR``, ``.ZZ``, ``.cfg``, etc.  Delegates
+    equilibrium solve to Rust for ~20x speedup while keeping all attribute
+    accesses compatible with downstream code.
     """
 
     def __init__(self, config_path: str | os.PathLike[str]) -> None:
@@ -181,6 +180,7 @@ class RustAcceleratedKernel:
     def find_x_point(self, Psi: AnyFloatArray) -> tuple[tuple[Any, Any], Any]:
         """
         Locate the null point (B=0) using local minimization.
+
         Matches Python FusionKernel.find_x_point() interface.
         """
         dPsi_dR, dPsi_dZ = _psi_gradient_fields(np.asarray(Psi, dtype=float), self.dR, self.dZ)
@@ -699,8 +699,10 @@ def rust_multigrid_vcycle(
     tol: float = 1e-6,
     max_cycles: int = 500,
 ) -> tuple[FloatArray, float, int, bool]:
-    """Multigrid V-cycle GS solver. Uses Rust backend when available,
-    falls back to FusionKernel's Python multigrid.
+    """Solve the multigrid V-cycle GS problem.
+
+    Uses the Rust backend when available, falling back to FusionKernel's Python
+    multigrid.
 
     Returns
     -------
@@ -770,8 +772,10 @@ _SPI_L_PLASMA = 1e-6  # [H]
 
 
 class RustSPIMitigation:
-    """SPI disruption-mitigation simulator. Uses Rust backend when available,
-    falls back to pure-Python implementation matching Rust constants.
+    """Simulate SPI disruption mitigation.
+
+    Uses the Rust backend when available, falling back to a pure-Python
+    implementation matching the Rust constants.
 
     Parameters
     ----------
@@ -848,8 +852,10 @@ def rust_svd_optimal_correction(
     error: AnyFloatArray,
     gain: float = 0.8,
 ) -> FloatArray:
-    """SVD-based coil current correction. Uses Rust backend when available,
-    falls back to NumPy SVD pseudoinverse.
+    """Compute the SVD-based coil-current correction.
+
+    Uses the Rust backend when available, falling back to the NumPy SVD
+    pseudoinverse.
 
     Parameters
     ----------
@@ -885,7 +891,7 @@ def _python_svd_optimal_correction(
     gain: float,
     sv_cutoff: float = 1e-6,
 ) -> FloatArray:
-    """Truncated SVD pseudoinverse with singular value cutoff.
+    """Compute the truncated-SVD pseudoinverse with singular-value cutoff.
 
     Matches Rust linalg.rs svd_optimal_correction algorithm.
     """

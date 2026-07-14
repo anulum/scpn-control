@@ -83,7 +83,8 @@ class PeelingBallooningBoundary:
 
     def is_unstable(self, alpha_edge: float, j_edge: float, s_edge: float) -> bool:
         """
-        Combined peeling-ballooning criterion (elliptical boundary).
+        Evaluate the combined peeling-ballooning criterion (elliptical boundary).
+
         Snyder et al. 2002, Phys. Plasmas 9, 2037, Eq. 8.
         """
         j_crit = self.peeling_limit(j_edge)
@@ -150,6 +151,7 @@ class ELMCrashModel:
     def crash(self, T_ped: float, n_ped: float, W_ped: float, A_wet: float = 1.0) -> ELMCrashResult:
         """
         ΔW_ELM = f × W_ped; T and n drop by √(1 − f) (W ∝ n T).
+
         Loarte et al. 2003, PPCF 45, 1549, Fig. 12.
         """
         if T_ped <= 0.0:
@@ -225,6 +227,7 @@ class ELMCrashModel:
 class Type3ELMCrashModel(ELMCrashModel):
     """
     Type III ELM: smaller energy loss, higher frequency, triggered at lower pedestal pressure.
+
     Zohm 1996, PPCF 38, 105.
     """
 
@@ -274,9 +277,7 @@ class RMPSuppression:
     def chirikov_parameter(
         self, q_profile: AnyFloatArray, rho: AnyFloatArray, delta_B_r: float, B0: float, R0: float
     ) -> float:
-        """
-        σ_Chir = Σ w_mn / dr_mn; w_mn = 4√(R0 q' δB_r / (n B0)).
-        """
+        """σ_Chir = Σ w_mn / dr_mn; w_mn = 4√(R0 q' δB_r / (n B0))."""
         if q_profile.ndim != 1 or rho.ndim != 1:
             raise ValueError("q_profile and rho must be one-dimensional")
         if len(q_profile) != len(rho) or len(q_profile) == 0:
@@ -359,6 +360,7 @@ class RMPSuppression:
 def elm_power_balance_frequency(P_SOL_MW: float, W_ped_MJ: float, f_elm_fraction: float) -> float:
     """
     f_ELM ∝ (P_loss − P_LH) / ΔW_ELM ≈ P_SOL / (f × W_ped).
+
     Leonard et al. 1999, J. Nucl. Mater. 266-269, 109.
     """
     if P_SOL_MW < 0.0:

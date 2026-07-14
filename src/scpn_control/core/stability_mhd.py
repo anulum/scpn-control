@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MHD Stability: Five-Criterion Suite
 """
-MHD stability analysis suite — five criteria:
+MHD stability analysis suite covering five criteria.
 
 1. **Mercier** — interchange stability (D_M >= 0)
 2. **Ballooning** — first-stability boundary (Connor-Hastie-Taylor)

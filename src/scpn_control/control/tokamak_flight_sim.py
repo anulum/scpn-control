@@ -128,6 +128,7 @@ class FirstOrderActuator:
 class IsoFluxController:
     """
     Simulates the Plasma Control System (PCS).
+
     Uses PID loops to adjust Coil Currents to maintain plasma shape.
     """
 

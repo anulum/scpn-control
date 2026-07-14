@@ -233,8 +233,7 @@ def save_orbit_following_claim_evidence(evidence: OrbitFollowingClaimEvidence, p
 
 class GuidingCenterOrbit:
     """
-    Guiding-center equations of motion in (R, Z, phi, v_par) for an
-    axisymmetric tokamak.
+    Guiding-center equations of motion in (R, Z, phi, v_par) for an axisymmetric tokamak.
 
     Drift decomposition follows Boozer 2004, Rev. Mod. Phys. 76, 1071,
     Eqs. 16–18:
@@ -561,7 +560,7 @@ def first_orbit_loss(R0: float, a: float, B0: float, Ip_MA: float, E_alpha_keV: 
 
 def banana_orbit_width(q: float, rho_L: float, epsilon: float) -> float:
     """
-    Banana orbit width: Δ_b = q ρ_L / √ε
+    Banana orbit width: Δ_b = q ρ_L / √ε.
 
     Reference: Wesson 2011, Tokamaks 4th ed., Eq. 5.4.14
 
@@ -622,6 +621,7 @@ class SlowingDown:
     def critical_velocity(Te_keV: float, ne_20: float) -> float:
         """
         v_c for a DT-plasma background (Z_bg=1, A_bg=2.5).
+
         Stix 1972, Eq. 12.
         """
         Te_keV = _finite_scalar("Te_keV", Te_keV, positive=True)
@@ -662,8 +662,9 @@ class SlowingDown:
     @staticmethod
     def dE_dt(E_keV: float, E_crit_keV: float, tau_s: float) -> float:
         """
-        Stix slowing-down power loss:
-            dE/dt = -(E / τ_s) * (1 + (E_crit / E)^(3/2))
+        Stix slowing-down power loss.
+
+            dE/dt = -(E / τ_s) * (1 + (E_crit / E)^(3/2)).
 
         Reference: Stix 1972, Plasma Physics 14, 367, Eq. 12.
 

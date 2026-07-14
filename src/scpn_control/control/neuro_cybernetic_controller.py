@@ -240,9 +240,7 @@ class SpikingControllerPool:
 
 
 class NeuroCyberneticController:
-    """
-    Replaces PID loops with push-pull spiking populations.
-    """
+    """Replaces PID loops with push-pull spiking populations."""
 
     def __init__(
         self,

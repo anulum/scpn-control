@@ -40,9 +40,7 @@ _KINETIC_INTERPOLATION_GEOMETRY = "normalised_elliptic_rho"
 
 
 class FastIonPressure:
-    """
-    Anisotropic fast ion pressure model.
-    """
+    """Anisotropic fast ion pressure model."""
 
     def __init__(self, E_fast_keV: float, n_fast_frac: float, anisotropy_sigma: float = 0.0):
         self.E_fast_keV = E_fast_keV
@@ -337,9 +335,7 @@ def save_kinetic_efit_claim_evidence(evidence: KineticEFITClaimEvidence, path: s
 
 
 def mse_pitch_angle(B_R: float, B_Z: float, B_phi: float, v_beam: float, R: float) -> float:
-    """
-    Forward motional-Stark-effect pitch-angle estimate for a tangential beam.
-    """
+    """Forward motional-Stark-effect pitch-angle estimate for a tangential beam."""
     # Pitch angle roughly arctan(B_Z / B_phi) for a tangential beam at midplane
     return float(np.degrees(np.arctan2(B_Z, B_phi)))
 

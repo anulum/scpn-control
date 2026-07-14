@@ -56,9 +56,7 @@ class BallooningEigenResult:
 
 
 class BallooningEquation:
-    """
-    Second-order ODE for ideal MHD ballooning stability in the s-alpha model.
-    """
+    """Second-order ODE for ideal MHD ballooning stability in the s-alpha model."""
 
     def __init__(self, s: float, alpha: float, theta_max: float = 20 * np.pi, n_theta: int = 2001):
         self.s = _require_finite_scalar("s", s)
@@ -79,6 +77,7 @@ class BallooningEquation:
     def solve(self) -> BallooningEigenResult:
         """
         Solve via Newcomb shooting: ξ crossing zero signals instability.
+
         No zero crossing within [0, θ_max] means stable.
         """
 
@@ -121,6 +120,7 @@ class BallooningEquation:
 def find_marginal_stability(s: float, alpha_min: float = 0.0, alpha_max: float = 2.0, tol: float = 1e-3) -> float:
     """
     Binary search for alpha_crit at fixed shear s.
+
     Returns the critical alpha (first stability boundary).
     """
     s = _require_finite_scalar("s", s)
@@ -166,9 +166,7 @@ def find_marginal_stability(s: float, alpha_min: float = 0.0, alpha_max: float =
 
 
 def compute_stability_diagram(s_range: AnyFloatArray, alpha_min: float = 0.0, alpha_max: float = 2.0) -> FloatArray:
-    """
-    Compute alpha_crit(s) for an array of shear values.
-    """
+    """Compute alpha_crit(s) for an array of shear values."""
     s_values = np.asarray(s_range, dtype=float)
     if s_values.ndim != 1:
         raise ValueError("s_range must be a one-dimensional array")
@@ -181,15 +179,14 @@ def compute_stability_diagram(s_range: AnyFloatArray, alpha_min: float = 0.0, al
 
 
 class BallooningStabilityAnalysis:
-    """
-    Performs ballooning stability analysis given a QProfile.
-    """
+    """Performs ballooning stability analysis given a QProfile."""
 
     def analyze(self, q_profile: QProfile) -> FloatArray:
         """
-        Extracts (s, alpha) at each radial point and returns per-radius stability margin.
+        Extract (s, alpha) at each radial point and return the per-radius stability margin.
+
         Positive margin means stable.
-        margin = alpha_crit(s) - alpha_actual
+        margin = alpha_crit(s) - alpha_actual.
         """
         margin = np.zeros_like(q_profile.rho)
         for i in range(len(q_profile.rho)):

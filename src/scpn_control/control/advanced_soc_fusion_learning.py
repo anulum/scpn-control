@@ -78,9 +78,7 @@ def _validate_state_index(name: str, state: tuple[int, int], shape: tuple[int, i
 
 
 class CoupledSandpileReactor:
-    """
-    Predator-prey sandpile approximation for turbulence/flow coupling.
-    """
+    """Predator-prey sandpile approximation for turbulence/flow coupling."""
 
     def __init__(
         self,
@@ -171,9 +169,7 @@ class CoupledSandpileReactor:
 
 
 class FusionAIAgent:
-    """
-    Tabular Q-learning controller on discretized turbulence/flow states.
-    """
+    """Tabular Q-learning controller on discretized turbulence/flow states."""
 
     def __init__(
         self,
@@ -369,9 +365,7 @@ def run_advanced_learning_sim(
     output_path: str = "Advanced_SOC_Learning.png",
     verbose: bool = True,
 ) -> Dict[str, Any]:
-    """
-    Run deterministic SOC+Q-learning control simulation and return summary metrics.
-    """
+    """Run deterministic SOC+Q-learning control simulation and return summary metrics."""
     steps = int(time_steps)
     if steps < 1:
         raise ValueError("time_steps must be >= 1.")

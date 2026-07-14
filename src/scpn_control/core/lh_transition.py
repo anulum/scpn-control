@@ -340,7 +340,7 @@ class IPhaseDetector:
         self.window_size = window_size
 
     def detect(self, epsilon_trace: AnyFloatArray) -> bool:
-        """True if recent trace shows relative std > 10 %."""
+        """Return True if the recent trace shows relative std > 10 %."""
         epsilon_trace = np.asarray(epsilon_trace, dtype=float)
         if epsilon_trace.ndim != 1:
             raise ValueError("epsilon_trace must be one-dimensional")

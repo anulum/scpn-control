@@ -213,6 +213,8 @@ class RWMPhysics:
         plasma_radius: float | None = None,
     ) -> None:
         """
+        Initialise the RWM stability model from the β_N limits and wall parameters.
+
         Parameters
         ----------
         beta_n         : normalised beta (dimensionless)
@@ -253,7 +255,7 @@ class RWMPhysics:
     # ── stability flag ───────────────────────────────────────────────────────
 
     def is_unstable(self) -> bool:
-        """True when β_N lies between the no-wall and ideal-wall limits."""
+        """Return True when β_N lies between the no-wall and ideal-wall limits."""
         return self.beta_n_nowall < self.beta_n < self.beta_n_wall
 
     # ── growth rate components ───────────────────────────────────────────────
@@ -406,7 +408,7 @@ class RWMFeedbackController:
         return gamma - stabilization
 
     def is_stabilized(self, rwm: RWMPhysics) -> bool:
-        """True when the closed-loop growth rate is negative."""
+        """Return True when the closed-loop growth rate is negative."""
         return self.effective_growth_rate(rwm) < 0.0
 
 

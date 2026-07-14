@@ -134,7 +134,8 @@ class AlfvenContinuum:
 
     def continuum(self, m: int, n: int) -> FloatArray:
         """
-        ω_A(ρ) = |n q − m| / (q R₀) · v_A
+        ω_A(ρ) = |n q − m| / (q R₀) · v_A.
+
         Cheng & Chance 1986, Eq. 2.
         """
         m = _require_positive_int("m", m)
@@ -145,6 +146,7 @@ class AlfvenContinuum:
     def find_gaps(self, n: int) -> list[AlfvenGap]:
         """
         TAE gap midpoint at q = (2m+1)/(2n); width ≃ ε·ω₀.
+
         Cheng & Chance 1986, Eq. 3.6.
         """
         n = _require_positive_int("n", n)
@@ -311,7 +313,8 @@ class FastParticleDrive:
 
     def growth_rate(self, tae: TAEMode, beta_fast: float) -> float:
         """
-        γ_fast / ω ≃ β_f · q² · F(v_f/v_A)
+        γ_fast / ω ≃ β_f · q² · F(v_f/v_A).
+
         Fu & Van Dam 1989, Phys. Fluids B 1, 1949, Eq. 15.
         Heidbrink 2008, Phys. Plasmas 15, 055501, Eq. 10.
         """
@@ -432,7 +435,8 @@ class AlfvenStabilityAnalysis:
     def critical_beta_fast(self, n: int) -> float:
         """
         β_f,crit where γ_net = 0 for the most resonant mode.
-        γ_drive = C·β_f  →  β_crit = γ_damp / C = γ_damp / (γ_drive / β_current)
+
+        γ_drive = C·β_f  →  β_crit = γ_damp / C = γ_damp / (γ_drive / β_current).
         """
         n = _require_positive_int("n", n)
         res = self.tae_stability(range(n, n + 1))

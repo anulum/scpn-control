@@ -361,9 +361,7 @@ class DiagnosticResponse:
 
 
 class RealtimeEFIT:
-    """
-    Simplified real-time equilibrium reconstruction (EFIT).
-    """
+    """Simplified real-time equilibrium reconstruction (EFIT)."""
 
     def __init__(
         self,
@@ -530,7 +528,7 @@ class RealtimeEFIT:
         return np.asarray(i_idx, dtype=int), np.asarray(j_idx, dtype=int)
 
     def _freespace_boundary_operator(self) -> tuple[AnyFloatArray, tuple[AnyFloatArray, AnyFloatArray]]:
-        """Cached source-to-boundary-flux operator for the von Hagenow free-space BC.
+        """Return the cached source-to-boundary-flux operator for the von Hagenow free-space BC.
 
         Returns ``(G_eff, (bi, bj))`` such that the free-space poloidal flux the
         plasma current produces on the grid boundary is ``G_eff @ source.ravel()``,
@@ -861,9 +859,7 @@ class RealtimeEFIT:
         return np.asarray(points[np.argsort(angles)])
 
     def find_xpoint(self, psi: AnyFloatArray) -> tuple[float, float] | None:
-        """
-        Locate magnetic nulls (dpsi/dR = 0, dpsi/dZ = 0).
-        """
+        """Locate magnetic nulls (dpsi/dR = 0, dpsi/dZ = 0)."""
         # Very crude proxy: just return a point if it's an elongated LSN setup
         R0 = float(np.mean(self.R))
         return (R0, float(self.Z[0]) + 0.1)

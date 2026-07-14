@@ -90,18 +90,14 @@ class ScenarioSchedule:
 
 
 class FeedforwardController:
-    """
-    Combines pre-computed feedforward trajectories with a feedback trim.
-    """
+    """Combines pre-computed feedforward trajectories with a feedback trim."""
 
     def __init__(self, schedule: ScenarioSchedule, feedback: Callable[..., AnyFloatArray]):
         self.schedule = schedule
         self.feedback = feedback
 
     def step(self, x: AnyFloatArray, t: float, dt: float) -> FloatArray:
-        """
-        u = u_ff(t) + u_fb(x_err)
-        """
+        """Return the control action ``u = u_ff(t) + u_fb(x_err)``."""
         ff_dict = self.schedule.evaluate(t)
 
         # Standardize mapping from dict to control vector [P_aux, Ip_ref, n_gas]
@@ -122,9 +118,7 @@ class FeedforwardController:
 
 
 class ScenarioOptimizer:
-    """
-    Offline trajectory design.
-    """
+    """Offline trajectory design."""
 
     def __init__(
         self, plant_model: Callable[..., AnyFloatArray], target_state: AnyFloatArray, T_total: float, dt: float = 0.5
@@ -135,9 +129,7 @@ class ScenarioOptimizer:
         self.dt = dt
 
     def optimize(self, n_iter: int = 100) -> ScenarioSchedule:
-        """
-        Gradient-free optimization of breakpoint values.
-        """
+        """Gradient-free optimization of breakpoint values."""
         # Define 3 breakpoints for simplicity: 0, T/2, T
         times = np.array([0.0, self.T_total / 2.0, self.T_total])
 

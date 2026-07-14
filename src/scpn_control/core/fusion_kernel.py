@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Fusion Kernel
 """
-Non-linear Grad-Shafranov equilibrium solver with two boundary variants:
+Non-linear Grad-Shafranov equilibrium solver with two boundary variants.
 
 - fixed-boundary: stable default path
 - free-boundary: experimental external-coil outer loop

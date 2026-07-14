@@ -537,7 +537,8 @@ class LHCDSource:
 
     def j_cd(self, rho: AnyFloatArray, ne_19: AnyFloatArray, Te_keV: AnyFloatArray) -> AnyFloatArray:
         """
-        j_cd = η_cd · P_abs / (n_e · T_e)
+        j_cd = η_cd · P_abs / (n_e · T_e).
+
         Fisch 1978, PRL 41, 873, normalised form.
         """
         rho_arr, ne_arr, te_arr, _ = _require_current_drive_profiles(rho, ne_19, Te_keV)
@@ -628,7 +629,7 @@ class CurrentDriveMix:
         Ti: AnyFloatArray,
     ) -> float:
         """
-        I_cd = ∫ j_cd · 2π r dr  [A]
+        I_cd = ∫ j_cd · 2π r dr  [A].
 
         r = ρ · a,  dr = dρ · a  →  dA = 2π ρ a² dρ
         """

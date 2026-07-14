@@ -219,12 +219,13 @@ class ThermalQuench:
     def rechester_rosenbluth_chi(self, dBr_over_B: float, v_e: float) -> float:
         """
         Stochastic heat transport chi [m^2/s].
-        chi_stoch = v_e * pi * q * R0 * (delta B_r / B)^2
+
+        chi_stoch = v_e * pi * q * R0 * (delta B_r / B)^2.
         """
         return v_e * math.pi * self.q * self.R0 * (dBr_over_B**2)
 
     def quench_timescale(self, dBr_over_B: float, Te_pre_keV: float) -> float:
-        """tau_TQ [s]"""
+        """tau_TQ [s]."""
         if dBr_over_B <= 0.0:
             return float("inf")
 
@@ -240,7 +241,7 @@ class ThermalQuench:
         return self.a**2 / chi
 
     def heat_deposition(self, W_th_MJ: float, A_wall_m2: float, peaking_factor: float = 3.0) -> float:
-        """Peak heat flux [MJ/m^2]"""
+        """Peak heat flux [MJ/m^2]."""
         if A_wall_m2 <= 0.0:
             return float("inf")
         return (W_th_MJ / A_wall_m2) * peaking_factor
@@ -289,14 +290,14 @@ class CurrentQuench:
         self.kappa = kappa
 
     def resistivity_post_tq(self, Te_eV: float, Z_eff: float) -> float:
-        """Spitzer resistivity [Ohm m]"""
+        """Spitzer resistivity [Ohm m]."""
         ln_Lambda = 10.0  # Typically lower in cold plasma
         # eta = 1.65e-9 * Z_eff * ln_Lambda / (Te_keV^1.5)
         Te_keV = max(Te_eV / 1000.0, 1e-6)
         return float(1.65e-9 * Z_eff * ln_Lambda / (Te_keV**1.5))
 
     def cq_timescale(self, Te_eV: float, Z_eff: float) -> float:
-        """tau_CQ = L / R_p [ms]"""
+        """tau_CQ = L / R_p [ms]."""
         eta = self.resistivity_post_tq(Te_eV, Z_eff)
         # R_p = eta * 2 R0 / (a^2 kappa) — toroidal resistance
         R_p = eta * 2.0 * self.R0 / (self.a**2 * self.kappa)
@@ -356,13 +357,13 @@ class REBeamPhase:
         self.re = re_evolution
 
     def beam_current(self, n_RE: float, v_par: float, A_beam: float) -> float:
-        """I_RE [MA]"""
+        """I_RE [MA]."""
         e_charge = 1.602e-19
         I_A = n_RE * e_charge * v_par * A_beam
         return I_A / 1e6
 
     def beam_energy(self, n_RE: float, E_max_MeV: float, V_beam: float) -> float:
-        """W_RE [MJ]"""
+        """W_RE [MJ]."""
         e_charge = 1.602e-19
         E_avg_J = (E_max_MeV / 2.0) * 1e6 * e_charge
         W_J = n_RE * V_beam * E_avg_J
@@ -418,7 +419,7 @@ class HaloCurrentModel:
         return min(max(f_halo, 0.1), 0.6)
 
     def toroidal_peaking_factor(self, n_mode: int = 1) -> float:
-        """TPF for n=1 asymmetry"""
+        """TPF for n=1 asymmetry."""
         # Usually 1.2 to 2.5
         return 1.5
 
@@ -429,12 +430,12 @@ class HaloCurrentModel:
         return F_N / 1e6
 
     def sideways_force(self, f_halo: float, tpf: float) -> float:
-        """F_sideways [MN]"""
+        """F_sideways [MN]."""
         # Roughly comparable to vertical force for n=1
         return self.vertical_force(f_halo, tpf) * 0.5
 
     def iter_limit_check(self, f_halo: float, tpf: float) -> bool:
-        """f_halo * TPF < 0.75"""
+        """f_halo * TPF < 0.75."""
         return (f_halo * tpf) < 0.75
 
 

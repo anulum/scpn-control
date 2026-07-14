@@ -260,7 +260,7 @@ class ReconfigurableController:
         return np.asarray(delta_u)
 
     def controllability_check(self) -> bool:
-        """True if remaining actuators span the minimum required target space.
+        """Return True if the remaining actuators span the minimum required target space.
 
         MIN_REQUIRED_RANK = 2 covers control of Ip and vertical position,
         the two safety-critical outputs identified by Ambrosino et al. 2008.

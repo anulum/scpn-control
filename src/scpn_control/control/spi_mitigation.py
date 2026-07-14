@@ -306,7 +306,7 @@ class ShatteredPelletInjection:
 
     @staticmethod
     def estimate_tau_cq(te_keV: float, z_eff: float) -> float:
-        """Current quench time scale.
+        """Estimate the current-quench time scale.
 
         Scaling: τ_CQ ∝ T_e^0.25 / Z_eff, consistent with resistive decay.
         τ_TQ ~ 1–3 ms, τ_CQ ~ 20–150 ms for ITER.
@@ -449,9 +449,7 @@ def run_spi_mitigation(
     output_path: str = "SPI_Mitigation_Result.png",
     verbose: bool = True,
 ) -> dict[str, Any]:
-    """
-    Run SPI mitigation simulation and return deterministic summary metrics.
-    """
+    """Run SPI mitigation simulation and return deterministic summary metrics."""
     spi = ShatteredPelletInjection(
         Plasma_Energy_MJ=plasma_energy_mj,
         Plasma_Current_MA=plasma_current_ma,

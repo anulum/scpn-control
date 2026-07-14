@@ -480,9 +480,7 @@ def validate_traceable_backend_parity(
     atol: float = 1e-8,
     backends: list[str] | tuple[str, ...] | None = None,
 ) -> dict[str, TraceableBackendParityReport]:
-    """
-    Compare available compiled backends to NumPy for single and batch rollouts.
-    """
+    """Compare available compiled backends to NumPy for single and batch rollouts."""
     steps_i = _require_positive_int("steps", steps)
     batch_i = _require_positive_int("batch", batch)
     seed_i = _require_int("seed", seed)

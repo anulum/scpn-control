@@ -5,8 +5,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK Correction Layer
 """
-Error quantification and correction for surrogate transport models
-validated against GK spot-checks.
+Error quantification and correction for surrogate transport models validated against GK spot-checks.
 
 Compares surrogate vs GK fluxes at spot-check surfaces and applies
 multiplicative, additive, or full-replacement corrections interpolated

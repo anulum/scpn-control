@@ -116,9 +116,7 @@ class PelletInjectionCommand:
 
 
 def ngs_ablation_rate(r_p: float, ne: float, Te_eV: float, M_p: float) -> float:
-    """
-    Parks & Turnbull (1978) NGS ablation rate [atoms/s].
-    """
+    """Parks & Turnbull (1978) NGS ablation rate [atoms/s]."""
     r_p = _finite_scalar("r_p", r_p, positive=True)
     ne = _finite_scalar("ne", ne, positive=True)
     Te_eV = _finite_scalar("Te_eV", Te_eV, positive=True)
@@ -384,9 +382,7 @@ class PelletFuelingController:
 def pellet_pacing_elm_control(
     f_pellet_Hz: float, f_elm_natural_Hz: float, w_elm_natural_MJ: float
 ) -> tuple[float, float]:
-    """
-    Returns (f_ELM, delta_W_ELM).
-    """
+    """Return (f_ELM, delta_W_ELM)."""
     f_pellet_Hz = _finite_scalar("f_pellet_Hz", f_pellet_Hz, nonnegative=True)
     f_elm_natural_Hz = _finite_scalar("f_elm_natural_Hz", f_elm_natural_Hz, positive=True)
     w_elm_natural_MJ = _finite_scalar("w_elm_natural_MJ", w_elm_natural_MJ, nonnegative=True)

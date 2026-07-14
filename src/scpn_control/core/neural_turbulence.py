@@ -165,6 +165,7 @@ def _profile_array(
 class QLKNNSurrogate:
     """
     Pure NumPy inference for a QLKNN-shaped neural network.
+
     Predicts turbulent fluxes [Q_i, Q_e, Gamma_e] from 10 parameters.
     Architecture follows van de Plassche et al., Phys. Plasmas 27,
     022310 (2020); the weights are NOT the published QLKNN10D weights.
@@ -257,10 +258,7 @@ class QLKNNSurrogate:
                     np.clip(delta, -1e6, 1e6, out=delta)
 
     def forward(self, x: AnyFloatArray) -> FloatArray:
-        """
-        x shape: (batch_size, 10)
-        returns shape: (batch_size, 3)
-        """
+        """Map turbulence features ``x`` (batch_size, 10) to fluxes (batch_size, 3)."""
         if x.ndim == 1:
             x = x.reshape(1, -1)
 
@@ -315,9 +313,7 @@ class TransportInputNormalizer:
         B0: float,
         r: AnyFloatArray,
     ) -> FloatArray:
-        """
-        Convert physical profiles into the 10 dimensionless QLKNN inputs.
-        """
+        """Convert physical profiles into the 10 dimensionless QLKNN inputs."""
         r = _profile_array("r", r, positive=True)
         if np.any(np.diff(r) <= 0.0):
             raise ValueError("r must be strictly increasing")
@@ -410,6 +406,7 @@ class TrainingDataGenerator:
     def generate_analytic_targets(inputs: AnyFloatArray) -> FloatArray:
         """
         Compute bounded analytic quasilinear flux targets.
+
         Returns [Q_i, Q_e, Gamma_e] in gyro-Bohm units.
         """
         n_samples = inputs.shape[0]

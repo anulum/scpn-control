@@ -392,7 +392,7 @@ class MachineClient:
                 raise ValueError(f"{name} must contain binary disruption labels 0 or 1")
 
     def get_data_size(self) -> int:
-        """Number of local training samples held by this federated client."""
+        """Return the number of local training samples held by this federated client."""
         return int(self.X_train.shape[0])
 
     def local_train(
@@ -603,7 +603,7 @@ class FederatedServer:
         }
 
     def get_state(self) -> dict[str, Any]:
-        """Serialisable snapshot of server state."""
+        """Return a serialisable snapshot of server state."""
         dp_config = None
         if self.config.dp_config is not None:
             dp_config = {

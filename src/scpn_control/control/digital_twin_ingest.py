@@ -341,9 +341,7 @@ def run_realtime_twin_session(
     chaos_dropout_prob: float = 0.0,
     chaos_noise_std: float = 0.0,
 ) -> dict[str, Any]:
-    """
-    Run deterministic digital-twin ingest+planning session and return summary.
-    """
+    """Run deterministic digital-twin ingest+planning session and return summary."""
     machine_key = _normalize_machine(machine)
     samples = int(samples)
     if samples < 32:

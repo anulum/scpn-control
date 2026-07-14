@@ -586,5 +586,5 @@ class CycleTimer:
         return (self._elapsed_ns - self.budget_ns) / 1e6
 
     def check_overrun(self) -> bool:
-        """True if last cycle exceeded its budget."""
+        """Return True if the last cycle exceeded its budget."""
         return self._elapsed_ns > self.budget_ns

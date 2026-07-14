@@ -6,10 +6,10 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Out-of-Distribution Detector for GK Surrogates
 """
-Detect when surrogate transport model inputs fall outside the
-training distribution, triggering escalation to a full GK solver.
+Detect when surrogate transport model inputs fall outside the training distribution.
 
-Three independent methods, any of which can flag OOD:
+Detection triggers escalation to a full GK solver.  Three independent methods,
+any of which can flag OOD:
   1. Mahalanobis distance (multivariate Gaussian assumption)
   2. Ensemble disagreement (variance across K models)
   3. Input range checks (hard + soft bounds from training data)

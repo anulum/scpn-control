@@ -6,8 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Miller Flux-Tube Geometry
 """
-Miller parameterisation of local magnetic equilibrium geometry for
-flux-tube gyrokinetic calculations.
+Miller parameterisation of local magnetic equilibrium geometry for flux-tube gyrokinetic calculations.
 
 Computes metric coefficients, field-line curvature, and the Jacobian
 on a ballooning-angle grid from (R0, a, kappa, delta, q, s_hat, ...).

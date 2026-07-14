@@ -5,9 +5,10 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Native TGLF-Equivalent Transport Model
 """
-Native TGLF-equivalent quasilinear transport model with SAT0/SAT1/SAT2
-spectral saturation, E×B shear quench, multi-scale ITG-ETG coupling,
-and trapped-particle damping.  No external binary.
+Native TGLF-equivalent quasilinear transport model.
+
+Provides SAT0/SAT1/SAT2 spectral saturation, E×B shear quench, multi-scale
+ITG-ETG coupling, and trapped-particle damping.  No external binary.
 
 References
 ----------

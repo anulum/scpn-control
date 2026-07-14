@@ -5,8 +5,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Quasilinear Transport Flux Model
 """
-Quasilinear flux model converting linear eigenvalues to transport
-coefficients.
+Quasilinear flux model converting linear eigenvalues to transport coefficients.
 
 Implements the mixing-length saturation rule and velocity-space
 weighted quasilinear fluxes.  The output is chi_i, chi_e, D_e in
