@@ -17,7 +17,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -125,7 +128,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
     digest = payload.get("reference_artifact_sha256")
     if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append({"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"})
+        errors.append(
+            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
+        )
     source = payload.get("source")
     if source not in _ALLOWED_SOURCES:
         errors.append(
@@ -137,9 +142,21 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
     _validate_source_provenance(path, payload, errors)
     if not _valid_lattice_metadata(payload.get("lattice_metadata")):
-        errors.append({"path": str(path), "field": "lattice_metadata", "error": "lattice_metadata must declare finite SOC runtime metadata"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "lattice_metadata",
+                "error": "lattice_metadata must declare finite SOC runtime metadata",
+            }
+        )
     if not _valid_learning_metadata(payload.get("learning_metadata")):
-        errors.append({"path": str(path), "field": "learning_metadata", "error": "learning_metadata must declare finite Q-learning metadata"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "learning_metadata",
+                "error": "learning_metadata must declare finite Q-learning metadata",
+            }
+        )
     if not _valid_units(payload.get("units")):
         errors.append({"path": str(path), "field": "units", "error": "units must declare SOC reference units"})
     count = payload.get("reference_case_count")
@@ -161,18 +178,44 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
 def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
     source = payload.get("source")
     if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append({"path": str(path), "field": "reference", "error": "documented public reference artifacts require reference_url or reference_doi"})
+        errors.append(
+            {
+                "path": str(path),
+                "field": "reference",
+                "error": "documented public reference artifacts require reference_url or reference_doi",
+            }
+        )
     if source == "measured_turbulence_replay":
         if not _has_nonempty_str(payload, "shot_id"):
-            errors.append({"path": str(path), "field": "shot_id", "error": "measured turbulence replays require shot_id"})
+            errors.append(
+                {"path": str(path), "field": "shot_id", "error": "measured turbulence replays require shot_id"}
+            )
         if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append({"path": str(path), "field": "diagnostic_uri", "error": "measured turbulence replays require diagnostic_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "diagnostic_uri",
+                    "error": "measured turbulence replays require diagnostic_uri",
+                }
+            )
     if source == "external_gyrokinetic_reference":
         external_code = payload.get("external_code")
         if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append({"path": str(path), "field": "external_code", "error": "external_code must be CGYRO, GENE, GS2, TGLF, or QuaLiKiz"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "external_code",
+                    "error": "external_code must be CGYRO, GENE, GS2, TGLF, or QuaLiKiz",
+                }
+            )
         if not _has_nonempty_str(payload, "reference_artifact_uri"):
-            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": "external gyrokinetic references require reference_artifact_uri"})
+            errors.append(
+                {
+                    "path": str(path),
+                    "field": "reference_artifact_uri",
+                    "error": "external gyrokinetic references require reference_artifact_uri",
+                }
+            )
 
 
 def _valid_lattice_metadata(value: object) -> bool:
@@ -192,7 +235,9 @@ def _valid_lattice_metadata(value: object) -> bool:
         return False
     if not (isinstance(max_sub_steps, int) and max_sub_steps > 0):
         return False
-    if not all(_is_nonnegative_finite(value.get(field)) for field in ("z_crit_base", "flow_generation", "shear_efficiency")):
+    if not all(
+        _is_nonnegative_finite(value.get(field)) for field in ("z_crit_base", "flow_generation", "shear_efficiency")
+    ):
         return False
     flow_damping = value.get("flow_damping")
     return _is_finite_number(flow_damping) and 0.0 <= float(flow_damping) < 1.0
@@ -244,7 +289,7 @@ def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
     return isinstance(value, str) and bool(value.strip())
 
 
-def _is_finite_number(value: object) -> bool:
+def _is_finite_number(value: object) -> TypeIs[float]:
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
@@ -252,11 +297,11 @@ def _is_fraction(value: object) -> bool:
     return _is_finite_number(value) and 0.0 <= float(value) <= 1.0
 
 
-def _is_nonnegative_finite(value: object) -> bool:
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) >= 0.0
 
 
-def _is_positive_finite(value: object) -> bool:
+def _is_positive_finite(value: object) -> TypeIs[float]:
     return _is_finite_number(value) and float(value) > 0.0
 
 
@@ -276,7 +321,9 @@ def main(argv: list[str] | None = None) -> int:
         default=str(ROOT / "validation" / "reports" / "soc_reference"),
         help="Directory or JSON artifact containing persisted SOC reference evidence",
     )
-    parser.add_argument("--require-reference-artifacts", action="store_true", help="Fail if no SOC reference artifacts are present")
+    parser.add_argument(
+        "--require-reference-artifacts", action="store_true", help="Fail if no SOC reference artifacts are present"
+    )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
