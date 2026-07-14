@@ -137,7 +137,7 @@ def _benchmark_numeric_payload_is_finite(result: dict[str, Any]) -> bool:
 # ── scpn-control run ─────────────────────────────────────────────────
 
 
-def _run_scpn_control(scenario: dict) -> dict:
+def _run_scpn_control(scenario: dict[str, Any]) -> dict[str, Any]:
     """Run scpn-control transport solver on the scenario."""
     from scpn_control.core.integrated_transport_solver import TransportSolver
 
@@ -196,7 +196,7 @@ def _run_scpn_control(scenario: dict) -> dict:
 # ── TORAX run (optional) ─────────────────────────────────────────────
 
 
-def _torax_config_dict(scenario: dict) -> dict:
+def _torax_config_dict(scenario: dict[str, Any]) -> dict[str, Any]:
     """Build a TORAX config dictionary from the shared benchmark scenario."""
     edge_temp = max(0.1, min(float(scenario["T_e0"]) * 0.05, 1.0))
     edge_density = max(0.1e20, float(scenario["n_e0"]) * 0.1e20)
@@ -284,14 +284,14 @@ def _torax_config_dict(scenario: dict) -> dict:
     }
 
 
-def _write_torax_config(path: Path, scenario: dict) -> None:
+def _write_torax_config(path: Path, scenario: dict[str, Any]) -> None:
     """Write a temporary Python config module consumable by TORAX."""
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = pprint.pformat(_torax_config_dict(scenario), sort_dicts=True, width=100)
     path.write_text(f"CONFIG = {payload}\n", encoding="utf-8")
 
 
-def _extract_torax_result(data_tree, scenario: dict, wall_time: float) -> dict:
+def _extract_torax_result(data_tree: Any, scenario: dict[str, Any], wall_time: float) -> dict[str, Any]:
     """Extract comparable final profiles and scalar metrics from TORAX output."""
     profiles = data_tree["profiles"].dataset
     scalars = data_tree["scalars"].dataset
@@ -321,7 +321,7 @@ def _extract_torax_result(data_tree, scenario: dict, wall_time: float) -> dict:
     return result
 
 
-def _run_torax(scenario: dict) -> dict | None:
+def _run_torax(scenario: dict[str, Any]) -> dict[str, Any] | None:
     """Run TORAX on the same scenario, if installed."""
     try:
         import torax
@@ -344,9 +344,9 @@ def _run_torax(scenario: dict) -> dict | None:
 # ── Comparison ────────────────────────────────────────────────────────
 
 
-def _compare_results(scpn: dict, torax: dict | None) -> dict:
+def _compare_results(scpn: dict[str, Any], torax: dict[str, Any] | None) -> dict[str, Any]:
     """Compare scpn-control and TORAX results."""
-    comparison = {
+    comparison: dict[str, Any] = {
         "scpn_control": scpn,
         "torax": torax,
         "comparison": {},
