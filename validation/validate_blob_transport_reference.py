@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -85,7 +88,9 @@ def validate_blob_transport_reference(
     errors: list[dict[str, object]] = report["errors"]
 
     if require_reference_artifacts and not paths:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no blob transport reference artifacts found"})
+        errors.append(
+            {"path": str(root), "field": "artifact_root", "error": "no blob transport reference artifacts found"}
+        )
 
     for path in paths:
         try:
@@ -100,7 +105,9 @@ def validate_blob_transport_reference(
             report["reference_artifacts"] += 1
 
     if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no blob transport reference artifacts found"})
+        errors.append(
+            {"path": str(root), "field": "artifact_root", "error": "no blob transport reference artifacts found"}
+        )
     if errors:
         report["status"] = "fail"
     return report
@@ -111,7 +118,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append({"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"})
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"}
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
@@ -172,7 +181,11 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
     if not _positive_ordered_pair(payload.get("blob_size_range_m")):
         errors.append(
-            {"path": str(path), "field": "blob_size_range_m", "error": "blob size range must be two positive increasing sizes"}
+            {
+                "path": str(path),
+                "field": "blob_size_range_m",
+                "error": "blob size range must be two positive increasing sizes",
+            }
         )
     _validate_geometry(path, payload.get("magnetic_geometry"), errors)
     _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
@@ -193,7 +206,9 @@ def _validate_geometry(path: Path, geometry: object, errors: list[dict[str, obje
     for field in ("R0_m", "B0_T", "L_parallel_m", "Te_eV", "density_m3"):
         value = geometry.get(field)
         if not _is_positive_finite(value):
-            errors.append({"path": str(path), "field": f"magnetic_geometry.{field}", "error": "field must be finite and positive"})
+            errors.append(
+                {"path": str(path), "field": f"magnetic_geometry.{field}", "error": "field must be finite and positive"}
+            )
 
 
 def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
@@ -256,8 +271,10 @@ def _has_measured_campaign(payload: dict[str, object]) -> bool:
     machine = payload.get("machine")
     shot_id = payload.get("shot_id")
     campaign_id = payload.get("campaign_id")
-    return isinstance(machine, str) and bool(machine.strip()) and any(
-        isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id)
+    return (
+        isinstance(machine, str)
+        and bool(machine.strip())
+        and any(isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id))
     )
 
 
@@ -284,12 +301,16 @@ def _positive_ordered_pair(value: object) -> bool:
     return float(hi) > float(lo)
 
 
-def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
-def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+def _is_positive_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -317,7 +338,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_blob_transport_reference(args.artifact_root, require_reference_artifacts=args.require_reference_artifacts)
+    report = validate_blob_transport_reference(
+        args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
+    )
     if args.output_json:
         output_path = Path(args.output_json)
         output_path.parent.mkdir(parents=True, exist_ok=True)

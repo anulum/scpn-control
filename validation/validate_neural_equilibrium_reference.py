@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -82,7 +85,11 @@ def validate_neural_equilibrium_reference(
 
     if require_reference_artifacts and not paths:
         errors.append(
-            {"path": _portable_path(root), "field": "artifact_root", "error": "no neural equilibrium reference artefacts found"}
+            {
+                "path": _portable_path(root),
+                "field": "artifact_root",
+                "error": "no neural equilibrium reference artefacts found",
+            }
         )
 
     seen_reference_sets: set[tuple[str, str, str]] = set()
@@ -118,7 +125,11 @@ def validate_neural_equilibrium_reference(
 
     if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
         errors.append(
-            {"path": _portable_path(root), "field": "artifact_root", "error": "no neural equilibrium reference artefacts found"}
+            {
+                "path": _portable_path(root),
+                "field": "artifact_root",
+                "error": "no neural equilibrium reference artefacts found",
+            }
         )
     if errors:
         report["status"] = "fail"
@@ -155,7 +166,11 @@ def _validate_artifact(
             errors.append({"path": _portable_path(path), "field": field, "error": error})
     if payload.get("target_schema") != list(_REQUIRED_TARGET_SCHEMA):
         errors.append(
-            {"path": _portable_path(path), "field": "target_schema", "error": "target_schema must match equilibrium outputs"}
+            {
+                "path": _portable_path(path),
+                "field": "target_schema",
+                "error": "target_schema must match equilibrium outputs",
+            }
         )
     if isinstance(payload.get("payload_sha256"), str):
         expected = canonical_artifact_sha256(payload)
@@ -237,10 +252,14 @@ def _validate_metric_block(
         metric = metrics.get(field)
         tolerance = tolerances.get(field)
         if not _is_nonnegative_finite(metric):
-            errors.append({"path": _portable_path(path), "field": field, "error": "metric must be finite and non-negative"})
+            errors.append(
+                {"path": _portable_path(path), "field": field, "error": "metric must be finite and non-negative"}
+            )
             continue
         if not _is_positive_finite(tolerance):
-            errors.append({"path": _portable_path(path), "field": field, "error": "tolerance must be finite and positive"})
+            errors.append(
+                {"path": _portable_path(path), "field": field, "error": "tolerance must be finite and positive"}
+            )
             continue
         if float(metric) > float(tolerance):
             errors.append({"path": _portable_path(path), "field": field, "error": "metric exceeds declared tolerance"})
@@ -290,12 +309,16 @@ def _artifact_uri_error(value: object) -> str | None:
     return None
 
 
-def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
-def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+def _is_positive_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:

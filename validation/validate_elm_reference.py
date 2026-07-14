@@ -19,7 +19,10 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
@@ -115,7 +118,9 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
         return None
     if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append({"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"})
+        errors.append(
+            {"path": str(path), "field": "schema_version", "error": f"schema_version must be '{_SCHEMA_VERSION}'"}
+        )
     for field in _REQUIRED_STR_FIELDS:
         if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
             errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
@@ -145,7 +150,11 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         )
     if payload.get("source") == "measured_hmode_campaign" and not _has_measured_campaign(payload):
         errors.append(
-            {"path": str(path), "field": "campaign", "error": "measured campaigns require machine and shot_id or campaign_id"}
+            {
+                "path": str(path),
+                "field": "campaign",
+                "error": "measured campaigns require machine and shot_id or campaign_id",
+            }
         )
     if isinstance(payload.get("payload_sha256"), str):
         expected = canonical_artifact_sha256(payload)
@@ -156,11 +165,19 @@ def _validate_artifact(path: Path, payload: object, errors: list[dict[str, objec
         errors.append({"path": str(path), "field": "units", "error": "units must declare ELM/RMP reference units"})
     if not _strictly_increasing_unit_grid(payload.get("pedestal_rho_grid")):
         errors.append(
-            {"path": str(path), "field": "pedestal_rho_grid", "error": "pedestal rho grid must be finite and strictly increasing on [0, 1]"}
+            {
+                "path": str(path),
+                "field": "pedestal_rho_grid",
+                "error": "pedestal rho grid must be finite and strictly increasing on [0, 1]",
+            }
         )
     if not _positive_ordered_pair(payload.get("event_time_window_s")):
         errors.append(
-            {"path": str(path), "field": "event_time_window_s", "error": "event time window must be two finite non-negative increasing times"}
+            {
+                "path": str(path),
+                "field": "event_time_window_s",
+                "error": "event time window must be two finite non-negative increasing times",
+            }
         )
     if not _valid_elm_fraction_range(payload.get("elm_energy_fraction_range")):
         errors.append(
@@ -249,8 +266,10 @@ def _has_measured_campaign(payload: dict[str, object]) -> bool:
     machine = payload.get("machine")
     shot_id = payload.get("shot_id")
     campaign_id = payload.get("campaign_id")
-    return isinstance(machine, str) and bool(machine.strip()) and any(
-        isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id)
+    return (
+        isinstance(machine, str)
+        and bool(machine.strip())
+        and any(isinstance(value, str) and bool(value.strip()) for value in (shot_id, campaign_id))
     )
 
 
@@ -286,12 +305,16 @@ def _positive_ordered_pair(value: object) -> bool:
     return float(hi) > float(lo)
 
 
-def _is_nonnegative_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+def _is_nonnegative_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
+    )
 
 
-def _is_positive_finite(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+def _is_positive_finite(value: object) -> TypeIs[float]:
+    return (
+        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
+    )
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
