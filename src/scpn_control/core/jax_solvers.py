@@ -102,7 +102,7 @@ def _thomas_solve_np(
     c: AnyFloatArray,
     d: AnyFloatArray,
 ) -> AnyFloatArray:
-    """Thomas algorithm (NumPy). Same semantics as TransportSolver._thomas_solve."""
+    """Thomas algorithm (NumPy). Same semantics as radial_diffusion.thomas_solve."""
     n = len(d)
     cp = np.empty(n - 1)
     dp = np.empty(n)

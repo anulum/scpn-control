@@ -399,6 +399,7 @@ class TestAnalyticDiffusion:
 
     def test_cn_matches_explicit_euler(self, tmp_path: Path) -> None:
         from scpn_control.core.integrated_transport_solver import TransportSolver
+        from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
 
         cfg = {
             "reactor_name": "DiffusionTest",
@@ -422,14 +423,14 @@ class TestAnalyticDiffusion:
 
         # Explicit Euler: T_new = T + dt * Lh(T)
         solver.Te = T_init.copy()
-        Lh = solver._explicit_diffusion_rhs(T_init, chi)
+        Lh = explicit_diffusion_rhs(T_init, chi, solver.rho, solver.drho, solver.a)
         T_euler = T_init + dt * Lh
 
         # CN step: (I - 0.5*dt*Lh) T_new = T + 0.5*dt*Lh(T)
         solver.Te = T_init.copy()
         rhs = T_init + 0.5 * dt * Lh
-        a, b, c = solver._build_cn_tridiag(chi, dt)
-        T_cn = solver._thomas_solve(a, b, c, rhs)
+        a, b, c = build_cn_tridiag(chi, dt, solver.rho, solver.drho, solver.a)
+        T_cn = thomas_solve(a, b, c, rhs)
 
         # Interior agreement (skip axis ρ=0 singularity and edge BC)
         mask = (solver.rho > 0.05) & (solver.rho < 0.95)
@@ -439,6 +440,7 @@ class TestAnalyticDiffusion:
 
     def test_pure_diffusion_decays(self, tmp_path: Path) -> None:
         from scpn_control.core.integrated_transport_solver import TransportSolver
+        from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
 
         cfg = {
             "reactor_name": "DiffusionTest",
@@ -462,10 +464,10 @@ class TestAnalyticDiffusion:
         peak_0 = float(np.max(solver.Ti))
 
         for _ in range(50):
-            Lh = solver._explicit_diffusion_rhs(solver.Ti, chi)
+            Lh = explicit_diffusion_rhs(solver.Ti, chi, solver.rho, solver.drho, solver.a)
             rhs = solver.Ti + 0.5 * dt * Lh
-            a, b, c = solver._build_cn_tridiag(chi, dt)
-            solver.Ti = solver._thomas_solve(a, b, c, rhs)
+            a, b, c = build_cn_tridiag(chi, dt, solver.rho, solver.drho, solver.a)
+            solver.Ti = thomas_solve(a, b, c, rhs)
             solver.Ti[0] = solver.Ti[1]  # Neumann
             solver.Ti[-1] = 0.0  # Dirichlet
 

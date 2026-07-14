@@ -24,16 +24,16 @@ Three checks, all exercising the production methods:
 
 1. **Operator eigenvalue (Bessel).** The cylindrical Laplacian eigenfunction
    ``J_0(lambda rho)`` satisfies ``L[J_0(lambda rho)] = -(chi lambda^2 / a^2)
-   J_0(lambda rho)``. ``TransportSolver._explicit_diffusion_rhs`` applied to the
+   J_0(lambda rho)``. ``radial_diffusion.explicit_diffusion_rhs`` applied to the
    sampled eigenfunction must reproduce this at second order in ``Δrho``.
 2. **Manufactured steady state.** For the manufactured profile ``T*(rho) =
    1 - rho^3`` the cylindrical operator gives ``L[T*] = -9 chi rho / a^2``, so a
    fixed source ``S = 9 chi rho / a^2`` makes ``T*`` the steady state. Crank-
-   Nicolson stepping (``_build_cn_tridiag`` + ``_thomas_solve``) to convergence,
+   Nicolson stepping (``build_cn_tridiag`` + ``thomas_solve``) to convergence,
    with Dirichlet data taken from ``T*``, must recover ``T*`` at second order.
 3. **Polyglot Thomas parity.** The Rust tridiagonal solver
    ``scpn_control_rs.py_thomas_solve`` — the compute primitive used by the Rust
-   ``transport_step`` — must reproduce the Python ``_thomas_solve`` solution of
+   ``transport_step`` — must reproduce the Python ``thomas_solve`` solution of
    the identical Crank-Nicolson system to machine precision.
 
 References:
@@ -62,6 +62,7 @@ from numpy.typing import NDArray
 from scipy.special import j0, jn_zeros
 
 from scpn_control.core.integrated_transport_solver import TransportSolver
+from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
 
 FloatArray = NDArray[np.float64]
 
@@ -104,7 +105,7 @@ def _build_solver(nr: int) -> TransportSolver:
 def bessel_operator_error(nr: int, *, chi_value: float = _CHI_VALUE, lam: float = _FIRST_BESSEL_ZERO) -> float:
     """Max interior relative error of the diffusion operator on a Bessel eigenmode.
 
-    Applies ``_explicit_diffusion_rhs`` to ``J_0(lam rho)`` and compares to the
+    Applies ``explicit_diffusion_rhs`` to ``J_0(lam rho)`` and compares to the
     analytic eigenvalue result ``-(chi lam^2 / a^2) J_0(lam rho)``.
     """
     _positive_float("chi_value", chi_value)
@@ -112,7 +113,9 @@ def bessel_operator_error(nr: int, *, chi_value: float = _CHI_VALUE, lam: float 
     solver = _build_solver(nr)
     chi = np.full(solver.nr, chi_value, dtype=np.float64)
     eigenmode = np.asarray(j0(lam * solver.rho), dtype=np.float64)
-    applied = np.asarray(solver._explicit_diffusion_rhs(eigenmode, chi), dtype=np.float64)
+    applied = np.asarray(
+        explicit_diffusion_rhs(eigenmode, chi, solver.rho, solver.drho, solver.a), dtype=np.float64
+    )
     eigenvalue = -(chi_value * lam**2 / solver.a**2)
     exact = eigenvalue * eigenmode
     interior_error = np.abs(applied[1:-1] - exact[1:-1])
@@ -124,9 +127,9 @@ def manufactured_steady_state(nr: int, *, chi_value: float = _CHI_VALUE) -> floa
     """Steady-state NRMSE of the Crank-Nicolson operator against ``T* = 1 - rho^3``.
 
     The fixed source ``S = 9 chi rho / a^2`` makes ``T*`` the exact steady state of
-    the cylindrical diffusion operator. The production ``_build_cn_tridiag``
+    the cylindrical diffusion operator. The production ``build_cn_tridiag``
     coefficients (the implicit LHS ``I - 0.5 dt L``) are converted to the steady
-    operator ``-L`` and solved once with the production ``_thomas_solve`` under
+    operator ``-L`` and solved once with the production ``thomas_solve`` under
     Dirichlet data from ``T*``; the reconstructed profile converges to ``T*`` at
     second order in ``Δrho``. Solving the steady system directly avoids the slow
     Crank-Nicolson relaxation while exercising the same production methods.
@@ -139,7 +142,7 @@ def manufactured_steady_state(nr: int, *, chi_value: float = _CHI_VALUE) -> floa
 
     dt = 1.0
     half = 0.5 * dt
-    sub, main, sup = solver._build_cn_tridiag(chi, dt)
+    sub, main, sup = build_cn_tridiag(chi, dt, solver.rho, solver.drho, solver.a)
 
     n = solver.nr
     steady_diag = np.ones(n, dtype=np.float64)
@@ -157,7 +160,7 @@ def manufactured_steady_state(nr: int, *, chi_value: float = _CHI_VALUE) -> floa
     rhs[0] = float(target[0])
     rhs[-1] = float(target[-1])
 
-    temperature = np.asarray(solver._thomas_solve(steady_sub, steady_diag, steady_sup, rhs), dtype=np.float64)
+    temperature = np.asarray(thomas_solve(steady_sub, steady_diag, steady_sup, rhs), dtype=np.float64)
     span = float(target.max() - target.min())
     return float(np.sqrt(np.mean((temperature[1:-1] - target[1:-1]) ** 2)) / span)
 
@@ -174,7 +177,7 @@ class ThomasParityRecord:
 def thomas_parity(
     nr: int = 65, *, chi_value: float = _CHI_VALUE, dt: float = 0.1, tolerance: float = 1e-9
 ) -> ThomasParityRecord | None:
-    """Compare the Rust ``py_thomas_solve`` to the Python ``_thomas_solve``.
+    """Compare the Rust ``py_thomas_solve`` to the Python ``thomas_solve``.
 
     Returns ``None`` when the compiled extension is unavailable. The Rust solver
     uses the convention ``a, b, c`` all of length ``n`` (``a[0]`` and ``c[n-1]``
@@ -189,10 +192,10 @@ def thomas_parity(
 
     solver = _build_solver(nr)
     chi = np.full(solver.nr, chi_value, dtype=np.float64)
-    sub, main, sup = solver._build_cn_tridiag(chi, dt)
+    sub, main, sup = build_cn_tridiag(chi, dt, solver.rho, solver.drho, solver.a)
     rhs = np.linspace(1.0, 0.0, solver.nr) + 0.1 * np.sin(np.linspace(0.0, 3.0, solver.nr))
 
-    python_solution = np.asarray(solver._thomas_solve(sub, main, sup, rhs), dtype=np.float64)
+    python_solution = np.asarray(thomas_solve(sub, main, sup, rhs), dtype=np.float64)
     sub_padded = np.concatenate([[0.0], sub])
     sup_padded = np.concatenate([sup, [0.0]])
     rust_solution = np.asarray(rust.py_thomas_solve(sub_padded, main, sup_padded, rhs), dtype=np.float64)
@@ -439,7 +442,7 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
         f"lambda = {evidence['bessel_lambda']:.6f} (first J0 zero)",
         f"- Status: **{'pass' if evidence['passed'] else 'fail'}**",
         "",
-        "## Diffusion operator vs Bessel eigenvalue (`_explicit_diffusion_rhs`)",
+        "## Diffusion operator vs Bessel eigenvalue (`explicit_diffusion_rhs`)",
         "",
         f"- Order of accuracy: {evidence['operator_order']:.3f} (gate >= {evidence['min_order']})",
         f"- Finest-grid relative error: {evidence['operator_error_finest']:.3e} "

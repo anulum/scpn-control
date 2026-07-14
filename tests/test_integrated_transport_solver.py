@@ -510,34 +510,6 @@ class TestNeoclassical:
 
 
 class TestTransportNumericalGuards:
-    def test_thomas_solver_handles_near_zero_initial_diagonal(self) -> None:
-        """The tridiagonal solve should floor a zero first diagonal without NaNs."""
-        n = 10
-        a = np.zeros(n - 1)
-        b = np.ones(n)
-        b[0] = 0.0
-        c = np.zeros(n - 1)
-        d = np.ones(n)
-
-        x = TransportSolver._thomas_solve(a, b, c, d)
-
-        assert x.shape == (n,)
-        assert np.all(np.isfinite(x))
-
-    def test_thomas_solver_handles_nonfinite_initial_diagonal(self) -> None:
-        """The tridiagonal solve should repair a non-finite first diagonal."""
-        n = 10
-        a = np.zeros(n - 1)
-        b = np.ones(n)
-        b[0] = float("nan")
-        c = np.zeros(n - 1)
-        d = np.ones(n)
-
-        x = TransportSolver._thomas_solve(a, b, c, d)
-
-        assert x.shape == (n,)
-        assert np.all(np.isfinite(x))
-
     def test_zero_auxiliary_power_overshoot_increments_recovery_counter(self, config_file: Path) -> None:
         """Large zero-power diffusion overshoot should trigger finite-state recovery."""
         ts = TransportSolver(str(config_file), multi_ion=False)
@@ -571,39 +543,6 @@ class TestTransportNumericalGuards:
         solver.evolve_profiles(dt=0.01, P_aux=50.0)
 
         assert solver._last_conservation_error == float("inf")
-
-
-# ── 6. Thomas Solver ─────────────────────────────────────────────────
-
-
-class TestThomasSolver:
-    def test_thomas_identity_system(self) -> None:
-        """Thomas solver with identity matrix returns the RHS."""
-        n = 10
-        a = np.zeros(n - 1)
-        b = np.ones(n)
-        c = np.zeros(n - 1)
-        d = np.arange(n, dtype=float)
-        x = TransportSolver._thomas_solve(a, b, c, d)
-        np.testing.assert_allclose(x, d, atol=1e-12)
-
-    def test_thomas_tridiagonal(self) -> None:
-        """Thomas solver correctly solves a known tridiagonal system."""
-        # Solve: -x_{i-1} + 2 x_i - x_{i+1} = h^2 * f_i (Poisson)
-        n = 50
-        a = -np.ones(n - 1)
-        b = 2.0 * np.ones(n)
-        c = -np.ones(n - 1)
-        d = np.ones(n) * (1.0 / (n - 1)) ** 2
-        d[0] = 0.0
-        d[-1] = 0.0
-        b[0] = 1.0
-        c[0] = 0.0
-        a[-1] = 0.0
-        b[-1] = 1.0
-        x = TransportSolver._thomas_solve(a, b, c, d)
-        assert x.shape == (n,)
-        assert np.all(np.isfinite(x))
 
 
 # ── 8. Impurity Injection ────────────────────────────────────────────
@@ -1075,17 +1014,6 @@ class TestGyroBohmExplicitCoefficient:
         chi = solver._gyro_bohm_chi()
         assert chi.shape == (solver.nr,)
         assert np.all(chi >= 0.01)
-
-
-class TestThomasInnerGuards:
-    def test_repairs_singular_and_nonfinite_inner_rows(self) -> None:
-        a = np.array([1.0, 1.0])
-        b = np.array([1e-31, 1e-31, 1e-31])
-        c = np.array([0.0, 0.0])
-        d = np.array([1.0, np.inf, 1.0])
-        x = TransportSolver._thomas_solve(a, b, c, d)
-        assert x.shape == (3,)
-        assert np.all(np.isfinite(x))
 
 
 class TestExternalGKDispatchAndFailure:

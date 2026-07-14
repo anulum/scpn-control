@@ -11,6 +11,12 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the Crank-Nicolson radial-diffusion
+  numerics (the Thomas tridiagonal solve, the explicit cylindrical diffusion operator,
+  and the Crank-Nicolson tridiagonal assembly) moved from private `TransportSolver`
+  methods to a new stateless `core.radial_diffusion` module (`thomas_solve`,
+  `explicit_diffusion_rhs`, `build_cn_tridiag`), which takes the radial grid explicitly.
+  The discretisation is byte-identical; solver behaviour is unchanged.
 - Split `core.integrated_transport_solver` by responsibility: the stateless power
   source/sink kernels (D-T Bosch-Hale fusion reactivity, tungsten line radiation,
   bremsstrahlung) moved from private `TransportSolver` static methods to a new

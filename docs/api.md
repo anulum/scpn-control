@@ -554,6 +554,14 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.plasma_power_terms.bremsstrahlung_power_density
 
+### Radial Diffusion Numerics
+
+::: scpn_control.core.radial_diffusion.thomas_solve
+
+::: scpn_control.core.radial_diffusion.explicit_diffusion_rhs
+
+::: scpn_control.core.radial_diffusion.build_cn_tridiag
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e
