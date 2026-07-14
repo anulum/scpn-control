@@ -14,7 +14,10 @@ import argparse
 import json
 import math
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "validation" / "reports" / "differentiable_scenario_readiness.json"
@@ -225,7 +228,7 @@ def _is_sha256_hex(value: object) -> bool:
     return True
 
 
-def _finite_number(value: object) -> bool:
+def _finite_number(value: object) -> TypeIs[float]:
     return isinstance(value, int | float) and math.isfinite(float(value))
 
 
@@ -248,15 +251,15 @@ def _validate_pair(value: object, field: str, errors: list[dict[str, object]]) -
 
 def _nested_bool(payload: dict[str, Any], parent: str, field: str) -> bool | None:
     value = payload.get(parent)
-    if isinstance(value, dict) and isinstance(value.get(field), bool):
-        return value[field]
+    if isinstance(value, dict) and isinstance((field_value := value.get(field)), bool):
+        return field_value
     return None
 
 
 def _nested_list(payload: dict[str, Any], parent: str, field: str) -> list[object] | None:
     value = payload.get(parent)
-    if isinstance(value, dict) and isinstance(value.get(field), list):
-        return value[field]
+    if isinstance(value, dict) and isinstance((field_value := value.get(field)), list):
+        return field_value
     return None
 
 
