@@ -10,11 +10,13 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
-import sys
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -40,7 +42,7 @@ READINESS_MD_REPORT = REPORT_DIR / "differentiable_transport_full_fidelity_readi
 FORMAL_REPORT = REPORT_DIR / "scpn_z3_formal.json"
 
 
-def _profiles(rho: np.ndarray) -> np.ndarray:
+def _profiles(rho: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     te = 8.0 * np.exp(-((rho - 0.35) ** 2) / 0.03) + 0.2
     ti = 6.0 * np.exp(-((rho - 0.42) ** 2) / 0.04) + 0.2
     ne = 4.0 + 0.8 * (1.0 - rho**2)
@@ -72,15 +74,15 @@ def main() -> None:
 
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     if not has_jax():
-        payload = {
+        blocked_payload = {
             "status": "blocked",
             "reason": "JAX is required for audited differentiable transport gradient-latency evidence",
             "claim_status": "no latency claim; JAX gradient backend unavailable in this environment",
             "schema_version": 1,
         }
-        JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        ROLLOUT_JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        READINESS_JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        JSON_REPORT.write_text(json.dumps(blocked_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        ROLLOUT_JSON_REPORT.write_text(json.dumps(blocked_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        READINESS_JSON_REPORT.write_text(json.dumps(blocked_payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         MD_REPORT.write_text(
             "\n".join(
                 [
@@ -151,7 +153,7 @@ def main() -> None:
             encoding="utf-8",
         )
         return
-    rho = np.linspace(0.05, 1.0, 21)
+    rho = np.linspace(0.05, 1.0, 21).astype(np.float64)
     profiles = _profiles(rho)
     chi = np.stack(
         [
@@ -184,7 +186,7 @@ def main() -> None:
         warmup_runs=1,
         timed_runs=5,
     )
-    payload = asdict(report)
+    payload: dict[str, Any] = asdict(report)
     save_transport_gradient_latency_report(report, JSON_REPORT)
     source_sequence = np.repeat(sources[None, :, :], 4, axis=0)
     desired_sources = source_sequence.copy()
@@ -218,7 +220,7 @@ def main() -> None:
         warmup_runs=1,
         timed_runs=5,
     )
-    rollout_payload = asdict(rollout_report)
+    rollout_payload: dict[str, Any] = asdict(rollout_report)
     save_transport_rollout_gradient_latency_report(rollout_report, ROLLOUT_JSON_REPORT)
     equilibrium_psi = np.tile(np.linspace(0.0, 1.0, rho.size), (rho.size, 1))
     campaign_metadata = transport_campaign_metadata(
@@ -238,7 +240,7 @@ def main() -> None:
         rollout_report=rollout_report,
         controller_formal_artifact_sha256=_controller_formal_digest(),
     )
-    readiness_payload = asdict(readiness)
+    readiness_payload: dict[str, Any] = asdict(readiness)
     READINESS_JSON_REPORT.write_text(
         json.dumps(readiness_payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",

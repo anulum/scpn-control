@@ -201,14 +201,12 @@ disallow_untyped_decorators = false
 # module from this list once its errors are fixed. Do not add a module
 # here to silence new errors — fix them.
 module = [
-    "validation.benchmark_differentiable_transport_latency",
     "validation.benchmark_disturbance_rejection",
     "validation.benchmark_free_boundary_tracking_claims",
     "validation.build_mast_efm_neural_equilibrium_dataset",
     "validation.code_to_code_benchmark",
     "validation.control_benchmark_suite",
     "validation.controller_comparison",
-    "validation.convert_mast_efm_neural_equilibrium_reference",
     "validation.multi_machine_validation",
     "validation.rmse_dashboard",
     "validation.stress_test_campaign",

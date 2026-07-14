@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any, Protocol
 
 import numpy as np
+import numpy.typing as npt
 
 CANDIDATE_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-reference-candidate.v1"
 REQUIRED_EFM_VARIABLES = (
@@ -179,11 +180,15 @@ def convert_shot_zarr(
     finally:
         ds.close()
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(output_path, **arrays)
+    # numpy's savez_compressed stub types **kwds against the positional allow_pickle: bool;
+    # the array keyword payload is the documented, correct call. See SYS-AUDIT-02-MYPY1.
+    np.savez_compressed(output_path, **arrays)  # type: ignore[arg-type]
     return _converted_summary(shot_id=shot_id, source_path=zarr_path, output_path=output_path, arrays=arrays)
 
 
-def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | None = None) -> dict[str, np.ndarray]:
+def extract_reference_arrays(
+    ds: DatasetLike, *, shot_id: int, max_times: int | None = None
+) -> dict[str, npt.NDArray[np.float64]]:
     """Extract full-order MAST EFM equilibrium arrays without prediction or metric fabrication."""
     missing = [name for name in REQUIRED_EFM_VARIABLES if name not in ds.variables]
     if missing:
@@ -211,7 +216,7 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
     if indices.size == 0:
         raise ValueError("MAST EFM dataset has no finite converged equilibrium slices")
     psirz = _take_time(ds["psirz"], indices, name="psirz")
-    r_grid, z_grid = _psirz_coordinate_grids(ds, ds["psirz"], psirz.shape[-2:])
+    r_grid, z_grid = _psirz_coordinate_grids(ds, ds["psirz"], (int(psirz.shape[-2]), int(psirz.shape[-1])))
     plasma_current = _take_time(ds["plasma_current_x"], indices, name="plasma_current_x").astype(np.float64)
     toroidal_field = _take_time(ds["bphi_rmag"], indices, name="bphi_rmag").astype(np.float64)
     ffprime_profile = _take_time(ds["ffprime"], indices, name="ffprime").astype(np.float64)
@@ -246,7 +251,7 @@ def extract_reference_arrays(ds: DatasetLike, *, shot_id: int, max_times: int | 
 
 
 def _converted_summary(
-    *, shot_id: int, source_path: Path, output_path: Path, arrays: dict[str, np.ndarray]
+    *, shot_id: int, source_path: Path, output_path: Path, arrays: dict[str, npt.NDArray[np.float64]]
 ) -> ConvertedShot:
     psirz = arrays["psirz_Wb_per_rad"]
     lcfs = arrays["lcfs_r_m"]
@@ -262,7 +267,7 @@ def _converted_summary(
     )
 
 
-def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
+def _validate_reference_arrays(arrays: dict[str, npt.NDArray[np.float64]]) -> None:
     first = arrays["time_s"].shape[0]
     for key in REFERENCE_ARRAY_KEYS:
         if key not in arrays:
@@ -320,7 +325,7 @@ def _validate_reference_arrays(arrays: dict[str, np.ndarray]) -> None:
         raise ValueError("ffprime_rms_T_rad must be positive for selected equilibria")
 
 
-def _converged_time_indices(ds: DatasetLike, n_time: int) -> np.ndarray:
+def _converged_time_indices(ds: DatasetLike, n_time: int) -> npt.NDArray[np.intp]:
     status = np.asarray(ds["status"].values).reshape(-1)
     converged = np.asarray(ds["cnvrgd_times"].values).reshape(-1)
     if status.size != n_time:
@@ -336,7 +341,7 @@ def _converged_time_indices(ds: DatasetLike, n_time: int) -> np.ndarray:
     return np.flatnonzero(mask)
 
 
-def _take_time(data_array: Any, indices: np.ndarray, *, name: str) -> np.ndarray:
+def _take_time(data_array: Any, indices: npt.NDArray[np.intp], *, name: str) -> npt.NDArray[np.float64]:
     values = np.asarray(data_array.values)
     dims = tuple(getattr(data_array, "dims", ()))
     if "time" in dims:
@@ -348,7 +353,7 @@ def _take_time(data_array: Any, indices: np.ndarray, *, name: str) -> np.ndarray
     return np.take(values, indices, axis=axis)
 
 
-def _profile_rms(values: np.ndarray) -> np.ndarray:
+def _profile_rms(values: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
     arr = np.asarray(values, dtype=np.float64)
     if arr.ndim == 1:
         arr = arr.reshape(-1, 1)
@@ -366,7 +371,7 @@ def _profile_rms(values: np.ndarray) -> np.ndarray:
 
 def _psirz_coordinate_grids(
     ds: DatasetLike, psirz_array: Any, grid_shape: tuple[int, int]
-) -> tuple[np.ndarray, np.ndarray]:
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     dims = tuple(getattr(psirz_array, "dims", ()))
     if len(dims) < 3:
         raise ValueError("psirz must expose time, z, and r dimensions")
@@ -378,7 +383,7 @@ def _psirz_coordinate_grids(
     )
 
 
-def _coordinate_grid_from_dimension(ds: DatasetLike, dimension: str, *, expected_size: int) -> np.ndarray:
+def _coordinate_grid_from_dimension(ds: DatasetLike, dimension: str, *, expected_size: int) -> npt.NDArray[np.float64]:
     if dimension not in ds.variables:
         raise ValueError(f"MAST EFM dataset missing exact coordinate grid for {dimension}")
     grid = np.asarray(ds[dimension].values, dtype=np.float64).reshape(-1)
@@ -391,7 +396,7 @@ def _coordinate_grid_from_dimension(ds: DatasetLike, dimension: str, *, expected
     return grid
 
 
-def _as_1d_array(ds: DatasetLike, name: str, *, fallback_size: int) -> np.ndarray:
+def _as_1d_array(ds: DatasetLike, name: str, *, fallback_size: int) -> npt.NDArray[np.float64]:
     if name in ds.variables:
         arr = np.asarray(ds[name].values, dtype=np.float64).reshape(-1)
         if arr.size:
