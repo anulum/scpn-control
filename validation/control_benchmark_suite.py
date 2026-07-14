@@ -19,13 +19,14 @@ from pathlib import Path
 from typing import Any, Callable, Protocol
 
 import numpy as np
+import numpy.typing as npt
 
 
 @dataclass
 class BenchmarkScenario:
     name: str
     env_config: dict[str, Any]
-    reference_trajectory: Callable[[float], np.ndarray]
+    reference_trajectory: Callable[[float], float]
     duration_s: float
     disturbances: list[tuple[float, str, float]] = field(default_factory=list)
     n_episodes: int = 10
@@ -34,7 +35,9 @@ class BenchmarkScenario:
 class ControllerWrapper(Protocol):
     def reset(self) -> None: ...
 
-    def step(self, obs: np.ndarray, ref: np.ndarray, dt: float) -> np.ndarray: ...
+    def step(
+        self, obs: npt.NDArray[np.float64], ref: npt.NDArray[np.float64], dt: float
+    ) -> npt.NDArray[np.float64]: ...
 
     def name(self) -> str: ...
 
@@ -185,12 +188,12 @@ class BenchmarkRunner:
             computation_time_us=float(np.mean(all_time)),
         )
 
-    def save_json(self, path: Path):
+    def save_json(self, path: Path) -> None:
         data = [dataclasses.asdict(r) for r in self.results]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
-    def save_markdown(self, path: Path):
+    def save_markdown(self, path: Path) -> None:
         with open(path, "w") as f:
             f.write("| Controller | Scenario | IAE | Settling [s] | Overshoot [%] | Violations | Time [µs] |\n")
             f.write("|------------|----------|-----|-------------|---------------|------------|-----------|\n")
@@ -207,7 +210,7 @@ class BenchmarkRunner:
 
 def setpoint_tracking() -> BenchmarkScenario:
     # Step from 2.0 to 2.5 at t=5s
-    def ref(t):
+    def ref(t: float) -> float:
         return 2.5 if t >= 5.0 else 2.0
 
     return BenchmarkScenario(
@@ -224,10 +227,10 @@ class PIDWrapper:
         self.Ki = Ki
         self.integral = 0.0
 
-    def reset(self):
+    def reset(self) -> None:
         self.integral = 0.0
 
-    def step(self, obs: np.ndarray, ref: np.ndarray, dt: float) -> np.ndarray:
+    def step(self, obs: npt.NDArray[np.float64], ref: npt.NDArray[np.float64], dt: float) -> npt.NDArray[np.float64]:
         err = ref[0] - obs[0]
         self.integral += err * dt
         u = self.Kp * err + self.Ki * self.integral
