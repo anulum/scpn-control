@@ -113,7 +113,9 @@ def validate_gk_geometry_reference(reference_path: str | Path) -> dict[str, Any]
         if entry is not None:
             case_name = str(entry["case"])
             if case_name in seen_cases:
-                errors.append({"path": str(path), "index": index, "field": "case", "error": f"duplicate case: {case_name}"})
+                errors.append(
+                    {"path": str(path), "index": index, "field": "case", "error": f"duplicate case: {case_name}"}
+                )
                 continue
             seen_cases.add(case_name)
             entries.append(entry)
@@ -179,7 +181,12 @@ def _validate_case(
                 {"path": str(path), "index": index, "field": "sample_points", "error": "sample point must be an object"}
             )
             continue
-        actual = _actual_values_at_theta(parameters, geometry, float(sample.get("theta", np.nan)))
+        actual = _actual_values_at_theta(
+            float(geometry_args["B0"]),
+            float(geometry_args["R0"]),
+            geometry,
+            float(sample.get("theta", np.nan)),
+        )
         for field in _REQUIRED_SAMPLE_FIELDS:
             expected_value = sample.get(field)
             if isinstance(expected_value, bool) or not isinstance(expected_value, int | float):
@@ -225,7 +232,7 @@ def _parameters_are_numeric(
     return ok
 
 
-def _actual_values_at_theta(parameters: dict[object, object], geometry: Any, theta: float) -> dict[str, float]:
+def _actual_values_at_theta(b0: float, r0: float, geometry: Any, theta: float) -> dict[str, float]:
     index = int(np.argmin(np.abs(geometry.theta - theta)))
     R = float(geometry.R[index])
     return {
@@ -236,7 +243,7 @@ def _actual_values_at_theta(parameters: dict[object, object], geometry: Any, the
         "g_rr": float(geometry.g_rr[index]),
         "g_rt": float(geometry.g_rt[index]),
         "g_tt": float(geometry.g_tt[index]),
-        "B_toroidal": float(parameters["B0"]) * float(parameters["R0"]) / R,
+        "B_toroidal": b0 * r0 / R,
         "b_dot_grad_theta": float(geometry.b_dot_grad_theta[index]),
     }
 

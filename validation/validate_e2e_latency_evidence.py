@@ -18,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-
 E2E_LATENCY_SCHEMA_VERSION = "scpn-control.e2e-latency.v1"
 E2E_LATENCY_CLAIM_BOUNDARY = (
     "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
@@ -57,10 +56,9 @@ def _qualified_string(value: object) -> str | None:
 
 
 def _finite_positive_number(value: object) -> float | None:
-    try:
-        numeric = float(value)
-    except (TypeError, ValueError):
+    if isinstance(value, bool) or not isinstance(value, int | float):
         return None
+    numeric = float(value)
     if not math.isfinite(numeric) or numeric <= 0.0:
         return None
     return numeric
@@ -98,7 +96,8 @@ def _validate_percentiles(
     for key, value in values.items():
         if value is None:
             errors.append(f"{section_name}.{key} must be a positive finite number")
-    if all(value is not None for value in values.values()) and not (values["p50"] <= values["p95"] <= values["p99"]):
+    p50, p95, p99 = values["p50"], values["p95"], values["p99"]
+    if p50 is not None and p95 is not None and p99 is not None and not (p50 <= p95 <= p99):
         errors.append(f"{section_name} percentiles must satisfy p50 <= p95 <= p99")
     return values
 
