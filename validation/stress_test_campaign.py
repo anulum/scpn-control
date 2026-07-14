@@ -49,10 +49,10 @@ import numpy as np
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root / "src"))
 
-from scpn_control.control.tokamak_flight_sim import IsoFluxController
 from scpn_control.control.h_infinity_controller import (
     get_flight_sim_controller,
 )
+from scpn_control.control.tokamak_flight_sim import IsoFluxController
 
 # Optional controller imports
 _mpc_available = False
@@ -70,8 +70,8 @@ except ImportError:
 
 try:
     from scpn_control.control.nengo_snn_wrapper import (
-        NengoSNNController,  # noqa: F401
         NengoSNNConfig,  # noqa: F401
+        NengoSNNController,  # noqa: F401
         nengo_available,
     )
 
@@ -108,7 +108,7 @@ class ControllerMetrics:
     disruption_rate: float = 0.0
     mean_def: float = 0.0
     mean_energy_efficiency: float = 0.0
-    episodes: list = field(default_factory=list)
+    episodes: list[EpisodeResult] = field(default_factory=list)
 
 
 def _run_pid_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult:
@@ -151,7 +151,10 @@ def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResul
             return hinf_R.step(err, dt)
         return hinf_Z.step(err, dt)
 
-    ctrl.pid_step = hinf_step
+    # Override the bound PID step with the H-infinity step for this episode.
+    # The instance-attribute override drops ``self`` (hinf_step takes (pid, err)),
+    # a deliberate monkeypatch mypy cannot model on a declared method.
+    ctrl.pid_step = hinf_step  # type: ignore[method-assign, assignment]
     t0 = time.perf_counter_ns()
     result = ctrl.run_shot(shot_duration=shot_duration, save_plot=False)
     total_us = (time.perf_counter_ns() - t0) / 1e3
@@ -172,7 +175,7 @@ def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResul
 
 
 # Controller registry — always includes PID and H-infinity
-CONTROLLERS: dict[str, Callable] = {
+CONTROLLERS: dict[str, Callable[[Any, int], EpisodeResult]] = {
     "PID": _run_pid_episode,
     "H-infinity": _run_hinf_episode,
 }

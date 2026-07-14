@@ -11,8 +11,10 @@ from __future__ import annotations
 import json
 from dataclasses import asdict
 from pathlib import Path
+from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
 from scpn_control.control.free_boundary_tracking_claims import (
@@ -48,7 +50,7 @@ class _BenchmarkFreeBoundaryKernel:
             dtype=np.float64,
         )
         self._bias = self._response_matrix @ np.array([0.45, -0.35, 0.30, -0.20], dtype=np.float64)
-        self.cfg = {
+        self.cfg: dict[str, Any] = {
             "physics": {"drift_scale": 0.0},
             "coils": [
                 {"name": "PF1", "current": 0.0},
@@ -110,7 +112,7 @@ class _BenchmarkFreeBoundaryKernel:
             "final_diff": float(np.linalg.norm(self._response_matrix @ currents)),
         }
 
-    def _sample_flux_at_points(self, points: np.ndarray) -> np.ndarray:
+    def _sample_flux_at_points(self, points: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
         pts = np.asarray(points, dtype=np.float64)
         if pts.shape == self._boundary_points.shape and np.allclose(pts, self._boundary_points):
             return self._state[:3].copy()
@@ -118,7 +120,7 @@ class _BenchmarkFreeBoundaryKernel:
             return self._state[6:].copy()
         raise ValueError("unexpected benchmark probe points")
 
-    def find_x_point(self, _psi: np.ndarray) -> tuple[tuple[float, float], float]:
+    def find_x_point(self, _psi: npt.NDArray[np.float64]) -> tuple[tuple[float, float], float]:
         return (float(self._state[3]), float(self._state[4])), float(self._state[5])
 
     def _interp_psi(self, r_pt: float, z_pt: float) -> float:
