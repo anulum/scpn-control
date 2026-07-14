@@ -30,6 +30,7 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -37,8 +38,8 @@ import numpy as np
 repo_root = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(repo_root / "src"))
 
-from scpn_control.control.tokamak_flight_sim import IsoFluxController
 from scpn_control.control.h_infinity_controller import get_radial_robust_controller
+from scpn_control.control.tokamak_flight_sim import IsoFluxController
 
 # Optional controller imports
 _mpc_available = False
@@ -56,8 +57,8 @@ except ImportError:
 
 try:
     from scpn_control.control.nengo_snn_wrapper import (
-        NengoSNNController,  # noqa: F401
         NengoSNNConfig,  # noqa: F401
+        NengoSNNController,  # noqa: F401
         nengo_available,
     )
 
@@ -92,10 +93,10 @@ class ControllerMetrics:
     disruption_rate: float = 0.0
     mean_def: float = 0.0
     mean_energy_efficiency: float = 0.0
-    episodes: list = field(default_factory=list)
+    episodes: list[EpisodeResult] = field(default_factory=list)
 
 
-def _run_pid_episode(config_path, shot_duration=30):
+def _run_pid_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult:
     ctrl = IsoFluxController(config_path, verbose=False)
     t0 = time.perf_counter_ns()
     result = ctrl.run_shot(shot_duration=shot_duration, save_plot=False)
@@ -116,10 +117,16 @@ def _run_pid_episode(config_path, shot_duration=30):
     )
 
 
-def _run_hinf_episode(config_path, shot_duration=30):
+def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResult:
     ctrl = IsoFluxController(config_path, verbose=False)
     hinf = get_radial_robust_controller()
-    ctrl.pid_step = lambda pid, err: hinf.step(err, 0.05)
+
+    def hinf_step(pid: Any, err: float) -> float:
+        return float(hinf.step(err, 0.05))
+
+    # Override the bound PID step with the H-infinity step for this episode; the
+    # instance-attribute override is a deliberate monkeypatch mypy cannot model.
+    ctrl.pid_step = hinf_step  # type: ignore[method-assign, assignment]
     t0 = time.perf_counter_ns()
     result = ctrl.run_shot(shot_duration=shot_duration, save_plot=False)
     total_us = (time.perf_counter_ns() - t0) / 1e3
@@ -145,7 +152,9 @@ CONTROLLERS = {
 }
 
 
-def run_comparison(n_episodes=100, shot_duration=30, config_path=None):
+def run_comparison(
+    n_episodes: int = 100, shot_duration: int = 30, config_path: Any = None
+) -> dict[str, ControllerMetrics]:
     """Run all available controllers on identical scenarios."""
     if config_path is None:
         config_path = repo_root / "iter_config.json"
@@ -153,7 +162,7 @@ def run_comparison(n_episodes=100, shot_duration=30, config_path=None):
     print("=== 4-Way Controller Comparison ===")
     print(f"Episodes: {n_episodes} | Controllers: {', '.join(CONTROLLERS.keys())}")
 
-    results = {}
+    results: dict[str, ControllerMetrics] = {}
     for ctrl_name, run_fn in CONTROLLERS.items():
         print(f"--- Running {ctrl_name} ({n_episodes} episodes) ---")
         metrics = ControllerMetrics(name=ctrl_name)
@@ -183,7 +192,7 @@ def run_comparison(n_episodes=100, shot_duration=30, config_path=None):
     return results
 
 
-def generate_comparison_table(results):
+def generate_comparison_table(results: dict[str, ControllerMetrics]) -> str:
     """Generate markdown comparison table."""
     lines = [
         "| Controller | Episodes | Mean Reward | P95 Latency (us) | Disruption Rate | DEF | Energy Eff |",
@@ -198,7 +207,7 @@ def generate_comparison_table(results):
     return "\n".join(lines)
 
 
-def generate_latex_table(results):
+def generate_latex_table(results: dict[str, ControllerMetrics]) -> str:
     """Generate publication-ready LaTeX table."""
     lines = [
         r"\begin{table}[htbp]",
