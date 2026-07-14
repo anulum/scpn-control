@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
@@ -60,14 +61,16 @@ THRESHOLDS = {
 # ── Lane 1: Equilibrium Validation ───────────────────────────────────
 
 
-def nrmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+def nrmse(y_true: npt.NDArray[np.float64], y_pred: npt.NDArray[np.float64]) -> float:
     """Normalised RMSE: RMSE / range(y_true)."""
     rmse = float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
     rng = float(np.max(y_true) - np.min(y_true))
     return rmse / max(rng, 1e-12)
 
 
-def _gs_operator(psi: np.ndarray, r_grid: np.ndarray, z_grid: np.ndarray) -> np.ndarray:
+def _gs_operator(
+    psi: npt.NDArray[np.float64], r_grid: npt.NDArray[np.float64], z_grid: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
     """Evaluate the cylindrical Grad-Shafranov operator on interior cells."""
     if psi.shape != (len(z_grid), len(r_grid)):
         raise ValueError("psi shape must match z/r grid lengths")
@@ -83,10 +86,13 @@ def _gs_operator(psi: np.ndarray, r_grid: np.ndarray, z_grid: np.ndarray) -> np.
     d2R = (psi[1:-1, 2:] - 2.0 * psi[1:-1, 1:-1] + psi[1:-1, 0:-2]) / dR**2
     d1R = (psi[1:-1, 2:] - psi[1:-1, 0:-2]) / (2.0 * dR)
     d2Z = (psi[2:, 1:-1] - 2.0 * psi[1:-1, 1:-1] + psi[0:-2, 1:-1]) / dZ**2
-    return d2R - d1R / r_safe + d2Z
+    gs_operator: npt.NDArray[np.float64] = d2R - d1R / r_safe + d2Z
+    return gs_operator
 
 
-def _interpolate_profiles_to_flux(eq: Any, psi: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _interpolate_profiles_to_flux(
+    eq: Any, psi: npt.NDArray[np.float64]
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64]]:
     """Map GEQDSK pprime and ffprime profiles onto the 2-D flux grid."""
     if len(eq.pprime) != eq.nw:
         raise ValueError(f"pprime length {len(eq.pprime)} does not match nw {eq.nw}")
@@ -141,14 +147,13 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
         for geqdsk_path in geqdsk_files:
             try:
                 eq = read_geqdsk(str(geqdsk_path))
-                psi_efit = eq.psirz
                 q_efit = eq.qpsi
 
                 # q95 from profile
                 n_psi = len(q_efit)
                 if n_psi > 0:
-                    psi_norm = np.linspace(0, 1, n_psi)
-                    idx_95 = np.searchsorted(psi_norm, 0.95)
+                    psi_norm_grid = np.linspace(0, 1, n_psi)
+                    idx_95 = int(np.searchsorted(psi_norm_grid, 0.95))
                     q95 = float(q_efit[min(idx_95, n_psi - 1)])
                 else:
                     q95 = float("nan")
@@ -316,7 +321,7 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
             "error": f"No disruption NPZ files in {disruption_dir}",
         }
 
-    results = []
+    results: list[dict[str, Any]] = []
     true_positives = 0
     false_negatives = 0
     false_positives = 0

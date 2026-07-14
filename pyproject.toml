@@ -199,16 +199,9 @@ module = [
 ]
 disallow_untyped_decorators = false
 
-[[tool.mypy.overrides]]
-# validation/ is type-checked (see [tool.mypy] files). This 1 module
-# still carries mypy errors and is ignored pending the SYS-AUDIT-02-MYPY1
-# burn-down; the other 126 validation modules ARE strict-checked. Remove a
-# module from this list once its errors are fixed. Do not add a module
-# here to silence new errors — fix them.
-module = [
-    "validation.validate_real_shots",
-]
-ignore_errors = true
+# SYS-AUDIT-02-MYPY1 complete: all 127 validation/ modules are strict-checked (see
+# [tool.mypy] files). The per-module ignore_errors burn-down list is gone — do not
+# reintroduce it to silence new errors, fix them at source.
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "tests", "."]
