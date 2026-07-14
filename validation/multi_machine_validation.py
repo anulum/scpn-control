@@ -15,13 +15,16 @@ import dataclasses
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable
 
 import numpy as np
+import numpy.typing as npt
 
 
 class SyntheticDiagnosticSuite:
-    def thomson_scattering(self, Te: np.ndarray, ne: np.ndarray, n_channels: int = 20) -> dict[str, np.ndarray]:
+    def thomson_scattering(
+        self, Te: npt.NDArray[np.float64], ne: npt.NDArray[np.float64], n_channels: int = 20
+    ) -> dict[str, npt.NDArray[np.float64]]:
         indices = np.linspace(0, len(Te) - 1, n_channels, dtype=int)
 
         # Add 5% noise to Te, 3% to ne
@@ -30,41 +33,53 @@ class SyntheticDiagnosticSuite:
 
         return {"Te_keV": Te_meas, "ne_19": ne_meas}
 
-    def ece_radiometer(self, Te: np.ndarray, B_profile: np.ndarray, n_channels: int = 32) -> np.ndarray:
+    def ece_radiometer(
+        self, Te: npt.NDArray[np.float64], B_profile: npt.NDArray[np.float64], n_channels: int = 32
+    ) -> npt.NDArray[np.float64]:
         indices = np.linspace(0, len(Te) - 1, n_channels, dtype=int)
         # ECE noise typically ~2%
-        Te_meas = Te[indices] * (1.0 + np.random.randn(n_channels) * 0.02)
+        Te_meas: npt.NDArray[np.float64] = Te[indices] * (1.0 + np.random.randn(n_channels) * 0.02)
         return Te_meas
 
-    def interferometer(self, ne: np.ndarray, rho: np.ndarray, a: float, n_chords: int = 8) -> np.ndarray:
+    def interferometer(
+        self, ne: npt.NDArray[np.float64], rho: npt.NDArray[np.float64], a: float, n_chords: int = 8
+    ) -> npt.NDArray[np.float64]:
         # Mock line integration
         avg_n = np.mean(ne)
         path_lengths = 2.0 * a * np.sqrt(1.0 - np.linspace(0, 0.9, n_chords) ** 2)
 
         ideal_integrals = avg_n * path_lengths
         # 1% noise
-        meas = ideal_integrals * (1.0 + np.random.randn(n_chords) * 0.01)
+        meas: npt.NDArray[np.float64] = ideal_integrals * (1.0 + np.random.randn(n_chords) * 0.01)
         return meas
 
-    def bolometer(self, P_rad_profile: np.ndarray, rho: np.ndarray, a: float, n_chords: int = 16) -> np.ndarray:
+    def bolometer(
+        self, P_rad_profile: npt.NDArray[np.float64], rho: npt.NDArray[np.float64], a: float, n_chords: int = 16
+    ) -> npt.NDArray[np.float64]:
         avg_P = np.mean(P_rad_profile)
         path_lengths = 2.0 * a * np.sqrt(1.0 - np.linspace(0, 0.9, n_chords) ** 2)
 
         ideal_integrals = avg_P * path_lengths
         # 10% noise for bolometry
-        meas = ideal_integrals * (1.0 + np.random.randn(n_chords) * 0.10)
+        meas: npt.NDArray[np.float64] = ideal_integrals * (1.0 + np.random.randn(n_chords) * 0.10)
         return meas
 
-    def soft_xray(self, Te: np.ndarray, ne: np.ndarray, rho: np.ndarray, n_chords: int = 40) -> np.ndarray:
+    def soft_xray(
+        self,
+        Te: npt.NDArray[np.float64],
+        ne: npt.NDArray[np.float64],
+        rho: npt.NDArray[np.float64],
+        n_chords: int = 40,
+    ) -> npt.NDArray[np.float64]:
         # Emissivity ~ n_e^2 * sqrt(Te)
         emissivity = ne**2 * np.sqrt(Te)
         avg_emis = np.mean(emissivity)
         path_lengths = np.ones(n_chords)  # Simplified
 
-        meas = avg_emis * path_lengths * (1.0 + np.random.randn(n_chords) * 0.05)
+        meas: npt.NDArray[np.float64] = avg_emis * path_lengths * (1.0 + np.random.randn(n_chords) * 0.05)
         return meas
 
-    def magnetics(self, R0: float, a: float) -> dict[str, np.ndarray]:
+    def magnetics(self, R0: float, a: float) -> dict[str, Any]:
         # Just mock standard sensors
         return {
             "flux_loops": np.ones(20) * 1.0 * (1.0 + np.random.randn(20) * 0.001),
@@ -83,9 +98,9 @@ class MachineConfig:
     delta: float
     Ip_MA: float
     P_aux_MW: float
-    ne_profile: Callable[[np.ndarray], np.ndarray]
-    Te_profile: Callable[[np.ndarray], np.ndarray]
-    Ti_profile: Callable[[np.ndarray], np.ndarray]
+    ne_profile: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
+    Te_profile: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
+    Ti_profile: Callable[[npt.NDArray[np.float64]], npt.NDArray[np.float64]]
     diagnostics: SyntheticDiagnosticSuite = dataclasses.field(default_factory=SyntheticDiagnosticSuite)
 
 
@@ -185,7 +200,7 @@ class MultiMachineValidator:
         self.machines = machines
         self.results: list[ValidationResult] = []
 
-    def _test_equilibrium_convergence(self, m: MachineConfig):
+    def _test_equilibrium_convergence(self, m: MachineConfig) -> None:
         # Mock test
         nrmse = 0.01 + np.random.rand() * 0.01
         passed = nrmse < 0.02
@@ -201,7 +216,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_transport_scaling(self, m: MachineConfig):
+    def _test_transport_scaling(self, m: MachineConfig) -> None:
         # Mock tau_E scaling test
         sigma_dev = np.random.rand() * 1.5
         passed = sigma_dev < 2.0
@@ -217,7 +232,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_current_conservation(self, m: MachineConfig):
+    def _test_current_conservation(self, m: MachineConfig) -> None:
         err = np.random.rand() * 0.008
         passed = err < 0.01
         self.results.append(
@@ -226,7 +241,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_energy_conservation(self, m: MachineConfig):
+    def _test_energy_conservation(self, m: MachineConfig) -> None:
         err = np.random.rand() * 0.009
         passed = err < 0.01
         self.results.append(
@@ -235,7 +250,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_beta_limit(self, m: MachineConfig):
+    def _test_beta_limit(self, m: MachineConfig) -> None:
         beta_N = 2.0 + np.random.rand()
         troyon = 3.5
         passed = beta_N < troyon
@@ -251,7 +266,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_vertical_stability(self, m: MachineConfig):
+    def _test_vertical_stability(self, m: MachineConfig) -> None:
         # SMC controller test
         settling = 0.005 + np.random.rand() * 0.01
         passed = settling < 0.05
@@ -267,7 +282,7 @@ class MultiMachineValidator:
             )
         )
 
-    def _test_diagnostic_reconstruction(self, m: MachineConfig):
+    def _test_diagnostic_reconstruction(self, m: MachineConfig) -> None:
         err = 0.02 + np.random.rand() * 0.02
         passed = err < 0.05
         self.results.append(
@@ -276,7 +291,7 @@ class MultiMachineValidator:
             )
         )
 
-    def run_all(self, seed: int = 42):
+    def run_all(self, seed: int = 42) -> MultiMachineValidator:
         np.random.seed(seed)
         for m in self.machines:
             self._test_equilibrium_convergence(m)
@@ -289,12 +304,12 @@ class MultiMachineValidator:
 
         return self
 
-    def save_json(self, path: Path):
+    def save_json(self, path: Path) -> None:
         data = [dataclasses.asdict(r) for r in self.results]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
-    def save_markdown(self, path: Path):
+    def save_markdown(self, path: Path) -> None:
         with open(path, "w") as f:
             f.write("| Test | Machine | Metric | Value | Target | Passed | Evidence |\n")
             f.write("|------|---------|--------|-------|--------|--------|----------|\n")
