@@ -11,6 +11,14 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split the CLI monolith further: the six evidence and data-manifest validation
+  commands (`validate`, `validate-release-evidence`, `validate-manifest`,
+  `validate-data-manifests`, `validate-physics-traceability`, `validate-rmse`) moved
+  from `cli.py` into a new `cli_evidence_validators.py` as standalone `@click.command`
+  objects, folded back onto the root `scpn-control` group via
+  `EVIDENCE_VALIDATOR_COMMANDS`. The CLI surface is byte-identical (all 40 commands,
+  names/options/behaviour unchanged); `cli.py` drops to a dispatcher over the core
+  operational commands plus MDSplus acquisition. `cli.py` 1286 -> 856 L.
 - Split `core.integrated_transport_solver` further: the toroidal radial-grid geometry
   helpers moved to a new stateless `core.transport_geometry` module — the per-cell
   volume element (`rho_volume_element`), the Martin L-H plasma surface-area estimate

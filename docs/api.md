@@ -1985,6 +1985,10 @@ This index keeps the published API reference aligned with every tracked Python m
 
 ::: scpn_control.cli_reference_validators
 
+#### CLI Evidence Validators
+
+::: scpn_control.cli_evidence_validators
+
 #### Shared Typing Aliases
 
 ::: scpn_control._typing
