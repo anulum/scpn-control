@@ -11,6 +11,17 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the multi-ion (D/T/He-ash)
+  species evolution moved from the private `_evolve_species` method to a new
+  stateless `core.species_evolution` module (`evolve_multi_ion_species` +
+  `SpeciesEvolutionResult`). One explicit time-step of the deuterium/tritium/
+  helium-ash densities under fusion burn, CFL-sub-stepped explicit diffusion, and
+  helium pumping, then the quasineutral electron density, effective charge, and
+  tungsten line radiation — with the species densities, temperatures, impurity
+  density, grid, and pumping time passed explicitly and the mutated state returned
+  for the caller to store. The confinement-time-derived pumping time stays in the
+  thin `_evolve_species` orchestrator; the burn/transport/quasineutrality physics is
+  byte-identical, so solver behaviour is unchanged.
 - Split `core.integrated_transport_solver` further: the auxiliary-heating source
   deposition (turning a requested auxiliary power into per-cell ion/electron
   temperature sources, power-normalised over the plasma volume) moved from the

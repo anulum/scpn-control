@@ -572,6 +572,12 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.aux_heating.aux_heating_source_profiles
 
+### Multi-Ion Species Evolution
+
+::: scpn_control.core.species_evolution.evolve_multi_ion_species
+
+::: scpn_control.core.species_evolution.SpeciesEvolutionResult
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e

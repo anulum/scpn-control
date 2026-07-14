@@ -44,12 +44,9 @@ from scpn_control.core.momentum_transport import (
     nbi_torque,
 )
 from scpn_control.core.pedestal import PedestalProfile
-from scpn_control.core.plasma_power_terms import (
-    bosch_hale_dt_reactivity,
-    bremsstrahlung_power_density,
-    tungsten_radiation_rate,
-)
+from scpn_control.core.plasma_power_terms import bremsstrahlung_power_density
 from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
+from scpn_control.core.species_evolution import evolve_multi_ion_species
 
 _logger = logging.getLogger(__name__)
 
@@ -1025,96 +1022,31 @@ class TransportSolver(FusionKernel):
             self._last_particle_balance_error = 0.0
             return np.zeros(self.nr), np.zeros(self.nr)
 
-        n_D = self.n_D
-        n_T = self.n_T
-        n_He = self.n_He
-
-        # Particle inventory before evolution (10^19 m^-3 units × volume)
-        dV = self._rho_volume_element()
-        N_before = float(np.sum((n_D + n_T + n_He) * 1e19 * dV))
-
-        # Fusion source: S_fus = n_D * n_T * <sigma_v> (reactions per m^3 per s)
-        # n_D, n_T are in 10^19 m^-3 => multiply by (1e19)^2
-        sigmav = bosch_hale_dt_reactivity(self.Ti)
-        S_fus = (n_D * 1e19) * (n_T * 1e19) * sigmav  # reactions/m^3/s
-
-        # He-ash source (in 10^19 m^-3 / s) — one He per fusion reaction
-        S_He = S_fus / 1e19
-
-        # He-ash sink: pumping with tau_He (default 5 * tau_E)
+        # He-ash pumping time (default tau_He_factor * tau_E, floored at 0.5 s)
         tau_E = self.compute_confinement_time(1.0)  # rough estimate
-        tau_He = max(self.tau_He_factor * tau_E, 0.5)  # floor at 0.5 s
-        S_He_pump = n_He / tau_He
+        tau_He = max(self.tau_He_factor * tau_E, 0.5)
 
-        # D and T consumption rate (in 10^19 / s)
-        S_fuel = S_fus / 1e19
-
-        # Integrated source: D+T consumed = -2·S_fus, He produced = +S_fus, He pumped = -S_He_pump
-        # Net = -S_fus - S_He_pump (in 10^19/s units, per cell)
-        dN_source_expected = float(dt * np.sum((-S_fuel - S_fuel + S_He - S_He_pump) * 1e19 * dV))
-
-        # Diffusion operator (explicit, simple Laplacian)
-        def _diffuse(n: AnyFloatArray) -> FloatArray:
-            d2n = np.zeros_like(n, dtype=float)
-            d2n[1:-1] = (n[2:] - 2.0 * n[1:-1] + n[:-2]) / (self.drho**2)
-            return self.D_species * d2n
-
-        # CFL sub-stepping for explicit diffusion stability
-        dt_cfl = 0.4 * self.drho**2 / max(self.D_species, 1e-10)
-        n_sub = max(1, int(np.ceil(dt / dt_cfl)))
-        dt_sub = dt / n_sub
-
-        for _ in range(n_sub):
-            # Evolve D
-            new_D = n_D + dt_sub * (_diffuse(n_D) - S_fuel)
-            new_D[0] = new_D[1]  # Neumann at axis
-            new_D[-1] = 0.01  # edge recycling floor
-            n_D = np.maximum(0.001, new_D)
-
-            # Evolve T
-            new_T = n_T + dt_sub * (_diffuse(n_T) - S_fuel)
-            new_T[0] = new_T[1]
-            new_T[-1] = 0.01
-            n_T = np.maximum(0.001, new_T)
-
-            # Evolve He-ash
-            new_He = n_He + dt_sub * (_diffuse(n_He) + S_He - S_He_pump)
-            new_He[0] = new_He[1]
-            new_He[-1] = 0.0
-            n_He = np.maximum(0.0, new_He)
-
-        self.n_D = n_D
-        self.n_T = n_T
-        self.n_He = n_He
-
-        # Particle balance diagnostic
-        N_after = float(np.sum((n_D + n_T + n_He) * 1e19 * dV))
-        dN_actual = N_after - N_before
-        # Relative error (includes boundary flux + clipping residuals)
-        self._last_particle_balance_error = abs(dN_actual - dN_source_expected) / max(abs(N_before), 1e-10)
-
-        # Recompute ne from quasineutrality: ne = n_D + n_T + 2*n_He + Z_imp*n_imp
-        # Pütterich et al., Nucl. Fusion 50, 025012 (2010) — mean charge
-        # state in ITER edge conditions (Te ~ 1-5 keV); full coronal model
-        # gives Z_W ~ 8-20, we use 10 as representative mid-range.
-        Z_W = 10.0
-        self.ne = n_D + n_T + 2.0 * n_He + Z_W * np.maximum(self.n_impurity, 0.0)
-        self.ne = np.maximum(self.ne, 0.1)
-
-        # Z_eff
-        ne_m3 = self.ne * 1e19
-        ne_safe = np.maximum(ne_m3, 1e10)
-        sum_nZ2 = (
-            n_D * 1e19 * 1.0 + n_T * 1e19 * 1.0 + n_He * 1e19 * 4.0 + np.maximum(self.n_impurity, 0.0) * 1e19 * Z_W**2
+        result = evolve_multi_ion_species(
+            n_D=self.n_D,
+            n_T=self.n_T,
+            n_He=self.n_He,
+            Ti=self.Ti,
+            Te=self.Te,
+            n_impurity=self.n_impurity,
+            dV=self._rho_volume_element(),
+            drho=self.drho,
+            D_species=self.D_species,
+            tau_He=tau_He,
+            dt=dt,
         )
-        self._Z_eff = float(np.clip(np.mean(sum_nZ2 / ne_safe), 1.0, 10.0))
+        self.n_D = result.n_D
+        self.n_T = result.n_T
+        self.n_He = result.n_He
+        self.ne = result.ne
+        self._Z_eff = result.Z_eff
+        self._last_particle_balance_error = result.particle_balance_error
 
-        # Tungsten line radiation [W/m^3]
-        Lz = tungsten_radiation_rate(self.Te)
-        n_W_m3 = np.maximum(self.n_impurity, 0.0) * 1e19
-        P_rad_line = ne_m3 * n_W_m3 * Lz  # W/m^3
-
-        return S_He, P_rad_line
+        return result.S_He, result.P_rad_line
 
     # ── Main evolution (Crank-Nicolson) ──────────────────────────────
 
