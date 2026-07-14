@@ -129,8 +129,8 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-159 Python control/physics modules | 5 Rust crates / 64 Rust source files
-461 Python test files | 10 GitHub Actions workflows
+160 Python control/physics modules | 5 Rust crates / 64 Rust source files
+462 Python test files | 10 GitHub Actions workflows
 ```
 
 ```

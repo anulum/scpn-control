@@ -11,6 +11,13 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the runtime numerical-hardening
+  primitive moved from the private `_sanitize_with_fallback` static method to a new
+  stateless `core.runtime_sanitization` module (`sanitize_with_fallback`) — replace
+  non-finite profile entries from a fallback and clamp to optional physical bounds,
+  reporting the recovered count. `_sanitize_runtime_state` and the Crank-Nicolson
+  step now call the module function directly (18 call sites repointed); behaviour is
+  byte-identical.
 - Split `core.integrated_transport_solver` further: the multi-ion (D/T/He-ash)
   species evolution moved from the private `_evolve_species` method to a new
   stateless `core.species_evolution` module (`evolve_multi_ion_species` +

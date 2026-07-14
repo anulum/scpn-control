@@ -578,6 +578,10 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.species_evolution.SpeciesEvolutionResult
 
+### Runtime State Sanitization
+
+::: scpn_control.core.runtime_sanitization.sanitize_with_fallback
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e

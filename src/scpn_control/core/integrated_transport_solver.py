@@ -46,6 +46,7 @@ from scpn_control.core.momentum_transport import (
 from scpn_control.core.pedestal import PedestalProfile
 from scpn_control.core.plasma_power_terms import bremsstrahlung_power_density
 from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
+from scpn_control.core.runtime_sanitization import sanitize_with_fallback
 from scpn_control.core.species_evolution import evolve_multi_ion_species
 
 _logger = logging.getLogger(__name__)
@@ -903,70 +904,49 @@ class TransportSolver(FusionKernel):
         self.chi_i = chi_base + chi_turb
         self.D_n[:] = 0.1 * self.chi_e
 
-    @staticmethod
-    def _sanitize_with_fallback(
-        arr: AnyFloatArray,
-        fallback: AnyFloatArray,
-        *,
-        floor: float | None = None,
-        ceil: float | None = None,
-    ) -> tuple[FloatArray, int]:
-        """Replace non-finite entries and enforce optional lower/upper bounds."""
-        out = np.asarray(arr, dtype=np.float64).copy()
-        fb = np.asarray(fallback, dtype=np.float64)
-        bad = ~np.isfinite(out)
-        recovered = int(np.count_nonzero(bad))
-        if recovered > 0:
-            out[bad] = fb[bad]
-        if floor is not None:
-            np.maximum(out, floor, out=out)
-        if ceil is not None:
-            np.minimum(out, ceil, out=out)
-        return out, recovered
-
     def _sanitize_runtime_state(self) -> int:
         """Keep runtime profiles and coefficients finite during transport stepping."""
         recovered_total = 0
 
         ti_fb = np.where(np.isfinite(self.Ti), self.Ti, 1.0)
-        self.Ti, n_ti = self._sanitize_with_fallback(self.Ti, ti_fb, floor=0.01, ceil=1e3)
+        self.Ti, n_ti = sanitize_with_fallback(self.Ti, ti_fb, floor=0.01, ceil=1e3)
         recovered_total += n_ti
 
         te_fb = np.where(np.isfinite(self.Te), self.Te, 1.0)
-        self.Te, n_te = self._sanitize_with_fallback(self.Te, te_fb, floor=0.01, ceil=1e3)
+        self.Te, n_te = sanitize_with_fallback(self.Te, te_fb, floor=0.01, ceil=1e3)
         recovered_total += n_te
 
         ne_fb = np.where(np.isfinite(self.ne), self.ne, 5.0)
-        self.ne, n_ne = self._sanitize_with_fallback(self.ne, ne_fb, floor=0.1, ceil=1e3)
+        self.ne, n_ne = sanitize_with_fallback(self.ne, ne_fb, floor=0.1, ceil=1e3)
         recovered_total += n_ne
 
         chi_i_fb = np.where(np.isfinite(self.chi_i), self.chi_i, 0.5)
-        self.chi_i, n_chi_i = self._sanitize_with_fallback(self.chi_i, chi_i_fb, floor=0.01, ceil=1e4)
+        self.chi_i, n_chi_i = sanitize_with_fallback(self.chi_i, chi_i_fb, floor=0.01, ceil=1e4)
         recovered_total += n_chi_i
 
         chi_e_fb = np.where(np.isfinite(self.chi_e), self.chi_e, 0.5)
-        self.chi_e, n_chi_e = self._sanitize_with_fallback(self.chi_e, chi_e_fb, floor=0.01, ceil=1e4)
+        self.chi_e, n_chi_e = sanitize_with_fallback(self.chi_e, chi_e_fb, floor=0.01, ceil=1e4)
         recovered_total += n_chi_e
 
         dn_fb = np.where(np.isfinite(self.D_n), self.D_n, 0.1)
-        self.D_n, n_dn = self._sanitize_with_fallback(self.D_n, dn_fb, floor=0.0, ceil=1e4)
+        self.D_n, n_dn = sanitize_with_fallback(self.D_n, dn_fb, floor=0.0, ceil=1e4)
         recovered_total += n_dn
 
         imp_fb = np.where(np.isfinite(self.n_impurity), self.n_impurity, 0.0)
-        self.n_impurity, n_imp = self._sanitize_with_fallback(self.n_impurity, imp_fb, floor=0.0, ceil=1e3)
+        self.n_impurity, n_imp = sanitize_with_fallback(self.n_impurity, imp_fb, floor=0.0, ceil=1e3)
         recovered_total += n_imp
 
         if self.n_D is not None:
             n_d_fb = np.where(np.isfinite(self.n_D), self.n_D, 0.5)
-            self.n_D, n_d = self._sanitize_with_fallback(self.n_D, n_d_fb, floor=0.001, ceil=1e3)
+            self.n_D, n_d = sanitize_with_fallback(self.n_D, n_d_fb, floor=0.001, ceil=1e3)
             recovered_total += n_d
         if self.n_T is not None:
             n_t_fb = np.where(np.isfinite(self.n_T), self.n_T, 0.5)
-            self.n_T, n_t = self._sanitize_with_fallback(self.n_T, n_t_fb, floor=0.001, ceil=1e3)
+            self.n_T, n_t = sanitize_with_fallback(self.n_T, n_t_fb, floor=0.001, ceil=1e3)
             recovered_total += n_t
         if self.n_He is not None:
             n_he_fb = np.where(np.isfinite(self.n_He), self.n_He, 0.0)
-            self.n_He, n_he = self._sanitize_with_fallback(self.n_He, n_he_fb, floor=0.0, ceil=1e3)
+            self.n_He, n_he = sanitize_with_fallback(self.n_He, n_he_fb, floor=0.0, ceil=1e3)
             recovered_total += n_he
 
         return recovered_total
@@ -1126,7 +1106,7 @@ class TransportSolver(FusionKernel):
             S_rad_e = 0.5 * S_rad_total
 
         net_source_i = S_heat_i - S_rad_i
-        net_source_i, n_src_i = self._sanitize_with_fallback(
+        net_source_i, n_src_i = sanitize_with_fallback(
             net_source_i,
             np.zeros_like(net_source_i),
         )
@@ -1134,20 +1114,20 @@ class TransportSolver(FusionKernel):
 
         # ── Ion temperature CN step ──
         Lh_explicit = explicit_diffusion_rhs(self.Ti, self.chi_i, self.rho, self.drho, self.a)
-        Lh_explicit, n_lh_i = self._sanitize_with_fallback(
+        Lh_explicit, n_lh_i = sanitize_with_fallback(
             Lh_explicit,
             np.zeros_like(Lh_explicit),
         )
         self._last_numerical_recovery_count += n_lh_i
         rhs = self.Ti + 0.5 * dt * Lh_explicit + dt * net_source_i
-        rhs, n_rhs_i = self._sanitize_with_fallback(rhs, Ti_old, floor=0.01, ceil=1e3)
+        rhs, n_rhs_i = sanitize_with_fallback(rhs, Ti_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_rhs_i
         a, b, c = build_cn_tridiag(self.chi_i, dt, self.rho, self.drho, self.a)
         new_Ti = thomas_solve(a, b, c, rhs)
 
         new_Ti[0] = new_Ti[1]  # Neumann at core
         new_Ti[-1] = 0.1  # Dirichlet at edge
-        self.Ti, n_ti_new = self._sanitize_with_fallback(new_Ti, Ti_old, floor=0.01, ceil=1e3)
+        self.Ti, n_ti_new = sanitize_with_fallback(new_Ti, Ti_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_ti_new
 
         # ── Electron temperature (explicit channel, no Ti copy shortcut) ──
@@ -1168,27 +1148,27 @@ class TransportSolver(FusionKernel):
         S_equil = (self.Ti - Te_old) / tau_eq
 
         net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil
-        net_source_e, n_src_e = self._sanitize_with_fallback(
+        net_source_e, n_src_e = sanitize_with_fallback(
             net_source_e,
             np.zeros_like(net_source_e),
         )
         self._last_numerical_recovery_count += n_src_e
 
         Lh_explicit_e = explicit_diffusion_rhs(Te_old, self.chi_e, self.rho, self.drho, self.a)
-        Lh_explicit_e, n_lh_e = self._sanitize_with_fallback(
+        Lh_explicit_e, n_lh_e = sanitize_with_fallback(
             Lh_explicit_e,
             np.zeros_like(Lh_explicit_e),
         )
         self._last_numerical_recovery_count += n_lh_e
         rhs_e = Te_old + 0.5 * dt * Lh_explicit_e + dt * net_source_e
-        rhs_e, n_rhs_e = self._sanitize_with_fallback(rhs_e, Te_old, floor=0.01, ceil=1e3)
+        rhs_e, n_rhs_e = sanitize_with_fallback(rhs_e, Te_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_rhs_e
         a_e, b_e, c_e = build_cn_tridiag(self.chi_e, dt, self.rho, self.drho, self.a)
         new_Te = thomas_solve(a_e, b_e, c_e, rhs_e)
 
         new_Te[0] = new_Te[1]
         new_Te[-1] = 0.08
-        self.Te, n_te_new = self._sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
+        self.Te, n_te_new = sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
         self._last_numerical_recovery_count += n_te_new
 
         # ── Pedestal Boundary Conditions ──
