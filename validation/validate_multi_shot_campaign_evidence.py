@@ -14,7 +14,10 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -83,7 +86,7 @@ def _sha256_hex(value: object) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
-def _positive_int(value: object) -> bool:
+def _positive_int(value: object) -> TypeIs[int]:
     return not isinstance(value, bool) and isinstance(value, int) and value > 0
 
 
@@ -116,7 +119,7 @@ def _validate_result_section(
     if not _positive_int(section.get("last_passed_count")):
         errors.append(f"{prefix}.last_passed_count must be a positive integer")
     digest_count = section.get("last_pulsed_mpc_admission_digest_count")
-    if not _positive_int(digest_count) or int(digest_count) < minimum_digest_count:
+    if not (_positive_int(digest_count) and int(digest_count) >= minimum_digest_count):
         errors.append(f"{prefix}.last_pulsed_mpc_admission_digest_count must be at least {minimum_digest_count}")
     stats = section.get("stats")
     if not isinstance(stats, dict):

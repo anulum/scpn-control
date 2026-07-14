@@ -15,7 +15,10 @@ import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing_extensions import TypeIs
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -76,11 +79,11 @@ def _sha256_hex(value: object) -> bool:
     return isinstance(value, str) and len(value) == 64 and all(char in "0123456789abcdef" for char in value)
 
 
-def _positive_int(value: object) -> bool:
+def _positive_int(value: object) -> TypeIs[int]:
     return not isinstance(value, bool) and isinstance(value, int) and value > 0
 
 
-def _finite_non_negative(value: object) -> bool:
+def _finite_non_negative(value: object) -> TypeIs[float]:
     return isinstance(value, int | float) and not isinstance(value, bool) and math.isfinite(value) and value >= 0.0
 
 
@@ -137,7 +140,7 @@ def _validate_stats(payload: dict[str, Any], errors: list[str]) -> int | None:
         stats.get("max_us"),
     )
     if all(_finite_non_negative(value) for value in ordered):
-        min_us, median_us, p95_us, p99_us, max_us = (float(value) for value in ordered)
+        min_us, median_us, p95_us, p99_us, max_us = (float(value) for value in ordered if _finite_non_negative(value))
         if min_us > median_us or median_us > p95_us or p95_us > p99_us or p99_us > max_us:
             errors.append("runtime_admission.stats percentiles must be monotonic")
     return int(samples)

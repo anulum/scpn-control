@@ -54,7 +54,8 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
-from scpn_control.control.rzip_model import RZIPModel, VesselElement, VesselModel
+from scpn_control.control.rzip_model import RZIPModel
+from scpn_control.core.vessel_model import VesselElement, VesselModel
 
 RZIP_VERTICAL_STABILITY_SCHEMA_VERSION = "scpn-control.rzip-vertical-stability-validation.v1"
 

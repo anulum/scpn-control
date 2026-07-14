@@ -201,6 +201,7 @@ disallow_untyped_decorators = false
 # module from this list once its errors are fixed. Do not add a module
 # here to silence new errors — fix them.
 module = [
+    "validation.validate_gk_geometry_reference",
     "validation.benchmark_disturbance_rejection",
     "validation.benchmark_free_boundary_tracking_claims",
     "validation.build_mast_efm_neural_equilibrium_dataset",
@@ -212,12 +213,8 @@ module = [
     "validation.stress_test_campaign",
     "validation.validate_differentiable_scenario",
     "validation.validate_e2e_latency_evidence",
-    "validation.validate_gk_geometry_reference",
     "validation.validate_mu_structured_singular_value",
-    "validation.validate_multi_shot_campaign_evidence",
     "validation.validate_real_shots",
-    "validation.validate_runtime_admission_evidence",
-    "validation.validate_rzip_vertical_stability",
 ]
 ignore_errors = true
 
