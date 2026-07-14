@@ -582,6 +582,16 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.runtime_sanitization.sanitize_with_fallback
 
+### Transport Radial-Grid Geometry
+
+::: scpn_control.core.transport_geometry.rho_volume_element
+
+::: scpn_control.core.transport_geometry.estimate_plasma_surface_area_m2
+
+::: scpn_control.core.transport_geometry.is_canonical_radial_grid
+
+::: scpn_control.core.transport_geometry.canonical_radial_grid
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e

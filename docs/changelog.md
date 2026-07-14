@@ -11,6 +11,14 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the toroidal radial-grid geometry
+  helpers moved to a new stateless `core.transport_geometry` module — the per-cell
+  volume element (`rho_volume_element`), the Martin L-H plasma surface-area estimate
+  (`estimate_plasma_surface_area_m2`), and canonical radial-grid validation/construction
+  (`is_canonical_radial_grid`, `canonical_radial_grid`). `_rho_volume_element` stays a
+  thin wrapper (patched by tests), `_ensure_valid_radial_grid` becomes a thin orchestrator
+  over the pure validator, and the surface-area call site is repointed; behaviour is
+  byte-identical. This resolves the transport-solver god-file (2103 -> 1619 L).
 - Split `core.integrated_transport_solver` further: the runtime numerical-hardening
   primitive moved from the private `_sanitize_with_fallback` static method to a new
   stateless `core.runtime_sanitization` module (`sanitize_with_fallback`) — replace

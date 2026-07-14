@@ -48,6 +48,12 @@ from scpn_control.core.plasma_power_terms import bremsstrahlung_power_density
 from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
 from scpn_control.core.runtime_sanitization import sanitize_with_fallback
 from scpn_control.core.species_evolution import evolve_multi_ion_species
+from scpn_control.core.transport_geometry import (
+    canonical_radial_grid,
+    estimate_plasma_surface_area_m2,
+    is_canonical_radial_grid,
+    rho_volume_element,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -473,29 +479,15 @@ class TransportSolver(FusionKernel):
 
     def _ensure_valid_radial_grid(self) -> int:
         """Restore the normalised radial grid if external mutation broke it."""
-        rho = np.asarray(self.rho, dtype=np.float64)
-        valid = (
-            rho.shape == (self.nr,)
-            and self.nr >= 2
-            and np.all(np.isfinite(rho))
-            and np.isclose(rho[0], 0.0)
-            and np.isclose(rho[-1], 1.0)
-            and np.all(np.diff(rho) > 0.0)
-            and np.isfinite(self.drho)
-            and self.drho > 0.0
-        )
-        if valid:
+        if is_canonical_radial_grid(self.rho, self.nr, self.drho):
             return 0
 
-        if self.nr < 2:
-            raise ValueError(f"nr must be at least 2, got {self.nr!r}")
-
-        canonical_rho = np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
+        canonical_rho, canonical_drho = canonical_radial_grid(self.nr)
         if getattr(self, "rho", None) is not None and np.shape(self.rho) == canonical_rho.shape:
             self.rho[...] = canonical_rho
         else:
             self.rho = canonical_rho
-        self.drho = 1.0 / (self.nr - 1)
+        self.drho = canonical_drho
 
         if self._momentum_solver is not None:
             self._momentum_solver.rho = np.asarray(self.rho, dtype=float)
@@ -846,7 +838,7 @@ class TransportSolver(FusionKernel):
             s_m2 = float(
                 p.get(
                     "surface_area_m2",
-                    self._estimate_plasma_surface_area_m2(r0_m, a_m, kappa),
+                    estimate_plasma_surface_area_m2(r0_m, a_m, kappa),
                 )
             )
             i_p_ma = float(
@@ -954,19 +946,7 @@ class TransportSolver(FusionKernel):
     def _rho_volume_element(self) -> FloatArray:
         """Toroidal volume element per radial cell [m^3]."""
         dims = self.cfg["dimensions"]
-        r0 = (dims["R_min"] + dims["R_max"]) / 2.0
-        a_minor = (dims["R_max"] - dims["R_min"]) / 2.0
-        return np.asarray(2.0 * np.pi * r0 * 2.0 * np.pi * self.rho * a_minor**2 * self.drho)
-
-    @staticmethod
-    def _estimate_plasma_surface_area_m2(R0: float, a: float, kappa: float) -> float:
-        """Estimate plasma surface area for Martin L-H threshold scaling."""
-        a_safe = max(float(a), 1e-6)
-        r0_safe = max(float(R0), 1e-6)
-        kappa_safe = max(float(kappa), 1e-6)
-        b = a_safe * kappa_safe
-        perimeter = 2.0 * np.pi * np.sqrt((a_safe * a_safe + b * b) / 2.0)
-        return float(2.0 * np.pi * r0_safe * perimeter)
+        return rho_volume_element(self.rho, self.drho, dims["R_min"], dims["R_max"])
 
     def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[FloatArray, FloatArray]:
         """Return ion/electron auxiliary-heating sources in keV/s.
