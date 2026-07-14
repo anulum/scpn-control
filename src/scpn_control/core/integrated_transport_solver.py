@@ -39,6 +39,11 @@ from scpn_control.core.momentum_transport import (
     nbi_torque,
 )
 from scpn_control.core.pedestal import PedestalProfile
+from scpn_control.core.plasma_power_terms import (
+    bosch_hale_dt_reactivity,
+    bremsstrahlung_power_density,
+    tungsten_radiation_rate,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -1340,53 +1345,6 @@ class TransportSolver(FusionKernel):
 
     # ── Multi-ion helpers (P1.1) ────────────────────────────────────
 
-    @staticmethod
-    def _bosch_hale_sigmav(T_keV: AnyFloatArray) -> FloatArray:
-        """D-T <sigma*v> [m^3/s] using NRL Plasma Formulary fit (Bosch & Hale 1992).
-
-        Valid for 0.2 < T < 100 keV.
-        """
-        T = np.maximum(T_keV, 0.2)
-        return np.asarray(3.68e-18 / (T ** (2.0 / 3.0)) * np.exp(-19.94 / (T ** (1.0 / 3.0))))
-
-    @staticmethod
-    def _tungsten_radiation_rate(Te_keV: AnyFloatArray) -> FloatArray:
-        r"""Coronal equilibrium radiation rate coefficient L_z(Te) for tungsten [W·m^3].
-
-        Piecewise power-law fit to Pütterich et al. (2010) / ADAS data:
-          - Te < 1 keV: L_z ~ 5e-31 * Te^0.5   (line radiation dominant)
-          - 1 <= Te < 5: L_z ~ 5e-31             (plateau, shell opening)
-          - 5 <= Te < 20: L_z ~ 2e-31 * Te^0.3  (rising continuum)
-          - Te >= 20:     L_z ~ 8e-31            (fully ionised Bremsstrahlung)
-        """
-        Te = np.maximum(Te_keV, 0.01)
-        Lz = np.where(
-            Te < 1.0,
-            5.0e-31 * np.sqrt(Te),
-            np.where(
-                Te < 5.0,
-                5.0e-31 * np.ones_like(Te),
-                np.where(
-                    Te < 20.0,
-                    2.0e-31 * Te**0.3,
-                    8.0e-31 * np.ones_like(Te),
-                ),
-            ),
-        )
-        return np.asarray(Lz)
-
-    @staticmethod
-    def _bremsstrahlung_power_density(ne_1e19: AnyFloatArray, Te_keV: AnyFloatArray, Z_eff: float) -> FloatArray:
-        """Bremsstrahlung power density [W/m^3].
-
-        P_brem = 5.35e-37 * Z_eff * ne^2 * sqrt(Te)
-        with ne in m^-3 and Te in keV.
-        NRL Plasma Formulary (2019), p. 58.
-        """
-        ne_m3 = ne_1e19 * 1e19
-        Te = np.maximum(Te_keV, 0.01)
-        return np.asarray(5.35e-37 * Z_eff * ne_m3**2 * np.sqrt(Te))
-
     def _evolve_species(self, dt: float) -> tuple[FloatArray, FloatArray]:
         """Evolve D, T, He-ash densities for one time-step (explicit diffusion + sources).
 
@@ -1411,7 +1369,7 @@ class TransportSolver(FusionKernel):
 
         # Fusion source: S_fus = n_D * n_T * <sigma_v> (reactions per m^3 per s)
         # n_D, n_T are in 10^19 m^-3 => multiply by (1e19)^2
-        sigmav = self._bosch_hale_sigmav(self.Ti)
+        sigmav = bosch_hale_dt_reactivity(self.Ti)
         S_fus = (n_D * 1e19) * (n_T * 1e19) * sigmav  # reactions/m^3/s
 
         # He-ash source (in 10^19 m^-3 / s) — one He per fusion reaction
@@ -1486,7 +1444,7 @@ class TransportSolver(FusionKernel):
         self._Z_eff = float(np.clip(np.mean(sum_nZ2 / ne_safe), 1.0, 10.0))
 
         # Tungsten line radiation [W/m^3]
-        Lz = self._tungsten_radiation_rate(self.Te)
+        Lz = tungsten_radiation_rate(self.Te)
         n_W_m3 = np.maximum(self.n_impurity, 0.0) * 1e19
         P_rad_line = ne_m3 * n_W_m3 * Lz  # W/m^3
 
@@ -1596,7 +1554,7 @@ class TransportSolver(FusionKernel):
 
         # ── Electron temperature (explicit channel, no Ti copy shortcut) ──
         S_heat_e = S_heat_e_aux
-        P_brem = self._bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
+        P_brem = bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
         ne_safe_e = np.maximum(self.ne, 0.1) * 1e19
         S_brem_e = P_brem / (ne_safe_e * e_keV_J)
 

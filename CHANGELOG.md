@@ -11,6 +11,13 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` by responsibility: the stateless power
+  source/sink kernels (D-T Bosch-Hale fusion reactivity, tungsten line radiation,
+  bremsstrahlung) moved from private `TransportSolver` static methods to a new
+  `core.plasma_power_terms` module (`bosch_hale_dt_reactivity`,
+  `tungsten_radiation_rate`, `bremsstrahlung_power_density`). Solver behaviour is
+  unchanged — the published formulae are identical; this trims the ~1670-line
+  god-class and gives the microphysics kernels their own tested surface.
 - Split the `cli` monolith by responsibility: the 27 persisted reference-artifact
   validation commands (`validate-gk-crosscode`, `validate-*-reference`,
   `validate-jax-gk-parity`, `validate-gk-ood-calibration`,

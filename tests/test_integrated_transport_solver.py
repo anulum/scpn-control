@@ -606,27 +606,6 @@ class TestThomasSolver:
         assert np.all(np.isfinite(x))
 
 
-# ── 7. Bosch-Hale D-T Reactivity ─────────────────────────────────────
-
-
-class TestBoschHale:
-    def test_sigmav_positive_for_fusion_temperatures(self) -> None:
-        """Bosch-Hale <sigma*v> should be positive for T > 0.2 keV."""
-        T = np.array([1.0, 5.0, 10.0, 20.0, 50.0])
-        sv = TransportSolver._bosch_hale_sigmav(T)
-        assert np.all(sv > 0)
-        assert np.all(np.isfinite(sv))
-
-    def test_sigmav_increases_with_temperature(self) -> None:
-        """D-T reactivity should increase monotonically from 1-50 keV (NRL fit)."""
-        T = np.array([1.0, 5.0, 10.0, 20.0, 50.0])
-        sv = TransportSolver._bosch_hale_sigmav(T)
-        # The simplified NRL Formulary fit is monotonically increasing
-        # over the range 1-100 keV (peak is beyond 100 keV for this fit)
-        for i in range(1, len(sv)):
-            assert sv[i] > sv[i - 1], f"sigma_v not increasing: sv[{T[i]}] = {sv[i]} <= sv[{T[i - 1]}] = {sv[i - 1]}"
-
-
 # ── 8. Impurity Injection ────────────────────────────────────────────
 
 
@@ -751,17 +730,6 @@ class TestTransportModelBranches:
         ts.update_transport_model(50.0)
         assert np.all(np.isfinite(ts.chi_i))
         assert np.all(ts.chi_i > 0)
-
-
-class TestBoschHaleClamping:
-    def test_sigmav_at_clamped_temperature(self) -> None:
-        """Bosch-Hale clamps T below 0.2 keV — no divergence or NaN."""
-        T_low = np.array([0.0, 0.05, 0.1, 0.19, 0.2])
-        sv = TransportSolver._bosch_hale_sigmav(T_low)
-        assert np.all(np.isfinite(sv))
-        assert np.all(sv > 0)
-        # T<0.2 clamped to 0.2, so first 4 entries should give the same value
-        np.testing.assert_allclose(sv[:4], sv[4], rtol=1e-12)
 
 
 class TestAuxHeatingZeroVolume:

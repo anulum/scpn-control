@@ -546,6 +546,14 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.integrated_transport_solver.TransportSolver
 
+### Plasma Power Terms
+
+::: scpn_control.core.plasma_power_terms.bosch_hale_dt_reactivity
+
+::: scpn_control.core.plasma_power_terms.tungsten_radiation_rate
+
+::: scpn_control.core.plasma_power_terms.bremsstrahlung_power_density
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e
