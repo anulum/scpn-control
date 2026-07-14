@@ -242,7 +242,7 @@ line-length = 120
 target-version = "py310"
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "D"]
 ignore = [
     "E402",   # module-level import after try/except (conditional deps)
     "E501",   # line length handled by formatter
@@ -250,7 +250,21 @@ ignore = [
     "UP006", "UP012", "UP015", "UP031", "UP034", "UP035", "UP037", "UP045",
     "SIM102", "SIM105", "SIM108", "SIM300",
     "B007", "B017", "B018", "B023", "B028", "B904", "B905",
+    # Dunder-method (D105) and __init__ (D107) docstrings are deliberately not
+    # required: the NumPy convention documents __init__ in the class docstring
+    # and does not mandate docstrings on magic methods, so requiring them would
+    # invite filler. This mirrors tools/run_docstring_gate.py, which excludes
+    # the same two rules from its public-API docstring-coverage floor. D107 is
+    # already relaxed by convention = "numpy"; it is pinned here for clarity.
+    "D105", "D107",
 ]
+
+# Enforce NumPy-style docstrings (SYS-AUDIT-02-RUFF3 / SYS-AUDIT-01-R001). The
+# convention selects the D-rule subset (resolving the D203/D211 and D212/D213
+# conflicts in favour of D211/D213) and relaxes the numpydoc-incompatible rules;
+# run_docstring_gate.py continues to enforce the D101-D106 coverage floor.
+[tool.ruff.lint.pydocstyle]
+convention = "numpy"
 
 [tool.ruff.lint.isort]
 known-first-party = ["scpn_control"]

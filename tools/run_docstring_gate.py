@@ -26,7 +26,10 @@ discovery from the AST:
 ``D105`` (magic methods) and ``D107`` (``__init__``) are deliberately excluded:
 the NumPy docstring convention documents ``__init__`` in the class docstring and
 does not require docstrings on dunder methods, so requiring them would invite
-filler.
+filler. The main ruff configuration mirrors that decision: ``pyproject.toml``
+selects the ``D`` rule set under ``convention = "numpy"`` and ignores ``D105`` /
+``D107`` for the same reason, so the docstring *quality* rules (``D2xx`` /
+``D4xx``) are enforced there while this gate owns the *coverage* floor above.
 
 The committed ledger ``tools/docstring_debt.json`` records the remaining count
 per module. On every run the current count must stay equal or fall, and no
