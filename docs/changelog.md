@@ -11,6 +11,13 @@
   phase-stream broadcast tick loop.
 
 ### Changed
+- Split `core.integrated_transport_solver` further: the auxiliary-heating source
+  deposition (turning a requested auxiliary power into per-cell ion/electron
+  temperature sources, power-normalised over the plasma volume) moved from the
+  private `_compute_aux_heating_sources` method to a new stateless
+  `core.aux_heating` module (`aux_heating_source_profiles`). The radial grid,
+  density, and cell-volume element are passed explicitly; the fail-soft branches
+  and power-balance telemetry are byte-identical, so solver behaviour is unchanged.
 - Split `core.integrated_transport_solver` further: the anomalous (turbulent)
   transport-coefficient models moved from private `TransportSolver` methods to a new
   stateless `core.anomalous_transport` module — the gyro-Bohm diffusivity scaling

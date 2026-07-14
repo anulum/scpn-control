@@ -37,6 +37,7 @@ from scpn_control.core.anomalous_transport import (
     gk_flux_surface_transport,
     gyro_bohm_chi_profile,
 )
+from scpn_control.core.aux_heating import aux_heating_source_profiles
 from scpn_control.core.momentum_transport import (
     MomentumTransportSolver,
     intrinsic_rotation_torque,
@@ -996,62 +997,16 @@ class TransportSolver(FusionKernel):
         The source is power-normalised against the radial cell volumes to ensure
         that reconstructed injected power matches ``P_aux_MW`` by construction.
         """
-        if (not np.isfinite(P_aux_MW)) or P_aux_MW <= 0.0:
-            zeros = np.zeros(self.nr, dtype=np.float64)
-            self._last_aux_heating_balance = {
-                "target_total_MW": float(max(P_aux_MW, 0.0)) if np.isfinite(P_aux_MW) else 0.0,
-                "target_ion_MW": 0.0,
-                "target_electron_MW": 0.0,
-                "reconstructed_ion_MW": 0.0,
-                "reconstructed_electron_MW": 0.0,
-                "reconstructed_total_MW": 0.0,
-            }
-            return zeros, zeros
-
-        profile_width = max(self.aux_heating_profile_width, 1e-6)
-        shape = np.exp(-(self.rho**2) / profile_width)
         dV = self._rho_volume_element()
-        norm = float(np.sum(shape * dV))
-        if (not np.isfinite(norm)) or norm <= 0.0:
-            shape = np.ones_like(self.rho)
-            norm = float(np.sum(shape * dV))
-        if (not np.isfinite(norm)) or norm <= 0.0:
-            zeros = np.zeros(self.nr, dtype=np.float64)
-            self._last_aux_heating_balance = {
-                "target_total_MW": float(P_aux_MW),
-                "target_ion_MW": 0.0,
-                "target_electron_MW": 0.0,
-                "reconstructed_ion_MW": 0.0,
-                "reconstructed_electron_MW": 0.0,
-                "reconstructed_total_MW": 0.0,
-            }
-            return zeros, zeros
-
-        e_keV_J = 1.602176634e-16
-        ne_safe = np.maximum(self.ne, 0.1) * 1e19  # m^-3
-
-        electron_frac = float(np.clip(self.aux_heating_electron_fraction, 0.0, 1.0))
-        ion_frac = 1.0 - electron_frac
-        p_aux_w = float(P_aux_MW) * 1e6
-
-        p_i_wm3 = ion_frac * p_aux_w * shape / norm
-        p_e_wm3 = electron_frac * p_aux_w * shape / norm
-
-        # (3/2) n dT/dt = P  => dT/dt = (2/3) * P / (n e_keV)
-        s_heat_i = (2.0 / 3.0) * p_i_wm3 / (ne_safe * e_keV_J)
-        s_heat_e = (2.0 / 3.0) * p_e_wm3 / (ne_safe * e_keV_J)
-
-        rec_i_w = 1.5 * np.sum(ne_safe * s_heat_i * e_keV_J * dV)
-        rec_e_w = 1.5 * np.sum(ne_safe * s_heat_e * e_keV_J * dV)
-        self._last_aux_heating_balance = {
-            "target_total_MW": float(P_aux_MW),
-            "target_ion_MW": ion_frac * float(P_aux_MW),
-            "target_electron_MW": electron_frac * float(P_aux_MW),
-            "reconstructed_ion_MW": float(rec_i_w / 1e6),
-            "reconstructed_electron_MW": float(rec_e_w / 1e6),
-            "reconstructed_total_MW": float((rec_i_w + rec_e_w) / 1e6),
-        }
-
+        s_heat_i, s_heat_e, balance = aux_heating_source_profiles(
+            P_aux_MW,
+            self.rho,
+            self.ne,
+            dV,
+            profile_width=self.aux_heating_profile_width,
+            electron_fraction=self.aux_heating_electron_fraction,
+        )
+        self._last_aux_heating_balance = balance
         return s_heat_i, s_heat_e
 
     # ── Multi-ion helpers (P1.1) ────────────────────────────────────

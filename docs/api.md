@@ -568,6 +568,10 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ::: scpn_control.core.anomalous_transport.gk_flux_surface_transport
 
+### Auxiliary Heating Source Deposition
+
+::: scpn_control.core.aux_heating.aux_heating_source_profiles
+
 ### Scaling Laws
 
 ::: scpn_control.core.scaling_laws.ipb98y2_tau_e
