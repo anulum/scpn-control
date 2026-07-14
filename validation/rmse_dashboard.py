@@ -135,7 +135,7 @@ def ipb98_tau_e(
     a_eff_amu: float = 2.5,
 ) -> float:
     """IPB98(y,2) confinement scaling law [s]."""
-    return (
+    return float(
         0.0562
         * (ip_ma**0.93)
         * (b_t**0.15)
@@ -156,7 +156,8 @@ def rmse(y_true: list[float], y_pred: list[float]) -> float:
 
 def load_json(path: Path) -> dict[str, Any]:
     with path.open("r", encoding="utf-8") as handle:
-        return json.load(handle)
+        data: dict[str, Any] = json.load(handle)
+    return data
 
 
 def compare_eq_axis(eq: GEqdsk) -> float:
@@ -700,7 +701,7 @@ def main() -> int:
     itpa_csv = reference_dir / "itpa" / "hmode_confinement.csv"
     sparc_eq_dir = reference_dir / "sparc"
 
-    report = {
+    report: dict[str, Any] = {
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
         "confinement_itpa": confinement_rmse_itpa(itpa_csv),
         "confinement_iter_sparc": confinement_rmse_iter_sparc(reference_dir),
