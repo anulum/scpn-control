@@ -242,7 +242,6 @@ def kinetic_efit_claim_evidence(
     Synthetic regression evidence is retained as bounded controller evidence
     only and is never promoted to a facility-grade P-EFIT claim.
     """
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_REFERENCE_SOURCES))
@@ -326,14 +325,12 @@ def kinetic_efit_claim_evidence(
 
 def assert_kinetic_efit_facility_claim_admissible(evidence: KineticEFITClaimEvidence) -> None:
     """Raise when kinetic-EFIT evidence is insufficient for a facility claim."""
-
     if not evidence.facility_claim_allowed:
         raise ValueError("kinetic-EFIT facility claim requires matched pressure, q-profile, and anisotropy references")
 
 
 def save_kinetic_efit_claim_evidence(evidence: KineticEFITClaimEvidence, path: str | Path) -> None:
     """Persist kinetic-EFIT claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

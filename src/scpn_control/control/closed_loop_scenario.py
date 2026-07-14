@@ -193,7 +193,6 @@ def run_integrated_scenario_closed_loop(
     This is a deterministic repository wiring contract, not measured-discharge
     validation or facility-control evidence.
     """
-
     if max_steps is not None and max_steps < 1:
         raise ValueError("max_steps must be >= 1 when provided")
     loop_config = replace(config) if config is not None else _default_closed_loop_config(max_steps or 5)
@@ -260,7 +259,6 @@ def run_integrated_scenario_closed_loop(
 
 def closed_loop_scenario_result_to_dict(result: ClosedLoopScenarioResult) -> dict[str, object]:
     """Serialise a closed-loop scenario result to JSON-safe data."""
-
     return {
         "schema_version": result.schema_version,
         "claim_status": result.claim_status,

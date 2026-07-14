@@ -921,7 +921,6 @@ def hdl_export_evidence(
     facility_claim_allowed: bool = False,
 ) -> HDLExportEvidence:
     """Build tamper-evident FPGA HDL export evidence for a generated project."""
-
     if not _is_sha256(controller_artifact_sha256):
         raise ValueError("controller_artifact_sha256 must be a SHA-256 hex digest")
     if not isinstance(target_part, str) or not target_part.strip():
@@ -985,7 +984,6 @@ def assert_hdl_export_claim_admissible(
     artifact_root: str | Path | None = None,
 ) -> HDLExportEvidence:
     """Fail closed unless HDL export evidence supports a facility hardware claim."""
-
     return _validate_hdl_export_payload(
         asdict(evidence),
         require_facility_claim=True,
@@ -995,7 +993,6 @@ def assert_hdl_export_claim_admissible(
 
 def save_hdl_export_evidence(evidence: HDLExportEvidence, output_path: str | Path) -> None:
     """Persist HDL export evidence as sorted JSON."""
-
     if not isinstance(evidence, HDLExportEvidence):
         raise ValueError("evidence must be HDLExportEvidence")
     path = Path(output_path)
@@ -1010,7 +1007,6 @@ def load_hdl_export_evidence(
     artifact_root: str | Path | None = None,
 ) -> HDLExportEvidence:
     """Load HDL export evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     if not isinstance(payload, dict):
         raise ValueError("HDL export evidence must be a JSON object")

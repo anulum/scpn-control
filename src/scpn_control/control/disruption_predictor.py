@@ -118,7 +118,6 @@ class DisruptionRiskClaimBoundary:
 
     def __post_init__(self) -> None:
         """Reject empty fields and any widened facility-claim boundary."""
-
         for name in (
             "predictor_id",
             "score_source",
@@ -138,7 +137,6 @@ class DisruptionRiskClaimBoundary:
 
     def to_metadata(self) -> dict[str, Any]:
         """Return a JSON-serialisable metadata representation."""
-
         return {
             "predictor_id": self.predictor_id,
             "score_source": self.score_source,
@@ -153,7 +151,6 @@ class DisruptionRiskClaimBoundary:
 
 def disruption_risk_claim_boundary() -> DisruptionRiskClaimBoundary:
     """Return the fixed public boundary for ``predict_disruption_risk`` claims."""
-
     return DisruptionRiskClaimBoundary(
         predictor_id="predict_disruption_risk",
         score_source=DISRUPTION_HEURISTIC_SCORE_SOURCE,
@@ -168,7 +165,6 @@ def disruption_risk_claim_boundary() -> DisruptionRiskClaimBoundary:
 
 def _attach_disruption_claim_boundary(metadata: dict[str, Any]) -> dict[str, Any]:
     """Attach the fixed disruption-risk claim boundary to an output mapping."""
-
     enriched = dict(metadata)
     enriched["claim_boundary"] = disruption_risk_claim_boundary().to_metadata()
     return enriched
@@ -176,7 +172,6 @@ def _attach_disruption_claim_boundary(metadata: dict[str, Any]) -> dict[str, Any
 
 def _linear_percentile(values: Any, percentile: float) -> float:
     """Return a deterministic linear percentile without NumPy reduction sentinels."""
-
     p = require_bounded_float("percentile", percentile, low=0.0, high=100.0)
     flat = sorted(float(value) for value in np.asarray(values, dtype=float).reshape(-1))
     if not flat:
@@ -703,7 +698,6 @@ def _repo_root() -> Path:
 
 def default_model_path() -> Path:
     """Return the default trained-model artifact path."""
-
     return _repo_root() / "artifacts" / DEFAULT_MODEL_FILENAME
 
 
@@ -888,7 +882,6 @@ class _DisruptionTransformerImpl:  # pragma: no cover - requires torch for full 
 
     def predict_with_uncertainty(self, src: Any, n_samples: int = 10) -> tuple[float, float]:
         """MC dropout inference returning mean and standard deviation."""
-
         if torch is None:
             raise RuntimeError("Torch is required for DisruptionTransformer.")
         cast(Any, self).train()
@@ -920,7 +913,6 @@ class _DisruptionTransformerImpl:  # pragma: no cover - requires torch for full 
         ValueError
             If ``seq`` is not a single sequence accepted by ``forward``.
         """
-
         if torch is None:
             raise RuntimeError("Torch is required for DisruptionTransformer.")
         tensor = torch.as_tensor(seq, dtype=torch.float32)

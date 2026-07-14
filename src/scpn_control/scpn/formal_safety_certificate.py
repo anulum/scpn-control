@@ -93,7 +93,6 @@ class SafetyCertificatePolicy:
         required_checked_specs: tuple[str, ...] = (),
     ) -> SafetyCertificatePolicy:
         """Create a fail-closed policy requiring artifact binding plus CTL and LTL evidence."""
-
         return cls(
             name=name,
             min_depth=min_depth,
@@ -143,7 +142,6 @@ def build_safety_certificate_payload(
     policy: SafetyCertificatePolicy | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned tamper-evident formal safety certificate."""
-
     if artifact_sha256 is not None and not _is_sha256(artifact_sha256):
         raise ValueError("artifact_sha256 must be a SHA-256 hex digest")
     if not isinstance(issuer, str) or not issuer:
@@ -193,7 +191,6 @@ def write_safety_certificate(
     policy: SafetyCertificatePolicy | None = None,
 ) -> dict[str, Any]:
     """Persist a formal safety certificate as JSON and Markdown artifacts."""
-
     payload = build_safety_certificate_payload(
         report,
         ctl_report=ctl_report,
@@ -235,7 +232,6 @@ def generate_safety_certificate(
     transition relation, binds the certificate to optional controller artifact
     bytes, and writes JSON/Markdown evidence in one call.
     """
-
     bound_artifact_sha256 = _resolve_artifact_sha256(artifact_path, artifact_sha256)
     verifier = FormalPetriNetVerifier(net, backend=backend)
     reachability = verifier.analyze_reachability(max_depth=max_depth)
@@ -265,7 +261,6 @@ def generate_safety_certificate(
 
 def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a schema-versioned formal safety certificate payload."""
-
     if payload.get("schema_version") != SAFETY_CERTIFICATE_SCHEMA_VERSION:
         raise ValueError("safety certificate schema_version is unsupported")
     if payload.get("status") not in {"pass", "fail"}:
@@ -343,7 +338,6 @@ def build_safety_certificate_bundle_payload(
     policy: SafetyCertificateBundlePolicy | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned tamper-evident safety certificate bundle."""
-
     validated = [validate_safety_certificate_payload(dict(certificate)) for certificate in certificates]
     _enforce_unique_certificate_digests(validated)
     holds = all(certificate["holds"] for certificate in validated)
@@ -373,7 +367,6 @@ def write_safety_certificate_bundle(
     policy: SafetyCertificateBundlePolicy | None = None,
 ) -> dict[str, Any]:
     """Persist a formal safety certificate bundle as JSON and Markdown artifacts."""
-
     payload = build_safety_certificate_bundle_payload(certificates, policy=policy)
     json_target = Path(json_path)
     markdown_target = Path(markdown_path)
@@ -386,7 +379,6 @@ def write_safety_certificate_bundle(
 
 def validate_safety_certificate_bundle_payload(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a schema-versioned formal safety certificate bundle."""
-
     if payload.get("schema_version") != SAFETY_CERTIFICATE_BUNDLE_SCHEMA_VERSION:
         raise ValueError("safety certificate bundle schema_version is unsupported")
     if payload.get("status") not in {"pass", "fail"}:
@@ -441,7 +433,6 @@ def build_safety_certificate_bundle_artifact(
     created_at: str,
 ) -> dict[str, Any]:
     """Build a schema-versioned reference to a persisted certificate bundle."""
-
     uri = _safe_relative_uri("bundle_uri", bundle_uri)
     if not isinstance(bundle_sha256, str) or not _is_sha256(bundle_sha256):
         raise ValueError("safety certificate bundle artifact bundle_sha256 must be a SHA-256 hex digest")
@@ -468,7 +459,6 @@ def validate_safety_certificate_bundle_artifact(
     artifact_root: str | Path | None = None,
 ) -> dict[str, Any]:
     """Validate a persisted certificate-bundle artifact reference."""
-
     if not isinstance(artifact, dict):
         raise ValueError("safety certificate bundle artifact must be an object")
     if artifact.get("schema_version") != SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_SCHEMA_VERSION:
@@ -519,7 +509,6 @@ def validate_safety_certificate_bundle_artifact(
 
 def admit_safety_certificate_bundle_artifact(artifact: dict[str, Any], *, artifact_root: str | Path) -> dict[str, Any]:
     """Load and validate the bundle referenced by a certificate-bundle artifact."""
-
     validated = validate_safety_certificate_bundle_artifact(artifact, artifact_root=artifact_root)
     target = _resolve_under_root(artifact_root, validated["bundle_uri"])
     raw = json.loads(target.read_text(encoding="utf-8"))

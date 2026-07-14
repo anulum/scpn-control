@@ -271,7 +271,6 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     A warm-up phase is executed but excluded from timing to isolate steady-state
     micro-benchmark behavior from cold-start effects (JIT, allocator, cache, init).
     """
-
     kp, ki, kd = 1.0, 0.1, 0.01
     integral, prev_error = 0.0, 0.0
     n_neurons = 50

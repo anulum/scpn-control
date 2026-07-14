@@ -66,7 +66,6 @@ class StellaratorConfigSchema(BaseModel):
     @model_validator(mode="after")
     def validate_positive_major_radius_margin(self) -> StellaratorConfigSchema:
         """Ensure the helical flux surface cannot cross non-positive major radius."""
-
         if self.a + self.helical_excursion >= self.R0:
             raise ValueError("R0 must exceed a + helical_excursion to keep flux surfaces at positive major radius")
         return self
@@ -132,7 +131,6 @@ class StellaratorConfig:
 
     def __post_init__(self) -> None:
         """Validate and normalise configuration values through the Pydantic schema."""
-
         schema = StellaratorConfigSchema.model_validate(
             {
                 "N_fp": self.N_fp,
@@ -159,7 +157,6 @@ class StellaratorConfig:
     @classmethod
     def model_json_schema(cls) -> dict[str, Any]:
         """Return the Pydantic JSON Schema for stellarator configuration."""
-
         return StellaratorConfigSchema.model_json_schema()
 
 

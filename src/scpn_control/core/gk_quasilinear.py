@@ -12,7 +12,8 @@ Implements the mixing-length saturation rule and velocity-space
 weighted quasilinear fluxes.  The output is chi_i, chi_e, D_e in
 physical units [m^2/s].
 
-References:
+References
+----------
   - Bourdelle et al., Phys. Plasmas 14 (2007) 112501 — QuaLiKiz
   - Staebler et al., Phys. Plasmas 14 (2007) 055909 — TGLF saturation
 """

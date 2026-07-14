@@ -125,7 +125,6 @@ class QuantumFeatureMapping:
 
     def payload(self) -> dict[str, Any]:
         """Return a JSON-safe mapping payload."""
-
         return {
             "raw_iter_features": self.raw_iter_features.tolist(),
             "normalized_iter_features": self.normalized_iter_features.tolist(),
@@ -145,7 +144,6 @@ def map_control_features_to_iter(
     config: QuantumDisruptionBridgeConfig | None = None,
 ) -> QuantumFeatureMapping:
     """Map the CONTROL 8-feature disruption contract to the ITER 11-feature contract."""
-
     resolved_config = QuantumDisruptionBridgeConfig() if config is None else config
     control = _as_feature_vector("control_features", control_features, 8)
     raw = np.array(ITER_CENTRES, dtype=np.float64)
@@ -184,7 +182,6 @@ def map_control_features_to_iter(
 
 def normalize_iter_features(raw_features: Any) -> FloatArray:
     """Normalise ITER feature values into the SCPN-QUANTUM-CONTROL 11-feature range."""
-
     raw = _as_feature_vector("raw_iter_features", raw_features, 11)
     denom = np.where(ITER_MAXS > ITER_MINS, ITER_MAXS - ITER_MINS, 1.0)
     return np.asarray(np.clip((raw - ITER_MINS) / denom, 0.0, 1.0), dtype=np.float64)
@@ -192,7 +189,6 @@ def normalize_iter_features(raw_features: Any) -> FloatArray:
 
 def quantum_disruption_dependency_contract() -> dict[str, Any]:
     """Return the CONTROL-to-QUANTUM disruption bridge dependency contract."""
-
     payload: dict[str, Any] = {
         "schema_version": DEPENDENCY_CONTRACT_SCHEMA_VERSION,
         "control_facade_owner": CONTROL_FACADE_OWNER,
@@ -242,7 +238,6 @@ def quantum_disruption_dependency_contract() -> dict[str, Any]:
 
 def validate_quantum_disruption_dependency_contract(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate the CONTROL-to-QUANTUM disruption bridge dependency contract."""
-
     if not isinstance(payload, dict):
         raise ValueError("quantum disruption dependency contract must be an object")
     if payload.get("schema_version") != DEPENDENCY_CONTRACT_SCHEMA_VERSION:
@@ -284,7 +279,6 @@ def quantum_disruption_kernel_matrix(
     config: QuantumDisruptionBridgeConfig | None = None,
 ) -> dict[str, Any]:
     """Return a bounded amplitude-encoding kernel report for CONTROL feature samples."""
-
     resolved_config = QuantumDisruptionBridgeConfig() if config is None else config
     a = _as_sample_matrix("samples_a", samples_a)
     b = a if samples_b is None else _as_sample_matrix("samples_b", samples_b)
@@ -326,7 +320,6 @@ def run_quantum_disruption_bridge(
     config: QuantumDisruptionBridgeConfig | None = None,
 ) -> dict[str, Any]:
     """Run the optional quantum disruption bridge and return an advisory report."""
-
     resolved_config = QuantumDisruptionBridgeConfig() if config is None else config
     mapping = map_control_features_to_iter(
         control_features,
@@ -402,7 +395,6 @@ def run_quantum_disruption_bridge(
 
 def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident quantum disruption bridge report."""
-
     if not isinstance(payload, dict):
         raise ValueError("quantum disruption bridge report must be an object")
     if payload.get("schema_version") != SCHEMA_VERSION:
@@ -460,7 +452,6 @@ def validate_quantum_disruption_bridge_report(payload: dict[str, Any]) -> dict[s
 
 def validate_quantum_disruption_kernel_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident quantum disruption kernel report."""
-
     if not isinstance(payload, dict):
         raise ValueError("quantum disruption kernel report must be an object")
     if payload.get("schema_version") != KERNEL_SCHEMA_VERSION:

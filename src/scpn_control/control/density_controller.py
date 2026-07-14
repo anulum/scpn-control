@@ -539,7 +539,6 @@ def density_control_claim_evidence(
     inventory_delta_relative_tolerance: float = 0.05,
 ) -> DensityControlClaimEvidence:
     """Build fail-closed density-control evidence for bounded or facility claims."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_DENSITY_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_DENSITY_REFERENCE_SOURCES))
@@ -631,14 +630,12 @@ def density_control_claim_evidence(
 
 def assert_density_control_facility_claim_admissible(evidence: DensityControlClaimEvidence) -> None:
     """Raise when density-control evidence is insufficient for a facility claim."""
-
     if not evidence.facility_density_claim_allowed:
         raise ValueError("facility density-control claim requires matched Greenwald and inventory references")
 
 
 def save_density_control_claim_evidence(evidence: DensityControlClaimEvidence, path: str | Path) -> None:
     """Persist density-control claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

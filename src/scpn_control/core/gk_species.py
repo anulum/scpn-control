@@ -20,7 +20,8 @@ Limitations:
   This bounded operator is adequate for local ITG/TEM regression ordering
   but not for quantitative collisional damping rates.
 
-References:
+References
+----------
   - Sugama & Watanabe, Phys. Plasmas 13 (2006) 012501
   - Abel et al., Rep. Prog. Phys. 76 (2013) 116201, §4.4
 """

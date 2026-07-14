@@ -345,7 +345,6 @@ def ip_cost_fn(obs: AnyFloatArray, act: AnyFloatArray, next_obs: AnyFloatArray) 
 
 def default_safety_constraints() -> list[SafetyConstraint]:
     """Return the default tokamak safety constraints (q95, beta_N, and limits)."""
-
     return [
         SafetyConstraint("q95_lower_bound", q95_cost_fn, limit=0.0),
         SafetyConstraint("beta_n_upper_bound", beta_n_cost_fn, limit=0.0),

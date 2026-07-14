@@ -113,25 +113,21 @@ class CTLFormula:
     @property
     def certificate_name(self) -> str:
         """Return the certificate-stable formula name."""
-
         return f"CTL:{self.name}:{self.operator}"
 
     @classmethod
     def ag_bounded(cls, name: str, bounds: dict[str, tuple[float, float]]) -> CTLFormula:
         """Create ``AG`` marking-bound safety: all paths always satisfy bounds."""
-
         return cls(name=name, operator="AG", target="marking_bounds", params={"bounds": bounds})
 
     @classmethod
     def ef_fires(cls, name: str, transition: str) -> CTLFormula:
         """Create ``EF`` transition reachability: some path eventually fires."""
-
         return cls(name=name, operator="EF", target="transition_fires", params={"transition": transition})
 
     @classmethod
     def ag_not_comarked(cls, name: str, place_a: str, place_b: str, *, threshold: float = 0.0) -> CTLFormula:
         """Create ``AG`` mutual-exclusion safety for two marked places."""
-
         return cls(
             name=name,
             operator="AG",
@@ -142,7 +138,6 @@ class CTLFormula:
     @classmethod
     def ag_ef_marked(cls, name: str, place: str, *, threshold: float = 0.0) -> CTLFormula:
         """Create ``AG EF`` recurrence: every reachable state can recover marking."""
-
         return cls(name=name, operator="AG_EF", target="marked", params={"place": place, "threshold": threshold})
 
 
@@ -168,19 +163,16 @@ class LTLFormula:
     @property
     def certificate_name(self) -> str:
         """Return the certificate-stable formula name."""
-
         return f"LTL:{self.name}:{self.operator}"
 
     @classmethod
     def globally_bounded(cls, name: str, bounds: dict[str, tuple[float, float]]) -> LTLFormula:
         """Create ``G`` marking-bound safety over every bounded path."""
-
         return cls(name=name, operator="G", target="marking_bounds", params={"bounds": bounds})
 
     @classmethod
     def eventually_fires(cls, name: str, transition: str) -> LTLFormula:
         """Create bounded ``F`` transition reachability."""
-
         return cls(name=name, operator="F", target="transition_fires", params={"transition": transition})
 
     @classmethod
@@ -194,7 +186,6 @@ class LTLFormula:
         within: int = 1,
     ) -> LTLFormula:
         """Create ``G(trigger -> F<=within marked)`` response checking."""
-
         return cls(
             name=name,
             operator="G_implies_F",
@@ -588,7 +579,6 @@ class FormalPetriNetVerifier:
 
     def verify_ctl_specs(self, specs: list[CTLFormula], *, max_depth: int) -> FormalPropertyReport:
         """Verify bounded CTL formulas over the compiled Petri-net relation."""
-
         temporal_specs: list[
             AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
         ] = [self._compile_ctl_formula(spec) for spec in specs]
@@ -596,7 +586,6 @@ class FormalPetriNetVerifier:
 
     def verify_ltl_specs(self, specs: list[LTLFormula], *, max_depth: int) -> FormalPropertyReport:
         """Verify bounded LTL formulas over all finite firing paths."""
-
         temporal_specs: list[
             AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
         ] = [self._compile_ltl_formula(spec) for spec in specs]

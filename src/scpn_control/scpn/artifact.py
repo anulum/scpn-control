@@ -401,7 +401,6 @@ FORMAL_VERIFICATION_ALLOWED_FIELDS = frozenset(FormalVerificationEvidence.__data
 
 def _required_dataclass_field_names(dataclass_type: Any) -> tuple[str, ...]:
     """Return dataclass field names that have no default value."""
-
     return tuple(
         field.name for field in fields(dataclass_type) if field.default is MISSING and field.default_factory is MISSING
     )
@@ -1170,7 +1169,6 @@ def validate_artifact(artifact: Artifact) -> None:
         If metadata, topology, weights, readout, initial state, or formal
         evidence fields violate the controller artifact contract.
     """
-
     _validate(artifact)
 
 
@@ -1179,7 +1177,6 @@ def validate_artifact(artifact: Artifact) -> None:
 
 def _parse_dense_weight_data(raw: object, field_name: str) -> List[float]:
     """Parse one dense artifact weight array without silent type coercion."""
-
     if not isinstance(raw, list):
         raise ArtifactValidationError(f"{field_name}.data must be a list")
 
@@ -1334,7 +1331,6 @@ def _object_schema(
     required: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """Return a closed JSON object schema with deterministic required order."""
-
     return {
         "type": "object",
         "additionalProperties": False,
@@ -1350,7 +1346,6 @@ def _array_schema(
     max_items: int | None = None,
 ) -> dict[str, Any]:
     """Return a JSON array schema with optional cardinality bounds."""
-
     schema: dict[str, Any] = {"type": "array", "items": items}
     if min_items is not None:
         schema["minItems"] = min_items
@@ -1361,7 +1356,6 @@ def _array_schema(
 
 def _non_empty_string_schema(**extras: Any) -> dict[str, Any]:
     """Return a string schema that rejects empty values."""
-
     schema: dict[str, Any] = {"type": "string", "minLength": 1}
     schema.update(extras)
     return schema
@@ -1369,13 +1363,11 @@ def _non_empty_string_schema(**extras: Any) -> dict[str, Any]:
 
 def _non_empty_string_array_schema(**extras: Any) -> dict[str, Any]:
     """Return a non-empty array schema for string-list validation fields."""
-
     return _array_schema(_non_empty_string_schema(**extras), min_items=1)
 
 
 def _packed_weight_schema() -> dict[str, Any]:
     """Return the raw-or-compact packed-weight payload schema."""
-
     shape_schema = _array_schema({"type": "integer", "minimum": 0}, min_items=3, max_items=3)
     raw_schema = _object_schema(
         {
@@ -1398,7 +1390,6 @@ def _packed_weight_schema() -> dict[str, Any]:
 
 def _formal_verification_schema() -> dict[str, Any]:
     """Return the proof-manifest schema derived from evidence dataclass fields."""
-
     properties: dict[str, Any] = {
         "required": {"type": "boolean"},
         "status": {"type": "string", "enum": ["pass", "fail", "blocked"]},
@@ -1442,7 +1433,6 @@ def get_artifact_json_schema() -> Dict[str, Any]:
         evidence field set admitted by ``load_artifact()`` and
         ``save_artifact()``.
     """
-
     non_negative_unit_interval = {"type": "number", "minimum": 0, "maximum": 1}
     non_negative_number = {"type": "number", "minimum": 0}
     fixed_point_schema = _object_schema(

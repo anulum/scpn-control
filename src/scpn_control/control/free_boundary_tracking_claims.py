@@ -195,7 +195,6 @@ def free_boundary_tracking_claim_evidence(
     coil_current_relative_tolerance: float = 0.05,
 ) -> FreeBoundaryTrackingClaimEvidence:
     """Build fail-closed free-boundary evidence from a run summary."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_FREE_BOUNDARY_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_FREE_BOUNDARY_REFERENCE_SOURCES))
@@ -261,14 +260,12 @@ def free_boundary_tracking_claim_evidence(
 
 def assert_free_boundary_tracking_facility_claim_admissible(evidence: FreeBoundaryTrackingClaimEvidence) -> None:
     """Raise when free-boundary evidence is insufficient for facility-control claims."""
-
     if not evidence.facility_claim_allowed:
         raise ValueError("facility free-boundary tracking claim requires matched reference artifact evidence")
 
 
 def save_free_boundary_tracking_claim_evidence(evidence: FreeBoundaryTrackingClaimEvidence, path: str | Path) -> None:
     """Persist free-boundary claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

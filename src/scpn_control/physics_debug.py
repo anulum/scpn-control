@@ -135,7 +135,6 @@ class PhysicsDebugGuardrailPolicy:
 
     def payload(self) -> dict[str, Any]:
         """Return a JSON-safe guardrail policy payload."""
-
         return {
             "required": self.required,
             "block_actions": list(self.block_actions),
@@ -169,7 +168,6 @@ class PhysicsDebugSafetyPolicy:
 
     def payload(self) -> dict[str, Any]:
         """Return a JSON-safe policy payload for report binding."""
-
         return {
             "human_review_required": self.human_review_required,
             "max_advisory_confidence": float(self.max_advisory_confidence),
@@ -245,14 +243,12 @@ class HTTPChatProvider:
     @property
     def local_onsite(self) -> bool:
         """Return whether the endpoint is local or onsite-loopback by construction."""
-
         parsed = urllib.parse.urlparse(self.endpoint)
         hostname = parsed.hostname or ""
         return hostname in {"localhost", "127.0.0.1", "::1"}
 
     def metadata(self) -> dict[str, Any]:
         """Return non-secret provider metadata for reports."""
-
         return {
             "provider_name": self.provider_name,
             "endpoint": self.endpoint,
@@ -263,7 +259,6 @@ class HTTPChatProvider:
 
     def complete_json(self, prompt: str, policy: ProviderPolicy) -> dict[str, Any]:
         """Return a JSON object from the configured provider gateway."""
-
         _validate_provider_endpoint(self, policy)
         if len(prompt) > policy.max_prompt_chars:
             raise ValueError("physics debug prompt exceeds policy max_prompt_chars")
@@ -318,14 +313,12 @@ class PhysicsDebugGuardrailProvider:
     @property
     def local_onsite(self) -> bool:
         """Return whether the guardrail endpoint is local by construction."""
-
         parsed = urllib.parse.urlparse(self.endpoint)
         hostname = parsed.hostname or ""
         return hostname in LOCAL_PROVIDER_HOSTS
 
     def metadata(self) -> dict[str, Any]:
         """Return non-secret guardrail metadata for report binding."""
-
         return {
             "provider_name": self.provider_name,
             "endpoint": self.endpoint,
@@ -348,7 +341,6 @@ class PhysicsDebugGuardrailProvider:
         guardrail_policy: PhysicsDebugGuardrailPolicy,
     ) -> dict[str, Any]:
         """Return a validated guardrail review for a provider draft."""
-
         _validate_guardrail_endpoint(self, policy)
         payload = _guardrail_request_payload(
             prompt=prompt,
@@ -405,7 +397,6 @@ class PhysicsDebugAssistant:
         guardrail_provider: PhysicsDebugGuardrailProvider | None = None,
     ) -> dict[str, Any]:
         """Ask an allowlisted provider for advisory hypotheses and campaigns."""
-
         if not evidence:
             raise ValueError("physics debug analysis requires evidence")
         if not gaps:
@@ -455,7 +446,6 @@ def build_physics_debug_report(
     guardrail: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a schema-versioned advisory physics debugging report."""
-
     resolved_safety_policy = PhysicsDebugSafetyPolicy() if safety_policy is None else safety_policy
     resolved_guardrail_policy = PhysicsDebugGuardrailPolicy() if guardrail_policy is None else guardrail_policy
     guardrail_payload = _disabled_guardrail_review(resolved_guardrail_policy) if guardrail is None else dict(guardrail)
@@ -495,7 +485,6 @@ def build_local_provider(
     timeout_seconds: float = 30.0,
 ) -> HTTPChatProvider:
     """Build a loopback-only provider profile for onsite model gateways."""
-
     if family not in LOCAL_PROVIDER_PROFILES:
         raise ValueError("local provider family is unsupported")
     if host not in LOCAL_PROVIDER_HOSTS:
@@ -533,7 +522,6 @@ def build_guardrail_provider(
     timeout_seconds: float = 30.0,
 ) -> PhysicsDebugGuardrailProvider:
     """Build a loopback-only guardrail profile for physics debug reviews."""
-
     if profile not in GUARDRAIL_PROVIDER_PROFILES:
         raise ValueError("guardrail provider profile is unsupported")
     if host not in LOCAL_PROVIDER_HOSTS:
@@ -560,7 +548,6 @@ def build_guardrail_provider(
 
 def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident advisory physics debugging report."""
-
     if not isinstance(payload, dict):
         raise ValueError("physics debug report must be an object")
     if payload.get("schema_version") != PHYSICS_DEBUG_REPORT_SCHEMA_VERSION:
@@ -615,7 +602,6 @@ def validate_physics_debug_report(payload: dict[str, Any]) -> dict[str, Any]:
 
 def write_physics_debug_report(payload: dict[str, Any], json_path: str | Path) -> dict[str, Any]:
     """Persist a validated advisory physics debugging report as JSON."""
-
     validated = validate_physics_debug_report(payload)
     path = Path(json_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -636,7 +622,6 @@ def run_provider_quorum(
     min_local_providers: int = 1,
 ) -> dict[str, Any]:
     """Run multiple providers and admit only corroborated advisory evidence."""
-
     if len(providers) < min_providers:
         raise ValueError("physics debug quorum requires at least min_providers providers")
     if min_providers <= 0:
@@ -683,7 +668,6 @@ def run_provider_quorum(
 
 def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, Any]:
     """Validate a tamper-evident provider-quorum physics debug report."""
-
     if not isinstance(payload, dict):
         raise ValueError("physics debug quorum report must be an object")
     if payload.get("schema_version") != PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION:
@@ -739,7 +723,6 @@ def validate_physics_debug_quorum_report(payload: dict[str, Any]) -> dict[str, A
 
 def write_physics_debug_quorum_report(payload: dict[str, Any], json_path: str | Path) -> dict[str, Any]:
     """Persist a validated provider-quorum physics debug report as JSON."""
-
     validated = validate_physics_debug_quorum_report(payload)
     path = Path(json_path)
     path.parent.mkdir(parents=True, exist_ok=True)

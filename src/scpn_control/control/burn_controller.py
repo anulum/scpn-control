@@ -234,7 +234,6 @@ def burn_control_claim_evidence(
     reactivity_exponent_abs_tolerance: float = 0.25,
 ) -> BurnControlClaimEvidence:
     """Build fail-closed DT burn-control evidence from explicit profiles."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_BURN_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_BURN_REFERENCE_SOURCES))
@@ -314,7 +313,6 @@ def burn_control_claim_evidence(
 
 def assert_burn_control_reactor_claim_admissible(evidence: BurnControlClaimEvidence) -> BurnControlClaimEvidence:
     """Raise when burn-control evidence is insufficient for reactor-control claims."""
-
     if not isinstance(evidence, BurnControlClaimEvidence):
         raise ValueError("evidence must be BurnControlClaimEvidence")
     if not evidence.reactor_claim_allowed:
@@ -324,7 +322,6 @@ def assert_burn_control_reactor_claim_admissible(evidence: BurnControlClaimEvide
 
 def save_burn_control_claim_evidence(evidence: BurnControlClaimEvidence, path: str | Path) -> None:
     """Persist burn-control claim evidence as deterministic JSON."""
-
     if not isinstance(evidence, BurnControlClaimEvidence):
         raise ValueError("evidence must be BurnControlClaimEvidence")
     output_path = Path(path)

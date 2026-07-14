@@ -9,7 +9,8 @@ Native TGLF-equivalent quasilinear transport model with SAT0/SAT1/SAT2
 spectral saturation, E×B shear quench, multi-scale ITG-ETG coupling,
 and trapped-particle damping.  No external binary.
 
-References:
+References
+----------
   - Staebler et al., Phys. Plasmas 14 (2007) 055909 — SAT0/SAT1
   - Staebler et al., Phys. Plasmas 24 (2017) 055906 — SAT2
   - Maeyama et al., Phys. Rev. Lett. 114 (2015) 255002 — cross-scale

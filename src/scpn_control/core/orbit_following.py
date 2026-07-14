@@ -137,7 +137,6 @@ def orbit_following_claim_evidence(
     loss_fraction_abs_tolerance: float = 0.02,
 ) -> OrbitFollowingClaimEvidence:
     """Build fail-closed evidence for bounded or externally referenced orbit claims."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_ORBIT_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_ORBIT_SOURCES))
@@ -221,14 +220,12 @@ def orbit_following_claim_evidence(
 
 def assert_orbit_following_external_claim_admissible(evidence: OrbitFollowingClaimEvidence) -> None:
     """Raise when orbit-following evidence is insufficient for an external-code claim."""
-
     if not evidence.external_orbit_claim_allowed:
         raise ValueError("external orbit claim requires matched banana-width and loss-fraction references")
 
 
 def save_orbit_following_claim_evidence(evidence: OrbitFollowingClaimEvidence, path: str | Path) -> None:
     """Persist orbit-following claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

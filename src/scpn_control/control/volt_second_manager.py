@@ -283,7 +283,6 @@ def volt_second_claim_evidence(
     margin_abs_tolerance_Vs: float = 0.5,
 ) -> VoltSecondClaimEvidence:
     """Build fail-closed evidence for scenario volt-second claims."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_VOLT_SECOND_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_VOLT_SECOND_REFERENCE_SOURCES))
@@ -352,7 +351,6 @@ def volt_second_claim_evidence(
 
 def assert_volt_second_facility_claim_admissible(evidence: VoltSecondClaimEvidence) -> VoltSecondClaimEvidence:
     """Raise when volt-second evidence is insufficient for facility scenario claims."""
-
     if not isinstance(evidence, VoltSecondClaimEvidence):
         raise ValueError("evidence must be VoltSecondClaimEvidence")
     if not evidence.facility_claim_allowed:
@@ -362,7 +360,6 @@ def assert_volt_second_facility_claim_admissible(evidence: VoltSecondClaimEviden
 
 def save_volt_second_claim_evidence(evidence: VoltSecondClaimEvidence, path: str | Path) -> None:
     """Persist volt-second claim evidence as deterministic JSON."""
-
     if not isinstance(evidence, VoltSecondClaimEvidence):
         raise ValueError("evidence must be VoltSecondClaimEvidence")
     output_path = Path(path)

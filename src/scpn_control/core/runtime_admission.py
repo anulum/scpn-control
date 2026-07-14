@@ -134,7 +134,6 @@ class RuntimeAdmissionProbe:
 
 def normalise_runtime_admission_policy(value: str) -> str:
     """Return canonical admission policy: off, warn, or require."""
-
     policy = str(value).strip().lower().replace("-", "_")
     aliases = {
         "disabled": "off",
@@ -154,7 +153,6 @@ def normalise_runtime_admission_policy(value: str) -> str:
 
 def collect_runtime_probe(request: RuntimeAdmissionRequest | None = None) -> RuntimeAdmissionProbe:
     """Collect current host runtime properties without mutating the host."""
-
     system = platform.system()
     kernel_release = platform.release()
     is_linux = system.lower() == "linux"
@@ -190,7 +188,6 @@ def evaluate_runtime_admission(
     probe: RuntimeAdmissionProbe,
 ) -> dict[str, object]:
     """Evaluate a runtime admission request against an observed probe."""
-
     errors: list[str] = []
     warnings: list[str] = []
     requested = request.requested_cores
@@ -280,13 +277,11 @@ def evaluate_runtime_admission(
 
 def collect_runtime_admission(request: RuntimeAdmissionRequest) -> dict[str, object]:
     """Collect and evaluate current host runtime admission evidence."""
-
     return evaluate_runtime_admission(request, collect_runtime_probe(request))
 
 
 def skipped_runtime_admission(policy: str = "off") -> dict[str, object]:
     """Return a schema-valid skipped admission record."""
-
     return {
         "schema_version": RUNTIME_ADMISSION_SCHEMA_VERSION,
         "status": "skipped",

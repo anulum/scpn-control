@@ -20,7 +20,8 @@ Generates EPICS .db and OPC-UA XML nodeset files for binding a
 NeuroSymbolicController to the ITER Plant Instrumentation & Control
 (I&C) infrastructure.  Does NOT require pyepics or any EPICS runtime.
 
-References:
+References
+----------
     ITER CODAC Handbook v7.0, §3.2 (PV naming conventions)
     IEC 62541 (OPC Unified Architecture)
 """
@@ -492,7 +493,6 @@ def codac_runtime_evidence(
     facility_claim_allowed: bool = False,
 ) -> CODACRuntimeEvidence:
     """Build tamper-evident runtime evidence for a CODAC/EPICS boundary."""
-
     if not isinstance(controller_id, str) or not controller_id.strip():
         raise ValueError("controller_id must be non-empty")
     if not isinstance(plant_system, str) or not plant_system.strip():
@@ -543,13 +543,11 @@ def codac_runtime_evidence(
 
 def assert_codac_runtime_claim_admissible(evidence: CODACRuntimeEvidence) -> CODACRuntimeEvidence:
     """Fail closed unless CODAC runtime evidence can support a facility claim."""
-
     return _validate_evidence_payload(asdict(evidence), require_facility_claim=True)
 
 
 def save_codac_runtime_evidence(evidence: CODACRuntimeEvidence, output_path: Path) -> None:
     """Persist CODAC runtime evidence as canonical sorted JSON."""
-
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -561,7 +559,6 @@ def load_codac_runtime_evidence(
     require_facility_claim: bool = False,
 ) -> CODACRuntimeEvidence:
     """Load CODAC runtime evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     if not isinstance(payload, dict):
         raise ValueError("CODAC runtime evidence must be a JSON object")

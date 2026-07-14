@@ -188,7 +188,6 @@ class Z3BoundedModelChecker:
 
     def verify_ctl_specs(self, specs: list[CTLFormula], *, max_depth: int) -> Z3ModelCheckingReport:
         """Verify bounded CTL formulas with the Z3 transition relation."""
-
         temporal_specs: list[
             AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
         ] = [self._compile_ctl_formula(spec) for spec in specs]
@@ -196,7 +195,6 @@ class Z3BoundedModelChecker:
 
     def verify_ltl_specs(self, specs: list[LTLFormula], *, max_depth: int) -> Z3ModelCheckingReport:
         """Verify bounded LTL formulas with the Z3 transition relation."""
-
         temporal_specs: list[
             AlwaysBounded | EventuallyFires | NeverCoMarked | AlwaysEventuallyMarked | FireLeadsToMarking
         ] = [self._compile_ltl_formula(spec) for spec in specs]

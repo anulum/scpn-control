@@ -20,7 +20,8 @@ The eigenvalue problem is cast as a standard eigenproblem A x = omega x
 via the response-matrix formulation, solved with scipy sparse or dense
 eigensolvers.
 
-References:
+References
+----------
   - Dimits et al., Phys. Plasmas 7 (2000) 969 — Cyclone Base Case
   - Jenko et al., Phys. Plasmas 7 (2000) 1904 — ETG
   - Kotschenreuther et al., Comp. Phys. Comm. 88 (1995) 128 — GS2 method

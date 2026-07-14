@@ -718,7 +718,6 @@ def mu_synthesis_claim_evidence(
     closed_loop_spectral_abscissa_abs_tolerance: float = 0.05,
 ) -> MuSynthesisClaimEvidence:
     """Build fail-closed evidence for bounded static μ-analysis claims."""
-
     if controller.K is None or controller.D_scalings is None:
         raise ValueError("controller must be synthesized before claim evidence is built")
     source_clean = _non_empty_text("source", source)
@@ -789,7 +788,6 @@ def mu_synthesis_claim_evidence(
 
 def assert_mu_synthesis_validated_claim_admissible(evidence: MuSynthesisClaimEvidence) -> MuSynthesisClaimEvidence:
     """Raise when μ-analysis evidence is insufficient for validated claims."""
-
     if not isinstance(evidence, MuSynthesisClaimEvidence):
         raise ValueError("evidence must be MuSynthesisClaimEvidence")
     _validate_mu_synthesis_claim_payload(asdict(evidence), require_validated_claim=True)
@@ -798,7 +796,6 @@ def assert_mu_synthesis_validated_claim_admissible(evidence: MuSynthesisClaimEvi
 
 def save_mu_synthesis_claim_evidence(evidence: MuSynthesisClaimEvidence, path: str | Path) -> None:
     """Persist μ-analysis claim evidence as deterministic JSON."""
-
     if not isinstance(evidence, MuSynthesisClaimEvidence):
         raise ValueError("evidence must be MuSynthesisClaimEvidence")
     admitted = _validate_mu_synthesis_claim_payload(asdict(evidence), require_validated_claim=False)
@@ -813,7 +810,6 @@ def load_mu_synthesis_claim_evidence(
     require_validated_claim: bool = False,
 ) -> MuSynthesisClaimEvidence:
     """Load μ-analysis claim evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_claim_keys)
     if not isinstance(payload, dict):
         raise ValueError("mu-synthesis claim evidence must be a JSON object")

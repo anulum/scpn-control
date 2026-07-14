@@ -20,7 +20,8 @@ Physics:
   - 4th-order hyperdiffusion for numerical stability
   - RK4 time stepping with CFL-adaptive dt
 
-References:
+References
+----------
   - Dimits et al., Phys. Plasmas 7 (2000) 969 — CBC benchmark
   - Orszag, J. Atmos. Sci. 28 (1971) 1074 — dealiasing
   - Rosenbluth & Hinton, Phys. Rev. Lett. 80 (1998) 724 — zonal flows
@@ -704,7 +705,6 @@ class NonlinearGKSolver:
         difference operator for v_∥ b·∇θ ∂/∂θ and α = dt × v_th_e_scale.
         Periodic tridiagonal via Sherman-Morrison.
         """
-
         c = self.cfg
         nθ = c.n_theta
         h = self.dtheta

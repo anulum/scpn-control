@@ -11,7 +11,8 @@ gk_eigenvalue.py using jax.numpy for batched velocity-space quadrature and
 jax.grad for the transport-stiffness proxy d(chi_i)/d(R_L_Ti). JAX execution is
 explicit and fails closed when JAX is unavailable.
 
-References:
+References
+----------
   - Dimits et al., Phys. Plasmas 7 (2000) 969 — Cyclone Base Case
   - Kotschenreuther et al., Comp. Phys. Comm. 88 (1995) 128
 """

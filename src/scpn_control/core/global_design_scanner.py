@@ -30,7 +30,6 @@ _DEFAULT_AUXILIARY_POWER_MW = 55.0
 
 def _positive_config_value(config: Mapping[str, float], name: str, default: float) -> float:
     """Return a positive scalar configuration value."""
-
     return require_positive_float(name, config.get(name, default))
 
 
@@ -62,7 +61,6 @@ class DesignScannerConfig:
     @classmethod
     def from_mapping(cls, config: Mapping[str, float]) -> "DesignScannerConfig":
         """Build a scanner configuration from scalar overrides."""
-
         return cls(
             aspect_ratio=_positive_config_value(config, "aspect_ratio", _DEFAULT_ASPECT_RATIO),
             elongation=_positive_config_value(config, "elongation", _DEFAULT_ELONGATION),
@@ -118,7 +116,6 @@ class GlobalDesignExplorer:
             ``neutron_wall_load_MW_m2``, ``cost_index``, ``minor_radius_m``,
             ``volume_m3``, ``greenwald_fraction``, and ``beta_p_proxy``.
         """
-
         r_maj = require_positive_float("r_maj", r_maj)
         b_t = require_positive_float("b_t", b_t)
         ip = require_positive_float("ip", ip)
@@ -161,21 +158,18 @@ class GlobalDesignExplorer:
     @staticmethod
     def _temperature_proxy_kev(*, r_maj: float, b_t: float, ip: float) -> float:
         """Return a bounded ion-temperature proxy in keV."""
-
         raw = 3.5 + 0.55 * b_t + 0.28 * ip - 0.22 * r_maj
         return float(np.clip(raw, 3.0, 28.0))
 
     @staticmethod
     def _reactivity_proxy(temperature_kev: float) -> float:
         """Return a bounded DT reactivity proxy in ``m^3 s^-1``."""
-
         scaled = (temperature_kev / 12.0) ** 2
         rolloff = 1.0 + (temperature_kev / 42.0) ** 2
         return float(_DT_REFERENCE_REACTIVITY_M3_S * scaled / rolloff)
 
     def _confinement_proxy_s(self, *, r_maj: float, b_t: float, ip: float, density: float) -> float:
         """Return an IPB98-like energy-confinement proxy in seconds."""
-
         density_20 = max(density / 1.0e20, 1.0e-6)
         tau = 0.045 * (ip**0.93) * (b_t**0.15) * (density_20**0.41) * (r_maj**1.25)
         return float(self._config.confinement_multiplier * tau)
@@ -183,7 +177,6 @@ class GlobalDesignExplorer:
     @staticmethod
     def _beta_p_proxy(*, ip: float, minor_radius_m: float, stored_energy_mj: float) -> float:
         """Return a poloidal-beta proxy from stored energy and current."""
-
         poloidal_field_t = _MU0 * ip * 1.0e6 / max(2.0 * np.pi * minor_radius_m, 1.0e-9)
         pressure_proxy = stored_energy_mj * 1.0e6 / max(3.0 * np.pi * minor_radius_m**3, 1.0e-9)
         magnetic_pressure = poloidal_field_t * poloidal_field_t / max(2.0 * _MU0, 1.0e-12)
@@ -192,7 +185,6 @@ class GlobalDesignExplorer:
     @staticmethod
     def _cost_index(*, r_maj: float, b_t: float, ip: float) -> float:
         """Return a relative design-cost proxy."""
-
         magnet_term = (b_t / 10.0) ** 2 * (r_maj / 1.4)
         current_term = 0.25 * (ip / 6.0) ** 1.4
         size_term = (r_maj / 1.4) ** 2.2

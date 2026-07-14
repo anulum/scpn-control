@@ -592,7 +592,6 @@ def hil_replay_evidence(
     therefore fail-closes unless qualified target hardware metadata, zero
     safety events, zero overruns, and target-rate latency bounds are present.
     """
-
     control_metrics = _control_metrics_from_evidence_source(metrics)
     timing = _hil_timing_payload(control_metrics)
     target_rate_hz = 1e6 / timing["target_dt_us"]
@@ -648,7 +647,6 @@ def assert_hil_replay_evidence_admissible(
     require_target_hardware: bool = False,
 ) -> dict[str, Any]:
     """Validate a HIL replay evidence payload and return an admitted copy."""
-
     payload = dict(_require_mapping(evidence, "evidence"))
     supplied_payload_sha = payload.get("payload_sha256")
     if not _is_hex_sha256(supplied_payload_sha):
@@ -771,7 +769,6 @@ def save_hil_replay_evidence(
     require_target_hardware: bool = False,
 ) -> Path:
     """Persist an admitted HIL replay evidence payload as canonical JSON."""
-
     admitted = assert_hil_replay_evidence_admissible(
         evidence,
         require_target_hardware=require_target_hardware,
@@ -788,7 +785,6 @@ def load_hil_replay_evidence(
     require_target_hardware: bool = False,
 ) -> dict[str, Any]:
     """Load and admit a HIL replay evidence payload from JSON."""
-
     raw = Path(path).read_text(encoding="utf-8")
     payload = json.loads(raw, object_pairs_hook=_reject_duplicate_json_keys)
     return assert_hil_replay_evidence_admissible(

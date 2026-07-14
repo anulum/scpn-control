@@ -178,7 +178,6 @@ def vmec_lite_claim_evidence(
     iota_relative_tolerance: float = 0.02,
 ) -> VMECLiteClaimEvidence:
     """Build fail-closed evidence for bounded VMEC-lite or full VMEC claims."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_VMEC_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_VMEC_REFERENCE_SOURCES))
@@ -265,14 +264,12 @@ def vmec_lite_claim_evidence(
 
 def assert_vmec_lite_full_vmec_claim_admissible(evidence: VMECLiteClaimEvidence) -> None:
     """Raise when VMEC-lite evidence is insufficient for a full VMEC claim."""
-
     if not evidence.full_vmec_claim_allowed:
         raise ValueError("full VMEC claim requires matched R_mn, Z_mn, iota, convergence, and residual evidence")
 
 
 def save_vmec_lite_claim_evidence(evidence: VMECLiteClaimEvidence, path: str | Path) -> None:
     """Persist VMEC-lite claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

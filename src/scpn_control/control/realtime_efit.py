@@ -187,7 +187,6 @@ def efit_lite_claim_evidence(
     li_abs_tolerance: float = 0.1,
 ) -> EFITLiteClaimEvidence:
     """Build fail-closed evidence for EFIT-lite claim admission."""
-
     if source not in _BOUNDED_REFERENCE_SOURCES:
         raise ValueError("source must be a declared EFIT-lite reference source")
     if not isinstance(source_id, str) or not source_id.strip():
@@ -279,7 +278,6 @@ def efit_lite_claim_evidence(
 
 def assert_efit_lite_facility_claim_admissible(evidence: EFITLiteClaimEvidence) -> EFITLiteClaimEvidence:
     """Return evidence or fail closed before an EFIT-lite facility claim."""
-
     if not isinstance(evidence, EFITLiteClaimEvidence):
         raise ValueError("evidence must be EFITLiteClaimEvidence")
     if evidence.schema_version != _EFIT_CLAIM_SCHEMA_VERSION:
@@ -291,7 +289,6 @@ def assert_efit_lite_facility_claim_admissible(evidence: EFITLiteClaimEvidence) 
 
 def save_efit_lite_claim_evidence(evidence: EFITLiteClaimEvidence, path: str | Path) -> None:
     """Persist EFIT-lite claim evidence as deterministic JSON."""
-
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -319,7 +316,6 @@ class DiagnosticResponse:
         self, psi: AnyFloatArray, coil_currents: AnyFloatArray
     ) -> dict[str, float | AnyFloatArray]:
         """Generate synthetic measurements from a given psi field."""
-
         from scipy.interpolate import RegularGridInterpolator
 
         psi_arr = np.asarray(psi, dtype=float)

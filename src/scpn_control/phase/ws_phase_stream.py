@@ -344,7 +344,6 @@ class PhaseStreamServer:
 
     def runtime_counters(self) -> dict[str, int]:
         """Return a copy of WebSocket runtime security and backpressure counters."""
-
         return dict(self._runtime_counters)
 
     def _origin_allowed(self, websocket: Any) -> bool:
@@ -774,7 +773,6 @@ def websocket_runtime_evidence(
     facility_claim_allowed: bool = False,
 ) -> WebSocketRuntimeEvidence:
     """Build tamper-evident runtime evidence for a phase WebSocket deployment."""
-
     if not isinstance(server, PhaseStreamServer):
         raise ValueError("server must be PhaseStreamServer")
     if not isinstance(deployment_id, str) or not deployment_id.strip():
@@ -818,13 +816,11 @@ def assert_websocket_runtime_claim_admissible(
     evidence: WebSocketRuntimeEvidence,
 ) -> WebSocketRuntimeEvidence:
     """Fail closed unless WebSocket evidence supports a facility runtime claim."""
-
     return _validate_websocket_runtime_payload(asdict(evidence), require_facility_claim=True)
 
 
 def save_websocket_runtime_evidence(evidence: WebSocketRuntimeEvidence, output_path: str | Path) -> None:
     """Persist WebSocket runtime evidence as sorted JSON without secret material."""
-
     if not isinstance(evidence, WebSocketRuntimeEvidence):
         raise ValueError("evidence must be WebSocketRuntimeEvidence")
     path = Path(output_path)
@@ -838,7 +834,6 @@ def load_websocket_runtime_evidence(
     require_facility_claim: bool = False,
 ) -> WebSocketRuntimeEvidence:
     """Load WebSocket runtime evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     if not isinstance(payload, dict):
         raise ValueError("WebSocket runtime evidence must be a JSON object")
@@ -847,7 +842,6 @@ def load_websocket_runtime_evidence(
 
 def main() -> None:
     """Run the SCPN phase-sync WebSocket stream-server CLI."""
-
     import argparse
 
     parser = argparse.ArgumentParser(description="SCPN Phase Sync WebSocket Stream")

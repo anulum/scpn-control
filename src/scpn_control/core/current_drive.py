@@ -657,7 +657,6 @@ def current_drive_claim_evidence(
     nbi_slowing_down_relative_tolerance: float = 0.10,
 ) -> CurrentDriveClaimEvidence:
     """Build fail-closed evidence for auxiliary current-drive deposition claims."""
-
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_CURRENT_DRIVE_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_BOUNDED_CURRENT_DRIVE_REFERENCE_SOURCES))
@@ -743,7 +742,6 @@ def current_drive_claim_evidence(
 
 def assert_current_drive_external_claim_admissible(evidence: CurrentDriveClaimEvidence) -> CurrentDriveClaimEvidence:
     """Raise when current-drive evidence is insufficient for external deposition claims."""
-
     if not isinstance(evidence, CurrentDriveClaimEvidence):
         raise ValueError("evidence must be CurrentDriveClaimEvidence")
     if not evidence.external_claim_allowed:
@@ -755,7 +753,6 @@ def assert_current_drive_external_claim_admissible(evidence: CurrentDriveClaimEv
 
 def save_current_drive_claim_evidence(evidence: CurrentDriveClaimEvidence, path: str | Path) -> None:
     """Persist current-drive claim evidence as deterministic JSON."""
-
     if not isinstance(evidence, CurrentDriveClaimEvidence):
         raise ValueError("evidence must be CurrentDriveClaimEvidence")
     output_path = Path(path)

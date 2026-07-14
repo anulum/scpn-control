@@ -519,7 +519,6 @@ def run_spi_mitigation(
 
 def run_spi_test() -> dict[str, Any]:
     """Run the default shattered-pellet-injection mitigation demonstration."""
-
     return run_spi_mitigation(save_plot=True, verbose=True)
 
 

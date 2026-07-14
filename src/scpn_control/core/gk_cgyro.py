@@ -38,7 +38,6 @@ def generate_cgyro_input(params: GKLocalParams) -> str:
     str
         The CGYRO input-deck text.
     """
-
     R0_over_a = params.R0 / max(params.a, 0.01)
     return f"""\
 # CGYRO input.cgyro
@@ -85,7 +84,6 @@ def parse_cgyro_output(run_dir: Path) -> GKOutput:
         The parsed growth rate, real frequency, and diffusivities; a
         non-converged output when the file is missing or unreadable.
     """
-
     out_file = run_dir / "out.cgyro.freq"
     if out_file.exists():
         try:

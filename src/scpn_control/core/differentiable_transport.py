@@ -249,7 +249,6 @@ def has_jax() -> bool:
 
 def transport_runtime_metadata() -> TransportRuntimeMetadata:
     """Return runtime provenance for audited JAX transport latency reports."""
-
     if not _HAS_JAX or jax is None:
         raise RuntimeError("transport runtime metadata requires JAX")
     try:
@@ -806,7 +805,6 @@ def transport_full_fidelity_readiness_evidence(
     equilibrium coupling, one-step and rollout audit reports, a controller proof
     digest, and an independently admitted external reference artefact.
     """
-
     if not isinstance(metadata, TransportCampaignMetadata):
         raise ValueError("metadata must be TransportCampaignMetadata")
     if not isinstance(gradient_report, TransportGradientLatencyReport):
@@ -893,7 +891,6 @@ def assert_transport_full_fidelity_claim_ready(
     rollout_report: TransportRolloutGradientLatencyReport | None = None,
 ) -> TransportFullFidelityReadinessEvidence:
     """Fail closed unless readiness evidence admits a full-fidelity claim."""
-
     if not isinstance(evidence, TransportFullFidelityReadinessEvidence):
         raise ValueError("evidence must be TransportFullFidelityReadinessEvidence")
     if evidence.schema_version != 1:
@@ -2332,7 +2329,6 @@ def benchmark_transport_rollout_source_gradient_latency(
 
 def save_transport_gradient_latency_report(report: TransportGradientLatencyReport, path: str | Path) -> None:
     """Persist differentiable transport gradient-latency evidence as JSON."""
-
     _validate_transport_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
@@ -2344,7 +2340,6 @@ def save_transport_rollout_gradient_latency_report(
     path: str | Path,
 ) -> None:
     """Persist rollout source-gradient latency evidence as JSON."""
-
     _validate_transport_rollout_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)

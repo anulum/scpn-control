@@ -88,7 +88,6 @@ def rzip_calibration_evidence(
     documented public, external-code, or measured-discharge reference sources
     and must satisfy the declared growth-rate tolerance.
     """
-
     if source not in _BOUNDED_REFERENCE_SOURCES:
         raise ValueError("source must be a declared RZIP reference source")
     if not isinstance(source_id, str) or not source_id.strip():
@@ -155,7 +154,6 @@ def rzip_calibration_evidence(
 
 def assert_rzip_facility_claim_admissible(evidence: RZIPCalibrationEvidence) -> RZIPCalibrationEvidence:
     """Return evidence or fail closed before a RZIP facility-control claim."""
-
     if not isinstance(evidence, RZIPCalibrationEvidence):
         raise ValueError("evidence must be RZIPCalibrationEvidence")
     if evidence.schema_version != _RZIP_CALIBRATION_SCHEMA_VERSION:
@@ -187,7 +185,6 @@ def assert_rzip_facility_claim_admissible(evidence: RZIPCalibrationEvidence) -> 
 
 def save_rzip_calibration_evidence(evidence: RZIPCalibrationEvidence, path: str | Path) -> None:
     """Persist RZIP calibration evidence as deterministic JSON."""
-
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -606,7 +603,6 @@ class RZIPController:
         R: NDArray[np.float64],
     ) -> NDArray[np.float64]:
         """Compute a bounded NumPy-only state-feedback fallback gain."""
-
         spectral_radius = max(float(np.max(np.abs(np.linalg.eigvals(A)))), 1.0)
         dt = 0.1 / spectral_radius
         A_d = np.eye(A.shape[0]) + dt * A

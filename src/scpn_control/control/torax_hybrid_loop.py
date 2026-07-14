@@ -140,7 +140,6 @@ def _build_hybrid_controller() -> NeuroSymbolicController:
 
 def _torax_policy(state: ToraxPlasmaState) -> float:
     """Reduced TORAX-like policy head for beta/q tracking."""
-
     beta_err = 1.85 - state.beta_n
     q_err = state.q95 - 4.9
     cmd = 1.10 * beta_err - 0.32 * q_err
@@ -154,7 +153,6 @@ def _torax_step(
     rng: np.random.Generator,
 ) -> ToraxPlasmaState:
     """Reduced TORAX-like transport/equilibrium state update."""
-
     command = float(np.clip(command, -2.0, 2.0))
     beta_n = state.beta_n + 0.045 * (
         0.85 * command - (state.beta_n - 1.85) - 0.52 * disturbance + rng.normal(0.0, 0.004)
@@ -189,7 +187,6 @@ def run_nstxu_torax_hybrid_campaign(
     steps_per_episode: int = 220,
 ) -> ToraxHybridCampaignResult:
     """Run deterministic NSTX-U-like realtime hybrid control campaign."""
-
     rng = np.random.default_rng(int(seed))
     controller = _build_hybrid_controller()
     episodes = int(episodes)

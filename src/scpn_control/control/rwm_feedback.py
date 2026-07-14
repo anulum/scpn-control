@@ -100,7 +100,6 @@ def rwm_claim_evidence(
     references plus a finite closed-loop growth-rate comparison within the
     declared tolerance.
     """
-
     if source not in _BOUNDED_REFERENCE_SOURCES:
         raise ValueError("source must be a declared RWM reference source")
     if not isinstance(source_id, str) or not source_id.strip():
@@ -175,7 +174,6 @@ def rwm_claim_evidence(
 
 def assert_rwm_facility_claim_admissible(evidence: RWMClaimEvidence) -> RWMClaimEvidence:
     """Return evidence or fail closed before a RWM facility-control claim."""
-
     if not isinstance(evidence, RWMClaimEvidence):
         raise ValueError("evidence must be RWMClaimEvidence")
     if evidence.schema_version != _RWM_CLAIM_SCHEMA_VERSION:
@@ -187,7 +185,6 @@ def assert_rwm_facility_claim_admissible(evidence: RWMClaimEvidence) -> RWMClaim
 
 def save_rwm_claim_evidence(evidence: RWMClaimEvidence, path: str | Path) -> None:
     """Persist RWM claim evidence as deterministic JSON."""
-
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -564,7 +564,6 @@ def kuramoto_runtime_evidence(
     deployment_claim_allowed: bool = False,
 ) -> KuramotoRuntimeEvidence:
     """Build bounded phase-runtime parity and timestep-refinement evidence."""
-
     th = np.asarray(theta, dtype=np.float64)
     om = np.asarray(omega, dtype=np.float64)
     if th.ndim != 1 or th.size == 0:
@@ -690,7 +689,6 @@ def assert_kuramoto_runtime_claim_admissible(
     evidence: KuramotoRuntimeEvidence,
 ) -> KuramotoRuntimeEvidence:
     """Fail closed unless phase-runtime evidence supports deployment claims."""
-
     if not isinstance(evidence, KuramotoRuntimeEvidence):
         raise ValueError("evidence must be KuramotoRuntimeEvidence")
     return _validate_kuramoto_runtime_payload(asdict(evidence), require_deployment_claim=True)
@@ -698,7 +696,6 @@ def assert_kuramoto_runtime_claim_admissible(
 
 def save_kuramoto_runtime_evidence(evidence: KuramotoRuntimeEvidence, output_path: str | Path) -> None:
     """Persist Kuramoto runtime evidence as sorted JSON."""
-
     if not isinstance(evidence, KuramotoRuntimeEvidence):
         raise ValueError("evidence must be KuramotoRuntimeEvidence")
     path = Path(output_path)
@@ -712,7 +709,6 @@ def load_kuramoto_runtime_evidence(
     require_deployment_claim: bool = False,
 ) -> KuramotoRuntimeEvidence:
     """Load Kuramoto runtime evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     if not isinstance(payload, dict):
         raise ValueError("Kuramoto runtime evidence must be a JSON object")

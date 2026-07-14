@@ -253,7 +253,6 @@ def build_aer_admission_metadata(
     feature_vector: object | None = None,
 ) -> dict[str, Any]:
     """Build replay-safe AER admission metadata from a decoded observation."""
-
     report = _require_mapping("admission_report", admission_report)
     payload: dict[str, Any] = {
         "schema_version": AER_ADMISSION_SCHEMA_VERSION,
@@ -293,7 +292,6 @@ def attach_aer_admission_metadata(
     aer_admission: Mapping[str, Any],
 ) -> dict[str, Any]:
     """Attach digest-bound AER admission metadata to a replay v1.1 report."""
-
     validate_report(report)
     payload = deepcopy(dict(report))
     bench = _require_mapping("geometry_neutral_replay", payload["geometry_neutral_replay"])
@@ -923,7 +921,6 @@ def geometry_neutral_replay_evidence(
     device_claim_allowed: bool = False,
 ) -> GeometryNeutralReplayEvidence:
     """Build tamper-evident replay evidence over an admitted replay report."""
-
     validate_report(report)
     bench = _require_mapping("geometry_neutral_replay", report["geometry_neutral_replay"])
     replay = _require_mapping("geometry_neutral_replay.replay", bench["replay"])
@@ -970,7 +967,6 @@ def assert_geometry_neutral_replay_claim_admissible(
     evidence: GeometryNeutralReplayEvidence,
 ) -> GeometryNeutralReplayEvidence:
     """Fail closed unless replay evidence supports a device-control claim."""
-
     if not isinstance(evidence, GeometryNeutralReplayEvidence):
         raise ValueError("evidence must be GeometryNeutralReplayEvidence")
     return _validate_geometry_neutral_replay_evidence_payload(asdict(evidence), require_device_claim=True)
@@ -981,7 +977,6 @@ def save_geometry_neutral_replay_evidence(
     output_path: str | Path,
 ) -> None:
     """Persist geometry-neutral replay evidence as sorted JSON."""
-
     if not isinstance(evidence, GeometryNeutralReplayEvidence):
         raise ValueError("evidence must be GeometryNeutralReplayEvidence")
     path = Path(output_path)
@@ -995,7 +990,6 @@ def load_geometry_neutral_replay_evidence(
     require_device_claim: bool = False,
 ) -> GeometryNeutralReplayEvidence:
     """Load geometry-neutral replay evidence with duplicate-key and digest admission."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     if not isinstance(payload, dict):
         raise ValueError("geometry-neutral replay evidence must be a JSON object")

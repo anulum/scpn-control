@@ -225,7 +225,6 @@ def uq_claim_evidence(
     sigma_relative_tolerance: float = 0.1,
 ) -> UQClaimEvidence:
     """Build fail-closed evidence for bounded or calibrated UQ claims."""
-
     scenario = _validate_scenario(scenario)
     source_clean = _non_empty_text("source", source)
     if source_clean not in _BOUNDED_UQ_REFERENCE_SOURCES:
@@ -309,14 +308,12 @@ def uq_claim_evidence(
 
 def assert_uq_calibrated_claim_admissible(evidence: UQClaimEvidence) -> None:
     """Raise when UQ evidence is insufficient for a calibrated predictive claim."""
-
     if not evidence.calibrated_uq_claim_allowed:
         raise ValueError("calibrated UQ claim requires matched central-value and sigma references")
 
 
 def save_uq_claim_evidence(evidence: UQClaimEvidence, path: str | Path) -> None:
     """Persist UQ claim evidence as deterministic JSON."""
-
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -392,7 +389,6 @@ def bosch_hale_reactivity(T_i_kev: float | AnyFloatArray) -> float | FloatArray:
     -------
     float | AnyFloatArray — Reactivity in m^3/s.
     """
-
     if isinstance(T_i_kev, np.ndarray):
         return _bosch_hale_reactivity_array(T_i_kev)
     return float(_bosch_hale_reactivity_array(np.asarray([T_i_kev], dtype=float))[0])

@@ -112,7 +112,6 @@ _PYO3_ARG_ORDER: dict[str, tuple[str, ...]] = {
 
 def _normalise_execution_backend(value: str) -> str:
     """Validate and canonicalise the campaign execution backend selector."""
-
     backend = str(value).strip().lower().replace("_", "-")
     aliases = {
         "fallback": "python",
@@ -129,7 +128,6 @@ def _normalise_execution_backend(value: str) -> str:
 
 def _normalise_pacing_mode(value: str) -> str:
     """Validate and canonicalise the native pacing selector."""
-
     mode = str(value).strip().lower().replace("-", "_")
     aliases = {
         "yield": "sleep",
@@ -146,7 +144,6 @@ def _normalise_pacing_mode(value: str) -> str:
 
 def _coerce_telemetry_int(value: object, default: int = 0) -> int:
     """Parse integer telemetry values emitted by Python or PyO3 bindings."""
-
     if value is None:
         return default
     try:
@@ -278,7 +275,6 @@ class NeuroCyberneticEngine:
         - c_gB / c_gB_nominal
         - optional u_min/u_max safety clamps
         """
-
         target_r = _coalesce_key(
             targets, ("target_r", "rho_tor_target", "R_target"), default=self._acados_targets["target_r"]
         )
@@ -369,7 +365,6 @@ class NeuroCyberneticEngine:
         - a mapping of weight names to float coefficients,
         - a filesystem path to a JSON object containing weight names.
         """
-
         payload: Mapping[str, Any]
         if isinstance(weights, (str, Path)):
             payload = _read_json_dict(weights)
@@ -397,7 +392,6 @@ class NeuroCyberneticEngine:
         These fields are retained for reproducibility, campaign replay, and future
         native controller migration.
         """
-
         self._execution = _ExecutionSettings(
             core_snn=_coerce_int("core_snn", core_snn, minimum=0, maximum=4095),
             core_z3=_coerce_int("core_z3", core_z3, minimum=0, maximum=4095),
@@ -416,7 +410,6 @@ class NeuroCyberneticEngine:
         channel_capacity: int = 2,
     ) -> dict[str, int | bool | str]:
         """Configure native formal checking for the fused hardware loop."""
-
         mode_value = str(mode).strip().lower().replace("-", "_")
         if mode_value == "disabled":
             enabled = False
@@ -475,7 +468,6 @@ class NeuroCyberneticEngine:
         Both legacy (`{"c_gB": ...}`) and upgraded schema
         (`scaling_parameters.{c_gB_nominal,...}`) are supported.
         """
-
         source = Path(path) if path is not None else _ITPA_DEFAULT_PATH
         payload = _read_json_dict(source)
 
@@ -592,7 +584,6 @@ class NeuroCyberneticEngine:
         compiled Rust primitives (`RustSnnController`, `RustPIDController`,
         `RustUdpTransportBridge`).
         """
-
         execution_backend = _normalise_execution_backend(execution_backend)
         pacing_mode_value = _normalise_pacing_mode(pacing_mode)
         runtime_admission_policy = normalise_runtime_admission_policy(runtime_admission_policy)
@@ -689,7 +680,6 @@ class NeuroCyberneticEngine:
         policy: str = "warn",
     ) -> dict[str, Any]:
         """Collect runtime admission evidence and optionally fail closed."""
-
         policy_value = normalise_runtime_admission_policy(policy)
         if policy_value == "off":
             self._last_runtime_admission = skipped_runtime_admission(policy_value)

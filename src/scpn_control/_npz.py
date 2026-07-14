@@ -22,7 +22,6 @@ NpzPath = str | PathLike[str]
 
 def _member_name(name: str) -> str:
     """Return the zip member name for one NPZ array."""
-
     if not name or "/" in name or "\\" in name or name in {".", ".."}:
         raise ValueError(f"invalid NPZ array name: {name!r}")
     return f"{name}.npy"
@@ -44,7 +43,6 @@ def save_npz_arrays(path: NpzPath, arrays: Mapping[str, ArrayLike]) -> None:
     ValueError
         If an array name is empty, path-like, or an array requires pickling.
     """
-
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(destination, mode="w", compression=zipfile.ZIP_STORED, allowZip64=True) as archive:

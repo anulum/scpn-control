@@ -365,7 +365,6 @@ class ScenarioCouplingAudit:
 
 def iter_baseline_scenario() -> ScenarioConfig:
     """Return the ITER baseline (15 MA, full heating) scenario configuration."""
-
     return ScenarioConfig(
         R0=6.2,
         a=2.0,
@@ -385,7 +384,6 @@ def iter_baseline_scenario() -> ScenarioConfig:
 
 def iter_hybrid_scenario() -> ScenarioConfig:
     """Return the ITER hybrid (12 MA) scenario configuration."""
-
     return ScenarioConfig(
         R0=6.2,
         a=2.0,
@@ -401,7 +399,6 @@ def iter_hybrid_scenario() -> ScenarioConfig:
 
 def nstx_u_scenario() -> ScenarioConfig:
     """Return the NSTX-U spherical-tokamak (low aspect ratio) scenario."""
-
     return ScenarioConfig(
         R0=0.93,
         a=0.58,
@@ -417,20 +414,17 @@ def nstx_u_scenario() -> ScenarioConfig:
 
 def scenario_config_payload(config: ScenarioConfig) -> dict[str, JsonScalar]:
     """Return a stable JSON payload for scenario replay hashing."""
-
     return {key: value for key, value in asdict(config).items()}
 
 
 def scenario_config_sha256(config: ScenarioConfig) -> str:
     """Hash the exact scenario configuration used by a replay artefact."""
-
     payload = json.dumps(scenario_config_payload(config), sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 def enabled_scenario_modules(config: ScenarioConfig) -> tuple[str, ...]:
     """List physics/control modules participating in the scenario exchange."""
-
     modules = ["transport", "current_diffusion", "bootstrap_current"]
     if config.P_aux_MW > 0.0:
         modules.append("auxiliary_heating")
@@ -581,7 +575,6 @@ def audit_scenario_coupling(
     conservation-bound diagnostics for a completed trajectory. It is not a
     measured-discharge or external integrated-modelling validation claim.
     """
-
     config = _validate_config(config)
     if not states:
         metadata = ScenarioCouplingMetadata(
@@ -672,13 +665,11 @@ def audit_scenario_coupling(
 
 def scenario_coupling_audit_to_dict(audit: ScenarioCouplingAudit) -> dict[str, object]:
     """Serialise a scenario-coupling audit to a JSON-safe dictionary."""
-
     return asdict(audit)
 
 
 def save_scenario_coupling_report(audit: ScenarioCouplingAudit, path: Path) -> None:
     """Persist a scenario-coupling audit report with deterministic JSON layout."""
-
     data = scenario_coupling_audit_to_dict(audit)
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
