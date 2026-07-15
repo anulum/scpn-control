@@ -10,6 +10,7 @@ import pytest
 from scpn_control.control.shape_controller import (
     CoilSet,
     PlasmaShapeController,
+    ShapeTarget,
     iter_lower_single_null_target,
 )
 
@@ -105,6 +106,32 @@ def test_shape_gap_positive():
     # All gap targets are 0.1 m; with zero gap error, min_gap = min(gap_targets) = 0.1
     assert res.min_gap > 0.0
     assert res.min_gap == pytest.approx(min(target.gap_targets))
+
+
+def test_compute_shape_error_without_xpoint_target() -> None:
+    """A limiter target with no X-point skips the X-point error term (branch 217->220).
+
+    When the shape target has no X-point (``xpoint_target is None``) the Jacobian
+    reports ``n_xpoint == 0``, so the active-flux branch populates the isoflux and
+    gap errors but leaves the empty X-point error slice untouched. The error
+    vector is therefore isoflux + gap entries only, with no X-point contribution.
+    """
+    target = ShapeTarget(
+        isoflux_points=[(6.2, 0.0), (7.0, 1.0), (5.5, -1.0)],
+        gap_points=[(8.0, 0.0, 1.0, 0.0)],
+        gap_targets=[0.1],
+        xpoint_target=None,
+    )
+    coils = CoilSet(n_coils=3)
+    ctrl = PlasmaShapeController(target, coils, kernel=None)
+    assert ctrl.jacobian.n_xpoint == 0
+
+    e_shape = ctrl._compute_shape_error(np.ones((33, 33)))
+
+    # e_iso (3) + e_gap (1) + e_xp (0) + e_sp (0) — no X-point slice.
+    assert e_shape.shape == (4,)
+    assert np.allclose(e_shape[:3], 0.01)
+    assert e_shape[3] == pytest.approx(0.05)
 
 
 def test_shape_jacobian_update_is_noop_for_static_jacobian() -> None:

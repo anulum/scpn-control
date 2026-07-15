@@ -341,6 +341,29 @@ class TestApplyAndSave:
         assert data["license"] == "SPDX-License-Identifier: AGPL-3.0-or-later"
         assert text.endswith("\n")
 
+    def test_overwrites_non_mapping_existing_artefact(
+        self,
+        solver: AnalyticEquilibriumSolver,
+        tmp_path: Path,
+    ) -> None:
+        """Overwrite a non-object existing artefact without preservation (branch 277->282).
+
+        The preserved-metadata merge only applies when the existing file decodes
+        to a mapping. When it decodes to a JSON array (or any non-object value)
+        the ``isinstance`` guard is False, so the fresh configuration is written
+        as-is with no keys carried over from the prior artefact.
+        """
+        import json
+
+        out_path = tmp_path / "out.json"
+        out_path.write_text(json.dumps(["not", "a", "mapping"]) + "\n", encoding="utf-8")
+
+        out = solver.apply_and_save(np.array([0.5, -0.3, 1.2]), output_path=str(out_path))
+        data = json.loads(Path(out).read_text(encoding="utf-8"))
+
+        assert isinstance(data, dict)
+        assert data["coils"][0]["current"] == 0.5
+
     def test_default_path_used_when_none(self, solver: AnalyticEquilibriumSolver) -> None:
         import os
 

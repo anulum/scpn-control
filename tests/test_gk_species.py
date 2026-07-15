@@ -287,3 +287,29 @@ def test_pitch_angle_operator_skips_degenerate_grid_spacing() -> None:
 
     assert operator.shape == (4, 4)
     assert np.all(operator[1] == 0.0)
+
+
+def test_gauss_legendre_newton_non_convergence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fall through the Newton iteration cap when the tolerance is never met (branch 68->75).
+
+    For genuine Legendre polynomials Newton's method converges quadratically
+    within a handful of steps, so the 100-iteration bound is defensive. Forcing
+    the inner polynomial evaluation to return a constant value/derivative pair
+    keeps the update from ever settling, exhausting the loop without a break;
+    the routine must still return finite node and weight arrays of the requested
+    size rather than raising or looping unbounded.
+    """
+    import scpn_control.core.gk_species as gk_mod
+
+    monkeypatch.setattr(
+        gk_mod,
+        "_legendre_polynomial_and_derivative",
+        lambda order, x_value: (1.0, 1.0),
+    )
+
+    nodes, weights = gk_mod._gauss_legendre_nodes_weights(2)
+
+    assert nodes.shape == (2,)
+    assert weights.shape == (2,)
+    assert np.all(np.isfinite(nodes))
+    assert np.all(np.isfinite(weights))

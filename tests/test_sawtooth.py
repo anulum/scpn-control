@@ -377,6 +377,47 @@ def test_kadomtsev_crash_idx_mix_zero() -> None:
     assert np.all(np.isfinite(n_new))
 
 
+def test_kadomtsev_crash_psi_star_positive_to_edge() -> None:
+    """Fall through the mixing-radius loop when psi* stays positive (branch 338->346).
+
+    A q profile that stays below one across most of the minor radius and only
+    just exceeds one near the edge accumulates a large positive helical flux,
+    so psi* remains positive at every point outside the q=1 surface. The search
+    loop then exhausts without breaking and the mixing radius stays pinned at
+    the outermost grid point.
+    """
+    rho = np.linspace(0, 1, 50)
+    q = 0.5 + 0.6 * rho  # q=1 at rho~0.833, only just above one at the edge
+    T = 5.0 * (1 - rho**2)
+    n = 2.0 * np.ones_like(rho)
+
+    _, _, _, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
+
+    assert 0.0 < rho_1 < rho[-1]
+    assert rho_mix == pytest.approx(rho[-1])
+
+
+def test_kadomtsev_crash_break_without_interpolation() -> None:
+    """Break without interpolating when the preceding psi* is non-positive (branch 341->344).
+
+    With q below one only on the magnetic axis and above one immediately after,
+    the first flux increment is already negative (the axis integrand vanishes),
+    so psi* is non-positive at the very first point outside the q=1 surface.
+    The preceding psi* value is the zero axis boundary, so the linear
+    interpolation guard is False and the mixing radius stays at that grid point.
+    """
+    rho = np.linspace(0, 1, 50)
+    q = np.full(50, 1.5)
+    q[0] = 0.9  # q<1 only at the axis; crossing falls in the first interval
+    T = 5.0 * (1 - rho**2)
+    n = 2.0 * np.ones_like(rho)
+
+    _, _, _, rho_1, rho_mix = kadomtsev_crash(rho, T, n, q, R0=2.0, a=0.5)
+
+    assert 0.0 < rho_1 < rho[1]
+    assert rho_mix == pytest.approx(rho[1])
+
+
 def test_monitor_check_trigger_porcelli_missing_profiles() -> None:
     """SawtoothMonitor.check_trigger raises ValueError when porcelli model lacks T/n."""
     rho = np.linspace(0, 1, 50)

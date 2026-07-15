@@ -90,6 +90,44 @@ class TestIPB98y2Uncertainty:
                 coefficients=coeff,
             )
 
+    def test_partial_uncertainty_metadata_skips_absent_keys(self):
+        """Inputs absent from uncertainties_1sigma skip variance accumulation.
+
+        Exercises the loop-continue branch in ipb98y2_with_uncertainty where an
+        input key is not present in the exponent-uncertainty metadata, so only
+        the supplied uncertainties contribute to sigma_ln_tau. A metadata set
+        with fewer keys must therefore yield a strictly smaller sigma while the
+        predicted tau — which is independent of the uncertainty metadata —
+        stays identical.
+        """
+        base_coefficients = {
+            "C": 0.0562,
+            "exponents": {
+                "Ip_MA": 0.93,
+                "BT_T": 0.15,
+                "ne19_1e19m3": 0.41,
+                "Ploss_MW": -0.69,
+                "R_m": 1.97,
+                "kappa": 0.78,
+                "epsilon": 0.58,
+                "M_AMU": 0.19,
+            },
+        }
+        one_key = dict(base_coefficients, uncertainties_1sigma={"Ip_MA": 0.03})
+        two_keys = dict(
+            base_coefficients,
+            uncertainties_1sigma={"Ip_MA": 0.03, "BT_T": 0.05},
+        )
+        kwargs = dict(Ip=15.0, BT=5.3, ne19=10.1, Ploss=87.0, R=6.2, kappa=1.7, epsilon=0.32, M=2.5)
+
+        tau_one, sigma_one = ipb98y2_with_uncertainty(**kwargs, coefficients=one_key)
+        tau_two, sigma_two = ipb98y2_with_uncertainty(**kwargs, coefficients=two_keys)
+
+        assert np.isfinite(tau_one) and tau_one > 0
+        assert np.isfinite(sigma_one) and sigma_one > 0
+        assert tau_one == pytest.approx(tau_two)
+        assert sigma_one < sigma_two
+
     def test_rejects_extreme_uncertainty_metadata_overflow(self):
         """Extreme finite exponent uncertainty metadata must fail closed."""
         huge_uncertainties = {
