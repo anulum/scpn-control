@@ -129,6 +129,24 @@ def test_neural_transport_trainer_skips_clipping_for_small_gradients():
     assert len(hist["train_loss"]) == 1
 
 
+def test_surrogate_pretrain_skips_clipping_for_small_gradients(monkeypatch):
+    """A trivial zero pre-training set makes the input-layer weight gradient exactly zero
+    (``X.T @ delta`` with ``X == 0``), so the pre-training gradient guard takes its no-clip
+    branch (arc 251->254). Weights stay finite throughout."""
+    monkeypatch.setattr(
+        TrainingDataGenerator,
+        "generate_parameter_scan",
+        staticmethod(lambda n_samples, rng=None: np.zeros((n_samples, 10))),
+    )
+    monkeypatch.setattr(
+        TrainingDataGenerator,
+        "generate_analytic_targets",
+        staticmethod(lambda inputs: np.zeros((np.asarray(inputs).shape[0], 3))),
+    )
+    surrogate = QLKNNSurrogate(pretrained=True)
+    assert all(bool(np.all(np.isfinite(w))) for w in surrogate.weights)
+
+
 def test_surrogate_save_load(tmp_path):
     model = QLKNNSurrogate(hidden_layers=[16, 8])
     x = np.random.randn(5, 10)
