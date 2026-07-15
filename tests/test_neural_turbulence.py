@@ -120,6 +120,15 @@ def test_neural_transport_trainer():
     assert hist["train_loss"][-1] < hist["train_loss"][0]
 
 
+def test_neural_transport_trainer_skips_clipping_for_small_gradients():
+    """Sub-unit weight-gradient norms bypass the clipping rescale during training (branch 530->533)."""
+    trainer = NeuralTransportTrainer()
+    x_small = np.full((16, 10), 1e-4, dtype=np.float64)
+    y_small = np.full((16, 3), 1e-4, dtype=np.float64)
+    hist = trainer.train(x_small, y_small, epochs=1, lr=1e-3)
+    assert len(hist["train_loss"]) == 1
+
+
 def test_surrogate_save_load(tmp_path):
     model = QLKNNSurrogate(hidden_layers=[16, 8])
     x = np.random.randn(5, 10)
