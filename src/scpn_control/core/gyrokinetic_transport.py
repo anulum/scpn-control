@@ -322,7 +322,7 @@ def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> 
             if params.R_L_ne > 0:
                 D_e += gamma_sat * phi_sq * weight_n
 
-        elif mt == 3:  # ETG
+        elif mt == 3:  # pragma: no branch - ETG; mt in {1,2,3} here (validated, 0 filtered at 292); see #129
             omega_star_Te = ky * params.R_L_Te
             weight_e = omega_star_Te / omega_r if omega_r != 0.0 else 0.0
             # For ETG, scale by (rho_e/rho_s)^2 ~ 1/3600

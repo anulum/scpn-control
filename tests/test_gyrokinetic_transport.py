@@ -45,6 +45,37 @@ def test_zero_gradients():
     assert fluxes.D_e == 0.0
 
 
+def test_unstable_spectrum_with_zero_gradients_yields_no_flux():
+    """Unstable ITG/TEM/ETG modes accumulate no flux when every R/L gradient is zero.
+
+    Exercises the ``R_L > 0`` guards falling through to the loop head for each mode type
+    (branches 311->286, 322->286, 333->286).
+    """
+    params = GyrokineticsParams(
+        R_L_Ti=0.0,
+        R_L_Te=0.0,
+        R_L_ne=0.0,
+        q=1.5,
+        s_hat=1.0,
+        alpha_MHD=0.0,
+        Te_Ti=1.0,
+        Z_eff=1.5,
+        nu_star=0.1,
+        beta_e=0.01,
+        epsilon=0.1,
+    )
+    spec = SpectrumResult(
+        np.array([0.3, 0.5, 0.7]),  # positive k_y
+        np.array([0.1, 0.1, 0.1]),  # unstable: gamma_linear > 0
+        np.array([0.2, 0.2, 0.2]),  # non-zero omega_r
+        np.array([1, 2, 3], dtype=int),  # ITG, TEM, ETG
+    )
+    fluxes = quasilinear_fluxes(params, spec)
+    assert fluxes.chi_i == 0.0
+    assert fluxes.chi_e == 0.0
+    assert fluxes.D_e == 0.0
+
+
 def test_sub_critical_itg():
     params = GyrokineticsParams(
         R_L_Ti=1.0,  # low
