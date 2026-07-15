@@ -80,3 +80,15 @@ def test_jax_run_breaks_on_non_finite_state() -> None:
 
     assert result.converged is False
     assert result.Q_i_t.size == 0
+
+
+def test_jax_rhs_species_omits_collisions_when_disabled() -> None:
+    """The species RHS skips the collision term when collisions are disabled (branch 279->283)."""
+    solver = JaxNonlinearGKSolver(_config(collisions=False, n_steps=1))
+    f_s = jnp.array(solver._np_solver.init_state().f[0])
+    phi = jnp.zeros((8, 8, 16))
+
+    terms = np.asarray(solver._jax_rhs_species(f_s, phi, 0))
+
+    assert terms.shape == f_s.shape
+    assert np.all(np.isfinite(terms))
