@@ -373,6 +373,35 @@ def test_validate_command_is_import_clean_in_fresh_process():
     assert "contaminated_module" not in data
 
 
+def test_validate_import_clean_loop_exhausts_when_no_viz_modules_present(runner, monkeypatch):
+    """In-process: with matplotlib/torch/streamlit absent, the hygiene loop runs to completion.
+
+    Exercises the loop-exhaust and back-edge arcs (92->99, 93->92) that the subprocess
+    variant above cannot cover (subprocess execution is not traced in-process).
+    """
+    for module_name in ("matplotlib", "torch", "streamlit"):
+        monkeypatch.delitem(sys.modules, module_name, raising=False)
+
+    result = runner.invoke(
+        main,
+        [
+            "validate",
+            "--no-data-manifests",
+            "--no-jax-gk-parity",
+            "--no-physics-traceability",
+            "--no-multi-shot-campaign-evidence",
+            "--no-runtime-admission-evidence",
+            "--no-native-formal-certificate",
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["import_clean"] is True
+    assert "contaminated_module" not in data
+
+
 def test_validate_manifest_json_out(runner, tmp_path):
     manifest_path = tmp_path / "real_manifest.json"
     manifest_path.write_text(
@@ -1860,6 +1889,63 @@ def test_validate_rmse_command(runner, tmp_path, monkeypatch):
     )
     assert called.get("invoked")
     assert "pass" in result.output
+
+
+def test_validate_rmse_without_json_out_skips_report_echo(runner, tmp_path, monkeypatch):
+    """Without ``--json-out`` the report file is never echoed (arc 452->458)."""
+
+    def fake_rmse_main() -> int:
+        return 0
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "validation.rmse_dashboard",
+        type("M", (), {"main": staticmethod(fake_rmse_main)})(),
+    )
+
+    result = runner.invoke(
+        main,
+        [
+            "validate-rmse",
+            "--output-json",
+            str(tmp_path / "rmse_report.json"),
+            "--output-md",
+            str(tmp_path / "rmse_report.md"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "Report SHA-256" not in result.output
+
+
+def test_validate_rmse_json_out_skips_echo_when_report_absent(runner, tmp_path, monkeypatch):
+    """With ``--json-out`` but no written report, the missing-file guard skips echo (arc 456->458)."""
+
+    def fake_rmse_main() -> int:
+        return 0  # deliberately does not write the output JSON
+
+    monkeypatch.setitem(
+        __import__("sys").modules,
+        "validation.rmse_dashboard",
+        type("M", (), {"main": staticmethod(fake_rmse_main)})(),
+    )
+
+    missing_report = tmp_path / "never_written.json"
+    result = runner.invoke(
+        main,
+        [
+            "validate-rmse",
+            "--json-out",
+            "--output-json",
+            str(missing_report),
+            "--output-md",
+            str(tmp_path / "rmse_report.md"),
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert not missing_report.exists()
+    assert result.output.strip() == ""
 
 
 def test_acquire_mdsplus_shot_fails_closed_before_external_access(runner, tmp_path):

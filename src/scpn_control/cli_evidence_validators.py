@@ -200,7 +200,7 @@ def validate(
         data_manifests = result["data_manifests"]
         if isinstance(data_manifests, dict) and data_manifests.get("status") == "skipped":
             click.echo("Data manifests: SKIPPED")
-        elif isinstance(data_manifests, dict):
+        elif isinstance(data_manifests, dict):  # pragma: no branch - dict (skip or validator); see #129
             click.echo(
                 "Data manifests: "
                 f"{data_manifests['status']} "
@@ -213,14 +213,14 @@ def validate(
         jax_gk_parity = result["jax_gk_parity"]
         if isinstance(jax_gk_parity, dict) and jax_gk_parity.get("status") == "skipped":
             click.echo("JAX GK parity: SKIPPED")
-        elif isinstance(jax_gk_parity, dict):
+        elif isinstance(jax_gk_parity, dict):  # pragma: no branch - dict (skip or validator); see #129
             click.echo(f"JAX GK parity: {jax_gk_parity['status']} parity_artifacts={jax_gk_parity['parity_artifacts']}")
             for error in jax_gk_parity["errors"]:
                 click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
         physics_traceability = result["physics_traceability"]
         if isinstance(physics_traceability, dict) and physics_traceability.get("status") == "skipped":
             click.echo("Physics traceability: SKIPPED")
-        elif isinstance(physics_traceability, dict):
+        elif isinstance(physics_traceability, dict):  # pragma: no branch - dict (skip or validator); see #129
             click.echo(
                 "Physics traceability: "
                 f"{physics_traceability['status']} "
@@ -234,7 +234,7 @@ def validate(
         multi_shot_campaign = result["multi_shot_campaign"]
         if isinstance(multi_shot_campaign, dict) and multi_shot_campaign.get("status") == "skipped":
             click.echo("Multi-shot campaign evidence: SKIPPED")
-        elif isinstance(multi_shot_campaign, dict):
+        elif isinstance(multi_shot_campaign, dict):  # pragma: no branch - dict (skip or validator); see #129
             surfaces = multi_shot_campaign.get("admitted_surfaces", ())
             surface_count = len(surfaces) if isinstance(surfaces, list) else 0
             click.echo(
@@ -248,7 +248,7 @@ def validate(
         runtime_admission = result["runtime_admission"]
         if isinstance(runtime_admission, dict) and runtime_admission.get("status") == "skipped":
             click.echo("Runtime admission evidence: SKIPPED")
-        elif isinstance(runtime_admission, dict):
+        elif isinstance(runtime_admission, dict):  # pragma: no branch - dict (skip or validator); see #129
             click.echo(
                 "Runtime admission evidence: "
                 f"{runtime_admission['status']} "
@@ -260,7 +260,7 @@ def validate(
         native_formal_certificate = result["native_formal_certificate"]
         if isinstance(native_formal_certificate, dict) and native_formal_certificate.get("status") == "skipped":
             click.echo("Native formal certificate: SKIPPED")
-        elif isinstance(native_formal_certificate, dict):
+        elif isinstance(native_formal_certificate, dict):  # pragma: no branch - dict (skip or validator); see #129
             digest = native_formal_certificate.get("certificate_assumption_sha256") or "-"
             admitted_cases = native_formal_certificate.get("admitted_cases", ())
             admitted_count = len(admitted_cases) if isinstance(admitted_cases, list) else 0

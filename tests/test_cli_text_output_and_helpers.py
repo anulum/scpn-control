@@ -268,6 +268,16 @@ def test_validate_release_evidence_text_failure(runner, tmp_path):
     assert "Release evidence: fail" in result.output
 
 
+def test_validate_release_evidence_text_failure_without_sha_when_report_unparseable(runner, tmp_path):
+    """An unparseable report fails before a digest is computed, so the SHA line is skipped (arc 302->304)."""
+    report = tmp_path / "release.json"
+    report.write_text("{ this is not valid json", encoding="utf-8")
+    result = runner.invoke(main, ["validate-release-evidence", str(report)])
+    assert result.exit_code == 1
+    assert "Release evidence: fail" in result.output
+    assert "Report SHA-256:" not in result.output
+
+
 # ── phase-sync-server TLS argument validation ─────────────────────────
 
 
