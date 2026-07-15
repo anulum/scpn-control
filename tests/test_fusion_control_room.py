@@ -274,6 +274,20 @@ class TestRunControlRoomExtended:
         assert summary["psi_source"] == "analytic"
         assert summary["kernel_error"] == "boom"
 
+    def test_kernel_factory_returning_none_uses_analytic_source(self):
+        """A factory that yields no kernel leaves the analytic Psi source in place (branch 424->437)."""
+        summary = run_control_room(
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=lambda _cfg: None,
+            config_file="x.json",
+        )
+        assert summary["psi_source"] == "analytic"
+        assert np.isfinite(summary["final_z"])
+
     def test_invalid_kernel_psi_is_fail_closed_by_default(self):
         with pytest.raises(RuntimeError, match="legacy kernel-Psi fallback is disabled"):
             run_control_room(
@@ -464,6 +478,22 @@ class TestKernelEdgeCases:
                 kernel_factory=_KernelBadCfgType,
                 config_file="x.json",
             )
+
+    def test_bad_kernel_cfg_type_legacy_fallback_opt_in(self):
+        """A non-mapping cfg proceeds under the opt-in coil-update fallback (branch 479->485)."""
+        summary = run_control_room(
+            sim_duration=5,
+            seed=0,
+            save_animation=False,
+            save_report=False,
+            verbose=False,
+            kernel_factory=_KernelBadCfgType,
+            config_file="x.json",
+            allow_coil_update_fallback=True,
+            allow_legacy_coil_update_fallback=True,
+        )
+        assert summary["psi_source"] == "kernel"
+        assert np.isfinite(summary["final_z"])
 
     def test_bad_equilibrium_logs_warning(self):
         summary = run_control_room(
@@ -687,6 +717,21 @@ def test_run_rejects_kernel_cfg_missing_coils() -> None:
             verbose=False,
             kernel_factory=lambda _p: _CfgVariantKernel({"shape": "ok"}),
         )
+
+
+def test_run_kernel_cfg_missing_coils_legacy_fallback_opt_in() -> None:
+    """A kernel cfg without 'coils' proceeds under the opt-in coil-update fallback (branch 482->485)."""
+    summary = run_control_room(
+        sim_duration=1,
+        save_animation=False,
+        save_report=False,
+        verbose=False,
+        kernel_factory=lambda _p: _CfgVariantKernel({"shape": "ok"}),
+        allow_coil_update_fallback=True,
+        allow_legacy_coil_update_fallback=True,
+    )
+    assert summary["psi_source"] == "kernel"
+    assert np.isfinite(summary["final_z"])
 
 
 def test_run_rejects_kernel_cfg_coils_not_a_list() -> None:
