@@ -215,6 +215,38 @@ def test_nmpc_source_schedule_tuning_records_audited_update(monkeypatch) -> None
     assert np.max(np.abs(result.updated_sources - sources)) <= 0.015 + 1.0e-12
 
 
+def test_nmpc_source_schedule_tuning_without_audit_or_update_clamp(monkeypatch) -> None:
+    """Bypassing the gradient audit and omitting the update clamp still yields a bounded update."""
+    profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
+    source_gradient = np.zeros_like(sources)
+    source_gradient[0, 6:10] = -0.25
+    gradients = transport_mod.TransportParameterGradients(
+        loss=0.5,
+        chi_gradient=np.zeros_like(chi),
+        source_gradient=source_gradient,
+    )
+    monkeypatch.setattr(tuning_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(tuning_mod, "transport_parameter_gradients", lambda *args, **kwargs: gradients)
+
+    result = tuning_mod.tune_transport_sources_for_tracking(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        learning_rate=0.2,
+        source_min=-0.02,
+        source_max=0.03,
+        require_gradient_audit=False,
+    )
+
+    assert isinstance(result, tuning_mod.TransportSourceScheduleTuningResult)
+    assert result.gradient_audit is None
+    assert result.step_norm > 0.0
+
+
 def test_nmpc_source_schedule_tuning_fails_closed_without_jax(monkeypatch) -> None:
     """Source tuning must not silently use finite differences when JAX is absent."""
     profiles, chi, sources, target, rho, edge_values = _transport_tuning_case()
@@ -600,6 +632,44 @@ def test_nmpc_transport_rollout_tuning_warn_mode_keeps_failed_audit_evidence(
     assert result.gradient_audit.passed is False
     assert result.step_norm > 0.0
     np.testing.assert_allclose(result.updated_sources, source_sequence - 0.05 * gradient)
+
+
+def test_rollout_audit_indices_deduplicates_repeated_entries() -> None:
+    """Repeated sample indices collapse to a single audited entry."""
+    indices = tuning_mod._rollout_audit_indices((3, 4, 8), [(0, 0, 1), (0, 0, 1), (1, 2, 4)])
+    assert indices == ((0, 0, 1), (1, 2, 4))
+
+
+def test_nmpc_transport_rollout_tuning_without_audit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bypassing the rollout gradient audit records no audit evidence on the result."""
+    profiles, chi, source_sequence, rho, edge_values, dt, _ = _rollout_transport_fixture()
+    target_history = np.repeat(profiles[None, :, :], source_sequence.shape[0], axis=0)
+    gradient = np.full_like(source_sequence, 0.05)
+    monkeypatch.setattr(tuning_mod, "has_differentiable_transport_jax", lambda: True)
+    monkeypatch.setattr(
+        tuning_mod,
+        "transport_rollout_source_gradients",
+        lambda *args, **kwargs: transport_mod.TransportRolloutSourceGradients(
+            loss=1.0,
+            source_gradient=gradient,
+            final_profiles=profiles,
+        ),
+    )
+
+    result = tuning_mod.tune_transport_source_rollout_for_tracking(
+        profiles,
+        chi,
+        source_sequence,
+        target_history,
+        rho,
+        dt,
+        edge_values,
+        learning_rate=0.05,
+        require_gradient_audit=False,
+    )
+
+    assert result.gradient_audit is None
+    assert result.step_norm > 0.0
 
 
 def test_nmpc_transport_rollout_tuning_default_fails_closed_on_failed_audit(
