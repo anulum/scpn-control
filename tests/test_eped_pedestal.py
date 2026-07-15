@@ -12,6 +12,7 @@ import dataclasses
 import numpy as np
 import pytest
 
+import scpn_control.core.eped_pedestal as eped_pedestal
 from scpn_control.core.eped_pedestal import (
     EPEDConfig,
     EPEDResult,
@@ -346,3 +347,20 @@ def test_eped_validation_point_rejects_nonphysical_records():
 
     with pytest.raises(ValueError, match="normalised minor-radius"):
         EPEDValidationPoint("DIII-D", 1, 10.0, 10.5, 1.0, 0.042)
+
+
+def test_eped1_predict_fails_closed_when_kbm_iteration_never_converges(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A non-converging KBM iteration exhausts the 50-step cap then fails closed (branch 334->353).
+
+    Forcing the critical-alpha estimate to a non-finite value keeps the
+    fixed-point width from ever settling, so the loop runs its full budget and
+    exits at the cap; the resulting non-finite width is then rejected by the
+    collisionality correction rather than being returned.
+    """
+    config = EPEDConfig(R0=6.2, a=2.0, B0=5.3, kappa=1.7, delta=0.33, Ip_MA=15.0, ne_ped_19=6.0, B_pol_ped=0.8)
+    monkeypatch.setattr(eped_pedestal, "_approx_alpha_crit", lambda delta_ped, config: float("nan"))
+
+    with pytest.raises(ValueError, match="delta_kbm must be finite"):
+        eped1_predict(config)
