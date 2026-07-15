@@ -117,3 +117,25 @@ class _FakeL5Adapter:
             "hrv_coherence_r5": 0.25,
             "emotional_valence": -0.2,
         }
+
+
+class _CoherentL5Adapter(_FakeL5Adapter):
+    def get_metrics(self) -> dict[str, float]:
+        metrics = super().get_metrics()
+        metrics["hrv_coherence_r5"] = 0.5  # >= 0.4 -> no sympathetic-decoherence trigger
+        return metrics
+
+
+def test_bio_holonomic_controller_high_hrv_leaves_vibrana_silent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Coherent HRV (>= 0.4) leaves the VIBRANA acoustic actuator silent (branch 110->113)."""
+    monkeypatch.setattr(mod, "SC_NEUROCORE_HOLONOMIC_AVAILABLE", True)
+    monkeypatch.setattr(mod, "L4_HolonomicParameters", _FakeParams, raising=False)
+    monkeypatch.setattr(mod, "L5_HolonomicParameters", _FakeParams, raising=False)
+    monkeypatch.setattr(mod, "L4_CellularAdapter", _FakeL4Adapter)
+    monkeypatch.setattr(mod, "L5_OrganismalAdapter", _CoherentL5Adapter)
+
+    controller = mod.BioHolonomicController(dt_s=0.02, seed=7)
+    action = controller.step(
+        mod.BioTelemetrySnapshot(heart_rate_bpm=72.0, eeg_coherence_r=0.5, galvanic_skin_response=0.2)
+    )
+    assert action["actuator_vibrana_intensity"] == 0.0
