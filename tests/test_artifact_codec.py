@@ -526,6 +526,31 @@ class TestManualArtifactContracts:
         assert loaded.weights.packed.w_out_packed is not None
         assert loaded.weights.packed.w_out_packed.data_u64 == [0, 2**64 - 1]
 
+    def test_save_and_load_roundtrip_omits_optional_evidence_and_output_packing(self, tmp_path: Path) -> None:
+        # A packed group without an output-layer packing, plus evidence that omits the
+        # optional report_uri / generated_utc, drives the optional-field-absent arcs on
+        # both the serialise path (packed + evidence) and the load path (packed).
+        artifact = _manual_artifact()
+        artifact.weights.packed = PackedWeightsGroup(
+            words_per_stream=1,
+            w_in_packed=PackedWeights(shape=[1, 2, 1], data_u64=[2**64 - 1, 0]),
+            w_out_packed=None,
+        )
+        evidence = _passing_manual_evidence(artifact)
+        evidence.report_uri = None
+        evidence.generated_utc = None
+        artifact.formal_verification = evidence
+
+        out = tmp_path / "manual.scpnctl.json"
+        save_artifact(artifact, out)
+        loaded = load_artifact(out)
+
+        assert loaded.weights.packed is not None
+        assert loaded.weights.packed.w_out_packed is None
+        assert loaded.formal_verification is not None
+        assert loaded.formal_verification.report_uri is None
+        assert loaded.formal_verification.generated_utc is None
+
 
 class TestArtifactValidationContract:
     @pytest.fixture()
