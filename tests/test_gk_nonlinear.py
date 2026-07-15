@@ -1015,3 +1015,17 @@ class TestAmpereAndCollisionDispatch:
         assert np.all(np.isfinite(c_sugama))
         assert np.any(c_sugama != 0.0)
         assert not np.allclose(c_sugama, c_krook)
+
+
+def test_roll_ballooning_zero_shift_is_identity():
+    """A zero ballooning shift returns the field unchanged (branch gk_nonlinear 234->240).
+
+    With shift == 0 neither the backward (shift>0) nor forward (shift<0) wrap
+    branch applies, so the theta-rolled field is returned identical to the input.
+    """
+    solver = NonlinearGKSolver(_FAST_CFG)
+    f_s = np.arange(_FAST_CFG.n_theta, dtype=np.complex128).reshape(1, 1, _FAST_CFG.n_theta) + 1j
+
+    rolled = solver._roll_ballooning(f_s, 0)
+
+    np.testing.assert_array_equal(rolled, f_s)

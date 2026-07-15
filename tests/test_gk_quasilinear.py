@@ -232,3 +232,26 @@ def test_quasilinear_all_stable():
     ion = deuterium_ion(T_keV=2.0, R_L_T=6.9, R_L_n=2.2)
     out = quasilinear_fluxes_from_spectrum(result, ion)
     assert out.dominant_mode == "stable"
+
+
+def test_quasilinear_fluxes_skip_unhandled_mode_type():
+    """An unhandled mode type contributes no flux (branch gk_quasilinear 104->85).
+
+    A growing mode with a finite real frequency but a mode label outside the
+    handled {ITG, TEM, ETG} set (here KBM) passes the growth-rate and frequency
+    guards yet matches none of the flux branches, so the loop continues and the
+    mode adds nothing to the ion or electron channels.
+    """
+    result = LinearGKResult(
+        k_y=np.array([0.3]),
+        gamma=np.array([0.5]),
+        omega_r=np.array([0.2]),
+        mode_type=["KBM"],
+        modes=[],
+    )
+    ion = deuterium_ion()
+    output = quasilinear_fluxes_from_spectrum(result, ion)
+
+    assert output.chi_i == 0.0
+    assert output.chi_e == 0.0
+    assert output.dominant_mode == "KBM"

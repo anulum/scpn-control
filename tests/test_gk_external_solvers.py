@@ -401,3 +401,39 @@ def test_cgyro_run_without_converged_output_requires_explicit_fallback(cbc_param
     with patch("shutil.which", return_value="/usr/bin/cgyro"), patch("subprocess.run", return_value=None):
         result = solver_legacy.run(tmp_path)
     assert not result.converged
+
+
+def test_cgyro_parse_malformed_shape(tmp_path):
+    """A CGYRO freq file that is not a 1-D row of at least two values parses as
+    non-converged (branch gk_cgyro 91->106)."""
+    from scpn_control.core.gk_cgyro import parse_cgyro_output
+
+    freq = tmp_path / "out.cgyro.freq"
+    freq.write_text("0.18\n")  # single scalar → ndim 0, fails the shape guard
+    result = parse_cgyro_output(tmp_path)
+    assert not result.converged
+
+
+def test_gs2_parse_malformed_shape(tmp_path):
+    """A GS2 omega file with fewer than three values parses as non-converged
+    (branch gk_gs2 100->115)."""
+    from scpn_control.core.gk_gs2 import parse_gs2_output
+
+    omega = tmp_path / "gs2.omega"
+    omega.write_text("0.3 0.15\n")  # only two values → fails the len>=3 guard
+    result = parse_gs2_output(tmp_path)
+    assert not result.converged
+
+
+def test_qualikiz_run_without_staged_params(tmp_path):
+    """QuaLiKizSolver.run fails closed when no parameters are staged (branch gk_qualikiz 129->133).
+
+    Calling run directly rather than run_from_params leaves _last_params unset,
+    so the Python-API attempt is skipped and, with the legacy fallback disabled,
+    the run raises rather than fabricating a result.
+    """
+    from scpn_control.core.gk_qualikiz import QuaLiKizSolver
+
+    solver = QuaLiKizSolver(work_dir=tmp_path)
+    with pytest.raises(RuntimeError, match="legacy fallback is disabled"):
+        solver.run(tmp_path)
