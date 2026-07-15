@@ -183,6 +183,52 @@ def controller_fractional(artifact_path_fractional: str) -> NeuroSymbolicControl
     )
 
 
+def _build_no_clamp_controller(tmp_dir: str) -> NeuroSymbolicController:
+    """Compile a pass-through controller whose injections declare no [0, 1] clamp."""
+    net = _build_controller_net()
+    compiled = FusionCompiler(bitstream_length=1024, seed=42).compile(net, firing_mode="binary", firing_margin=0.05)
+    readout_config = {
+        "actions": [
+            {"name": "dI_PF3_A", "pos_place": 4, "neg_place": 5},
+            {"name": "dI_PF_topbot_A", "pos_place": 6, "neg_place": 7},
+        ],
+        "gains": [1000.0, 1000.0],
+        "abs_max": [5000.0, 5000.0],
+        "slew_per_s": [1e6, 1e6],
+    }
+    injection_config = [
+        {"place_id": i, "source": src, "scale": 1.0, "offset": 0.0, "clamp_0_1": False}
+        for i, src in enumerate(("x_R_pos", "x_R_neg", "x_Z_pos", "x_Z_neg"))
+    ]
+    artifact = compiled.export_artifact(
+        name="no_clamp", dt_control_s=0.001, readout_config=readout_config, injection_config=injection_config
+    )
+    path = os.path.join(tmp_dir, "no_clamp.scpnctl.json")
+    save_artifact(artifact, path)
+    return NeuroSymbolicController(
+        artifact=load_artifact(path),
+        seed_base=123456789,
+        targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+        scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+    )
+
+
+def test_injection_without_clamp_skips_clip(tmp_path) -> None:
+    """An injection config declaring no [0, 1] clamp skips the clip step (branch 680->682)."""
+    controller = _build_no_clamp_controller(str(tmp_path))
+    action = controller.step({"R_axis_m": 7.0, "Z_axis_m": 0.3}, 0)
+    assert action is not None
+
+
+def test_append_jsonl_record_without_o_nofollow(tmp_path, monkeypatch) -> None:
+    """On a platform lacking os.O_NOFOLLOW the record is still appended (branch 102->104)."""
+    monkeypatch.delattr(os, "O_NOFOLLOW", raising=False)
+    path = tmp_path / "log.jsonl"
+    controller_mod._append_jsonl_record(path, {"event": "probe"})
+    assert path.exists()
+    assert "probe" in path.read_text(encoding="utf-8")
+
+
 # ═════════════════════════════════════════════════════════════════════════════
 # Level 0 — Static validation
 # ═════════════════════════════════════════════════════════════════════════════
