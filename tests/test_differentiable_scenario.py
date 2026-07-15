@@ -82,6 +82,24 @@ def test_scenario_gradient_couples_equilibrium_and_sources() -> None:
 
 
 @pytest.mark.skipif(not ds.has_jax(), reason="JAX optional dependency is not installed")
+def test_scenario_gradient_uses_explicit_channel_weights() -> None:
+    """Explicit channel weights replace the uniform default (branch 249->252).
+
+    When weights are supplied the uniform default is not constructed; the
+    per-channel weighting reshapes the loss, so a non-uniform weight vector
+    yields a different but still finite equilibrium-parameter gradient than the
+    default uniform weighting.
+    """
+    setup = _scenario_setup()
+    default = ds.differentiable_scenario_gradient(*setup)
+    weights = np.arange(1.0, ds.CHANNEL_COUNT + 1.0)
+    weighted = ds.differentiable_scenario_gradient(*setup, weights=weights)
+
+    assert np.all(np.isfinite(weighted.equilibrium_param_gradient))
+    assert not np.allclose(weighted.equilibrium_param_gradient, default.equilibrium_param_gradient)
+
+
+@pytest.mark.skipif(not ds.has_jax(), reason="JAX optional dependency is not installed")
 def test_scenario_gradient_audit_matches_finite_difference() -> None:
     params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge = _scenario_setup()
     audit = ds.assert_differentiable_scenario_gradient_consistent(
