@@ -322,6 +322,34 @@ class TestFlightSimVisualization:
         assert ok is True
         assert err is None
 
+    def test_visualize_flight_divertor_without_kernel_contour(self, tmp_path: Path) -> None:
+        """Divertor X-points render without the equilibrium contour when the kernel lacks RR/ZZ (branch 459->471)."""
+        from scpn_control.control.tokamak_flight_sim import IsoFluxController
+
+        class _NoContourKernel:
+            """Kernel stand-in without RR/ZZ, so the equilibrium contour is skipped."""
+
+        ctrl = IsoFluxController.__new__(IsoFluxController)
+        ctrl.verbose = False
+        ctrl.kernel = _NoContourKernel()
+        ctrl.history = {
+            "t": [0, 1],
+            "Ip": [5.0, 5.1],
+            "R_axis": [6.2, 6.2],
+            "Z_axis": [0.0, 0.0],
+            "X_point": [(6.3, -0.25), (6.3, -0.25)],  # rx > 1.0 -> divertor branch taken
+            "ctrl_R_cmd": [0.0, 0.0],
+            "ctrl_R_applied": [0.0, 0.0],
+            "ctrl_Z_cmd": [0.0, 0.0],
+            "ctrl_Z_applied": [0.0, 0.0],
+            "beta_cmd": [1.0, 1.0],
+            "beta_applied": [1.0, 1.0],
+        }
+        out = str(tmp_path / "divertor_no_contour.png")
+        ok, err = ctrl.visualize_flight(output_path=out)
+        assert ok is True
+        assert err is None
+
 
 # ── advanced_soc_fusion_learning: _plot_learning + save_plot ─────────
 
@@ -372,6 +400,14 @@ class TestAdvancedSOCVisualization:
         )
         assert s["plot_saved"] is True
         assert s["plot_error"] is None
+
+    def test_plot_learning_empty_history(self, tmp_path: Path) -> None:
+        """Empty history arrays skip both phase-space traces (branches 307->309, 310->318)."""
+        empty = np.array([], dtype=np.float64)
+        q_table = np.random.default_rng(0).random((10, 10, 3))
+        ok, err = _plot_learning(empty, empty, empty, empty, q_table, str(tmp_path / "soc_empty.png"))
+        assert ok is True
+        assert err is None
 
 
 # ── spi_mitigation: save_plot=True ───────────────────────────────────
@@ -472,6 +508,23 @@ class TestOptimalControlVisualization:
         ok, err = oc.plot_telemetry(output_path=str(tmp_path / "nope" / "x.png"))
         assert ok is False
         assert err is not None
+
+    def test_plot_telemetry_kernel_without_contour_or_current(self, tmp_path: Path) -> None:
+        """plot_telemetry skips the contour and current map when the kernel lacks RR/ZZ and J_phi (branches 298->300, 300->308)."""
+        oc = OptimalController("dummy.json", kernel_factory=_OptKernel, verbose=False)
+        oc.identify_system()
+        oc.run_optimal_shot(shot_steps=5, save_plot=False)
+
+        class _BareOptKernel:
+            """Kernel stand-in exposing only coil config: no RR/ZZ contour, no J_phi current map."""
+
+            def __init__(self) -> None:
+                self.cfg = {"coils": [{"r": 5.9, "z": 0.0, "current": 1.0}]}
+
+        oc.kernel = _BareOptKernel()
+        ok, err = oc.plot_telemetry(output_path=str(tmp_path / "opt_bare.png"))
+        assert ok is True
+        assert err is None
 
 
 # ── fusion_neural_mpc: _plot_telemetry + save_plot ─────────────────────

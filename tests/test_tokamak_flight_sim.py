@@ -320,6 +320,21 @@ class TestRunFlightSimConfigDefault:
         assert summary["steps"] == 5
 
 
+# ── IsoFluxController: coil-current bounds ───────────────────────
+
+
+def test_add_coil_current_ignores_out_of_range_index() -> None:
+    """An out-of-range coil index leaves every coil current untouched (branch 236->exit)."""
+    sim = IsoFluxController(config_file="dummy.json", kernel_factory=_DummyKernel, verbose=False)
+    before = [float(c["current"]) for c in sim.kernel.cfg["coils"]]
+
+    sim._add_coil_current(len(before) + 5, 5.0)  # index >= len(coils)
+    sim._add_coil_current(-1, 5.0)  # index < 0
+
+    after = [float(c["current"]) for c in sim.kernel.cfg["coils"]]
+    assert after == before
+
+
 # ── FirstOrderActuator: saturation limits ────────────────────────
 
 
