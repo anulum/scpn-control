@@ -361,6 +361,25 @@ def test_observer_accumulates_bias() -> None:
     assert summary["max_abs_objective_bias_estimate"] > 0.0
 
 
+class _UnboundedObserverKernel(_ObserverKernel):
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary_tracking"]["observer_max_abs"] = float("inf")
+
+
+def test_observer_skips_clip_when_max_abs_is_infinite() -> None:
+    """An infinite observer_max_abs bypasses the bias clip during accumulation (branch 727->729)."""
+    summary = run_free_boundary_tracking(
+        config_file="dummy.json",
+        kernel_factory=_UnboundedObserverKernel,
+        shot_steps=5,
+        gain=0.3,
+        verbose=False,
+    )
+    assert summary["observer_enabled"] is True
+    assert summary["max_abs_objective_bias_estimate"] > 0.0
+
+
 def test_fallback_currents_activated_on_degenerate_response() -> None:
     summary = run_free_boundary_tracking(
         config_file="dummy.json",
