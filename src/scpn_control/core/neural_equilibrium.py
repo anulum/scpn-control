@@ -641,7 +641,7 @@ class NeuralEquilibriumAccelerator:
             if eq.rbdry is not None and len(eq.rbdry) > 3:
                 r_span = eq.rbdry.max() - eq.rbdry.min()
                 kappa = (eq.zbdry.max() - eq.zbdry.min()) / max(r_span, 0.01)
-            if hasattr(eq, "qpsi") and eq.qpsi is not None and len(eq.qpsi) > 0:
+            if hasattr(eq, "qpsi") and eq.qpsi is not None and len(eq.qpsi) > 0:  # pragma: no branch - qpsi nw>=1; #129
                 idx_95 = int(0.95 * len(eq.qpsi))
                 q95 = eq.qpsi[min(idx_95, len(eq.qpsi) - 1)]
 

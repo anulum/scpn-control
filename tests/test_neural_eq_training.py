@@ -140,6 +140,23 @@ class TestTrainFromGeqdsk:
         assert "max_error" in metrics
         assert "gs_residual" in metrics
 
+    def test_geqdsk_without_boundary_uses_default_shape(self, sparc_files, tmp_path):
+        """A GEQDSK with no boundary trace (nbdry=0) falls back to the default elongation (arc 641->644)."""
+        from scpn_control.core.eqdsk import read_geqdsk, write_geqdsk
+
+        eq = read_geqdsk(sparc_files[0])
+        eq.rbdry = np.array([], dtype=float)  # nbdry=0 -> len(rbdry) <= 3, so the kappa fit is skipped
+        eq.zbdry = np.array([], dtype=float)
+        no_boundary = tmp_path / "no_boundary.geqdsk"
+        write_geqdsk(eq, no_boundary)
+        eq_back = read_geqdsk(no_boundary)
+        assert len(eq_back.rbdry) == 0  # boundary genuinely absent after the round trip
+        assert len(eq_back.qpsi) > 0  # qpsi is still populated, so the q95 branch stays on its True side
+
+        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(n_components=5, hidden_sizes=(16, 8)))
+        result = accel.train_from_geqdsk([no_boundary, sparc_files[1]], n_perturbations=3, seed=0)
+        assert result.n_samples > 0
+
 
 class TestTrainOnSparc:
     def test_convenience_function(self, tmp_path):
@@ -199,3 +216,15 @@ class TestFineTuneFromEfit:
         )
         assert result.n_samples > 0
         assert accel.is_trained
+
+    def test_reference_pass_proceeds_past_admission_gate(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """A passing reference report clears the admission gate; control reaches the paths guard (arc 580->582)."""
+        import validation.validate_neural_equilibrium_reference as vref
+
+        monkeypatch.setattr(vref, "validate_neural_equilibrium_reference", lambda *a, **k: {"status": "pass"})
+        accel = NeuralEquilibriumAccelerator(NeuralEqConfig(n_components=1, hidden_sizes=()))
+        # The gate passes, so execution falls through to the empty-paths guard, which raises.
+        with pytest.raises(FileNotFoundError, match="No GEQDSK/EQDSK files supplied"):
+            accel.fine_tune_from_efit_reconstructions(
+                [], reference_artifact_root=tmp_path, require_reference_artifacts=True
+            )
