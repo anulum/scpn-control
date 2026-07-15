@@ -667,7 +667,7 @@ class FreeBoundaryTrackingController:
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
             return cast(FloatArray, delayed.copy())
         if not latency_projection_ready:
-            if update_state:
+            if update_state:  # pragma: no branch - update_state always True here; see #129
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
             return cast(FloatArray, delayed.copy())
         if (

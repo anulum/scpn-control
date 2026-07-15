@@ -1033,3 +1033,83 @@ class TestFreeBoundaryValidationAndErrorPaths:
         ctrl.objective_blocks = (*ctrl.objective_blocks, bogus)
         with pytest.raises(ValueError, match="Unknown objective block"):
             ctrl._build_control_activation_mask({"objective_checks": {}})
+
+
+class _XPointNoFluxKernel(_DummyFreeBoundaryKernel):
+    """Coil config with an X-point position target but no X-point flux target."""
+
+    def build_coilset_from_config(self) -> CoilSet:
+        coils = super().build_coilset_from_config()
+        coils.x_point_flux_target = None
+        return coils
+
+
+class _EKFNoXPointKernel(_DummyFreeBoundaryKernel):
+    """Coil config without an X-point objective, so the EKF sees no R/Z measurement."""
+
+    def build_coilset_from_config(self) -> CoilSet:
+        coils = super().build_coilset_from_config()
+        coils.x_point_target = None
+        coils.x_point_flux_target = None
+        return coils
+
+
+class _NoShapeToleranceKernel(_DummyFreeBoundaryKernel):
+    """Objective tolerances that omit the shape_rms gate."""
+
+    def __init__(self, config_file: str) -> None:
+        super().__init__(config_file)
+        self.cfg["free_boundary"]["objective_tolerances"] = {
+            "x_point_position": 0.08,
+            "x_point_flux": 0.03,
+            "divertor_rms": 0.025,
+        }
+
+
+class TestFreeBoundaryOptionalPaths:
+    """Optional-field-absent branches in objective assembly, observation and evaluation."""
+
+    def test_x_point_target_without_flux_target_skips_flux_block(self) -> None:
+        controller = FreeBoundaryTrackingController("dummy.json", kernel_factory=_XPointNoFluxKernel, verbose=False)
+        names = {block.name for block in controller.objective_blocks}
+        assert "x_point_position" in names
+        assert "x_point_flux" not in names
+
+    def test_ekf_skips_update_without_x_point_objective(self) -> None:
+        from scpn_control.control.state_estimator import ExtendedKalmanFilter
+
+        ekf = ExtendedKalmanFilter(
+            x0=np.array([4.2, -1.4, 0.0, 0.0, 15.0, 5.0]),
+            P0=np.eye(6) * 0.1,
+            Q=np.eye(6) * 0.01,
+            R_cov=np.eye(4) * 0.01,
+        )
+        controller = FreeBoundaryTrackingController(
+            "dummy.json", kernel_factory=_EKFNoXPointKernel, verbose=False, state_estimator=ekf
+        )
+        names = {block.name for block in controller.objective_blocks}
+        assert "x_point_position" not in names
+        assert controller._map_observation_to_ekf(controller.target_vector) is None
+        summary = controller.run_tracking_shot(shot_steps=2, gain=0.5)
+        assert summary["steps"] == 2
+
+    def test_objective_evaluation_without_shape_rms_tolerance(self) -> None:
+        controller = FreeBoundaryTrackingController("dummy.json", kernel_factory=_NoShapeToleranceKernel, verbose=False)
+        assert "shape_rms" not in controller.objective_tolerances
+        summary = controller.run_tracking_shot(shot_steps=2, gain=0.5)
+        assert summary["steps"] == 2
+
+    def test_response_refresh_interval_skips_intermediate_identification(self) -> None:
+        controller = FreeBoundaryTrackingController(
+            "dummy.json", kernel_factory=_DummyFreeBoundaryKernel, verbose=False, response_refresh_steps=2
+        )
+        summary = controller.run_tracking_shot(shot_steps=3, gain=0.5)
+        assert summary["steps"] == 3
+
+    def test_evaluate_objectives_rejects_unknown_block(self) -> None:
+        from scpn_control.control.free_boundary_tracking import _ObjectiveBlock
+
+        controller = _build_tracker()
+        controller.objective_blocks = (*controller.objective_blocks, _ObjectiveBlock("bogus", 0, 1))
+        with pytest.raises(ValueError, match="Unknown objective block"):
+            controller.evaluate_objectives(controller.target_vector)
