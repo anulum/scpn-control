@@ -88,3 +88,15 @@ class TestRunSessionEmptyPlans:
         )
         assert result["samples"] == 32
         assert result.get("plan_count", 0) == 0
+
+
+def test_scenario_plan_records_no_safe_step_when_risk_stays_high(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A rollout whose predicted disruption risk stays >= 0.85 records no safe steps (branch 279->251)."""
+    monkeypatch.setattr(
+        "scpn_control.control.digital_twin_ingest._predict_disruption_risk",
+        lambda *_a, **_k: 0.9,
+    )
+    hook = RealtimeTwinHook("SPARC")
+    hook.ingest(TelemetryPacket(t_ms=0, machine="SPARC", ip_ma=8.7, beta_n=1.65, q95=3.9, density_1e19=8.2))
+    plan = hook.scenario_plan(horizon=4)
+    assert plan["safe_horizon_rate"] == 0.0
