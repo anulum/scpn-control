@@ -319,3 +319,13 @@ class TestSyntheticPretrainConvenience:
         assert isinstance(result, PretrainingResult)
         assert result.n_samples == 64
         assert (tmp_path / "synthetic.npz").exists()
+
+    def test_pretrain_without_save_path_returns_unsaved_result(self) -> None:
+        """Omitting save_path pretrains in memory and records an empty weights path."""
+        accel = NeuralEquilibriumAccelerator(
+            NeuralEqConfig(n_components=6, hidden_sizes=(), n_input_features=12, grid_shape=(17, 19))
+        )
+        result = accel.pretrain_from_synthetic_equilibria(160, seed=7)
+        assert isinstance(result, PretrainingResult)
+        assert result.n_samples == 160
+        assert result.weights_path == ""
