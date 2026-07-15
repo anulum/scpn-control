@@ -235,3 +235,21 @@ def test_lagrangian_ppo_predict_returns_policy_mean() -> None:
     assert isinstance(action, np.ndarray)
     np.testing.assert_array_equal(action, np.array([0.0], dtype=np.float64))
     assert base_env.action_space.sample_count == 1
+
+
+def test_policy_action_is_deterministic_without_exploration() -> None:
+    """Skip the exploration noise term for a deterministic action (branch 236->238).
+
+    With explore=False the Gaussian exploration perturbation is not added, so
+    repeated evaluations of the same observation return the identical clipped
+    action, and that action still respects the environment's action bounds.
+    """
+    env = ConstrainedGymTokamakEnv(MockEnv(), default_safety_constraints())
+    ppo = LagrangianPPO(env)
+    obs = np.array([10.0, 2.0, 3.0], dtype=np.float64)
+
+    _, action_a = ppo._policy_action(obs, explore=False)
+    _, action_b = ppo._policy_action(obs, explore=False)
+
+    np.testing.assert_array_equal(action_a, action_b)
+    assert np.all(action_a >= -0.2) and np.all(action_a <= 0.2)

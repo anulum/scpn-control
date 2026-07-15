@@ -455,3 +455,19 @@ def test_stability_margin_zero_for_unstable_closed_loop() -> None:
     ctrl.F = np.zeros_like(ctrl.F)
     assert ctrl.is_stable is False
     assert ctrl.stability_margin_db == 0.0
+
+
+def test_find_optimal_gamma_exhausts_iteration_budget() -> None:
+    """Fall through the binary search when the iteration budget is spent (branch 279->296).
+
+    A single-iteration search over the wide default gamma bracket cannot reach the
+    relative-tolerance break, so the loop exhausts its iteration budget and returns
+    the padded best gamma found so far rather than a converged infimum.
+    """
+    A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
+    ctrl = HInfinityController(A, B1, B2, C1, C2)
+
+    gamma = ctrl._find_optimal_gamma(max_iter=1)
+
+    assert np.isfinite(gamma)
+    assert gamma > 0.0

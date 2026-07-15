@@ -148,3 +148,19 @@ def test_convergence_time_marginal_alpha():
     """Exercise sliding_mode_vertical.py lines 151, 155: alpha <= sqrt(2*L) returns inf."""
     assert estimate_convergence_time(alpha=2.0, beta=5.0, L_max=2.0, s0=1.0) == float("inf")
     assert estimate_convergence_time(alpha=0.5, beta=5.0, L_max=-1.0, s0=1.0) == float("inf")
+
+
+def test_step_skips_integral_update_for_nonpositive_dt():
+    """Leave the integral state untouched when dt is non-positive (branch 69->72).
+
+    The super-twisting integral term v is advanced by -beta*sat(s)*dt only for a
+    strictly positive time step. A zero (or negative) dt must not integrate, so v
+    stays at its prior value while the algebraic output term is still evaluated.
+    """
+    smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
+    v_before = smc.v
+
+    u = smc.step(2.0, 0.0, 0.0)
+
+    assert smc.v == v_before
+    assert math.isfinite(u)

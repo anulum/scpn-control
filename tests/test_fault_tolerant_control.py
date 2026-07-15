@@ -250,3 +250,24 @@ def test_fault_injector_applies_sensor_dropout_after_fault_time() -> None:
     corrupted = inj.inject(t=6.0, signals=np.array([1.0, 2.0, 3.0]))
     assert corrupted[1] == 0.0
     assert corrupted[0] == 1.0 and corrupted[2] == 3.0
+
+
+def test_inject_returns_unmodified_copy_for_unhandled_fault_type() -> None:
+    """Return an unmodified copy for a fault type inject does not handle (branch 327->330).
+
+    inject only rewrites the signal for SENSOR_DROPOUT and SENSOR_DRIFT. A
+    sensor-noise fault matches neither the if nor the elif, so the copied signal
+    vector is returned untouched — a distinct array, not the original object.
+    """
+    inj = FaultInjector(
+        fault_time=1.0,
+        component_index=0,
+        fault_type=FaultType.SENSOR_NOISE_INCREASE,
+        severity=1.0,
+    )
+    signals = np.array([1.0, 2.0, 3.0])
+
+    out = inj.inject(t=5.0, signals=signals)
+
+    np.testing.assert_array_equal(out, signals)
+    assert out is not signals
