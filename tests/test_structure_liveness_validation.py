@@ -87,6 +87,16 @@ def test_liveness_fails_closed_on_out_of_bounds_random_walk() -> None:
     }
 
 
+def test_liveness_keeps_first_violation_across_repeated_overflows() -> None:
+    """When bounds are breached repeatedly, only the first violation is retained."""
+    result = _overflowing_live_transition_net().verify_liveness(n_steps=3, n_trials=2)
+    marking_violation = cast(dict[str, object], result["marking_violation"])
+
+    assert result["marking_bounds_valid"] is False
+    assert marking_violation["trial"] == 0
+    assert marking_violation["step"] == 0
+
+
 def test_liveness_fails_closed_on_nonfinite_random_walk() -> None:
     result = _nonfinite_transition_net().verify_liveness(n_steps=1, n_trials=1)
     marking_violation = cast(dict[str, object], result["marking_violation"])

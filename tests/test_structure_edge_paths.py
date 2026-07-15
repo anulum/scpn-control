@@ -114,6 +114,18 @@ class TestInhibitorCompileGuard:
         net.compile(allow_inhibitor=True)
         assert net.is_compiled
 
+    def test_validate_topology_skips_inhibitor_from_positive_weight_sum(self) -> None:
+        """A negative-weight inhibitor input arc is excluded from the positive-input-weight sum."""
+        net = StochasticPetriNet()
+        net.add_place("guard", initial_tokens=1.0)
+        net.add_place("tok", initial_tokens=1.0)
+        net.add_transition("fire")
+        net.add_arc("tok", "fire", weight=1.0)
+        net.add_arc("guard", "fire", weight=1.0, inhibitor=True)
+
+        report = net.validate_topology()
+        assert report["input_weight_overflow_transitions"] == []
+
     def test_transition_to_place_inhibitor_invariant_fails_closed(self) -> None:
         """A corrupted Transition->Place inhibitor arc fails closed at compile time."""
         net = StochasticPetriNet()
@@ -202,3 +214,15 @@ class TestUnseededPlaceCycle:
         net.add_arc("T2", "P1")
         with pytest.raises(ValueError, match="unseeded_place_cycles"):
             net.compile(strict_validation=True)
+
+
+def test_summary_of_uncompiled_net_omits_compiled_matrices() -> None:
+    """summary() on a net that has not been compiled reports arcs without the matrix section."""
+    net = StochasticPetriNet()
+    net.add_place("p", initial_tokens=1.0)
+    net.add_transition("t")
+    net.add_arc("p", "t", weight=1.0)
+
+    text = net.summary()
+    assert "p --(1.000)--> t" in text
+    assert "W_in" not in text
