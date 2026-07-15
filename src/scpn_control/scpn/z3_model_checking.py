@@ -242,7 +242,7 @@ class Z3BoundedModelChecker:
             if deadline >= max_depth:
                 continue
             response_window = [firings[window][r_idx] for window in range(step + 1, deadline + 1)]
-            if response_window:
+            if response_window:  # pragma: no branch - window length >= 1 (max_latency_steps validated); see #129
                 non_idle_window = [z3.Not(idle[window]) for window in range(step + 1, deadline + 1)]
                 checks.append(z3.And(firings[step][t_idx], *non_idle_window, z3.Not(z3.Or(*response_window))))
         if not checks:
@@ -608,7 +608,7 @@ class Z3BoundedModelChecker:
 
         for step in range(max_depth):
             firing_terms = [f"fire_{step}_{transition}" for transition in self.transition_names]
-            if firing_terms:
+            if firing_terms:  # pragma: no branch - a valid compiled net always has >=1 transition; see #129
                 smt2_lines.append(f"(assert (or idle_{step} {' '.join(firing_terms)}))")
                 for left_idx, left in enumerate(firing_terms):
                     for right in firing_terms[left_idx + 1 :]:
