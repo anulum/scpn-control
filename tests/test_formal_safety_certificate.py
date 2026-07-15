@@ -21,6 +21,7 @@ import copy
 import hashlib
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, Callable
 
 import pytest
@@ -903,3 +904,24 @@ class TestCertificateMarkdownCounterexamples:
         assert payload["status"] == "fail"
         markdown = (tmp_path / "cert.md").read_text(encoding="utf-8")
         assert "## Counterexamples" in markdown
+
+
+def test_certificate_checked_specs_skips_already_seeded_spec() -> None:
+    """A section spec already present in the seed list is not appended twice (branch 530->529)."""
+    report = SimpleNamespace(temporal=SimpleNamespace(checked_specs=["marking_bounds", "custom_spec"]))
+    specs = fsc._certificate_checked_specs(report, None, None)
+    assert specs == ["marking_bounds", "transition_liveness", "custom_spec"]
+
+
+def test_certificate_checked_specs_from_sections_skips_duplicate() -> None:
+    """A section spec already present in the seed list is recorded once (branch 544->543)."""
+    sections = {"temporal": {"checked_specs": ["marking_bounds", "extra"]}}
+    specs = fsc._certificate_checked_specs_from_sections(sections)
+    assert specs == ["marking_bounds", "transition_liveness", "extra"]
+
+
+def test_enforce_bundle_policy_without_required_policy_name() -> None:
+    """A bundle policy with no required policy name returns after the earlier checks (branch 634->exit)."""
+    policy = SafetyCertificateBundlePolicy(name="minimal", min_certificates=1)
+    # required_policy_name defaults to None and the other requirements are disabled, so this must not raise.
+    fsc._enforce_safety_certificate_bundle_policy({"certificates": [{}]}, policy)
