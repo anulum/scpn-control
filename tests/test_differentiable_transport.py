@@ -776,6 +776,38 @@ def test_equilibrium_weighted_transport_loss_uses_flux_radial_weight():
     assert np.mean(radial_weights) == pytest.approx(1.0)
 
 
+def test_equilibrium_weighted_transport_loss_accepts_explicit_weights():
+    """Explicit weights bypass the uniform default (branch 1801->1803)."""
+    rho = np.linspace(0.05, 1.0, 24)
+    profiles = _profiles(rho)
+    chi = 0.04 * np.ones_like(profiles)
+    sources = np.zeros_like(profiles)
+    target = profiles.copy()
+    target[:, 8:16] *= 0.98
+    edge_values = np.array([0.2, 0.2, 4.0, 0.03])
+    psi = np.tile(np.linspace(0.2, 1.0, rho.size), (9, 1))
+
+    loss = dt.equilibrium_weighted_transport_tracking_loss(
+        profiles,
+        chi,
+        sources,
+        target,
+        rho,
+        1.0e-3,
+        edge_values,
+        psi,
+        weights=np.array([1.0, 1.0, 2.0, 1.0]),
+        use_jax=False,
+    )
+    assert np.isfinite(float(loss))
+
+
+def test_rollout_gradient_audit_indices_deduplicates_repeated_entries():
+    """A repeated rollout sample index is recorded once (branch 1327->1323)."""
+    result = dt._rollout_gradient_audit_indices((3, dt.CHANNEL_COUNT, 5), [(0, 0, 1), (0, 0, 1), (1, 2, 4)])
+    assert result == ((0, 0, 1), (1, 2, 4))
+
+
 def test_neural_transport_closure_maps_to_four_channel_coefficients():
     rho = np.linspace(0.05, 1.0, 24)
     profiles = _profiles(rho)
