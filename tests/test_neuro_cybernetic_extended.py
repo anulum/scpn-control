@@ -204,3 +204,27 @@ class TestControllerResetHistory:
         first_len = len(nc.history["t"])
         nc.run_shot(save_plot=False, verbose=False)
         assert len(nc.history["t"]) == first_len
+
+
+def test_advance_safe_state_completes_ramp_at_zero_counter() -> None:
+    """The safe-shutdown ramp completes without decrementing a spent counter (branch 341->343).
+
+    When the ramp counter has already reached zero, _advance_safe_state skips the
+    decrement and transitions the controller from the ramp state to the terminal
+    safe-shutdown state.
+    """
+    nc = NeuroCyberneticController(
+        "dummy.json",
+        seed=42,
+        shot_duration=5,
+        allow_numpy_fallback=True,
+        allow_legacy_numpy_fallback=True,
+        kernel_factory=_DummyKernel,
+    )
+    nc.safety_state = nc_mod._SAFETY_STATE_SHUTDOWN_RAMP
+    nc._safe_shutdown_counter = 0
+
+    nc._advance_safe_state()
+
+    assert nc.safety_state == nc_mod._SAFETY_STATE_SAFE_SHUTDOWN
+    assert nc._safe_shutdown_counter == 0

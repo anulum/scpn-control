@@ -75,6 +75,24 @@ def test_claim_summary_reduces_bundle_to_panel_fields() -> None:
     }
 
 
+def test_claim_summary_omits_freshness_when_absent() -> None:
+    """A bundle without a freshness marker omits the freshness field (branch 131->133).
+
+    claim_summary only records freshness when the bundle carries it, so a bundle
+    whose freshness is None yields a summary with the core panel fields and no
+    freshness key.
+    """
+    import dataclasses
+
+    base = representative_bundles()[0]
+    bundle = dataclasses.replace(base, freshness=None)
+
+    summary = claim_summary(bundle)
+
+    assert "freshness" not in summary
+    assert summary["schema"] == base.schema
+
+
 # ── studio_feed ────────────────────────────────────────────────────────
 def test_studio_feed_uses_explicit_digest() -> None:
     feed = studio_feed([], content_digest="sha256:deadbeef")

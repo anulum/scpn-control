@@ -35,6 +35,14 @@ class TestFiniteTree:
         with pytest.raises(ValueError, match="keys must be strings"):
             _validate_finite_tree("solver_state", {123: 1.0})
 
+    def test_ignores_non_numeric_non_container_leaf(self) -> None:
+        """A non-numeric, non-container leaf is left unchecked (branch 47->exit).
+
+        A string leaf matches none of the array/dict/list/number guards, so the
+        recursive validator returns without raising or recursing further.
+        """
+        _validate_finite_tree("payload", "a string value")
+
 
 class TestPayloadValidation:
     def test_rejects_non_object(self) -> None:

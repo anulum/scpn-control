@@ -150,3 +150,20 @@ class TestIntegerValidators:
     def test_non_negative_int_rejects_negative(self) -> None:
         with pytest.raises(ValueError, match="must be non-negative"):
             _non_negative_int("capacity", -1)
+
+
+def test_drain_window_drops_events_before_window() -> None:
+    """Events older than the window lower bound are dropped (branch 109->106).
+
+    An event whose timestamp precedes now-window is neither in the future
+    (retained) nor inside the window (drained), so the loop skips it and the
+    event is discarded entirely — absent from both the returned batch and the
+    buffer on the next drain.
+    """
+    buffer = _buffer([(0, 5), (1, 100), (2, 200)])
+
+    drained = buffer.drain_window(window_ns=50, now_ns=120)  # lower = 70
+    assert [event.timestamp_ns for event in drained] == [100]
+
+    remaining = buffer.drain_window(window_ns=1000, now_ns=1000)
+    assert [event.timestamp_ns for event in remaining] == [200]
