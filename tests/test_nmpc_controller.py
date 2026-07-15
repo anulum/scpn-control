@@ -1304,6 +1304,15 @@ def test_cost_hessian_audit_rejects_invalid_arguments(kwargs: dict[str, Any], ma
         mpc.audit_cost_hessian_jax(x, U, x_ref, **kwargs)
 
 
+def test_cost_hessian_audit_accepts_valid_sample_indices() -> None:
+    """Explicit in-range sample_indices validate and the audit runs to completion (branches 1447->1446, 1446->1450)."""
+    pytest.importorskip("jax")
+    mpc, x, U, x_ref = _hessian_setup()
+    audit = mpc.audit_cost_hessian_jax(x, U, x_ref, sample_indices=[(0, 0), (1, 1), (2, 3)])
+    assert audit.max_abs_error >= 0.0
+    assert isinstance(audit.passed, bool)
+
+
 def test_cost_hessian_fails_closed_without_jax(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setitem(sys.modules, "jax", None)
     mpc, x, U, x_ref = _hessian_setup()
