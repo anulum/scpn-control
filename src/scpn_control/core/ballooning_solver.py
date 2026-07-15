@@ -142,7 +142,7 @@ def find_marginal_stability(s: float, alpha_min: float = 0.0, alpha_max: float =
     # Find a valid unstable upper bound (don't jump to the 2nd stability region)
     amax = amin + 0.1
     found_unstable = False
-    for _ in range(20):
+    for _ in range(20):  # pragma: no branch - loop always breaks (line 151, alpha_min>=0) before exhaustion; see #129
         if not BallooningEquation(s, amax).solve().is_stable:
             found_unstable = True
             break

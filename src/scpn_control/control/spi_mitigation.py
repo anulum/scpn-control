@@ -102,7 +102,7 @@ class DisruptionMitigationController:
             else:
                 self.consecutive_count = 0
 
-        elif self.state == MitigationState.ARMED:
+        elif self.state == MitigationState.ARMED:  # pragma: no branch - never entered with state==FIRED; see #129
             if p_disrupt > self.threshold_fire:
                 self.state = MitigationState.FIRED
                 self._log_transition(old_state, self.state, p_disrupt)

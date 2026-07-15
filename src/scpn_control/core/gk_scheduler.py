@@ -156,7 +156,7 @@ class GKScheduler:
                 self._prev_chi_i = chi_arr.copy()
                 return None
 
-        elif self.config.strategy == "critical_region":
+        elif self.config.strategy == "critical_region":  # pragma: no branch - validated 3-strategy chain; see #129
             for i, r in enumerate(rho_arr):
                 if (r > self.config.pedestal_rho or r < self.config.axis_rho) and len(indices) < self.config.budget:
                     indices[i] = "critical_region"

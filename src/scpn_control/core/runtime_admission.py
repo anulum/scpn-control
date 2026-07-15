@@ -31,7 +31,7 @@ class _ResourceModule(Protocol):
     RLIMIT_MEMLOCK: int
     RLIM_INFINITY: int
 
-    def getrlimit(self, resource: int, /) -> tuple[int, int]: ...
+    def getrlimit(self, resource: int, /) -> tuple[int, int]: ...  # pragma: no branch - Protocol type stub; see #129
 
 
 if sys.platform != "win32":
@@ -306,7 +306,7 @@ def _read_realtime_sysfs() -> bool | None:
 
 
 def _current_affinity() -> tuple[int, ...]:
-    if hasattr(os, "sched_getaffinity"):
+    if hasattr(os, "sched_getaffinity"):  # pragma: no branch - always present on the Linux coverage platform; see #129
         try:
             return tuple(sorted(os.sched_getaffinity(0)))
         except OSError:

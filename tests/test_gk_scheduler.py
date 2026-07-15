@@ -90,6 +90,22 @@ def test_adaptive_fires_on_chi_change():
     assert 25 in req.rho_indices
 
 
+def test_adaptive_chi_change_respects_budget_when_many_surfaces_change():
+    """Budget exhaustion inside the chi-change loop skips remaining surfaces (branch 146->145)."""
+    cfg = SchedulerConfig(strategy="adaptive", budget=1, chi_change_threshold=0.5, anchor_rho=(0.3, 0.5, 0.8))
+    sched = GKScheduler(cfg)
+    rho = _rho_grid()
+    sched.step(rho, np.ones(50))  # set prev
+
+    chi_2 = np.ones(50)
+    chi_2[[10, 20, 30]] = 5.0  # three surfaces well above threshold
+    req = sched.step(rho, chi_2)
+    assert req is not None
+    # budget=1 caps selection at the first flagged surface; the loop still visits the rest
+    assert len(req.rho_indices) == 1
+    assert all(reason == "chi_change" for reason in req.reasons.values())
+
+
 def test_adaptive_no_fire_small_change():
     cfg = SchedulerConfig(strategy="adaptive", chi_change_threshold=0.5)
     sched = GKScheduler(cfg)

@@ -394,7 +394,7 @@ def crank_nicolson_step(
         coeff_ip = chi_ip * r_ip / (r * dr * dr)
         coeff_im = chi_im * r_im / (r * dr * dr)
         b_diag[i] = 1.0 + 0.5 * dt * (coeff_ip + coeff_im)
-        if i < n - 1:
+        if i < n - 1:  # pragma: no branch - always True for i in range(1, n-1); see #129
             c_sup[i] = -0.5 * dt * coeff_ip
         a_sub[i - 1] = -0.5 * dt * coeff_im
 

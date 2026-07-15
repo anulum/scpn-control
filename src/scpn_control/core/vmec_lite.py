@@ -420,7 +420,7 @@ class VMECLiteSolver:
 
             # Pressure-driven Shafranov shift: F ~ −q²(dp/ds)/R₀
             # Freidberg 2014, Ideal MHD, Ch. 3 — radial force balance
-            if idx_00 >= 0:
+            if idx_00 >= 0:  # pragma: no branch - idx_00>=0 guaranteed by the raise at line 408; see #129
                 for i in range(1, self.n_s - 1):
                     F_R[i, idx_00] -= q_profile[i] ** 2 * dp_ds[i] / R_00_bound * 1e-6
 
@@ -439,7 +439,7 @@ class VMECLiteSolver:
         for s in range(self.n_s):
             R_00 = max(abs(self.R_mn[s, idx_00]), 1e-6) if idx_00 >= 0 else 1.0
             iota_s = self.iota[s]
-            if idx_00 >= 0:
+            if idx_00 >= 0:  # pragma: no branch - idx_00>=0 guaranteed by the raise at line 408; see #129
                 B_mn[s, idx_00] = 1.0
             for k, (m, _n) in enumerate(self.basis.mn_modes):
                 if k == idx_00:

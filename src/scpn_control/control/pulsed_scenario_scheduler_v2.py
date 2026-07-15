@@ -349,7 +349,7 @@ class PulsedScenarioScheduler:
                 if bank.voltage_fraction >= spec.recharge_voltage_fraction:
                     return PulsedScenarioState.COOL_DOWN, "bank recharged"
                 return None, "waiting for recharge voltage"
-            case PulsedScenarioState.COOL_DOWN:
+            case PulsedScenarioState.COOL_DOWN:  # pragma: no branch - exhaustive 8-state enum match; see #129
                 temperature_ok = plasma.temperature_eV <= spec.cooldown_temperature_eV
                 current_ok = abs(plasma.coil_current_A) <= spec.cooldown_current_A
                 if temperature_ok and current_ok:

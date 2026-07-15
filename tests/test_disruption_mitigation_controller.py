@@ -86,3 +86,17 @@ def test_controller_hysteresis():
     # Drop below 0.8 * threshold_arm (0.4)
     state = ctrl.update(0.3, dt)
     assert state == MitigationState.IDLE
+
+
+def test_controller_armed_holds_in_mid_band():
+    """ARMED persists when p_disrupt sits between the de-arm floor and the fire threshold (branch 113->119)."""
+    ctrl = DisruptionMitigationController(threshold_arm=0.5, threshold_fire=0.8, n_consecutive=1)
+    dt = 0.01
+
+    # Arm
+    ctrl.update(0.6, dt)
+    assert ctrl.state == MitigationState.ARMED
+
+    # Mid-band: 0.8 * threshold_arm (0.4) <= 0.6 <= threshold_fire (0.8) -> neither fire nor de-arm
+    state = ctrl.update(0.6, dt)
+    assert state == MitigationState.ARMED
