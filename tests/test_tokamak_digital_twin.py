@@ -138,6 +138,36 @@ def test_run_digital_twin_chaos_monkey_full_dropout_counts_all_channels() -> Non
     assert summary["sensor_dropout_rate"] == 1.0
 
 
+def test_run_digital_twin_chaos_monkey_without_dropout_probability() -> None:
+    """Chaos-monkey noise with a zero dropout probability skips the dropout branch entirely."""
+    summary = run_digital_twin(
+        time_steps=6,
+        seed=3,
+        save_plot=False,
+        verbose=False,
+        chaos_monkey=True,
+        sensor_dropout_prob=0.0,
+        sensor_noise_std=0.02,
+    )
+    assert summary["sensor_dropouts_total"] == 0
+    assert summary["sensor_dropout_rate"] == 0.0
+
+
+def test_run_digital_twin_chaos_monkey_dropout_probability_never_fires() -> None:
+    """A positive-but-negligible dropout probability leaves every channel intact each step."""
+    summary = run_digital_twin(
+        time_steps=6,
+        seed=3,
+        save_plot=False,
+        verbose=False,
+        chaos_monkey=True,
+        sensor_dropout_prob=1e-9,
+        sensor_noise_std=0.0,
+    )
+    assert summary["sensor_dropouts_total"] == 0
+    assert summary["sensor_dropout_rate"] == 0.0
+
+
 def test_run_digital_twin_sensor_bias_and_drift_are_deterministic() -> None:
     kwargs = dict(
         time_steps=20,

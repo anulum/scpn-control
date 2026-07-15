@@ -180,6 +180,17 @@ def test_conditional_average_empty():
     assert np.allclose(avg, 0.0)
 
 
+def test_conditional_average_event_outside_window_bounds():
+    """An event whose window overruns the signal contributes nothing, leaving a zero waveform."""
+    det = BlobDetector()
+    sig = np.ones(10)
+    # center = 5; window = 8 puts center - window at -3, so the event fits no full window.
+    event = BlobEvent(start_idx=4, end_idx=6, peak_amplitude=1.0, duration=1e-6, size_estimate=0.01)
+    avg = det.conditional_average(sig, [event], window=8)
+    assert len(avg) == 17
+    assert np.allclose(avg, 0.0)
+
+
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     (

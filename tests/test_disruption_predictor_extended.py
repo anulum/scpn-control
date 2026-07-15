@@ -205,6 +205,18 @@ class TestRunFaultNoiseCampaign:
         assert r["mean_abs_risk_error"] >= 0.0
         assert r["p95_abs_risk_error"] >= r["mean_abs_risk_error"]
 
+    def test_no_recovery_when_epsilon_unreachable(self):
+        """An unreachably tight recovery epsilon leaves every fault unrecovered within the window.
+
+        The recovery scan then iterates the whole window without an early break, so the campaign
+        reports zero recovery success and a saturated recovery-step tail.
+        """
+        r = run_fault_noise_campaign(seed=0, episodes=8, window=64, recovery_window=6, recovery_epsilon=1e-9)
+        assert r["fault_count"] > 0
+        assert r["recovery_success_rate"] == 0.0
+        # Saturated tail: recovery_window + 1 steps recorded for every unrecovered fault.
+        assert r["recovery_steps_p95"] == 7.0
+
 
 # ── run_anomaly_alarm_campaign ───────────────────────────────────────
 

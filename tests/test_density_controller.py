@@ -148,6 +148,39 @@ def test_particle_transport_model_step():
     assert np.all(np.isfinite(ne_new))
 
 
+def test_particle_transport_step_without_diffusion_skips_cfl_clamp():
+    """A zero diffusion profile skips the CFL clamp and evolves from sources alone."""
+    model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
+    model.set_transport(np.zeros(model.n_rho), np.zeros(model.n_rho))
+    assert float(np.max(model.D)) == 0.0
+
+    controller = DensityController(model, dt_control=0.01)
+    controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
+    controller.set_target(np.ones(model.n_rho) * 5.0e19)
+    ne_before = np.ones(model.n_rho) * 2.0e19
+    sources = model.gas_puff_source(rate=1.0e20, penetration_depth=0.08)
+    ne_after = model.step(ne_before, sources, dt=1.0)
+    assert np.all(np.isfinite(ne_after))
+
+    # The claim-evidence builder shares the same diffusion-free CFL guard.
+    evidence = density_control_claim_evidence(
+        model,
+        controller,
+        source="synthetic_regression_reference",
+        source_id="density-control-zero-diffusion",
+        geometry_source="repository circular ITER-like geometry fixture",
+        transport_source="repository diffusion-free fixture",
+        actuator_source="repository gas-puff and cryopump actuator limits",
+        diagnostic_source="repository density profile fixture",
+        ne_before=ne_before,
+        ne_after=ne_after,
+        sources=sources,
+        command=controller.step(ne_before),
+        dt_requested_s=1.0,
+    )
+    assert evidence.cfl_limited is False
+
+
 def test_density_controller():
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model, dt_control=0.01)
@@ -170,6 +203,20 @@ def test_density_controller():
 
     assert cmd_high.gas_puff_rate == 0.0
     assert cmd_high.cryo_pump_speed > 0.0
+
+
+def test_density_controller_small_deficit_uses_gas_without_pellets():
+    """A small density deficit fuels with gas alone; the pellet branch stays inactive."""
+    model = ParticleTransportModel(n_rho=10)
+    ctrl = DensityController(model, dt_control=0.01)
+    ctrl.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
+    ctrl.set_target(np.ones(10) * 5.0e19)
+
+    cmd = ctrl.step(np.ones(10) * 4.9999e19)
+
+    assert cmd.gas_puff_rate > 0.0
+    assert cmd.pellet_freq == 0.0
+    assert cmd.cryo_pump_speed == 0.0
 
 
 def test_density_controller_rejects_nonphysical_domains():

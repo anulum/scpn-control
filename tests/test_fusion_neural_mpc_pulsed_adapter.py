@@ -133,6 +133,23 @@ def test_explicit_feasible_pulse_is_admitted_during_burn() -> None:
     assert len(str(decision["burn_action_mask_sha256"])) == 64
 
 
+def test_step_without_ref_tracks_the_mpc_target() -> None:
+    """Omitting ``ref`` keeps the controller's own target instead of overriding it."""
+    adapter = PulsedShotMPCAdapter(
+        _mpc(),
+        _scheduler(PulsedScenarioState.RAMP_UP),
+        _bank(),
+        burn_action_mask=np.array([True, False]),
+    )
+
+    action = adapter.step(np.array([5.0, 1.0]))
+    decision = adapter.explain_last_decision()
+
+    assert action.shape == (2,)
+    assert np.all(np.isfinite(action))
+    assert decision["scheduler_state"] == PulsedScenarioState.RAMP_UP.value
+
+
 def test_invalid_adapter_shapes_fail_closed() -> None:
     with pytest.raises(ValueError, match="burn_action_mask"):
         PulsedShotMPCAdapter(_mpc(), _scheduler(), _bank(), burn_action_mask=np.array([True]))
