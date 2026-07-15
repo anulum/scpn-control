@@ -974,6 +974,31 @@ class TestRadialGridRestoration:
         with pytest.raises(ValueError, match="nr must be at least 2"):
             solver._ensure_valid_radial_grid()
 
+    def test_restores_grid_without_momentum_solver(self, config_file: Path) -> None:
+        """Grid restoration skips the momentum-solver sync when none is configured (arc 492->496)."""
+        ts = TransportSolver(str(config_file), multi_ion=False)
+        assert ts._momentum_solver is None  # no set_neoclassical -> momentum solver never built
+        ts.rho[:] = 0.0  # break the canonical grid without changing its shape
+        restored = ts._ensure_valid_radial_grid()
+        assert restored == 1
+        assert ts._momentum_solver is None  # the skipped branch left it untouched
+        np.testing.assert_allclose(ts.rho, np.linspace(0.0, 1.0, ts.nr))
+
+
+class TestMapProfilesZeroCurrent:
+    def test_zero_density_skips_current_normalisation(self, config_file: Path) -> None:
+        """A vanishing toroidal current leaves J_phi un-normalised, avoiding divide-by-zero (arc 1273->exit)."""
+        ts = TransportSolver(str(config_file), multi_ion=False)
+        ts.Ti = 5.0 * (1 - ts.rho**2)
+        ts.Te = 5.0 * (1 - ts.rho**2)
+        ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+        ts.ne = np.zeros_like(ts.rho)  # zero density -> zero pressure & bootstrap -> J_phi == 0
+        ts.map_profiles_to_2d()
+        i_curr = float(np.sum(ts.J_phi) * ts.dR * ts.dZ)
+        assert abs(i_curr) <= 1e-9  # degenerate near-zero total current
+        assert np.all(np.isfinite(ts.J_phi))  # normalisation skipped -> no I_target / 0 blow-up
+        assert np.allclose(ts.J_phi, 0.0)
+
 
 class TestChangHintonAdapter:
     def test_defaults_when_neoclassical_absent(self, config_file: Path) -> None:

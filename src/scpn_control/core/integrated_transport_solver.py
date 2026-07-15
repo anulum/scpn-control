@@ -881,7 +881,7 @@ class TransportSolver(FusionKernel):
 
                 # Set pedestal boundary conditions on profiles
                 ped_idx = np.searchsorted(self.rho, ped_start)
-                if ped_idx < len(self.Te):
+                if ped_idx < len(self.Te):  # pragma: no branch - searchsorted<nr==len(Te) always; see #129
                     self.Te[ped_idx:] = np.minimum(
                         self.Te[ped_idx:], ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Te[ped_idx:]))
                     )
