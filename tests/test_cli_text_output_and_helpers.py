@@ -186,6 +186,18 @@ def test_campaign_text_summary_with_file_options(runner, fake_engine, tmp_path):
     assert "Hardware campaign completed: normal" in result.output
 
 
+def test_campaign_skips_itpa_config_when_default_absent(runner, fake_engine, tmp_path, monkeypatch):
+    """Without --itpa-path and no default ITPA coefficients file, the ITPA config is skipped (arc 493->498)."""
+    calls: list[tuple[object, ...]] = []
+    monkeypatch.setattr(_FakeEngine, "configure_itpa_gyro_bohm", lambda self, *args, **kwargs: calls.append(args))
+    monkeypatch.setattr("scpn_control.cli._REPO_ROOT", tmp_path)
+
+    result = runner.invoke(main, _campaign_args("--json-out"))
+
+    assert result.exit_code == 0
+    assert calls == []
+
+
 def test_campaign_requires_native_backend_when_flagged(runner, fake_engine):
     fake_engine.native_backend_available = False
     result = runner.invoke(main, _campaign_args("--require-native"))
