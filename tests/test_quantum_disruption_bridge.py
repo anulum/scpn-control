@@ -221,6 +221,39 @@ def test_quantum_disruption_kernel_matrix_is_symmetric_bounded_and_digestible() 
     assert validate_quantum_disruption_kernel_report(report) == report
 
 
+def test_quantum_disruption_kernel_matrix_supports_non_square_cross_sample_kernel() -> None:
+    """A cross-sample kernel (distinct A and B counts) is non-square and skips the symmetry checks."""
+    from scpn_control.control.quantum_disruption_bridge import (
+        QuantumDisruptionBridgeConfig,
+        quantum_disruption_kernel_matrix,
+        validate_quantum_disruption_kernel_report,
+    )
+
+    base = _control_features()
+    samples_a = np.vstack(
+        [
+            base,
+            base * np.array([1.1, 0.9, 1, 1, 1, 1, 0.8, 1]),
+            base * np.array([0.95, 1.05, 1, 1, 1, 1, 1, 1.1]),
+        ]
+    )
+    samples_b = np.vstack([base, base * np.array([1.2, 0.8, 1, 1, 1, 1, 0.7, 1])])
+
+    report = quantum_disruption_kernel_matrix(
+        samples_a,
+        samples_b,
+        config=QuantumDisruptionBridgeConfig(allow_center_defaults=True),
+    )
+
+    kernel = np.asarray(report["kernel_matrix"], dtype=np.float64)
+    assert kernel.shape == (3, 2)
+    assert report["samples_a_count"] == 3
+    assert report["samples_b_count"] == 2
+    assert np.all((kernel >= 0.0) & (kernel <= 1.0))
+    # The non-square report is self-consistent (digest + certificate) and admits no symmetry claim.
+    assert validate_quantum_disruption_kernel_report(report) == report
+
+
 def test_quantum_disruption_bridge_fails_closed_when_quantum_dependency_unavailable(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

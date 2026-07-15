@@ -114,6 +114,42 @@ def test_mse_constraint_q_profile():
     assert res_mse.q_profile[0] < res_no_mse.q_profile[0]
 
 
+def test_kinetic_efit_no_mse_uses_finite_magnetic_q95():
+    """Without MSE, a well-conditioned reconstruction takes the finite magnetic-q95 branch.
+
+    The minimal data-free fixtures give a degenerate zero-current reconstruction whose q95 is
+    non-finite (the neutral fallback). Here a self-consistent Solov'ev closure yields a non-zero
+    plasma current and finite q95, so the kinetic q-profile is built directly from the magnetic
+    q95 rather than the fallback constant.
+    """
+    flux_loops = [(5.0, 1.0), (6.2, 1.5), (7.4, 1.0)]
+    b_probes = [(5.0, 1.0, "R"), (5.0, 1.0, "Z"), (7.4, 1.0, "R")]
+    diag = MagneticDiagnostics(flux_loops, b_probes, rogowski_radius=6.2)
+    R = np.linspace(4.2, 8.2, 33)
+    Z = np.linspace(-3.0, 3.0, 33)
+    kin = KineticConstraints(
+        Te_points=[(5.0, 0.0, 10.0), (7.4, 0.0, 1.0)],
+        ne_points=[(5.0, 0.0, 5.0), (7.4, 0.0, 0.5)],
+        Ti_points=[(5.0, 0.0, 8.0), (7.4, 0.0, 0.8)],
+        mse_points=[],
+    )
+    kefit = KineticEFIT(diag, kin, FastIonPressure(100.0, 0.1, 0.0), R, Z)
+
+    psi_true = kefit._solve_gs_with_sources(
+        np.array([2.0, -1.5, 0.4][: kefit.n_p_modes]),
+        np.array([1.0, -0.6, 0.1][: kefit.n_ff_modes]),
+    )
+    meas = kefit.response.simulate_measurements(psi_true, np.zeros(1))
+    res = kefit.reconstruct(meas, mode="geometric")
+
+    assert np.isfinite(res.shape.q95)
+    assert res.shape.Ip_reconstructed != 0.0
+    assert np.all(np.isfinite(res.q_profile))
+    # The edge value equals the finite magnetic q95 (not the neutral fallback constant 3.0).
+    assert res.q_profile[-1] == pytest.approx(res.shape.q95)
+    assert res.q_profile[0] == pytest.approx(min(res.shape.q95, 1.5))
+
+
 def test_kinetic_efit_rejects_missing_ne_points():
     diag = reference_diagnostics()
     kin = KineticConstraints(Te_points=[(6.2, 0.0, 10.0)], ne_points=[], Ti_points=[], mse_points=[])

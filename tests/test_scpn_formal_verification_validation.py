@@ -58,6 +58,20 @@ def _inhibitor_net() -> StochasticPetriNet:
     return net
 
 
+def _permissive_inhibitor_net() -> StochasticPetriNet:
+    """Inhibitor net whose guard place is below threshold, so the arc does not block."""
+    net = StochasticPetriNet()
+    net.add_place("guard", initial_tokens=0.0)  # below the inhibitor threshold -> permits firing
+    net.add_place("token", initial_tokens=1.0)
+    net.add_place("out", initial_tokens=0.0)
+    net.add_transition("fire", threshold=1.0)
+    net.add_arc("token", "fire", weight=1.0)
+    net.add_arc("guard", "fire", weight=1.0, inhibitor=True)
+    net.add_arc("fire", "out", weight=1.0)
+    net.compile(allow_inhibitor=True)
+    return net
+
+
 class TestFormulaDataclassGuards:
     @pytest.mark.parametrize(
         ("kwargs", "match"),
@@ -263,6 +277,15 @@ class TestFiringRelation:
     def test_inhibitor_arc_blocks_transition(self):
         report = FormalPetriNetVerifier(_inhibitor_net(), backend="explicit-state").analyze_reachability(max_depth=2)
         assert "fire" not in report.fired_transitions
+
+    def test_inhibitor_arc_permits_transition_below_threshold(self):
+        """A guard marking below the inhibitor threshold must not block firing (loop-continue branch)."""
+        report = FormalPetriNetVerifier(_permissive_inhibitor_net(), backend="explicit-state").analyze_reachability(
+            max_depth=2
+        )
+        assert "fire" in report.fired_transitions
+        fired_markings = [state.marking for state in report.reachable_states if state.path == ["fire"]]
+        assert fired_markings == [{"guard": 0.0, "token": 0.0, "out": 1.0}]
 
     def test_defensive_negative_marking_is_rejected(self):
         verifier = FormalPetriNetVerifier(_transfer_net(), backend="explicit-state")

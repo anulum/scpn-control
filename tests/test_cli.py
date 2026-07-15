@@ -921,6 +921,48 @@ def test_gk_validation_output_json_files_on_failures(runner, tmp_path, command, 
     assert report["errors"]
 
 
+@pytest.mark.parametrize(
+    ("command", "root_option"),
+    [
+        ("validate-gk-crosscode", "--evidence-root"),
+        ("validate-gk-ood-calibration", "--artifact-root"),
+        ("validate-gk-interface-artifacts", "--artifact-root"),
+        ("validate-blob-transport-reference", "--artifact-root"),
+        ("validate-elm-reference", "--artifact-root"),
+        ("validate-eped-reference", "--artifact-root"),
+        ("validate-marfe-reference", "--artifact-root"),
+        ("validate-ntm-reference", "--artifact-root"),
+        ("validate-neural-equilibrium-reference", "--artifact-root"),
+        ("validate-neural-transport-reference", "--artifact-root"),
+        ("validate-neural-turbulence-reference", "--artifact-root"),
+        ("validate-orbit-reference", "--artifact-root"),
+        ("validate-uncertainty-reference", "--artifact-root"),
+        ("validate-vmec-reference", "--artifact-root"),
+        ("validate-rzip-reference", "--artifact-root"),
+        ("validate-current-drive-reference", "--artifact-root"),
+        ("validate-mu-synthesis-reference", "--artifact-root"),
+        ("validate-volt-second-reference", "--artifact-root"),
+        ("validate-burn-reference", "--artifact-root"),
+        ("validate-density-reference", "--artifact-root"),
+        ("validate-free-boundary-reference", "--artifact-root"),
+        ("validate-disruption-reference", "--artifact-root"),
+        ("validate-digital-twin-reference", "--artifact-root"),
+        ("validate-soc-reference", "--artifact-root"),
+    ],
+)
+def test_gk_validation_passes_when_evidence_not_required(runner, tmp_path, command, root_option):
+    """Without the ``--require-*`` flag an empty artifact root is a clean pass, not a failure.
+
+    The failure suites above cover the ``status != "pass"`` exit; this covers the complementary
+    fall-through where no evidence is required, so the command returns without raising.
+    """
+    result = runner.invoke(main, [command, root_option, str(tmp_path), "--json-out"])
+
+    assert result.exit_code == 0
+    report = json.loads(result.output)
+    assert report["status"] == "pass"
+
+
 def test_validate_gk_geometry_reference_json_out(runner):
     reference_path = (
         Path(__file__).resolve().parents[1]

@@ -178,6 +178,38 @@ def test_retrain_rollback_on_worse_loss():
     assert learner.retrain_history[-1]["accepted"] is False
 
 
+def _retrain_result(n_epochs: int) -> tuple[dict[str, NDArray[np.float64]], RetrainDecision]:
+    """Retrain a fixed buffer with a deliberately divergent learning rate."""
+    learner = OnlineLearner(config=LearnerConfig(buffer_size=20, n_epochs=n_epochs, learning_rate=10.0))
+    rng = np.random.default_rng(42)
+    for inp, tgt in _random_samples(20, rng):
+        learner.add_sample(inp, tgt)
+    weights = learner.try_retrain()
+    assert weights is not None
+    decision = learner.latest_decision()
+    assert decision is not None
+    return weights, decision
+
+
+def test_non_improving_epochs_preserve_best_weights():
+    """Divergent later epochs (validation loss not improving) must not corrupt the best snapshot.
+
+    With an oversized learning rate the output-layer step overshoots, so every epoch after the
+    first raises the validation loss and takes the ``loss_val < best_val`` false branch. The
+    early-stopping best-weights tracking must therefore return exactly the single-epoch result:
+    the diverged later weights are discarded.
+    """
+    single_weights, single_decision = _retrain_result(1)
+    diverged_weights, diverged_decision = _retrain_result(5)
+
+    # The five-epoch run kept the epoch-0 best, identical to stopping after one epoch.
+    assert diverged_decision.val_loss == single_decision.val_loss
+    assert diverged_decision.accepted is True
+    for key in ("w1", "b1", "w2", "b2", "w3", "b3"):
+        assert np.array_equal(diverged_weights[key], single_weights[key])
+        assert np.all(np.isfinite(diverged_weights[key]))
+
+
 def test_add_sample_rejects_invalid_shapes():
     learner = OnlineLearner()
     with pytest.raises(ValueError, match="input_10d must have shape"):
