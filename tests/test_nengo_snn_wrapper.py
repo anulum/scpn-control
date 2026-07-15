@@ -257,6 +257,14 @@ def test_get_spike_data_empty() -> None:
     assert ctrl.get_spike_data() == {}
 
 
+def test_get_spike_data_omits_channels_without_probe_history() -> None:
+    """A recorded output whose channels collected no probe data yields only the output series (branch 313->312)."""
+    ctrl = NengoSNNController()
+    ctrl._output_history.append(np.zeros(ctrl.cfg.n_channels))
+    data = ctrl.get_spike_data()
+    assert set(data) == {"output"}
+
+
 def test_export_weights_before_build_raises() -> None:
     """Exercise nengo_snn_wrapper.py line 311: export on unbuilt controller."""
     ctrl = NengoSNNController.__new__(NengoSNNController)
