@@ -340,3 +340,20 @@ def test_jax_parity_benchmark_report_keeps_timing_separate_from_artifacts(tmp_pa
     assert benchmark["generated_artifact_count"] == 1
     assert "external GK validation remains required" in benchmark["claim_boundary"]
     assert "JAX GK Parity Benchmark Report" in (tmp_path / "benchmark.md").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+def test_jax_parity_writer_keeps_explicit_json_path_with_default_solver_kwargs(tmp_path: Path) -> None:
+    """An explicit .json path with default solver kwargs keeps the path and takes the no-kwargs build path.
+
+    Exercises the no-solver-kwargs merge in build (658->660) and the .json-suffix short-circuit in the
+    writer (726->729).
+    """
+    payload, artifact_path = write_jax_gk_parity_artifact(
+        tmp_path / "parity.json",
+        gamma_relative_tolerance=1.0,
+        omega_absolute_tolerance=1.0,
+        executed_at="2026-05-31T00:00:00Z",
+    )
+    assert artifact_path.name == "parity.json"
+    assert payload["case"] == "cyclone_base_case"
