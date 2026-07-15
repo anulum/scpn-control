@@ -106,6 +106,33 @@ def test_startup_controller():
     assert c4.V_loop == 7.5
 
 
+def test_startup_controller_holds_phase_when_transition_criteria_unmet():
+    """Each phase persists when its advancement criterion is not met on a step."""
+    ctrl = StartupController(V_loop_max=15.0, gas_puff_max=10.0)
+
+    ctrl.step(ne=0.0, Te=0.0, Ip=0.0, t=0.15, dt=0.01)  # -> BREAKDOWN
+    held_breakdown = ctrl.step(ne=0.0, Te=0.0, Ip=0.0, t=0.2, dt=0.01)  # ne below 1e18 -> stay
+    assert held_breakdown.phase == StartupPhase.BREAKDOWN
+
+    ctrl.step(ne=1e19, Te=5.0, Ip=100.0, t=0.25, dt=0.01)  # -> BURN_THROUGH
+    held_burn = ctrl.step(ne=1e19, Te=5.0, Ip=100.0, t=0.3, dt=0.01)  # Te below 50 -> stay
+    assert held_burn.phase == StartupPhase.BURN_THROUGH
+
+    ctrl.step(ne=1e19, Te=100.0, Ip=200.0, t=0.35, dt=0.01)  # -> RAMP
+    held_ramp = ctrl.step(ne=1e19, Te=100.0, Ip=200.0, t=0.4, dt=0.01)  # no further phase after RAMP
+    assert held_ramp.phase == StartupPhase.RAMP
+
+
+def test_burn_through_slow_heating_stays_below_ohmic_ramp_threshold():
+    """Slow ohmic heating keeps Te below the 20 eV current-ramp threshold for early steps."""
+    bt = BurnThrough(R0=6.2, a=2.0, B0=5.3, V_loop=15.0)
+    res = bt.evolve(ne_19=0.1, f_imp=1e-4, dt=1e-4, n_steps=200, impurity="C")
+    trace = res.Te_trace
+    # Early steps evolve in (0.5, 20] eV, exercising the no-current-ramp path.
+    assert np.any((trace > 0.5) & (trace <= 20.0))
+    assert trace[0] > 5.0
+
+
 def test_paschen_minimum_exists():
     """V_min > 0 at finite pressure — Lieberman 2005 Eq. 14.3.2."""
     pb = PaschenBreakdown("D2")
