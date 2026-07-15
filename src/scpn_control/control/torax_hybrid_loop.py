@@ -257,7 +257,7 @@ def run_nstxu_torax_hybrid_campaign(
             beta_delta_sq.append((hybrid_state.beta_n - torax_state.beta_n) ** 2)
             beta_ref_sq.append(torax_state.beta_n**2)
 
-        if beta_ref_sq:
+        if beta_ref_sq:  # pragma: no branch - steps>=32 & break needs k>=2 (after appends) => non-empty; #129
             rmse = float(np.sqrt(np.mean(beta_delta_sq)))
             scale = float(np.sqrt(np.mean(beta_ref_sq)))
             parity = float(np.clip(100.0 * (1.0 - rmse / max(scale, 1e-9)), 0.0, 100.0))

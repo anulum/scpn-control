@@ -503,6 +503,12 @@ def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
         "verbose": False,
     }
 
+    # Re-solving reuses the cached acados OCP and solver instead of rebuilding them
+    # (arc 959->962: the "_acados_ocp is None or _acados_solver is None" guard is False).
+    nmpc.step(x0, x_ref, u_prev)
+    assert len(ocp_calls) == 1
+    assert len(solver_calls) == 1
+
 
 def test_nmpc_acados_close_releases_cached_solver_once() -> None:
     """Long-running acados deployments must explicitly release native solver state."""
