@@ -136,6 +136,35 @@ def test_solve_linear_gk_gamma_max():
     assert np.isfinite(result.k_y_max)
 
 
+def test_solve_linear_gk_accepts_explicit_geometry_and_velocity_grid(cyclone_geometry, cyclone_species, small_vgrid):
+    """Passing geometry and velocity-grid objects bypasses their default construction."""
+    result = solve_linear_gk(
+        species_list=cyclone_species,
+        geom=cyclone_geometry,
+        vgrid=small_vgrid,
+        n_ky_ion=1,
+        n_ky_etg=0,
+    )
+    assert isinstance(result, LinearGKResult)
+    assert len(result.k_y) == 1
+
+
+def test_solve_linear_gk_electromagnetic_without_electron_species(cyclone_geometry, small_vgrid):
+    """An electromagnetic solve with only ion species skips the electron-driven MTM branch."""
+    result = solve_linear_gk(
+        species_list=[deuterium_ion(R_L_T=6.9, R_L_n=2.2)],
+        geom=cyclone_geometry,
+        vgrid=small_vgrid,
+        electromagnetic=True,
+        beta_e=0.01,
+        alpha_MHD=0.5,
+        n_ky_ion=1,
+        n_ky_etg=0,
+    )
+    assert isinstance(result, LinearGKResult)
+    assert np.all(np.isfinite(result.gamma))
+
+
 def test_linear_gk_all_finite():
     result = solve_linear_gk(
         R0=2.78,
