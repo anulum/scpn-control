@@ -630,3 +630,26 @@ def test_admissible_rejects_replay_digest_mismatch():
     payload["payload_sha256"] = hil._sha256_json({k: v for k, v in payload.items() if k != "payload_sha256"})
     with pytest.raises(ValueError, match="replay_digest does not match"):
         assert_hil_replay_evidence_admissible(payload)
+
+
+def test_run_hil_benchmark_verbose_without_fpga_export() -> None:
+    """Verbose reporting with no FPGA export skips the FPGA summary log lines (branch 869->873)."""
+    result = run_hil_benchmark(iterations=50, include_fpga_export=False, verbose=True)
+    assert result.fpga_register_map is None
+
+
+def test_load_weights_from_controller_without_weights_attribute() -> None:
+    """A controller lacking a weights attribute leaves the demo runner weights unchanged (branch 1039->1042)."""
+    runner = hil.HILDemoRunner(n_neurons=8, n_inputs=4, n_outputs=4)
+    before = runner.weights.copy()
+    runner.load_weights_from_controller(object())
+    np.testing.assert_array_equal(runner.weights, before)
+
+
+def test_inject_bitflip_discards_non_finite_result() -> None:
+    """A bit flip yielding a non-finite value is not written back to the TMR copy (branch 1110->exit)."""
+    runner = hil.HILDemoRunner(n_neurons=8, n_inputs=4, n_outputs=4)
+    max_double = float.fromhex("0x1.fffffffffffffp+1023")
+    runner.tmr_copies[0][0] = max_double
+    runner.inject_bitflip(neuron_idx=0, bit_idx=52)  # flip the exponent LSB -> +inf
+    assert runner.tmr_copies[0][0] == max_double  # non-finite result discarded, value unchanged
