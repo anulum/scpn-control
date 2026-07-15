@@ -134,6 +134,14 @@ class TestInitialization:
         assert solver.chi_i.shape == (50,)
         assert solver.D_n.shape == (50,)
 
+    def test_chang_hinton_chi_profile_uses_explicit_t_i_and_n_e(self, solver: TransportSolver) -> None:
+        """chang_hinton_chi_profile honours explicit t_i / n_e over the Ti / ne fallbacks (branches 541->543, 546->548)."""
+        solver.t_i = np.asarray(solver.Ti, dtype=np.float64)
+        solver.n_e = np.asarray(solver.ne, dtype=np.float64)
+        chi = solver.chang_hinton_chi_profile()
+        assert chi.shape == solver.rho.shape
+        assert np.all(np.isfinite(chi))
+
     def test_tau_he_factor_default(self, config_file: Path) -> None:
         """Default He-ash pumping time factor is 5.0."""
         ts = TransportSolver(str(config_file), multi_ion=True)
