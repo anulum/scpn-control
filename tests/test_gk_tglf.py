@@ -112,6 +112,27 @@ def test_parse_tglf_output_eigenvalue_file(tmp_path):
     assert result.dominant_mode == "ITG"
 
 
+def test_parse_tglf_output_ignores_unrecognised_transport_key(tmp_path):
+    """Unknown transport keys are skipped while the recognised coefficients still parse."""
+    transport = tmp_path / "out.tglf.transport"
+    transport.write_text("chi_i 2.5\nunknown_key 9.9\nd_e 0.4\n")
+    result = parse_tglf_output(tmp_path)
+    assert result.chi_i == pytest.approx(2.5)
+    assert result.D_e == pytest.approx(0.4)
+    assert result.converged is True
+
+
+def test_parse_tglf_output_ignores_malformed_eigenvalue_shape(tmp_path):
+    """A single-row (1-D) eigenvalue file is rejected, leaving the spectra empty."""
+    transport = tmp_path / "out.tglf.transport"
+    transport.write_text("chi_i 1.0\nchi_e 0.8\n")
+    eigen = tmp_path / "out.tglf.eigenvalue_spectrum"
+    eigen.write_text("# ky gamma omega_r\n0.3 0.5 0.2\n")
+    result = parse_tglf_output(tmp_path)
+    assert result.k_y.size == 0
+    assert result.gamma.size == 0
+
+
 def test_classify_dominant_mode_stable():
     gamma = np.array([0.0, -0.1, 0.0])
     omega = np.array([0.0, 0.0, 0.0])

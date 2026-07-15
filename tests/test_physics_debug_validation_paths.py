@@ -971,6 +971,19 @@ def test_coerce_provider_response_extracts_common_gateway_envelopes(raw: Any) ->
     assert "hypotheses" in coerced
 
 
+@pytest.mark.parametrize(
+    "raw",
+    [
+        {"choices": ["not-a-dict"]},
+        {"choices": [{"role": "assistant"}]},
+        [{"unrecognised_key": "value"}],
+    ],
+)
+def test_extract_provider_json_returns_input_when_no_envelope_matches(raw: Any) -> None:
+    """Gateway shapes with no recognised text field fall through and return the parsed value."""
+    assert pd._extract_provider_json(raw, ProviderPolicy()) == raw
+
+
 def test_load_provider_text_rejects_oversize_and_non_object() -> None:
     with pytest.raises(ValueError, match="response exceeds policy max_response_chars"):
         pd._load_provider_text("x" * 100, ProviderPolicy(max_response_chars=5))
@@ -1021,6 +1034,28 @@ def test_guardrail_provider_rejects_malformed_header_name() -> None:
             model="m",
             headers={"bad\nname": "v"},
         )
+
+
+def test_http_chat_provider_accepts_well_formed_headers() -> None:
+    """A single-line header name and value pass validation and are retained."""
+    provider = HTTPChatProvider(
+        provider_name="p",
+        endpoint="http://127.0.0.1:8000/v1/chat/completions",
+        model="m",
+        headers={"Authorization": "Bearer token"},
+    )
+    assert provider.headers == {"Authorization": "Bearer token"}
+
+
+def test_guardrail_provider_accepts_well_formed_headers() -> None:
+    """A single-line header name and value pass guardrail validation and are retained."""
+    provider = PhysicsDebugGuardrailProvider(
+        provider_name="g",
+        endpoint="http://127.0.0.1:8765/v1/physics-debug/guardrail",
+        model="m",
+        headers={"X-Api-Key": "key"},
+    )
+    assert provider.headers == {"X-Api-Key": "key"}
 
 
 def test_validate_quorum_rejects_digest_mismatch() -> None:
