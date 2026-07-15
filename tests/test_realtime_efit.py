@@ -754,3 +754,16 @@ def test_freespace_operator_rejects_nonuniform_grid():
     efit = RealtimeEFIT(diagnostics, r_nonuniform, np.linspace(-3.0, 3.0, 33))
     with pytest.raises(ValueError, match="uniform R/Z spacing"):
         efit._freespace_boundary_operator()
+
+
+def test_reconstruct_unregularised_single_iteration_exits_on_max_iter():
+    """An unregularised, non-converging single-iteration psi_n fit exercises the direct-lstsq path
+    and the Picard-loop max-iteration exit (branches 708->712, 782->812)."""
+    diag = create_mock_diagnostics()
+    R = np.linspace(4.2, 8.2, 33)
+    Z = np.linspace(-3.0, 3.0, 33)
+    efit = RealtimeEFIT(diag, R, Z)
+    r2, z2 = np.meshgrid(R, Z, indexing="ij")
+    meas = efit.response.simulate_measurements((r2 - 6.0) ** 2 + z2**2, np.zeros(5))
+    res = efit.reconstruct(meas, mode="psi_n", max_iter=1, tol=1.0e-12, regularization=0.0)
+    assert res.n_iterations == 1
