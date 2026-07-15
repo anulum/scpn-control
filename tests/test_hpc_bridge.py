@@ -502,6 +502,44 @@ def test_compile_cpp_builds_in_package_bin(monkeypatch: pytest.MonkeyPatch, tmp_
     assert Path(out).read_bytes() == b"shared object"
 
 
+def test_compile_cpp_macos_omits_linux_linker_flags(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """On macOS the Linux-only linker hardening flags are omitted from the compile command (branch 618->621)."""
+    calls: dict[str, object] = {}
+
+    def _fake_run(cmd: Sequence[str], check: bool, cwd: Path, env: dict[str, str], timeout: int) -> None:
+        Path(cmd[cmd.index("-o") + 1]).write_bytes(b"shared object")
+        calls["cmd"] = list(cmd)
+
+    monkeypatch.setenv("SCPN_ALLOW_NATIVE_BUILD", "1")
+    _admit_test_compiler(monkeypatch)
+    monkeypatch.setattr(platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(subprocess, "run", _fake_run)
+    _write_solver_source(tmp_path, monkeypatch)
+
+    out = hpc_mod.compile_cpp()
+    assert out is not None
+    assert "-Wl,-z,relro" not in calls["cmd"]  # Linux-only hardening flag skipped
+    assert "-mtune=generic" in calls["cmd"]  # common gcc flag still present
+
+
+def test_release_native_solver_skips_destroy_without_lib() -> None:
+    """A loaded solver state without a lib handle nulls the pointer without a destroy call (branch 218->222)."""
+    state: dict[str, Any] = {"solver_ptr": object(), "loaded": True, "lib": None, "destroy_symbol": None}
+    hpc_mod._release_native_solver(state)
+    assert state["solver_ptr"] is None
+
+
+def test_close_legacy_path_without_lib_nulls_pointer() -> None:
+    """close() on a legacy instance (no _cleanup_state) with no lib still clears the pointer (branch 321->325)."""
+    bridge = HPCBridge.__new__(HPCBridge)
+    bridge.solver_ptr = cast(Any, 12345)
+    bridge.loaded = True
+    bridge.lib = None
+    bridge._destroy_symbol = None
+    bridge.close()
+    assert bridge.solver_ptr is None
+
+
 def test_packaged_solver_manifest_matches_source() -> None:
     """The shipped native solver source must match its package manifest."""
 
