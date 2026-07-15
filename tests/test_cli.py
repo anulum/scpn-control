@@ -1892,3 +1892,13 @@ def test_parse_mdsplus_signal_spec_rejects_non_object_payload() -> None:
 
     with pytest.raises(ValueError, match="JSON object"):
         _parse_mdsplus_signal_spec(json.dumps(["not", "a", "signal"]))
+
+
+def test_emit_campaign_result_skips_execution_line_for_non_dict_execution(capsys) -> None:
+    """A campaign summary whose 'execution' entry is not a mapping omits the execution line (branch 104->112)."""
+    from scpn_control.cli import _emit_campaign_result
+
+    _emit_campaign_result({"status": "ok", "execution": "not-a-mapping"}, json_out=False)
+    out = capsys.readouterr().out
+    assert "Hardware campaign completed" in out
+    assert "Execution:" not in out
