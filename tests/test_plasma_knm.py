@@ -155,6 +155,17 @@ class TestModeBias:
         with pytest.raises(ValueError, match="Unknown plasma mode"):
             build_knm_plasma(mode="nonsense")
 
+    def test_apply_mode_bias_ignores_unrecognised_mode(self):
+        """An unrecognised mode leaves the coupling matrix unchanged (branch 256->exit).
+
+        _apply_mode_bias only amplifies couplings for the known instability
+        scenarios; a mode string matching none of them falls through every
+        branch and returns without touching the matrix.
+        """
+        K = np.ones((8, 8))
+        plasma_knm._apply_mode_bias(K, "unrecognised_scenario")
+        assert np.all(K == 1.0)
+
 
 # ── Custom overrides ────────────────────────────────────────────────
 
