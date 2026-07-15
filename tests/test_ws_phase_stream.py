@@ -469,6 +469,34 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_send_frame_keeps_client_when_transport_buffer_within_limit(self):
+        """A transport buffer at or below the limit keeps the client (arc 498->506)."""
+
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                max_client_write_buffer_bytes=64,
+            )
+
+            class _SmallBufferTransport:
+                def get_write_buffer_size(self):
+                    return 32  # <= max_client_write_buffer_bytes -> no backpressure
+
+            class _SmallBufferWS(_FakeWS):
+                transport = _SmallBufferTransport()
+
+            ws = _SmallBufferWS()
+
+            dead = await server._send_frame_or_dead(ws, json.dumps({"R_global": 1.0}))
+
+            assert dead is None
+            assert not ws.closed
+            assert server.runtime_counters()["backpressure_disconnects"] == 0
+
+        asyncio.run(_run())
+
     def test_handler_rate_limits_invalid_json_before_parsing(self, monkeypatch):
         async def _run():
             mon = _make_monitor()

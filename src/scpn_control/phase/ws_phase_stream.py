@@ -377,7 +377,7 @@ class PhaseStreamServer:
             "action_rejected": "action_rejections",
             "frame_rejected": "malformed_frame_rejections",
         }.get(event)
-        if counter is not None:
+        if counter is not None:  # pragma: no branch - every caller passes a mapped event; #129
             self._bump_runtime_counter(counter)
         logger.warning(
             "phase_stream_security_event event=%s peer=%s reason=%s",
@@ -469,7 +469,7 @@ class PhaseStreamServer:
                 elif action == "reset":
                     self.monitor.reset(seed=cmd.get("seed", 42))
                     self._bump_runtime_counter("command_frames")
-                elif action == "stop":
+                elif action == "stop":  # pragma: no branch - allowed_actions<=4 known; last elif always stop; #129
                     self._running = False
                     self._bump_runtime_counter("command_frames")
         finally:
