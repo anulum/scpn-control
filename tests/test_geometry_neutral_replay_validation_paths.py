@@ -349,6 +349,51 @@ def test_evidence_device_claim_requires_deterministic_threshold_pass() -> None:
         gnr._validate_geometry_neutral_replay_evidence_payload(payload, require_device_claim=False)
 
 
+def test_evidence_device_claim_admits_non_synthetic_reference() -> None:
+    """A deterministic, threshold-passing device claim with a non-synthetic reference is admitted.
+
+    Exercises the successful fall-through past the synthetic-provenance guard (branch 888->890).
+    """
+    payload = _bounded_evidence_payload()
+    payload["device_claim_allowed"] = True
+    payload["claim_status"] = GEOMETRY_NEUTRAL_REPLAY_QUALIFIED
+    payload["measured_or_benchmark_artefact_sha256"] = "a" * 64
+    payload["magnetic_configuration_reference"] = "measured W7-X reduced-order reference"
+    _reseal_evidence(payload)
+    evidence = gnr._validate_geometry_neutral_replay_evidence_payload(payload, require_device_claim=False)
+    assert evidence.device_claim_allowed is True
+
+
+def test_v1_1_extensions_accept_frc_diagnostics_without_optional_keys() -> None:
+    """An frc_diagnostics mapping present but missing every optional key validates cleanly.
+
+    Exercises the absent-key fall-throughs for s_parameter_at_burn / mrti_peak_amplitude_m /
+    tilt_growth_rate_s_inv (branches 700->705, 705->710, 710->716).
+    """
+    gnr._validate_v1_1_extensions({"frc_diagnostics": {}, "manifest": {}})
+
+
+def test_build_aer_admission_metadata_omits_feature_digest_without_vector() -> None:
+    """Without a feature_vector the metadata carries no feature digest (branch 279->287)."""
+    buffer = SpikeBuffer(capacity=8)
+    buffer.extend([SpikeEvent(neuron_id=0, timestamp_ns=10), SpikeEvent(neuron_id=1, timestamp_ns=30)])
+    observation = AERControlObservation(
+        timestamp_ns=100,
+        spike_stream=buffer,
+        decode_window_ns=100,
+        decode_strategy="rate",
+        n_features=4,
+        require_monotonic=True,
+    )
+    metadata = build_aer_admission_metadata(
+        admission_report=observation.admission_report(),
+        decode_strategy="rate",
+        decode_window_ns=100,
+        n_features=4,
+    )
+    assert "feature_vector_sha256" not in metadata
+
+
 def test_assert_claim_admissible_rejects_foreign_object() -> None:
     from scpn_control.scpn.geometry_neutral_replay import assert_geometry_neutral_replay_claim_admissible
 
