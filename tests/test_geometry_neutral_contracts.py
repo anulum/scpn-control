@@ -152,6 +152,59 @@ def test_replay_scenario_validates_fault_channels_and_serialises_contract() -> N
         )
 
 
+def test_replay_scenario_without_current_limit_skips_envelope_check() -> None:
+    """A contract with no max_abs_current_A constraint skips the envelope check (branch 321->331).
+
+    The optional current-limit validation only runs when the objective declares
+    max_abs_current_A; an objective without it constructs successfully and
+    __post_init__ proceeds straight to fault-schedule validation.
+    """
+    actuator = ActuatorChannel(
+        name="helical_trim_A",
+        unit="A",
+        min_value=-1200.0,
+        max_value=1200.0,
+        slew_rate_per_s=4.0e5,
+        latency_steps=1,
+        failure_mode="stuck_supported",
+    )
+    scenario = ReplayScenario(
+        name="stellarator_replay_no_current_limit",
+        seed=7,
+        steps=8,
+        dt_s=0.001,
+        magnetic_configuration=MagneticConfiguration(
+            name="public_w7x_like",
+            device_class="stellarator",
+            field_periods=5,
+            coordinate_system="boozer_vmec_like",
+            reference="public synthetic fixture",
+        ),
+        actuator_set=ActuatorSet(channels=(actuator,)),
+        objective=ControlObjective(
+            target_metrics={"fieldline_spread": 0.015},
+            weights={"fieldline_spread": 1.0},
+            constraints={},
+        ),
+        initial_frame=DiagnosticFrame(
+            step=0,
+            time_s=0.0,
+            channels=(
+                DiagnosticChannel(
+                    name="fieldline_spread",
+                    value=0.04,
+                    unit="rad",
+                    sigma=0.002,
+                    provenance="public_synthetic",
+                ),
+            ),
+        ),
+        fault_schedule={3: {"helical_trim_A": "stuck"}},
+    )
+
+    assert "max_abs_current_A" not in scenario.objective.constraints
+
+
 def test_replay_scenario_rejects_non_integer_and_empty_fault_entries() -> None:
     actuator = ActuatorChannel(
         name="helical_trim_A",
