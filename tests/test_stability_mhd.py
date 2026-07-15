@@ -276,6 +276,24 @@ class TestRunFullStabilityCheck:
         assert summary.n_criteria_checked == 5
         assert summary.n_criteria_stable >= 3  # KS, Troyon, NTM stable
 
+    def test_troyon_beta_above_no_wall_limit(self, iter_like_qprofile):
+        """A beta above the no-wall Troyon limit is flagged unstable (branch 682->686).
+
+        With beta_N = 100*beta_t*a*B0/Ip_MA driven above g_nowall (2.8), the
+        Troyon result reports stable_nowall False, so that criterion is checked
+        but does not add to the stable count.
+        """
+        summary = run_full_stability_check(
+            iter_like_qprofile,
+            beta_t=0.05,
+            Ip_MA=15.0,
+            a=2.0,
+            B0=5.3,
+        )
+
+        assert summary.troyon is not None
+        assert summary.troyon.stable_nowall is False
+
     def test_overall_unstable_when_kink(self):
         rho = np.linspace(0.0, 1.0, 4)
         qp = QProfile(

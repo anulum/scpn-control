@@ -159,6 +159,23 @@ def test_divertor_lifetime_assessment():
         assert rep.lifetime_years > 0.0
 
 
+def test_divertor_lifetime_no_melting_below_melt_temperature():
+    """A low-power scenario stays below the melt temperature (branch 389->393).
+
+    When the peak ELM surface temperature does not exceed the wall melt point,
+    the melting override is skipped and the reported lifetime is set by erosion
+    or fatigue rather than being zeroed out.
+    """
+    sol = TwoPointSOL(R0=6.2, a=2.0, q95=3.0, B_pol=0.56)
+    assessment = DivertorLifetimeAssessment(sol, SputteringYield(), ErosionModel(), WallThermalModel())
+
+    rep = assessment.assess(P_SOL_MW=0.5, n_u_19=10.0, f_ELM_Hz=20.0, delta_W_ELM_MJ=0.005)
+
+    assert rep.limiting_factor != "Melting"
+    assert rep.peak_T_elm_K < WallThermalModel().T_melt
+    assert rep.lifetime_years > 0.0
+
+
 def test_sputtering_below_threshold_zero():
     """
     Y = 0 for E_ion ≤ E_th.

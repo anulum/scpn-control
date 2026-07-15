@@ -96,6 +96,23 @@ def test_fueling_controller():
     assert cmd.pellet_params.r_p_mm == 4.0
 
 
+def test_fueling_controller_no_injection_when_density_sufficient():
+    """No pellet is fired when the mean density already meets the target (branch 370->379).
+
+    The fuelling guard only fires when the mean density is below 95 % of the
+    target. A profile at the target density fails that guard, so step returns
+    None without scheduling an injection regardless of the pacing period.
+    """
+    params = PelletParams(4.0, 300.0)
+    ctrl = PelletFuelingController(target_density=10.0, pellet_params=params)
+    ne_high = np.ones(50) * 10.0  # mean >= 0.95 * target → no fuelling needed
+    Te = np.ones(50) * 5000.0
+
+    cmd = ctrl.step(ne_high, Te, 1.0, 800.0)
+
+    assert cmd is None
+
+
 def test_pellet_trajectory_edge_clamp():
     """Trajectory interpolation remains finite at radial-grid boundaries."""
     params = PelletParams(r_p_mm=2.0, v_p_m_s=500.0)
