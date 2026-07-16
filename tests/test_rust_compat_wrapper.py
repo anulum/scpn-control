@@ -597,6 +597,28 @@ def test_rust_accelerated_kernel_vacuum_field_delegates_to_python(
     assert vacuum is not None
 
 
+def test_wrapper_set_solver_method_noop_when_backend_lacks_it(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Exercise _rust_compat.py:205->-203: set_solver_method is skipped when the backend omits it.
+
+    The ``hasattr`` guard tolerates a native backend that does not expose
+    ``set_solver_method``; the call then returns cleanly without touching the backend.
+    """
+
+    class _NoSetSolverMethodKernel(_DummyRustKernel):
+        def __getattribute__(self, name: str) -> Any:
+            if name == "set_solver_method":
+                raise AttributeError(name)
+            return super().__getattribute__(name)
+
+    cfg = tmp_path / "cfg.json"
+    _write_config(cfg)
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _NoSetSolverMethodKernel, raising=False)
+    wrapper = _rust_compat.RustAcceleratedKernel(str(cfg))
+    assert not hasattr(wrapper._rust, "set_solver_method")
+
+    wrapper.set_solver_method("multigrid")  # no-op: the guard skips the absent backend call
+
+
 def test_wrapper_already_normalised_config_registers_no_finalizer(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
