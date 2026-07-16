@@ -1352,7 +1352,7 @@ class IntegratedScenarioSimulator:
                 self._last_gk_output,
                 chi_i_profile=chi_i_profile,
             )
-            if self._phase_omega is not None:
+            if self._phase_omega is not None:  # pragma: no branch - omega set with K_nm, never None here; #129
                 self._phase_omega = gk_natural_frequencies(
                     self._phase_omega,
                     self._last_gk_output,

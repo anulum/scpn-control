@@ -596,6 +596,22 @@ def test_enabled_scenario_modules_lists_every_optional_lane():
         assert lane in modules
 
 
+def test_enabled_scenario_modules_omits_stability_when_disabled():
+    """Disabling MHD stability drops the mhd_stability lane (arc 441->443)."""
+    cfg = replace(_minimal_config(P_aux_MW=1.0), include_stability=False)
+    assert "mhd_stability" not in enabled_scenario_modules(cfg)
+
+
+def test_step_without_stability_skips_mhd_checks():
+    """A step with MHD stability disabled skips the ballooning/Troyon block (arc 1262->1285)."""
+    cfg = replace(_minimal_config(P_aux_MW=1.0), include_stability=False)
+    sim = IntegratedScenarioSimulator(cfg)
+    sim.initialize()
+    state = sim.step()
+    assert state.W_thermal > 0
+    assert (state.Te > 0).all()
+
+
 @pytest.mark.parametrize(
     ("module", "expected_key"),
     [
