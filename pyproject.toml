@@ -220,6 +220,7 @@ xfail_strict = true
 
 [tool.coverage.run]
 source = ["scpn_control"]
+branch = true
 
 [tool.coverage.report]
 fail_under = 100
