@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from scpn_control.control.disruption_predictor import (
+    _prepare_signal_window,
     apply_bit_flip_fault,
     build_disruption_feature_vector,
     predict_disruption_risk,
@@ -69,11 +70,29 @@ class TestBuildDisruptionFeatureVector:
         with pytest.raises(ValueError, match="finite"):
             build_disruption_feature_vector(np.array([1.0, float("nan"), 2.0]))
 
+    def test_overflowing_signal_raises(self):
+        # A finite but enormous signal overflows to inf under squaring (energy);
+        # the output must be rejected, not returned as a non-finite feature.
+        with np.errstate(over="ignore"), pytest.raises(ValueError, match="finite"):
+            build_disruption_feature_vector(np.array([1e200, 2e200, 3e200]))
+
     def test_no_toroidal_zeros(self):
         feats = build_disruption_feature_vector(np.ones(30))
         # Without toroidal, n1..spread should be 0
         assert feats[6] == 0.0
         assert feats[10] == 0.0
+
+
+class TestPrepareSignalWindow:
+    def test_empty_signal_raises(self):
+        with pytest.raises(ValueError, match="at least one"):
+            _prepare_signal_window(np.array([]), 8)
+
+    def test_short_signal_is_padded_to_window(self):
+        assert _prepare_signal_window(np.ones(4), 8).size == 8
+
+    def test_long_signal_is_truncated_to_window(self):
+        assert _prepare_signal_window(np.ones(20), 8).size == 8
 
 
 class TestPredictDisruptionRisk:
