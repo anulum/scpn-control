@@ -196,12 +196,12 @@ blocked until the required external artefacts exist.
 | Project scripts | 5 |
 | Public API exports | 44 |
 | Python control/physics modules | 161 |
-| Python public classes | 534 |
+| Python public classes | 535 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 127 |
 | Optional extras | 19 |
-| Python test files | 465 |
+| Python test files | 466 |
 | Public documentation pages | 61 |
 | GitHub Actions workflows | 10 |
 
@@ -385,7 +385,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 465 Python test files (generated inventory)
+tests/                 # 466 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
