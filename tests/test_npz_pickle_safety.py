@@ -74,7 +74,7 @@ def test_load_weights_refuses_pickled_object_array(tmp_path: Path) -> None:
     _write_object_array_npz(hostile, "w0")
     model = QLKNNSurrogate(hidden_layers=[16], pretrained=False)
 
-    with pytest.raises(ValueError, match="allow_pickle=False|[Oo]bject array"):
+    with pytest.raises(ValueError, match="allow_pickle=False"):
         model.load_weights(str(hostile))
 
 
@@ -96,5 +96,5 @@ def test_validate_disruption_refuses_pickled_object_array(tmp_path: Path) -> Non
     """The real-shot disruption harness rejects a hostile object array on load."""
     _write_object_array_npz(tmp_path / "hostile-shot.npz", "is_disruption")
 
-    with pytest.raises(ValueError, match="allow_pickle=False|[Oo]bject array"):
+    with pytest.raises(ValueError, match="allow_pickle=False"):
         validate_disruption(tmp_path)
