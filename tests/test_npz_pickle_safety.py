@@ -93,8 +93,29 @@ def test_load_weights_still_round_trips_numeric_weights(tmp_path: Path) -> None:
 
 
 def test_validate_disruption_refuses_pickled_object_array(tmp_path: Path) -> None:
-    """The real-shot disruption harness rejects a hostile object array on load."""
+    """A hostile object-array shot is refused and recorded per file, not unpickled.
+
+    ``allow_pickle=False`` makes numpy refuse the object array (it never runs the
+    embedded ``__reduce__``); the harness records the refusal against that file
+    instead of aborting the whole batch.
+    """
     _write_object_array_npz(tmp_path / "hostile-shot.npz", "is_disruption")
 
-    with pytest.raises(ValueError, match="allow_pickle=False"):
-        validate_disruption(tmp_path)
+    report = validate_disruption(tmp_path)
+
+    assert report["n_shots"] == 1
+    records = report["shots"]
+    assert len(records) == 1
+    assert "allow_pickle=False" in records[0]["error"]
+    assert records[0].get("detected") is False
+
+
+def test_validate_disruption_fails_closed_on_corrupt_npz(tmp_path: Path) -> None:
+    """A corrupt archive is recorded per file, never allowed to abort the batch."""
+    corrupt = tmp_path / "corrupt-shot.npz"
+    corrupt.write_bytes(b"PK\x03\x04 corrupt \x00\x01 not a valid npz archive")
+
+    report = validate_disruption(tmp_path)
+
+    assert report["n_shots"] == 1
+    assert "error" in report["shots"][0]

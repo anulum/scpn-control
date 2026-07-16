@@ -328,77 +328,91 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
     true_negatives = 0
 
     for npz_path in npz_files:
-        data = np.load(npz_path, allow_pickle=False)
-        is_disruption = bool(data.get("is_disruption", False))
-        disruption_time_idx = int(data.get("disruption_time_idx", -1))
-        signal = np.asarray(data.get("dBdt_gauss_per_s", data.get("n1_amp", [])))
+        # A malformed, corrupt, or adversarial NPZ (bad zip, an object array under
+        # allow_pickle=False, or a multi-element scalar field) must not abort the
+        # whole batch: fail closed per file, mirroring the G-EQDSK loop above.
+        try:
+            data = np.load(npz_path, allow_pickle=False)
+            is_disruption = bool(data.get("is_disruption", False))
+            disruption_time_idx = int(data.get("disruption_time_idx", -1))
+            signal = np.asarray(data.get("dBdt_gauss_per_s", data.get("n1_amp", [])))
 
-        if signal.size == 0:
+            if signal.size == 0:
+                results.append(
+                    {
+                        "file": npz_path.name,
+                        "error": "No signal data",
+                    }
+                )
+                continue
+
+            # Run predictor on sliding windows
+            window_size = min(128, signal.size)
+            risk_threshold = 0.50
+            detection_idx = -1
+
+            for t in range(window_size, signal.size):
+                window = signal[t - window_size : t]
+                # Build toroidal observables from available data
+                n1 = float(data["n1_amp"][t]) if "n1_amp" in data else 0.1
+                n2 = float(data["n2_amp"][t]) if "n2_amp" in data else 0.05
+                toroidal = {
+                    "toroidal_n1_amp": n1,
+                    "toroidal_n2_amp": n2,
+                    "toroidal_n3_amp": 0.02,
+                }
+                risk = predict_disruption_risk(window, toroidal)
+                if risk > risk_threshold:
+                    detection_idx = t
+                    break
+
+            detected = detection_idx >= 0
+            detection_ms = -1.0
+            within_threshold = False
+
+            if is_disruption and disruption_time_idx > 0:
+                if detected:
+                    # Time between detection and actual disruption
+                    time_arr = data.get("time_s", None)
+                    if (
+                        time_arr is not None
+                        and hasattr(time_arr, "__len__")
+                        and len(time_arr) > max(disruption_time_idx, detection_idx)
+                    ):
+                        dt_arr = np.asarray(time_arr, dtype=np.float64)
+                        detection_ms = float((dt_arr[disruption_time_idx] - dt_arr[detection_idx]) * 1000)
+                    else:
+                        detection_ms = float(disruption_time_idx - detection_idx) * 3.0  # ~3ms per index at 1kHz
+                    within_threshold = bool(detection_ms >= 0 and detection_ms <= THRESHOLDS["disruption_detection_ms"])
+                    true_positives += 1
+                else:
+                    false_negatives += 1
+            elif not is_disruption:
+                if detected:
+                    false_positives += 1
+                else:
+                    true_negatives += 1
+
             results.append(
                 {
                     "file": npz_path.name,
-                    "error": "No signal data",
+                    "is_disruption": is_disruption,
+                    "detected": detected,
+                    "detection_idx": detection_idx,
+                    "detection_lead_ms": round(detection_ms, 1),
+                    "within_threshold": within_threshold,
+                }
+            )
+        except Exception as exc:
+            results.append(
+                {
+                    "file": npz_path.name,
+                    "error": str(exc),
+                    "detected": False,
+                    "within_threshold": False,
                 }
             )
             continue
-
-        # Run predictor on sliding windows
-        window_size = min(128, signal.size)
-        risk_threshold = 0.50
-        detection_idx = -1
-
-        for t in range(window_size, signal.size):
-            window = signal[t - window_size : t]
-            # Build toroidal observables from available data
-            n1 = float(data["n1_amp"][t]) if "n1_amp" in data else 0.1
-            n2 = float(data["n2_amp"][t]) if "n2_amp" in data else 0.05
-            toroidal = {
-                "toroidal_n1_amp": n1,
-                "toroidal_n2_amp": n2,
-                "toroidal_n3_amp": 0.02,
-            }
-            risk = predict_disruption_risk(window, toroidal)
-            if risk > risk_threshold:
-                detection_idx = t
-                break
-
-        detected = detection_idx >= 0
-        detection_ms = -1.0
-        within_threshold = False
-
-        if is_disruption and disruption_time_idx > 0:
-            if detected:
-                # Time between detection and actual disruption
-                time_arr = data.get("time_s", None)
-                if (
-                    time_arr is not None
-                    and hasattr(time_arr, "__len__")
-                    and len(time_arr) > max(disruption_time_idx, detection_idx)
-                ):
-                    dt_arr = np.asarray(time_arr, dtype=np.float64)
-                    detection_ms = float((dt_arr[disruption_time_idx] - dt_arr[detection_idx]) * 1000)
-                else:
-                    detection_ms = float(disruption_time_idx - detection_idx) * 3.0  # ~3ms per index at 1kHz
-                within_threshold = bool(detection_ms >= 0 and detection_ms <= THRESHOLDS["disruption_detection_ms"])
-                true_positives += 1
-            else:
-                false_negatives += 1
-        elif not is_disruption:
-            if detected:
-                false_positives += 1
-            else:
-                true_negatives += 1
-
-        results.append(
-            {
-                "file": npz_path.name,
-                "is_disruption": is_disruption,
-                "detected": detected,
-                "detection_idx": detection_idx,
-                "detection_lead_ms": round(detection_ms, 1),
-                "within_threshold": within_threshold,
-            }
-        )
 
     n_disruptions = true_positives + false_negatives
     recall = true_positives / max(n_disruptions, 1)
