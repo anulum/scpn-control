@@ -409,3 +409,90 @@ def test_call_optional_swallows_incompatible_signature() -> None:
 
     # method_name absent from the PyO3 arg-order table → the TypeError is swallowed
     assert _engine()._call_optional(_Holder(), "configure", value=1, extra=2) is None
+
+
+def test_native_handoff_reuses_existing_pool(native: type[_FakePool]) -> None:
+    """Exercise rust_engine.py:739->746 — a second native run reuses the built pool."""
+    engine = _engine()
+    first = engine.execute_hardware_loop(steps=1, execution_backend="native", runtime_admission_policy="off")
+    assert first["execution"]["mode"] == "native"
+    pool_after_first = engine._native_pool
+    assert pool_after_first is not None
+    second = engine.execute_hardware_loop(steps=1, execution_backend="native", runtime_admission_policy="off")
+    assert second["execution"]["mode"] == "native"
+    assert engine._native_pool is pool_after_first
+
+
+def test_native_handoff_keyboard_interrupt_preserves_dict_summary(native: type[_FakePool]) -> None:
+    """Exercise rust_engine.py:908->910 — dict telemetry on interrupt is kept as-is."""
+    native.mode = "kbi"
+    native.telemetry = {"steps": 1, "status": "interrupted"}
+    result = _engine().execute_hardware_loop(steps=2, execution_backend="native", runtime_admission_policy="off")
+    assert result["status"] == "keyboard_interrupt"
+    assert result["native"]["steps"] == 1
+
+
+def test_hybrid_loop_skips_sleep_when_cycle_exceeds_tick(bridge: type["_FakeBridge"]) -> None:
+    """Exercise rust_engine.py:1036->1039 — a sub-cycle tick budget skips the pacing sleep."""
+    result = _engine().execute_hardware_loop(steps=1, tick_interval_s=1e-9, runtime_admission_policy="off")
+    assert result["steps"] == 1
+
+
+def test_stop_on_fresh_engine_is_a_noop() -> None:
+    """Exercise rust_engine.py:1090->1095 — stop() with no bridge (nor pool) is a no-op."""
+    engine = _engine()
+    engine.stop()
+    assert engine._bridge is None
+    assert engine._native_pool is None
+
+
+def test_extract_slab_telemetry_skips_non_dict_native_summary() -> None:
+    """Exercise rust_engine.py:1139->1141 — non-dict native telemetry is omitted."""
+    engine = _engine()
+
+    class _Pool:
+        def extract_slab_telemetry(self) -> str:
+            return "not-a-mapping"
+
+    engine._native_pool = _Pool()
+    telemetry = engine.extract_slab_telemetry()
+    assert "native" not in telemetry
+
+
+def test_campaign_summary_omits_runtime_admission_when_unset() -> None:
+    """Exercise rust_engine.py:1184->1187 — no recorded admission omits the block."""
+    engine = _engine()
+    assert engine._last_runtime_admission is None
+    summary = engine._campaign_summary(
+        steps=0,
+        elapsed_s=0.0,
+        total_cycle_ns=0,
+        publish_failures=0,
+        dropped=0,
+        status="idle",
+        snapshot=None,
+        heartbeat_expired=False,
+        execution_mode="python",
+    )
+    assert "runtime_admission" not in summary
+
+
+def test_call_optional_reraises_typeerror_without_kwargs() -> None:
+    """Exercise rust_engine.py:1224->1238 — a no-kwargs TypeError skips the reorder fallback."""
+
+    class _Holder:
+        def blow_up(self) -> None:
+            raise TypeError("positional boom")
+
+    assert _engine()._call_optional(_Holder(), "blow_up") is None
+
+
+def test_call_optional_arg_reorder_skips_on_key_mismatch() -> None:
+    """Exercise rust_engine.py:1228->1238 — an unknown kwarg foils the arg-order reorder."""
+
+    class _Holder:
+        def set_transport_settings(self, **kwargs: Any) -> None:
+            raise TypeError("positional signature required")
+
+    result = _engine()._call_optional(_Holder(), "set_transport_settings", endpoint="udp://x", bogus="y")
+    assert result is None

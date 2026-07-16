@@ -833,7 +833,7 @@ class RustSPIMitigation:
                     p_rad = _SPI_P_RAD_COEFF * np.sqrt(te)
                     w_old = w_th
                     w_th = max(0.0, w_th - p_rad * _SPI_DT)
-                    if w_old > 0.0:
+                    if w_old > 0.0:  # pragma: no branch - w_th=0 => te=floor<TQ => CurrentQuench first; #129
                         te = max(_SPI_TE_FLOOR, te * (w_th / w_old))
                     if te < _SPI_TQ_THRESHOLD:
                         phase = "CurrentQuench"

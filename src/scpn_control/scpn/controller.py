@@ -825,7 +825,7 @@ class NeuroSymbolicController:
             idx = self._delay_immediate_idx
             fired_now[idx] = np.clip(fired_now[idx] + desired[idx], 0.0, 1.0)
 
-        if self._delay_delayed_idx.size:
+        if self._delay_delayed_idx.size:  # pragma: no branch - L818 guard forces delayed_idx nonempty; #129
             np.add(cursor, self._delay_delayed_offsets, out=self._tmp_delay_slots)
             self._tmp_delay_slots %= pending.shape[0]
             idx = self._delay_delayed_idx

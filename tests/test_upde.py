@@ -436,3 +436,105 @@ def test_run_lyapunov_returns_exponents_and_histories() -> None:
     assert out["V_layer_hist"].shape == (3, 2)
     assert out["lambda_layer"].shape == (2,)
     assert np.isfinite(out["lambda_global"])
+
+
+def test_step_skips_rust_fast_path_when_layers_non_uniform(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With Rust present, unequal layer lengths must skip the fast-path (upde.py:137->197).
+
+    The uniform-N guard short-circuits before the native tick is ever consulted, so the
+    Python fallback runs and returns per-layer phases of the original (unequal) sizes.
+    """
+    calls = 0
+
+    def _unexpected_upde_tick(
+        _theta_flat: NDArray[np.float64],
+        _omega_flat: NDArray[np.float64],
+        _k_flat: NDArray[np.float64],
+        _alpha_flat: NDArray[np.float64],
+        _zeta: NDArray[np.float64],
+        _layers: int,
+        _n_per_layer: int,
+        _dt: float,
+        _psi_global: float,
+        _pac_gamma: float,
+    ) -> _FakeRustUpdeResult:
+        nonlocal calls
+        calls += 1
+        raise AssertionError("native tick must not run for non-uniform layers")
+
+    monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", True)
+    monkeypatch.setattr(upde_module, "_rust_upde_tick", _unexpected_upde_tick, raising=False)
+
+    system = upde_module.UPDESystem(spec=_two_layer_spec(), dt=1e-3, psi_mode="external", wrap=True)
+    theta_layers = [
+        np.array([0.0, 0.5, 1.0], dtype=np.float64),
+        np.array([0.1, 0.2, 0.3, 0.4], dtype=np.float64),
+    ]
+    omega_layers = [
+        np.array([0.2, 0.1, 0.0], dtype=np.float64),
+        np.array([0.05, 0.05, 0.05, 0.05], dtype=np.float64),
+    ]
+
+    out = system.step(theta_layers, omega_layers, psi_driver=0.0, pac_gamma=0.2)
+
+    assert calls == 0
+    assert out["theta1"][0].shape == (3,)
+    assert out["theta1"][1].shape == (4,)
+
+
+def test_step_falls_back_when_rust_result_missing_contract_field(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A native result lacking a required contract field is rejected (upde.py:164->197).
+
+    ``_FakeRustUpdeResult`` exposes every field, so it satisfies the ``hasattr`` gate; here a
+    result missing ``v_global`` fails that gate and the Python fallback takes over instead.
+    """
+
+    class _ResultMissingField:
+        def __init__(self, theta_flat: NDArray[np.float64], dtheta_flat: NDArray[np.float64]) -> None:
+            self.theta_flat = theta_flat
+            self.dtheta_flat = dtheta_flat
+            self.r_layer = np.array([0.1, 0.2], dtype=np.float64)
+            self.psi_layer = np.array([0.3, 0.4], dtype=np.float64)
+            self.r_global = 0.1
+            self.psi_global = 0.2
+            self.v_layer = np.array([0.5, 0.6], dtype=np.float64)
+            # ``v_global`` intentionally absent.
+
+    calls = 0
+
+    def _incomplete_upde_tick(
+        theta_flat: NDArray[np.float64],
+        omega_flat: NDArray[np.float64],
+        _k_flat: NDArray[np.float64],
+        _alpha_flat: NDArray[np.float64],
+        _zeta: NDArray[np.float64],
+        _layers: int,
+        _n_per_layer: int,
+        dt: float,
+        _psi_global: float,
+        _pac_gamma: float,
+    ) -> object:
+        nonlocal calls
+        calls += 1
+        return _ResultMissingField(theta_flat + dt * omega_flat, omega_flat)
+
+    monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", True)
+    monkeypatch.setattr(upde_module, "_rust_upde_tick", _incomplete_upde_tick, raising=False)
+
+    system = upde_module.UPDESystem(spec=_two_layer_spec(), dt=0.25, psi_mode="external", wrap=True)
+    theta = [
+        np.array([0.0, 0.5], dtype=np.float64),
+        np.array([1.0, -0.5], dtype=np.float64),
+    ]
+    omega = [
+        np.array([0.2, -0.1], dtype=np.float64),
+        np.array([0.3, 0.4], dtype=np.float64),
+    ]
+
+    out = system.step(theta, omega, psi_driver=0.4, pac_gamma=0.2)
+
+    assert calls == 1
+    assert out["theta1"][0].shape == (2,)
+    assert out["theta1"][1].shape == (2,)

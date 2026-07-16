@@ -239,6 +239,53 @@ def test_configure_itpa_gyro_bohm_rejects_missing_coefficient(tmp_path: Path) ->
         engine.configure_itpa_gyro_bohm(bad_payload)
 
 
+def test_configure_itpa_gyro_bohm_omits_absent_optional_scaling_fields(tmp_path: Path) -> None:
+    """Exercise rust_engine.py:483/485/487 — absent optional ITPA fields are skipped.
+
+    ``alpha_Te``/``alpha_B`` are absent (their ``if ... is not None`` guards fall through)
+    and ``normalized_radius_bounds`` is a list rather than a mapping, so the radius-bounds
+    loop is bypassed entirely.
+    """
+    engine = rust_engine.NeuroCyberneticEngine()
+    payload = tmp_path / "minimal_scaling.json"
+    payload.write_text(
+        json.dumps(
+            {
+                "scaling_parameters": {
+                    "c_gB_nominal": 0.05,
+                    "normalized_radius_bounds": [0.1, 0.95],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    loaded = engine.configure_itpa_gyro_bohm(payload)
+    assert loaded == {"c_gB": 0.05}
+
+
+def test_configure_itpa_gyro_bohm_accepts_partial_radius_bounds(tmp_path: Path) -> None:
+    """Exercise rust_engine.py:489->488 — a radius-bounds mapping missing a key skips it.
+
+    ``rho_tor_min`` is present and copied; ``rho_tor_max`` is absent, so the ``if key in
+    rho_bounds`` guard takes its false arc back to the loop header.
+    """
+    engine = rust_engine.NeuroCyberneticEngine()
+    payload = tmp_path / "partial_bounds.json"
+    payload.write_text(
+        json.dumps(
+            {
+                "scaling_parameters": {
+                    "c_gB_nominal": 0.04,
+                    "normalized_radius_bounds": {"rho_tor_min": 0.15},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    loaded = engine.configure_itpa_gyro_bohm(payload)
+    assert loaded == {"c_gB": 0.04, "rho_tor_min": 0.15}
+
+
 def test_rust_engine_scalar_helpers_fail_closed_on_bad_inputs(tmp_path: Path) -> None:
     missing = tmp_path / "missing.json"
     not_object = tmp_path / "array.json"

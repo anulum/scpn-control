@@ -442,3 +442,46 @@ def test_solver_unknown_sat_model_raises():
     solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT99"))
     with pytest.raises(ValueError, match="Unknown SAT model"):
         solver.solve(_CBC)
+
+
+def test_sat2_without_etg_modes_skips_cross_scale():
+    """Exercise gk_tglf_native.py:196->205: SAT2 with only ion-scale modes skips ETG coupling.
+
+    Every ``k_y`` sits below ``KY_ETG_BOUNDARY`` (2.0), so ``etg_mask`` is empty and the
+    cross-scale enhancement block is bypassed — SAT2 collapses onto the SAT1 spectrum.
+    """
+    linear = _make_linear(
+        k_y=[0.3, 0.5, 0.8],
+        gamma=[0.2, 0.15, 0.1],
+        omega_r=[-0.8, -0.6, -0.4],
+        mode_type=["ITG", "ITG", "ITG"],
+    )
+    cfg = TGLFNativeConfig(sat_model="SAT2", alpha_cs=3.0)
+    phi_sq_sat2, _ = sat2(linear, 0.0, 1.0, cfg)
+    phi_sq_sat1, _ = sat1(linear, 0.0, 1.0, cfg)
+    np.testing.assert_allclose(phi_sq_sat2, phi_sq_sat1)
+
+
+def test_quasilinear_weights_ignores_unsupported_mode_type():
+    """Exercise gk_tglf_native.py:262->242: an unsupported mode type contributes no transport.
+
+    A single unstable ``KBM`` mode clears the amplitude guards but matches neither the
+    ITG/TEM nor the ETG dispatch branch, so it falls straight back to the loop header and
+    adds nothing to any flux channel.
+    """
+    linear = _make_linear(
+        k_y=[0.5],
+        gamma=[0.3],
+        omega_r=[-0.8],
+        mode_type=["KBM"],
+    )
+    cfg = TGLFNativeConfig(sat_model="SAT1")
+    phi_sq, gamma_net = sat1(linear, 0.0, 1.0, cfg)
+    assert phi_sq[0] > 0.0
+    assert gamma_net[0] > 0.0
+    chi_i, chi_e, D_e, V_e, chi_e_etg = quasilinear_weights(linear, phi_sq, gamma_net, 2.0, 2.0, _CBC)
+    assert chi_i == 0.0
+    assert chi_e == 0.0
+    assert D_e == 0.0
+    assert V_e == 0.0
+    assert chi_e_etg == 0.0

@@ -710,9 +710,9 @@ class NeuroCyberneticEngine:
         raw_errors = report.get("errors", ())
         raw_warnings = report.get("warnings", ())
         problems: list[object] = []
-        if isinstance(raw_errors, (list, tuple)):
+        if isinstance(raw_errors, (list, tuple)):  # pragma: no branch - admission report errors always list; #129
             problems.extend(raw_errors)
-        if isinstance(raw_warnings, (list, tuple)):
+        if isinstance(raw_warnings, (list, tuple)):  # pragma: no branch - admission report warnings always list; #129
             problems.extend(raw_warnings)
         if require and report.get("status") != "pass":
             detail = "; ".join(str(problem) for problem in problems[:6])
@@ -1074,7 +1074,7 @@ class NeuroCyberneticEngine:
             status_reason = "runtime_failure"
             raise
         finally:
-            if self._bridge is not None:
+            if self._bridge is not None:  # pragma: no branch - hybrid loop always sets bridge before try; #129
                 try:
                     self._bridge.stop()
                 except Exception as exc:

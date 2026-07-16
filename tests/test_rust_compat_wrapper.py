@@ -595,3 +595,28 @@ def test_rust_accelerated_kernel_vacuum_field_delegates_to_python(
     vacuum = wrapper.calculate_vacuum_field()
 
     assert vacuum is not None
+
+
+def test_wrapper_already_normalised_config_registers_no_finalizer(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Exercise _rust_compat.py:110->113 — an already-canonical config needs no cleanup finalizer.
+
+    A config written in the exact form ``_normalise_rust_config_path`` emits is a fixpoint of that
+    transform, so re-normalising it returns ``cleanup_path=None`` and no temp-file finalizer is
+    registered (the raw base config, by contrast, does require a normalised temp copy).
+    """
+    base = tmp_path / "base.json"
+    _write_config(base)
+    normalised_config, _rust_path, cleanup_path = _rust_compat._normalise_rust_config_path(str(base))
+    assert cleanup_path is not None
+    Path(cleanup_path).unlink(missing_ok=True)
+
+    canonical = tmp_path / "canonical.json"
+    canonical.write_text(json.dumps(normalised_config), encoding="utf-8")
+
+    monkeypatch.setattr(_rust_compat, "PyFusionKernel", _DummyRustKernel, raising=False)
+    wrapper = _rust_compat.RustAcceleratedKernel(str(canonical))
+
+    assert wrapper._normalised_config_finalizer is None
+    assert wrapper._config_path == str(canonical)
