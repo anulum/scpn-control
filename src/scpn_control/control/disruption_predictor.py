@@ -314,7 +314,9 @@ def build_disruption_feature_vector(signal: Any, toroidal_observables: dict[str,
     values = [mean, std, max_val, slope, energy, last, n1, n2, n3, asym, spread]
     if len(values) != len(DISRUPTION_FEATURE_CONTRACT):
         raise RuntimeError("disruption feature vector length drifted from the public contract")
-    return np.array(values, dtype=float)
+    # Finite inputs can still overflow to ±inf under squaring (energy), so
+    # re-validate the computed features rather than emit a non-finite vector.
+    return require_finite_array("disruption features", values)
 
 
 def predict_disruption_risk(signal: Any, toroidal_observables: dict[str, float] | None = None) -> float:
@@ -708,6 +710,8 @@ def _normalize_seq_len(seq_len: int) -> int:
 def _prepare_signal_window(signal: Any, seq_len: int) -> FloatArray:
     seq_len = _normalize_seq_len(seq_len)
     flat = np.asarray(signal, dtype=float).reshape(-1)
+    if flat.size == 0:
+        raise ValueError("signal must contain at least one sample")
     if flat.size >= seq_len:
         return flat[:seq_len]
     return np.pad(flat, (0, seq_len - flat.size), mode="edge")
