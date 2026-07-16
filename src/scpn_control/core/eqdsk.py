@@ -49,6 +49,30 @@ from numpy.typing import NDArray
 
 from scpn_control._typing import FloatArray
 
+# ── Untrusted-input limits ────────────────────────────────────────────
+# G-EQDSK files may be attacker-supplied (e.g. globbed from a scanned reference
+# directory), so :func:`read_geqdsk` fails closed on malformed content and
+# rejects declared sizes large enough to exhaust memory before any tokens are
+# consumed. Real EFIT grids are at most ~1025 on a side; genuine boundary and
+# limiter contours run to a few thousand points.
+_MAX_GRID_DIM = 8192
+_MAX_BOUNDARY_POINTS = 100_000
+
+
+class GEqdskFormatError(ValueError):
+    """Raised when a G-EQDSK file is malformed or declares out-of-range sizes.
+
+    Subclasses :class:`ValueError` so callers that already guard equilibrium
+    loading with ``except ValueError`` keep catching it.
+    """
+
+
+def _require_in_range(name: str, value: int, low: int, high: int) -> None:
+    """Reject an untrusted declared size that falls outside ``low..high``."""
+    if not (low <= value <= high):
+        raise GEqdskFormatError(f"{name}={value} outside {low}..{high}")
+
+
 # ── Data container ────────────────────────────────────────────────────
 
 
@@ -171,8 +195,15 @@ def _split_fortran(line: str) -> list[str]:
 def _parse_header(line: str) -> tuple[str, int, int]:
     """Parse the first line: 48-char description + idum nw nh."""
     parts = line.split()
-    nh = int(parts[-1])
-    nw = int(parts[-2])
+    if len(parts) < 2:
+        raise GEqdskFormatError("header line must supply the nw and nh grid sizes")
+    try:
+        nh = int(parts[-1])
+        nw = int(parts[-2])
+    except ValueError as exc:
+        raise GEqdskFormatError(f"non-integer grid sizes in header: {parts[-2:]!r}") from exc
+    _require_in_range("nw", nw, 1, _MAX_GRID_DIM)
+    _require_in_range("nh", nh, 1, _MAX_GRID_DIM)
     desc = " ".join(parts[:-3]) if len(parts) > 3 else ""
     return desc, nw, nh
 
@@ -199,6 +230,9 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
     with open(path, "r") as f:
         lines = f.readlines()
 
+    if not lines:
+        raise GEqdskFormatError("empty G-EQDSK file")
+
     # Parse header
     desc, nw, nh = _parse_header(lines[0])
 
@@ -209,14 +243,21 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
 
     idx = 0
 
+    # ``_split_fortran`` only yields tokens matching the Fortran-float regex, so
+    # every token is ``float``-parseable; non-numeric bytes are dropped and show
+    # up as a shortfall caught by the length guards below.
     def _next() -> float:
         nonlocal idx
+        if idx >= len(tokens):
+            raise GEqdskFormatError("G-EQDSK file ended before all values were read")
         val = float(tokens[idx].replace("D", "E").replace("d", "e"))
         idx += 1
         return val
 
     def _read_array(n: int) -> NDArray[np.float64]:
         nonlocal idx
+        if idx + n > len(tokens):
+            raise GEqdskFormatError(f"G-EQDSK file has too few values for a length-{n} array")
         arr = np.array([float(tokens[idx + i].replace("D", "E").replace("d", "e")) for i in range(n)])
         idx += n
         return arr
@@ -258,6 +299,8 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
     # Boundary and limiter
     nbdry = int(_next())
     nlim = int(_next())
+    _require_in_range("nbdry", nbdry, 0, _MAX_BOUNDARY_POINTS)
+    _require_in_range("nlim", nlim, 0, _MAX_BOUNDARY_POINTS)
 
     rbdry = np.zeros(nbdry)
     zbdry = np.zeros(nbdry)

@@ -786,7 +786,7 @@ def hil_test(shots_dir: str, json_out: bool) -> None:
     shot_files = sorted(shots_path.glob("*.npz"))
     results = []
     for sf in shot_files:
-        data = np.load(sf, allow_pickle=True)
+        data = np.load(sf, allow_pickle=False)
         results.append(
             {
                 "shot": sf.stem,

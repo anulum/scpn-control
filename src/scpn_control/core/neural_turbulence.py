@@ -273,13 +273,22 @@ class QLKNNSurrogate:
     def load_weights(self, path: str) -> None:
         """Load weights and biases from a NumPy ``.npz`` archive.
 
+        The archive is opened with ``allow_pickle=False`` so a hostile ``.npz``
+        cannot execute code through a pickled object array while it is loaded.
+
         Parameters
         ----------
         path
             Path to an ``.npz`` file with arrays ``w{i}`` and ``b{i}`` for each
             layer ``i``.
+
+        Raises
+        ------
+        ValueError
+            If the archive stores an object array, which numpy refuses to
+            materialise without pickling.
         """
-        data = np.load(path, allow_pickle=True)
+        data = np.load(path, allow_pickle=False)
         self.weights = [data[f"w{i}"] for i in range(len(self.weights))]
         self.biases = [data[f"b{i}"] for i in range(len(self.biases))]
 
