@@ -328,7 +328,7 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
     true_negatives = 0
 
     for npz_path in npz_files:
-        data = np.load(npz_path, allow_pickle=True)
+        data = np.load(npz_path, allow_pickle=False)
         is_disruption = bool(data.get("is_disruption", False))
         disruption_time_idx = int(data.get("disruption_time_idx", -1))
         signal = np.asarray(data.get("dBdt_gauss_per_s", data.get("n1_amp", [])))
