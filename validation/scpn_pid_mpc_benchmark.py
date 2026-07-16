@@ -141,15 +141,23 @@ def _disturbance(k: int, steps: int) -> float:
 
 
 def _mpc_action(x: float, k: int, steps: int, horizon: int, u_limit: float) -> float:
+    # An honest MPC uses only information available at step k. It holds the LAST
+    # OBSERVED disturbance constant over the horizon -- ``_disturbance(k - 1)``
+    # equals the measurement residual ``x - (0.95*x_prev + 0.12*u_prev)`` a real
+    # controller forms at k (an offset-free / persistence disturbance estimate).
+    # It must NOT roll out with the true future disturbance ``_disturbance(k + h)``
+    # -- that clairvoyance rigged the baseline into "beating" PID and is not a
+    # controller any plant could run. (At k=0 there is no prior step and
+    # ``_disturbance(0) == 0``, so no information is assumed.)
+    d_est = _disturbance(max(k - 1, 0), steps)
     candidates = np.linspace(-u_limit, u_limit, 31)
     best_u = 0.0
     best_cost = float("inf")
     for u in candidates:
         x_pred = x
         cost = 0.0
-        for h in range(horizon):
-            d = _disturbance(k + h, steps)
-            x_pred = 0.95 * x_pred + 0.12 * float(u) + d
+        for _ in range(horizon):
+            x_pred = 0.95 * x_pred + 0.12 * float(u) + d_est
             cost += x_pred * x_pred + 0.06 * float(u * u)
         if cost < best_cost:
             best_cost = float(cost)
@@ -230,19 +238,24 @@ def run_campaign(
     ratios = {
         "scpn_vs_pid_rmse_ratio": scpn_metrics["rmse"] / max(pid_metrics["rmse"], 1e-12),
         "scpn_vs_mpc_rmse_ratio": scpn_metrics["rmse"] / max(mpc_metrics["rmse"], 1e-12),
+        "mpc_vs_pid_rmse_ratio": mpc_metrics["rmse"] / max(pid_metrics["rmse"], 1e-12),
     }
+    # The gate checks only the SCPN controller's own quality (versus PID and
+    # versus the honest MPC baseline). It deliberately does NOT require "MPC
+    # beats PID": with the clairvoyant baseline removed, MPC does not beat PID on
+    # this scalar plant, and gating on a predetermined outcome is what rigged the
+    # original benchmark. The observed MPC-vs-PID result is reported, not gated.
     thresholds = {
         "max_scpn_vs_pid_rmse_ratio": 1.10,
         "max_scpn_vs_mpc_rmse_ratio": 1.35,
         "max_scpn_peak_abs_error": 0.65,
-        "require_mpc_beats_pid": True,
     }
     passes = bool(
         ratios["scpn_vs_pid_rmse_ratio"] <= thresholds["max_scpn_vs_pid_rmse_ratio"]
         and ratios["scpn_vs_mpc_rmse_ratio"] <= thresholds["max_scpn_vs_mpc_rmse_ratio"]
         and scpn_metrics["peak_abs_error"] <= thresholds["max_scpn_peak_abs_error"]
-        and mpc_metrics["rmse"] <= pid_metrics["rmse"]
     )
+    mpc_beats_pid_observed = bool(mpc_metrics["rmse"] <= pid_metrics["rmse"])
 
     return {
         "seed": seed_int,
@@ -254,6 +267,8 @@ def run_campaign(
         },
         "pid": pid_metrics,
         "mpc": mpc_metrics,
+        "mpc_disturbance_model": "persistence_last_observed_offset_free_no_foresight",
+        "mpc_beats_pid_observed": mpc_beats_pid_observed,
         "scpn": scpn_metrics,
         "ratios": ratios,
         "thresholds": thresholds,
@@ -283,6 +298,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- SCPN runtime backend: `{r['runtime_lane']['runtime_backend']}`",
         f"- Traceable step API: `{'YES' if r['runtime_lane']['uses_traceable_step'] else 'NO'}`",
         "",
+        f"- MPC disturbance model: `{r['mpc_disturbance_model']}`",
+        "",
         "## RMSE",
         "",
         f"- PID: `{r['pid']['rmse']:.6f}`",
@@ -293,6 +310,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- SCPN / PID RMSE: `{r['ratios']['scpn_vs_pid_rmse_ratio']:.4f}`",
         f"- SCPN / MPC RMSE: `{r['ratios']['scpn_vs_mpc_rmse_ratio']:.4f}`",
+        f"- MPC / PID RMSE: `{r['ratios']['mpc_vs_pid_rmse_ratio']:.4f}`"
+        f" (MPC beats PID: `{'YES' if r['mpc_beats_pid_observed'] else 'NO'}`)",
         "",
         "## Threshold Pass",
         "",

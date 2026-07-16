@@ -46,9 +46,21 @@ def test_campaign_is_deterministic_for_seed() -> None:
 def test_campaign_meets_thresholds_smoke() -> None:
     out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=240)
     assert out["passes_thresholds"] is True
-    assert out["mpc"]["rmse"] <= out["pid"]["rmse"]
     assert out["ratios"]["scpn_vs_pid_rmse_ratio"] <= out["thresholds"]["max_scpn_vs_pid_rmse_ratio"]
     assert out["ratios"]["scpn_vs_mpc_rmse_ratio"] <= out["thresholds"]["max_scpn_vs_mpc_rmse_ratio"]
+
+
+def test_mpc_baseline_uses_no_future_disturbance_foresight() -> None:
+    """The MPC baseline must not roll out with the true future disturbance.
+
+    The original benchmark rigged the MPC by predicting with ``_disturbance(k + h)``
+    (perfect foresight). Pin the honest, no-foresight model and record the MPC-vs-PID
+    outcome as an observation rather than a gated requirement.
+    """
+    out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=240)
+    assert out["mpc_disturbance_model"] == "persistence_last_observed_offset_free_no_foresight"
+    assert "mpc_beats_pid_observed" in out
+    assert "require_mpc_beats_pid" not in out["thresholds"]
 
 
 def test_campaign_controller_uses_nonzero_binary_margin() -> None:
