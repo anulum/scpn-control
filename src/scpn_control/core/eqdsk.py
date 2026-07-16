@@ -227,8 +227,14 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
         Parsed equilibrium data.
     """
     path = Path(path)
-    with open(path, "r") as f:
-        lines = f.readlines()
+    # G-EQDSK files may be attacker-supplied, so decode failures must fail closed
+    # with the typed error rather than leak a bare UnicodeDecodeError. The encoding
+    # is pinned to UTF-8 so behaviour does not depend on the host locale.
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            lines = f.readlines()
+    except UnicodeDecodeError as exc:
+        raise GEqdskFormatError("G-EQDSK file is not valid UTF-8 text") from exc
 
     if not lines:
         raise GEqdskFormatError("empty G-EQDSK file")
@@ -296,9 +302,15 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
     # q profile
     qpsi = _read_array(nw)
 
-    # Boundary and limiter
-    nbdry = int(_next())
-    nlim = int(_next())
+    # Boundary and limiter. A Fortran token with a huge exponent parses to ±inf;
+    # int(inf) raises a bare OverflowError, so reject non-finite counts with the
+    # typed error before the conversion. (The float regex never yields NaN.)
+    nbdry_value = _next()
+    nlim_value = _next()
+    if not (np.isfinite(nbdry_value) and np.isfinite(nlim_value)):
+        raise GEqdskFormatError("boundary/limiter counts must be finite")
+    nbdry = int(nbdry_value)
+    nlim = int(nlim_value)
     _require_in_range("nbdry", nbdry, 0, _MAX_BOUNDARY_POINTS)
     _require_in_range("nlim", nlim, 0, _MAX_BOUNDARY_POINTS)
 

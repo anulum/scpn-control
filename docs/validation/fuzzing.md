@@ -1,4 +1,12 @@
-# Fuzzing the Rust surfaces
+# Fuzzing
+
+Two complementary surfaces harden the untrusted-input paths. The Rust crates are
+driven by coverage-guided `cargo-fuzz` (a time-boxed nightly campaign); the pure
+Python parsers are driven by in-suite [Hypothesis](https://hypothesis.readthedocs.io/)
+property tests that run on every commit (see
+[Python parser property fuzzing](#python-parser-property-fuzzing)).
+
+## Rust surfaces
 
 The Rust crates under `scpn-control-rs` accept two kinds of input that a unit
 test does not fully cover: untrusted text/byte streams (configuration files,
@@ -103,3 +111,35 @@ campaign.
   the squaring exponent; the Python path already failed closed through
   `scipy.linalg.expm`. Covered by Rust regression tests in `h_infinity.rs` and
   `capacitor_bank.rs` and by the tracked regression seed.
+
+## Python parser property fuzzing
+
+Two pure-Python paths consume attacker-suppliable input with no Rust equivalent:
+the G-EQDSK reader (`scpn_control.core.eqdsk.read_geqdsk`, which is globbed over
+reference directories during shot validation) and the disruption feature-builder
+(`scpn_control.control.disruption_predictor.build_disruption_feature_vector`,
+which reduces a raw diagnostic signal array). `tests/test_untrusted_parser_fuzz_properties.py`
+drives both with Hypothesis so a large randomised input space — arbitrary bytes,
+near-valid documents with exponent-overflow and truncated numeric bodies, and
+finite/non-finite signal arrays — exercises the deep code paths on every run.
+
+Each property asserts the surface's fail-closed contract:
+
+- `read_geqdsk` over arbitrary bytes and structured documents returns a
+  shape-consistent `GEqdsk` or raises the typed `GEqdskFormatError` — never a
+  bare `UnicodeDecodeError`, `OverflowError`, `IndexError`, or an unbounded
+  allocation;
+- `build_disruption_feature_vector` over any signal/observable pair returns a
+  finite feature vector of the contract length or raises `ValueError` — never a
+  non-finite vector.
+
+The deterministic rejection paths (empty file, oversized declared grid,
+non-integer or non-finite counts, non-UTF-8 bytes, truncated blocks) are pinned
+individually in `tests/test_geqdsk_malicious_input.py`; the property tests widen
+the net to the unknown ones.
+
+A continuous, coverage-guided `atheris` (libFuzzer) target over the same Python
+parsers is a **deferred infrastructure decision** — it would add an `atheris`
+build dependency and a dedicated fuzz-CI job. The in-suite property tests need no
+new dependency and close the reachable threat model deterministically; the
+`atheris` target is a later robustness increment, not a prerequisite.

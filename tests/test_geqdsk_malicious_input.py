@@ -124,3 +124,29 @@ def test_oversize_boundary_count_is_rejected(tmp_path: Path) -> None:
     tokens = ["0.0"] * (20 + 1 * (5 + 1)) + [str(huge), "0"]
     with pytest.raises(GEqdskFormatError, match="outside"):
         read_geqdsk(_write(tmp_path / "huge_bdry.geqdsk", tokens=tokens))
+
+
+def test_non_finite_boundary_count_is_rejected(tmp_path: Path) -> None:
+    """A count token that overflows to ±inf fails closed, not with ``int(inf)``.
+
+    A Fortran token with a huge exponent (``1e999``) parses to ``+inf``; before
+    the fix ``int(inf)`` raised a bare ``OverflowError`` instead of the typed
+    :class:`GEqdskFormatError`.
+    """
+    body = _valid_tokens()
+    body[-2] = "1e999"  # boundary-count slot overflows to +inf
+    with pytest.raises(GEqdskFormatError, match="finite"):
+        read_geqdsk(_write(tmp_path / "inf_bdry.geqdsk", tokens=body))
+
+
+def test_non_utf8_file_is_rejected(tmp_path: Path) -> None:
+    """A file that is not valid UTF-8 fails closed, not with ``UnicodeDecodeError``.
+
+    Reference directories are globbed for ``.geqdsk`` files, so a byte sequence
+    that cannot be decoded as text must raise the typed error rather than leak a
+    decoder exception from ``readlines``.
+    """
+    bad = tmp_path / "not_utf8.geqdsk"
+    bad.write_bytes(b"TEST 0 1 1\n\xff\xfe not text \x80\n")
+    with pytest.raises(GEqdskFormatError, match="UTF-8"):
+        read_geqdsk(str(bad))
