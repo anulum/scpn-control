@@ -741,3 +741,128 @@ def test_ntm_step_flattens_wide_island(monkeypatch):
 
     assert not np.array_equal(sim.ts_solver.Te, te_before)
     assert any(width > integrated_scenario._W_FLAT for width in sim.ntm_widths.values())
+
+
+def test_phase_bridge_reuses_knm_on_second_step(monkeypatch):
+    """The phase-bridge K_nm coupling is built once and reused on later steps.
+
+    Exercises the ``_phase_K_nm is None`` guard's False side: on the second
+    step the coupling already exists, so ``build_knm_plasma`` is not called
+    again.
+    """
+    import scpn_control.phase.plasma_knm as plasma_knm
+    from scpn_control.core.gk_interface import GKOutput
+
+    calls = {"n": 0}
+    real_build = plasma_knm.build_knm_plasma
+
+    def _counting_build(*args, **kwargs):
+        calls["n"] += 1
+        return real_build(*args, **kwargs)
+
+    monkeypatch.setattr(plasma_knm, "build_knm_plasma", _counting_build)
+
+    config = _minimal_config(P_aux_MW=5.0)
+    config.include_phase_bridge = True
+    config.t_end = 0.02
+    config.dt = 0.01  # two steps
+    sim = IntegratedScenarioSimulator(config)
+    sim.initialize()
+    sim._last_gk_output = GKOutput(
+        chi_i=1.5,
+        chi_e=1.0,
+        D_e=0.5,
+        gamma=np.array([0.1, 0.2]),
+        omega_r=np.array([0.5, -0.3]),
+        k_y=np.array([0.3, 0.6]),
+        dominant_mode="ITG",
+    )
+
+    states = sim.run()
+
+    assert len(states) == 2
+    assert calls["n"] == 1, f"build_knm_plasma called {calls['n']} times; expected 1 (built once, then reused)"
+    assert sim._phase_K_nm is not None
+    assert sim._phase_omega is not None
+
+
+def test_sawtooth_seed_keeps_wider_existing_ntm_island():
+    """A sawtooth crash never shrinks an NTM island already wider than its seed.
+
+    Exercises the ``w_seed > existing`` seeding guard's False side: the crash
+    seeds a q=1 island but the pre-existing width dominates, so the stored
+    width is left untouched.
+    """
+    from scpn_control.core.current_diffusion import psi_from_q
+
+    config = replace(_minimal_config(P_aux_MW=1.0), include_sawteeth=True, dt=1e-9, t_end=2e-9)
+    sim = IntegratedScenarioSimulator(config)
+    rho = np.linspace(0, 1, 50)
+    q_target = 0.8 + 2.2 * rho**2  # q=1 near rho=0.30 so the shear trigger fires
+    psi = psi_from_q(rho, q_target, config.R0, config.a, config.B0)
+    sim.initialize({"Te": 12.0 * (1.0 - rho**2) + 0.2, "psi": psi})
+
+    class _Island:
+        r_s = 0.3
+
+    sim._ntm_islands["2/1"] = _Island()
+    sim.ntm_widths["2/1"] = 0.5  # already far wider than any sawtooth seed
+
+    sim.step()
+
+    assert sim.n_crashes == 1, "sawtooth crash did not fire"
+    assert sim.ntm_widths["2/1"] == 0.5, "sawtooth seed shrank an already-wider island"
+
+
+def test_elm_step_without_crash_proceeds_to_transport():
+    """An inter-ELM H-mode step (cycler reports no crash) skips the pedestal crash.
+
+    Exercises the ``elm_event`` guard's False side: the peeling-ballooning
+    cycler reports no ELM this step, so the pedestal is left uncrashed and the
+    step proceeds to the final transport half-step.
+    """
+    config = replace(_minimal_config(P_aux_MW=5.0), include_elm=True, dt=0.01, t_end=0.01)
+    sim = IntegratedScenarioSimulator(config)
+    sim.initialize()
+
+    # H-mode is entered (P_aux > P_LH); force the common inter-ELM outcome.
+    sim.elm_cycler.step = lambda *args, **kwargs: None
+    edge = int(0.95 * sim.nr)
+    ne_before = float(sim.ts_solver.ne[edge])
+
+    state = sim.step()
+
+    assert state is not None
+    # No ELM crash multiplier (~0.71) applied to the pedestal density.
+    assert sim.ts_solver.ne[edge] > 0.99 * ne_before
+
+
+def test_ntm_narrow_island_skips_flattening(monkeypatch):
+    """An NTM island above the flatten threshold but under one grid cell is not flattened.
+
+    Exercises the ``mask.sum() > 1`` guard's False side: the island half-width
+    ``w/a`` is smaller than the grid spacing, so the flatten mask covers at
+    most one point and no averaging is applied.
+    """
+    config = replace(_minimal_config(P_aux_MW=1.0), a=2.0, R0=6.2, include_ntm=True)
+    sim = IntegratedScenarioSimulator(config)
+    sim.initialize()
+
+    class _NarrowIsland:
+        def __init__(self, **kwargs):
+            pass
+
+        def evolve(self, *, w0, t_span, dt, **kwargs):
+            # Just above _W_FLAT, but w/a << grid spacing so the mask is a single point.
+            return np.array([t_span[0], t_span[1]]), np.array([w0, 0.0101])
+
+    monkeypatch.setattr(integrated_scenario, "NTMIslandDynamics", _NarrowIsland)
+    q_prof = np.linspace(1.0, 4.0, sim.nr)
+    sim.ts_solver.Te = np.linspace(2.0, 0.5, sim.nr)
+    sim.ts_solver.Ti = np.linspace(1.8, 0.4, sim.nr)
+    te_before = sim.ts_solver.Te.copy()
+
+    sim._ntm_step(0.01, q_prof)
+
+    assert any(width > integrated_scenario._W_FLAT for width in sim.ntm_widths.values())
+    assert np.array_equal(sim.ts_solver.Te, te_before), "a sub-grid-cell island must not flatten Te"

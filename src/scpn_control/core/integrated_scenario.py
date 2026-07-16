@@ -936,7 +936,7 @@ class IntegratedScenarioSimulator:
                 q0=float(q_prof[0]),
                 q_edge=float(q_prof[-1]),
             )
-            if self.ts_solver.neoclassical_params is not None:
+            if self.ts_solver.neoclassical_params is not None:  # pragma: no branch - always assigns dict; #129
                 self.ts_solver.neoclassical_params.update(
                     {
                         "Ip_MA": self.config.Ip_MA,
@@ -1386,9 +1386,9 @@ class IntegratedScenarioSimulator:
                 self.cd_solver.psi = psi_from_q(self.rho, q_prof, self.config.R0, self.config.a, self.config.B0)
 
                 # Also flatten Ti inside the mixing radius (sawtooth only crashes Te+ne)
-                if event.rho_mix > 0:
+                if event.rho_mix > 0:  # pragma: no branch - shear trigger => q=1 surface => rho_mix>0; #129
                     idx_mix = int(np.searchsorted(self.rho, event.rho_mix))
-                    if idx_mix > 1:
+                    if idx_mix > 1:  # pragma: no branch - q_from_psi bars first-cell q=1; #129
                         rho_inner = self.rho[:idx_mix]
                         vol_int = trapezoid(self.ts_solver.Ti[:idx_mix] * rho_inner, rho_inner)
                         vol_tot = trapezoid(rho_inner, rho_inner)
