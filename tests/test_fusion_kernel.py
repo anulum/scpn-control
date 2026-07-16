@@ -905,3 +905,28 @@ def test_config_rejects_boolean_grid_resolution_entries(tmp_path):
 
     with pytest.raises(ValueError, match="grid_resolution"):
         FusionKernel(path)
+
+
+def test_x_point_search_mask_small_grid_skips_border_clearing():
+    """A grid with <=2 rows/cols skips the interior-border-clearing step.
+
+    With only two rows the border-clearing guard is False, so the raw
+    ``ZZ <= z_min*0.5`` mask is returned untouched (an interior row is not zeroed).
+    """
+    from scpn_control.core.fusion_kernel import _x_point_search_mask
+
+    ZZ = np.array([[-1.0, -1.0, -1.0], [-2.0, -2.0, -2.0]])  # 2 rows -> guard False
+    mask = _x_point_search_mask(ZZ, z_min=-3.0)
+    assert mask.shape == (2, 3)
+    assert mask.dtype == bool
+    # Border-clearing would have zeroed the whole 2-row grid; row 1 must survive.
+    assert bool(mask[1].all())
+
+
+def test_select_x_point_index_without_hessian_uses_gradient_minimum():
+    """With no Hessian supplied the selector falls back to the plain gradient minimum."""
+    gradient_norm = np.array([[1.0, 2.0], [3.0, 0.5]])
+    search_mask = np.ones((2, 2), dtype=bool)
+    iz, ir, used_saddle = _select_x_point_index(gradient_norm, search_mask)
+    assert (iz, ir) == (1, 1)  # global gradient minimum (0.5)
+    assert used_saddle is False

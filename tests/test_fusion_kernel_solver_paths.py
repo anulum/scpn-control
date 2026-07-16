@@ -307,3 +307,41 @@ def test_newton_phase_converges_when_warmup_is_skipped(tmp_path: Path) -> None:
     kernel = _kernel(tmp_path, method="newton", max_iterations=1, convergence_threshold=1e9)
     result = kernel.solve_equilibrium()
     assert result["converged"] is True
+
+
+@pytest.mark.parametrize("method", ["newton", "sor"])
+def test_external_profile_mode_skips_source_update(tmp_path: Path, method: str) -> None:
+    """In external-profile mode the solver never recomputes ``J_phi``.
+
+    Every source-update site is guarded by ``external_profile_mode``: the Newton
+    dispatch (Picard warmup + Newton phase) and the SOR Picard loop all skip
+    ``update_plasma_source_nonlinear``.
+    """
+    kernel = _kernel(tmp_path, method=method, max_iterations=6, convergence_threshold=1e-9)
+    kernel.external_profile_mode = True
+    calls = {"n": 0}
+    original = kernel.update_plasma_source_nonlinear
+
+    def _counting(*args: Any, **kwargs: Any) -> Any:
+        calls["n"] += 1
+        return original(*args, **kwargs)
+
+    kernel.update_plasma_source_nonlinear = _counting
+    kernel.solve_equilibrium()
+
+    assert calls["n"] == 0, "external_profile_mode must skip the plasma-source recomputation"
+    assert np.all(np.isfinite(kernel.Psi))
+
+
+def test_elliptic_solve_falls_back_when_hpc_returns_none(tmp_path: Path) -> None:
+    """When the HPC accelerator is available but returns no solution, the elliptic
+    solve falls back to the CPU relaxation path instead of using the accelerator result.
+    """
+    kernel = _kernel(tmp_path, method="sor", max_iterations=4)
+    kernel.hpc.is_available = lambda: True
+    kernel.hpc.solve = lambda *args, **kwargs: None
+
+    result = kernel.solve_equilibrium()
+
+    assert "converged" in result
+    assert np.all(np.isfinite(kernel.Psi))

@@ -204,6 +204,50 @@ class TestFreeBoundarySolve:
         assert result["objective_convergence_active"] is False
         assert result["objective_converged"] is True
 
+    def test_iter0_convergence_appends_final_metrics_without_current_update(self, kernel):
+        """Converging on the first outer iteration keeps the per-objective final
+        blocks on the "no fresh current update" path.
+
+        With ``tol=1e10`` and vacuous objective tolerances the solve converges on
+        outer iteration 0, so ``currents_updated`` stays False. Because every
+        objective history already holds its iteration-0 entry, the final shape,
+        X-point and divertor blocks take their ``currents_updated or not history``
+        False side (no double-append).
+        """
+        cs = _make_coilset(
+            3,
+            with_limits=True,
+            with_targets=True,
+            with_target_flux_values=True,
+            with_x_point_target=True,
+            with_divertor_targets=True,
+        )
+        loose = {
+            "shape_rms": 1e10,
+            "shape_max_abs": 1e10,
+            "x_point_position": 1e10,
+            "x_point_gradient": 1e10,
+            "x_point_flux": 1e10,
+            "divertor_rms": 1e10,
+            "divertor_max_abs": 1e10,
+        }
+        result = kernel.solve_free_boundary(
+            cs,
+            max_outer_iter=3,
+            tol=1e10,
+            optimize_shape=True,
+            tikhonov_alpha=1e-3,
+            objective_tolerances=loose,
+        )
+
+        assert result["outer_iterations"] == 1
+        assert result["converged"] is True
+        # Exactly the single iteration-0 entry survives in each objective history.
+        assert len(result["shape_error_history"]) == 1
+        assert len(result["x_point_detected_error_history"]) == 1
+        assert len(result["x_point_gradient_norm_history"]) == 1
+        assert len(result["divertor_error_history"]) == 1
+
     def test_with_explicit_target_flux_values_reports_shape_error(self, kernel):
         cs = _make_coilset(3, with_limits=True, with_targets=True, with_target_flux_values=True)
         result = kernel.solve_free_boundary(

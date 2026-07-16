@@ -1317,7 +1317,7 @@ class FusionKernel:
         I_target: float = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
             "plasma_current_sign", 1.0
         )
-        if I_seed > 0:
+        if I_seed > 0:  # pragma: no branch - I_seed = sum(exp(...))*dR*dZ > 0 always; #129
             self.J_phi *= I_target / I_seed
 
         Source = -mu0 * self.RR * self.J_phi
@@ -2498,7 +2498,7 @@ class FusionKernel:
                         np.hypot(float(x_detected[0]) - float(x_target[0]), float(x_detected[1]) - float(x_target[1]))
                     )
                     x_point_detected_error_history.append(x_point_detected_error_current)
-                    if x_point_flux_target is not None:
+                    if x_point_flux_target is not None:  # pragma: no branch - x_point set => target non-None; #129
                         x_point_flux_actual_current = float(self._interp_psi(float(x_target[0]), float(x_target[1])))
                         x_point_flux_error_current = float(x_point_flux_actual_current - x_point_flux_target)
 
@@ -2592,7 +2592,7 @@ class FusionKernel:
                     coils,
                     self._resolve_separatrix_flux_target(coils, target_flux_used),
                 )
-            if x_point_flux_target_used is not None:
+            if x_point_flux_target_used is not None:  # pragma: no branch - always set when x_point set; #129
                 x_point_flux_error = float(x_point_flux_actual - x_point_flux_target_used)
             if (currents_updated or not x_point_detected_error_history) and x_point_detected_error is not None:
                 x_point_detected_error_history.append(x_point_detected_error)
@@ -2609,7 +2609,7 @@ class FusionKernel:
                     coils,
                     self._resolve_separatrix_flux_target(coils, target_flux_used),
                 )
-            if divertor_flux_target_used is not None:
+            if divertor_flux_target_used is not None:  # pragma: no branch - always set when divertor set; #129
                 divertor_metrics_final = self._shape_error_metrics(divertor_flux_actual, divertor_flux_target_used)
                 divertor_error_final_rms = divertor_metrics_final["shape_error_rms"]
                 divertor_error_final_max_abs = divertor_metrics_final["shape_error_max_abs"]
