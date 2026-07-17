@@ -129,14 +129,30 @@ def test_oversize_boundary_count_is_rejected(tmp_path: Path) -> None:
 def test_non_finite_boundary_count_is_rejected(tmp_path: Path) -> None:
     """A count token that overflows to ±inf fails closed, not with ``int(inf)``.
 
-    A Fortran token with a huge exponent (``1e999``) parses to ``+inf``; before
-    the fix ``int(inf)`` raised a bare ``OverflowError`` instead of the typed
-    :class:`GEqdskFormatError`.
+    A Fortran token with a huge exponent (``1e999``) parses to ``+inf``; the
+    parser rejects any non-finite token at ``_next``, so the count never reaches
+    ``int(inf)`` (which would raise a bare ``OverflowError``).
     """
     body = _valid_tokens()
     body[-2] = "1e999"  # boundary-count slot overflows to +inf
     with pytest.raises(GEqdskFormatError, match="finite"):
         read_geqdsk(_write(tmp_path / "inf_bdry.geqdsk", tokens=body))
+
+
+def test_non_finite_scalar_value_is_rejected(tmp_path: Path) -> None:
+    """A non-finite scalar (huge Fortran exponent) is rejected at parse."""
+    body = _valid_tokens()
+    body[0] = "1e999"  # the rdim scalar overflows to +inf
+    with pytest.raises(GEqdskFormatError, match="non-finite value"):
+        read_geqdsk(_write(tmp_path / "inf_scalar.geqdsk", tokens=body))
+
+
+def test_non_finite_array_value_is_rejected(tmp_path: Path) -> None:
+    """A non-finite profile/flux value is rejected before it reaches the equilibrium."""
+    body = _valid_tokens()
+    body[20] = "1e999"  # the first profile-array element overflows to +inf
+    with pytest.raises(GEqdskFormatError, match="array contains a non-finite value"):
+        read_geqdsk(_write(tmp_path / "inf_array.geqdsk", tokens=body))
 
 
 def test_non_utf8_file_is_rejected(tmp_path: Path) -> None:

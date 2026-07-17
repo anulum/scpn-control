@@ -258,6 +258,11 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
             raise GEqdskFormatError("G-EQDSK file ended before all values were read")
         val = float(tokens[idx].replace("D", "E").replace("d", "e"))
         idx += 1
+        # A Fortran token with a huge exponent (e.g. 1e999) parses to ±inf; reject
+        # it at the source so no non-finite value reaches the equilibrium, a count,
+        # or a derived feature. (The float regex never yields NaN.)
+        if not np.isfinite(val):
+            raise GEqdskFormatError("G-EQDSK contains a non-finite value")
         return val
 
     def _read_array(n: int) -> NDArray[np.float64]:
@@ -266,6 +271,8 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
             raise GEqdskFormatError(f"G-EQDSK file has too few values for a length-{n} array")
         arr = np.array([float(tokens[idx + i].replace("D", "E").replace("d", "e")) for i in range(n)])
         idx += n
+        if not bool(np.isfinite(arr).all()):
+            raise GEqdskFormatError("G-EQDSK array contains a non-finite value")
         return arr
 
     # 20 scalar values
@@ -302,15 +309,11 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
     # q profile
     qpsi = _read_array(nw)
 
-    # Boundary and limiter. A Fortran token with a huge exponent parses to ±inf;
-    # int(inf) raises a bare OverflowError, so reject non-finite counts with the
-    # typed error before the conversion. (The float regex never yields NaN.)
-    nbdry_value = _next()
-    nlim_value = _next()
-    if not (np.isfinite(nbdry_value) and np.isfinite(nlim_value)):
-        raise GEqdskFormatError("boundary/limiter counts must be finite")
-    nbdry = int(nbdry_value)
-    nlim = int(nlim_value)
+    # Boundary and limiter counts. ``_next`` already rejects any non-finite token
+    # (a huge Fortran exponent parses to ±inf), so ``int`` cannot see inf here and
+    # cannot raise a bare OverflowError.
+    nbdry = int(_next())
+    nlim = int(_next())
     _require_in_range("nbdry", nbdry, 0, _MAX_BOUNDARY_POINTS)
     _require_in_range("nlim", nlim, 0, _MAX_BOUNDARY_POINTS)
 
