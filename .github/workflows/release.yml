@@ -42,6 +42,15 @@ jobs:
             | head -n -1 > /tmp/release_notes.md
           echo "notes_file=/tmp/release_notes.md" >> "$GITHUB_OUTPUT"
 
+      - name: Generate artifact SHA-256 checksums
+        run: |
+          sha256sum dist/*.tar.gz sbom.json | tee SHA256SUMS.txt
+          {
+            printf '\n## Artifact SHA-256 checksums\n\n```\n'
+            cat SHA256SUMS.txt
+            printf '```\n'
+          } >> /tmp/release_notes.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3
         with:
@@ -50,3 +59,4 @@ jobs:
           files: |
             dist/*.tar.gz
             sbom.json
+            SHA256SUMS.txt
