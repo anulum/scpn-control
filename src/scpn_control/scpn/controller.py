@@ -677,7 +677,14 @@ class NeuroSymbolicController:
         for idx, key in self._inj_passthrough_pairs:
             if key not in obs_map:
                 raise KeyError(f"Missing observation key for passthrough: {key}")
-            values[idx] = float(np.clip(obs_map[key], 0.0, 1.0))
+            # Match the public contract (extract_features): a non-finite passthrough
+            # observation is rejected, not silently clipped. np.clip(nan) is nan, so
+            # without this the live path would inject a poisoned marking the contract
+            # forbids.
+            value = float(obs_map[key])
+            if not np.isfinite(value):
+                raise ValueError(f"Passthrough observation value must be finite: {key}")
+            values[idx] = float(np.clip(value, 0.0, 1.0))
 
         np.multiply(values, self._inj_scales, out=values)
         values += self._inj_offsets

@@ -130,6 +130,22 @@ class TestLogPathPassthrough:
         assert isinstance(actions, dict)
         assert "dI_PF3_A" in actions
 
+    def test_step_rejects_non_finite_passthrough(self, tmp_path, petri_net_std):
+        """The live passthrough injection matches the contract: non-finite is rejected."""
+        art_path = _artifact_with_passthrough(tmp_path, petri_net_std)
+        art = load_artifact(art_path)
+        ctrl = NeuroSymbolicController(
+            artifact=art,
+            seed_base=42,
+            targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+            scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+            sc_n_passes=1,
+            runtime_backend="numpy",
+        )
+        obs = {"R_axis_m": 6.2, "Z_axis_m": 0.0, "extra_sensor": float("nan")}
+        with pytest.raises(ValueError, match="Passthrough observation value must be finite: extra_sensor"):
+            ctrl.step(obs, k=0)
+
     def test_log_path_multiple_steps_appends(self, tmp_path, petri_net_std):
         """Multiple steps append to the same log file."""
         art_path = _artifact_with_passthrough(tmp_path, petri_net_std)
