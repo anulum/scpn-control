@@ -254,6 +254,41 @@ def test_decode_actions_ignores_non_finite_in_unused_marking_place() -> None:
     assert result == {"coil_current": pytest.approx(1.0)}
 
 
+@pytest.mark.parametrize(
+    ("abs_max", "slew"),
+    [
+        ([-1.0], [10.0]),  # negative saturation inverts the abs clamp
+        ([1.0], [-10.0]),  # negative slew rate inverts the rate clamp
+    ],
+)
+def test_decode_actions_rejects_negative_limits(abs_max, slew) -> None:
+    """A negative abs_max or slew rate would invert the clamp, so it is rejected."""
+    with pytest.raises(ValueError, match="decode limits must be non-negative"):
+        decode_actions(
+            marking=[0.8, 0.2],
+            actions_spec=[ActionSpec(name="coil_current", pos_place=0, neg_place=1)],
+            gains=[2.0],
+            abs_max=abs_max,
+            slew_per_s=slew,
+            dt=0.1,
+            prev=[0.0],
+        )
+
+
+def test_decode_actions_allows_zero_limits() -> None:
+    """Zero abs_max/slew is a valid (degenerate) clamp, not rejected as an inversion."""
+    result = decode_actions(
+        marking=[0.8, 0.2],
+        actions_spec=[ActionSpec(name="coil_current", pos_place=0, neg_place=1)],
+        gains=[2.0],
+        abs_max=[0.0],
+        slew_per_s=[0.0],
+        dt=0.1,
+        prev=[0.5],
+    )
+    assert result["coil_current"] == pytest.approx(0.0)
+
+
 def test_check_physics_invariant_non_finite_value() -> None:
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     result = check_physics_invariant(inv, float("nan"))

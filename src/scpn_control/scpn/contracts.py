@@ -360,6 +360,16 @@ def decode_action_vector(
             "abs_max, slew, or prev cannot produce a safe actuator command"
         )
 
+    # abs_max and slew are magnitudes. A negative abs_max makes np.clip's bounds
+    # (-abs_max, abs_max) run high-to-low, and a negative slew makes (prev - dΔ,
+    # prev + dΔ) invert — either silently corrupts the clamp. The shipped path
+    # validates these at the artifact readout, but this is the public decode
+    # kernel and must reject an inverted limit rather than misbehave.
+    if bool(np.any(abs_max_arr < 0.0)) or bool(np.any(slew_arr < 0.0)):
+        raise ValueError(
+            "decode limits must be non-negative: a negative abs_max or slew rate inverts the saturation/rate clamp"
+        )
+
     raw = np.empty((n_actions,), dtype=np.float64) if work is None else work
     if raw.shape != (n_actions,):
         raise ValueError("work must match action count")
