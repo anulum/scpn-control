@@ -191,7 +191,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.22.1 |
+| Package version | 0.23.0 |
 | Python requirement | >=3.10 |
 | Project scripts | 5 |
 | Public API exports | 44 |
@@ -566,7 +566,7 @@ python tools/publish.py --bump minor --target pypi --confirm
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.22.1
+git tag v0.23.0
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

@@ -118,7 +118,7 @@ def test_version_sync_guard_covers_release_badges_and_metadata() -> None:
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "OK: all versions and release metadata = 0.22.1" in result.stdout
+    assert "OK: all versions and release metadata = 0.23.0" in result.stdout
 
 
 def test_version_sync_guard_fails_without_canonical_version(

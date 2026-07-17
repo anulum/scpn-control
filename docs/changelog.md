@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## [0.23.0] - 2026-07-17
 
 ### Added
 - Exposed the GK->UPDE coupling modulation gains as a configurable
@@ -220,6 +220,36 @@
 - Added architecture decision records for module and repository boundaries,
   Python/Rust/PyO3 dispatch, solver and algorithm selection, validation evidence
   strategy, and public versus internal API boundaries.
+- **Breaking:** `FormalPetriNetVerifier` and the `scpn.formal_safety_certificate`
+  validators no longer accept `backend="z3"`. The explicit-state reachability
+  engine performs exact enumeration, not SMT, so it now raises `ValueError` on
+  `backend="z3"` and never stamps an unearned `z3` backend label; use
+  `Z3BoundedModelChecker` in `scpn_control.scpn.z3_model_checking` for z3-backed
+  evidence. The `auto` and `explicit-state` backends are unchanged.
+
+### Fixed
+- Un-rigged the SCPN/PID/MPC benchmark: removed the MPC's future-disturbance
+  foresight so the comparison uses an honest offset-free persistence disturbance
+  model, and removed the pass-by-construction gate. The published RMSE figures now
+  reflect the fair model (PID `0.121`, MPC `0.047`, SCPN `0.050`; SCPN/MPC RMSE
+  ratio `1.07` — SCPN no longer "beats" a fairly-modelled MPC).
+- Failed closed across the shipped control path where a bare `np.clip`, a
+  magnitude floor, or a skip-if-present loop previously let non-finite or
+  sign-inverting inputs through silently (`np.clip` does not sanitise `NaN`):
+  - the actuator action decoder rejects a non-finite marking place, gain, limit,
+    slew rate, or previous command before computing an actuator command;
+  - the actuator decoder rejects a negative `abs_max` or slew rate, which would
+    otherwise invert the saturation/rate clamp;
+  - the feature-error kernel rejects a negative axis scale, which would otherwise
+    invert the control-error sign;
+  - the controller marking setter rejects a non-finite marking assignment;
+  - the live controller's passthrough observation injection rejects a non-finite
+    sensor value, matching its own public `extract_features` contract (it was
+    previously clipped silently);
+  - the physics safety-invariant monitor treats a missing safety channel as a
+    critical violation instead of silently skipping it;
+  - the G-EQDSK parser rejects any non-finite value in the data region or its
+    arrays at parse time.
 
 ## [0.22.1] - 2026-07-03
 

@@ -61,6 +61,8 @@ site/
 # Local generated validation reports
 validation/reports/code_to_code_benchmark.json
 validation/reports/code_to_code_benchmark.md
+validation/reports/scpn_pid_mpc_benchmark.json
+validation/reports/scpn_pid_mpc_benchmark.md
 
 # Optional native solver build outputs
 src/scpn_control/core/bin/
