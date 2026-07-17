@@ -21,6 +21,7 @@ import numpy as np
 import pytest
 
 from scpn_control.scpn.contracts import (
+    DEFAULT_PHYSICS_INVARIANTS,
     ActionSpec,
     PhysicsInvariant,
     check_all_invariants,
@@ -29,6 +30,7 @@ from scpn_control.scpn.contracts import (
     check_marking_conservation,
     check_physics_invariant,
     decode_actions,
+    evaluate_safety_invariants,
     should_trigger_mitigation,
     _is_satisfied,
     _seed64,
@@ -260,3 +262,80 @@ def test_should_trigger_mitigation_warning_only() -> None:
 
 def test_should_trigger_mitigation_empty() -> None:
     assert should_trigger_mitigation([]) is False
+
+
+# ── Fail-closed safety monitor (CF-5/SP-4) ──────────────────────────────────
+# evaluate_safety_invariants treats every invariant channel as mandatory: a
+# sensor dropout must surface as a critical violation, never a silent pass.
+
+_NOMINAL_SNAPSHOT = {
+    "q_min": 2.0,
+    "beta_N": 1.5,
+    "greenwald": 0.8,
+    "T_i": 10.0,
+    "energy_conservation_error": 0.001,
+}
+
+
+def test_evaluate_safety_invariants_fails_closed_on_full_dropout() -> None:
+    """Empty snapshot (all sensors lost) yields a critical violation per invariant."""
+    violations = evaluate_safety_invariants({})
+    assert len(violations) == len(DEFAULT_PHYSICS_INVARIANTS)
+    assert {v.invariant.name for v in violations} == {inv.name for inv in DEFAULT_PHYSICS_INVARIANTS}
+    assert all(v.severity == "critical" for v in violations)
+    assert should_trigger_mitigation(violations) is True
+
+
+def test_evaluate_safety_invariants_missing_channel_records_nan_and_infinite_margin() -> None:
+    """A missing channel is critical with NaN actual value and infinite margin."""
+    violations = evaluate_safety_invariants({}, invariants=list(DEFAULT_PHYSICS_INVARIANTS[:1]))
+    assert len(violations) == 1
+    missing = violations[0]
+    assert missing.severity == "critical"
+    assert np.isnan(missing.actual_value)
+    assert np.isinf(missing.margin)
+
+
+def test_evaluate_safety_invariants_all_present_and_nominal_is_empty() -> None:
+    """A complete, nominal snapshot raises no violations (no false positives)."""
+    assert evaluate_safety_invariants(dict(_NOMINAL_SNAPSHOT)) == []
+
+
+def test_evaluate_safety_invariants_partial_dropout_flags_missing_and_present() -> None:
+    """Both a dropped channel and a present-but-violating channel are reported."""
+    snapshot = {"q_min": 0.5, "beta_N": 1.5}  # q_min violates; three channels dropped
+    violations = evaluate_safety_invariants(snapshot)
+    by_name = {v.invariant.name: v for v in violations}
+    assert by_name["q_min"].severity == "critical"  # 0.5 !> 1.0, far from threshold
+    assert np.isnan(by_name["greenwald"].actual_value)  # dropped -> missing-channel critical
+    assert by_name["greenwald"].severity == "critical"
+    assert "beta_N" not in by_name  # present and nominal
+    assert should_trigger_mitigation(violations) is True
+
+
+def test_evaluate_safety_invariants_non_finite_present_channel_is_critical() -> None:
+    """A present but non-finite measurement is critical, not skipped."""
+    snapshot = dict(_NOMINAL_SNAPSHOT)
+    snapshot["q_min"] = float("nan")
+    violations = evaluate_safety_invariants(snapshot)
+    assert [v.invariant.name for v in violations] == ["q_min"]
+    assert violations[0].severity == "critical"
+
+
+def test_evaluate_safety_invariants_custom_set_requires_every_channel() -> None:
+    """Every invariant in a custom set is mandatory, not just the ones supplied."""
+    inv = PhysicsInvariant(name="x", description="d", threshold=5.0, comparator="lt")
+    violations = evaluate_safety_invariants({}, invariants=[inv])
+    assert len(violations) == 1
+    assert violations[0].invariant.name == "x"
+    assert violations[0].severity == "critical"
+
+
+def test_check_all_invariants_remains_a_subset_utility() -> None:
+    """The legacy subset checker is deliberately unchanged: absent channels skip.
+
+    ``check_all_invariants`` is a subset utility and must stay open on absent
+    channels; ``evaluate_safety_invariants`` is the fail-closed safety monitor.
+    """
+    assert check_all_invariants({}) == []
+    assert evaluate_safety_invariants({}) != []

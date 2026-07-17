@@ -560,6 +560,58 @@ def check_all_invariants(
     return violations
 
 
+def evaluate_safety_invariants(
+    values: dict[str, float],
+    invariants: list[PhysicsInvariant] | None = None,
+) -> list[PhysicsInvariantViolation]:
+    """Fail-closed safety evaluation: every invariant channel is mandatory.
+
+    Unlike :func:`check_all_invariants`, which only checks the invariants whose
+    channel is present in *values* (a subset utility), this is the safety-monitor
+    entry point: it treats every invariant in the set as a safety-critical channel
+    that MUST be measured. A missing channel is reported as a ``"critical"``
+    violation rather than silently skipped, so a sensor dropout — including the
+    degenerate ``{}`` (all channels lost) — can never be mistaken for a nominal
+    plasma. Present-but-non-finite channels are already critical via
+    :func:`check_physics_invariant`.
+
+    Parameters
+    ----------
+    values : dict
+        Mapping from invariant ``name`` to the current measured value. Every
+        invariant name that is absent yields a critical missing-channel violation.
+    invariants : list, optional
+        The safety-critical invariant set. Defaults to
+        :data:`DEFAULT_PHYSICS_INVARIANTS`.
+
+    Returns
+    -------
+    list[PhysicsInvariantViolation]
+        All detected violations. A missing channel is recorded with
+        ``actual_value`` NaN, infinite ``margin``, and ``"critical"`` severity.
+        The list is empty only when every channel is present and nominal.
+    """
+    if invariants is None:
+        invariants = DEFAULT_PHYSICS_INVARIANTS
+
+    violations: list[PhysicsInvariantViolation] = []
+    for inv in invariants:
+        if inv.name not in values:
+            violations.append(
+                PhysicsInvariantViolation(
+                    invariant=inv,
+                    actual_value=float("nan"),
+                    margin=float("inf"),
+                    severity="critical",
+                )
+            )
+            continue
+        violation = check_physics_invariant(inv, values[inv.name])
+        if violation is not None:
+            violations.append(violation)
+    return violations
+
+
 def should_trigger_mitigation(
     violations: list[PhysicsInvariantViolation],
 ) -> bool:
