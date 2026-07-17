@@ -37,6 +37,26 @@ def test_feature_error_components_reports_named_nonfinite_values() -> None:
         feature_error_components([1.0], [1.0], [float("nan")], axis_names=["beta_n"])
 
 
+def test_feature_error_components_rejects_negative_scale() -> None:
+    """A negative scale inverts (target - obs)/scale, so it is rejected by axis name."""
+    with pytest.raises(ValueError, match="Feature axis scale must be non-negative.*R_axis_m"):
+        feature_error_components([1.0], [2.0], [-0.5], axis_names=["R_axis_m"])
+
+
+def test_feature_error_components_positive_scale_keeps_error_sign() -> None:
+    """A positive scale maps target > observation to the positive channel."""
+    pos, neg = feature_error_components([1.0], [2.0], [0.5], axis_names=["R_axis_m"])
+    assert pos[0] == pytest.approx(1.0)  # (2 - 1) / 0.5 = 2 -> clamped to +1
+    assert neg[0] == pytest.approx(0.0)
+
+
+def test_feature_error_components_allows_zero_scale_via_floor() -> None:
+    """A zero scale is floored for numerical safety, not rejected, and keeps its sign."""
+    pos, neg = feature_error_components([1.0], [2.0], [0.0], axis_names=["R_axis_m"])
+    assert pos[0] == pytest.approx(1.0)  # divided by SCALE_FLOOR -> saturates positive
+    assert neg[0] == pytest.approx(0.0)
+
+
 def test_decode_action_vector_rejects_invalid_inputs() -> None:
     """Action-vector decoding validates shapes and bounds before mutation."""
     previous = np.zeros(1, dtype=np.float64)

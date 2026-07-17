@@ -131,6 +131,14 @@ def feature_error_components(
     _require_finite_axis_values("Feature axis target", target_arr, names)
     _require_finite_axis_values("Feature axis scale", scale_arr, names)
 
+    # A feature scale is a normalisation magnitude; a negative scale inverts the
+    # sign of (target - observation) / scale and would drive the controller the
+    # wrong way. Reject it rather than silently produce an inverted feature. Zero
+    # is left to the SCALE_FLOOR guard below (numerical safety, sign preserved).
+    if bool(np.any(scale_arr < 0.0)):
+        bad_index = int(np.flatnonzero(scale_arr < 0.0)[0])
+        raise ValueError(f"Feature axis scale must be non-negative: {names[bad_index]}")
+
     pos = np.empty(obs_arr.shape, dtype=np.float64) if out_pos is None else out_pos
     neg = np.empty(obs_arr.shape, dtype=np.float64) if out_neg is None else out_neg
     if pos.shape != obs_arr.shape or neg.shape != obs_arr.shape:
