@@ -293,7 +293,7 @@
 
 ### v1.0.0 — Production readiness target (not tagged)
 
-No `v1.0.0` tag exists yet; latest released tag is `v0.22.1`. Keep this block
+No `v1.0.0` tag exists yet; latest released tag is `v0.23.0`. Keep this block
 as a future readiness target until the external validation and release gates
 below are closed and a real tag is cut.
 

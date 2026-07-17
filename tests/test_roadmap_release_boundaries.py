@@ -22,7 +22,7 @@ def test_v1_roadmap_target_is_not_listed_as_shipped() -> None:
 
     assert "### v1.0.0" not in shipped
     assert "### v1.0.0 — Production readiness target (not tagged)" in next_targets
-    assert "No `v1.0.0` tag exists yet; latest released tag is `v0.22.1`." in next_targets
+    assert "No `v1.0.0` tag exists yet; latest released tag is `v0.23.0`." in next_targets
 
 
 def test_v1_target_has_no_completed_release_checkmarks() -> None:
