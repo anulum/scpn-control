@@ -335,6 +335,23 @@ def decode_action_vector(
     if int(np.max(pos_idx)) >= n_places or int(np.max(neg_idx)) >= n_places:
         raise ValueError("Action place index out of bounds for marking vector.")
 
+    # Fail closed on non-finite inputs before touching prev: np.clip does not
+    # sanitise NaN, so a NaN marking place, gain, limit, slew, or prev would
+    # otherwise propagate straight to the actuator command (and poison prev for
+    # the next tick). A safe command cannot be computed from a non-finite input.
+    if not (
+        bool(np.isfinite(marking_arr[pos_idx]).all())
+        and bool(np.isfinite(marking_arr[neg_idx]).all())
+        and bool(np.isfinite(gains_arr).all())
+        and bool(np.isfinite(abs_max_arr).all())
+        and bool(np.isfinite(slew_arr).all())
+        and bool(np.isfinite(prev).all())
+    ):
+        raise ValueError(
+            "decode inputs must be finite: a non-finite marking place, gain, "
+            "abs_max, slew, or prev cannot produce a safe actuator command"
+        )
+
     raw = np.empty((n_actions,), dtype=np.float64) if work is None else work
     if raw.shape != (n_actions,):
         raise ValueError("work must match action count")

@@ -198,6 +198,62 @@ def test_decode_actions_rejects_invalid_place_indices() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("marking", "gains", "abs_max", "slew", "prev"),
+    [
+        ([float("nan"), 0.2], [2.0], [1.0], [10.0], [0.0]),  # non-finite used positive place
+        ([0.8, float("inf")], [2.0], [1.0], [10.0], [0.0]),  # non-finite used negative place
+        ([0.8, 0.2], [float("nan")], [1.0], [10.0], [0.0]),  # non-finite gain
+        ([0.8, 0.2], [2.0], [float("inf")], [10.0], [0.0]),  # non-finite abs_max
+        ([0.8, 0.2], [2.0], [1.0], [float("nan")], [0.0]),  # non-finite slew
+        ([0.8, 0.2], [2.0], [1.0], [10.0], [float("nan")]),  # non-finite prev
+    ],
+)
+def test_decode_actions_rejects_non_finite_inputs(marking, gains, abs_max, slew, prev) -> None:
+    """A non-finite marking/gain/limit/slew/prev cannot produce a safe command."""
+    with pytest.raises(ValueError, match="must be finite"):
+        decode_actions(
+            marking=marking,
+            actions_spec=[ActionSpec(name="coil_current", pos_place=0, neg_place=1)],
+            gains=gains,
+            abs_max=abs_max,
+            slew_per_s=slew,
+            dt=0.1,
+            prev=prev,
+        )
+
+
+def test_decode_actions_leaves_prev_unchanged_on_non_finite_reject() -> None:
+    """A rejected decode does not mutate the previous-action vector (no NaN poison)."""
+    previous = [0.5]
+    with pytest.raises(ValueError, match="must be finite"):
+        decode_actions(
+            marking=[float("nan"), 0.2],
+            actions_spec=[ActionSpec(name="coil_current", pos_place=0, neg_place=1)],
+            gains=[2.0],
+            abs_max=[1.0],
+            slew_per_s=[10.0],
+            dt=0.1,
+            prev=previous,
+        )
+    assert previous == [0.5]
+
+
+def test_decode_actions_ignores_non_finite_in_unused_marking_place() -> None:
+    """A non-finite value in a place the action never reads is not a barrier."""
+    previous = [0.0]
+    result = decode_actions(
+        marking=[0.8, 0.2, float("nan")],  # place 2 is unused by this action
+        actions_spec=[ActionSpec(name="coil_current", pos_place=0, neg_place=1)],
+        gains=[2.0],
+        abs_max=[1.0],
+        slew_per_s=[10.0],
+        dt=0.1,
+        prev=previous,
+    )
+    assert result == {"coil_current": pytest.approx(1.0)}
+
+
 def test_check_physics_invariant_non_finite_value() -> None:
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     result = check_physics_invariant(inv, float("nan"))
