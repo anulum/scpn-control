@@ -1446,6 +1446,22 @@ class TestIntegration:
         with pytest.raises(ValueError, match="marking must have length"):
             c.marking = [0.0, 1.0]
 
+    def test_marking_setter_rejects_non_finite(self, artifact_path: str) -> None:
+        art = load_artifact(artifact_path)
+        c = NeuroSymbolicController(
+            artifact=art,
+            seed_base=227,
+            targets=ControlTargets(R_target_m=6.2, Z_target_m=0.0),
+            scales=ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
+        )
+        poisoned = [0.0] * art.nP
+        poisoned[0] = float("nan")
+        with pytest.raises(ValueError, match="marking values must be finite"):
+            c.marking = poisoned
+        poisoned[0] = float("inf")
+        with pytest.raises(ValueError, match="marking values must be finite"):
+            c.marking = poisoned
+
 
 # ═════════════════════════════════════════════════════════════════════════════
 # Contract helpers

@@ -462,6 +462,10 @@ class NeuroSymbolicController:
         arr = np.asarray(list(values), dtype=np.float64)
         if arr.shape != (self._nP,):
             raise ValueError(f"marking must have length {self._nP}, got {arr.size}")
+        # np.clip does not sanitise NaN, so a non-finite value would otherwise
+        # pass straight into the controller state and poison every later step.
+        if not bool(np.isfinite(arr).all()):
+            raise ValueError("marking values must be finite")
         self._marking = np.clip(arr, 0.0, 1.0)
 
     def step(
