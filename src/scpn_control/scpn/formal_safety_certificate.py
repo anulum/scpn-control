@@ -271,7 +271,7 @@ def validate_safety_certificate_payload(payload: dict[str, Any]) -> dict[str, An
         raise ValueError("passing safety certificate must hold")
     if payload["status"] == "fail" and payload["holds"]:
         raise ValueError("failed safety certificate must not hold")
-    if payload.get("backend") not in {"explicit-state", "z3"}:
+    if payload.get("backend") not in {"explicit-state"}:
         raise ValueError("safety certificate backend is unsupported")
     if isinstance(payload.get("max_depth"), bool) or not isinstance(payload.get("max_depth"), int):
         raise ValueError("safety certificate max_depth must be an integer")
@@ -393,7 +393,7 @@ def validate_safety_certificate_bundle_payload(payload: dict[str, Any]) -> dict[
         raise ValueError("safety certificate bundle scope is unsupported")
     if payload.get("claim_boundary") != SAFETY_CERTIFICATE_BUNDLE_CLAIM_BOUNDARY:
         raise ValueError("safety certificate bundle claim_boundary is unsupported")
-    if payload.get("backend") not in {"explicit-state", "z3", "mixed"}:
+    if payload.get("backend") not in {"explicit-state", "mixed"}:
         raise ValueError("safety certificate bundle backend is unsupported")
     artifact_sha256 = payload.get("artifact_sha256")
     if artifact_sha256 is not None and (not isinstance(artifact_sha256, str) or not _is_sha256(artifact_sha256)):

@@ -9,8 +9,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 import scpn_control.scpn.formal_verification as formal_verification
 from scpn_control.scpn.formal_verification import verify_formal_contracts
 from scpn_control.scpn.structure import StochasticPetriNet
@@ -28,14 +26,12 @@ def _transfer_net() -> StochasticPetriNet:
     return net
 
 
-def test_auto_backend_records_explicit_state_even_when_z3_is_importable(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Auto mode does not label explicit-state proofs as z3 evidence."""
+def test_auto_backend_records_explicit_state() -> None:
+    """Auto mode labels explicit-state proofs as explicit-state, never z3.
 
-    def z3_available() -> bool:
-        return True
-
-    monkeypatch.setattr(formal_verification, "_z3_solver_available", z3_available)
-
+    The verifier executes no SMT solver, so ``backend='auto'`` resolves to the
+    explicit-state engine and every section records that backend truthfully.
+    """
     report = verify_formal_contracts(
         _transfer_net(),
         max_depth=2,

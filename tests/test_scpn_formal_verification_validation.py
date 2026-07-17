@@ -16,7 +16,6 @@ certificate, bundle, and bundle-artifact schema validators live in
 
 from __future__ import annotations
 
-import builtins
 import types
 from fractions import Fraction
 
@@ -113,35 +112,22 @@ class TestFormulaDataclassGuards:
 
 
 class TestBackendResolution:
-    def test_explicit_z3_resolves_when_present(self):
-        assert fv._resolve_backend("z3") == "z3"
+    def test_explicit_state_resolves_to_itself(self):
+        assert fv._resolve_backend("explicit-state") == "explicit-state"
+
+    def test_auto_resolves_to_explicit_state(self):
+        assert fv._resolve_backend("auto") == "explicit-state"
+
+    def test_z3_is_rejected_as_an_unearned_label(self):
+        # The explicit-state verifier executes no SMT; it must never resolve a
+        # 'z3' backend label it did not run. z3-backed evidence is produced by
+        # the separate Z3BoundedModelChecker in scpn_control.scpn.z3_model_checking.
+        with pytest.raises(ValueError, match="does not execute an SMT solver"):
+            fv._resolve_backend("z3")
 
     def test_rejects_unsupported_backend(self):
         with pytest.raises(ValueError, match="unsupported formal verification backend"):
             fv._resolve_backend("smt-magic")
-
-    def test_explicit_z3_requires_solver(self, monkeypatch):
-        real_import = builtins.__import__
-
-        def fake(name, *args, **kwargs):
-            if name == "z3":
-                raise ModuleNotFoundError("no z3")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", fake)
-        with pytest.raises(RuntimeError, match="z3-solver"):
-            fv._resolve_backend("z3")
-
-    def test_auto_falls_back_to_explicit_state(self, monkeypatch):
-        real_import = builtins.__import__
-
-        def fake(name, *args, **kwargs):
-            if name == "z3":
-                raise ModuleNotFoundError("no z3")
-            return real_import(name, *args, **kwargs)
-
-        monkeypatch.setattr(builtins, "__import__", fake)
-        assert fv._resolve_backend("auto") == "explicit-state"
 
 
 # ── verifier construction and spec guards ─────────────────────────────

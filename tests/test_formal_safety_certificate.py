@@ -578,6 +578,7 @@ class TestValidateSafetyCertificate:
             (lambda p: p.__setitem__("checked_specs", []), "checked_specs must be a non-empty list"),
             (lambda p: p.__setitem__("checked_specs", [""]), "checked_specs must contain non-empty strings"),
             (lambda p: p.__setitem__("checked_specs", ["dup", "dup"]), "checked_specs must be unique"),
+            (lambda p: p.__setitem__("backend", "z3"), "safety certificate backend is unsupported"),
             (lambda p: p.__setitem__("scope", "other"), "scope is unsupported"),
             (lambda p: p.__setitem__("claim_boundary", "other"), "claim_boundary is unsupported"),
             (lambda p: p.__setitem__("sections", "flat"), "sections must be an object"),
@@ -625,7 +626,7 @@ class TestValidateSafetyCertificateBundle:
             (lambda p: p.__setitem__("certificate_count", 99), "certificates must match certificate_count"),
             (lambda p: p.__setitem__("holds", False), "bundle holds must match certificate holds"),
             (lambda p: p.__setitem__("artifact_sha256", "f" * 64), "must match certificate artifact bindings"),
-            (lambda p: p.__setitem__("backend", "z3"), "backend must match certificate backends"),
+            (lambda p: p.__setitem__("backend", "mixed"), "backend must match certificate backends"),
             (lambda p: p.__setitem__("payload_sha256", "short"), "payload_sha256 must be a SHA-256"),
             (lambda p: p.__setitem__("payload_sha256", "c" * 64), "payload_sha256 does not match payload"),
         ],
@@ -868,7 +869,7 @@ class TestPolicyEnforcement:
 
     def test_bundle_requires_shared_backend(self):
         policy = SafetyCertificateBundlePolicy(name="b", require_same_backend=True)
-        certificates = [{"backend": "explicit-state"}, {"backend": "z3"}]
+        certificates = [{"backend": "explicit-state"}, {"backend": "other-backend"}]
         with pytest.raises(ValueError, match="requires a shared backend"):
             fsc._enforce_safety_certificate_bundle_policy({"certificates": certificates}, policy)
 

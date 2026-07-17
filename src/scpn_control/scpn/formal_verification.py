@@ -24,7 +24,7 @@ from typing import Any, Literal
 
 from scpn_control.scpn.structure import StochasticPetriNet
 
-FormalBackend = Literal["auto", "explicit-state", "z3"]
+FormalBackend = Literal["auto", "explicit-state"]
 
 
 @dataclass(frozen=True)
@@ -270,34 +270,27 @@ def _as_float_marking(place_names: list[str], values: tuple[Fraction, ...]) -> d
     return {place: float(values[i]) for i, place in enumerate(place_names)}
 
 
-def _z3_solver_available() -> bool:
-    """Return whether the optional z3-solver package is importable."""
-    try:
-        __import__("z3")
-    except ModuleNotFoundError:
-        return False
-    return True
-
-
-def _resolve_backend(backend: FormalBackend) -> str:
-    if backend == "explicit-state":
-        return backend
-    if backend == "z3":
-        if not _z3_solver_available():
-            raise RuntimeError("backend='z3' requires the optional z3-solver package")
-        return "z3"
-    if backend == "auto":
+def _resolve_backend(backend: str) -> str:
+    if backend in ("auto", "explicit-state"):
         return "explicit-state"
+    if backend == "z3":
+        raise ValueError(
+            "FormalPetriNetVerifier performs exact explicit-state reachability and does not "
+            "execute an SMT solver; use Z3BoundedModelChecker in scpn_control.scpn.z3_model_checking "
+            "for z3-backed evidence"
+        )
     raise ValueError(f"unsupported formal verification backend: {backend}")
 
 
 class FormalPetriNetVerifier:
     """Bounded formal verifier for compiled ``StochasticPetriNet`` objects.
 
-    The current production backend is exact explicit-state reachability over
-    rational markings. ``backend='auto'`` records that explicit-state backend
-    until an SMT execution path is wired into this verifier. ``backend='z3'``
-    remains an explicit opt-in that requires the optional solver package.
+    This verifier performs exact explicit-state bounded reachability over
+    rational markings; it does not execute an SMT solver. ``backend='auto'``
+    and ``backend='explicit-state'`` both resolve to the explicit-state engine
+    and are labelled as such. z3-backed evidence is produced by the separate
+    ``Z3BoundedModelChecker`` (``scpn_control.scpn.z3_model_checking``); this
+    verifier never stamps a ``z3`` backend it did not execute.
     """
 
     def __init__(self, net: StochasticPetriNet, *, backend: FormalBackend = "auto") -> None:
