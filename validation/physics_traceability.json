@@ -210,21 +210,27 @@
       "validation_evidence": [
         "tests/test_gk_species.py thermal-speed, Larmor-radius, Bessel gyroaverage, diamagnetic-frequency sign, collision-frequency scaling, velocity-grid, and pitch-angle-domain checks",
         "tests/test_gk_electromagnetic.py",
-        "validation/validate_gk_species_reference.py immutable species, gyroaverage, diamagnetic-drive, velocity-grid, pitch-angle operator, and collision reference cases with distinct deflection and energy-relaxation channels"
+        "validation/validate_gk_species_reference.py immutable species, gyroaverage, diamagnetic-drive, velocity-grid, pitch-angle operator, and collision reference cases with distinct deflection and energy-relaxation channels",
+        "validation/validate_gk_collision_independent.py independent Fokker-Planck cross-check of the production collision coefficients against validation/gk_collision_independent_reference.py (velocity-dependent Chandrasekhar deflection frequency Maxwellian-averaged, plus a Braginskii/NRL closed-form anchor and an elastic energy-transfer identity) across density, temperature, effective-charge, field-temperature, and species-mass cases: the production/reference deflection ratio is constant to machine precision (functional scaling matches), the O(1) prefactor is bounded and recorded (0.271 of the Fokker-Planck thermal deflection rate, 0.500 of the Braginskii rate), and the energy-relaxation channel matches the independent elastic energy-transfer efficiency"
       ],
       "evidence_paths": [
         "tests/test_gk_species.py",
         "tests/test_gk_species_reference_validation.py",
         "tests/test_gk_electromagnetic.py",
+        "tests/test_gk_collision_independent_reference.py",
+        "tests/test_validate_gk_collision_independent.py",
         "validation/validate_gk_species_reference.py",
+        "validation/gk_collision_independent_reference.py",
+        "validation/validate_gk_collision_independent.py",
         "validation/reference_data/gk_species/species_collision_reference_cases.json",
         "validation/reports/gk_species_reference.json",
+        "validation/reports/gk_species/collision_independent_crosscheck.json",
         "src/scpn_control/core/gk_species.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_species.py"
       ],
-      "validity_domain": "Bounded test-particle species, gyroaverage, diamagnetic-drive, velocity-grid, pitch-angle operator, and collision-coefficient reference admission with immutable reference-file SHA-256, per-case digests, explicit SI or dimensionless units, duplicate-case rejection, finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary; full collision-operator claims remain blocked until field-particle momentum-conservation and external Fokker-Planck or equivalent multispecies evidence are supplied.",
+      "validity_domain": "Bounded test-particle species, gyroaverage, diamagnetic-drive, velocity-grid, pitch-angle operator, and collision-coefficient reference admission with immutable reference-file SHA-256, per-case digests, explicit SI or dimensionless units, duplicate-case rejection, finite species parameters, integer velocity quadrature sizes of at least two points, and strictly ordered finite lambda grids bounded by the local trapped-passing boundary. The test-particle deflection and energy-relaxation coefficients are now independently cross-checked against a velocity-dependent Fokker-Planck reference (Chandrasekhar deflection frequency, Maxwellian-averaged, with a Braginskii/NRL anchor): the functional scaling matches to machine precision and the O(1) prefactor is bounded and recorded, consistent with the module's order-of-magnitude self-description. Full quantitative collisional-damping claims remain blocked until field-particle momentum-conservation and external Fokker-Planck or equivalent multispecies evidence are supplied.",
       "external_validation_tracker_issue": 47,
       "evidence": [
         "validation/validate_gk_species_reference.py schema-versioned digest-bound species, gyroaverage, diamagnetic-drive, velocity-grid, pitch-angle operator, and collision reference validator",

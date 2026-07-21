@@ -1,0 +1,82 @@
+{
+  "aggregate": {
+    "braginskii_prefactor": 0.4999999999999999,
+    "braginskii_ratio_spread": 3.3306690738754706e-16,
+    "deflection_prefactor": 0.2710231582428019,
+    "deflection_ratio_spread": 4.0964138703989997e-16,
+    "prefactor_bounded": true,
+    "scaling_exact": true
+  },
+  "cases": 5,
+  "entries": [
+    {
+      "braginskii_ratio": 0.4999999999999999,
+      "case": "deuterium_reference",
+      "case_sha256": "75640b2017cf3393e2a71211642da98620a59d5f111242ba3412c607e77c9868",
+      "deflection_ratio": 0.2710231582428018,
+      "energy_structure_exact": true,
+      "energy_structure_ratio": 1.0
+    },
+    {
+      "braginskii_ratio": 0.49999999999999994,
+      "case": "deuterium_hot",
+      "case_sha256": "c0eb02459b4336f43593692b12538019068e08d0e25db367df0dfe98547000bc",
+      "deflection_ratio": 0.27102315824280193,
+      "energy_structure_exact": true,
+      "energy_structure_ratio": 1.0
+    },
+    {
+      "braginskii_ratio": 0.49999999999999983,
+      "case": "deuterium_dense",
+      "case_sha256": "ad78c792142a8a193aaed872e51b11fcea83d32df090af58721f5a28dd84b031",
+      "deflection_ratio": 0.2710231582428019,
+      "energy_structure_exact": true,
+      "energy_structure_ratio": 1.0
+    },
+    {
+      "braginskii_ratio": 0.5,
+      "case": "deuterium_impure",
+      "case_sha256": "87ea00176c0c6cdb51ea2d25d7f3dcb686d8efb8045fa4e2d913ea8957ec3102",
+      "deflection_ratio": 0.2710231582428019,
+      "energy_structure_exact": true,
+      "energy_structure_ratio": 1.0
+    },
+    {
+      "braginskii_ratio": 0.49999999999999994,
+      "case": "electron",
+      "case_sha256": "afd73165b7db240e73c688da691e0b7216ba6239493b75697a5630f55bb5830a",
+      "deflection_ratio": 0.27102315824280193,
+      "energy_structure_exact": true,
+      "energy_structure_ratio": 1.0
+    }
+  ],
+  "findings": [],
+  "method": "velocity-dependent Fokker-Planck deflection frequency (Chandrasekhar function) Maxwellian-averaged by Gauss-Legendre quadrature, with an independent Braginskii/NRL closed-form anchor and an elastic energy-transfer efficiency identity",
+  "model_reference": "Helander & Sigmar 2002 \u00a73; Braginskii 1965; NRL Plasma Formulary 2019",
+  "payload_sha256": "ad39a6b8f67d45e54053225e3eae69df3af04499ae0001413293b3eaa4fd2d3d",
+  "public_claims": {
+    "bounded_collision_scaling_independently_verified": true,
+    "quantitative_collisional_damping": false,
+    "quantitative_collisional_damping_blocked_reason": "Bounded test-particle coefficients only: scaling matches the Fokker-Planck reference but the prefactor is an O(1)-bounded convention choice, and field-particle momentum-conservation plus external multispecies validation remain outstanding."
+  },
+  "reference_implementation": "validation/gk_collision_independent_reference.py",
+  "schema_version": "scpn-control.gk-collision-independent-crosscheck.v1",
+  "status": "pass",
+  "tolerances": {
+    "energy_structure": 1e-09,
+    "prefactor_band": [
+      0.1,
+      3.0
+    ],
+    "scaling_ratio_spread": 1e-09
+  },
+  "units": {
+    "braginskii_ratio": "dimensionless",
+    "deflection_ratio": "dimensionless",
+    "energy_structure_ratio": "dimensionless",
+    "nu_deflection_production": "s-1",
+    "nu_energy_production": "s-1",
+    "reference_braginskii_rate": "s-1",
+    "reference_deflection_rate": "s-1"
+  }
+}
