@@ -12,7 +12,7 @@
 | Rust PyO3 exports | 39 |
 | Validation scripts | 134 |
 | Optional extras | 19 |
-| Python test files | 484 |
+| Python test files | 488 |
 | Public documentation pages | 62 |
 | GitHub Actions workflows | 10 |
 
