@@ -112,8 +112,8 @@ def miller_geometry(
     delta = _finite_scalar("delta", delta)
     if not -1.0 < delta < 1.0:
         raise ValueError("delta must lie in (-1, 1)")
-    _finite_scalar("s_kappa", s_kappa)
-    _finite_scalar("s_delta", s_delta)
+    s_kappa = _finite_scalar("s_kappa", s_kappa)
+    s_delta = _finite_scalar("s_delta", s_delta)
     q = _finite_scalar("q", q, positive=True)
     _finite_scalar("s_hat", s_hat)
     _finite_scalar("alpha_MHD", alpha_MHD)
@@ -140,9 +140,19 @@ def miller_geometry(
     dR_dt = -r * np.sin(theta + delta_angle * np.sin(theta)) * (1 + delta_angle * np.cos(theta))
     dZ_dt = kappa * r * np.cos(theta)
 
-    # Derivatives w.r.t. r (at constant theta)
-    dR_dr_tot = np.cos(theta + delta_angle * np.sin(theta)) + dR_dr
-    dZ_dr_r = kappa * np.sin(theta)
+    # Derivatives w.r.t. r (at constant theta). The flux-surface shape functions
+    # kappa(r) and delta(r) vary radially, so the elongation- and triangularity-
+    # shear (s_kappa, s_delta) enter the radial derivatives (Miller et al. 1998,
+    # Eqs. 36-37; d(arcsin delta)/dr = s_delta / r, dkappa/dr = kappa * s_kappa / r):
+    #   dR/dr = dR0/dr + cos(theta_R) - s_delta * sin(theta) * sin(theta_R)
+    #   dZ/dr = kappa * sin(theta) * (1 + s_kappa)
+    # where theta_R = theta + arcsin(delta) * sin(theta). Dropping the s_kappa /
+    # s_delta terms leaves the circular and fixed-shaping (s=0) metric exact but
+    # corrupts g_rr/g_rt/g_tt for finite shaping-shear; verified against an
+    # independent finite-difference reference in validation/validate_gk_geometry_independent.py.
+    theta_R = theta + delta_angle * np.sin(theta)
+    dR_dr_tot = np.cos(theta_R) + dR_dr - s_delta * np.sin(theta) * np.sin(theta_R)
+    dZ_dr_r = kappa * np.sin(theta) * (1.0 + s_kappa)
 
     # Jacobian of (r, theta) → (R, Z): J = dR/dr * dZ/dtheta - dR/dtheta * dZ/dr
     jac = dR_dr_tot * dZ_dt - dR_dt * dZ_dr_r

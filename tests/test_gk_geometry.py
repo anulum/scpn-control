@@ -217,3 +217,49 @@ def test_miller_geometry_rejects_nonpositive_n_theta() -> None:
     """A non-positive n_theta is rejected as an invalid poloidal-grid count."""
     with pytest.raises(ValueError, match="n_theta must be a positive integer"):
         miller_geometry(R0=2.78, a=1.0, rho=0.5, kappa=1.7, q=1.4, s_hat=0.78, B0=2.0, n_theta=0, n_period=1)
+
+
+def test_metric_responds_to_shaping_shear() -> None:
+    """s_kappa / s_delta must enter the radial metric (Miller 1998 Eqs. 36-37).
+
+    Regression guard: the radial derivatives previously dropped the shaping-shear
+    terms, leaving g_rr / g_rt / g_tt wrong for finite s_kappa / s_delta while the
+    s=0 (circular / fixed-shaping) domain stayed exact. Cross-checked against the
+    independent finite-difference reference.
+    """
+    common = {
+        "R0": 2.78,
+        "a": 1.0,
+        "rho": 0.5,
+        "kappa": 1.7,
+        "delta": 0.3,
+        "q": 1.9,
+        "dR_dr": -0.08,
+        "B0": 2.0,
+        "n_theta": 128,
+        "n_period": 1,
+    }
+    flat = miller_geometry(s_kappa=0.0, s_delta=0.0, **common)
+    sheared = miller_geometry(s_kappa=0.4, s_delta=0.3, **common)
+    # The shaping-shear terms must actually change the metric.
+    assert not np.allclose(flat.g_rr, sheared.g_rr, rtol=1e-3)
+    assert not np.allclose(flat.g_tt, sheared.g_tt, rtol=1e-3)
+    # And the sheared metric must match the independent FD reference.
+    from validation.gk_geometry_independent_reference import independent_miller_metric
+
+    ref = independent_miller_metric(
+        theta=np.asarray(sheared.theta),
+        R0=2.78,
+        a=1.0,
+        rho=0.5,
+        kappa=1.7,
+        delta=0.3,
+        s_kappa=0.4,
+        s_delta=0.3,
+        q=1.9,
+        dR_dr=-0.08,
+        B0=2.0,
+    )
+    np.testing.assert_allclose(sheared.g_rr, ref.g_rr, rtol=1e-6, atol=1e-8)
+    np.testing.assert_allclose(sheared.g_tt, ref.g_tt, rtol=1e-6, atol=1e-8)
+    np.testing.assert_allclose(sheared.g_rt, ref.g_rt, rtol=1e-6, atol=1e-8)

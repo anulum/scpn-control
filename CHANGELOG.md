@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Restored the elongation- and triangularity-shear (`s_kappa`, `s_delta`) terms in
+  the Miller local-equilibrium radial derivatives (`core.gk_geometry.miller_geometry`,
+  Miller et al. 1998 Eqs. 36-37). The parameters were accepted and validated but
+  silently dropped from `dR/dr` and `dZ/dr`, leaving the metric coefficients
+  (`g_rr`, `g_rt`, `g_tt`) and Jacobian incorrect for finite shaping-shear while the
+  circular / fixed-shaping (`s=0`) domain stayed exact. Confirmed and fixed against
+  an independent finite-difference reference that differentiates the flux-surface
+  definition directly.
+
+### Added
+- `validation/gk_geometry_independent_reference.py`: a structurally independent
+  finite-difference Miller-geometry reference, and `validation/validate_gk_geometry_independent.py`:
+  a schema-versioned cross-check (`scpn-control.gk-geometry-independent-crosscheck.v1`)
+  that validates the production metric against it across circular, shaped, high-shear,
+  and both signs of finite shaping-shear local equilibria — closing the Miller
+  geometry metric fidelity gap for external-validation tracker #47.
+
 ## [0.23.0] - 2026-07-17
 
 ### Added

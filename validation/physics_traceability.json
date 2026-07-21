@@ -170,20 +170,26 @@
       "validation_evidence": [
         "tests/test_gk_geometry.py field-pitch, metric, contravariant metric-determinant identity, curvature, shaping, and interface checks",
         "validation/validate_gk_geometry_reference.py schema-versioned immutable Miller reference cases with b-dot-grad-theta samples, per-case digests, unit contracts, tolerance metadata, and canonical payload SHA-256",
+        "validation/validate_gk_geometry_independent.py independent finite-difference cross-check of the production metric against validation/gk_geometry_independent_reference.py across circular, shaped, high-shear, and finite shaping-shear (s_kappa/s_delta) local equilibria; closes the metric radial-derivative fidelity gap",
         "source-level local Miller geometry contract"
       ],
       "evidence_paths": [
         "tests/test_gk_geometry.py",
         "tests/test_gk_geometry_reference_validation.py",
+        "tests/test_gk_geometry_independent_reference.py",
+        "tests/test_validate_gk_geometry_independent.py",
         "validation/validate_gk_geometry_reference.py",
+        "validation/gk_geometry_independent_reference.py",
+        "validation/validate_gk_geometry_independent.py",
         "validation/reports/gk_geometry_reference.json",
+        "validation/reports/gk_geometry/independent_crosscheck.json",
         "validation/reference_data/gk_geometry/miller_reference_cases.json",
         "src/scpn_control/core/gk_geometry.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_geometry.py"
       ],
-      "validity_domain": "Local flux-tube geometry regression and analytic shape checks only; not a full free-boundary equilibrium reconstruction.",
+      "validity_domain": "Local flux-tube geometry regression and analytic shape checks, now independently cross-validated by a finite-difference Miller reference across circular, shaped, high-shear, and finite shaping-shear equilibria (the s_kappa/s_delta radial-derivative gap is closed); external gyrokinetic-code / Cyclone Base Case published agreement remains outstanding, and this is not a full free-boundary equilibrium reconstruction.",
       "external_validation_tracker_issue": 47
     },
     {

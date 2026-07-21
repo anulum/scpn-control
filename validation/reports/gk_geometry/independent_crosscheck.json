@@ -1,0 +1,280 @@
+{
+  "cases": 5,
+  "entries": [
+    {
+      "case": "circular_cyclone_limit",
+      "case_sha256": "2b54cd9a32ecc8cd285f4267ca4ea9f99c7f7f0dbdd5b9b6b2fa01573847e73b",
+      "fields": {
+        "B_toroidal": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "R": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "Z": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "b_dot_grad_theta": {
+          "agrees": true,
+          "max_abs_error": 3.907807410996611e-11,
+          "max_rel_error": 1.493616372384311e-10
+        },
+        "g_rr": {
+          "agrees": true,
+          "max_abs_error": 6.335343361030255e-11,
+          "max_rel_error": 6.335343361431621e-11
+        },
+        "g_rt": {
+          "agrees": true,
+          "max_abs_error": 1.5210965821235942e-10,
+          "max_rel_error": 0.0
+        },
+        "g_tt": {
+          "agrees": true,
+          "max_abs_error": 6.228817461817471e-10,
+          "max_rel_error": 1.5572043656968562e-10
+        },
+        "jacobian": {
+          "agrees": true,
+          "max_abs_error": 3.637323775507184e-11,
+          "max_rel_error": 7.274647550485163e-11
+        }
+      },
+      "samples": 128,
+      "shaping_shear_active": false,
+      "status": "pass"
+    },
+    {
+      "case": "shaped_positive_triangularity",
+      "case_sha256": "d641b194563d82c8654408d1e7af4c23bfba9512aada2b0f2db71eaf94eeaa06",
+      "fields": {
+        "B_toroidal": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "R": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "Z": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "b_dot_grad_theta": {
+          "agrees": true,
+          "max_abs_error": 2.5521834645658714e-11,
+          "max_rel_error": 1.643394679313821e-10
+        },
+        "g_rr": {
+          "agrees": true,
+          "max_abs_error": 7.779232813476256e-11,
+          "max_rel_error": 8.788629807751241e-11
+        },
+        "g_rt": {
+          "agrees": true,
+          "max_abs_error": 1.6408763237052426e-10,
+          "max_rel_error": 7.37576878942157e-10
+        },
+        "g_tt": {
+          "agrees": true,
+          "max_abs_error": 8.577947241406036e-10,
+          "max_rel_error": 1.6860378280118332e-10
+        },
+        "jacobian": {
+          "agrees": true,
+          "max_abs_error": 6.22384366266715e-11,
+          "max_rel_error": 8.041899417300477e-11
+        }
+      },
+      "samples": 128,
+      "shaping_shear_active": false,
+      "status": "pass"
+    },
+    {
+      "case": "high_shear_local_equilibrium",
+      "case_sha256": "cc4ff67980eb68f9bde326e9710a2c842ca25361ebf5170c342cf9c851e6aac2",
+      "fields": {
+        "B_toroidal": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "R": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "Z": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "b_dot_grad_theta": {
+          "agrees": true,
+          "max_abs_error": 8.4623974494491e-12,
+          "max_rel_error": 1.4887576273454114e-10
+        },
+        "g_rr": {
+          "agrees": true,
+          "max_abs_error": 1.2076961652951468e-10,
+          "max_rel_error": 1.0446257916638839e-10
+        },
+        "g_rt": {
+          "agrees": true,
+          "max_abs_error": 1.2379930414141427e-10,
+          "max_rel_error": 9.015706513477666e-10
+        },
+        "g_tt": {
+          "agrees": true,
+          "max_abs_error": 3.294640116280334e-10,
+          "max_rel_error": 1.3467261780047727e-10
+        },
+        "jacobian": {
+          "agrees": true,
+          "max_abs_error": 9.021627889183037e-11,
+          "max_rel_error": 8.16286151096931e-11
+        }
+      },
+      "samples": 128,
+      "shaping_shear_active": false,
+      "status": "pass"
+    },
+    {
+      "case": "positive_shaping_shear",
+      "case_sha256": "40502ce7e56143879670a05a896d3be599f42ff970a4f265f852dcd1823a3c88",
+      "fields": {
+        "B_toroidal": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "R": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "Z": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "b_dot_grad_theta": {
+          "agrees": true,
+          "max_abs_error": 1.891177492385765e-11,
+          "max_rel_error": 1.695516846203958e-10
+        },
+        "g_rr": {
+          "agrees": true,
+          "max_abs_error": 7.025535708748976e-11,
+          "max_rel_error": 1.0264224470690435e-10
+        },
+        "g_rt": {
+          "agrees": true,
+          "max_abs_error": 1.5930112784445782e-10,
+          "max_rel_error": 3.9783405871450973e-10
+        },
+        "g_tt": {
+          "agrees": true,
+          "max_abs_error": 8.74368133452208e-10,
+          "max_rel_error": 1.7147202967865613e-10
+        },
+        "jacobian": {
+          "agrees": true,
+          "max_abs_error": 9.074452300694702e-11,
+          "max_rel_error": 8.402077420667637e-11
+        }
+      },
+      "samples": 128,
+      "shaping_shear_active": true,
+      "status": "pass"
+    },
+    {
+      "case": "negative_shaping_shear",
+      "case_sha256": "a1d83dc8b1ae1b35aba699bc4925643fc9e68fee8b20bce8a86785d7b0244f67",
+      "fields": {
+        "B_toroidal": {
+          "agrees": true,
+          "max_abs_error": 4.440892098500626e-16,
+          "max_rel_error": 1.926558452784077e-16
+        },
+        "R": {
+          "agrees": true,
+          "max_abs_error": 4.440892098500626e-16,
+          "max_rel_error": 1.9625694437306506e-16
+        },
+        "Z": {
+          "agrees": true,
+          "max_abs_error": 0.0,
+          "max_rel_error": 0.0
+        },
+        "b_dot_grad_theta": {
+          "agrees": true,
+          "max_abs_error": 2.289290979007319e-11,
+          "max_rel_error": 1.365997629693099e-10
+        },
+        "g_rr": {
+          "agrees": true,
+          "max_abs_error": 8.679768015440459e-11,
+          "max_rel_error": 8.797982723621935e-11
+        },
+        "g_rt": {
+          "agrees": true,
+          "max_abs_error": 1.5838974576354303e-10,
+          "max_rel_error": 1.2234503258608667e-08
+        },
+        "g_tt": {
+          "agrees": true,
+          "max_abs_error": 5.173053096996227e-10,
+          "max_rel_error": 1.4094750062612133e-10
+        },
+        "jacobian": {
+          "agrees": true,
+          "max_abs_error": 5.2264192973439094e-11,
+          "max_rel_error": 8.156168312529136e-11
+        }
+      },
+      "samples": 128,
+      "shaping_shear_active": true,
+      "status": "pass"
+    }
+  ],
+  "findings": [],
+  "grid": {
+    "n_period": 1,
+    "n_theta": 128
+  },
+  "method": "fourth-order central finite differences of the Miller flux-surface definition",
+  "model_reference": "Miller et al., Phys. Plasmas 5 (1998) 973",
+  "payload_sha256": "ac9461260c4f9786e43ee650b285050a2de26244a03a49342c4259b45cd0ca8f",
+  "public_claims": {
+    "bounded_local_miller_geometry_independently_verified": true,
+    "full_equilibrium_blocked_reason": "Local Miller metric only; full equilibrium reconstruction requires external equilibrium-code evidence.",
+    "full_equilibrium_reconstruction": false
+  },
+  "reference_implementation": "validation/gk_geometry_independent_reference.py",
+  "schema_version": "scpn-control.gk-geometry-independent-crosscheck.v1",
+  "status": "pass",
+  "tolerances": {
+    "absolute": 1e-08,
+    "relative": 1e-06
+  },
+  "units": {
+    "B_toroidal": "T",
+    "R": "m",
+    "Z": "m",
+    "b_dot_grad_theta": "m-1",
+    "g_rr": "dimensionless",
+    "g_rt": "m-1",
+    "g_tt": "m-2",
+    "jacobian": "m2"
+  }
+}
