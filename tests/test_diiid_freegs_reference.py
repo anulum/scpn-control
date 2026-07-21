@@ -20,6 +20,7 @@ import json
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from scpn_control.core.equilibrium_shape import compute_equilibrium_shape
 from scpn_control.core.real_data_manifest import load_real_data_manifest
@@ -57,6 +58,10 @@ def test_coilset_has_the_diiid_pf_set() -> None:
 
 
 def test_shape_contract_reproduces_recorded_reference() -> None:
+    # The recorded shape reference was computed with contourpy's sub-grid contour;
+    # without it compute_equilibrium_shape falls back to the coarse grid-cell boundary
+    # and kappa/delta diverge, so this reproduction check requires contourpy.
+    pytest.importorskip("contourpy")
     coil = json.loads((_REF / "diiid_freegs_1p5MA_coilset.json").read_text(encoding="utf-8"))
     ref = coil["control_shape_reference"]
     data = np.load(_REF / "diiid_freegs_1p5MA.npz")
