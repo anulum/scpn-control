@@ -14,7 +14,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control._npz import save_npz_arrays
+from scpn_control._npz import NpzSizeError, load_npz_capped, save_npz_arrays
 
 
 def test_save_npz_arrays_writes_numpy_loadable_archive(tmp_path: Path) -> None:
@@ -43,3 +43,20 @@ def test_save_npz_arrays_rejects_path_like_member_names(tmp_path: Path, name: st
 def test_save_npz_arrays_rejects_object_arrays_without_pickle(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="Object arrays cannot be saved"):
         save_npz_arrays(tmp_path / "object.npz", {"items": np.array([object()], dtype=object)})
+
+
+def test_load_npz_capped_loads_a_valid_archive(tmp_path: Path) -> None:
+    path = tmp_path / "shot.npz"
+    save_npz_arrays(path, {"ip": np.array([15e6]), "psi": np.arange(6.0).reshape(2, 3)})
+    with load_npz_capped(path) as data:
+        np.testing.assert_array_equal(data["psi"], np.arange(6.0).reshape(2, 3))
+        assert set(data.keys()) == {"ip", "psi"}
+
+
+def test_load_npz_capped_rejects_archive_over_the_decompressed_cap(tmp_path: Path) -> None:
+    # A decompression bomb declares (or expands to) far more than its packed size.
+    # Auditing the central-directory sizes refuses it before np.load allocates.
+    path = tmp_path / "big.npz"
+    save_npz_arrays(path, {"payload": np.zeros(1024, dtype=np.float64)})  # 8192 bytes declared
+    with pytest.raises(NpzSizeError, match="exceeds cap"):
+        load_npz_capped(path, max_decompressed_bytes=1024)

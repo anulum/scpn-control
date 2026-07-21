@@ -783,10 +783,20 @@ def hil_test(shots_dir: str, json_out: bool) -> None:
         click.echo(f"ERROR: Shots directory not found: {shots_dir}", err=True)
         sys.exit(1)
 
+    import zipfile
+
+    from scpn_control._npz import NpzSizeError, load_npz_capped
+
     shot_files = sorted(shots_path.glob("*.npz"))
-    results = []
+    results: list[dict[str, object]] = []
     for sf in shot_files:
-        data = np.load(sf, allow_pickle=False)
+        # Caller-supplied archives: cap the decompressed size (bomb defence) and fail
+        # each file closed rather than crashing the whole campaign on one bad archive.
+        try:
+            data = load_npz_capped(sf)
+        except (NpzSizeError, OSError, ValueError, zipfile.BadZipFile) as exc:
+            results.append({"shot": sf.stem, "status": "rejected", "error": str(exc)})
+            continue
         results.append(
             {
                 "shot": sf.stem,
@@ -806,7 +816,11 @@ def hil_test(shots_dir: str, json_out: bool) -> None:
     else:
         click.echo(f"Loaded {len(results)} shots from {shots_dir}")
         for r in results:
-            click.echo(f"  {r['shot']}: {len(r['keys'])} arrays")
+            keys = r.get("keys")
+            if isinstance(keys, list):
+                click.echo(f"  {r['shot']}: {len(keys)} arrays")
+            else:
+                click.echo(f"  {r['shot']}: rejected ({r.get('error', '')})")
 
 
 @main.command()

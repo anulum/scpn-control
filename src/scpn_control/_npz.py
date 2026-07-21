@@ -13,11 +13,22 @@ import zipfile
 from collections.abc import Mapping
 from os import PathLike
 from pathlib import Path
+from typing import cast
 
 import numpy as np
+from numpy.lib.npyio import NpzFile
 from numpy.typing import ArrayLike
 
 NpzPath = str | PathLike[str]
+
+# A ``.npz`` is a zip archive; a small deflate-compressed member can expand to
+# gigabytes (a decompression bomb). 512 MiB is generous for real shot arrays
+# (per-shot channels are ~MB) while rejecting a bomb before it exhausts memory.
+_MAX_NPZ_DECOMPRESSED_BYTES = 512 * 1024 * 1024
+
+
+class NpzSizeError(ValueError):
+    """Raised when an ``.npz`` archive's declared decompressed size exceeds the cap."""
 
 
 def _member_name(name: str) -> str:
@@ -51,4 +62,39 @@ def save_npz_arrays(path: NpzPath, arrays: Mapping[str, ArrayLike]) -> None:
                 np.save(member, np.asanyarray(value), allow_pickle=False)
 
 
-__all__ = ["save_npz_arrays"]
+def load_npz_capped(path: NpzPath, *, max_decompressed_bytes: int = _MAX_NPZ_DECOMPRESSED_BYTES) -> NpzFile:
+    """Load a ``.npz`` with ``allow_pickle=False`` after auditing its decompressed size.
+
+    A ``.npz`` is a zip archive, so a small compressed file can expand to gigabytes
+    (a decompression bomb). This reads the zip central-directory member sizes without
+    decompressing anything and refuses if their total exceeds ``max_decompressed_bytes``
+    before ``np.load`` materialises the archive, so a hostile file cannot exhaust memory.
+
+    Parameters
+    ----------
+    path : str or PathLike[str]
+        Archive to load.
+    max_decompressed_bytes : int
+        Total declared-uncompressed byte cap across all members.
+
+    Returns
+    -------
+    numpy.lib.npyio.NpzFile
+        The lazily-loaded archive; each member is decompressed on access, bounded by
+        the audited cap.
+
+    Raises
+    ------
+    NpzSizeError
+        If the total declared decompressed size exceeds ``max_decompressed_bytes``.
+    """
+    total = 0
+    with zipfile.ZipFile(Path(path)) as archive:
+        for info in archive.infolist():
+            total += int(info.file_size)
+            if total > max_decompressed_bytes:
+                raise NpzSizeError(f"NPZ decompressed size exceeds cap: {total} > {max_decompressed_bytes} bytes")
+    return cast(NpzFile, np.load(path, allow_pickle=False))
+
+
+__all__ = ["NpzSizeError", "load_npz_capped", "save_npz_arrays"]

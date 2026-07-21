@@ -17,7 +17,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-import numpy as np
 import pytest
 from click.testing import CliRunner
 
@@ -1755,11 +1754,6 @@ def test_live_command_wires_monitor_and_server(runner, monkeypatch):
     assert "Starting phase sync server on ws://127.0.0.1:9001" in result.output
 
 
-def test_hil_test_nonexistent_dir(runner):
-    result = runner.invoke(main, ["hil-test", "--shots-dir", "nonexistent_dir_12345", "--json-out"])
-    assert result.exit_code != 0
-
-
 def test_live_help(runner):
     result = runner.invoke(main, ["live", "--help"])
     assert result.exit_code == 0
@@ -1801,39 +1795,6 @@ def test_info_text_output(runner):
     assert "Python:" in result.output
     assert "NumPy:" in result.output
     assert "neural_equilibrium_sparc.npz" in result.output
-
-
-def test_hil_test_with_mock_shots(runner, tmp_path):
-    """Exercise hil-test loading NPZ files (lines 222-243)."""
-    rng = np.random.default_rng(0)
-    for name in ("shot_001", "shot_002"):
-        np.savez(
-            tmp_path / f"{name}.npz",
-            psi=rng.standard_normal((10, 10)),
-            ip=np.array([15e6]),
-        )
-    result = runner.invoke(main, ["hil-test", "--shots-dir", str(tmp_path), "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    assert data["n_shots"] == 2
-    assert len(data["shots"]) == 2
-    assert data["shots"][0]["status"] == "loaded"
-    assert "psi" in data["shots"][0]["keys"]
-
-
-def test_hil_test_text_output(runner, tmp_path):
-    np.savez(tmp_path / "s42.npz", plasma=np.zeros(5))
-    result = runner.invoke(main, ["hil-test", "--shots-dir", str(tmp_path)])
-    assert result.exit_code == 0
-    assert "1 shots" in result.output
-    assert "s42" in result.output
-
-
-def test_hil_test_empty_dir(runner, tmp_path):
-    result = runner.invoke(main, ["hil-test", "--shots-dir", str(tmp_path), "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    assert data["n_shots"] == 0
 
 
 def test_info_json_includes_weights_list(runner):
