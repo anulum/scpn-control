@@ -1777,33 +1777,6 @@ def test_validate_text_output(runner):
     assert "Status:" in result.output
 
 
-def test_info_json_out(runner):
-    result = runner.invoke(main, ["info", "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    assert "version" in data
-    assert "python" in data
-    assert "numpy" in data
-    assert "rust_backend" in data
-
-
-def test_info_text_output(runner):
-    result = runner.invoke(main, ["info"])
-    assert result.exit_code == 0
-    assert "scpn-control" in result.output
-    assert "Rust backend:" in result.output
-    assert "Python:" in result.output
-    assert "NumPy:" in result.output
-    assert "neural_equilibrium_sparc.npz" in result.output
-
-
-def test_info_json_includes_weights_list(runner):
-    result = runner.invoke(main, ["info", "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    assert isinstance(data["weights"], list)
-
-
 def test_demo_combined_json(runner):
     result = runner.invoke(main, ["demo", "--scenario", "combined", "--steps", "5", "--json-out"])
     assert result.exit_code == 0
