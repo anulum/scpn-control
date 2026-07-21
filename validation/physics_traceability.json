@@ -1638,7 +1638,8 @@
         "tests/test_ballooning_solver.py",
         "tests/test_cross_module_physics.py",
         "validation/validate_mhd_stability.py validates the Troyon beta_N limit and scalings, the Mercier interchange index, the Connor-Hastie-Taylor ballooning boundary, and the Kruskal-Shafranov criterion against exact closed forms with consistent stability flags, with tamper-evident sealed evidence",
-        "tests/test_mhd_stability_validation.py Troyon, Mercier, ballooning, Kruskal-Shafranov, and evidence-seal checks"
+        "tests/test_mhd_stability_validation.py Troyon, Mercier, ballooning, Kruskal-Shafranov, and evidence-seal checks",
+        "validation/validate_stability_mhd_ballooning.py cross-checks the analytic s-alpha ballooning boundary against a structurally independent NUMERICAL solve of the ballooning ODE (validation/ballooning_independent_reference.py): the analytic alpha_crit(s) approximation tracks the numerically resolved marginal boundary to within ~5% across the first-stability regime s in [0.5, 2.0] (low-shear second stability excluded and recorded)"
       ],
       "evidence_paths": [
         "tests/test_stability_mhd.py",
@@ -1649,6 +1650,11 @@
         "validation/reports/mhd_stability.json",
         "validation/reports/mhd_stability.md",
         "tests/test_mhd_stability_validation.py",
+        "validation/ballooning_independent_reference.py",
+        "validation/validate_stability_mhd_ballooning.py",
+        "validation/reports/stability_mhd/ballooning_independent_crosscheck.json",
+        "tests/test_ballooning_independent_reference.py",
+        "tests/test_validate_stability_mhd_ballooning.py",
         "docs/validation.md"
       ],
       "covered_source_paths": [

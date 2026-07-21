@@ -1,0 +1,77 @@
+{
+  "cases": 5,
+  "entries": [
+    {
+      "agrees": true,
+      "alpha_crit_analytic": 0.375,
+      "alpha_crit_numeric": 0.39322849268759796,
+      "case_sha256": "4257295a103ce0a20eb07bc57a07bd17d396745ecc1eae67461607b741427793",
+      "relative_error": 0.04635598138632255,
+      "shear": 0.5
+    },
+    {
+      "agrees": true,
+      "alpha_crit_analytic": 0.45499999999999996,
+      "alpha_crit_numeric": 0.4708840466188633,
+      "case_sha256": "0e760fe3b21dfb73bfce5d209fbe5ab530add431ee83482f6d56272ab629f3f5",
+      "relative_error": 0.0337323949131791,
+      "shear": 0.7
+    },
+    {
+      "agrees": true,
+      "alpha_crit_analytic": 0.6,
+      "alpha_crit_numeric": 0.6122388442673525,
+      "case_sha256": "fcf59290262b5b73583114fbd8a9963b56e74f49ad67ac8abc8b500c6b45b3e9",
+      "relative_error": 0.019990309961463497,
+      "shear": 1.0
+    },
+    {
+      "agrees": true,
+      "alpha_crit_analytic": 0.8999999999999999,
+      "alpha_crit_numeric": 0.8806367159757826,
+      "case_sha256": "817a59f2dc672099d4b6e30afa5e5fc52abf7f56c6d0a501c5c4196c5748143c",
+      "relative_error": 0.02198782275703999,
+      "shear": 1.5
+    },
+    {
+      "agrees": true,
+      "alpha_crit_analytic": 1.2,
+      "alpha_crit_numeric": 1.174654043343395,
+      "case_sha256": "e426f1a842f02ad51a03e41d8dc47eb9bed33b78eba880368e2e6a86313bd2a3",
+      "relative_error": 0.021577379995614106,
+      "shear": 2.0
+    }
+  ],
+  "findings": [],
+  "max_relative_error": 0.04635598138632255,
+  "method": "numerical solve of the s-alpha ballooning ODE (Connor-Hastie-Taylor 1978) for the marginal first-stability alpha_crit, compared to the production analytic approximation",
+  "model_reference": "Connor, Hastie & Taylor, Phys. Rev. Lett. 40 (1978) 396",
+  "payload_sha256": "482d473ac362234063d289d0119266e33885ea58b5055b5c18f63cf6ed024f60",
+  "public_claims": {
+    "bounded_ballooning_boundary_independently_verified": true,
+    "ideal_mhd_stability_blocked_reason": "Bounded internal-consistency check of the analytic s-alpha approximation against a numerical ballooning solve; external ideal-MHD stability-code validation is still outstanding.",
+    "ideal_mhd_stability_public_claim": false
+  },
+  "reference_implementation": "validation/ballooning_independent_reference.py",
+  "schema_version": "scpn-control.stability-ballooning-independent-crosscheck.v1",
+  "shear_regime": {
+    "note": "first-stability regime; low-shear second stability excluded",
+    "values": [
+      0.5,
+      0.7,
+      1.0,
+      1.5,
+      2.0
+    ]
+  },
+  "status": "pass",
+  "tolerance": {
+    "relative": 0.1
+  },
+  "units": {
+    "alpha_crit_analytic": "dimensionless",
+    "alpha_crit_numeric": "dimensionless",
+    "relative_error": "dimensionless",
+    "shear": "dimensionless"
+  }
+}
