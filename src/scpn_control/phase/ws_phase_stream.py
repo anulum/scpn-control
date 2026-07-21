@@ -117,11 +117,45 @@ def _payload_size_bytes(message: object) -> int:
     return len(str(message).encode("utf-8"))
 
 
+def _request_headers(websocket: Any) -> Any:
+    """Return the client handshake headers across websockets API versions.
+
+    websockets >= 15 exposes the opening-handshake request on
+    ``connection.request`` (a :class:`~websockets.http11.Request` whose
+    ``headers`` is a case-insensitive mapping); the legacy
+    ``WebSocketServerProtocol`` exposed ``request_headers`` on the connection
+    directly. Trying the modern location first with a legacy fallback keeps
+    both server implementations authenticating rather than silently denying
+    every client once ``request_headers`` is removed.
+    """
+    request = getattr(websocket, "request", None)
+    headers = getattr(request, "headers", None)
+    if headers is not None:
+        return headers
+    return getattr(websocket, "request_headers", {}) or {}
+
+
 def _get_header(websocket: Any, name: str) -> str | None:
-    headers = getattr(websocket, "request_headers", {}) or {}
-    if hasattr(headers, "get"):
-        return headers.get(name) or headers.get(name.lower())
-    return None
+    headers = _request_headers(websocket)
+    if not hasattr(headers, "get"):
+        return None
+    value = headers.get(name) or headers.get(name.lower())
+    return None if value is None else str(value)
+
+
+def _request_path(websocket: Any) -> str:
+    """Return the handshake request target (with query) across websockets versions.
+
+    websockets >= 15 moves the request target to ``connection.request.path``;
+    the legacy protocol exposed ``path`` on the connection object itself. The
+    query string carries the optional token when ``allow_query_token_auth`` is
+    enabled, so reading the wrong attribute would drop query-token auth.
+    """
+    request = getattr(websocket, "request", None)
+    path = getattr(request, "path", None)
+    if path is None:
+        path = getattr(websocket, "path", "")
+    return path or ""
 
 
 def _bearer_token(authorization: str | None) -> str | None:
@@ -361,8 +395,7 @@ class PhaseStreamServer:
         candidate = _bearer_token(_get_header(websocket, "Authorization"))
         candidate = candidate or _get_header(websocket, "X-SCPN-API-Key")
         if candidate is None and self.allow_query_token_auth:
-            path = getattr(websocket, "path", "") or ""
-            query = parse_qs(urlsplit(path).query)
+            query = parse_qs(urlsplit(_request_path(websocket)).query)
             values = query.get("token") or query.get("access_token") or []
             candidate = values[0] if values else None
         return candidate is not None and hmac.compare_digest(candidate, self.api_key)

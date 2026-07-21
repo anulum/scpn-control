@@ -74,6 +74,39 @@ class _FakeWS:
         self.close_reason = reason
 
 
+class _CaseInsensitiveHeaders:
+    """Case-insensitive header mapping mirroring the websockets>=15 ``Headers``.
+
+    The real :class:`websockets.datastructures.Headers` resolves ``get`` without
+    regard to case; reproducing that here lets the modern-API tests exercise the
+    fixed auth path without installing the optional ``ws`` extra (CI omits it).
+    """
+
+    def __init__(self, items):
+        self._items = {key.lower(): value for key, value in dict(items).items()}
+
+    def get(self, name):
+        return self._items.get(name.lower())
+
+
+class _ModernWS(_FakeWS):
+    """Mock WebSocket in the websockets>=15 connection shape.
+
+    websockets >= 15 removed ``request_headers``/``path`` from the connection and
+    moved the opening handshake onto ``connection.request`` (headers + path). This
+    fake carries only that modern surface — the legacy attributes are deleted — so
+    the auth path is exercised exactly the way a real ``ServerConnection`` presents
+    it, guarding against silent 100% auth denial on a fresh install.
+    """
+
+    def __init__(self, messages=None, headers=None, path="/"):
+        super().__init__(messages=messages, headers=headers, path=path)
+        request_headers = _AUTH_HEADERS if headers is None else headers
+        self.request = SimpleNamespace(headers=_CaseInsensitiveHeaders(request_headers), path=path)
+        del self.request_headers
+        del self.path
+
+
 class TestPhaseStreamServer:
     def test_init(self):
         mon = _make_monitor()
@@ -1663,3 +1696,99 @@ def test_main_builds_tls_context(monkeypatch, tmp_path):
     monkeypatch.setattr(ssl.SSLContext, "load_cert_chain", lambda self, *a, **k: None)
     monkeypatch.setattr(ws_phase_stream.PhaseStreamServer, "serve_sync", lambda self, **k: None)
     ws_phase_stream.main()
+
+
+class TestModernWebsocketsApi:
+    """websockets>=15 removed request_headers/path; auth reads connection.request.
+
+    websockets >= 15 (16.0 is the currently resolved release of the optional ``ws``
+    extra) presents the opening handshake on ``connection.request`` and no longer
+    exposes ``request_headers``/``path`` on the connection, so the pre-fix helpers
+    denied every client. These tests exercise the fixed helpers against the modern
+    connection shape and the legacy connection, keeping both branches covered
+    without the optional extra installed.
+    """
+
+    def test_get_header_reads_modern_request_headers_case_insensitively(self):
+        ws = _ModernWS(headers={"Authorization": "Bearer secret-token-123456"})
+        assert ws_phase_stream._get_header(ws, "Authorization") == "Bearer secret-token-123456"
+        assert ws_phase_stream._get_header(ws, "authorization") == "Bearer secret-token-123456"
+
+    def test_request_path_reads_modern_request_path_with_query(self):
+        ws = _ModernWS(path="/phase?token=secret-token-123456")
+        assert ws_phase_stream._request_path(ws) == "/phase?token=secret-token-123456"
+
+    def test_handler_authenticates_control_connection_via_modern_headers(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _ModernWS([json.dumps({"action": "set_psi", "value": 0.5})])
+
+            await server._handler(ws)
+
+            assert mon.psi_driver == pytest.approx(0.5)
+            assert not ws.closed
+
+        asyncio.run(_run())
+
+    def test_handler_authenticates_query_token_via_modern_request_path(self):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(
+                monitor=mon,
+                api_key="secret-token-123456",
+                allow_query_token_auth=True,
+            )
+            ws = _ModernWS(
+                [json.dumps({"action": "set_pac_gamma", "value": 0.2})],
+                headers={},
+                path="/phase?token=secret-token-123456",
+            )
+
+            await server._handler(ws)
+
+            assert mon.pac_gamma == pytest.approx(0.2)
+
+        asyncio.run(_run())
+
+    def test_helpers_fall_back_to_legacy_connection_attributes(self):
+        ws = _FakeWS(headers={"Authorization": "Bearer legacy-token-123456"}, path="/legacy?token=x")
+        assert ws_phase_stream._get_header(ws, "Authorization") == "Bearer legacy-token-123456"
+        assert ws_phase_stream._request_path(ws) == "/legacy?token=x"
+
+    def test_helpers_return_empty_when_connection_exposes_neither_surface(self):
+        ws = SimpleNamespace()
+        assert ws_phase_stream._get_header(ws, "Authorization") is None
+        assert ws_phase_stream._request_path(ws) == ""
+
+    def test_helpers_resolve_a_real_websockets_request_object(self):
+        pytest.importorskip("websockets")
+        from websockets.datastructures import Headers
+        from websockets.http11 import Request
+
+        request = Request(
+            path="/phase?token=secret-token-123456",
+            headers=Headers([("Authorization", "Bearer secret-token-123456")]),
+        )
+        ws = SimpleNamespace(request=request)
+        assert ws_phase_stream._get_header(ws, "Authorization") == "Bearer secret-token-123456"
+        assert ws_phase_stream._get_header(ws, "authorization") == "Bearer secret-token-123456"
+        assert ws_phase_stream._request_path(ws) == "/phase?token=secret-token-123456"
+
+    def test_live_end_to_end_auth_with_a_real_websockets_client(self):
+        websockets = pytest.importorskip("websockets")
+
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            async with websockets.serve(server._handler, "127.0.0.1", 0) as running:
+                port = running.sockets[0].getsockname()[1]
+                async with websockets.connect(
+                    f"ws://127.0.0.1:{port}/phase",
+                    additional_headers={"Authorization": "Bearer secret-token-123456"},
+                ) as client:
+                    await client.send(json.dumps({"action": "set_psi", "value": 0.7}))
+                    await asyncio.sleep(0.1)
+            assert mon.psi_driver == pytest.approx(0.7)
+
+        asyncio.run(asyncio.wait_for(_run(), timeout=10))
