@@ -1,7 +1,11 @@
 # Force the transitive undici onto the patched line: GHSA-hm92-r4w5-c3mj and
 # GHSA-vmh5-mc38-953g (high), plus four lower advisories, are all fixed in 7.28.0.
+# Force the transitive adm-zip (pulled in by @module-federation/third-party-dts-extractor)
+# onto the patched line: GHSA-xcpc-8h2w-3j85 / CVE-2026-39244 (high, crafted-ZIP 4GB
+# memory allocation) is fixed in 0.6.0.
 overrides:
   undici: ">=7.28.0"
+  adm-zip: ">=0.6.0"
 
 minimumReleaseAgeExclude:
   - '@module-federation/vite@1.16.10'
