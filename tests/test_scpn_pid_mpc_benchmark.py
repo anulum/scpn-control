@@ -35,6 +35,7 @@ SPEC.loader.exec_module(scpn_pid_mpc_benchmark)
 
 
 def test_campaign_is_deterministic_for_seed() -> None:
+    """The campaign is deterministic: the same seed yields identical metrics across runs."""
     a = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=180)
     b = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=180)
     assert a["pid"]["rmse"] == b["pid"]["rmse"]
@@ -45,6 +46,7 @@ def test_campaign_is_deterministic_for_seed() -> None:
 
 
 def test_campaign_meets_thresholds_smoke() -> None:
+    """The reference campaign passes its quality gate and both ratios stay within threshold."""
     out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=240)
     assert out["passes_thresholds"] is True
     assert out["ratios"]["scpn_vs_pid_rmse_ratio"] <= out["thresholds"]["max_scpn_vs_pid_rmse_ratio"]
@@ -65,11 +67,13 @@ def test_mpc_baseline_uses_no_future_disturbance_foresight() -> None:
 
 
 def test_campaign_controller_uses_nonzero_binary_margin() -> None:
+    """The compiled controller carries a nonzero stochastic-computing binary margin."""
     controller = scpn_pid_mpc_benchmark._build_scpn_controller()
     assert getattr(controller, "_sc_binary_margin", 0.0) > 0.0
 
 
 def test_traceable_runtime_lane_is_exposed_and_deterministic() -> None:
+    """The traceable runtime lane is surfaced in the report and is deterministic per seed."""
     a = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=160, scpn_runtime_profile="traceable")
     b = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=160, scpn_runtime_profile="traceable")
     assert a["runtime_lane"]["runtime_profile"] == "traceable"
@@ -78,6 +82,7 @@ def test_traceable_runtime_lane_is_exposed_and_deterministic() -> None:
 
 
 def test_render_markdown_contains_sections() -> None:
+    """The rendered Markdown report contains the expected headline sections."""
     report = scpn_pid_mpc_benchmark.generate_report(seed=11, steps=120)
     text = scpn_pid_mpc_benchmark.render_markdown(report)
     assert "# SCPN vs PID/MPC Benchmark" in text
@@ -88,6 +93,7 @@ def test_render_markdown_contains_sections() -> None:
 
 
 def test_campaign_does_not_mutate_global_numpy_rng_state() -> None:
+    """The campaign seeds a local generator and leaves the global numpy RNG state untouched."""
     np.random.seed(531)
     state = np.random.get_state()
 
@@ -101,6 +107,7 @@ def test_campaign_does_not_mutate_global_numpy_rng_state() -> None:
 
 @pytest.mark.parametrize("steps", [0, 16, 31])
 def test_campaign_rejects_invalid_steps(steps: int) -> None:
+    """A campaign shorter than the minimum horizon is rejected."""
     with pytest.raises(ValueError, match="steps"):
         scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=steps)
 
@@ -170,6 +177,7 @@ def test_symbolic_disclosure_covers_all_three_honest_states() -> None:
 
 
 def test_render_markdown_contains_symbolic_disclosure() -> None:
+    """The rendered Markdown surfaces the symbolic-transition disclosure fields."""
     report = scpn_pid_mpc_benchmark.generate_report(seed=11, steps=120)
     text = scpn_pid_mpc_benchmark.render_markdown(report)
     assert "Symbolic-transition disclosure" in text
