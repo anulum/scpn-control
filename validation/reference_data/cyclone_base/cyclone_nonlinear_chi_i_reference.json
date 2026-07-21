@@ -1,0 +1,56 @@
+{
+  "cbc_parameters": {
+    "R_over_L_T": 6.9,
+    "R_over_L_T_paper_exact": 6.92,
+    "R_over_L_n": 2.2,
+    "Ti_over_Te": 1.0,
+    "collisionality": "collisionless (base)",
+    "electrons": "adiabatic",
+    "epsilon_r_over_R": 0.18,
+    "geometry": "s-alpha, beta=0",
+    "q": 1.4,
+    "s_hat": 0.78
+  },
+  "claim_boundary": "Published cross-code reference values only (Dimits 2000). NOT re-run here and NOT a measured SCPN-CONTROL result. The saturated nonlinear CBC chi_i public claim remains BLOCKED: a long nonlinear campaign run (>= saturation) in the module's own normalisation, reconciled with these units, is required before any quantitative agreement claim.",
+  "cross_model_factors_at_base_case": {
+    "global_gyrokinetic_over_fluxtube": 0.4167,
+    "gyrofluid_1994_over_gyrokinetic_fluxtube": 3.3,
+    "ifs_pppl_over_gyrokinetic_fluxtube": 2.7,
+    "note": "Global code 2.4x lower than flux-tube (finite rho/a=1/160); IFS-PPPL 2.7x and 1994 gyrofluid 3.3x higher than flux-tube gyrokinetic at R/L_T=6.9."
+  },
+  "dimits_shift": {
+    "full_code_linear_critical_s_alpha_beta0": 3.7,
+    "linear_critical_R_L_T": 4.0,
+    "nonlinear_effective_R_L_T": 6.0,
+    "note": "Dimits shift: nonlinear effective critical R/L_T (~6.0) exceeds the linear critical (~4.0) due to zonal-flow regulation.",
+    "realistic_numerical_equilibrium_critical": 2.5
+  },
+  "measured_diiid_chi_i_fig3_units": 0.16,
+  "name": "Cyclone Base Case nonlinear ion heat diffusivity (published cross-code reference)",
+  "offset_linear_fit": {
+    "A": 15.4,
+    "B": 6.0,
+    "chi_i_at_R_L_T_6p9": 2.0087,
+    "chi_i_at_R_L_T_6p92": 2.0474,
+    "equation": "chi_i * L_n / (rho_i^2 * v_ti) = A * (1 - B * L_T/R)",
+    "reference_eq": "Dimits 2000 Eq. (1) (LLNL gyrokinetic flux-tube fit, ref [52])",
+    "valid_above_R_L_T_eff": 6.0
+  },
+  "payload_sha256": "78ddcca3d7d773bcf3fac4eaea537c9c8d449454b7fb57e193299d34cdc788bb",
+  "provenance": {
+    "measured_by_us": false,
+    "re_run_here": false,
+    "source_kind": "published_literature",
+    "synthetic": false
+  },
+  "reference": "Dimits et al., Phys. Plasmas 7 (2000) 969 \u2014 Comparisons and physics basis of tokamak transport models and turbulence simulations",
+  "schema_version": "scpn-control.cyclone-nonlinear-chi-i-reference.v1",
+  "source_note": "Author (Hammett) copy of the published paper; numeric values transcribed verbatim from the article text (Sec. 5, Eq. 1) via pdftotext, not read off figures.",
+  "source_url": "https://w3.pppl.gov/~hammett/ark/1999/cyclone-b26.pdf",
+  "units_contract": {
+    "caveat": "This is the paper's L_n-normalised gyro-Bohm-like unit. The module gk_nonlinear.chi_i_gB divides Q_i by R/L_Ti in a DIFFERENT gyro-Bohm normalisation; a direct numeric comparison to the module requires an explicit unit conversion (R/L_n factor and gyro-Bohm base) that is NOT applied here.",
+    "chi_i_normalisation": "chi_i * L_n / (rho_i^2 * v_ti)  [dimensionless, the units of the paper's Fig. 3]",
+    "rho_i": "v_ti / Omega_ci",
+    "v_ti": "sqrt(T_i / m_i)"
+  }
+}

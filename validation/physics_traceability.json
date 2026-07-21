@@ -98,18 +98,21 @@
       "validation_evidence": [
         "ROADMAP.md v0.18.0 open revalidation item",
         "docs/joss_paper.md nonlinear GK validation limitation",
-        "validation/gk_nonlinear_cyclone.py saturation-evidence assessor"
+        "validation/gk_nonlinear_cyclone.py saturation-evidence assessor",
+        "validation/reference_data/cyclone_base/cyclone_nonlinear_chi_i_reference.json obtained published cross-code reference (Dimits et al. 2000, verified at source): offset-linear fit chi_i L_n/(rho_i^2 v_ti) = 15.4(1 - 6.0 L_T/R) giving ~2.0 at R/L_T=6.9, Dimits shift (linear critical R/L_T ~4.0, nonlinear effective ~6.0), and cross-model factors, with an explicit unit-conversion caveat to the module's chi_i_gB normalisation"
       ],
       "evidence_paths": [
         "ROADMAP.md",
         "docs/joss_paper.md",
         "src/scpn_control/core/gk_nonlinear.py",
-        "validation/gk_nonlinear_cyclone.py"
+        "validation/gk_nonlinear_cyclone.py",
+        "validation/reference_data/cyclone_base/cyclone_nonlinear_chi_i_reference.json",
+        "tests/test_cyclone_nonlinear_chi_i_reference.py"
       ],
       "covered_source_paths": [
         "src/scpn_control/core/gk_nonlinear.py"
       ],
-      "validity_domain": "Implemented CBC machinery and schema-versioned local diagnostic evidence; the current 200-step V4 run passes linear, energy, and zonal-flow diagnostics but blocks saturated chi_i admission because it is below the minimum campaign length, outside the CBC chi_i_gB reference band, and above the tail-drift threshold. No published quantitative saturated chi_i claim.",
+      "validity_domain": "Implemented CBC machinery and schema-versioned local diagnostic evidence; the current 200-step V4 run passes linear, energy, and zonal-flow diagnostics but blocks saturated chi_i admission because it is below the minimum campaign length, outside the CBC chi_i_gB reference band, and above the tail-drift threshold. The published cross-code saturated-chi_i reference is now obtained (Dimits et al. 2000, verified at source: offset-linear fit ~2.0 gyro-Bohm at R/L_T=6.9 and the Dimits shift), but the saturated-chi_i claim remains blocked pending a long nonlinear campaign run in the module's own normalisation reconciled with the reference units. No published quantitative saturated chi_i claim.",
       "external_validation_tracker_issue": 47,
       "evidence": [
         "validation/gk_nonlinear_cyclone.py schema-versioned diagnostic and saturation-admission report producer",
