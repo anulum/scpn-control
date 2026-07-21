@@ -26,6 +26,20 @@
     "realistic_numerical_equilibrium_critical": 2.5
   },
   "measured_diiid_chi_i_fig3_units": 0.16,
+  "module_normalisation_reconciliation": {
+    "cbc_geometry": {
+      "R0_over_a": 2.78,
+      "R_over_L_n": 2.2,
+      "a_over_R": 0.35971
+    },
+    "conversion": "chi_i_gB_module = chi_hat_paper * (a / L_n) = chi_hat_paper * (a/R) * (R/L_n)",
+    "conversion_factor_a_over_Ln": 0.79137,
+    "identities": "module c_s = sqrt(T_i/m_i) = paper v_ti; module rho_s = m_i c_s/(eB) = paper rho_i; hence rho_s^2 c_s = rho_i^2 v_ti and only the normalising length differs (module /a vs paper /L_n)",
+    "module_chi_gB_definition": "rho_s^2 * c_s / a  (a = minor radius; gk_nonlinear.py NonlinearGKSolver.chi_gB)",
+    "module_equivalent_chi_i_gB_at_R_L_T_6p9": 1.5896,
+    "module_equivalent_chi_i_gB_at_R_L_T_6p92": 1.6202,
+    "note": "The Dimits flux-tube base-case value (~2.0 in paper units) corresponds to ~1.59 in the module's rho_s^2 c_s / a gyro-Bohm units at R/L_T=6.9, which sits inside the module's (1.0, 5.0) diagnostic band. This is a derived normalisation bridge only; it does not admit a saturated-chi_i claim without an actual long nonlinear campaign run."
+  },
   "name": "Cyclone Base Case nonlinear ion heat diffusivity (published cross-code reference)",
   "offset_linear_fit": {
     "A": 15.4,
@@ -36,7 +50,7 @@
     "reference_eq": "Dimits 2000 Eq. (1) (LLNL gyrokinetic flux-tube fit, ref [52])",
     "valid_above_R_L_T_eff": 6.0
   },
-  "payload_sha256": "78ddcca3d7d773bcf3fac4eaea537c9c8d449454b7fb57e193299d34cdc788bb",
+  "payload_sha256": "638e297ffbe21df68d8e4030bc70e15215c26485ccf0008b88abc6285a42cbb6",
   "provenance": {
     "measured_by_us": false,
     "re_run_here": false,
@@ -48,7 +62,7 @@
   "source_note": "Author (Hammett) copy of the published paper; numeric values transcribed verbatim from the article text (Sec. 5, Eq. 1) via pdftotext, not read off figures.",
   "source_url": "https://w3.pppl.gov/~hammett/ark/1999/cyclone-b26.pdf",
   "units_contract": {
-    "caveat": "This is the paper's L_n-normalised gyro-Bohm-like unit. The module gk_nonlinear.chi_i_gB divides Q_i by R/L_Ti in a DIFFERENT gyro-Bohm normalisation; a direct numeric comparison to the module requires an explicit unit conversion (R/L_n factor and gyro-Bohm base) that is NOT applied here.",
+    "caveat": "This is the paper's L_n-normalised gyro-Bohm-like unit. The module gk_nonlinear.chi_i_gB uses chi_gB = rho_s^2 c_s / a (minor-radius normalised). The exact conversion is now DERIVED in module_normalisation_reconciliation (factor a/L_n = 0.79137 for the CBC), giving a module-equivalent target chi_i_gB ~ 1.59 at R/L_T=6.9; it is a normalisation bridge only and does not by itself admit a saturated-chi_i claim without a long nonlinear campaign run.",
     "chi_i_normalisation": "chi_i * L_n / (rho_i^2 * v_ti)  [dimensionless, the units of the paper's Fig. 3]",
     "rho_i": "v_ti / Omega_ci",
     "v_ti": "sqrt(T_i / m_i)"

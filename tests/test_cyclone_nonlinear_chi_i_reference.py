@@ -98,3 +98,23 @@ def test_provenance_is_honest_published_not_measured_and_claim_blocked() -> None
     assert "not re-run" in boundary or "not a measured" in boundary
     # The unit-conversion caveat must be recorded (module uses a different gyro-Bohm norm).
     assert "conversion" in str(data["units_contract"]["caveat"]).lower()
+
+
+def test_module_normalisation_reconciliation_is_derived_and_consistent() -> None:
+    data = _load()
+    rec = data["module_normalisation_reconciliation"]
+    # Independently reproduce the conversion factor a/L_n = (a/R)(R/L_n) for the CBC.
+    geom = rec["cbc_geometry"]
+    a_over_r = float(geom["a_over_R"])
+    r_over_ln = float(geom["R_over_L_n"])
+    factor = a_over_r * r_over_ln
+    assert factor == pytest.approx(float(rec["conversion_factor_a_over_Ln"]), abs=1e-4)
+    assert factor == pytest.approx(0.79137, abs=1e-4)
+    # Module-equivalent chi_i_gB = chi_hat_paper * (a/L_n); reproduce from the fit.
+    fit = data["offset_linear_fit"]
+    chi_hat_6p9 = float(fit["A"]) * (1.0 - float(fit["B"]) / 6.9)
+    assert chi_hat_6p9 * factor == pytest.approx(float(rec["module_equivalent_chi_i_gB_at_R_L_T_6p9"]), abs=1e-3)
+    assert float(rec["module_equivalent_chi_i_gB_at_R_L_T_6p9"]) == pytest.approx(1.59, abs=1e-2)
+    # The converted target sits inside the module's diagnostic band (1.0, 5.0).
+    assert 1.0 <= float(rec["module_equivalent_chi_i_gB_at_R_L_T_6p9"]) <= 5.0
+    assert "rho_s^2 * c_s / a" in str(rec["module_chi_gB_definition"])
