@@ -45,14 +45,19 @@ from validation.scpn_pid_mpc_benchmark import (
     _SYMBOLIC_FIRE_THRESHOLD,
     _SYMBOLIC_READOUT_GAIN,
     _build_scpn_controller,
+    _PIDState,
 )
 
 _SCHEMA = "scpn-control.symbolic-lane-evidence.v1"
 # The plant + disturbance mirror scpn_pid_mpc_benchmark (a linear scalar plant with a
-# sinusoid + mid-run step disturbance); the seed shifts the disturbance PHASE so unseen
-# seeds are genuinely different profiles, not just different noise draws.
-_PID_REFERENCE_RMSE = 0.121040  # scpn_pid_mpc_benchmark PID baseline at seed=42/steps=320
+# sinusoid + mid-run step disturbance); the seed shifts the disturbance PHASE so a seed
+# is a genuinely different profile, not just a different noise draw. seed=42 is the
+# TUNING seed (in-sample); 7/123/999 are UNSEEN (out-of-sample). PID is measured on the
+# SAME per-seed profile as symbolic/neuromorphic so every ratio is apples-to-apples.
+_TUNING_SEED = 42
+_UNSEEN_SEEDS = (7, 123, 999)
 _PARITY_BAND = 0.15  # |symbolic/neuromorphic - 1| must stay within this on unseen seeds
+_PID_GAINS = {"kp": 1.15, "ki": 0.24, "kd": 0.04}  # matches scpn_pid_mpc_benchmark
 
 
 def _disturbance(k: int, steps: int, phase: float) -> float:
@@ -150,42 +155,86 @@ def _tracking_rmse(variant: str, seed: int, steps: int) -> float:
     return float(np.sqrt(np.mean(e * e)))
 
 
-def evaluate_evidence(
-    *, seeds: tuple[int, ...] = (42, 7, 123, 999), step_counts: tuple[int, ...] = (240, 320)
-) -> dict[str, Any]:
-    """Measure parity, robustness, and load-bearing evidence for the symbolic lane."""
-    robustness = []
-    ratios = []
+def _pid_tracking_rmse(seed: int, steps: int) -> float:
+    """PID closed-loop RMSE on the SAME seeded disturbance profile (apples-to-apples)."""
+    pid = _PIDState(**_PID_GAINS)
+    phase = float(np.random.default_rng(seed).uniform(0.0, 2.0 * np.pi))
+    x = 0.35
+    e = np.zeros(steps, dtype=np.float64)
+    for k in range(steps):
+        u = pid.step(-x, dt=0.05, u_limit=1.0)
+        x = 0.95 * x + 0.12 * u + _disturbance(k, steps, phase)
+        e[k] = -x
+    return float(np.sqrt(np.mean(e * e)))
+
+
+def _measure_cohort(seeds: tuple[int, ...], step_counts: tuple[int, ...]) -> list[dict[str, Any]]:
+    """Measure symbolic, neuromorphic, and PID RMSE per (seed, steps) on the same profile."""
+    rows: list[dict[str, Any]] = []
     for seed in seeds:
         for steps in step_counts:
             sym = _tracking_rmse("symbolic", seed, steps)
             neuro = _tracking_rmse("neuromorphic", seed, steps)
-            ratio = sym / neuro
-            ratios.append(ratio)
-            robustness.append(
+            pid = _pid_tracking_rmse(seed, steps)
+            rows.append(
                 {
                     "seed": seed,
                     "steps": steps,
                     "symbolic_rmse": sym,
                     "neuromorphic_rmse": neuro,
-                    "ratio_symbolic_over_neuromorphic": ratio,
+                    "pid_rmse": pid,
+                    "ratio_symbolic_over_neuromorphic": sym / neuro,
+                    "ratio_symbolic_over_pid": sym / pid,
+                    "ratio_neuromorphic_over_pid": neuro / pid,
                 }
             )
-    undrained = _tracking_rmse("symbolic_undrained", 42, 320)
-    neuro_ref = _tracking_rmse("neuromorphic", 42, 320)
-    ratios_arr = np.asarray(ratios, dtype=np.float64)
+    return rows
+
+
+def evaluate_evidence(
+    *,
+    tuning_seed: int = _TUNING_SEED,
+    unseen_seeds: tuple[int, ...] = _UNSEEN_SEEDS,
+    step_counts: tuple[int, ...] = (240, 320),
+) -> dict[str, Any]:
+    """Measure parity, out-of-sample robustness, and load-bearing evidence.
+
+    The tuned constants were fit on ``tuning_seed`` (in-sample); ``unseen_seeds`` are
+    out-of-sample. The parity claim is judged on the UNSEEN cohort so it is not
+    contaminated by the tuning point. PID is measured on the SAME per-seed profile as
+    symbolic/neuromorphic, so ``ratio_symbolic_over_pid`` is apples-to-apples (unlike a
+    fixed PID constant from another campaign).
+    """
+    in_sample = _measure_cohort((tuning_seed,), step_counts)
+    unseen = _measure_cohort(unseen_seeds, step_counts)
+
+    unseen_ratios = np.asarray([r["ratio_symbolic_over_neuromorphic"] for r in unseen], dtype=np.float64)
+    sym_over_pid = np.asarray(
+        [r["ratio_symbolic_over_pid"] for r in in_sample + unseen], dtype=np.float64
+    )
+
+    undrained = _tracking_rmse("symbolic_undrained", tuning_seed, 320)
+    neuro_ref = _tracking_rmse("neuromorphic", tuning_seed, 320)
     return {
         "schema": _SCHEMA,
         "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
         "metric": "closed-loop tracking-error RMSE (e = -x)",
         "readout_contract": "symbolic reads transition-output a_* (4-7); neuromorphic reads injected x_* (0-3)",
-        "robustness": robustness,
-        "ratio_symbolic_over_neuromorphic": {
-            "min": float(ratios_arr.min()),
-            "max": float(ratios_arr.max()),
-            "mean": float(ratios_arr.mean()),
+        "tuning_seed": int(tuning_seed),
+        "unseen_seeds": list(unseen_seeds),
+        "in_sample": in_sample,
+        "robustness_unseen": unseen,
+        "ratio_symbolic_over_neuromorphic_unseen": {
+            "min": float(unseen_ratios.min()),
+            "max": float(unseen_ratios.max()),
+            "mean": float(unseen_ratios.mean()),
         },
-        "parity_holds": bool(np.all(np.abs(ratios_arr - 1.0) <= _PARITY_BAND)),
+        "parity_holds": bool(np.all(np.abs(unseen_ratios - 1.0) <= _PARITY_BAND)),
+        "symbolic_vs_pid": {
+            "ratio_symbolic_over_pid_mean": float(sym_over_pid.mean()),
+            "symbolic_better_than_pid": bool(np.all(sym_over_pid < 1.0)),
+            "note": "PID measured on the SAME per-seed disturbance profile (apples-to-apples).",
+        },
         "load_bearing": {
             "symbolic_undrained_rmse": undrained,
             "neuromorphic_reference_rmse": neuro_ref,
@@ -196,11 +245,11 @@ def evaluate_evidence(
                 "controller diverges, proving the transitions carry the control signal."
             ),
         },
-        "pid_reference_rmse": _PID_REFERENCE_RMSE,
         "claim": (
             "The symbolic transition lane produces control AT PARITY with the direct "
-            "neuromorphic readout (margin ~0), is load-bearing (diverges without its "
-            "drain), and both are ~2.4x better than PID. NOT a superiority claim."
+            "neuromorphic readout on OUT-OF-SAMPLE seeds (margin ~0), is load-bearing "
+            "(diverges without its drain), and beats PID on the same profiles. NOT a "
+            "superiority claim over the neuromorphic readout."
         ),
     }
 
@@ -226,11 +275,16 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.output_json)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
-    r = report["ratio_symbolic_over_neuromorphic"]
+    r = report["ratio_symbolic_over_neuromorphic_unseen"]
     print("Symbolic-lane evidence complete.")
     print(
-        f"  parity ratio symbolic/neuromorphic: min={r['min']:.3f} mean={r['mean']:.3f} max={r['max']:.3f}"
+        f"  parity (UNSEEN) symbolic/neuromorphic: min={r['min']:.3f} mean={r['mean']:.3f} max={r['max']:.3f}"
         f" -> parity_holds={report['parity_holds']}"
+    )
+    sp = report["symbolic_vs_pid"]
+    print(
+        f"  symbolic/PID (same profiles): mean={sp['ratio_symbolic_over_pid_mean']:.3f}"
+        f" -> symbolic_better_than_pid={sp['symbolic_better_than_pid']}"
     )
     lb = report["load_bearing"]
     print(

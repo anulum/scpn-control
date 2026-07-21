@@ -3,70 +3,107 @@
   "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
   "metric": "closed-loop tracking-error RMSE (e = -x)",
   "readout_contract": "symbolic reads transition-output a_* (4-7); neuromorphic reads injected x_* (0-3)",
-  "robustness": [
+  "tuning_seed": 42,
+  "unseen_seeds": [
+    7,
+    123,
+    999
+  ],
+  "in_sample": [
     {
       "seed": 42,
       "steps": 240,
       "symbolic_rmse": 0.051701563412327366,
       "neuromorphic_rmse": 0.0487017272407079,
-      "ratio_symbolic_over_neuromorphic": 1.0615960940521227
+      "pid_rmse": 0.11847948860022489,
+      "ratio_symbolic_over_neuromorphic": 1.0615960940521227,
+      "ratio_symbolic_over_pid": 0.43637564630937503,
+      "ratio_neuromorphic_over_pid": 0.41105619053638837
     },
     {
       "seed": 42,
       "steps": 320,
       "symbolic_rmse": 0.05035557665028246,
       "neuromorphic_rmse": 0.04946784135376363,
-      "ratio_symbolic_over_neuromorphic": 1.0179457051737975
-    },
+      "pid_rmse": 0.11658104283828699,
+      "ratio_symbolic_over_neuromorphic": 1.0179457051737975,
+      "ratio_symbolic_over_pid": 0.4319362344367786,
+      "ratio_neuromorphic_over_pid": 0.4243214861474685
+    }
+  ],
+  "robustness_unseen": [
     {
       "seed": 7,
       "steps": 240,
       "symbolic_rmse": 0.05076661837149637,
       "neuromorphic_rmse": 0.05229033803784933,
-      "ratio_symbolic_over_neuromorphic": 0.9708603974743854
+      "pid_rmse": 0.13073782402304732,
+      "ratio_symbolic_over_neuromorphic": 0.9708603974743854,
+      "ratio_symbolic_over_pid": 0.38830857673252156,
+      "ratio_neuromorphic_over_pid": 0.3999633497696217
     },
     {
       "seed": 7,
       "steps": 320,
       "symbolic_rmse": 0.05190875722309151,
       "neuromorphic_rmse": 0.049564089366621385,
-      "ratio_symbolic_over_neuromorphic": 1.0473057789708757
+      "pid_rmse": 0.11332148923458016,
+      "ratio_symbolic_over_neuromorphic": 1.0473057789708757,
+      "ratio_symbolic_over_pid": 0.4580663171098841,
+      "ratio_neuromorphic_over_pid": 0.4373759090301194
     },
     {
       "seed": 123,
       "steps": 240,
       "symbolic_rmse": 0.05328179107925513,
       "neuromorphic_rmse": 0.05096311703583139,
-      "ratio_symbolic_over_neuromorphic": 1.045497100222373
+      "pid_rmse": 0.12622657168311344,
+      "ratio_symbolic_over_neuromorphic": 1.045497100222373,
+      "ratio_symbolic_over_pid": 0.4221123204788993,
+      "ratio_neuromorphic_over_pid": 0.40374317670428517
     },
     {
       "seed": 123,
       "steps": 320,
       "symbolic_rmse": 0.04933822186742736,
       "neuromorphic_rmse": 0.04947886558167048,
-      "ratio_symbolic_over_neuromorphic": 0.9971574992152766
+      "pid_rmse": 0.1143448032935674,
+      "ratio_symbolic_over_neuromorphic": 0.9971574992152766,
+      "ratio_symbolic_over_pid": 0.4314863504619185,
+      "ratio_neuromorphic_over_pid": 0.4327163470178795
     },
     {
       "seed": 999,
       "steps": 240,
       "symbolic_rmse": 0.051000278044335746,
       "neuromorphic_rmse": 0.048588320151105195,
-      "ratio_symbolic_over_neuromorphic": 1.0496406931898363
+      "pid_rmse": 0.11809070673690793,
+      "ratio_symbolic_over_neuromorphic": 1.0496406931898363,
+      "ratio_symbolic_over_pid": 0.43187376427476476,
+      "ratio_neuromorphic_over_pid": 0.4114491435753213
     },
     {
       "seed": 999,
       "steps": 320,
       "symbolic_rmse": 0.048694364197641345,
       "neuromorphic_rmse": 0.049471679115537966,
-      "ratio_symbolic_over_neuromorphic": 0.9842876786922625
+      "pid_rmse": 0.11670926400498814,
+      "ratio_symbolic_over_neuromorphic": 0.9842876786922625,
+      "ratio_symbolic_over_pid": 0.417227926272932,
+      "ratio_neuromorphic_over_pid": 0.4238881937720347
     }
   ],
-  "ratio_symbolic_over_neuromorphic": {
+  "ratio_symbolic_over_neuromorphic_unseen": {
     "min": 0.9708603974743854,
-    "max": 1.0615960940521227,
-    "mean": 1.0217863683738662
+    "max": 1.0496406931898363,
+    "mean": 1.0157915246275016
   },
   "parity_holds": true,
+  "symbolic_vs_pid": {
+    "ratio_symbolic_over_pid_mean": 0.4271733920096342,
+    "symbolic_better_than_pid": true,
+    "note": "PID measured on the SAME per-seed disturbance profile (apples-to-apples)."
+  },
   "load_bearing": {
     "symbolic_undrained_rmse": 0.5423530112355258,
     "neuromorphic_reference_rmse": 0.04946784135376363,
@@ -74,7 +111,6 @@
     "diverges_without_drain": true,
     "note": "Removing the a_* drain saturates the readout places and the symbolic controller diverges, proving the transitions carry the control signal."
   },
-  "pid_reference_rmse": 0.12104,
-  "claim": "The symbolic transition lane produces control AT PARITY with the direct neuromorphic readout (margin ~0), is load-bearing (diverges without its drain), and both are ~2.4x better than PID. NOT a superiority claim.",
-  "payload_sha256": "e2a16a8f11b796940fdf7e73b8f40ef3cbbd9fd14145b5de149af321375ffac9"
+  "claim": "The symbolic transition lane produces control AT PARITY with the direct neuromorphic readout on OUT-OF-SAMPLE seeds (margin ~0), is load-bearing (diverges without its drain), and beats PID on the same profiles. NOT a superiority claim over the neuromorphic readout.",
+  "payload_sha256": "c2563d89d4bb2500e4330fdb4887e04a892c69b1fe24fb7396c6beda25b8e4d0"
 }
