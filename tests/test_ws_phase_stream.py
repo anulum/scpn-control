@@ -687,6 +687,37 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    @pytest.mark.parametrize("value", [0.0, 0.5, -0.5, 1000.0])
+    def test_handler_accepts_pac_gamma_above_physical_floor(self, value):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": value})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "pac_gamma_out_of_range" not in errors
+            assert mon.pac_gamma == pytest.approx(value)
+            assert server.runtime_counters()["command_frames"] == 1
+
+        asyncio.run(_run())
+
+    @pytest.mark.parametrize("value", [-1.0, -1.5, -100.0])
+    def test_handler_rejects_pac_gamma_at_or_below_physical_floor(self, value):
+        # pac_gate = 1 + pac_gamma*(1 - R) goes non-positive at pac_gamma <= -1
+        # (destabilising). The command fails closed and the monitor is not mutated.
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps({"action": "set_pac_gamma", "value": value}), json.dumps({"action": "stop"})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "pac_gamma_out_of_range" in errors
+            assert mon.pac_gamma == pytest.approx(0.0)  # unchanged
+            assert server.runtime_counters()["malformed_frame_rejections"] == 1
+            assert server.runtime_counters()["command_frames"] == 1  # only the trailing stop
+
+        asyncio.run(_run())
+
     def test_handler_stop(self):
         async def _run():
             mon = _make_monitor()
@@ -1703,6 +1734,30 @@ def test_valid_reset_seed_accepts_non_negative_int_only():
     assert ws_phase_stream._valid_reset_seed(-1) is False
     assert ws_phase_stream._valid_reset_seed(1.5) is False
     assert ws_phase_stream._valid_reset_seed("abc") is False
+
+
+def test_handler_breaks_when_pac_gamma_range_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        ws = _DeadSendWS([json.dumps({"action": "set_pac_gamma", "value": -5.0})], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_valid_pac_gamma_accepts_above_physical_floor_only():
+    # pac_gate = 1 + pac_gamma*(1 - R) stays positive iff pac_gamma > -1.
+    assert ws_phase_stream._valid_pac_gamma(0.0) is True
+    assert ws_phase_stream._valid_pac_gamma(-0.999) is True
+    assert ws_phase_stream._valid_pac_gamma(1e6) is True
+    assert ws_phase_stream._valid_pac_gamma(-1.0) is False
+    assert ws_phase_stream._valid_pac_gamma(-2.0) is False
 
 
 def test_tick_loop_reraises_cancelled_error():

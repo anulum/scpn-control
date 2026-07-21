@@ -117,6 +117,21 @@ def _valid_reset_seed(seed: object) -> bool:
     return isinstance(seed, int) and not isinstance(seed, bool) and seed >= 0
 
 
+def _valid_pac_gamma(value: float) -> bool:
+    """Return ``True`` for a physically-admissible PAC-gate coefficient (``> -1``).
+
+    ``pac_gamma`` enters the UPDE dynamics as the phase-amplitude coupling gate
+    ``pac_gate = 1 + pac_gamma·(1 - R)`` with the Kuramoto order parameter
+    ``R ∈ [0, 1]`` (``upde.py``). At ``pac_gamma <= -1`` the gate becomes
+    non-positive — the coupling is scaled to zero or sign-inverted, a destabilising
+    input the physics forbids. It is a real physical floor (unlike ``psi_driver``,
+    which is a phase used only inside ``sin(Ψ - θ)`` and is safe at any finite value),
+    so an untrusted ``set_pac_gamma`` command is failed closed at the input rather
+    than left for the downstream Lyapunov guard to catch.
+    """
+    return value > -1.0
+
+
 def _is_loopback_host(host: str) -> bool:
     normalised = host.strip().lower()
     return normalised in {"localhost", "127.0.0.1", "::1"}
@@ -510,6 +525,11 @@ class PhaseStreamServer:
                 elif action == "set_pac_gamma":
                     value = _finite_command_value(cmd)
                     if value is not None:
+                        if not _valid_pac_gamma(value):
+                            self._audit_security_event(websocket, "frame_rejected", "pac_gamma below physical floor")
+                            if not await self._send_response(websocket, {"error": "pac_gamma_out_of_range"}):
+                                break
+                            continue
                         self.monitor.pac_gamma = value
                         self._bump_runtime_counter("command_frames")
                 elif action == "reset":
