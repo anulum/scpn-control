@@ -37,9 +37,7 @@ def test_payload_digest_self_consistent() -> None:
     assert isinstance(stored, str) and len(stored) == 64
     payload = dict(data)
     payload["payload_sha256"] = None
-    recomputed = hashlib.sha256(
-        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    ).hexdigest()
+    recomputed = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     assert recomputed == stored
 
 
