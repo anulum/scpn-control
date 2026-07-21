@@ -27,9 +27,10 @@ neuro-symbolic claim must bind to:
    the transitions carry the control signal rather than being a bypassed branch.
 
 The RMSE values are specific to the resolved runtime backend and dependency set
-(recorded in the report's ``environment`` block); the parity / better-than-PID /
-load-bearing CONCLUSIONS are verified to hold and are robust across the numpy-float
-and sc_neurocore paths, but the exact ``payload_sha256`` binds to this environment.
+(recorded in the report's ``environment`` block, including backend versions and a
+digest of the generator sources); the parity / better-than-PID / load-bearing
+CONCLUSIONS are verified to hold in the recorded environment, and the exact
+``payload_sha256`` binds to it. Each run executes only the installed backend.
 
 Run as a script to (re)generate ``validation/reports/scpn_symbolic_lane_evidence.json``.
 """
@@ -38,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.metadata
 import importlib.util
 import json
 import platform
@@ -45,6 +47,7 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -167,7 +170,7 @@ def _closed_loop(variant: str, seed: int, steps: int) -> tuple[float, float]:
     scpn = _build_variant(variant)
     phase = float(np.random.default_rng(seed).uniform(0.0, 2.0 * np.pi))
     x = 0.35
-    e = np.zeros(steps, dtype=np.float64)
+    e: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
     firing = 0.0
     for k in range(steps):
         u = float(np.clip(scpn.step_traceable((float(x), 0.0), k)[0], -1.0, 1.0))
@@ -192,7 +195,7 @@ def _pid_tracking_rmse(seed: int, steps: int) -> float:
     pid = _PIDState(**_PID_GAINS)
     phase = float(np.random.default_rng(seed).uniform(0.0, 2.0 * np.pi))
     x = 0.35
-    e = np.zeros(steps, dtype=np.float64)
+    e: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
     for k in range(steps):
         u = pid.step(-x, dt=0.05, u_limit=1.0)
         x = 0.95 * x + 0.12 * u + _disturbance(k, steps, phase)
@@ -223,20 +226,45 @@ def _measure_cohort(seeds: tuple[int, ...], step_counts: tuple[int, ...]) -> lis
     return rows
 
 
-def _environment_provenance() -> dict[str, Any]:
-    """Record the resolved runtime backend and dependency identity the RMSE values bind to.
+def _dist_version(name: str) -> str | None:
+    """Installed distribution version for ``name``, or None if it is not installed."""
+    try:
+        return importlib.metadata.version(name)
+    except importlib.metadata.PackageNotFoundError:
+        return None
 
-    The numerical lane depends on the resolved SCPN runtime backend and on whether the optional
-    ``sc_neurocore`` accelerator is installed (it changes the numpy float path), so the artifact
-    records both to be self-describing. The parity / better-than-PID / load-bearing CONCLUSIONS
-    are robust across these paths even though the exact ``payload_sha256`` is environment-specific.
+
+def _generator_sha256() -> str:
+    """Digest of the generator sources: this module plus the benchmark it measures.
+
+    Binds the committed report's freshness to its generator — if either source changes without
+    the report being regenerated, the recorded ``generator_sha256`` no longer matches the current
+    sources and the freshness test fails, so a stale committed artifact cannot pass silently.
+    """
+    sources = Path(__file__).read_bytes() + (ROOT / "validation" / "scpn_pid_mpc_benchmark.py").read_bytes()
+    return hashlib.sha256(sources).hexdigest()
+
+
+def _environment_provenance() -> dict[str, Any]:
+    """Record the resolved runtime backend, versions, and generator digest the RMSE values bind to.
+
+    The numerical lane depends on the resolved SCPN runtime backend (and its version) and on
+    whether the optional ``sc_neurocore`` accelerator is installed (it changes the numpy float
+    path), so the artifact records the resolved backend, both accelerator versions, the
+    interpreter/numpy identity, and a digest of the generator sources — enough to be
+    self-describing. Each run executes only the installed backend; the parity / better-than-PID
+    / load-bearing CONCLUSIONS are verified to hold in THIS recorded environment, and the exact
+    ``payload_sha256`` binds to it.
     """
     return {
         "runtime_backend": _build_variant("symbolic").runtime_backend_name,
+        "scpn_control_rs_version": _dist_version("scpn_control_rs"),
         "sc_neurocore_present": importlib.util.find_spec("sc_neurocore") is not None,
+        "sc_neurocore_version": _dist_version("sc_neurocore"),
         "python_implementation": platform.python_implementation(),
         "python_version": platform.python_version(),
         "numpy_version": np.__version__,
+        "generator_sha256": _generator_sha256(),
     }
 
 
@@ -248,7 +276,7 @@ def evaluate_evidence(
 ) -> dict[str, Any]:
     """Measure parity, out-of-sample robustness, and load-bearing evidence.
 
-    The tuned constants were fit on ``tuning_seed`` (in-sample); ``unseen_seeds`` are
+    The constants were configured on ``tuning_seed`` (in-sample); ``unseen_seeds`` are
     out-of-sample. The parity claim is judged on the UNSEEN cohort so it is not
     contaminated by the tuning point. PID is measured on the SAME per-seed profile as
     symbolic/neuromorphic, so ``ratio_symbolic_over_pid`` is apples-to-apples (unlike a

@@ -231,10 +231,11 @@ def _symbolic_transition_disclosure(
     contributes = bool(transitions_fire and readout_reads_transition_outputs)
     if contributes:
         note = (
-            "The control transitions fire and the readout reads their output places, so "
-            "the symbolic transition lane is load-bearing in the control output. Measured "
-            "at parity with the direct neuromorphic readout (margin ~0), both ~2.4x better "
-            "than PID; see scpn_symbolic_lane_evidence for the reproducible measurement."
+            "The control transitions are eligible to fire (delay < run length) and the readout "
+            "reads their output places, so the symbolic transition lane is load-bearing by "
+            "construction. Measured at parity with the direct neuromorphic readout within a 15% "
+            "equivalence band -- a direct runtime firing trace confirms the transitions actually "
+            "fire; see scpn_symbolic_lane_evidence for the reproducible measurement."
         )
     elif not transitions_fire:
         note = (
@@ -295,12 +296,12 @@ def run_campaign(
     x_pid = float(x0)
     x_mpc = float(x0)
 
-    e_scpn = np.zeros(steps, dtype=np.float64)
-    e_pid = np.zeros(steps, dtype=np.float64)
-    e_mpc = np.zeros(steps, dtype=np.float64)
-    u_scpn_hist = np.zeros(steps, dtype=np.float64)
-    u_pid_hist = np.zeros(steps, dtype=np.float64)
-    u_mpc_hist = np.zeros(steps, dtype=np.float64)
+    e_scpn: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
+    e_pid: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
+    e_mpc: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
+    u_scpn_hist: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
+    u_pid_hist: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
+    u_mpc_hist: NDArray[np.float64] = np.zeros(steps, dtype=np.float64)
 
     for k in range(steps):
         d = _disturbance(k, steps, phase)

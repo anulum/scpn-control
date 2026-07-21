@@ -2,10 +2,13 @@
   "schema": "scpn-control.symbolic-lane-evidence.v1",
   "environment": {
     "runtime_backend": "rust",
+    "scpn_control_rs_version": "0.1.0",
     "sc_neurocore_present": false,
+    "sc_neurocore_version": null,
     "python_implementation": "CPython",
     "python_version": "3.12.3",
-    "numpy_version": "2.2.6"
+    "numpy_version": "2.2.6",
+    "generator_sha256": "b96de3b81ec7eac989c9c9b9f160307ffc888505e70d06cac2e3a84ff0176621"
   },
   "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
   "metric": "closed-loop tracking-error RMSE (e = -x)",
@@ -122,5 +125,5 @@
     "note": "Two independent signals: (1) a direct runtime firing trace shows the symbolic transitions actually fire (nonzero summed firing) while the neuromorphic baseline fires zero (its transitions are bypassed by delay); (2) removing the a_* drain saturates the readout places and the symbolic controller diverges. Together they are evidence that the transitions carry the control signal."
   },
   "claim": "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed max deviation ~10%), is load-bearing (its transitions fire at runtime AND it diverges without its drain), and beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over the neuromorphic readout.",
-  "payload_sha256": "66f418c77e9c7113d93f8be826e7ca22cd9e4701b88d5f65221ffb30252b9cc0"
+  "payload_sha256": "245a50a57fbc22504d438ee016486f142a05d2cd7175af5290a4b64365356fc5"
 }

@@ -63,6 +63,18 @@ def test_report_payload_digest_is_self_consistent() -> None:
     assert recomputed == stored
 
 
+def test_committed_report_generator_hash_binds_to_current_sources() -> None:
+    """The committed report is bound to its generator sources: a stale artifact is caught.
+
+    If the evidence generator or the benchmark it measures changes without the committed
+    report being regenerated, the recorded ``generator_sha256`` no longer matches the current
+    sources and this test fails — so a stale committed report cannot pass silently.
+    """
+    path = ROOT / "validation" / "reports" / "scpn_symbolic_lane_evidence.json"
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["environment"]["generator_sha256"] == evidence._generator_sha256()
+
+
 def test_symbolic_reads_transition_outputs_but_neuromorphic_does_not() -> None:
     """The symbolic readout reads transition-output places; the neuromorphic one does not."""
     # The structural distinction the claim rests on: the symbolic controller's readout
@@ -88,6 +100,10 @@ def test_report_records_environment_provenance() -> None:
     assert isinstance(env["sc_neurocore_present"], bool)
     assert env["python_implementation"] == "CPython"
     assert env["python_version"] and env["numpy_version"]
+    # Backend versions are recorded (not just presence), and the generator digest is present.
+    assert "scpn_control_rs_version" in env
+    assert "sc_neurocore_version" in env
+    assert len(env["generator_sha256"]) == 64
     # The firing trace is recorded alongside the divergence evidence.
     lb = report["load_bearing"]
     assert lb["transitions_fire_at_runtime"] is True
