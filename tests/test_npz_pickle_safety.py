@@ -23,6 +23,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+from scpn_control.core.neural_transport import NeuralTransportModel
 from scpn_control.core.neural_turbulence import QLKNNSurrogate
 from validation.validate_real_shots import validate_disruption
 
@@ -48,6 +49,22 @@ def _write_object_array_npz(path: Path, key: str) -> None:
     np.savez(str(path), **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
 
 
+_TRANSPORT_WEIGHT_KEYS = ("w1", "b1", "w2", "b2", "w3", "b3", "input_mean", "input_std", "output_scale")
+
+
+def _write_full_transport_weights_with_object_key(path: Path, poisoned_key: str) -> None:
+    """Write a neural-transport weight ``.npz`` with every key present, one poisoned.
+
+    Populating every required key means the missing-key guard cannot short-circuit,
+    so the only reason the load fails is the pickled object array under
+    ``poisoned_key`` — isolating the ``allow_pickle=False`` refusal.
+    """
+    numeric = np.zeros((1, 1), dtype=np.float64)
+    payload: dict[str, object] = {key: numeric for key in _TRANSPORT_WEIGHT_KEYS}
+    payload[poisoned_key] = np.array([{"payload": "arbitrary"}], dtype=object)
+    np.savez(str(path), **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
+
+
 def test_tracked_sources_never_enable_pickle_load() -> None:
     """No tracked first-party source opts into numpy pickle loading."""
     offenders = [
@@ -65,6 +82,7 @@ def test_scan_covers_the_known_reader_modules() -> None:
 
     assert "src/scpn_control/cli.py" in scanned
     assert "src/scpn_control/core/neural_turbulence.py" in scanned
+    assert "src/scpn_control/core/neural_transport.py" in scanned
     assert "validation/validate_real_shots.py" in scanned
 
 
@@ -119,3 +137,42 @@ def test_validate_disruption_fails_closed_on_corrupt_npz(tmp_path: Path) -> None
 
     assert report["n_shots"] == 1
     assert "error" in report["shots"][0]
+
+
+def test_neural_transport_weight_load_refuses_pickled_object_array(tmp_path: Path) -> None:
+    """Strict neural-transport weight loading refuses a pickled object array.
+
+    Every required key is present, so the only failure is the poisoned ``w1``
+    object array. ``allow_pickle=False`` makes numpy refuse it (chained as the
+    ``__context__`` of the wrapped load error) instead of running its
+    ``__reduce__`` — the behavioural check the source-text guard cannot make,
+    since a *missing* ``allow_pickle`` argument leaves no textual trace.
+    """
+    hostile = tmp_path / "hostile-transport-weights.npz"
+    _write_full_transport_weights_with_object_key(hostile, "w1")
+
+    with pytest.raises(RuntimeError, match="Failed to load explicit neural transport weights") as exc_info:
+        NeuralTransportModel(weights_path=hostile)
+
+    cause = exc_info.value.__context__
+    assert isinstance(cause, ValueError)
+    assert "allow_pickle=False" in str(cause)
+
+
+def test_neural_transport_fallback_refuses_pickled_object_array_without_unpickling(tmp_path: Path) -> None:
+    """In degraded mode the hostile array is refused, not deserialised.
+
+    With both fallback flags set the load failure is swallowed and the model
+    stays analytic (``is_neural`` False); the object array is never materialised,
+    so its ``__reduce__`` never runs.
+    """
+    hostile = tmp_path / "hostile-transport-weights.npz"
+    _write_full_transport_weights_with_object_key(hostile, "w1")
+
+    model = NeuralTransportModel(
+        weights_path=hostile,
+        allow_weight_load_fallback=True,
+        allow_legacy_weight_load_fallback=True,
+    )
+
+    assert model.is_neural is False

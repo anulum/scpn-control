@@ -476,7 +476,10 @@ class NeuralTransportModel:
             return
 
         try:
-            data = np.load(self.weights_path)
+            # allow_pickle=False (numpy's default, made explicit): weight artifacts
+            # hold only numeric arrays, so a pickled-object .npz must be rejected at
+            # load rather than silently deserialised. Mirrors the other np.load sites.
+            data = np.load(self.weights_path, allow_pickle=False)
             required = ["w1", "b1", "w2", "b2", "w3", "b3", "input_mean", "input_std", "output_scale"]
             for key in required:
                 if key not in data:
