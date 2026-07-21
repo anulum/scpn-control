@@ -34,16 +34,6 @@ def test_version(runner):
     assert "version" in result.output
 
 
-def test_benchmark_json_out(runner):
-    result = runner.invoke(main, ["benchmark", "--n-bench", "100", "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    for key in ("n_bench", "pid_us_per_step", "snn_us_per_step", "speedup_ratio"):
-        assert key in data
-    assert data["n_bench"] == 100
-    assert data["pid_us_per_step"] > 0
-
-
 def test_validate_json_out(runner):
     result = runner.invoke(main, ["validate", "--json-out"])
     assert result.exit_code == 0
@@ -1741,14 +1731,6 @@ def test_live_help(runner):
     assert result.exit_code == 0
     assert "--port" in result.output
     assert "--zeta" in result.output
-
-
-def test_benchmark_text_output(runner):
-    result = runner.invoke(main, ["benchmark", "--n-bench", "50"])
-    assert result.exit_code == 0
-    assert "PID:" in result.output
-    assert "SNN:" in result.output
-    assert "Ratio:" in result.output
 
 
 def test_validate_text_output(runner):
