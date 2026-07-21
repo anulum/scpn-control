@@ -118,6 +118,21 @@ class TestReadinessMappingValidator:
         with pytest.raises(ValueError, match="payload is malformed"):
             _safety_case_readiness_from_mapping(payload)
 
+    def test_rejects_missing_promotion_admissible_key(self) -> None:
+        # The key must be present for schema completeness even though its value is forced False.
+        payload = _readiness_payload()
+        del payload["promotion_admissible"]
+        with pytest.raises(ValueError, match="payload is malformed"):
+            _safety_case_readiness_from_mapping(payload)
+
+    def test_deserialised_promotion_admissible_is_forced_false(self) -> None:
+        # A deserialised readiness is digest-only by construction: a serialised True is never
+        # trusted (SS-12/F13 fix-forward), so the parsed flag is always False.
+        payload = _readiness_payload()
+        payload["promotion_admissible"] = True
+        readiness = _safety_case_readiness_from_mapping(payload)
+        assert readiness.promotion_admissible is False
+
     def test_rejects_unsupported_schema_version(self) -> None:
         payload = _readiness_payload()
         payload["schema_version"] = 3

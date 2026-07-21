@@ -271,6 +271,22 @@ def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> Co
     return evidence
 
 
+def _deserialised_promotion_admissible(payload: dict[str, Any]) -> bool:
+    """Force ``promotion_admissible`` False for any DESERIALISED readiness.
+
+    A readiness loaded from a mapping is digest-only by construction: its artifacts were not
+    re-hashed at load, so its promotion admissibility must never be trusted from the serialised
+    flag. Trusting it would re-open the exact fabrication this control targets — a forged ``True``
+    with valid-hex ``"0"*64`` digests and a self-computed ``integrity_sha256`` (the integrity check
+    is over the parsed readiness, so it is self-referential) would otherwise pass the gate.
+    Admissibility can only ever be earned in-process by ``evaluate_..._from_artifacts``. The key
+    must still be present for schema completeness; its value is intentionally ignored.
+    """
+    if "promotion_admissible" not in payload:
+        raise KeyError("promotion_admissible")
+    return False
+
+
 def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseReadinessEvidence:
     try:
         readiness = SafetyCaseReadinessEvidence(
@@ -312,7 +328,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
             ),
             blocking_reasons=tuple(str(reason) for reason in payload["blocking_reasons"]),
             claim_status=str(payload["claim_status"]),
-            promotion_admissible=bool(payload["promotion_admissible"]),
+            promotion_admissible=_deserialised_promotion_admissible(payload),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("controller safety-case readiness payload is malformed") from exc

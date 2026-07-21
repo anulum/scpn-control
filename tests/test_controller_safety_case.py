@@ -1062,9 +1062,13 @@ def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
         assert_controller_safety_case_readiness_admissible(loaded, evidence)
 
 
-def test_controller_safety_case_readiness_artifact_manifest_round_trips_admissible(tmp_path):
-    # The artifact-verified readiness round-trips with promotion_admissible=True and stays
-    # admissible after load.
+def test_controller_safety_case_readiness_artifact_admissible_in_process_but_digest_only_after_load(tmp_path):
+    # An artifact-verified readiness is admissible IN-PROCESS (its evidence files were re-hashed
+    # by evaluate_..._from_artifacts). But once serialised and loaded it is digest-only by
+    # construction: the load cannot re-hash the artifacts, so promotion_admissible is forced False
+    # and the loaded readiness is NOT admissible. Admissibility is only ever earned in-process; it
+    # is never trusted from a serialised flag (SS-12/F13 fix-forward — closes the deserialise-trust
+    # bypass where a forged True + valid-hex digests + a self-computed integrity hash would pass).
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1074,14 +1078,53 @@ def test_controller_safety_case_readiness_artifact_manifest_round_trips_admissib
     )
     artifacts = _readiness_artifacts(tmp_path, controller_sha256)
     readiness = evaluate_controller_safety_case_readiness_from_artifacts(evidence, artifacts, artifact_root=tmp_path)
-    path = tmp_path / "controller_safety_case_readiness_artifact.json"
+    # In-process the artifact-verified readiness is admissible.
+    assert readiness.promotion_admissible is True
+    assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
+    path = tmp_path / "controller_safety_case_readiness_artifact.json"
     save_controller_safety_case_readiness(readiness, path)
     loaded = load_controller_safety_case_readiness(path)
 
-    assert loaded == readiness
-    assert loaded.promotion_admissible is True
-    assert_controller_safety_case_readiness_admissible(loaded, evidence)
+    # After the round trip the readiness is digest-only: the flag is forced False and refused.
+    assert loaded.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(loaded, evidence)
+
+
+def test_controller_safety_case_readiness_forged_admissible_flag_is_refused(tmp_path):
+    # SS-12/F13 fix-forward: a crafted manifest with promotion_admissible=True + valid-hex
+    # ("0"*64) fabricated digests must NOT pass the admissibility gate. Because a deserialised
+    # readiness is digest-only by construction, the forged flag is forced False on load, so the
+    # gate refuses it even though the (self-referential) integrity digest still matches — the flip
+    # is invisible to the hash, which is exactly why the flag must never be trusted from the wire.
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="0" * 64,
+        target_hardware_timing_sha256="0" * 64,
+        hil_replay_evidence_sha256="0" * 64,
+        hdl_export_evidence_sha256="0" * 64,
+        codac_runtime_evidence_sha256="0" * 64,
+        websocket_runtime_evidence_sha256="0" * 64,
+        independent_safety_review_sha256="0" * 64,
+    )
+    path = tmp_path / "forged_readiness.json"
+    save_controller_safety_case_readiness(readiness, path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload["readiness"]["promotion_admissible"] = True  # forge the admissible flag
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+    loaded = load_controller_safety_case_readiness(path)
+    assert loaded.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(loaded, evidence)
 
 
 def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
