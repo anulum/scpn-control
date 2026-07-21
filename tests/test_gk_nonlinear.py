@@ -12,6 +12,7 @@ import numpy as np
 from scpn_control.core.gk_nonlinear import (
     NonlinearGKConfig,
     NonlinearGKSolver,
+    NonlinearGKState,
 )
 
 # Small grid for fast tests
@@ -870,6 +871,44 @@ class TestRunNaNBreak:
         result = solver.run(state)
         # Should stop early — fewer saves than expected
         assert result.Q_i_t.size <= cfg.n_steps // cfg.save_interval + 1
+
+    def test_diverged_run_after_finite_saves_is_not_converged(self, monkeypatch):
+        # Reproduces the unsaturated-CBC failure mode: the run saves several
+        # finite flux samples and only THEN overflows to NaN between saves. The
+        # finite saved trace must not read as convergence.
+        cfg = NonlinearGKConfig(
+            n_kx=4,
+            n_ky=4,
+            n_theta=8,
+            n_vpar=4,
+            n_mu=4,
+            dt=0.02,
+            n_steps=50,
+            save_interval=10,
+            nonlinear=True,
+            collisions=False,
+            hyper_coeff=0.0,
+            cfl_adapt=False,
+        )
+        solver = NonlinearGKSolver(cfg)
+        state0 = solver.init_state(amplitude=1e-5)
+        calls = {"n": 0}
+
+        def fake_step(st: NonlinearGKState, dt: float) -> NonlinearGKState:
+            calls["n"] += 1
+            if calls["n"] >= 25:  # diverge only after steps 0/10/20 are saved
+                bad_f = st.f.copy()
+                bad_f[0, 0, 0, 0, 0, 0] = float("nan")
+                return NonlinearGKState(f=bad_f, phi=st.phi, time=st.time + dt)
+            return NonlinearGKState(f=st.f, phi=st.phi, time=st.time + dt)
+
+        monkeypatch.setattr(solver, "_rk4_step", fake_step)
+        result = solver.run(state0)
+        # Finite samples were saved before the divergence...
+        assert result.Q_i_t.size > 1
+        assert np.all(np.isfinite(result.Q_i_t))
+        # ...but the run diverged, so it is NOT converged (the false-positive fix).
+        assert result.converged is False
 
 
 class TestJaxV019Parity:

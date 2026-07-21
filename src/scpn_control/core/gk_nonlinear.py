@@ -879,14 +879,18 @@ class NonlinearGKSolver:
         zonal_rms_t: NDArray[np.float64] = np.zeros(n_saves)
         time_t: NDArray[np.float64] = np.zeros(n_saves)
         save_idx = 0
+        diverged = False
 
         for step in range(c.n_steps):
             dt = self._cfl_dt(state)
             state = self._rk4_step(state, dt)
 
-            # Check for NaN
+            # Check for NaN. An unsaturated CBC run grows without bound and
+            # overflows here; the break can land between saves, so the finite
+            # saved trace alone must not be read as convergence (see below).
             if not np.all(np.isfinite(state.f)):
                 _logger.warning("NaN at step %d, t=%.3f", step, state.time)
+                diverged = True
                 break
 
             if step % c.save_interval == 0 and save_idx < n_saves:
@@ -916,7 +920,9 @@ class NonlinearGKSolver:
         r_l_ti = max(c.R_L_Ti, 0.01)
         chi_i_gB = chi_i / r_l_ti
 
-        converged = bool(save_idx > 1 and np.all(np.isfinite(Q_i_t)))
+        # A run that diverged to NaN is not converged even when the samples
+        # saved before the break are finite (the overflow lands between saves).
+        converged = bool(save_idx > 1 and np.all(np.isfinite(Q_i_t)) and not diverged)
 
         return NonlinearGKResult(
             chi_i=chi_i,
