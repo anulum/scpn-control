@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
@@ -45,7 +45,7 @@ _READINESS_ARTIFACT_KINDS = (
     "websocket_runtime_evidence",
     "independent_safety_review",
 )
-_READINESS_SCHEMA_VERSION = 4
+_READINESS_SCHEMA_VERSION = 5
 
 
 @dataclass(frozen=True)
@@ -78,6 +78,11 @@ class SafetyCaseReadinessEvidence:
     independent_safety_review_sha256: str | None
     blocking_reasons: tuple[str, ...]
     claim_status: str
+    # False for the digest-only evaluator (digests are attested, not verified against
+    # real artifacts, so "0"*64 or any valid-hex string passes) — such a readiness is
+    # NOT admissible for promotion. True only via the artifact-based path, which resolves
+    # and re-hashes each evidence file before delegating here (SS-12/F13).
+    promotion_admissible: bool
 
 
 @dataclass(frozen=True)
@@ -307,6 +312,7 @@ def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseRe
             ),
             blocking_reasons=tuple(str(reason) for reason in payload["blocking_reasons"]),
             claim_status=str(payload["claim_status"]),
+            promotion_admissible=bool(payload["promotion_admissible"]),
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("controller safety-case readiness payload is malformed") from exc
@@ -404,6 +410,10 @@ def evaluate_controller_safety_case_readiness(
             "bounded safety-case promotion gate; external regulator certification "
             "and facility authority approval remain separate"
         ),
+        # Digest-only: the evidence is attested by digest, not verified against artifacts,
+        # so this path is never admissible for promotion (SS-12/F13). The artifact-based
+        # path re-hashes each file and upgrades this to True.
+        promotion_admissible=False,
     )
 
 
@@ -447,15 +457,20 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
             _validate_websocket_runtime_artifact(artifact, artifact_root)
         else:
             _resolve_readiness_artifact_path(artifact, artifact_root)
-    return evaluate_controller_safety_case_readiness(
-        safety_case,
-        external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
-        target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
-        hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
-        hdl_export_evidence_sha256=by_kind["hdl_export_evidence"].artifact_sha256,
-        codac_runtime_evidence_sha256=by_kind["codac_runtime_evidence"].artifact_sha256,
-        websocket_runtime_evidence_sha256=by_kind["websocket_runtime_evidence"].artifact_sha256,
-        independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
+    # Each artifact has been resolved and re-hashed above, so this readiness is verified
+    # (not merely digest-attested) and is admissible for promotion.
+    return replace(
+        evaluate_controller_safety_case_readiness(
+            safety_case,
+            external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
+            target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,
+            hil_replay_evidence_sha256=by_kind["hil_replay_evidence"].artifact_sha256,
+            hdl_export_evidence_sha256=by_kind["hdl_export_evidence"].artifact_sha256,
+            codac_runtime_evidence_sha256=by_kind["codac_runtime_evidence"].artifact_sha256,
+            websocket_runtime_evidence_sha256=by_kind["websocket_runtime_evidence"].artifact_sha256,
+            independent_safety_review_sha256=by_kind["independent_safety_review"].artifact_sha256,
+        ),
+        promotion_admissible=True,
     )
 
 
@@ -512,6 +527,19 @@ def assert_controller_safety_case_readiness_admissible(
         raise ValueError("controller safety-case readiness status is unsupported")
     if readiness.status == "blocked" or readiness.blocking_reasons:
         raise ValueError("controller safety-case readiness is blocked: " + ", ".join(readiness.blocking_reasons))
+    # SS-12/F13: a digest-only readiness attests evidence by SHA-256 string only — any
+    # valid hex ("0"*64 included) passes — so a complete-but-unverified readiness is NOT
+    # admissible for promotion. Only the artifact-based path, which re-hashes each evidence
+    # file, sets promotion_admissible. (Checked after the blocked gate so a blocked readiness
+    # still reports "blocked".)
+    if not readiness.promotion_admissible:
+        raise ValueError(
+            "controller safety-case readiness is digest-only (unverified) and not admissible "
+            "for promotion; use the artifact-verified readiness path"
+        )
+    # The recompute derives the digest-attested fields (status/blocking) and is digest-only
+    # (promotion_admissible False); normalise the stored readiness to compare those fields
+    # without rejecting the artifact-verified promotion_admissible flag.
     recomputed = evaluate_controller_safety_case_readiness(
         safety_case,
         external_physics_validation_sha256=readiness.external_physics_validation_sha256,
@@ -522,7 +550,7 @@ def assert_controller_safety_case_readiness_admissible(
         websocket_runtime_evidence_sha256=readiness.websocket_runtime_evidence_sha256,
         independent_safety_review_sha256=readiness.independent_safety_review_sha256,
     )
-    if readiness != recomputed:
+    if replace(readiness, promotion_admissible=False) != recomputed:
         raise ValueError("controller safety-case readiness evidence mismatch")
     return readiness
 

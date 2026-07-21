@@ -543,7 +543,10 @@ def test_controller_safety_case_readiness_blocks_without_external_evidence():
         assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
-def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
+def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissible():
+    # SS-12/F13: complete digest-only evidence reaches promotion_ready, but because the
+    # digests are attested-not-verified (any valid hex, "0"*64 included, passes), it must
+    # NOT be admissible for promotion — only the artifact-verified path is.
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -566,7 +569,37 @@ def test_controller_safety_case_readiness_accepts_complete_promotion_evidence():
     assert readiness.status == "promotion_ready"
     assert readiness.blocking_reasons == ()
     assert readiness.external_physics_validation_sha256 == "1" * 64
-    assert_controller_safety_case_readiness_admissible(readiness, evidence)
+    assert readiness.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(readiness, evidence)
+
+
+def test_controller_safety_case_readiness_rejects_fabricated_zero_digests():
+    # The concrete SS-12/F13 attack: seven fabricated "0"*64 digests reach promotion_ready
+    # (valid hex) but are refused at the promotion gate because they are unverified.
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+
+    readiness = evaluate_controller_safety_case_readiness(
+        evidence,
+        external_physics_validation_sha256="0" * 64,
+        target_hardware_timing_sha256="0" * 64,
+        hil_replay_evidence_sha256="0" * 64,
+        hdl_export_evidence_sha256="0" * 64,
+        codac_runtime_evidence_sha256="0" * 64,
+        websocket_runtime_evidence_sha256="0" * 64,
+        independent_safety_review_sha256="0" * 64,
+    )
+
+    assert readiness.status == "promotion_ready"
+    assert readiness.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
 def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_path: Path):
@@ -1021,7 +1054,33 @@ def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
     save_controller_safety_case_readiness(readiness, path)
     loaded = load_controller_safety_case_readiness(path)
 
+    # The round trip preserves promotion_admissible=False (digest-only), and the gate
+    # still refuses it post-load.
     assert loaded == readiness
+    assert loaded.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(loaded, evidence)
+
+
+def test_controller_safety_case_readiness_artifact_manifest_round_trips_admissible(tmp_path):
+    # The artifact-verified readiness round-trips with promotion_admissible=True and stays
+    # admissible after load.
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = _readiness_artifacts(tmp_path, controller_sha256)
+    readiness = evaluate_controller_safety_case_readiness_from_artifacts(evidence, artifacts, artifact_root=tmp_path)
+    path = tmp_path / "controller_safety_case_readiness_artifact.json"
+
+    save_controller_safety_case_readiness(readiness, path)
+    loaded = load_controller_safety_case_readiness(path)
+
+    assert loaded == readiness
+    assert loaded.promotion_admissible is True
     assert_controller_safety_case_readiness_admissible(loaded, evidence)
 
 
@@ -1150,9 +1209,17 @@ def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift
     with pytest.raises(ValueError, match="status"):
         assert_controller_safety_case_readiness_admissible(bad_status, evidence)
 
-    drifted = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "claim_status": "bounded stale readiness"})
+    # promotion_admissible=True clears the digest-only gate so the recompute-mismatch check
+    # (the tamper detector) is reached; the drifted claim_status must fail it.
+    drifted = SafetyCaseReadinessEvidence(
+        **{**readiness.__dict__, "claim_status": "bounded stale readiness", "promotion_admissible": True}
+    )
     with pytest.raises(ValueError, match="evidence mismatch"):
         assert_controller_safety_case_readiness_admissible(drifted, evidence)
+
+    digest_only = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "promotion_admissible": False})
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(digest_only, evidence)
 
 
 def test_controller_safety_case_rejects_mismatched_evidence_chain():

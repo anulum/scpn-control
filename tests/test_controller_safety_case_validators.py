@@ -41,7 +41,7 @@ def _readiness_payload() -> dict[str, Any]:
     # A valid "blocked" readiness: every required digest is absent, so the
     # blocking reasons must list exactly those missing artifact names.
     return {
-        "schema_version": 4,
+        "schema_version": 5,
         "safety_case_sha256": "a" * 64,
         "status": "blocked",
         "external_physics_validation_sha256": None,
@@ -61,6 +61,7 @@ def _readiness_payload() -> dict[str, Any]:
             "independent_safety_review_sha256",
         ),
         "claim_status": "bounded promotion boundary",
+        "promotion_admissible": False,
     }
 
 
