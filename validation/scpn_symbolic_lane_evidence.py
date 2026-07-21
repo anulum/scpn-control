@@ -225,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
     report = generate_report()
     out = Path(args.output_json)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     r = report["ratio_symbolic_over_neuromorphic"]
     print("Symbolic-lane evidence complete.")
     print(
