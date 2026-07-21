@@ -37,10 +37,14 @@ from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn.structure import StochasticPetriNet
 
 
+_DEFAULT_TRANSITION_DELAY_TICKS = 1024
+
+
 def _build_scpn_controller(
     *,
     runtime_profile: str = "adaptive",
     runtime_backend: str = "auto",
+    delay_ticks: int = _DEFAULT_TRANSITION_DELAY_TICKS,
 ) -> NeuroSymbolicController:
     net = StochasticPetriNet()
     net.add_place("x_R_pos", initial_tokens=0.0)
@@ -52,12 +56,16 @@ def _build_scpn_controller(
     net.add_place("a_Z_pos", initial_tokens=0.0)
     net.add_place("a_Z_neg", initial_tokens=0.0)
 
-    # Use long transition delays so readout follows injected features while
-    # still exercising timed-transition state tracking.
-    net.add_transition("T_Rp", threshold=0.1, delay_ticks=1024)
-    net.add_transition("T_Rn", threshold=0.1, delay_ticks=1024)
-    net.add_transition("T_Zp", threshold=0.1, delay_ticks=1024)
-    net.add_transition("T_Zn", threshold=0.1, delay_ticks=1024)
+    # ``delay_ticks`` defaults to a value exceeding the run length so the readout
+    # follows the injected features while the timed-transition state tracking is
+    # still exercised. When it is >= the run length the four control transitions
+    # never fire and contribute nothing to the readout — the campaign discloses
+    # this honestly (see ``symbolic_transition_disclosure``). Lower it below the
+    # run length to let the symbolic lane actually participate.
+    net.add_transition("T_Rp", threshold=0.1, delay_ticks=delay_ticks)
+    net.add_transition("T_Rn", threshold=0.1, delay_ticks=delay_ticks)
+    net.add_transition("T_Zp", threshold=0.1, delay_ticks=delay_ticks)
+    net.add_transition("T_Zn", threshold=0.1, delay_ticks=delay_ticks)
 
     net.add_arc("x_R_pos", "T_Rp", weight=1.0)
     net.add_arc("x_R_neg", "T_Rn", weight=1.0)
@@ -174,12 +182,46 @@ def _metrics(errors: NDArray[np.float64], controls: NDArray[np.float64]) -> dict
     }
 
 
+def _symbolic_transition_disclosure(*, max_delay_ticks: int, steps: int) -> dict[str, Any]:
+    """Honestly disclose whether the timed symbolic transitions can fire in a run.
+
+    A control transition whose delay exceeds the run length never fires, so the
+    readout follows the injected features through the neuromorphic LIF/stochastic-
+    computing pipeline with a proportional gain and the symbolic lane contributes
+    nothing. Surfacing this in the report prevents a non-firing symbolic lane from
+    being read as a contributing one (public claims bind to substance).
+    """
+    transitions_fire = bool(max_delay_ticks < steps)
+    if transitions_fire:
+        note = (
+            "The control transitions fire within the campaign; the symbolic lane "
+            "participates in the readout."
+        )
+    else:
+        note = (
+            "The control transitions carry a delay exceeding the run length, so they "
+            "never fire within the campaign; the readout follows the injected features "
+            "through the neuromorphic LIF/stochastic-computing pipeline with a "
+            "proportional gain. The reported SCPN control result is therefore "
+            "neuromorphic-proportional and does not demonstrate a symbolic-transition "
+            "contribution in this benchmark."
+        )
+    return {
+        "max_delay_ticks": int(max_delay_ticks),
+        "steps": int(steps),
+        "transitions_fire_within_run": transitions_fire,
+        "symbolic_lane_contributes_to_readout": transitions_fire,
+        "note": note,
+    }
+
+
 def run_campaign(
     *,
     seed: int = 42,
     steps: int = 320,
     scpn_runtime_profile: str = "traceable",
     scpn_runtime_backend: str = "auto",
+    delay_ticks: int = _DEFAULT_TRANSITION_DELAY_TICKS,
 ) -> dict[str, Any]:
     seed_int = int(seed)
     steps = int(steps)
@@ -192,6 +234,10 @@ def run_campaign(
     scpn = _build_scpn_controller(
         runtime_profile=scpn_runtime_profile,
         runtime_backend=scpn_runtime_backend,
+        delay_ticks=delay_ticks,
+    )
+    symbolic_disclosure = _symbolic_transition_disclosure(
+        max_delay_ticks=int(scpn.max_delay_ticks), steps=steps
     )
     pid = _PIDState(kp=1.15, ki=0.24, kd=0.04)
 
@@ -273,6 +319,7 @@ def run_campaign(
         "ratios": ratios,
         "thresholds": thresholds,
         "passes_thresholds": passes,
+        "symbolic_transition_disclosure": symbolic_disclosure,
     }
 
 
@@ -317,6 +364,14 @@ def render_markdown(report: dict[str, Any]) -> str:
         "",
         f"- Pass: `{'YES' if r['passes_thresholds'] else 'NO'}`",
         "",
+        "## Symbolic-transition disclosure",
+        "",
+        f"- Max transition delay: `{r['symbolic_transition_disclosure']['max_delay_ticks']}` ticks"
+        f" (run length `{r['symbolic_transition_disclosure']['steps']}`)",
+        f"- Transitions fire within run: `{'YES' if r['symbolic_transition_disclosure']['transitions_fire_within_run'] else 'NO'}`",
+        f"- Symbolic lane contributes to readout: `{'YES' if r['symbolic_transition_disclosure']['symbolic_lane_contributes_to_readout'] else 'NO'}`",
+        f"- {r['symbolic_transition_disclosure']['note']}",
+        "",
     ]
     return "\n".join(lines)
 
@@ -336,6 +391,16 @@ def main(argv: list[str] | None = None) -> int:
         default="auto",
     )
     parser.add_argument(
+        "--delay-ticks",
+        type=int,
+        default=_DEFAULT_TRANSITION_DELAY_TICKS,
+        help=(
+            "Transition firing delay in ticks. The default exceeds the run length so the "
+            "symbolic transitions never fire (readout follows injected features); set it "
+            "below --steps to let the symbolic lane participate."
+        ),
+    )
+    parser.add_argument(
         "--output-json",
         default=str(ROOT / "validation" / "reports" / "scpn_pid_mpc_benchmark.json"),
     )
@@ -351,6 +416,7 @@ def main(argv: list[str] | None = None) -> int:
         steps=args.steps,
         scpn_runtime_profile=args.scpn_runtime_profile,
         scpn_runtime_backend=args.scpn_runtime_backend,
+        delay_ticks=args.delay_ticks,
     )
     out_json = Path(args.output_json)
     out_md = Path(args.output_md)

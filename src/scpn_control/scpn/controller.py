@@ -438,6 +438,17 @@ class NeuroSymbolicController:
         self.last_sc_marking = self._marking.tolist()
 
     @property
+    def max_delay_ticks(self) -> int:
+        """Largest transition firing delay in ticks (0 if all transitions are immediate).
+
+        A transition whose delay exceeds a run's length can never fire within that
+        run, so the readout follows the injected features without any
+        symbolic-transition contribution. Benchmarks disclose this so a
+        non-firing symbolic lane cannot be mistaken for a contributing one.
+        """
+        return self._max_delay_ticks
+
+    @property
     def runtime_backend_name(self) -> str:
         """Name of the active controller runtime backend."""
         return self._runtime_backend

@@ -102,3 +102,53 @@ def test_campaign_does_not_mutate_global_numpy_rng_state() -> None:
 def test_campaign_rejects_invalid_steps(steps: int) -> None:
     with pytest.raises(ValueError, match="steps"):
         scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=steps)
+
+
+def test_symbolic_transition_disclosure_is_honest_at_shipped_config() -> None:
+    """At the shipped config the timed transitions never fire; the report says so.
+
+    delay_ticks defaults to 1024 while a campaign runs far fewer steps, so the four
+    control transitions cannot fire and the readout is neuromorphic-proportional on
+    the injected features. The disclosure must surface this so the symbolic lane is
+    not read as contributing (public claims bind to substance).
+    """
+    out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=320)
+    disc = out["symbolic_transition_disclosure"]
+    assert disc["max_delay_ticks"] == 1024
+    assert disc["steps"] == 320
+    assert disc["transitions_fire_within_run"] is False
+    assert disc["symbolic_lane_contributes_to_readout"] is False
+    assert "neuromorphic-proportional" in disc["note"]
+
+
+def test_symbolic_transition_disclosure_reflects_firing_when_delay_below_run() -> None:
+    """With delay below the run length the transitions fire; the disclosure flips."""
+    out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=180, delay_ticks=2)
+    disc = out["symbolic_transition_disclosure"]
+    assert disc["max_delay_ticks"] == 2
+    assert disc["transitions_fire_within_run"] is True
+    assert disc["symbolic_lane_contributes_to_readout"] is True
+    assert "participates" in disc["note"]
+
+
+@pytest.mark.parametrize("delay_ticks", [0, 2, 179, 180, 1024])
+def test_disclosure_matches_reality_gate(delay_ticks: int) -> None:
+    """Honesty gate: the disclosure must equal the true fire/no-fire condition.
+
+    The report may only claim a symbolic contribution when the transitions can
+    actually fire (delay < run length). This forbids a static (never-firing)
+    symbolic lane from being presented as a contributing one.
+    """
+    out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=180, delay_ticks=delay_ticks)
+    disc = out["symbolic_transition_disclosure"]
+    expected_fire = disc["max_delay_ticks"] < disc["steps"]
+    assert disc["transitions_fire_within_run"] is expected_fire
+    assert disc["symbolic_lane_contributes_to_readout"] is expected_fire
+
+
+def test_render_markdown_contains_symbolic_disclosure() -> None:
+    report = scpn_pid_mpc_benchmark.generate_report(seed=11, steps=120)
+    text = scpn_pid_mpc_benchmark.render_markdown(report)
+    assert "Symbolic-transition disclosure" in text
+    assert "Transitions fire within run" in text
+    assert "Symbolic lane contributes to readout" in text
