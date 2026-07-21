@@ -52,6 +52,7 @@ benchmarks/results/
 !weights/neural_equilibrium_iter.npz
 !weights/neural_transport_qlknn.npz
 !validation/reference_data/diiid/disruption_shots/*.npz
+!validation/reference_data/diiid/freegs/*.npz
 
 # Artifacts
 artifacts/

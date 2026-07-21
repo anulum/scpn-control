@@ -1,0 +1,69 @@
+{
+  "spdx_license_id": "AGPL-3.0-or-later",
+  "copyright": "Copyright (C) 1998-2026 Miroslav Sotek. All rights reserved.",
+  "contact": "www.anulum.li | protoscience@anulum.li",
+  "orcid": "https://orcid.org/0009-0009-3560-0851",
+  "schema_version": "1.0",
+  "dataset_id": "diiid-freegs-1p5ma-equilibrium",
+  "machine": "DIII-D",
+  "shot": "diiid_freegs_1p5MA",
+  "synthetic": true,
+  "source": {
+    "kind": "synthetic",
+    "uri": "validation/reference_data/diiid/freegs",
+    "access": "external-code free-boundary Grad-Shafranov reference (FreeGS 0.8.2)"
+  },
+  "retrieved_at": "2026-07-21T05:11:00Z",
+  "licence": "FreeGS output under LGPL-3.0; reference-fixture terms",
+  "synthetic_generator": "FreeGS 0.8.2 free-boundary Grad-Shafranov, built-in DIIID machine (published DIII-D F-coil geometry); ConstrainPaxisIp(2e5 Pa, Ip=1.5 MA, fvac=3.391 T*m); scipy 1.13.1, numpy 2.0.2",
+  "synthetic_seed": 20260721,
+  "claim_boundary": "External-code (FreeGS) free-boundary equilibrium reference; NOT measured DIII-D facility, EFIT, or MDSplus evidence. Deterministic (no RNG; synthetic_seed is a nominal build tag). Modest-beta case (betap=0.33) for solver/contract validation, not a high-performance H-mode.",
+  "signals": [
+    {
+      "name": "poloidal_flux_grid",
+      "path": "psi_NZ_NR_Wb",
+      "units": "Wb",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "radial_grid",
+      "path": "R_m",
+      "units": "m",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "vertical_grid",
+      "path": "Z_m",
+      "units": "m",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "pressure_gradient",
+      "path": "pprime",
+      "units": "Pa/Wb",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "current_flux_function_gradient",
+      "path": "ffprime",
+      "units": "T^2 m^2/Wb",
+      "timebase": "equilibrium_slice"
+    },
+    {
+      "name": "coil_currents",
+      "path": "coils[].current_A",
+      "units": "A",
+      "timebase": "equilibrium_slice"
+    }
+  ],
+  "artifacts": [
+    {
+      "uri": "diiid_freegs_1p5MA.npz",
+      "checksum_sha256": "46a397287e3a5c1ee073ee711cf7bda78dd5921624ccddbb4a78b5f8f9ac82f9"
+    },
+    {
+      "uri": "diiid_freegs_1p5MA_coilset.json",
+      "checksum_sha256": "b6da1b1bf2701407006da6fd7f3db49f5bf01f94dc89d74961371cb61509be6a"
+    }
+  ]
+}

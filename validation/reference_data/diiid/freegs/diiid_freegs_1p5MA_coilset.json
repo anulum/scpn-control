@@ -1,0 +1,153 @@
+{
+  "meta": {
+    "Ip_A": 1500000.0,
+    "fvac_Tm": 3.391,
+    "Bt_T": 2.0,
+    "R0_vac_m": 1.6955,
+    "paxis_Pa": 200000.0,
+    "psi_axis_Wb": 0.6603571324866777,
+    "psi_bndry_Wb": 0.14048774705244355,
+    "nx": 65,
+    "ny": 65,
+    "Rmin_m": 1.0,
+    "Rmax_m": 2.5,
+    "Zmin_m": -1.4,
+    "Zmax_m": 1.4,
+    "n_coils": 18
+  },
+  "freegs_metrics": {
+    "a_minor_m": 0.631344992756053,
+    "aspect_ratio": 2.5852752593822514,
+    "R_geo_m": 1.6322005899070906,
+    "elongation": 1.6893787694118376,
+    "triangularity_upper": 0.13343742542121426,
+    "triangularity_lower": 0.13343742542121426,
+    "poloidal_beta": 0.33279256461621465,
+    "toroidal_beta": 0.014185147373413077,
+    "internal_inductance_li2": 1.3589904532720936,
+    "R_magnetic_m": 1.7110795266594663,
+    "Z_magnetic_m": 0.1664811901577078,
+    "q95_freegs_xpoint_sensitive": 2442.8301753037476
+  },
+  "coils": [
+    {
+      "name": "FC1",
+      "R_m": 1.6889,
+      "Z_m": -1.5779999999999998,
+      "current_A": 73192.810546875
+    },
+    {
+      "name": "FC2",
+      "R_m": 0.8608,
+      "Z_m": 0.1683,
+      "current_A": -54396.38723754883
+    },
+    {
+      "name": "FC3",
+      "R_m": 0.8613999999999999,
+      "Z_m": 0.5081,
+      "current_A": -32996.08627319336
+    },
+    {
+      "name": "FC4",
+      "R_m": 0.8628,
+      "Z_m": 0.8491,
+      "current_A": -7667.022216796875
+    },
+    {
+      "name": "FC5",
+      "R_m": 0.8611,
+      "Z_m": 1.1899,
+      "current_A": 7920.713134765625
+    },
+    {
+      "name": "FC6",
+      "R_m": 1.0041,
+      "Z_m": 1.5169,
+      "current_A": 5521.169921875
+    },
+    {
+      "name": "FC7",
+      "R_m": 2.61235,
+      "Z_m": 0.4376,
+      "current_A": -307351.8695678711
+    },
+    {
+      "name": "FC8",
+      "R_m": 2.37325,
+      "Z_m": 1.1171,
+      "current_A": -139263.75341796875
+    },
+    {
+      "name": "FC9",
+      "R_m": 1.2518,
+      "Z_m": 1.6019,
+      "current_A": 1733.569580078125
+    },
+    {
+      "name": "FC10",
+      "R_m": 1.689,
+      "Z_m": 1.5874000000000001,
+      "current_A": -24686.67431640625
+    },
+    {
+      "name": "FC11",
+      "R_m": 0.8608,
+      "Z_m": -0.17370000000000002,
+      "current_A": -75232.85569763184
+    },
+    {
+      "name": "FC12",
+      "R_m": 0.8607,
+      "Z_m": -0.5135000000000001,
+      "current_A": -79337.86975097656
+    },
+    {
+      "name": "FC13",
+      "R_m": 0.8611,
+      "Z_m": -0.8543,
+      "current_A": -17526.51416015625
+    },
+    {
+      "name": "FC14",
+      "R_m": 0.863,
+      "Z_m": -1.1957,
+      "current_A": 99394.15869140625
+    },
+    {
+      "name": "FC15",
+      "R_m": 1.0025,
+      "Z_m": -1.5169,
+      "current_A": 153188.88885498047
+    },
+    {
+      "name": "FC16",
+      "R_m": 2.61235,
+      "Z_m": -0.4376,
+      "current_A": -344436.3251953125
+    },
+    {
+      "name": "FC17",
+      "R_m": 2.38335,
+      "Z_m": -1.1171,
+      "current_A": -190413.5390625
+    },
+    {
+      "name": "FC18",
+      "R_m": 1.2524,
+      "Z_m": -1.6027,
+      "current_A": 180528.8134765625
+    }
+  ],
+  "control_shape_reference": {
+    "preprocessing": "psi[NZ,NR].T - psi_bndry (transpose to [NR,NZ] + LCFS shift)",
+    "psi_bndry_Wb": 0.14048774705244355,
+    "vacuum_rb_phi_Tm": 3.391,
+    "R0_m": 1.627925862338349,
+    "a_m": 0.627925862338349,
+    "kappa": 1.5460019425604223,
+    "delta_upper": 0.1041936098868551,
+    "delta_lower": 0.290819941160427,
+    "note": "R0/a match FreeGS to <1%; kappa/delta reflect the 0.98-flux contour vs the exact separatrix on a diverted plasma. li/beta_pol/q95 need real profile coefficients (geometry here uses placeholder coeffs); FreeGS q95 is X-point-artefacted and unusable."
+  }
+}
