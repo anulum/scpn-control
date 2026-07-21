@@ -25,9 +25,9 @@
 
 **SCPN Control** is a research-grade control and validation package for fusion
 plasma control loops. It turns stochastic Petri-net logic into executable
-neuro-symbolic controllers, surrounds those controllers with formal contracts,
-and connects them to equilibrium, transport, disruption, digital-twin, and
-hardware-in-the-loop evidence gates.
+neuro-symbolic controllers, surrounds those controllers with runtime
+pre/post-condition contracts, and connects them to equilibrium, transport,
+disruption, digital-twin, and hardware-in-the-loop evidence gates.
 
 The practical purpose is simple: help fusion teams decide whether a controller
 idea is safe enough, fast enough, reproducible enough, and well-evidenced enough
@@ -285,10 +285,14 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 
 - **Petri Net to SNN compilation** -- translates stochastic Petri nets into
   spiking neural controller artefacts with LIF neurons and bitstream metadata.
-- **Bounded formal verification** -- covers exact finite Petri-net reachability,
-  marking-bound checks, place invariants, transition liveness, bounded temporal
-  response specifications, optional Z3 bounded model checking, Lean proof
-  evidence admission, and fail-closed proof-manifest validation.
+- **Bounded, model-level formal methods** -- over the compiled Petri-net skeleton,
+  *not* the controller implementation or the plasma physics: exact finite-marking
+  reachability, marking-bound and place-invariant checks, transition liveness, and
+  bounded temporal response specifications, with optional Z3 bounded model checking
+  of the transition relation, a Lean-proved pulsed-FSM model, runtime
+  pre/post-condition assertions on every action, and fail-closed proof-manifest
+  validation. This is bounded software evidence, not verification of the controller
+  code or the physics.
 - **Controller families** -- PID, MPC, NMPC, H-infinity, mu-synthesis,
   gain-scheduled, sliding-mode, fault-tolerant, SNN, and reinforcement-learning
   research controllers.
@@ -589,10 +593,12 @@ git push --tags
   and WebSocket control-stream support are research adapters and
   evidence-admission contracts, not a certified ITER plant deployment. No
   safety certification and no real hardware deployment.
-- **Formal verification is bounded evidence**: The repository includes
-  Petri-net reachability, temporal-logic, Z3-backed, certificate-bundle, and
-  Lean proof-admission paths. Those reports are bounded software evidence, not
-  facility safety certification.
+- **Formal verification is bounded, model-level evidence**: The repository
+  includes Petri-net reachability, temporal-logic, Z3-backed, certificate-bundle,
+  and Lean-proved-model paths, all over the compiled Petri-net skeleton plus
+  runtime contract assertions. Those reports are bounded software evidence — not
+  verification of the controller code or the physics, and not facility safety
+  certification.
 - **Benchmark comparisons are not apples-to-apples**: The ~5 µs figure is the
   integrated control cycle on a loopback-UDP campaign, not a fielded plant loop.
   DIII-D PCS timings include I/O, diagnostics, and actuator commands over real

@@ -34,9 +34,10 @@ The differentiator is the architecture, not raw speed:
   Stochastic Petri Net is compiled into leaky integrate-and-fire neuron pools —
   a documented open-source neuro-symbolic control path for fusion-control
   experiments.
-- **Formal safety contracts on every action.** Pre/post-condition contracts
-  (Z3-backed, certificate-bundled) are checked on every control observation and
-  command, fail-closed.
+- **Runtime safety contracts on every action.** Pre/post-condition contracts are
+  asserted on every control observation and command, fail-closed; a separate
+  bounded Z3 model check + certificate bundle covers the compiled Petri-net
+  skeleton offline (not the controller code or physics).
 - **One interface, five controllers.** PID, nonlinear MPC, H∞, SNN, and a
   neuro-cybernetic controller share a single contract interface and are
   runtime-selectable, so the same safety case covers the whole stack.
