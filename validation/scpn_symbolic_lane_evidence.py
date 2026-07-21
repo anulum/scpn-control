@@ -13,14 +13,23 @@ are filled by transitions firing (``x_*`` -> ``a_*``) and kept responsive by a d
 (``a_*`` -> sink). This module measures, reproducibly, three things a public
 neuro-symbolic claim must bind to:
 
-1. **Parity** — the genuinely-symbolic controller tracks at parity with the direct
-   neuromorphic-proportional readout (readout reads the injected ``x_*`` places),
-   both far better than PID. Margin ~0; NOT superiority.
-2. **Robustness** — the parity holds on UNSEEN disturbance seeds and run lengths
-   (the tuned constants are not overfit to the benchmark's seed=42/steps=320).
-3. **Load-bearing** — removing the drain (so ``a_*`` saturates) makes the symbolic
-   controller DIVERGE, proving the transitions genuinely carry the control signal
-   rather than being a bypassed branch.
+1. **Parity** — the genuinely-symbolic controller tracks within a configured 15%
+   equivalence band of the direct neuromorphic-proportional readout (readout reads
+   the injected ``x_*`` places) on the unseen cohort (observed max deviation ~10%),
+   and both track markedly better than PID on the same profiles. This is a PARITY
+   claim, NOT a claim of superiority over the neuromorphic readout.
+2. **Robustness** — the parity holds on UNSEEN disturbance seeds and run lengths; the
+   constants were configured on the benchmark's seed=42/steps=320 and still hold
+   parity out of sample.
+3. **Load-bearing** — the symbolic transitions FIRE at runtime (a direct firing trace,
+   not merely a structural readout overlap), and removing the drain (so ``a_*``
+   saturates) makes the symbolic controller DIVERGE. Together these are evidence that
+   the transitions carry the control signal rather than being a bypassed branch.
+
+The RMSE values are specific to the resolved runtime backend and dependency set
+(recorded in the report's ``environment`` block); the parity / better-than-PID /
+load-bearing CONCLUSIONS are verified to hold and are robust across the numpy-float
+and sc_neurocore paths, but the exact ``payload_sha256`` binds to this environment.
 
 Run as a script to (re)generate ``validation/reports/scpn_symbolic_lane_evidence.json``.
 """
@@ -29,7 +38,9 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
+import platform
 from pathlib import Path
 from typing import Any
 
@@ -65,9 +76,11 @@ def _disturbance(k: int, steps: int, phase: float) -> float:
 
 
 # The neuromorphic baseline is the pre-symbolic shipped config: readout reads the
-# injected x_* places, transitions bypassed, at ITS own tuned gain (5.0). The honest
-# comparison is each controller at its own best: symbolic (gain 2.0) vs neuromorphic
-# (gain 5.0) -> parity. Using a shared gain would handicap one and is not the claim.
+# injected x_* places, transitions bypassed, at ITS own configured gain (5.0). The
+# honest comparison is each controller at its configured operating gain: symbolic
+# (gain 2.0) vs neuromorphic (gain 5.0) -> parity. These are hand-configured gains
+# (not the output of an automated search); a shared gain would handicap one lane and
+# is not the shipped configuration the claim binds to.
 _NEUROMORPHIC_READOUT_GAIN = 5.0
 
 
@@ -79,6 +92,8 @@ def _build_variant(variant: str) -> NeuroSymbolicController:
     baseline: readout reads the injected ``x_*`` places, transitions bypassed, gain 5.0.
     'symbolic_undrained' reads ``a_*`` with firing transitions but no drain (a_* saturates).
     """
+    if variant not in ("symbolic", "neuromorphic", "symbolic_undrained"):
+        raise ValueError(f"unknown variant {variant!r}; expected 'symbolic', 'neuromorphic', or 'symbolic_undrained'")
     if variant == "symbolic":
         return _build_scpn_controller(runtime_profile="traceable")
 
@@ -142,17 +157,34 @@ def _build_variant(variant: str) -> NeuroSymbolicController:
     )
 
 
-def _tracking_rmse(variant: str, seed: int, steps: int) -> float:
-    """Closed-loop tracking-error RMSE for a controller variant on a seeded disturbance."""
+def _closed_loop(variant: str, seed: int, steps: int) -> tuple[float, float]:
+    """Run the closed loop for a variant; return (tracking RMSE, total transition-firing activity).
+
+    The firing activity is the summed absolute stochastic-computing firing over the run — a
+    DIRECT runtime trace of whether the Petri-net transitions actually fire (nonzero for the
+    symbolic lane, zero for the neuromorphic baseline whose transitions are bypassed by delay).
+    """
     scpn = _build_variant(variant)
     phase = float(np.random.default_rng(seed).uniform(0.0, 2.0 * np.pi))
     x = 0.35
     e = np.zeros(steps, dtype=np.float64)
+    firing = 0.0
     for k in range(steps):
         u = float(np.clip(scpn.step_traceable((float(x), 0.0), k)[0], -1.0, 1.0))
+        firing += float(np.sum(np.abs(scpn.last_sc_firing)))
         x = 0.95 * x + 0.12 * u + _disturbance(k, steps, phase)
         e[k] = -x
-    return float(np.sqrt(np.mean(e * e)))
+    return float(np.sqrt(np.mean(e * e))), firing
+
+
+def _tracking_rmse(variant: str, seed: int, steps: int) -> float:
+    """Closed-loop tracking-error RMSE for a controller variant on a seeded disturbance."""
+    return _closed_loop(variant, seed, steps)[0]
+
+
+def _transition_firing_activity(variant: str, seed: int, steps: int) -> float:
+    """Total absolute transition-firing over a closed-loop run (direct runtime firing trace)."""
+    return _closed_loop(variant, seed, steps)[1]
 
 
 def _pid_tracking_rmse(seed: int, steps: int) -> float:
@@ -191,6 +223,23 @@ def _measure_cohort(seeds: tuple[int, ...], step_counts: tuple[int, ...]) -> lis
     return rows
 
 
+def _environment_provenance() -> dict[str, Any]:
+    """Record the resolved runtime backend and dependency identity the RMSE values bind to.
+
+    The numerical lane depends on the resolved SCPN runtime backend and on whether the optional
+    ``sc_neurocore`` accelerator is installed (it changes the numpy float path), so the artifact
+    records both to be self-describing. The parity / better-than-PID / load-bearing CONCLUSIONS
+    are robust across these paths even though the exact ``payload_sha256`` is environment-specific.
+    """
+    return {
+        "runtime_backend": _build_variant("symbolic").runtime_backend_name,
+        "sc_neurocore_present": importlib.util.find_spec("sc_neurocore") is not None,
+        "python_implementation": platform.python_implementation(),
+        "python_version": platform.python_version(),
+        "numpy_version": np.__version__,
+    }
+
+
 def evaluate_evidence(
     *,
     tuning_seed: int = _TUNING_SEED,
@@ -205,18 +254,29 @@ def evaluate_evidence(
     symbolic/neuromorphic, so ``ratio_symbolic_over_pid`` is apples-to-apples (unlike a
     fixed PID constant from another campaign).
     """
+    if not unseen_seeds:
+        raise ValueError("unseen_seeds must be non-empty so the out-of-sample parity claim is not vacuous.")
+    if tuning_seed in unseen_seeds:
+        raise ValueError(
+            f"tuning_seed {tuning_seed} must be disjoint from unseen_seeds {unseen_seeds}; "
+            "otherwise the tuning point contaminates the out-of-sample cohort."
+        )
+    if not step_counts:
+        raise ValueError("step_counts must be non-empty.")
+
     in_sample = _measure_cohort((tuning_seed,), step_counts)
     unseen = _measure_cohort(unseen_seeds, step_counts)
 
     unseen_ratios = np.asarray([r["ratio_symbolic_over_neuromorphic"] for r in unseen], dtype=np.float64)
-    sym_over_pid = np.asarray(
-        [r["ratio_symbolic_over_pid"] for r in in_sample + unseen], dtype=np.float64
-    )
+    sym_over_pid = np.asarray([r["ratio_symbolic_over_pid"] for r in in_sample + unseen], dtype=np.float64)
 
     undrained = _tracking_rmse("symbolic_undrained", tuning_seed, 320)
     neuro_ref = _tracking_rmse("neuromorphic", tuning_seed, 320)
+    symbolic_firing = _transition_firing_activity("symbolic", tuning_seed, 320)
+    neuromorphic_firing = _transition_firing_activity("neuromorphic", tuning_seed, 320)
     return {
         "schema": _SCHEMA,
+        "environment": _environment_provenance(),
         "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
         "metric": "closed-loop tracking-error RMSE (e = -x)",
         "readout_contract": "symbolic reads transition-output a_* (4-7); neuromorphic reads injected x_* (0-3)",
@@ -240,16 +300,23 @@ def evaluate_evidence(
             "neuromorphic_reference_rmse": neuro_ref,
             "undrained_over_reference": float(undrained / neuro_ref),
             "diverges_without_drain": bool(undrained > 3.0 * neuro_ref),
+            "symbolic_transition_firing_activity": symbolic_firing,
+            "neuromorphic_transition_firing_activity": neuromorphic_firing,
+            "transitions_fire_at_runtime": bool(symbolic_firing > 0.0),
             "note": (
-                "Removing the a_* drain saturates the readout places and the symbolic "
-                "controller diverges, proving the transitions carry the control signal."
+                "Two independent signals: (1) a direct runtime firing trace shows the symbolic "
+                "transitions actually fire (nonzero summed firing) while the neuromorphic baseline "
+                "fires zero (its transitions are bypassed by delay); (2) removing the a_* drain "
+                "saturates the readout places and the symbolic controller diverges. Together they "
+                "are evidence that the transitions carry the control signal."
             ),
         },
         "claim": (
-            "The symbolic transition lane produces control AT PARITY with the direct "
-            "neuromorphic readout on OUT-OF-SAMPLE seeds (margin ~0), is load-bearing "
-            "(diverges without its drain), and beats PID on the same profiles. NOT a "
-            "superiority claim over the neuromorphic readout."
+            "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the "
+            "direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed max deviation ~10%), is "
+            "load-bearing (its transitions fire at runtime AND it diverges without its drain), and "
+            "beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over "
+            "the neuromorphic readout."
         ),
     }
 
