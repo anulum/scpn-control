@@ -20,6 +20,7 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -92,7 +93,9 @@ def test_provenance_is_honest_published_not_measured_and_claim_blocked() -> None
     assert prov["re_run_here"] is False
     assert prov["source_kind"] == "published_literature"
     assert "Dimits" in str(data["reference"])
-    assert "pppl.gov" in str(data["source_url"])
+    # Exact-hostname match (not a substring check) so the provenance URL is the
+    # authoritative PPPL host and CodeQL's URL-substring rule stays satisfied.
+    assert urlparse(str(data["source_url"])).hostname == "w3.pppl.gov"
     boundary = str(data["claim_boundary"]).lower()
     assert "blocked" in boundary
     assert "not re-run" in boundary or "not a measured" in boundary
