@@ -1,0 +1,80 @@
+{
+  "schema": "scpn-control.symbolic-lane-evidence.v1",
+  "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
+  "metric": "closed-loop tracking-error RMSE (e = -x)",
+  "readout_contract": "symbolic reads transition-output a_* (4-7); neuromorphic reads injected x_* (0-3)",
+  "robustness": [
+    {
+      "seed": 42,
+      "steps": 240,
+      "symbolic_rmse": 0.051701563412327366,
+      "neuromorphic_rmse": 0.0487017272407079,
+      "ratio_symbolic_over_neuromorphic": 1.0615960940521227
+    },
+    {
+      "seed": 42,
+      "steps": 320,
+      "symbolic_rmse": 0.05035557665028246,
+      "neuromorphic_rmse": 0.04946784135376363,
+      "ratio_symbolic_over_neuromorphic": 1.0179457051737975
+    },
+    {
+      "seed": 7,
+      "steps": 240,
+      "symbolic_rmse": 0.05076661837149637,
+      "neuromorphic_rmse": 0.05229033803784933,
+      "ratio_symbolic_over_neuromorphic": 0.9708603974743854
+    },
+    {
+      "seed": 7,
+      "steps": 320,
+      "symbolic_rmse": 0.05190875722309151,
+      "neuromorphic_rmse": 0.049564089366621385,
+      "ratio_symbolic_over_neuromorphic": 1.0473057789708757
+    },
+    {
+      "seed": 123,
+      "steps": 240,
+      "symbolic_rmse": 0.05328179107925513,
+      "neuromorphic_rmse": 0.05096311703583139,
+      "ratio_symbolic_over_neuromorphic": 1.045497100222373
+    },
+    {
+      "seed": 123,
+      "steps": 320,
+      "symbolic_rmse": 0.04933822186742736,
+      "neuromorphic_rmse": 0.04947886558167048,
+      "ratio_symbolic_over_neuromorphic": 0.9971574992152766
+    },
+    {
+      "seed": 999,
+      "steps": 240,
+      "symbolic_rmse": 0.051000278044335746,
+      "neuromorphic_rmse": 0.048588320151105195,
+      "ratio_symbolic_over_neuromorphic": 1.0496406931898363
+    },
+    {
+      "seed": 999,
+      "steps": 320,
+      "symbolic_rmse": 0.048694364197641345,
+      "neuromorphic_rmse": 0.049471679115537966,
+      "ratio_symbolic_over_neuromorphic": 0.9842876786922625
+    }
+  ],
+  "ratio_symbolic_over_neuromorphic": {
+    "min": 0.9708603974743854,
+    "max": 1.0615960940521227,
+    "mean": 1.0217863683738662
+  },
+  "parity_holds": true,
+  "load_bearing": {
+    "symbolic_undrained_rmse": 0.5423530112355258,
+    "neuromorphic_reference_rmse": 0.04946784135376363,
+    "undrained_over_reference": 10.963749304461258,
+    "diverges_without_drain": true,
+    "note": "Removing the a_* drain saturates the readout places and the symbolic controller diverges, proving the transitions carry the control signal."
+  },
+  "pid_reference_rmse": 0.12104,
+  "claim": "The symbolic transition lane produces control AT PARITY with the direct neuromorphic readout (margin ~0), is load-bearing (diverges without its drain), and both are ~2.4x better than PID. NOT a superiority claim.",
+  "payload_sha256": "e2a16a8f11b796940fdf7e73b8f40ef3cbbd9fd14145b5de149af321375ffac9"
+}

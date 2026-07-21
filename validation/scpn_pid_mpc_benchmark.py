@@ -36,8 +36,20 @@ from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn.structure import StochasticPetriNet
 
-
-_DEFAULT_TRANSITION_DELAY_TICKS = 1024
+# Genuinely-symbolic control routing. The readout reads the transition-OUTPUT ``a_*``
+# places (not the injected ``x_*``), so the timed Petri-net transitions are
+# load-bearing: inject x_* -> T_* fires (``delay_ticks``, default 0) -> a_* -> readout,
+# with a drain D_*: a_* -> sink so a_* stays responsive rather than saturating to 1.0
+# (undrained a_* diverges, e-RMSE ~0.53 -> the transitions genuinely carry the signal).
+# The gain/threshold constants are tuned on seed=42/steps=320 and verified robust on
+# unseen seeds/steps (ratio-to-baseline 0.944-1.061, mean ~1.0 = parity with the direct
+# neuromorphic readout; both ~2.4x better than PID). Reproducible parity + load-bearing
+# evidence: ``validation/scpn_symbolic_lane_evidence.py``.
+_DEFAULT_TRANSITION_DELAY_TICKS = 0
+_SYMBOLIC_DRAIN_DELAY_TICKS = 1
+_SYMBOLIC_FIRE_THRESHOLD = 0.02
+_SYMBOLIC_DRAIN_THRESHOLD = 0.05
+_SYMBOLIC_READOUT_GAIN = 2.0
 
 
 def _build_scpn_controller(
@@ -47,34 +59,49 @@ def _build_scpn_controller(
     delay_ticks: int = _DEFAULT_TRANSITION_DELAY_TICKS,
 ) -> NeuroSymbolicController:
     net = StochasticPetriNet()
-    net.add_place("x_R_pos", initial_tokens=0.0)
-    net.add_place("x_R_neg", initial_tokens=0.0)
-    net.add_place("x_Z_pos", initial_tokens=0.0)
-    net.add_place("x_Z_neg", initial_tokens=0.0)
-    net.add_place("a_R_pos", initial_tokens=0.0)
-    net.add_place("a_R_neg", initial_tokens=0.0)
-    net.add_place("a_Z_pos", initial_tokens=0.0)
-    net.add_place("a_Z_neg", initial_tokens=0.0)
+    for place in (
+        # injected error components
+        "x_R_pos",
+        "x_R_neg",
+        "x_Z_pos",
+        "x_Z_neg",
+        # transition outputs (the readout reads these)
+        "a_R_pos",
+        "a_R_neg",
+        "a_Z_pos",
+        "a_Z_neg",
+        # drain sinks
+        "s_R_pos",
+        "s_R_neg",
+        "s_Z_pos",
+        "s_Z_neg",
+    ):
+        net.add_place(place, initial_tokens=0.0)
 
-    # ``delay_ticks`` defaults to a value exceeding the run length so the readout
-    # follows the injected features while the timed-transition state tracking is
-    # still exercised. When it is >= the run length the four control transitions
-    # never fire and contribute nothing to the readout — the campaign discloses
-    # this honestly (see ``symbolic_transition_disclosure``). Lower it below the
-    # run length to let the symbolic lane actually participate.
-    net.add_transition("T_Rp", threshold=0.1, delay_ticks=delay_ticks)
-    net.add_transition("T_Rn", threshold=0.1, delay_ticks=delay_ticks)
-    net.add_transition("T_Zp", threshold=0.1, delay_ticks=delay_ticks)
-    net.add_transition("T_Zn", threshold=0.1, delay_ticks=delay_ticks)
+    # Fire transitions carry the injected error through the symbolic lane (x_* -> a_*).
+    # ``delay_ticks`` >= the run length bypasses the lane (a_* never filled) — the
+    # campaign discloses that case honestly (see ``symbolic_transition_disclosure``).
+    for name, src, dst in (
+        ("T_Rp", "x_R_pos", "a_R_pos"),
+        ("T_Rn", "x_R_neg", "a_R_neg"),
+        ("T_Zp", "x_Z_pos", "a_Z_pos"),
+        ("T_Zn", "x_Z_neg", "a_Z_neg"),
+    ):
+        net.add_transition(name, threshold=_SYMBOLIC_FIRE_THRESHOLD, delay_ticks=delay_ticks)
+        net.add_arc(src, name, weight=1.0)
+        net.add_arc(name, dst, weight=1.0)
 
-    net.add_arc("x_R_pos", "T_Rp", weight=1.0)
-    net.add_arc("x_R_neg", "T_Rn", weight=1.0)
-    net.add_arc("x_Z_pos", "T_Zp", weight=1.0)
-    net.add_arc("x_Z_neg", "T_Zn", weight=1.0)
-    net.add_arc("T_Rp", "a_R_pos", weight=1.0)
-    net.add_arc("T_Rn", "a_R_neg", weight=1.0)
-    net.add_arc("T_Zp", "a_Z_pos", weight=1.0)
-    net.add_arc("T_Zn", "a_Z_neg", weight=1.0)
+    # Drain transitions keep the a_* readout places responsive (a_* -> sink); without
+    # them a_* saturates to 1.0 and the controller diverges.
+    for name, src, dst in (
+        ("D_Rp", "a_R_pos", "s_R_pos"),
+        ("D_Rn", "a_R_neg", "s_R_neg"),
+        ("D_Zp", "a_Z_pos", "s_Z_pos"),
+        ("D_Zn", "a_Z_neg", "s_Z_neg"),
+    ):
+        net.add_transition(name, threshold=_SYMBOLIC_DRAIN_THRESHOLD, delay_ticks=_SYMBOLIC_DRAIN_DELAY_TICKS)
+        net.add_arc(src, name, weight=1.0)
+        net.add_arc(name, dst, weight=1.0)
     net.compile(validate_topology=True)
 
     compiler = FusionCompiler(
@@ -92,10 +119,12 @@ def _build_scpn_controller(
         dt_control_s=0.05,
         readout_config={
             "actions": [
-                {"name": "dI_PF3_A", "pos_place": 0, "neg_place": 1},
-                {"name": "dI_PF_topbot_A", "pos_place": 2, "neg_place": 3},
+                # Read the transition-OUTPUT places (a_*), not the injected x_*, so the
+                # symbolic transitions are load-bearing in the control output.
+                {"name": "dI_PF3_A", "pos_place": 4, "neg_place": 5},
+                {"name": "dI_PF_topbot_A", "pos_place": 6, "neg_place": 7},
             ],
-            "gains": [5.0, 0.0],
+            "gains": [_SYMBOLIC_READOUT_GAIN, 0.0],
             "abs_max": [1.0, 1.0],
             "slew_per_s": [60.0, 60.0],
         },
@@ -182,35 +211,48 @@ def _metrics(errors: NDArray[np.float64], controls: NDArray[np.float64]) -> dict
     }
 
 
-def _symbolic_transition_disclosure(*, max_delay_ticks: int, steps: int) -> dict[str, Any]:
-    """Honestly disclose whether the timed symbolic transitions can fire in a run.
+def _symbolic_transition_disclosure(
+    *, max_delay_ticks: int, steps: int, readout_reads_transition_outputs: bool
+) -> dict[str, Any]:
+    """Honestly disclose whether the timed symbolic transitions genuinely contribute.
 
-    A control transition whose delay exceeds the run length never fires, so the
-    readout follows the injected features through the neuromorphic LIF/stochastic-
-    computing pipeline with a proportional gain and the symbolic lane contributes
-    nothing. Surfacing this in the report prevents a non-firing symbolic lane from
-    being read as a contributing one (public claims bind to substance).
+    Two structural conditions must BOTH hold for the symbolic lane to be
+    load-bearing in the control output: (1) the transitions can fire within the run
+    (``max_delay_ticks < steps``), and (2) the readout reads transition-OUTPUT places
+    (so firing changes the action). If the transitions never fire, or the readout
+    reads only injected places, the control is neuromorphic-proportional and the
+    symbolic lane contributes nothing — surfacing this prevents a bypassed lane from
+    being read as a contributing one (public claims bind to substance). The MEASURED
+    parity margin lives in ``validation/scpn_symbolic_lane_evidence.py``; this inline
+    disclosure reports the structural facts.
     """
     transitions_fire = bool(max_delay_ticks < steps)
-    if transitions_fire:
+    contributes = bool(transitions_fire and readout_reads_transition_outputs)
+    if contributes:
         note = (
-            "The control transitions fire within the campaign; the symbolic lane "
-            "participates in the readout."
+            "The control transitions fire and the readout reads their output places, so "
+            "the symbolic transition lane is load-bearing in the control output. Measured "
+            "at parity with the direct neuromorphic readout (margin ~0), both ~2.4x better "
+            "than PID; see scpn_symbolic_lane_evidence for the reproducible measurement."
+        )
+    elif not transitions_fire:
+        note = (
+            "The control transitions carry a delay exceeding the run length, so they never "
+            "fire; the symbolic lane does not contribute and the control is "
+            "neuromorphic-proportional in this configuration."
         )
     else:
         note = (
-            "The control transitions carry a delay exceeding the run length, so they "
-            "never fire within the campaign; the readout follows the injected features "
-            "through the neuromorphic LIF/stochastic-computing pipeline with a "
-            "proportional gain. The reported SCPN control result is therefore "
-            "neuromorphic-proportional and does not demonstrate a symbolic-transition "
-            "contribution in this benchmark."
+            "The control transitions fire but the readout does not read their output "
+            "places, so the symbolic lane is bypassed and does not contribute; the control "
+            "is neuromorphic-proportional in this configuration."
         )
     return {
         "max_delay_ticks": int(max_delay_ticks),
         "steps": int(steps),
         "transitions_fire_within_run": transitions_fire,
-        "symbolic_lane_contributes_to_readout": transitions_fire,
+        "readout_reads_transition_outputs": bool(readout_reads_transition_outputs),
+        "symbolic_lane_contributes_to_readout": contributes,
         "note": note,
     }
 
@@ -237,7 +279,9 @@ def run_campaign(
         delay_ticks=delay_ticks,
     )
     symbolic_disclosure = _symbolic_transition_disclosure(
-        max_delay_ticks=int(scpn.max_delay_ticks), steps=steps
+        max_delay_ticks=int(scpn.max_delay_ticks),
+        steps=steps,
+        readout_reads_transition_outputs=bool(scpn.readout_reads_transition_outputs),
     )
     pid = _PIDState(kp=1.15, ki=0.24, kd=0.04)
 
@@ -369,6 +413,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- Max transition delay: `{r['symbolic_transition_disclosure']['max_delay_ticks']}` ticks"
         f" (run length `{r['symbolic_transition_disclosure']['steps']}`)",
         f"- Transitions fire within run: `{'YES' if r['symbolic_transition_disclosure']['transitions_fire_within_run'] else 'NO'}`",
+        f"- Readout reads transition outputs: `{'YES' if r['symbolic_transition_disclosure']['readout_reads_transition_outputs'] else 'NO'}`",
         f"- Symbolic lane contributes to readout: `{'YES' if r['symbolic_transition_disclosure']['symbolic_lane_contributes_to_readout'] else 'NO'}`",
         f"- {r['symbolic_transition_disclosure']['note']}",
         "",

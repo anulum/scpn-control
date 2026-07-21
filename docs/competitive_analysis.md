@@ -128,8 +128,16 @@
 1. **Neuro-symbolic control with formal contracts** — Petri Net → SNN compilation
    plus pre/post-condition safety contracts checked on every action, across a
    runtime-selectable PID/MPC/H∞/SNN stack on one interface. No competing
-   open-source fusion code has this path. Control compute is comfortably within
-   the 1–10 kHz real-time budget (native cycle ~5 µs P50 CI), but that is a
+   open-source fusion code has this path. The symbolic-transition lane is
+   **demonstrated and load-bearing, not merely present**: in the SCPN-vs-PID/MPC
+   benchmark the control is routed through the timed Petri-net transitions (the
+   readout reads their output places), and the closed-loop tracking is at
+   **parity** with the direct neuromorphic readout (ratio ~1.0 across unseen
+   seeds, margin ~0 — parity, not superiority) while both are ~2.4× better than
+   PID; removing the transitions' drain makes the controller diverge, confirming
+   they carry the signal. Reproducible evidence:
+   `validation/scpn_symbolic_lane_evidence.py`. Control compute is comfortably
+   within the 1–10 kHz real-time budget (native cycle ~5 µs P50 CI), but that is a
    necessary-not-sufficient property — the fielded bottleneck is diagnostics,
    reconstruction, and actuation, not the controller.
 

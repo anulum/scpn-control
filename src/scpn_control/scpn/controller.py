@@ -449,6 +449,20 @@ class NeuroSymbolicController:
         return self._max_delay_ticks
 
     @property
+    def readout_reads_transition_outputs(self) -> bool:
+        """True if any readout place receives tokens from a transition (production arc).
+
+        When the readout reads only injected/input places, the timed transitions
+        cannot influence the control output — the symbolic lane is a bypassed branch.
+        Reading a place that a transition produces into is what makes the symbolic
+        lane load-bearing. Benchmarks use this to disclose genuine contribution
+        honestly rather than asserting it.
+        """
+        readout_places = set(self._action_pos_idx.tolist()) | set(self._action_neg_idx.tolist())
+        produced = {int(p) for p in np.flatnonzero(np.any(self._W_out != 0.0, axis=1))}
+        return bool(readout_places & produced)
+
+    @property
     def runtime_backend_name(self) -> str:
         """Name of the active controller runtime backend."""
         return self._runtime_backend

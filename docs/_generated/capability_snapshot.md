@@ -10,9 +10,9 @@
 | Python public classes | 535 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 133 |
+| Validation scripts | 134 |
 | Optional extras | 19 |
-| Python test files | 475 |
+| Python test files | 476 |
 | Public documentation pages | 62 |
 | GitHub Actions workflows | 10 |
 

@@ -26,10 +26,10 @@
     "public_class_count": 535,
     "public_markdown_count": 62,
     "pyo3_export_count": 39,
-    "python_test_file_count": 475,
+    "python_test_file_count": 476,
     "rust_source_file_count": 64,
     "source_module_count": 161,
-    "validation_script_count": 133,
+    "validation_script_count": 134,
     "workflow_count": 10
   },
   "docs": {
@@ -1402,6 +1402,7 @@
       "tests/test_scpn_lean_verification_validators.py",
       "tests/test_scpn_package_exports.py",
       "tests/test_scpn_pid_mpc_benchmark.py",
+      "tests/test_scpn_symbolic_lane_evidence.py",
       "tests/test_shape_controller.py",
       "tests/test_sliding_mode_vertical.py",
       "tests/test_snn_pyo3_bridge.py",
@@ -1543,6 +1544,7 @@
       "validation/reference_uri.py",
       "validation/rmse_dashboard.py",
       "validation/scpn_pid_mpc_benchmark.py",
+      "validation/scpn_symbolic_lane_evidence.py",
       "validation/stress_test_campaign.py",
       "validation/train_mast_efm_neural_equilibrium.py",
       "validation/validate_benchmark_regression_gates.py",
