@@ -104,6 +104,19 @@ def _finite_command_value(cmd: dict[str, Any]) -> float | None:
     return value
 
 
+def _valid_reset_seed(seed: object) -> bool:
+    """Return ``True`` for an RNG seed numpy will accept: a non-negative int, not bool.
+
+    ``RealtimeMonitor.reset`` forwards the seed to ``np.random.default_rng``, which
+    raises on a string, float, or negative int (a ``bool`` is silently coerced to
+    0/1). Without this guard a ``{"action": "reset", "seed": "…"}`` frame from an
+    authenticated-but-hostile client raises an uncaught exception in the handler and
+    drops the connection; validating here fails the frame closed like the other
+    malformed-command paths instead.
+    """
+    return isinstance(seed, int) and not isinstance(seed, bool) and seed >= 0
+
+
 def _is_loopback_host(host: str) -> bool:
     normalised = host.strip().lower()
     return normalised in {"localhost", "127.0.0.1", "::1"}
@@ -500,7 +513,13 @@ class PhaseStreamServer:
                         self.monitor.pac_gamma = value
                         self._bump_runtime_counter("command_frames")
                 elif action == "reset":
-                    self.monitor.reset(seed=cmd.get("seed", 42))
+                    seed = cmd.get("seed", 42)
+                    if not _valid_reset_seed(seed):
+                        self._audit_security_event(websocket, "frame_rejected", "invalid reset seed")
+                        if not await self._send_response(websocket, {"error": "invalid_seed"}):
+                            break
+                        continue
+                    self.monitor.reset(seed=seed)
                     self._bump_runtime_counter("command_frames")
                 elif action == "stop":  # pragma: no branch - allowed_actions<=4 known; last elif always stop; #129
                     self._running = False

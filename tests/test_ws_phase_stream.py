@@ -657,6 +657,36 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    @pytest.mark.parametrize("seed", [0, 42, 2**40])
+    def test_handler_reset_accepts_valid_seed(self, seed):
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps({"action": "reset", "seed": seed})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "invalid_seed" not in errors
+            assert server.runtime_counters()["command_frames"] == 1
+
+        asyncio.run(_run())
+
+    @pytest.mark.parametrize("seed", ["abc", -1, 1.5, True, [1, 2]])
+    def test_handler_rejects_invalid_reset_seed_without_crashing(self, seed):
+        # A hostile reset seed reaches np.random.default_rng, which raises on a
+        # string/float/negative int. Pre-fix that exception was uncaught and dropped
+        # the connection; now the frame fails closed with an error response.
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
+            ws = _FakeWS([json.dumps({"action": "reset", "seed": seed}), json.dumps({"action": "stop"})])
+            await server._handler(ws)
+            errors = [json.loads(sent).get("error") for sent in ws._sent]
+            assert "invalid_seed" in errors
+            assert server.runtime_counters()["malformed_frame_rejections"] == 1
+            assert server.runtime_counters()["command_frames"] == 1  # only the trailing stop
+
+        asyncio.run(_run())
+
     def test_handler_stop(self):
         async def _run():
             mon = _make_monitor()
@@ -1649,6 +1679,30 @@ def test_handler_breaks_when_non_object_frame_response_fails():
         assert ws not in server._clients
 
     asyncio.run(_run())
+
+
+def test_handler_breaks_when_invalid_seed_response_fails():
+    async def _run():
+        server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
+
+        class _DeadSendWS(_FakeWS):
+            async def send(self, data):
+                raise ConnectionError("dead")
+
+        ws = _DeadSendWS([json.dumps({"action": "reset", "seed": "hostile"})], headers=_AUTH_HEADERS)
+        await server._handler(ws)
+        assert ws not in server._clients
+
+    asyncio.run(_run())
+
+
+def test_valid_reset_seed_accepts_non_negative_int_only():
+    assert ws_phase_stream._valid_reset_seed(0) is True
+    assert ws_phase_stream._valid_reset_seed(2**40) is True
+    assert ws_phase_stream._valid_reset_seed(True) is False
+    assert ws_phase_stream._valid_reset_seed(-1) is False
+    assert ws_phase_stream._valid_reset_seed(1.5) is False
+    assert ws_phase_stream._valid_reset_seed("abc") is False
 
 
 def test_tick_loop_reraises_cancelled_error():
