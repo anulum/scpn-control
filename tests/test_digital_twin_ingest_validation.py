@@ -100,3 +100,20 @@ def test_scenario_plan_records_no_safe_step_when_risk_stays_high(monkeypatch: py
     hook.ingest(TelemetryPacket(t_ms=0, machine="SPARC", ip_ma=8.7, beta_n=1.65, q95=3.9, density_1e19=8.2))
     plan = hook.scenario_plan(horizon=4)
     assert plan["safe_horizon_rate"] == 0.0
+
+
+@pytest.mark.parametrize("field", ["ip_ma", "beta_n", "q95", "density_1e19"])
+@pytest.mark.parametrize("bad", [float("nan"), float("inf"), float("-inf")])
+def test_telemetry_packet_rejects_non_finite_fields(field, bad):
+    # SS-11/F11: a non-finite telemetry field would poison the risk signal (max(nan, 0)
+    # is nan; nan comparisons fail open in the mitigation gate), so it must fail closed at
+    # construction rather than reach risk scoring.
+    kwargs = {"t_ms": 0, "machine": "SPARC", "ip_ma": 8.7, "beta_n": 1.65, "q95": 3.9, "density_1e19": 8.2}
+    kwargs[field] = bad
+    with pytest.raises(ValueError, match=f"{field} must be finite"):
+        TelemetryPacket(**kwargs)
+
+
+def test_telemetry_packet_accepts_finite_fields():
+    packet = TelemetryPacket(t_ms=0, machine="SPARC", ip_ma=8.7, beta_n=1.65, q95=3.9, density_1e19=8.2)
+    assert packet.beta_n == 1.65

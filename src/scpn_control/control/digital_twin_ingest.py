@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import math
 import time
 from dataclasses import dataclass
 from typing import Any, Callable, cast
@@ -63,6 +64,19 @@ class TelemetryPacket:
     beta_n: float
     q95: float
     density_1e19: float
+
+    def __post_init__(self) -> None:
+        # A non-finite field (NaN/inf) would poison the risk signal — max(nan, 0) is nan
+        # and nan comparisons fail OPEN in the mitigation gate — so reject it at
+        # construction rather than let it reach risk scoring (SS-11/F11).
+        for value, name in (
+            (self.ip_ma, "ip_ma"),
+            (self.beta_n, "beta_n"),
+            (self.q95, "q95"),
+            (self.density_1e19, "density_1e19"),
+        ):
+            if not math.isfinite(value):
+                raise ValueError(f"TelemetryPacket {name} must be finite")
 
 
 def _normalize_machine(machine: str) -> str:
