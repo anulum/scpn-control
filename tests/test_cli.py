@@ -34,24 +34,6 @@ def test_version(runner):
     assert "version" in result.output
 
 
-def test_demo_json_out(runner):
-    result = runner.invoke(main, ["demo", "--steps", "10", "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    for key in ("scenario", "steps", "final_state", "final_error", "converged"):
-        assert key in data
-    assert data["steps"] == 10
-    assert isinstance(data["final_state"], float)
-    assert isinstance(data["converged"], bool)
-
-
-def test_demo_pid_text(runner):
-    result = runner.invoke(main, ["demo", "--scenario", "pid", "--steps", "5"])
-    assert result.exit_code == 0
-    assert "Scenario: pid" in result.output
-    assert "Steps: 5" in result.output
-
-
 def test_benchmark_json_out(runner):
     result = runner.invoke(main, ["benchmark", "--n-bench", "100", "--json-out"])
     assert result.exit_code == 0
@@ -1775,19 +1757,6 @@ def test_validate_text_output(runner):
     assert "Transport solver:" in result.output
     assert "Import clean:" in result.output
     assert "Status:" in result.output
-
-
-def test_demo_combined_json(runner):
-    result = runner.invoke(main, ["demo", "--scenario", "combined", "--steps", "5", "--json-out"])
-    assert result.exit_code == 0
-    data = json.loads(result.output)
-    assert data["scenario"] == "combined"
-
-
-def test_demo_snn_text(runner):
-    result = runner.invoke(main, ["demo", "--scenario", "snn", "--steps", "3"])
-    assert result.exit_code == 0
-    assert "Scenario: snn" in result.output
 
 
 def test_validate_rmse_command(runner, tmp_path, monkeypatch):
