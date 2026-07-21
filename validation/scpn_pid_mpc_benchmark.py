@@ -41,10 +41,11 @@ from scpn_control.scpn.structure import StochasticPetriNet
 # load-bearing: inject x_* -> T_* fires (``delay_ticks``, default 0) -> a_* -> readout,
 # with a drain D_*: a_* -> sink so a_* stays responsive rather than saturating to 1.0
 # (undrained a_* diverges, e-RMSE ~0.53 -> the transitions genuinely carry the signal).
-# The gain/threshold constants are tuned on seed=42/steps=320 and verified robust on
-# unseen seeds/steps (ratio-to-baseline 0.944-1.061, mean ~1.0 = parity with the direct
-# neuromorphic readout; both ~2.4x better than PID). Reproducible parity + load-bearing
-# evidence: ``validation/scpn_symbolic_lane_evidence.py``.
+# The gain/threshold constants are configured on seed=42/steps=320 and hold parity with
+# the direct neuromorphic readout on unseen seeds/steps (within a 15% equivalence band).
+# Reproducible parity, out-of-sample robustness, and load-bearing (a direct firing trace
+# plus undrained divergence) evidence -- measured apples-to-apples against PID on the same
+# per-seed profiles -- is in ``validation/scpn_symbolic_lane_evidence.py``.
 _DEFAULT_TRANSITION_DELAY_TICKS = 0
 _SYMBOLIC_DRAIN_DELAY_TICKS = 1
 _SYMBOLIC_FIRE_THRESHOLD = 0.02
@@ -173,20 +174,20 @@ class _PIDState:
         return float(np.clip(u, -u_limit, u_limit))
 
 
-def _disturbance(k: int, steps: int) -> float:
-    return float(0.02 * math.sin(0.08 * k) + (0.04 if k >= steps // 2 else 0.0))
+def _disturbance(k: int, steps: int, phase: float = 0.0) -> float:
+    return float(0.02 * math.sin(0.08 * k + phase) + (0.04 if k >= steps // 2 else 0.0))
 
 
-def _mpc_action(x: float, k: int, steps: int, horizon: int, u_limit: float) -> float:
+def _mpc_action(x: float, k: int, steps: int, horizon: int, u_limit: float, phase: float = 0.0) -> float:
     # An honest MPC uses only information available at step k. It holds the LAST
     # OBSERVED disturbance constant over the horizon -- ``_disturbance(k - 1)``
     # equals the measurement residual ``x - (0.95*x_prev + 0.12*u_prev)`` a real
     # controller forms at k (an offset-free / persistence disturbance estimate).
     # It must NOT roll out with the true future disturbance ``_disturbance(k + h)``
     # -- that clairvoyance rigged the baseline into "beating" PID and is not a
-    # controller any plant could run. (At k=0 there is no prior step and
-    # ``_disturbance(0) == 0``, so no information is assumed.)
-    d_est = _disturbance(max(k - 1, 0), steps)
+    # controller any plant could run. At k=0 there is no prior observation, so the
+    # estimate is 0.0 (no information assumed) regardless of the disturbance phase.
+    d_est = _disturbance(k - 1, steps, phase) if k >= 1 else 0.0
     candidates = np.linspace(-u_limit, u_limit, 31)
     best_u = 0.0
     best_cost = float("inf")
@@ -265,10 +266,15 @@ def run_campaign(
     scpn_runtime_backend: str = "auto",
     delay_ticks: int = _DEFAULT_TRANSITION_DELAY_TICKS,
 ) -> dict[str, Any]:
+    """Run the SCPN-vs-PID/MPC campaign for a seed and return the metrics/gate report."""
     seed_int = int(seed)
     steps = int(steps)
     if steps < 32:
         raise ValueError("steps must be >= 32.")
+    # The seed drives the disturbance PHASE (via a local generator, independent of any
+    # global RNG state), so each seed is a genuinely different profile rather than an
+    # inert label. seed=42 is the reference campaign; other seeds probe robustness.
+    phase = float(np.random.default_rng(seed_int).uniform(0.0, 2.0 * np.pi))
     u_limit = 1.0
     dt = 0.05
     x0 = 0.35
@@ -297,13 +303,13 @@ def run_campaign(
     u_mpc_hist = np.zeros(steps, dtype=np.float64)
 
     for k in range(steps):
-        d = _disturbance(k, steps)
+        d = _disturbance(k, steps, phase)
 
         err_pid = -x_pid
         u_pid = pid.step(err_pid, dt=dt, u_limit=u_limit)
         x_pid = 0.95 * x_pid + 0.12 * u_pid + d
 
-        u_mpc = _mpc_action(x_mpc, k, steps, horizon=6, u_limit=u_limit)
+        u_mpc = _mpc_action(x_mpc, k, steps, horizon=6, u_limit=u_limit, phase=phase)
         x_mpc = 0.95 * x_mpc + 0.12 * u_mpc + d
 
         if scpn.runtime_profile_name == "traceable":
@@ -368,6 +374,7 @@ def run_campaign(
 
 
 def generate_report(**kwargs: Any) -> dict[str, Any]:
+    """Run a campaign and wrap it with timing metadata as the persisted report payload."""
     t0 = time.perf_counter()
     campaign = run_campaign(**kwargs)
     return {
@@ -378,6 +385,7 @@ def generate_report(**kwargs: Any) -> dict[str, Any]:
 
 
 def render_markdown(report: dict[str, Any]) -> str:
+    """Render the benchmark report as a human-readable Markdown summary."""
     r = report["scpn_pid_mpc_benchmark"]
     lines = [
         "# SCPN vs PID/MPC Benchmark",
@@ -422,8 +430,9 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Regenerate the SCPN-vs-PID/MPC benchmark JSON + Markdown reports from the CLI."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--seed", type=int, default=42, help="Disturbance-phase seed (42 = reference campaign).")
     parser.add_argument("--steps", type=int, default=320)
     parser.add_argument(
         "--scpn-runtime-profile",
@@ -440,9 +449,9 @@ def main(argv: list[str] | None = None) -> int:
         type=int,
         default=_DEFAULT_TRANSITION_DELAY_TICKS,
         help=(
-            "Transition firing delay in ticks. The default exceeds the run length so the "
-            "symbolic transitions never fire (readout follows injected features); set it "
-            "below --steps to let the symbolic lane participate."
+            "Transition firing delay in ticks (default 0 -> the symbolic transitions fire "
+            "immediately and the readout follows the transition outputs). Set it at or above "
+            "--steps to bypass the symbolic lane so the readout follows the injected features."
         ),
     )
     parser.add_argument(

@@ -18,8 +18,9 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
+import json
 import sys
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -175,3 +176,48 @@ def test_render_markdown_contains_symbolic_disclosure() -> None:
     assert "Transitions fire within run" in text
     assert "Readout reads transition outputs" in text
     assert "Symbolic lane contributes to readout" in text
+
+
+def test_seed_selects_a_distinct_disturbance_profile() -> None:
+    """The seed drives the disturbance phase, so different seeds give different profiles.
+
+    (Regression: the seed used to be an inert label that never influenced any number.)
+    """
+    a = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=200)
+    b = scpn_pid_mpc_benchmark.run_campaign(seed=7, steps=200)
+    assert a["scpn"]["rmse"] != b["scpn"]["rmse"]
+    assert a["pid"]["rmse"] != b["pid"]["rmse"]
+    assert a["seed"] == 42 and b["seed"] == 7
+
+
+def test_non_traceable_runtime_profile_runs_the_step_lane() -> None:
+    """A non-traceable profile exercises the dict-based ``scpn.step`` control lane."""
+    out = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=120, scpn_runtime_profile="deterministic")
+    assert out["runtime_lane"]["runtime_profile"] == "deterministic"
+    assert out["runtime_lane"]["uses_traceable_step"] is False
+    assert out["scpn"]["rmse"] >= 0.0
+
+
+def test_main_regenerates_benchmark_reports(tmp_path: Path) -> None:
+    """``main`` writes JSON + Markdown reports and reports the gate outcome (exit 0)."""
+    out_json = tmp_path / "bench.json"
+    out_md = tmp_path / "bench.md"
+    rc = scpn_pid_mpc_benchmark.main(
+        ["--seed", "42", "--steps", "120", "--output-json", str(out_json), "--output-md", str(out_md)]
+    )
+    assert rc == 0
+    assert out_json.exists() and out_md.exists()
+    data = json.loads(out_json.read_text(encoding="utf-8"))
+    assert data["scpn_pid_mpc_benchmark"]["seed"] == 42
+    assert "# SCPN vs PID/MPC Benchmark" in out_md.read_text(encoding="utf-8")
+
+
+def test_main_strict_flag_fails_when_gate_does_not_pass(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """``--strict`` turns a failing gate into a nonzero exit code."""
+    baseline = scpn_pid_mpc_benchmark.run_campaign(seed=42, steps=120)
+    failing = {**baseline, "passes_thresholds": False}
+    monkeypatch.setattr(scpn_pid_mpc_benchmark, "run_campaign", lambda **_kw: failing)
+    rc = scpn_pid_mpc_benchmark.main(
+        ["--strict", "--steps", "120", "--output-json", str(tmp_path / "b.json"), "--output-md", str(tmp_path / "b.md")]
+    )
+    assert rc == 2
