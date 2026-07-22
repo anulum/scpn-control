@@ -707,9 +707,13 @@ def default_model_path() -> Path:
 class DisruptionCheckpointIntegrityError(RuntimeError):
     """Raised when a disruption-model checkpoint fails its weights-hash check.
 
-    A safety-relevant predictor must never load weights of unverified
-    provenance: an integrity mismatch is a hard, fail-closed error and is *not*
-    downgraded to the heuristic fallback (unlike a corrupt or unreadable file).
+    Raised when a pinned digest mismatches, when a sidecar is malformed, or when
+    ``require_pin`` is set but no digest is available. It is a hard, fail-closed
+    error and is *not* downgraded to the heuristic fallback (unlike a corrupt or
+    unreadable file). The strong "never load unverified weights" guarantee holds
+    only when a digest is pinned or ``require_pin=True``; an unpinned load is
+    RCE-safe (``weights_only=True``) and records the digest for provenance, but
+    does not verify the weights against a known-good reference.
     """
 
 
@@ -755,14 +759,21 @@ def _is_hex(text: str) -> bool:
     return True
 
 
-def verify_checkpoint_integrity(path: Path, expected_sha256: str | None = None) -> str:
+def verify_checkpoint_integrity(path: Path, expected_sha256: str | None = None, *, require_pin: bool = False) -> str:
     """Return a checkpoint's SHA-256, enforcing an expected digest when pinned.
 
     When ``expected_sha256`` (or a ``<checkpoint>.sha256`` sidecar) pins a digest,
     a mismatch raises :class:`DisruptionCheckpointIntegrityError`. With nothing
-    pinned the digest is returned for provenance without gating the load.
+    pinned the digest is returned for provenance without gating the load — unless
+    ``require_pin`` is set, in which case an unpinned load is itself a fail-closed
+    :class:`DisruptionCheckpointIntegrityError` (the strong "never load unverified
+    weights" posture for safety-critical use).
     """
     expected = _expected_checkpoint_digest(path, expected_sha256)
+    if expected is None and require_pin:
+        raise DisruptionCheckpointIntegrityError(
+            f"checkpoint {path.name} has no pinned SHA-256 digest but require_pin is set"
+        )
     actual = _sha256_file(path)
     if expected is not None and actual.lower() != expected:
         raise DisruptionCheckpointIntegrityError(
@@ -1160,14 +1171,17 @@ def load_or_train_predictor(
     allow_fallback: bool = False,
     allow_legacy_fallback: bool = False,
     expected_sha256: str | None = None,
+    require_pin: bool = False,
 ) -> tuple[Any, dict[str, Any]]:
     """Load a trained predictor, training one if missing.
 
     When ``expected_sha256`` (or a ``<checkpoint>.sha256`` sidecar) pins a digest,
     the checkpoint's weights hash is verified before it is deserialised; a
     mismatch raises :class:`DisruptionCheckpointIntegrityError` and is never
-    downgraded to the heuristic fallback. The resolved digest is always recorded
-    as ``weights_sha256`` in the returned metadata for provenance.
+    downgraded to the heuristic fallback. Set ``require_pin=True`` for
+    safety-critical use to also reject an unpinned checkpoint (fail-closed when no
+    digest is available). The resolved digest is always recorded as
+    ``weights_sha256`` in the returned metadata for provenance.
 
     Parameters
     ----------
@@ -1223,8 +1237,9 @@ def load_or_train_predictor(
 
     if path.exists() and not force_retrain:  # pragma: no cover - requires torch checkpoint
         # Fail-closed weights-integrity gate BEFORE deserialisation: a pinned
-        # digest mismatch raises hard and is never swallowed by allow_fallback.
-        weights_sha256 = verify_checkpoint_integrity(path, expected_sha256)
+        # digest mismatch (or a missing pin under require_pin) raises hard and is
+        # never swallowed by allow_fallback.
+        weights_sha256 = verify_checkpoint_integrity(path, expected_sha256, require_pin=require_pin)
         try:
             checkpoint = torch.load(path, map_location="cpu", weights_only=True)
             if isinstance(checkpoint, dict) and "state_dict" in checkpoint:

@@ -125,3 +125,22 @@ def test_explicit_digest_takes_precedence_over_sidecar(tmp_path: Path) -> None:
 def test_expected_digest_resolver_returns_none_without_pin(tmp_path: Path) -> None:
     path, _ = _write_checkpoint(tmp_path)
     assert _expected_checkpoint_digest(path, None) is None
+
+
+def test_require_pin_rejects_an_unpinned_checkpoint(tmp_path: Path) -> None:
+    # With nothing pinned and require_pin set, the load is fail-closed — the strong
+    # "never load unverified weights" posture for safety-critical use.
+    path, _ = _write_checkpoint(tmp_path)
+    with pytest.raises(DisruptionCheckpointIntegrityError, match="no pinned SHA-256 digest"):
+        verify_checkpoint_integrity(path, require_pin=True)
+
+
+def test_require_pin_accepts_a_pinned_checkpoint(tmp_path: Path) -> None:
+    path, digest = _write_checkpoint(tmp_path)
+    assert verify_checkpoint_integrity(path, digest, require_pin=True) == digest
+
+
+def test_require_pin_accepts_a_sidecar_pinned_checkpoint(tmp_path: Path) -> None:
+    path, digest = _write_checkpoint(tmp_path)
+    path.with_name(path.name + ".sha256").write_text(digest, encoding="utf-8")
+    assert verify_checkpoint_integrity(path, require_pin=True) == digest
