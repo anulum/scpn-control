@@ -200,10 +200,10 @@ blocked until the required external artefacts exist.
 | Python public classes | 539 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 146 |
+| Validation scripts | 147 |
 | Optional extras | 19 |
-| Python test files | 503 |
-| Public documentation pages | 62 |
+| Python test files | 504 |
+| Public documentation pages | 63 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -620,7 +620,11 @@ git push --tags
   on identical equilibria.
 - **Disruption predictor**: Default score is a deterministic fixed-weight
   heuristic with synthetic sanity checks only. Optional Transformer training uses
-  synthetic shots. Not validated on experimental disruption databases.
+  synthetic shots. Not validated on experimental disruption databases. The
+  legacy FAIR-MAST campaign is now covered by a
+  [digest-bound reconciliation gate](docs/mast_campaign_reconciliation.md),
+  which verifies the preserved inventory while keeping reuse, training,
+  scientific, facility, and control claims blocked.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
   runs on GPU if available. Public MAST EFM prediction evidence is available as
   fail-closed flux and derived-geometry evaluation with exact public EFM
