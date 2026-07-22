@@ -213,6 +213,47 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
             assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment}"
 
 
+def test_competitive_analysis_metrics_bound_to_generated_inventory() -> None:
+    """The competitive-analysis metrics table must mirror generated counts, not drift."""
+
+    counts = _manifest_counts()
+    gate = _coverage_gate()
+    text = (ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8")
+
+    required_fragments = (
+        "docs/_generated/capability_manifest.json",
+        f"| Python control/physics modules | {counts['source_module_count']} |",
+        f"| Python test files | {counts['python_test_file_count']} |",
+        f"| Python public classes | {counts['public_class_count']} |",
+        f"| Rust source files | {counts['rust_source_file_count']} |",
+        f"| GitHub Actions workflows | {counts['workflow_count']} |",
+        f"| Test coverage gate | {gate}% |",
+    )
+    stale_fragments = (
+        "153 total / 148 non-init",
+        "| 264 |",
+        "99% gate",
+        "| CI jobs | 20 |",
+    )
+
+    for fragment in required_fragments:
+        assert fragment in text, f"competitive_analysis.md missing {fragment!r}"
+    for fragment in stale_fragments:
+        assert fragment not in text, f"competitive_analysis.md contains stale {fragment!r}"
+
+
+def test_joss_paper_coverage_gate_claim_matches_configuration() -> None:
+    """The docs JOSS mirror must state the configured coverage gate, not a stale one."""
+
+    gate = _coverage_gate()
+    prose = _normalized_prose(ROOT / "docs" / "joss_paper.md")
+
+    assert f"{gate}% local package-coverage gate" in prose
+    assert f"{gate}% package-coverage gate" in prose
+    for stale in ("99% local", "99% package-coverage gate"):
+        assert stale not in prose, f"joss_paper.md contains stale {stale!r}"
+
+
 def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
     """Paper safe-RL wording must match the implemented controller surface."""
 

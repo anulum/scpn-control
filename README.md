@@ -182,7 +182,8 @@ blocked until the required external artefacts exist.
 > **Status: Alpha / Research.** This is not a commissioned plant PCS. Public
 > full-fidelity facility claims remain blocked unless the corresponding strict
 > validation gate admits real measured-shot, public-reference, external-code,
-> target-hardware, and review artefacts.
+> target-hardware, and review artefacts. The open model-data alignment gaps are
+> tracked in the [validation deficiencies register](docs/validation_deficiencies.md).
 
 ## Capability Inventory
 
@@ -650,7 +651,7 @@ Full tier details (Pro, Academic, Enterprise, Sponsorships): [docs/pricing.md](d
 ## License
 
 - Concepts: Copyright 1996-2026
-- Code: Copyright 2024-2026
+- Code: Copyright 2020-2026
 - License: AGPL-3.0-or-later
 
 Commercial licensing available — contact protoscience@anulum.li.

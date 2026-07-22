@@ -105,18 +105,24 @@
 - Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
 - RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
 
-## 6. Codebase Metrics (v0.17.0+)
+## 6. Codebase Metrics (v0.23.0+)
+
+Live inventory counts are generated from source — see
+`docs/_generated/capability_manifest.json` (authoritative; refresh with
+`python tools/capability_manifest.py`, enforce with `--check`). The rows below
+mirror that manifest; curated domain rows follow.
 
 | Metric | Value |
 |--------|-------|
-| Python source modules | 153 total / 148 non-init |
+| Python control/physics modules | 161 |
 | Python source LOC | ~30,700 |
 | Rust crates | 5 |
+| Rust source files | 64 |
 | Rust LOC (all .rs) | ~61,900 |
-| Test files | 264 |
-| Tests collected | 4,000+ |
-| Test coverage | 99% gate |
-| CI jobs | 20 |
+| Python test files | 488 |
+| Python public classes | 535 |
+| Test coverage gate | 100% |
+| GitHub Actions workflows | 10 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |
 | External GK code interfaces | 5 (TGLF, GENE, GS2, CGYRO, QuaLiKiz) |

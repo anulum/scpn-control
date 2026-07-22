@@ -4,8 +4,8 @@
 
 | Version | Supported          |
 |---------|--------------------|
-| 0.7.x   | :white_check_mark: |
-| < 0.7   | :x:                |
+| 0.23.x  | :white_check_mark: |
+| < 0.23  | :x:                |
 
 Only the latest `0.x` release receives security fixes. Upgrade with:
 
@@ -27,9 +27,13 @@ We will acknowledge receipt within 48 hours and aim to provide a fix within
 
 ## Scope
 
-SCPN Control is a simulation and control library. It does not handle user
-authentication, financial data, or network services in its default
-configuration. Security concerns are primarily:
+SCPN Control is a simulation and control library. Its default installation
+handles no user authentication or financial data and exposes no network
+service. The optional `ws` extra provides a WebSocket phase-stream server
+(`scpn_control.phase.ws_phase_stream`) with HMAC API-key authentication and
+optional TLS; it binds `127.0.0.1` by default and is a network service only
+once a user installs that extra and starts the server. Security concerns are
+primarily:
 
 - Malicious input files (JSON configs, GEQDSK equilibria, NumPy `.npz`)
 - Unsafe deserialization (serde, pickle, NumPy load)
