@@ -25,6 +25,7 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
+from scpn_control.control.pid_controller import PIDController
 
 try:
     from scpn_control.core._rust_compat import FusionKernel
@@ -174,12 +175,18 @@ class IsoFluxController:
         if not np.isfinite(heating_actuator_tau_s) or heating_actuator_tau_s <= 0.0:
             raise ValueError("heating_actuator_tau_s must be finite and > 0.")
 
-        # PID Gains for Position Control
+        # PID Gains for Position Control. The output envelope is wired to the coil
+        # current-delta limit so the integrator cannot wind up against actuator
+        # saturation; the downstream FirstOrderActuator remains the final clamp.
         # Radial Control (Horizontal) -> Controlled by Outer Coils (PF2, PF3, PF4)
-        self.pid_R = {"Kp": 2.0, "Ki": 0.1, "Kd": 0.5, "err_sum": 0, "last_err": 0}
+        self.pid_R = PIDController(kp=2.0, ki=0.1, kd=0.5).with_output_limits(
+            -actuator_current_delta_limit, actuator_current_delta_limit
+        )
 
         # Vertical Control (Z-pos) -> Controlled by Top/Bottom diff (PF1 vs PF5)
-        self.pid_Z = {"Kp": 5.0, "Ki": 0.2, "Kd": 2.0, "err_sum": 0, "last_err": 0}
+        self.pid_Z = PIDController(kp=5.0, ki=0.2, kd=2.0).with_output_limits(
+            -actuator_current_delta_limit, actuator_current_delta_limit
+        )
 
         self._act_radial = FirstOrderActuator(
             tau_s=actuator_tau_s,
@@ -209,27 +216,6 @@ class IsoFluxController:
     def _log(self, message: str) -> None:
         if self.verbose:
             logger.info(message)
-
-    def pid_step(self, pid: Dict[str, float], error: float) -> float:
-        """Advance a PID controller one step and return its output.
-
-        Parameters
-        ----------
-        pid
-            Mutable PID state with ``Kp``, ``Ki``, ``Kd`` gains plus the running
-            ``err_sum`` and ``last_err`` accumulators (updated in place).
-        error
-            The current tracking error.
-
-        Returns
-        -------
-        float
-            The PID control output.
-        """
-        pid["err_sum"] += error
-        d_err = error - pid["last_err"]
-        pid["last_err"] = error
-        return (pid["Kp"] * error) + (pid["Ki"] * pid["err_sum"]) + (pid["Kd"] * d_err)
 
     def _add_coil_current(self, coil_idx: int, delta: float) -> None:
         coils = self.kernel.cfg.get("coils", [])
@@ -302,8 +288,8 @@ class IsoFluxController:
             err_Z = TARGET_Z - curr_Z
 
             # Control Actions (Current Deltas)
-            ctrl_radial_cmd = self.pid_step(self.pid_R, err_R)
-            ctrl_vertical_cmd = self.pid_step(self.pid_Z, err_Z)
+            ctrl_radial_cmd = self.pid_R.step(err_R)
+            ctrl_vertical_cmd = self.pid_Z.step(err_Z)
 
             # First-order actuator transfer layer (power-supply lag / inductance).
             ctrl_radial = self._act_radial.step(ctrl_radial_cmd)
