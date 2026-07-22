@@ -13,6 +13,11 @@
   definition directly.
 
 ### Added
+- Add an immutable post-hoc FAIR-MAST dataset-lineage manifest that binds each
+  retained shot to verified source-parent, replay-member, transform-spec, and
+  dataset-artifact digests, records the exact exclusion partition, and keeps
+  producer-time, independent-label, training, scientific, facility, reuse, and
+  control claims fail-closed.
 - `validation/gk_geometry_independent_reference.py`: a structurally independent
   finite-difference Miller-geometry reference, and `validation/validate_gk_geometry_independent.py`:
   a schema-versioned cross-check (`scpn-control.gk-geometry-independent-crosscheck.v1`)
