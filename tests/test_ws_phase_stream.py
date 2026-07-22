@@ -1090,6 +1090,49 @@ class TestPhaseStreamServer:
 
         asyncio.run(_run())
 
+    def test_embedded_loopback_demo_config_serves_without_api_key(self, monkeypatch):
+        """SS-8 regression: the loopback embedded-demo config must be serveable.
+
+        The default ``require_client_auth=True`` + no api_key makes ``serve`` raise
+        (tested above) — that default is exactly what left the Streamlit embedded
+        server dead on arrival. The demo now disables client auth for its loopback
+        in-process server, which must serve without an api_key.
+        """
+
+        async def _run():
+            mon = _make_monitor()
+            server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01, require_client_auth=False)
+
+            serve_called = {}
+
+            class _FakeServeCtx:
+                def __init__(self, handler, host, port, **kwargs):
+                    serve_called["host"] = host
+                    serve_called["port"] = port
+
+                async def __aenter__(self):
+                    return self
+
+                async def __aexit__(self, *args):
+                    pass
+
+            import types
+
+            fake_ws = types.ModuleType("websockets")
+            fake_ws.serve = _FakeServeCtx
+            monkeypatch.setitem(sys.modules, "websockets", fake_ws)
+
+            async def _stop_tick():
+                await asyncio.sleep(0.02)
+                server._running = False
+
+            stop_task = asyncio.create_task(_stop_tick())
+            await server.serve(host="127.0.0.1", port=8765)
+            await stop_task
+            assert serve_called == {"host": "127.0.0.1", "port": 8765}
+
+        asyncio.run(_run())
+
     def test_serve_sync_delegates_to_async_server(self, monkeypatch):
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")

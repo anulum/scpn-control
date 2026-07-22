@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import sys
 import threading
 import time
@@ -86,23 +87,41 @@ def _try_ws_connect(url: str, buffer: deque, stop_event: threading.Event):
 
 
 def _run_embedded_server(layers, n_per, zeta, stop_event: threading.Event):
-    """Background thread: run PhaseStreamServer in-process."""
+    """Background thread: run PhaseStreamServer in-process.
+
+    The embedded server binds loopback (127.0.0.1) for a single-process local demo,
+    so client authentication is disabled: `PhaseStreamServer` defaults to
+    `require_client_auth=True`, which makes `serve()` raise without an api_key —
+    that default (a later security hardening) is what previously left this embedded
+    mode dead on arrival, because the raise was swallowed in this daemon thread.
+    Failures are now logged instead of vanishing.
+
+    Note: loopback is reachable by every local process/user, so on a shared
+    multi-user host this no-auth demo is reachable by other local users. That is
+    acceptable for a single-user demo over non-sensitive phase-stream data; on a
+    shared host, configure an api_key (re-enabling client auth) instead.
+    """
     import asyncio
+
     from scpn_control.phase.realtime_monitor import RealtimeMonitor
     from scpn_control.phase.ws_phase_stream import PhaseStreamServer
 
-    mon = RealtimeMonitor.from_paper27(L=layers, N_per=n_per, zeta_uniform=zeta)
-    server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
+    try:
+        mon = RealtimeMonitor.from_paper27(L=layers, N_per=n_per, zeta_uniform=zeta)
+        server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01, require_client_auth=False)
 
-    loop = asyncio.new_event_loop()
+        loop = asyncio.new_event_loop()
 
-    async def _serve_until_stop():
-        task = asyncio.ensure_future(server.serve(port=8765))
-        while not stop_event.is_set():
-            await asyncio.sleep(0.1)
-        task.cancel()
+        async def _serve_until_stop():
+            task = asyncio.ensure_future(server.serve(host="127.0.0.1", port=8765))
+            while not stop_event.is_set():
+                await asyncio.sleep(0.1)
+            task.cancel()
 
-    loop.run_until_complete(_serve_until_stop())
+        loop.run_until_complete(_serve_until_stop())
+    except Exception:  # noqa: BLE001 - a daemon thread must surface, not swallow, startup failures
+        logging.getLogger(__name__).exception("embedded PhaseStreamServer failed to start")
+        stop_event.set()
 
 
 # ── Session state init ──
