@@ -13,7 +13,9 @@ This consumes the native-resolution per-shot mirrors written by
 ``channels.npz`` that :mod:`validation.build_mast_disruption_dataset` labels. It
 is the SCPN-CONTROL view of the shared material: it reads local mirrors (no
 re-download), derives the eleven measured channels on the summary timebase, and
-writes them in the exact Stage-2 schema.
+writes them in the exact Stage-2 schema. Producer report v2 binds the reopened
+archive bytes and canonical per-shot channel values before an exclusive publish;
+the source material remains immutable.
 
 Fluctuation channels (toroidal n=1/n=2 mode amplitudes and the locked-mode
 envelope from the 12-channel saddle array, and dB/dt from a poloidal probe) are
@@ -29,6 +31,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
+import tempfile
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -42,8 +47,10 @@ from validation.disruption_channel_recipes import (
     n_mode_amplitude,
     per_1e19,
 )
+from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256, file_sha256
 
-REPORT_SCHEMA = "scpn-control.mast-disruption-replay-channels.v1"
+REPORT_SCHEMA = "scpn-control.mast-disruption-replay-channels.v2.0.0"
+REPLAY_MEMBER_DIGEST_KIND = "canonical-channel-values-sha256-v1"
 
 _MEASURED = (
     "time_s",
@@ -147,12 +154,87 @@ def _sha256_json(payload: dict[str, Any]) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def _is_within(path: Path, directory: Path) -> bool:
+    """Return whether ``path`` resolves inside or exactly at ``directory``."""
+    try:
+        path.resolve().relative_to(directory.resolve())
+    except ValueError:
+        return False
+    return True
+
+
+def inspect_replay_archive(
+    path: Path,
+    *,
+    expected_shot_ids: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """Reopen and digest a replay archive through the persisted byte surface."""
+    if not path.is_file():
+        raise ValueError(f"replay archive does not exist: {path}")
+    try:
+        with np.load(path, allow_pickle=False) as archive:
+            identifiers = np.asarray(archive["shot_ids"])
+            if identifiers.ndim != 1 or identifiers.dtype.kind not in "iu":
+                raise ValueError("replay archive shot_ids must be a one-dimensional integer vector")
+            shot_ids = [int(value) for value in identifiers]
+            if any(shot_id <= 0 for shot_id in shot_ids) or shot_ids != sorted(set(shot_ids)):
+                raise ValueError("replay archive shot_ids must be unique, positive, and sorted")
+            if expected_shot_ids is not None and shot_ids != list(expected_shot_ids):
+                raise ValueError("replay archive shot_ids do not match the producer inventory")
+            expected_members = {"shot_ids"} | {f"{shot_id}:{channel}" for shot_id in shot_ids for channel in _MEASURED}
+            if set(archive.files) != expected_members:
+                raise ValueError("replay archive member inventory does not match its shot/channel schema")
+            shot_members: list[dict[str, Any]] = []
+            for shot_id in shot_ids:
+                channels: list[dict[str, str]] = []
+                sample_count: int | None = None
+                for channel in _MEASURED:
+                    array = np.asarray(archive[f"{shot_id}:{channel}"])
+                    if array.ndim != 1 or array.dtype.kind != "f" or not bool(np.all(np.isfinite(array))):
+                        raise ValueError(
+                            f"replay archive shot {shot_id} channel {channel} must be a finite float vector"
+                        )
+                    if sample_count is None:
+                        sample_count = int(array.shape[0])
+                    elif array.shape[0] != sample_count:
+                        raise ValueError(f"replay archive shot {shot_id} channel lengths differ")
+                    channels.append({"name": channel, "value_sha256": array_value_sha256(array)})
+                if sample_count is None or sample_count <= 0:
+                    raise ValueError(f"replay archive shot {shot_id} must contain samples")
+                shot_members.append(
+                    {
+                        "shot_id": shot_id,
+                        "n_samples": sample_count,
+                        "sha256": canonical_json_sha256({"shot_id": shot_id, "channels": channels}),
+                    }
+                )
+    except (OSError, KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"cannot validate replay archive: {exc}") from exc
+    return {
+        "path": path.name,
+        "file_sha256": file_sha256(path),
+        "bytes": int(path.stat().st_size),
+        "shot_count": len(shot_members),
+        "member_digest_kind": REPLAY_MEMBER_DIGEST_KIND,
+        "shot_members": shot_members,
+    }
+
+
 def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, locked_window: int = 201) -> dict[str, Any]:
     """Derive replay channels for every mirror in ``material_dir`` into channels.npz."""
+    if not generated_at:
+        raise ValueError("generated_at must be non-empty")
+    if locked_window <= 0 or locked_window % 2 == 0:
+        raise ValueError("locked_window must be a positive odd integer")
+    if not material_dir.is_dir():
+        raise ValueError(f"material_dir is not a directory: {material_dir}")
+    if _is_within(out_dir, material_dir):
+        raise ValueError("out_dir must be outside the immutable material_dir")
     payload: dict[str, NDArray[Any]] = {}
     shot_ids: list[int] = []
     records: list[dict[str, Any]] = []
-    for shot_path in sorted(material_dir.glob("shot_*.npz")):
+    shot_paths = sorted(material_dir.glob("shot_*.npz"), key=lambda path: int(path.stem.split("_")[1]))
+    for shot_path in shot_paths:
         shot_id = int(shot_path.stem.split("_")[1])
         try:
             with np.load(shot_path, allow_pickle=False) as mirror:
@@ -167,14 +249,31 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
 
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / "channels.npz"
+    if npz_path.exists():
+        raise ValueError("refusing to overwrite an existing replay archive")
     payload["shot_ids"] = np.asarray(shot_ids, dtype=np.int64)
-    np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
+    with tempfile.NamedTemporaryFile(prefix=".channels.", suffix=".npz", dir=out_dir, delete=False) as handle:
+        temporary_path = Path(handle.name)
+    try:
+        np.savez(
+            temporary_path,
+            **payload,  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
+        )
+        archive_binding = inspect_replay_archive(temporary_path, expected_shot_ids=shot_ids)
+        try:
+            os.link(temporary_path, npz_path)
+        except FileExistsError as exc:
+            raise ValueError("refusing to overwrite an existing replay archive") from exc
+    finally:
+        temporary_path.unlink(missing_ok=True)
+    archive_binding["path"] = npz_path.name
 
     report: dict[str, Any] = {
         "schema_version": REPORT_SCHEMA,
         "synthetic": False,
         "material_dir": material_dir.name,
         "channels_npz": npz_path.name,
+        "channels_archive": archive_binding,
         "channel_schema": list(_MEASURED),
         "locked_window": locked_window,
         "n_derived": len(shot_ids),
@@ -199,11 +298,36 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point: derive replay channels from the material set."""
     args = _parse_args(argv)
-    report = build_channels(
-        args.material_dir, out_dir=args.out_dir, generated_at=args.generated_at, locked_window=args.locked_window
-    )
+    archive_path = args.out_dir / "channels.npz"
+    if _is_within(args.json_out, args.material_dir):
+        raise ValueError("json_out must be outside the immutable material_dir")
+    if args.json_out.resolve() == archive_path.resolve():
+        raise ValueError("json_out must differ from the replay archive path")
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
-    args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    archive_published = False
+    try:
+        with args.json_out.open("x", encoding="utf-8") as report_handle:
+            try:
+                report = build_channels(
+                    args.material_dir,
+                    out_dir=args.out_dir,
+                    generated_at=args.generated_at,
+                    locked_window=args.locked_window,
+                )
+                archive_published = True
+                json.dump(report, report_handle, indent=2, sort_keys=True)
+                report_handle.write("\n")
+                report_handle.flush()
+                os.fsync(report_handle.fileno())
+            except Exception:
+                if archive_published:
+                    archive_path.unlink(missing_ok=True)
+                raise
+    except FileExistsError as exc:
+        raise ValueError("refusing to overwrite an existing replay report") from exc
+    except Exception:
+        args.json_out.unlink(missing_ok=True)
+        raise
     print(f"derived {report['n_derived']} shots -> {report['channels_npz']}")
     return 0
 

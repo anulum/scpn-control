@@ -13,6 +13,13 @@
   definition directly.
 
 ### Added
+- Upgrade new disruption replay production to report schema v2 with an
+  archive-first producer binding: the reopened `channels.npz` byte length and
+  SHA-256, canonical per-shot digests over all eleven finite channel vectors,
+  exact shot/member inventory, immutable source/output confinement, and
+  exclusive archive/report publication with handled-failure rollback.
+  Historical v1 campaign bytes remain untouched and retain their post-hoc-only
+  claim boundary.
 - Add an immutable post-hoc FAIR-MAST dataset-lineage manifest that binds each
   retained shot to verified source-parent, replay-member, transform-spec, and
   dataset-artifact digests, records the exact exclusion partition, and keeps

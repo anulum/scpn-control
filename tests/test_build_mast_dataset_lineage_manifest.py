@@ -507,7 +507,7 @@ def test_replay_member_digest_rejects_duplicate_and_missing_members(tmp_path: Pa
     """Reject duplicate shot identities and incomplete replay archives."""
     duplicate = tmp_path / "duplicate.npz"
     _write_replay(duplicate, (101, 101))
-    with pytest.raises(lineage.DatasetLineageError, match="duplicate replay"):
+    with pytest.raises(lineage.DatasetLineageError, match="cannot derive replay"):
         lineage._replay_member_digests(duplicate)
     missing = tmp_path / "missing.npz"
     np.savez(

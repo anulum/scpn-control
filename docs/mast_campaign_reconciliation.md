@@ -71,6 +71,57 @@ and dataset schemas, the four-stage transform description, `ip_proxy` label
 authority, and false independent-label/training admission. Changing any of
 those statements invalidates its self-digest or fails validation.
 
+## Producer-bound replay archives (L2F-90c(a))
+
+`validation/build_disruption_replay_channels.py` emits new replay runs with
+schema `scpn-control.mast-disruption-replay-channels.v2.0.0`. Before publishing
+`channels.npz`, the producer reopens the persisted temporary archive with
+pickle disabled and verifies all of these invariants:
+
+- `shot_ids` is a sorted, unique, positive one-dimensional integer vector and
+  exactly matches the successfully derived producer inventory,
+- the archive contains only `shot_ids` plus the eleven declared channel members
+  for every shot,
+- every channel is a non-empty, finite, one-dimensional floating-point vector,
+  and all eleven vectors for one shot have the same sample count,
+- every channel receives a canonical value digest; the ordered channel digests
+  are folded into a canonical per-shot digest, and
+- the report binds the complete archive by byte length and whole-file SHA-256.
+
+Only a validated temporary archive is hard-linked to the final path, so an
+existing destination or concurrent winner fails closed without replacement.
+The CLI reserves the report path exclusively, requires the archive and report
+to remain outside the immutable material directory, and removes newly created
+output after a handled failure if either half cannot be completed. It never
+deletes a pre-existing archive or report. An uncatchable process or host
+interruption can leave an incomplete fresh destination; the next run refuses
+to overwrite it so an operator can quarantine and inspect those bytes first.
+
+The post-hoc lineage builder uses this same archive inspector and digest
+algorithm, preventing producer and reconciliation semantics from drifting.
+Historical report-v1 and campaign bytes remain immutable: v2 governs newly
+generated replay products and does not retroactively convert the preserved
+93-shot campaign into producer-time evidence. It therefore closes the replay
+producer implementation gap for future regeneration, not the campaign's
+training, scientific, facility, reuse, or control-admission blockers.
+The preserved-campaign reconciliation remains intentionally pinned to report
+v1. A later regeneration/admission slice must add explicit v2 ingestion and
+verify the embedded archive binding; changing only its accepted schema would
+not constitute producer-lineage proof.
+
+Create a fresh producer-bound replay output with:
+
+```bash
+PYTHONPATH=src python -m validation.build_disruption_replay_channels \
+  --material-dir /path/to/read-only/material \
+  --out-dir /path/to/fresh/replay-v2 \
+  --json-out /path/to/fresh/replay-v2/report.json \
+  --generated-at 2026-07-22T22:45:00Z
+```
+
+Both output paths must be fresh. The source material is read only; this command
+must not target the preserved historical campaign output directory.
+
 ## Current bounded result
 
 The read-only campaign reconciliation produced this exact inventory:

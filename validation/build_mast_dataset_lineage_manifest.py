@@ -29,12 +29,9 @@ from collections.abc import Mapping
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
-import numpy as np
-
-from validation.build_mast_disruption_dataset import MEASURED_CHANNELS
+from validation.build_disruption_replay_channels import inspect_replay_archive
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
 from validation.mast_source_object_manifest import (
-    array_value_sha256,
     canonical_json_sha256,
 )
 from validation.migrate_mast_source_object_manifest import migrate_material_manifest_v1
@@ -298,26 +295,16 @@ def _dataset_records(payload: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]
 
 def _replay_member_digests(path: Path) -> dict[int, str]:
     try:
-        with np.load(path, allow_pickle=False) as archive:
-            identifiers = np.asarray(archive["shot_ids"])
-            digests: dict[int, str] = {}
-            for value in identifiers:
-                shot_id = int(value)
-                channels = [
-                    {
-                        "name": channel,
-                        "value_sha256": array_value_sha256(np.asarray(archive[f"{shot_id}:{channel}"])),
-                    }
-                    for channel in MEASURED_CHANNELS
-                ]
-                if shot_id in digests:
-                    raise DatasetLineageError(f"duplicate replay shot_id {shot_id}")
-                digests[shot_id] = canonical_json_sha256({"shot_id": shot_id, "channels": channels})
-    except (OSError, KeyError, TypeError, ValueError) as exc:
-        if isinstance(exc, DatasetLineageError):
-            raise
+        binding = inspect_replay_archive(path)
+    except ValueError as exc:
         raise DatasetLineageError(f"cannot derive replay member digests: {exc}") from exc
-    return digests
+    members = _list(binding.get("shot_members"), field="replay archive.shot_members")
+    return {
+        _positive_integer(member.get("shot_id"), field="replay archive member.shot_id"): _sha256(
+            member.get("sha256"), field="replay archive member.sha256"
+        )
+        for member in (_mapping(value, field="replay archive member") for value in members)
+    }
 
 
 def _source_binding(artifact: Mapping[str, Any], *, shot_id: int) -> dict[str, str]:
