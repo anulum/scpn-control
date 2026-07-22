@@ -200,9 +200,9 @@ blocked until the required external artefacts exist.
 | Python public classes | 539 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 138 |
+| Validation scripts | 139 |
 | Optional extras | 19 |
-| Python test files | 495 |
+| Python test files | 496 |
 | Public documentation pages | 62 |
 | GitHub Actions workflows | 10 |
 
