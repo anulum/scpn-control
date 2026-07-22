@@ -119,7 +119,7 @@ mirror that manifest; curated domain rows follow.
 | Rust crates | 5 |
 | Rust source files | 64 |
 | Rust LOC (all .rs) | ~61,900 |
-| Python test files | 495 |
+| Python test files | 496 |
 | Python public classes | 539 |
 | Test coverage gate | 100% |
 | GitHub Actions workflows | 10 |
