@@ -428,6 +428,12 @@ class NeuroSymbolicController:
         self.last_sc_firing: list[float] = []
         self.last_oracle_marking: list[float] = self._marking.tolist()
         self.last_sc_marking: list[float] = self._marking.tolist()
+        # Latency of the most recent synchronous JSONL trace write, in microseconds
+        # (``None`` when the last step logged nothing). This write happens AFTER the
+        # measured control interval, so it is not part of the deadline verdict;
+        # exposing it here keeps that out-of-band cost observable rather than hidden
+        # (a strict deadline monitor forbids the synchronous write path entirely).
+        self.last_trace_write_us: float | None = None
 
     # ── Public API ───────────────────────────────────────────────────────
 
@@ -523,7 +529,12 @@ class NeuroSymbolicController:
             4. ``_sc_step(k)`` — deterministic stochastic path
             5. ``_decode_actions()`` — gain × differencing, slew + abs clamp
             6. Optional JSONL logging
+
+        Persistent state (the SC marking and diagnostic snapshots) is committed only
+        AFTER the deadline decision, so a strict-mode overrun raises before any
+        commit and leaves the controller a byte-clean no-op (SS-14).
         """
+        self._guard_strict_synchronous_logging(log_path)
         t0 = time.perf_counter()
         obs_map, aer_admission = self._normalise_observation(obs)
 
@@ -546,22 +557,19 @@ class NeuroSymbolicController:
         # 4. Stochastic path
         f_sc, m_sc = self._sc_step(m, k)
 
-        # Diagnostics (used by deterministic benchmark gates)
-        self.last_oracle_firing = f_oracle.tolist()
-        self.last_sc_firing = f_sc.tolist()
-        self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
-        self.last_sc_marking = m_sc.tolist()
-
-        # Commit SC state
-        np.copyto(self._marking, m_sc)
-
-        # 5. Decode actions
+        # 5. Decode actions (the control action, computed within the measured interval)
         actions_dict = self._decode_actions(m_sc)
 
         t1 = time.perf_counter()
+        # Deadline decision BEFORE any persistent-state commit or trace write. In
+        # strict mode an overrun raises here, so the rejected cycle commits no
+        # marking or diagnostics and writes no trace — a byte-clean no-op (SS-14 a).
         within_deadline = self._monitor_deadline(t0, t1)
 
-        # 6. Optional JSONL logging
+        # Admitted cycle: commit diagnostics + SC marking into persistent state.
+        self._commit_cycle_state(f_oracle, f_sc, m_oracle, m_sc)
+
+        # 6. Optional JSONL logging (fail-soft only; strict forbade it above, SS-14 b)
         if log_path is not None:
             safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             rec = {
@@ -576,10 +584,62 @@ class NeuroSymbolicController:
                 "timing_ms": (t1 - t0) * 1000.0,
             }
             self._attach_deadline_telemetry(rec, within_deadline)
-            _append_jsonl_record(safe_log_path, rec)
+            self._write_trace_record(safe_log_path, rec)
 
         # Build result from all decoded actions
         return cast(ControlAction, dict(actions_dict))
+
+    def _guard_strict_synchronous_logging(self, log_path: str | None) -> None:
+        """Forbid synchronous JSONL logging under a strict deadline monitor (SS-14 b).
+
+        A ``log_path`` write is a synchronous, unbounded disk I/O side effect. It
+        cannot coexist with a hard-real-time deadline (it would inflate the true
+        cycle wall-clock outside the measured interval), and a rejected strict cycle
+        must leave no persistent trace. Fail closed here, before any work, so the
+        misconfiguration is loud rather than a silently under-counted overrun.
+        Fail-soft callers may still log; the write cost is exposed via
+        :attr:`last_trace_write_us`.
+        """
+        if log_path is not None and self.deadline_monitor is not None and self.deadline_monitor.strict:
+            raise ValueError(
+                "synchronous JSONL logging (log_path) is not permitted with a strict "
+                "deadline monitor: unbounded disk I/O cannot coexist with a hard-real-time "
+                "deadline and a rejected strict cycle must leave no persistent trace; "
+                "log out-of-band instead"
+            )
+
+    def _commit_cycle_state(
+        self,
+        f_oracle: FloatArray,
+        f_sc: FloatArray,
+        m_oracle: FloatArray,
+        m_sc: FloatArray,
+    ) -> None:
+        """Commit the cycle's diagnostics and SC marking into persistent state.
+
+        Called only AFTER the deadline decision (:meth:`_monitor_deadline`), so a
+        strict overrun — which raises there — leaves the controller untouched: the
+        discarded action never advances the plant-model marking nor the diagnostic
+        snapshots, making a rejected strict cycle a byte-clean no-op (SS-14 a).
+        """
+        self.last_oracle_firing = f_oracle.tolist()
+        self.last_sc_firing = f_sc.tolist()
+        self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
+        self.last_sc_marking = m_sc.tolist()
+        np.copyto(self._marking, m_sc)
+
+    def _write_trace_record(self, safe_log_path: Path, record: Mapping[str, object]) -> None:
+        """Append a JSONL trace record and expose its synchronous write latency.
+
+        The write happens after the measured control interval, so its cost is not
+        part of the deadline verdict (strict mode forbids this path entirely). Timing
+        it into :attr:`last_trace_write_us` keeps the otherwise-hidden fail-soft I/O
+        cost observable, so a cycle's true wall-clock is not silently under-reported
+        (SS-14 b).
+        """
+        w0 = time.perf_counter()
+        _append_jsonl_record(safe_log_path, record)
+        self.last_trace_write_us = (time.perf_counter() - w0) * 1.0e6
 
     def _monitor_deadline(self, t0: float, t1: float) -> bool | None:
         """Record the measured cycle against the deadline monitor.
@@ -618,6 +678,7 @@ class NeuroSymbolicController:
         """
         if not self._traceable_ready:
             raise RuntimeError("step_traceable requires axis-only injections (no passthrough sources)")
+        self._guard_strict_synchronous_logging(log_path)
 
         t0 = time.perf_counter()
         pos_vals, neg_vals = self._compute_feature_components_vector(obs_vector)
@@ -633,17 +694,15 @@ class NeuroSymbolicController:
             m_oracle = np.asarray([], dtype=np.float64)
 
         f_sc, m_sc = self._sc_step(m, k)
-
-        self.last_oracle_firing = f_oracle.tolist()
-        self.last_sc_firing = f_sc.tolist()
-        self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
-        self.last_sc_marking = m_sc.tolist()
-
-        np.copyto(self._marking, m_sc)
         actions_vec = np.asarray(self._decode_actions_vector(m_sc), dtype=np.float64).copy()
 
         t1 = time.perf_counter()
+        # Deadline decision BEFORE committing state (strict raises here → clean no-op).
         within_deadline = self._monitor_deadline(t0, t1)
+
+        # Admitted cycle: commit diagnostics + SC marking into persistent state.
+        self._commit_cycle_state(f_oracle, f_sc, m_oracle, m_sc)
+
         if log_path is not None:
             safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             obs_payload = {key: float(value) for key, value in zip(self._axis_obs_keys, obs_vector)}
@@ -658,7 +717,7 @@ class NeuroSymbolicController:
                 "timing_ms": (t1 - t0) * 1000.0,
             }
             self._attach_deadline_telemetry(rec, within_deadline)
-            _append_jsonl_record(safe_log_path, rec)
+            self._write_trace_record(safe_log_path, rec)
 
         return actions_vec
 

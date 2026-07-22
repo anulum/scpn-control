@@ -17,10 +17,10 @@ from typing import Any, Mapping, cast
 import pytest
 
 from scpn_control.scpn.artifact import Artifact
-from scpn_control.scpn.deadline_monitor import DeadlineMonitor
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController, _artifact_topology_digest, _matrix_entries
+from scpn_control.scpn.deadline_monitor import DeadlineMonitor
 from scpn_control.scpn.formal_safety_certificate import generate_safety_certificate
 from scpn_control.scpn.formal_verification import CTLFormula, EventuallyFires, LTLFormula
 from scpn_control.scpn.runtime_safety_certificate import (
@@ -283,6 +283,92 @@ def test_strict_deadline_overrun_discards_the_action_and_raises(tmp_path: Path) 
     with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
         controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0)
     assert controller.deadline_monitor.overruns == 1
+
+
+def test_strict_deadline_overrun_rolls_back_controller_state(tmp_path: Path) -> None:
+    """A rejected strict cycle commits no persistent controller state (SS-14 a).
+
+    The strict raise happens before the marking/diagnostics commit, so the discarded
+    action must not advance the plant-model marking nor the diagnostic snapshots.
+    """
+    from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
+
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+
+    # One admitted (fail-soft) cycle advances the marking; snapshot the committed state.
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0)
+    marking_after_commit = controller._marking.tolist()
+    sc_marking_after_commit = list(controller.last_sc_marking)
+    sc_firing_after_commit = list(controller.last_sc_firing)
+
+    # Now force a deterministic strict overrun on the next cycle.
+    controller.deadline_monitor = DeadlineMonitor(deadline_us=1.0e-9, strict=True)
+    with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
+        controller.step({"R_axis_m": 3.0, "Z_axis_m": 1.5}, 1)
+
+    # The rejected cycle rolled back: persistent state is byte-identical to before it.
+    assert controller._marking.tolist() == marking_after_commit
+    assert controller.last_sc_marking == sc_marking_after_commit
+    assert controller.last_sc_firing == sc_firing_after_commit
+
+
+def test_strict_deadline_monitor_forbids_synchronous_logging(tmp_path: Path) -> None:
+    """Strict mode rejects synchronous JSONL logging in the real-time path (SS-14 b).
+
+    Unbounded disk I/O cannot coexist with a hard-real-time deadline, so a
+    ``log_path`` write under a strict monitor fails closed before any work and
+    leaves no file.
+    """
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+        deadline_monitor_strict=True,
+    )
+
+    with pytest.raises(ValueError, match="not permitted with a strict"):
+        controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0, log_path="strict.jsonl", log_root=tmp_path)
+    assert not (tmp_path / "strict.jsonl").exists()
+    assert controller.deadline_monitor is not None
+    assert controller.deadline_monitor.cycles == 0
+
+
+def test_failsoft_logging_exposes_trace_write_cost(tmp_path: Path) -> None:
+    """Fail-soft logging exposes the synchronous trace-write latency (SS-14 b).
+
+    The write happens outside the measured interval; ``last_trace_write_us`` makes
+    that otherwise-hidden cost observable so the cycle's true wall-clock is not
+    silently under-reported.
+    """
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+
+    assert controller.last_trace_write_us is None
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0, log_path="cycle.jsonl", log_root=tmp_path)
+    assert isinstance(controller.last_trace_write_us, float)
+    assert controller.last_trace_write_us >= 0.0
 
 
 def test_admitted_controller_forwards_strict_deadline_flag(tmp_path: Path) -> None:
