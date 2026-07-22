@@ -23,12 +23,10 @@ import hashlib
 import json
 import re
 from collections.abc import Mapping
-from io import BytesIO
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
-import numpy as np
-
+import validation.build_disruption_replay_channels as replay_channels
 from scpn_control.core.real_data_manifest import RealDataManifestError, validate_real_data_manifest
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS
 from validation.evaluate_mast_disruption import REPORT_SCHEMA as EVALUATION_SCHEMA
@@ -44,6 +42,7 @@ from validation.migrate_mast_source_object_manifest import migrate_material_mani
 RECONCILIATION_SPEC_SCHEMA = "scpn-control.mast-campaign-reconciliation-spec.v1.0.0"
 RECONCILIATION_REPORT_SCHEMA = "scpn-control.mast-campaign-lineage-reconciliation.v1.0.0"
 REPLAY_SCHEMA = "scpn-control.mast-disruption-replay-channels.v1"
+REPLAY_V2_SCHEMA = replay_channels.REPORT_SCHEMA
 LEGACY_DATASET_SCHEMA = "scpn-control.mast-disruption-supervised-dataset.v1"
 
 INPUT_NAMES = (
@@ -266,8 +265,9 @@ def _material_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int],
     return acquired, failed, failure_reasons, total_bytes
 
 
-def _replay_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], dict[int, str], str]:
-    if payload.get("schema_version") != REPLAY_SCHEMA:
+def _replay_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], dict[int, str], str, str]:
+    schema = payload.get("schema_version")
+    if schema not in {REPLAY_SCHEMA, REPLAY_V2_SCHEMA}:
         raise CampaignReconciliationError("unsupported replay report schema")
     digest = _verify_self_digest(payload, field="replay report")
     if payload.get("synthetic") is not False:
@@ -293,47 +293,20 @@ def _replay_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], d
             raise CampaignReconciliationError(f"replay report.shots[{index}].status is unsupported")
     if _integer(payload.get("n_derived"), field="replay report.n_derived") != len(derived):
         raise CampaignReconciliationError("replay report.n_derived does not match derived shots")
-    return derived, failed, reasons, digest
+    return derived, failed, reasons, digest, cast(str, schema)
 
 
-def _channels_inventory(raw: bytes) -> tuple[set[int], int, int]:
+def _channels_inventory(raw: bytes, *, path_name: str) -> tuple[set[int], int, int, dict[str, Any]]:
     try:
-        with np.load(BytesIO(raw), allow_pickle=False) as archive:
-            members = archive.files
-            if len(members) != len(set(members)) or "shot_ids" not in members:
-                raise CampaignReconciliationError("channels archive must contain unique members and shot_ids")
-            identifiers = np.asarray(archive["shot_ids"])
-            if identifiers.ndim != 1 or identifiers.size == 0 or not np.issubdtype(identifiers.dtype, np.integer):
-                raise CampaignReconciliationError("channels archive shot_ids must be a non-empty integer vector")
-            shot_ids = {int(value) for value in identifiers.tolist()}
-            if len(shot_ids) != identifiers.size or any(shot_id <= 0 for shot_id in shot_ids):
-                raise CampaignReconciliationError("channels archive shot_ids must be unique positive integers")
-            expected = {"shot_ids"} | {f"{shot_id}:{channel}" for shot_id in shot_ids for channel in MEASURED_CHANNELS}
-            if set(members) != expected:
-                raise CampaignReconciliationError("channels archive members do not match its shot/channel inventory")
-            total_samples = 0
-            for shot_id in sorted(shot_ids):
-                sample_count: int | None = None
-                for channel in MEASURED_CHANNELS:
-                    values = np.asarray(archive[f"{shot_id}:{channel}"])
-                    if values.ndim != 1 or values.size == 0 or not np.issubdtype(values.dtype, np.floating):
-                        raise CampaignReconciliationError(
-                            f"channels archive {shot_id}:{channel} must be a non-empty floating-point vector"
-                        )
-                    if not np.isfinite(values).all():
-                        raise CampaignReconciliationError(
-                            f"channels archive {shot_id}:{channel} contains non-finite values"
-                        )
-                    if sample_count is None:
-                        sample_count = values.size
-                    elif values.size != sample_count:
-                        raise CampaignReconciliationError(f"channels archive shot {shot_id} channel lengths differ")
-                total_samples += cast(int, sample_count)
-    except CampaignReconciliationError:
-        raise
-    except (OSError, ValueError, KeyError) as exc:
+        binding = replay_channels.inspect_replay_archive_bytes(raw, path_name=path_name)
+    except ValueError as exc:
         raise CampaignReconciliationError(f"cannot validate channels archive: {exc}") from exc
-    return shot_ids, len(members) - 1, total_samples
+    shot_members = cast(list[dict[str, Any]], binding["shot_members"])
+    if not shot_members:
+        raise CampaignReconciliationError("channels archive shot_ids must be a non-empty integer vector")
+    shot_ids = {cast(int, member["shot_id"]) for member in shot_members}
+    total_samples = sum(cast(int, member["n_samples"]) for member in shot_members)
+    return shot_ids, len(shot_ids) * len(MEASURED_CHANNELS), total_samples, binding
 
 
 def _dataset_records(payload: Mapping[str, Any]) -> tuple[dict[int, tuple[str, str]], str, str, int]:
@@ -460,12 +433,20 @@ def reconcile_campaign(
         raise CampaignReconciliationError("legacy migration did not produce a source-object manifest v2")
 
     replay = json_inputs["replay_report"]
-    replay_derived, replay_failed, replay_failure_reasons, replay_digest = _replay_inventory(replay)
+    replay_derived, replay_failed, replay_failure_reasons, replay_digest, replay_schema = _replay_inventory(replay)
     if replay.get("channels_npz") != Path(bindings["channels_archive"][0]).name:
         raise CampaignReconciliationError("replay report does not name the pinned channels archive")
-    channel_shots, channel_members, channel_samples = _channels_inventory(snapshots["channels_archive"])
+    channel_shots, channel_members, channel_samples, observed_archive_binding = _channels_inventory(
+        snapshots["channels_archive"], path_name=Path(bindings["channels_archive"][0]).name
+    )
     if channel_shots != replay_derived:
         raise CampaignReconciliationError("channels archive shot inventory differs from the replay report")
+    replay_archive_producer_bound = False
+    if replay_schema == REPLAY_V2_SCHEMA:
+        declared_archive_binding = _mapping(replay.get("channels_archive"), field="replay report.channels_archive")
+        if dict(declared_archive_binding) != observed_archive_binding:
+            raise CampaignReconciliationError("replay report channels_archive binding does not match pinned bytes")
+        replay_archive_producer_bound = True
 
     dataset_report = json_inputs["dataset_report"]
     if dataset_report.get("dataset_id") != dataset_id:
@@ -486,8 +467,9 @@ def reconcile_campaign(
     blockers = {
         "dataset_artifacts_lack_source_parent_and_transform_digests",
         "legacy_material_native_zarr_bytes_and_source_generation_not_preserved",
-        "replay_archive_not_digest_bound_by_its_producer_report",
     }
+    if not replay_archive_producer_bound:
+        blockers.add("replay_archive_not_digest_bound_by_its_producer_report")
     if material_licence != FAIR_MAST_LICENCE:
         blockers.add("legacy_material_manifest_licence_requires_in_memory_replacement")
     if dataset_licence != FAIR_MAST_LICENCE:
@@ -564,7 +546,7 @@ def reconcile_campaign(
         "replay_inventory": {
             "payload_sha256": replay_digest,
             "channels_archive_file_sha256": input_digests["channels_archive"],
-            "channels_archive_producer_digest_bound": False,
+            "channels_archive_producer_digest_bound": replay_archive_producer_bound,
             "channels_archive_shot_inventory_verified": True,
             "channels_archive_member_count": channel_members,
             "channels_archive_total_samples": channel_samples,

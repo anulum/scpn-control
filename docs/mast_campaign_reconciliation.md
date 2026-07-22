@@ -98,16 +98,22 @@ interruption can leave an incomplete fresh destination; the next run refuses
 to overwrite it so an operator can quarantine and inspect those bytes first.
 
 The post-hoc lineage builder uses this same archive inspector and digest
-algorithm, preventing producer and reconciliation semantics from drifting.
+algorithm, preventing producer and reconciliation semantics from drifting. The
+reconciliation gate accepts report v2 only when the report's exact embedded
+binding equals the already pinned archive byte snapshot. Any difference in the
+whole-file digest, byte length, shot count, member-digest kind, per-shot digest,
+path, or binding shape fails before a reconciliation report is produced.
 Historical report-v1 and campaign bytes remain immutable: v2 governs newly
 generated replay products and does not retroactively convert the preserved
 93-shot campaign into producer-time evidence. It therefore closes the replay
 producer implementation gap for future regeneration, not the campaign's
 training, scientific, facility, reuse, or control-admission blockers.
-The preserved-campaign reconciliation remains intentionally pinned to report
-v1. A later regeneration/admission slice must add explicit v2 ingestion and
-verify the embedded archive binding; changing only its accepted schema would
-not constitute producer-lineage proof.
+The preserved-campaign v1 path remains supported and produces the same
+deterministic report byte surface as before this extension. Its
+`channels_archive_producer_digest_bound` field remains false and its blocker is
+retained. An exactly verified v2 report sets that field true and removes only
+`replay_archive_not_digest_bound_by_its_producer_report`; every unrelated
+admission and claim boundary remains false.
 
 Create a fresh producer-bound replay output with:
 

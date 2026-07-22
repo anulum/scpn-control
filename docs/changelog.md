@@ -20,6 +20,12 @@
   exclusive archive/report publication with handled-failure rollback.
   Historical v1 campaign bytes remain untouched and retain their post-hoc-only
   claim boundary.
+- Admit replay report v2 into campaign reconciliation only when its exact
+  embedded archive binding matches the already pinned archive byte snapshot,
+  including whole-file and canonical per-shot digests. The legacy v1 path and
+  its deterministic reconciliation report remain byte-surface compatible; v2
+  removes only the replay-producer-binding blocker and cannot promote any
+  dataset, training, scientific, reuse, facility, or control claim.
 - Add an immutable post-hoc FAIR-MAST dataset-lineage manifest that binds each
   retained shot to verified source-parent, replay-member, transform-spec, and
   dataset-artifact digests, records the exact exclusion partition, and keeps

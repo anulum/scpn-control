@@ -28,6 +28,7 @@ from validation.build_disruption_replay_channels import (
     build_channels,
     derive_replay_channels,
     inspect_replay_archive,
+    inspect_replay_archive_bytes,
     main,
 )
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS, _load_shots, build_dataset
@@ -294,13 +295,32 @@ def test_inspect_replay_archive_rejects_missing_and_inventory_drift(tmp_path: Pa
     with pytest.raises(ValueError, match="does not exist"):
         inspect_replay_archive(tmp_path / "missing.npz")
     archive = tmp_path / "archive.npz"
+    np.savez(archive, extra=np.asarray([1.0]))
+    with pytest.raises(ValueError, match="contain shot_ids"):
+        inspect_replay_archive(archive)
     arrays: dict[str, NDArray[Any]] = {f"101:{name}": np.arange(3, dtype=np.float64) for name in _MEASURED}
     np.savez(archive, shot_ids=np.asarray([101]), extra=np.asarray([1.0]), **arrays)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="member inventory"):
         inspect_replay_archive(archive)
     np.savez(archive, shot_ids=np.asarray([101]), **arrays)  # type: ignore[arg-type]
+    assert inspect_replay_archive_bytes(archive.read_bytes(), path_name=archive.name) == inspect_replay_archive(archive)
     with pytest.raises(ValueError, match="producer inventory"):
         inspect_replay_archive(archive, expected_shot_ids=[102])
+    with pytest.raises(ValueError, match="path_name"):
+        inspect_replay_archive_bytes(archive.read_bytes(), path_name="")
+
+
+def test_inspect_replay_archive_normalises_read_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Normalise a persisted-byte read failure after path admission."""
+    archive = tmp_path / "archive.npz"
+    archive.write_bytes(b"present")
+
+    def _fail_read(_path: Path) -> bytes:
+        raise OSError("fixture read failure")
+
+    monkeypatch.setattr(Path, "read_bytes", _fail_read)
+    with pytest.raises(ValueError, match="cannot read replay archive"):
+        inspect_replay_archive(archive)
 
 
 @pytest.mark.parametrize(

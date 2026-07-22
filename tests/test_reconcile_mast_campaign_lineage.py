@@ -18,6 +18,7 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
+import validation.build_disruption_replay_channels as replay_channels
 import validation.reconcile_mast_campaign_lineage as reconciliation
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS
 from validation.evaluate_mast_disruption import REPORT_SCHEMA as EVALUATION_SCHEMA
@@ -34,6 +35,7 @@ from validation.reconcile_mast_campaign_lineage import (
 )
 
 _FIXED_TS = "2026-07-22T18:00:00Z"
+_REPLAY_V2_SCHEMA = replay_channels.REPORT_SCHEMA
 
 
 def _seal(payload: dict[str, Any]) -> dict[str, Any]:
@@ -96,36 +98,37 @@ def _material(root: Path) -> dict[str, Any]:
     )
 
 
-def _replay() -> dict[str, Any]:
-    return _seal(
-        {
-            "schema_version": REPLAY_SCHEMA,
-            "synthetic": False,
-            "material_dir": "campaign01",
-            "channels_npz": "channels.npz",
-            "channel_schema": [
-                "time_s",
-                "Ip_MA",
-                "BT_T",
-                "beta_N",
-                "q95",
-                "ne_1e19",
-                "n1_amp",
-                "n2_amp",
-                "locked_mode_amp",
-                "dBdt_gauss_per_s",
-                "vertical_position_m",
-            ],
-            "locked_window": 201,
-            "n_derived": 1,
-            "shots": [
-                {"shot_id": 101, "status": "derived", "n_samples": 3},
-                {"shot_id": 102, "status": "failed", "error": "summary.line_average_n_e absent"},
-            ],
-            "generated_at": _FIXED_TS,
-            "payload_sha256": None,
-        }
-    )
+def _replay(*, archive_binding: dict[str, Any] | None = None) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "schema_version": _REPLAY_V2_SCHEMA if archive_binding is not None else REPLAY_SCHEMA,
+        "synthetic": False,
+        "material_dir": "campaign01",
+        "channels_npz": "channels.npz",
+        "channel_schema": [
+            "time_s",
+            "Ip_MA",
+            "BT_T",
+            "beta_N",
+            "q95",
+            "ne_1e19",
+            "n1_amp",
+            "n2_amp",
+            "locked_mode_amp",
+            "dBdt_gauss_per_s",
+            "vertical_position_m",
+        ],
+        "locked_window": 201,
+        "n_derived": 1,
+        "shots": [
+            {"shot_id": 101, "status": "derived", "n_samples": 3},
+            {"shot_id": 102, "status": "failed", "error": "summary.line_average_n_e absent"},
+        ],
+        "generated_at": _FIXED_TS,
+        "payload_sha256": None,
+    }
+    if archive_binding is not None:
+        payload["channels_archive"] = archive_binding
+    return _seal(payload)
 
 
 def _dataset_manifest(checksum: str) -> dict[str, Any]:
@@ -208,7 +211,7 @@ def _write_channels(
     shot_ids: tuple[int, ...] = (101,),
     mutate: Callable[[dict[str, np.ndarray[Any, Any]]], None] | None = None,
 ) -> None:
-    arrays: dict[str, np.ndarray[Any, Any]] = {"shot_ids": np.asarray(shot_ids)}
+    arrays: dict[str, np.ndarray[Any, Any]] = {"shot_ids": np.asarray(shot_ids, dtype=np.int64)}
     for shot_id in shot_ids:
         arrays.update({f"{shot_id}:{channel}": np.arange(3, dtype=np.float64) for channel in MEASURED_CHANNELS})
     if mutate is not None:
@@ -244,12 +247,17 @@ def _float_identifiers(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
     arrays["shot_ids"] = np.asarray([101.0])
 
 
-def _tree(root: Path, *, valid_evaluation_digest: bool = False) -> Path:
+def _tree(root: Path, *, valid_evaluation_digest: bool = False, replay_v2: bool = False) -> Path:
     root.mkdir()
     _write(root / "material.json", _material(root))
     (root / "derived").mkdir()
     _write_channels(root / "derived/channels.npz")
-    _write(root / "derived/replay.json", _replay())
+    archive_binding = None
+    if replay_v2:
+        archive_binding = replay_channels.inspect_replay_archive_bytes(
+            (root / "derived/channels.npz").read_bytes(), path_name="channels.npz"
+        )
+    _write(root / "derived/replay.json", _replay(archive_binding=archive_binding))
     dataset_npz = root / "dataset/shot_101.npz"
     dataset_npz.parent.mkdir()
     np.savez(dataset_npz, Ip_MA=np.asarray([1.0, 0.5, 0.0]))
@@ -335,6 +343,66 @@ def test_reconciliation_binds_bytes_and_remains_blocked(tmp_path: Path) -> None:
     assert "evaluation_report_self_digest_invalid" in report["blockers"]
     assert report["payload_sha256"] == canonical_json_sha256({**report, "payload_sha256": None})
     assert str(tmp_path) not in json.dumps(report)
+
+
+def test_replay_v2_binding_is_verified_and_removes_only_legacy_replay_blocker(tmp_path: Path) -> None:
+    """Admit an exact producer binding without promoting unrelated claims."""
+    root = tmp_path / "campaign01"
+    spec = _tree(root, replay_v2=True)
+    report = _run(root, spec)
+    replay = cast(dict[str, Any], report["replay_inventory"])
+    assert replay["channels_archive_producer_digest_bound"] is True
+    assert "replay_archive_not_digest_bound_by_its_producer_report" not in report["blockers"]
+    assert set(cast(dict[str, bool], report["claim_boundary"]).values()) == {False}
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    [
+        lambda binding: binding.update({"file_sha256": "0" * 64}),
+        lambda binding: binding.update({"bytes": binding["bytes"] + 1}),
+        lambda binding: binding.update({"shot_count": 2}),
+        lambda binding: binding.update({"member_digest_kind": "wrong"}),
+        lambda binding: cast(list[dict[str, Any]], binding["shot_members"])[0].update({"sha256": "0" * 64}),
+        lambda binding: binding.update({"extra": True}),
+    ],
+)
+def test_replay_v2_declared_binding_must_exactly_match_pinned_archive(
+    tmp_path: Path,
+    mutate: Callable[[dict[str, Any]], None],
+) -> None:
+    """Reject drift in every embedded archive-binding layer and its shape."""
+    root = tmp_path / "campaign01"
+    spec = _tree(root, replay_v2=True)
+
+    def _mutate_report(payload: dict[str, Any]) -> None:
+        mutate(cast(dict[str, Any], payload["channels_archive"]))
+
+    _rewrite(root / "derived/replay.json", _mutate_report)
+    _repin(spec, root, "replay_report")
+    with pytest.raises(CampaignReconciliationError, match="binding does not match pinned bytes"):
+        _run(root, spec)
+
+
+def test_replay_v2_missing_binding_and_post_report_archive_drift_fail_closed(tmp_path: Path) -> None:
+    """Require the binding and reject a repinned archive changed after report issuance."""
+    root = tmp_path / "campaign01"
+    spec = _tree(root, replay_v2=True)
+    _rewrite(root / "derived/replay.json", lambda payload: payload.pop("channels_archive"))
+    _repin(spec, root, "replay_report")
+    with pytest.raises(CampaignReconciliationError, match="channels_archive must be an object"):
+        _run(root, spec)
+
+    root = tmp_path / "second"
+    spec = _tree(root, replay_v2=True)
+
+    def _change_value(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+        arrays["101:BT_T"] = np.asarray([7.0, 8.0, 9.0])
+
+    _write_channels(root / "derived/channels.npz", mutate=_change_value)
+    _repin(spec, root, "channels_archive")
+    with pytest.raises(CampaignReconciliationError, match="binding does not match pinned bytes"):
+        _run(root, spec)
 
 
 def test_valid_historical_digest_removes_only_that_blocker(tmp_path: Path) -> None:
@@ -513,12 +581,12 @@ def test_dataset_file_and_manifest_inventory_are_verified(tmp_path: Path) -> Non
 @pytest.mark.parametrize(
     ("mutate", "message"),
     [
-        (_drop_identifiers, "unique members and shot_ids"),
-        (_drop_channel, "shot/channel inventory"),
-        (_add_channel, "shot/channel inventory"),
-        (_non_finite_channel, "non-finite"),
+        (_drop_identifiers, "contain shot_ids"),
+        (_drop_channel, "member inventory"),
+        (_add_channel, "member inventory"),
+        (_non_finite_channel, "finite float"),
         (_short_channel, "channel lengths differ"),
-        (_integer_channel, "floating-point vector"),
+        (_integer_channel, "finite float"),
         (_float_identifiers, "integer vector"),
     ],
 )
@@ -542,7 +610,7 @@ def test_channels_archive_identity_and_container_are_verified(tmp_path: Path) ->
     spec = _tree(root)
     _write_channels(root / "derived/channels.npz", shot_ids=(101, 101))
     _repin(spec, root, "channels_archive")
-    with pytest.raises(CampaignReconciliationError, match="unique positive integers"):
+    with pytest.raises(CampaignReconciliationError, match="unique, positive"):
         _run(root, spec)
 
     root = tmp_path / "second"
@@ -557,6 +625,13 @@ def test_channels_archive_identity_and_container_are_verified(tmp_path: Path) ->
     (root / "derived/channels.npz").write_bytes(b"not-an-npz")
     _repin(spec, root, "channels_archive")
     with pytest.raises(CampaignReconciliationError, match="cannot validate channels archive"):
+        _run(root, spec)
+
+    root = tmp_path / "fourth"
+    spec = _tree(root)
+    _write_channels(root / "derived/channels.npz", shot_ids=())
+    _repin(spec, root, "channels_archive")
+    with pytest.raises(CampaignReconciliationError, match="non-empty integer vector"):
         _run(root, spec)
 
 

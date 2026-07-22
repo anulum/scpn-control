@@ -34,6 +34,7 @@ import json
 import os
 import tempfile
 from collections.abc import Sequence
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -47,7 +48,7 @@ from validation.disruption_channel_recipes import (
     n_mode_amplitude,
     per_1e19,
 )
-from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256, file_sha256
+from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256
 
 REPORT_SCHEMA = "scpn-control.mast-disruption-replay-channels.v2.0.0"
 REPLAY_MEMBER_DIGEST_KIND = "canonical-channel-values-sha256-v1"
@@ -168,11 +169,29 @@ def inspect_replay_archive(
     *,
     expected_shot_ids: Sequence[int] | None = None,
 ) -> dict[str, Any]:
-    """Reopen and digest a replay archive through the persisted byte surface."""
+    """Read once, reopen, and digest a replay archive through its byte surface."""
     if not path.is_file():
         raise ValueError(f"replay archive does not exist: {path}")
     try:
-        with np.load(path, allow_pickle=False) as archive:
+        raw = path.read_bytes()
+    except OSError as exc:
+        raise ValueError(f"cannot read replay archive: {exc}") from exc
+    return inspect_replay_archive_bytes(raw, path_name=path.name, expected_shot_ids=expected_shot_ids)
+
+
+def inspect_replay_archive_bytes(
+    raw: bytes,
+    *,
+    path_name: str,
+    expected_shot_ids: Sequence[int] | None = None,
+) -> dict[str, Any]:
+    """Validate and digest one immutable replay-archive byte snapshot."""
+    if not path_name:
+        raise ValueError("replay archive path_name must be non-empty")
+    try:
+        with np.load(BytesIO(raw), allow_pickle=False) as archive:
+            if "shot_ids" not in archive.files:
+                raise ValueError("replay archive must contain shot_ids")
             identifiers = np.asarray(archive["shot_ids"])
             if identifiers.ndim != 1 or identifiers.dtype.kind not in "iu":
                 raise ValueError("replay archive shot_ids must be a one-dimensional integer vector")
@@ -211,9 +230,9 @@ def inspect_replay_archive(
     except (OSError, KeyError, TypeError, ValueError) as exc:
         raise ValueError(f"cannot validate replay archive: {exc}") from exc
     return {
-        "path": path.name,
-        "file_sha256": file_sha256(path),
-        "bytes": int(path.stat().st_size),
+        "path": path_name,
+        "file_sha256": hashlib.sha256(raw).hexdigest(),
+        "bytes": len(raw),
         "shot_count": len(shot_members),
         "member_digest_kind": REPLAY_MEMBER_DIGEST_KIND,
         "shot_members": shot_members,
