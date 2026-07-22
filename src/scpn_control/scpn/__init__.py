@@ -43,6 +43,7 @@ from scpn_control.scpn.contracts import (
     feature_error_components,
 )
 from scpn_control.scpn.controller import NeuroSymbolicController
+from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
 from scpn_control.scpn.formal_safety_certificate import (
     SafetyCertificateBundlePolicy,
     SafetyCertificatePolicy,
@@ -332,6 +333,8 @@ __all__ = [
     "NeuroSymbolicController",
     "RuntimeTarget",
     "TimingEnvelope",
+    "DeadlineMonitor",
+    "DeadlineOverrunError",
     "ControllerRuntimeBinding",
     "CertificateReplayResult",
     "compute_petri_topology_digest",

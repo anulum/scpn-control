@@ -10,12 +10,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, Mapping, cast
 
 import pytest
 
 from scpn_control.scpn.artifact import Artifact
+from scpn_control.scpn.deadline_monitor import DeadlineMonitor
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController, _artifact_topology_digest, _matrix_entries
@@ -231,3 +233,59 @@ def test_step_traceable_rejects_passthrough_injections(tmp_path: Path) -> None:
 
     with pytest.raises(RuntimeError, match="axis-only injections"):
         controller.step_traceable([6.2, 0.0], 0)
+
+
+def test_admitted_controller_wires_and_logs_deadline_monitor(tmp_path: Path) -> None:
+    """A controller with an admitted certificate monitors each cycle deadline (SS-14)."""
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+
+    assert isinstance(controller.deadline_monitor, DeadlineMonitor)
+    assert controller.deadline_monitor.deadline_us == 500.0
+    assert controller.deadline_monitor.strict is False
+
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0, log_path="cycle.jsonl", log_root=tmp_path)
+    assert controller.deadline_monitor.cycles == 1
+
+    record = json.loads((tmp_path / "cycle.jsonl").read_text(encoding="utf-8").strip())
+    assert record["deadline_us"] == 500.0
+    assert isinstance(record["within_deadline"], bool)
+    assert record["deadline_overruns"] == controller.deadline_monitor.overruns
+
+
+def test_admitted_controller_forwards_strict_deadline_flag(tmp_path: Path) -> None:
+    """The deadline_monitor_strict flag reaches the wired monitor."""
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+        deadline_monitor_strict=True,
+    )
+
+    assert isinstance(controller.deadline_monitor, DeadlineMonitor)
+    assert controller.deadline_monitor.strict is True
+
+
+def test_controller_without_certificate_has_no_deadline_monitor(tmp_path: Path) -> None:
+    """A controller with no admitted certificate carries no deadline monitor."""
+    controller = NeuroSymbolicController(**_controller_kwargs(_artifact_from_net(_certified_net())))
+    assert controller.deadline_monitor is None
+    # The monitor-absent branch still steps and logs cleanly.
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0, log_path="plain.jsonl", log_root=tmp_path)
+    record = json.loads((tmp_path / "plain.jsonl").read_text(encoding="utf-8").strip())
+    assert "within_deadline" not in record

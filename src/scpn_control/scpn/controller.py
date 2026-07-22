@@ -37,6 +37,7 @@ from .contracts import (
     decode_action_vector,
     feature_error_components,
 )
+from .deadline_monitor import DeadlineMonitor
 from .observation import AERControlObservation
 from .runtime_safety_certificate import (
     CertificateReplayResult,
@@ -188,11 +189,13 @@ class NeuroSymbolicController:
         runtime_safety_binding: ControllerRuntimeBinding | None = None,
         runtime_safety_target: RuntimeTarget | None = None,
         runtime_safety_replay: CertificateReplayResult | None = None,
+        deadline_monitor_strict: bool = False,
     ) -> None:
         validate_artifact(artifact)
         self.artifact = artifact
         self.runtime_safety_certificate_payload: dict[str, Any] | None = None
         self.runtime_safety_certificate_sha256: str | None = None
+        self.deadline_monitor: DeadlineMonitor | None = None
         if any(
             item is not None
             for item in (
@@ -222,6 +225,13 @@ class NeuroSymbolicController:
             )
             self.runtime_safety_certificate_payload = admitted
             self.runtime_safety_certificate_sha256 = cast(str, admitted["payload_sha256"])
+            # Wire a runtime deadline monitor to the admitted timing envelope so a
+            # cycle that overruns the declared deadline is detected, not just
+            # assumed schedulable at admission (SS-14).
+            self.deadline_monitor = DeadlineMonitor(
+                deadline_us=runtime_safety_binding.timing_envelope.deadline_us,
+                strict=deadline_monitor_strict,
+            )
         self.seed_base = int(seed_base)
         self.targets = targets
         self.scales = scales
@@ -549,6 +559,7 @@ class NeuroSymbolicController:
         actions_dict = self._decode_actions(m_sc)
 
         t1 = time.perf_counter()
+        within_deadline = self._monitor_deadline(t0, t1)
 
         # 6. Optional JSONL logging
         if log_path is not None:
@@ -564,10 +575,30 @@ class NeuroSymbolicController:
                 "actions": actions_dict,
                 "timing_ms": (t1 - t0) * 1000.0,
             }
+            self._attach_deadline_telemetry(rec, within_deadline)
             _append_jsonl_record(safe_log_path, rec)
 
         # Build result from all decoded actions
         return cast(ControlAction, dict(actions_dict))
+
+    def _monitor_deadline(self, t0: float, t1: float) -> bool | None:
+        """Record the measured cycle against the deadline monitor.
+
+        Returns whether the cycle met the deadline, or ``None`` when no runtime
+        certificate (and hence no monitor) is admitted. In strict mode an overrun
+        raises :class:`DeadlineOverrunError`.
+        """
+        if self.deadline_monitor is None:
+            return None
+        return self.deadline_monitor.record((t1 - t0) * 1.0e6)
+
+    def _attach_deadline_telemetry(self, record: dict[str, object], within_deadline: bool | None) -> None:
+        """Add deadline-monitor fields to a JSONL log record when a monitor exists."""
+        if self.deadline_monitor is None or within_deadline is None:
+            return
+        record["within_deadline"] = within_deadline
+        record["deadline_us"] = self.deadline_monitor.deadline_us
+        record["deadline_overruns"] = self.deadline_monitor.overruns
 
     def step_traceable(
         self,
@@ -608,6 +639,7 @@ class NeuroSymbolicController:
         actions_vec = np.asarray(self._decode_actions_vector(m_sc), dtype=np.float64).copy()
 
         t1 = time.perf_counter()
+        within_deadline = self._monitor_deadline(t0, t1)
         if log_path is not None:
             safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             obs_payload = {key: float(value) for key, value in zip(self._axis_obs_keys, obs_vector)}
@@ -621,6 +653,7 @@ class NeuroSymbolicController:
                 "actions": {name: float(actions_vec[i]) for i, name in enumerate(self._action_names)},
                 "timing_ms": (t1 - t0) * 1000.0,
             }
+            self._attach_deadline_telemetry(rec, within_deadline)
             _append_jsonl_record(safe_log_path, rec)
 
         return actions_vec
