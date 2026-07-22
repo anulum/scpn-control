@@ -18,6 +18,7 @@ import hashlib
 import json
 import os
 import time
+from dataclasses import dataclass
 from importlib import import_module
 from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence, cast
@@ -37,7 +38,7 @@ from .contracts import (
     decode_action_vector,
     feature_error_components,
 )
-from .deadline_monitor import DeadlineMonitor
+from .deadline_monitor import DeadlineMonitor, DeadlineOverrunError
 from .observation import AERControlObservation
 from .runtime_safety_certificate import (
     CertificateReplayResult,
@@ -48,6 +49,23 @@ from .runtime_safety_certificate import (
 
 FloatArray = NDArray[np.float64]
 ControllerObservation = Mapping[str, float] | AERControlObservation
+
+
+@dataclass(frozen=True)
+class _ControllerCycleState:
+    """Control-relevant state restored when a strict cycle is rejected."""
+
+    marking: FloatArray
+    oracle_pending: FloatArray
+    sc_pending: FloatArray
+    oracle_cursor: int
+    sc_cursor: int
+    previous_actions: FloatArray
+    last_oracle_firing: tuple[float, ...]
+    last_sc_firing: tuple[float, ...]
+    last_oracle_marking: tuple[float, ...]
+    last_sc_marking: tuple[float, ...]
+
 
 _HAS_RUST_SCPN_RUNTIME = False
 _rust_dense_activations: Callable[[FloatArray, FloatArray], object] | None = None
@@ -530,12 +548,13 @@ class NeuroSymbolicController:
             5. ``_decode_actions()`` — gain × differencing, slew + abs clamp
             6. Optional JSONL logging
 
-        Persistent state (the SC marking and diagnostic snapshots) is committed only
-        AFTER the deadline decision, so a strict-mode overrun raises before any
-        commit and leaves the controller a byte-clean no-op (SS-14).
+        Control-relevant state is committed only after the deadline decision. A
+        strict-mode overrun restores the transition queues, cursors, previous
+        actuator values, marking, and diagnostics before it propagates (SS-14).
         """
         self._guard_strict_synchronous_logging(log_path)
         t0 = time.perf_counter()
+        strict_cycle_state = self._snapshot_strict_cycle_state()
         obs_map, aer_admission = self._normalise_observation(obs)
 
         # 1. Feature extraction (fast compiled mapping)
@@ -561,10 +580,14 @@ class NeuroSymbolicController:
         actions_dict = self._decode_actions(m_sc)
 
         t1 = time.perf_counter()
-        # Deadline decision BEFORE any persistent-state commit or trace write. In
-        # strict mode an overrun raises here, so the rejected cycle commits no
-        # marking or diagnostics and writes no trace — a byte-clean no-op (SS-14 a).
-        within_deadline = self._monitor_deadline(t0, t1)
+        # Deadline decision before the final marking/diagnostic commit or trace
+        # write. Transition timing and slew limiting use in-place runtime buffers,
+        # so a strict overrun restores their pre-cycle state before propagating.
+        try:
+            within_deadline = self._monitor_deadline(t0, t1)
+        except DeadlineOverrunError:
+            self._restore_cycle_state(cast(_ControllerCycleState, strict_cycle_state))
+            raise
 
         # Admitted cycle: commit diagnostics + SC marking into persistent state.
         self._commit_cycle_state(f_oracle, f_sc, m_oracle, m_sc)
@@ -617,16 +640,46 @@ class NeuroSymbolicController:
     ) -> None:
         """Commit the cycle's diagnostics and SC marking into persistent state.
 
-        Called only AFTER the deadline decision (:meth:`_monitor_deadline`), so a
-        strict overrun — which raises there — leaves the controller untouched: the
-        discarded action never advances the plant-model marking nor the diagnostic
-        snapshots, making a rejected strict cycle a byte-clean no-op (SS-14 a).
+        Called only after the deadline decision (:meth:`_monitor_deadline`). A
+        strict overrun raises before this commit and the transaction restores the
+        timing queues, cursors, and slew history that were used during computation,
+        so the discarded action advances no control-relevant state (SS-14 a).
         """
         self.last_oracle_firing = f_oracle.tolist()
         self.last_sc_firing = f_sc.tolist()
         self.last_oracle_marking = m_oracle.tolist() if self._enable_oracle_diagnostics else []
         self.last_sc_marking = m_sc.tolist()
         np.copyto(self._marking, m_sc)
+
+    def _snapshot_strict_cycle_state(self) -> _ControllerCycleState | None:
+        """Snapshot control state only when strict deadline rollback is required."""
+        if self.deadline_monitor is None or not self.deadline_monitor.strict:
+            return None
+        return _ControllerCycleState(
+            marking=self._marking.copy(),
+            oracle_pending=self._oracle_pending.copy(),
+            sc_pending=self._sc_pending.copy(),
+            oracle_cursor=self._oracle_cursor,
+            sc_cursor=self._sc_cursor,
+            previous_actions=self._prev_actions.copy(),
+            last_oracle_firing=tuple(self.last_oracle_firing),
+            last_sc_firing=tuple(self.last_sc_firing),
+            last_oracle_marking=tuple(self.last_oracle_marking),
+            last_sc_marking=tuple(self.last_sc_marking),
+        )
+
+    def _restore_cycle_state(self, state: _ControllerCycleState) -> None:
+        """Restore a rejected strict cycle without erasing overrun telemetry."""
+        np.copyto(self._marking, state.marking)
+        np.copyto(self._oracle_pending, state.oracle_pending)
+        np.copyto(self._sc_pending, state.sc_pending)
+        self._oracle_cursor = state.oracle_cursor
+        self._sc_cursor = state.sc_cursor
+        np.copyto(self._prev_actions, state.previous_actions)
+        self.last_oracle_firing = list(state.last_oracle_firing)
+        self.last_sc_firing = list(state.last_sc_firing)
+        self.last_oracle_marking = list(state.last_oracle_marking)
+        self.last_sc_marking = list(state.last_sc_marking)
 
     def _write_trace_record(self, safe_log_path: Path, record: Mapping[str, object]) -> None:
         """Append a JSONL trace record and expose its synchronous write latency.
@@ -681,6 +734,7 @@ class NeuroSymbolicController:
         self._guard_strict_synchronous_logging(log_path)
 
         t0 = time.perf_counter()
+        strict_cycle_state = self._snapshot_strict_cycle_state()
         pos_vals, neg_vals = self._compute_feature_components_vector(obs_vector)
 
         m = self._tmp_marking_input
@@ -697,8 +751,12 @@ class NeuroSymbolicController:
         actions_vec = np.asarray(self._decode_actions_vector(m_sc), dtype=np.float64).copy()
 
         t1 = time.perf_counter()
-        # Deadline decision BEFORE committing state (strict raises here → clean no-op).
-        within_deadline = self._monitor_deadline(t0, t1)
+        # Restore transition queues/cursors and slew history when strict rejects.
+        try:
+            within_deadline = self._monitor_deadline(t0, t1)
+        except DeadlineOverrunError:
+            self._restore_cycle_state(cast(_ControllerCycleState, strict_cycle_state))
+            raise
 
         # Admitted cycle: commit diagnostics + SC marking into persistent state.
         self._commit_cycle_state(f_oracle, f_sc, m_oracle, m_sc)

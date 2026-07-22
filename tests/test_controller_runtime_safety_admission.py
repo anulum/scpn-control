@@ -34,12 +34,12 @@ from scpn_control.scpn.runtime_safety_certificate import (
 from scpn_control.scpn.structure import StochasticPetriNet
 
 
-def _certified_net(*, threshold: float = 1.0) -> StochasticPetriNet:
+def _certified_net(*, threshold: float = 1.0, delay_ticks: int = 0) -> StochasticPetriNet:
     """Return a tiny compiled controller net for admission tests."""
     net = StochasticPetriNet()
     net.add_place("armed", initial_tokens=1.0)
     net.add_place("safe", initial_tokens=0.0)
-    net.add_transition("disarm", threshold=threshold)
+    net.add_transition("disarm", threshold=threshold, delay_ticks=delay_ticks)
     net.add_arc("armed", "disarm", weight=1.0)
     net.add_arc("disarm", "safe", weight=1.0)
     net.compile()
@@ -129,6 +129,22 @@ def _controller_kwargs(artifact: Artifact) -> dict[str, Any]:
         "scales": ControlScales(R_scale_m=0.5, Z_scale_m=0.5),
         "sc_n_passes": 1,
         "runtime_backend": "numpy",
+    }
+
+
+def _control_relevant_state(controller: NeuroSymbolicController) -> dict[str, object]:
+    """Return the state that a rejected strict cycle must not advance."""
+    return {
+        "marking": controller._marking.tolist(),
+        "oracle_pending": controller._oracle_pending.tolist(),
+        "sc_pending": controller._sc_pending.tolist(),
+        "oracle_cursor": controller._oracle_cursor,
+        "sc_cursor": controller._sc_cursor,
+        "previous_actions": controller._prev_actions.tolist(),
+        "last_oracle_marking": list(controller.last_oracle_marking),
+        "last_oracle_firing": list(controller.last_oracle_firing),
+        "last_sc_marking": list(controller.last_sc_marking),
+        "last_sc_firing": list(controller.last_sc_firing),
     }
 
 
@@ -286,14 +302,15 @@ def test_strict_deadline_overrun_discards_the_action_and_raises(tmp_path: Path) 
 
 
 def test_strict_deadline_overrun_rolls_back_controller_state(tmp_path: Path) -> None:
-    """A rejected strict cycle commits no persistent controller state (SS-14 a).
+    """A rejected strict cycle commits no control-relevant state (SS-14 a).
 
-    The strict raise happens before the marking/diagnostics commit, so the discarded
-    action must not advance the plant-model marking nor the diagnostic snapshots.
+    The real delayed-transition and slew-limited paths mutate queues, cursors, and
+    previous actions while calculating a candidate. The strict transaction must
+    restore all of them as well as the marking and diagnostic snapshots.
     """
     from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
 
-    net = _certified_net()
+    net = _certified_net(delay_ticks=2)
     artifact = _artifact_from_net(net)
     certificate, binding = _issued_certificate(net, tmp_path)
     controller = NeuroSymbolicController(
@@ -306,19 +323,43 @@ def test_strict_deadline_overrun_rolls_back_controller_state(tmp_path: Path) -> 
 
     # One admitted (fail-soft) cycle advances the marking; snapshot the committed state.
     controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0)
-    marking_after_commit = controller._marking.tolist()
-    sc_marking_after_commit = list(controller.last_sc_marking)
-    sc_firing_after_commit = list(controller.last_sc_firing)
+    state_after_commit = _control_relevant_state(controller)
 
     # Now force a deterministic strict overrun on the next cycle.
     controller.deadline_monitor = DeadlineMonitor(deadline_us=1.0e-9, strict=True)
     with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
         controller.step({"R_axis_m": 3.0, "Z_axis_m": 1.5}, 1)
 
-    # The rejected cycle rolled back: persistent state is byte-identical to before it.
-    assert controller._marking.tolist() == marking_after_commit
-    assert controller.last_sc_marking == sc_marking_after_commit
-    assert controller.last_sc_firing == sc_firing_after_commit
+    # The rejected cycle rolled back every control-relevant mutation. The deadline
+    # monitor intentionally retains the overrun as safety telemetry.
+    assert _control_relevant_state(controller) == state_after_commit
+    assert controller.deadline_monitor.overruns == 1
+
+
+def test_strict_traceable_overrun_rolls_back_controller_state(tmp_path: Path) -> None:
+    """The fixed-order traceable path uses the same strict transaction (SS-14 a)."""
+    from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
+
+    net = _certified_net(delay_ticks=2)
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+
+    controller.step_traceable([6.2, 0.0], 0)
+    state_after_commit = _control_relevant_state(controller)
+
+    controller.deadline_monitor = DeadlineMonitor(deadline_us=1.0e-9, strict=True)
+    with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
+        controller.step_traceable([3.0, 1.5], 1)
+
+    assert _control_relevant_state(controller) == state_after_commit
+    assert controller.deadline_monitor.overruns == 1
 
 
 def test_strict_deadline_monitor_forbids_synchronous_logging(tmp_path: Path) -> None:
