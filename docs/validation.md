@@ -204,6 +204,31 @@ still expose the `scpn-control.native-coverage-matrix.v1` contract.
 
 ## Local acceptance campaigns
 
+### FAIR-MAST source-object binding readiness
+
+The FAIR-MAST disruption extractor accepts acquisition output only through
+`scpn-control.source-object-manifest.v2.0.0`. The reader validates the manifest
+self-digest, local NPZ bytes, member set, dtype, shape, array-value digests,
+parent snapshot, and transform descriptor before exposing exact
+`<group>.<array_name>` keys.
+
+```bash
+python validation/extract_mast_disruption_channels.py \
+  --manifest /path/to/source_object_manifest.json \
+  --artifact-root /path/to/material \
+  --json-out /path/to/binding_readiness.json
+```
+
+The resulting `scpn-control.mast-disruption-binding-readiness.v1` report proves
+only the acquisition-to-extractor transport contract. It remains
+`status="blocked"` and `channel_extraction_admissible=false`: direct toroidal
+field or sourced TF current, magnetic-axis Z, poloidal-probe reduction,
+saddle-angle units and probe alignment, and cross-group timebase alignment are
+not yet bound. The gate does not accept old `shots[].local_path` manifests or
+invent aliases for top-level names. Eleven-channel extraction remains disabled
+until a versioned MAST signal-binding specification supplies those physical
+contracts.
+
 Real-data manifest provenance gate:
 
 ```bash

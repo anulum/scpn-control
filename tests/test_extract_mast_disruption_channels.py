@@ -4,271 +4,192 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Tests for the FAIR-MAST disruption channel extractor
-"""Offline tests for :mod:`validation.extract_mast_disruption_channels`."""
+# SCPN Control — Tests for the FAIR-MAST disruption binding-readiness gate
+"""Production-boundary tests for the FAIR-MAST binding-readiness gate."""
 
 from __future__ import annotations
 
 import json
-import sys
-import types
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 import pytest
 
-from validation.build_mast_disruption_dataset import MEASURED_CHANNELS, _load_shots, build_dataset
+from validation.acquire_mast_disruption_shots import acquire
 from validation.extract_mast_disruption_channels import (
-    ToroidalFieldConfig,
-    build_channels_npz,
-    convert_shot_zarr,
-    derive_channels,
+    BINDING_READINESS_SCHEMA,
+    PHYSICAL_BINDING_BLOCKERS,
+    TRANSPORT_RESOLVABLE_KEYS,
+    assess_artifact_binding_readiness,
+    inspect_manifest_binding_readiness,
     main,
-    read_shot_signals,
 )
+from validation.mast_source_artifact_reader import load_verified_source_manifest, read_verified_npz_artifact
+from validation.mast_source_object_manifest import canonical_json_sha256
 
-_ANGLES = 2.0 * np.pi * np.arange(12, dtype=np.float64) / 12.0
-_N = 40
-_TF = ToroidalFieldConfig(n_turns=100, r_geo_m=0.7)
-_FIXED_TS = "2026-07-10T00:00:00+00:00"
+_SHOT_ID = 30421
+_FIXED_TS = "2026-07-22T00:00:00Z"
 
 
-class _FakeArray:
-    def __init__(self, values: np.ndarray) -> None:
+class _SourceArray:
+    def __init__(self, values: np.ndarray, *, dimensions: tuple[str, ...], units: str | None) -> None:
         self.values = values
+        self.dims = dimensions
+        self.attrs = {} if units is None else {"units": units}
+        self.chunks: None = None
 
 
-class _FakeDataset:
-    """Minimal xarray-like store for the extractor tests."""
-
-    def __init__(self, variables: dict[str, np.ndarray]) -> None:
+class _SourceGroup:
+    def __init__(self, variables: dict[str, _SourceArray]) -> None:
         self.variables = variables
-        self.closed = False
 
-    def __getitem__(self, key: str) -> _FakeArray:
-        return _FakeArray(self.variables[key])
-
-    def close(self) -> None:
-        self.closed = True
+    def __getitem__(self, key: str) -> _SourceArray:
+        return self.variables[key]
 
 
-def _store(**overrides: np.ndarray) -> dict[str, np.ndarray]:
-    saddle = np.outer(np.ones(_N), np.cos(_ANGLES))  # pure locked n=1
-    store: dict[str, np.ndarray] = {
-        "time": np.linspace(0.0, 0.04, _N),
-        "ip": np.full(_N, 5.0e5),
-        "line_average_n_e": np.full(_N, 3.0e19),
-        "beta_normal": np.full(_N, 1.5),
-        "q": np.tile(np.array([1.0, 1.5, 2.0, 3.0, 4.0]), (_N, 1)),
-        "psi_norm": np.array([0.0, 0.25, 0.5, 0.75, 1.0]),
-        "saddle": saddle,
-        "saddle_angle": _ANGLES,
-        "poloidal_probe": np.linspace(0.0, 0.1, _N),
-        "magnetic_axis_z": np.zeros(_N),
-        "tf_current": np.full(_N, 1.0e6),
+def _source_group(group: str, *, omit_density: bool = False) -> _SourceGroup:
+    summary = {
+        "time": _SourceArray(np.linspace(0.0, 0.05, 32), dimensions=("time",), units="s"),
+        "ip": _SourceArray(np.linspace(5.0e5, 4.0e5, 32), dimensions=("time",), units="A"),
+        "line_average_n_e": _SourceArray(np.full(32, 3.0e19), dimensions=("time",), units="m^-3"),
     }
-    store.update(overrides)
-    return store
-
-
-# --------------------------------------------------------------------------- #
-# read_shot_signals
-# --------------------------------------------------------------------------- #
-def test_read_shot_signals_resolves_bt_from_tf_current() -> None:
-    raw = read_shot_signals(_FakeDataset(_store()), tf_config=_TF)
-    assert raw["time_s"].shape == (_N,)
-    assert np.all(raw["bt_t_tesla"] > 0.0)
-
-
-def test_read_shot_signals_prefers_direct_toroidal_field() -> None:
-    store = _store(toroidal_field=np.full(_N, 0.585))
-    raw = read_shot_signals(_FakeDataset(store), tf_config=_TF)
-    assert np.allclose(raw["bt_t_tesla"], 0.585)
-
-
-def test_read_shot_signals_rejects_missing_variables() -> None:
-    store = _store()
-    del store["ip"]
-    with pytest.raises(ValueError, match="missing required variables"):
-        read_shot_signals(_FakeDataset(store), tf_config=_TF)
-
-
-def test_read_shot_signals_blocks_when_bt_unresolved() -> None:
-    store = _store()
-    del store["tf_current"]
-    with pytest.raises(RuntimeError, match="lookup_needed"):
-        read_shot_signals(_FakeDataset(store), tf_config=_TF)
-
-
-# --------------------------------------------------------------------------- #
-# derive_channels
-# --------------------------------------------------------------------------- #
-def test_derive_channels_produces_measured_schema() -> None:
-    raw = read_shot_signals(_FakeDataset(_store()), tf_config=_TF)
-    channels = derive_channels(raw, locked_window=12)
-    assert tuple(channels) == MEASURED_CHANNELS
-    assert all(channels[name].shape == (_N,) for name in MEASURED_CHANNELS)
-    assert np.allclose(channels["Ip_MA"], 0.5)
-    assert np.allclose(channels["q95"], 3.8)  # interp of [1,1.5,2,3,4] at psi_n=0.95
-
-
-def test_derive_channels_rejects_shape_mismatch() -> None:
-    raw = read_shot_signals(_FakeDataset(_store()), tf_config=_TF)
-    raw["q_profile"] = np.array([[1.0, 1.5, 2.0, 3.0, 4.0]])  # single-sample profile
-    with pytest.raises(ValueError, match="must be 1-D with"):
-        derive_channels(raw, locked_window=12)
-
-
-def test_derive_channels_rejects_non_finite() -> None:
-    raw = read_shot_signals(_FakeDataset(_store()), tf_config=_TF)
-    raw["poloidal_probe_tesla"] = raw["poloidal_probe_tesla"].copy()
-    raw["poloidal_probe_tesla"][3] = np.nan
-    with pytest.raises(ValueError, match="must be finite"):
-        derive_channels(raw, locked_window=12)
-
-
-# --------------------------------------------------------------------------- #
-# convert_shot_zarr
-# --------------------------------------------------------------------------- #
-def test_convert_shot_zarr_uses_injected_opener_and_closes() -> None:
-    ds = _FakeDataset(_store())
-    result = convert_shot_zarr(11766, Path("unused.zarr"), tf_config=_TF, locked_window=12, open_dataset=lambda _p: ds)
-    assert result["shot_id"] == 11766
-    assert result["n_samples"] == _N
-    assert tuple(result["channels"]) == MEASURED_CHANNELS
-    assert ds.closed is True
-
-
-# --------------------------------------------------------------------------- #
-# build_channels_npz — pipeline + Stage-2 round trip
-# --------------------------------------------------------------------------- #
-def _write_manifest(path: Path) -> None:
-    manifest = {
-        "shots": [
-            {"shot_id": 11767, "local_path": "b.zarr", "status": "planned"},
-            {"shot_id": 11766, "local_path": "a.zarr", "status": "acquired"},
-        ]
+    if omit_density:
+        del summary["line_average_n_e"]
+    groups = {
+        "summary": summary,
+        "equilibrium": {
+            "time": _SourceArray(np.linspace(0.0, 0.05, 16), dimensions=("time",), units="s"),
+            "q95": _SourceArray(np.full(16, 3.8), dimensions=("time",), units=None),
+            "beta_tor_normal": _SourceArray(np.full(16, 1.5), dimensions=("time",), units=None),
+            "z": _SourceArray(np.zeros((16, 9)), dimensions=("time", "profile"), units="m"),
+        },
+        "interferometer": {},
+        "magnetics": {
+            "time_saddle": _SourceArray(np.linspace(0.0, 0.05, 64), dimensions=("time_saddle",), units="s"),
+            "b_field_tor_probe_saddle_field": _SourceArray(
+                np.ones((12, 64)), dimensions=("channel", "time_saddle"), units="T"
+            ),
+            "b_field_tor_probe_saddle_m_phi": _SourceArray(
+                np.tile(np.arange(12, dtype=np.float64).reshape(-1, 1), (1, 64)),
+                dimensions=("channel", "time_saddle"),
+                units="degree",
+            ),
+            "b_field_pol_probe_cc_field": _SourceArray(
+                np.ones((24, 64)), dimensions=("channel", "time_mirnov"), units="T"
+            ),
+        },
     }
-    path.write_text(json.dumps(manifest), encoding="utf-8")
+    return _SourceGroup(groups[group])
 
 
-def test_build_channels_npz_extracts_acquired_only(tmp_path: Path) -> None:
-    manifest_path = tmp_path / "campaign.json"
-    _write_manifest(manifest_path)
-    report = build_channels_npz(
-        manifest_path,
-        dataset_root=tmp_path,
-        out_dir=tmp_path / "out",
-        tf_config=_TF,
-        locked_window=12,
+def _acquire_to_disk(root: Path, *, with_failed_shot: bool = False, omit_density: bool = False) -> Path:
+    def open_group(_fs: Any, shot_id: int, group: str) -> _SourceGroup:
+        if with_failed_shot and shot_id == _SHOT_ID + 1:
+            raise KeyError("shot unavailable")
+        return _source_group(group, omit_density=omit_density)
+
+    shot_ids = [_SHOT_ID, _SHOT_ID + 1] if with_failed_shot else [_SHOT_ID]
+    material_root = root / "material"
+    manifest = acquire(
+        shot_ids,
+        out_dir=material_root,
+        cache_dir=root / "cache",
         generated_at=_FIXED_TS,
-        open_dataset=lambda _p: _FakeDataset(_store()),
-    )
-    assert report["status"] == "blocked"
-    assert report["admission_ready"] is False
-    assert report["n_shots_extracted"] == 1
-    statuses = {rec["shot_id"]: rec["status"] for rec in report["shots"]}
-    assert statuses == {11766: "extracted", 11767: "skipped"}
-
-    npz_path = tmp_path / "out" / "channels.npz"
-    with np.load(npz_path, allow_pickle=False) as data:
-        assert list(data["shot_ids"]) == [11766]
-        assert set(f"11766:{name}" for name in MEASURED_CHANNELS).issubset(set(data.files))
-
-    # Round trip: the emitted channels.npz feeds the Stage-2 dataset builder directly.
-    shots = _load_shots(npz_path)
-    dataset = build_dataset(
-        shots,
-        dataset_id="mast-disruption-roundtrip",
-        out_dir=tmp_path / "ds",
         retrieved_at=_FIXED_TS,
-        generated_at=_FIXED_TS,
+        make_fs=lambda _path: object(),
+        open_group=open_group,
     )
-    assert dataset["n_shots"] == 1
-    assert dataset["status"] == "blocked"
+    manifest_path = root / "manifest.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest_path
 
 
-def test_build_channels_npz_rejects_empty_manifest(tmp_path: Path) -> None:
-    manifest_path = tmp_path / "empty.json"
-    manifest_path.write_text(json.dumps({"shots": []}), encoding="utf-8")
-    with pytest.raises(ValueError, match="non-empty shots list"):
-        build_channels_npz(
-            manifest_path,
-            dataset_root=tmp_path,
-            out_dir=tmp_path / "out",
-            tf_config=_TF,
-            locked_window=12,
-            generated_at=_FIXED_TS,
-            open_dataset=lambda _p: _FakeDataset(_store()),
-        )
+def test_same_schema_acquisition_to_verified_npz_to_binding_gate(tmp_path: Path) -> None:
+    """Acquisition output reaches the gate through its unchanged v2 schema."""
+    manifest_path = _acquire_to_disk(tmp_path)
+    material_root = tmp_path / "material"
+
+    report = inspect_manifest_binding_readiness(manifest_path, artifact_root=material_root)
+
+    assert report["schema_version"] == BINDING_READINESS_SCHEMA
+    assert report["status"] == "blocked"
+    assert report["channel_extraction_admissible"] is False
+    assert report["n_transport_verified"] == 1
+    shot = report["shots"][0]
+    assert {item["semantic"] for item in shot["resolved"]} == set(TRANSPORT_RESOLVABLE_KEYS)
+    assert {item["semantic"] for item in shot["unresolved"]} == set(PHYSICAL_BINDING_BLOCKERS)
+    assert shot["unresolved"] == sorted(shot["unresolved"], key=lambda item: item["semantic"])
+    assert "summary.ip" in shot["archive_keys"]
+    assert "ip" not in shot["archive_keys"]
+    assert report["payload_sha256"] == canonical_json_sha256({**report, "payload_sha256": None})
 
 
-# --------------------------------------------------------------------------- #
-# main (default opener resolved dynamically for monkeypatching)
-# --------------------------------------------------------------------------- #
-def test_main_writes_report(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    manifest_path = tmp_path / "campaign.json"
-    _write_manifest(manifest_path)
-    monkeypatch.setattr(
-        "validation.extract_mast_disruption_channels._default_open_dataset",
-        lambda _p: _FakeDataset(_store()),
+def test_readiness_reports_absent_transport_key_without_aliasing(tmp_path: Path) -> None:
+    """A missing exact source key stays absent instead of receiving an alias."""
+    manifest_path = _acquire_to_disk(tmp_path, omit_density=True)
+    manifest = load_verified_source_manifest(manifest_path, artifact_root=tmp_path / "material")
+    artifact = read_verified_npz_artifact(manifest, artifact_root=tmp_path / "material", shot_id=_SHOT_ID)
+
+    report = assess_artifact_binding_readiness(artifact)
+
+    density = next(item for item in report["unresolved"] if item["semantic"] == "ne_per_m3")
+    assert density["status"] == "source_key_absent"
+    assert density["required_source_keys"] == ["summary.line_average_n_e"]
+    assert {item["semantic"] for item in report["resolved"]} == set(TRANSPORT_RESOLVABLE_KEYS) - {"ne_per_m3"}
+
+
+def test_campaign_report_preserves_failed_shot_boundary(tmp_path: Path) -> None:
+    """Unavailable acquisition records remain explicit campaign results."""
+    manifest_path = _acquire_to_disk(tmp_path, with_failed_shot=True)
+
+    report = inspect_manifest_binding_readiness(manifest_path, artifact_root=tmp_path / "material")
+
+    assert report["n_requested"] == 2
+    assert report["n_transport_verified"] == 1
+    assert report["n_not_acquired"] == 1
+    failed = next(item for item in report["shots"] if item["status"] == "not_acquired")
+    assert failed["shot_id"] == _SHOT_ID + 1
+    assert "shot unavailable" in failed["reason"]
+
+
+def test_readiness_is_deterministic_and_lineage_bound(tmp_path: Path) -> None:
+    """Repeated inspection preserves the manifest-bound artefact identity."""
+    manifest_path = _acquire_to_disk(tmp_path)
+    first = inspect_manifest_binding_readiness(manifest_path, artifact_root=tmp_path / "material")
+    second = inspect_manifest_binding_readiness(manifest_path, artifact_root=tmp_path / "material")
+    assert first == second
+    assert (
+        first["shots"][0]["artifact_sha256"]
+        == json.loads(manifest_path.read_text())["shots"][0]["artifacts"][0]["sha256"]
     )
-    json_out = tmp_path / "report.json"
-    exit_code = main(
+
+
+def test_cli_writes_blocked_readiness_report(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The CLI persists a successful transport proof without opening admission."""
+    manifest_path = _acquire_to_disk(tmp_path)
+    json_out = tmp_path / "reports" / "readiness.json"
+
+    code = main(
         [
             "--manifest",
             str(manifest_path),
-            "--dataset-root",
-            str(tmp_path),
-            "--out-dir",
-            str(tmp_path / "out"),
+            "--artifact-root",
+            str(tmp_path / "material"),
             "--json-out",
             str(json_out),
-            "--n-turns",
-            "100",
-            "--r-geo-m",
-            "0.7",
-            "--locked-window",
-            "12",
-            "--generated-at",
-            _FIXED_TS,
         ]
     )
-    assert exit_code == 0
-    report = json.loads(json_out.read_text(encoding="utf-8"))
-    assert report["n_shots_extracted"] == 1
-    assert report["status"] == "blocked"
+
+    assert code == 0
+    assert json.loads(json_out.read_text(encoding="utf-8"))["status"] == "blocked"
+    assert "1 verified, 0 unavailable" in capsys.readouterr().out
 
 
-# --------------------------------------------------------------------------- #
-# _default_open_dataset — xarray binding via a stubbed module
-# --------------------------------------------------------------------------- #
-def test_default_open_dataset_uses_xarray(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from validation import extract_mast_disruption_channels as extractor
-
-    opened: dict[str, Any] = {}
-
-    def _open_zarr(path: Path, consolidated: bool) -> _FakeDataset:
-        opened["path"] = path
-        opened["consolidated"] = consolidated
-        return _FakeDataset(_store())
-
-    fake_xarray = types.ModuleType("xarray")
-    fake_xarray.open_zarr = _open_zarr  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "xarray", fake_xarray)
-    zarr_dir = tmp_path / "shot.zarr"
-    zarr_dir.mkdir()
-    ds = extractor._default_open_dataset(zarr_dir)
-    assert isinstance(ds, _FakeDataset)
-    assert opened == {"path": zarr_dir, "consolidated": True}
-
-
-def test_default_open_dataset_missing_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from validation import extract_mast_disruption_channels as extractor
-
-    fake_xarray = types.ModuleType("xarray")
-    fake_xarray.open_zarr = lambda path, consolidated: _FakeDataset(_store())  # type: ignore[attr-defined]
-    monkeypatch.setitem(sys.modules, "xarray", fake_xarray)
-    with pytest.raises(FileNotFoundError, match="does not exist"):
-        extractor._default_open_dataset(tmp_path / "absent.zarr")
+def test_tampered_npz_fails_before_binding_assessment(tmp_path: Path) -> None:
+    """Byte tampering is rejected before semantic readiness is assessed."""
+    manifest_path = _acquire_to_disk(tmp_path)
+    npz_path = tmp_path / "material" / f"shot_{_SHOT_ID}.npz"
+    npz_path.write_bytes(b"tampered")
+    with pytest.raises(ValueError, match="verification failed"):
+        inspect_manifest_binding_readiness(manifest_path, artifact_root=tmp_path / "material")
