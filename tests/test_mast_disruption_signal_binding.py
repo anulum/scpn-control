@@ -138,9 +138,9 @@ def test_unresolved_semantics_are_named_blockers_not_fallback_bindings() -> None
     assert blockers == {
         "BT_T": "toroidal_field_authority_incomplete",
         "beta_N": "normalised_beta_authority_incomplete",
-        "n1_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
-        "n2_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
-        "locked_mode_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
+        "n1_amp": "saddle_modal_authority_incomplete",
+        "n2_amp": "saddle_modal_authority_incomplete",
+        "locked_mode_amp": "locked_mode_authority_incomplete",
         "dBdt_gauss_per_s": "source_units_and_label_conflict",
     }
     assert all(bindings[channel].status == "blocked" for channel in blockers)

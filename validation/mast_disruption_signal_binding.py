@@ -349,8 +349,8 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_key="magnetics.time_saddle",
                 timebase_dimensions=("time_saddle",),
                 timebase_units="s",
-                transform="toroidal_mode_decomposition_unresolved",
-                blocker="saddle_geometry_angle_units_and_modal_reduction_unresolved",
+                transform="authority_gated_toroidal_mode_decomposition",
+                blocker="saddle_modal_authority_incomplete",
             ),
             _blocked_binding(
                 "n2_amp",
@@ -361,8 +361,8 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_key="magnetics.time_saddle",
                 timebase_dimensions=("time_saddle",),
                 timebase_units="s",
-                transform="toroidal_mode_decomposition_unresolved",
-                blocker="saddle_geometry_angle_units_and_modal_reduction_unresolved",
+                transform="authority_gated_toroidal_mode_decomposition",
+                blocker="saddle_modal_authority_incomplete",
             ),
             _blocked_binding(
                 "locked_mode_amp",
@@ -374,7 +374,7 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_dimensions=("time_saddle",),
                 timebase_units="s",
                 transform="locked_mode_reduction_unresolved",
-                blocker="saddle_geometry_angle_units_and_modal_reduction_unresolved",
+                blocker="locked_mode_authority_incomplete",
             ),
             _blocked_binding(
                 "dBdt_gauss_per_s",

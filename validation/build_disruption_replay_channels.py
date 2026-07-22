@@ -13,17 +13,19 @@ This consumes the native-resolution per-shot mirrors written by
 ``channels.npz`` that :mod:`validation.build_mast_disruption_dataset` labels. It
 is the SCPN-CONTROL view of the shared material: it reads local mirrors (no
 re-download), derives the eleven measured channels on the summary timebase, and
-writes them in the exact Stage-2 schema. Producer report v2 binds the reopened
-archive bytes and canonical per-shot channel values before an exclusive publish;
-the source material remains immutable.
+writes them in the exact Stage-2 compatibility schema. Producer report v2 binds
+the reopened archive bytes and per-shot candidate channel values before an
+exclusive publish; the source material remains immutable. The report does not
+make every candidate a canonical physical binding.
 
 Fluctuation channels (toroidal n=1/n=2 mode amplitudes and the locked-mode
 envelope from the 12-channel saddle array, and dB/dt from a poloidal probe) are
 computed on their native fast timebase and reduced to the common grid by a
 per-bin peak, preserving warning-relevant bursts a plain interpolation would
 alias away; the equilibrium and summary scalar channels are linearly
-interpolated. All channels come from real level2 signals; labels are added by the
-dataset builder.
+interpolated. The modal candidates retain the historical missing-row
+zero-replacement recipe but remain inadmissible under the L2F-12c authority
+gate. Labels are added by the dataset builder.
 """
 
 from __future__ import annotations
@@ -48,6 +50,7 @@ from validation.disruption_channel_recipes import (
     n_mode_amplitude,
     per_1e19,
 )
+from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
 from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256
 
 REPORT_SCHEMA = "scpn-control.mast-disruption-replay-channels.v2.0.0"
@@ -113,7 +116,7 @@ def _peak_to_grid(
 def derive_replay_channels(
     mirror: dict[str, NDArray[Any]], *, locked_window: int = 201
 ) -> dict[str, NDArray[np.float64]]:
-    """Derive the eleven measured channels from one native-resolution shot mirror."""
+    """Derive eleven compatibility channels from one native-resolution mirror."""
     grid = np.asarray(mirror["summary.time"], dtype=np.float64)
     t_eq = np.asarray(mirror["equilibrium.time"], dtype=np.float64)
     t_saddle = np.asarray(mirror["magnetics.time_saddle"], dtype=np.float64)
@@ -317,6 +320,20 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
                 "source_key": "equilibrium.beta_tor_normal",
                 "canonical_binding_admissible": False,
                 "blocker": "normalised_beta_authority_incomplete",
+            },
+            "n1_amp": {
+                "source_key": "magnetics.b_field_tor_probe_saddle_field",
+                "geometry_keys": list(GEOMETRY_KEYS),
+                "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
+                "canonical_binding_admissible": False,
+                "blocker": "saddle_modal_authority_incomplete",
+            },
+            "n2_amp": {
+                "source_key": "magnetics.b_field_tor_probe_saddle_field",
+                "geometry_keys": list(GEOMETRY_KEYS),
+                "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
+                "canonical_binding_admissible": False,
+                "blocker": "saddle_modal_authority_incomplete",
             },
         },
         "claim_boundary": {

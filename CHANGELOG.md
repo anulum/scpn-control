@@ -13,6 +13,13 @@
   definition directly.
 
 ### Added
+- Add a self-digested MAST saddle-modal authority gate that pins the complete
+  FAIR-MAST mapping and geometry identity, verifies per-row finite coverage and
+  toroidal polygon centres without reducing them, and keeps canonical `n1_amp`
+  and `n2_amp` blocked until the field/geometry row join, vertical saddle set,
+  released geometry revision, calibration uncertainty, baseline, and
+  bad-channel policies are source-attested. Bind the gate digest and blocker
+  into signal-binding and replay reports.
 - Add a self-digested MAST normalised-beta authority gate that pins the
   FAIR-MAST and current IMAS definitions, treats the live `EFM_BETAN` T-to-1
   conflict as a metadata-repair candidate without changing values, retains

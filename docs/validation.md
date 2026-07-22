@@ -36,6 +36,15 @@ blocked until formula inputs, sign and scale, reconstruction quality,
 negative-value validity, and one-standard-deviation uncertainty are
 source-authoritative.
 
+## MAST saddle-modal authority
+
+The L2F-12c gate is documented in
+[MAST saddle-modal authority](mast_saddle_modal_authority.md). It pins the
+twelve `ASM_SAD/M01..M12` candidates and all three source geometry surfaces,
+verifies the observed polygon centres and finite row coverage, and performs no
+modal reduction until the field-row join, vertical set, released geometry,
+calibration uncertainty, baseline, and bad-channel policies are source-attested.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics

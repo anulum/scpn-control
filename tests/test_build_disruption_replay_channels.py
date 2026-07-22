@@ -32,6 +32,7 @@ from validation.build_disruption_replay_channels import (
     main,
 )
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS, _load_shots, build_dataset
+from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
 
 _FIXED_TS = "2026-07-10T00:00:00+00:00"
 _ANGLES_DEG = np.arange(12, dtype=np.float64) * 30.0  # 12-channel toroidal saddle, 30 deg apart
@@ -191,6 +192,20 @@ def test_build_channels_and_stage2_round_trip(tmp_path: Path) -> None:
             "source_key": "equilibrium.beta_tor_normal",
             "canonical_binding_admissible": False,
             "blocker": "normalised_beta_authority_incomplete",
+        },
+        "n1_amp": {
+            "source_key": "magnetics.b_field_tor_probe_saddle_field",
+            "geometry_keys": list(GEOMETRY_KEYS),
+            "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
+            "canonical_binding_admissible": False,
+            "blocker": "saddle_modal_authority_incomplete",
+        },
+        "n2_amp": {
+            "source_key": "magnetics.b_field_tor_probe_saddle_field",
+            "geometry_keys": list(GEOMETRY_KEYS),
+            "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
+            "canonical_binding_admissible": False,
+            "blocker": "saddle_modal_authority_incomplete",
         },
     }
     assert all(value is False for value in report["claim_boundary"].values())

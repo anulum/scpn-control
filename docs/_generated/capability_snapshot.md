@@ -10,10 +10,10 @@
 | Python public classes | 539 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 150 |
+| Validation scripts | 153 |
 | Optional extras | 19 |
-| Python test files | 507 |
-| Public documentation pages | 63 |
+| Python test files | 510 |
+| Public documentation pages | 66 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
