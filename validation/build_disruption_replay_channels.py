@@ -117,6 +117,18 @@ def derive_replay_channels(
     grid = np.asarray(mirror["summary.time"], dtype=np.float64)
     t_eq = np.asarray(mirror["equilibrium.time"], dtype=np.float64)
     t_saddle = np.asarray(mirror["magnetics.time_saddle"], dtype=np.float64)
+    bphi_rmag = np.asarray(mirror["equilibrium.bphi_rmag"], dtype=np.float64)
+    magnetic_axis_r = np.asarray(mirror["equilibrium.magnetic_axis_r"], dtype=np.float64)
+    if (
+        bphi_rmag.ndim != 1
+        or magnetic_axis_r.ndim != 1
+        or t_eq.ndim != 1
+        or not (bphi_rmag.shape == magnetic_axis_r.shape == t_eq.shape)
+    ):
+        raise ValueError("bphi_rmag, magnetic_axis_r, and equilibrium.time must be aligned one-dimensional arrays")
+    joint_field_radius = np.isfinite(bphi_rmag) & np.isfinite(magnetic_axis_r) & (magnetic_axis_r > 0.0)
+    if not bool(np.any(joint_field_radius)):
+        raise ValueError("bphi_rmag has no finite sample at a finite positive magnetic_axis_r")
 
     saddle = np.nan_to_num(np.asarray(mirror["magnetics.b_field_tor_probe_saddle_field"], dtype=np.float64))  # (12, T)
     phi = np.deg2rad(
@@ -136,7 +148,7 @@ def derive_replay_channels(
     channels: dict[str, NDArray[np.float64]] = {
         "time_s": grid,
         "Ip_MA": amperes_to_megamperes(ip),
-        "BT_T": _interp(mirror["equilibrium.bvac_rmag"], t_eq, grid),
+        "BT_T": _interp(bphi_rmag, t_eq, grid),
         "beta_N": _interp(mirror["equilibrium.beta_tor_normal"], t_eq, grid),
         "q95": _interp(mirror["equilibrium.q95"], t_eq, grid),
         "ne_1e19": per_1e19(ne),
@@ -294,6 +306,20 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
         "channels_npz": npz_path.name,
         "channels_archive": archive_binding,
         "channel_schema": list(_MEASURED),
+        "channel_authority": {
+            "BT_T": {
+                "source_key": "equilibrium.bphi_rmag",
+                "reference_radius_key": "equilibrium.magnetic_axis_r",
+                "canonical_binding_admissible": False,
+                "blocker": "toroidal_field_authority_incomplete",
+            }
+        },
+        "claim_boundary": {
+            "scientific_validation": False,
+            "training_admission": False,
+            "facility_prediction": False,
+            "control_admission": False,
+        },
         "locked_window": locked_window,
         "n_derived": len(shot_ids),
         "shots": records,

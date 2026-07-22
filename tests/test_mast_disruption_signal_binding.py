@@ -136,7 +136,7 @@ def test_unresolved_semantics_are_named_blockers_not_fallback_bindings() -> None
     }
 
     assert blockers == {
-        "BT_T": "bvac_rmag_semantics_not_yet_approved_as_canonical_bt",
+        "BT_T": "toroidal_field_authority_incomplete",
         "beta_N": "source_units_conflict_with_dimensionless_definition",
         "n1_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
         "n2_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
@@ -287,7 +287,7 @@ def test_blocked_binding_requires_a_stable_reason_code() -> None:
         SignalBinding(
             channel="BT_T",
             status="blocked",
-            source_key="equilibrium.bvac_rmag",
+            source_key="equilibrium.bphi_rmag",
             source_dimensions=("time",),
             source_units="T",
             output_units="T",

@@ -17,6 +17,15 @@ The practical review workflow is:
 2. inspect the report for required digests, context, and boundaries,
 3. only then promote the result into planning or investor-facing material.
 
+## MAST toroidal-field authority
+
+The L2F-12a gate is documented in
+[MAST toroidal-field authority](mast_toroidal_field_authority.md). It separates
+the total `bphi_rmag` source from the vacuum `bvac_rmag` candidate, requires the
+paired magnetic-axis radius, and fails closed until physical sign and
+one-standard-deviation uncertainty are source-attested. It never promotes a
+field from its name, units, observed sign, or approximate magnitude.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics

@@ -297,15 +297,15 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
             ),
             _blocked_binding(
                 "BT_T",
-                source_key="equilibrium.bvac_rmag",
+                source_key="equilibrium.bphi_rmag",
                 source_dimensions=("time",),
                 source_units="T",
                 output_units="T",
                 timebase_key="equilibrium.time",
                 timebase_dimensions=("time",),
                 timebase_units="s",
-                transform="identity_candidate_only",
-                blocker="bvac_rmag_semantics_not_yet_approved_as_canonical_bt",
+                transform="identity_preserve_source_sign_candidate_only",
+                blocker="toroidal_field_authority_incomplete",
             ),
             _blocked_binding(
                 "beta_N",

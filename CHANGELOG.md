@@ -13,6 +13,12 @@
   definition directly.
 
 ### Added
+- Add a self-digested MAST toroidal-field authority gate that distinguishes
+  total `bphi_rmag` from vacuum `bvac_rmag`, binds the time-varying
+  magnetic-axis radius and source generation, declares the complete TF-current
+  alternative, and keeps canonical `BT_T` blocked until primary-source sign and
+  one-standard-deviation uncertainty authority are content-digested. Extend
+  acquisition to retain total field and reference radius without resampling.
 - Add a two-run FAIR-MAST regeneration verifier that reopens the exact
   SourceObjectManifest-v2 artifacts, producer-bound replay report/archive, and
   every lineage-bound dataset output; rejects tree or binding drift; requires

@@ -58,7 +58,9 @@ def _mirror(
         "equilibrium.time": t_eq,
         "equilibrium.q95": np.full(n_eq, 3.8),
         "equilibrium.beta_tor_normal": np.full(n_eq, 1.5),
+        "equilibrium.bphi_rmag": np.full(n_eq, -0.61),
         "equilibrium.bvac_rmag": np.full(n_eq, 0.58),
+        "equilibrium.magnetic_axis_r": np.linspace(0.8, 0.9, n_eq),
         "equilibrium.z": z_axis,
         "magnetics.time_saddle": t_fast,
         "magnetics.time_mirnov": t_fast,
@@ -142,6 +144,25 @@ def test_derive_replay_channels_handles_z_timebase_mismatch() -> None:
     assert np.all(np.isfinite(channels["vertical_position_m"]))
 
 
+@pytest.mark.parametrize(
+    ("key", "value", "message"),
+    [
+        ("equilibrium.magnetic_axis_r", np.asarray([0.8, 0.9]), "aligned one-dimensional"),
+        ("equilibrium.magnetic_axis_r", np.full(20, np.nan), "no finite sample"),
+    ],
+)
+def test_derive_replay_channels_requires_paired_positive_reference_radius(
+    key: str,
+    value: NDArray[np.float64],
+    message: str,
+) -> None:
+    """Reject a total-field candidate without its aligned positive axis radius."""
+    mirror = _mirror()
+    mirror[key] = value
+    with pytest.raises(ValueError, match=message):
+        derive_replay_channels(mirror)
+
+
 # --------------------------------------------------------------------------- #
 # build_channels (directory) + Stage-2 round trip
 # --------------------------------------------------------------------------- #
@@ -159,6 +180,13 @@ def test_build_channels_and_stage2_round_trip(tmp_path: Path) -> None:
     assert report["n_derived"] == 2
     assert report["synthetic"] is False
     assert report["schema_version"] == REPORT_SCHEMA
+    assert report["channel_authority"]["BT_T"] == {
+        "source_key": "equilibrium.bphi_rmag",
+        "reference_radius_key": "equilibrium.magnetic_axis_r",
+        "canonical_binding_admissible": False,
+        "blocker": "toroidal_field_authority_incomplete",
+    }
+    assert all(value is False for value in report["claim_boundary"].values())
     binding = report["channels_archive"]
     archive_path = out_dir / "channels.npz"
     assert binding["file_sha256"] == sha256(archive_path.read_bytes()).hexdigest()
