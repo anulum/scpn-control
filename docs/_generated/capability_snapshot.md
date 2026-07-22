@@ -7,12 +7,12 @@
 | Project scripts | 5 |
 | Public API exports | 44 |
 | Python control/physics modules | 162 |
-| Python public classes | 536 |
+| Python public classes | 537 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 134 |
 | Optional extras | 19 |
-| Python test files | 489 |
+| Python test files | 490 |
 | Public documentation pages | 62 |
 | GitHub Actions workflows | 10 |
 

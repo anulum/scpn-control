@@ -7,6 +7,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import logging
 import math
 from dataclasses import dataclass
@@ -703,6 +704,73 @@ def default_model_path() -> Path:
     return _repo_root() / "artifacts" / DEFAULT_MODEL_FILENAME
 
 
+class DisruptionCheckpointIntegrityError(RuntimeError):
+    """Raised when a disruption-model checkpoint fails its weights-hash check.
+
+    A safety-relevant predictor must never load weights of unverified
+    provenance: an integrity mismatch is a hard, fail-closed error and is *not*
+    downgraded to the heuristic fallback (unlike a corrupt or unreadable file).
+    """
+
+
+def _sha256_file(path: Path) -> str:
+    """Return the hex SHA-256 digest of a file, read in bounded chunks."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(65536), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _expected_checkpoint_digest(path: Path, explicit: str | None) -> str | None:
+    """Resolve the expected checkpoint digest from an explicit value or sidecar.
+
+    Precedence: an ``explicit`` digest wins; otherwise a ``<checkpoint>.sha256``
+    sidecar file (first whitespace-delimited token, as written by ``sha256sum``)
+    is used if present. Returns ``None`` when neither pins a digest.
+    """
+    if explicit is not None:
+        token = explicit.strip().split()[0] if explicit.strip() else ""
+        if len(token) != 64 or not _is_hex(token):
+            raise ValueError("expected_sha256 must be a 64-character hex SHA-256 digest")
+        return token.lower()
+    sidecar = path.with_name(path.name + ".sha256")
+    if not sidecar.exists():
+        return None
+    raw = sidecar.read_text(encoding="utf-8").strip()
+    token = raw.split()[0] if raw else ""
+    if len(token) != 64 or not _is_hex(token):
+        raise DisruptionCheckpointIntegrityError(
+            f"checkpoint sidecar {sidecar.name} does not contain a valid SHA-256 digest"
+        )
+    return token.lower()
+
+
+def _is_hex(text: str) -> bool:
+    """Return whether every character in ``text`` is a hexadecimal digit."""
+    try:
+        int(text, 16)
+    except ValueError:
+        return False
+    return True
+
+
+def verify_checkpoint_integrity(path: Path, expected_sha256: str | None = None) -> str:
+    """Return a checkpoint's SHA-256, enforcing an expected digest when pinned.
+
+    When ``expected_sha256`` (or a ``<checkpoint>.sha256`` sidecar) pins a digest,
+    a mismatch raises :class:`DisruptionCheckpointIntegrityError`. With nothing
+    pinned the digest is returned for provenance without gating the load.
+    """
+    expected = _expected_checkpoint_digest(path, expected_sha256)
+    actual = _sha256_file(path)
+    if expected is not None and actual.lower() != expected:
+        raise DisruptionCheckpointIntegrityError(
+            f"checkpoint {path.name} SHA-256 {actual} does not match the pinned digest {expected}"
+        )
+    return actual
+
+
 def _normalize_seq_len(seq_len: int) -> int:
     return _require_int("seq_len", seq_len, 8)
 
@@ -1091,8 +1159,15 @@ def load_or_train_predictor(
     train_if_missing: bool = True,
     allow_fallback: bool = False,
     allow_legacy_fallback: bool = False,
+    expected_sha256: str | None = None,
 ) -> tuple[Any, dict[str, Any]]:
     """Load a trained predictor, training one if missing.
+
+    When ``expected_sha256`` (or a ``<checkpoint>.sha256`` sidecar) pins a digest,
+    the checkpoint's weights hash is verified before it is deserialised; a
+    mismatch raises :class:`DisruptionCheckpointIntegrityError` and is never
+    downgraded to the heuristic fallback. The resolved digest is always recorded
+    as ``weights_sha256`` in the returned metadata for provenance.
 
     Parameters
     ----------
@@ -1147,6 +1222,9 @@ def load_or_train_predictor(
     kwargs = dict(train_kwargs or {})
 
     if path.exists() and not force_retrain:  # pragma: no cover - requires torch checkpoint
+        # Fail-closed weights-integrity gate BEFORE deserialisation: a pinned
+        # digest mismatch raises hard and is never swallowed by allow_fallback.
+        weights_sha256 = verify_checkpoint_integrity(path, expected_sha256)
         try:
             checkpoint = torch.load(path, map_location="cpu", weights_only=True)
             if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
@@ -1167,6 +1245,7 @@ def load_or_train_predictor(
                     "seq_len": int(loaded_seq_len),
                     "training_data": "checkpoint_metadata_unavailable",
                     "facility_roc_validated": False,
+                    "weights_sha256": weights_sha256,
                 }
             )
         except (RuntimeError, ValueError, KeyError, OSError) as exc:

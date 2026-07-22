@@ -46,7 +46,10 @@ primarily:
 - **Input validation:** Public API boundaries enforce finite-float, integer,
   fraction, and 1D-array checks via `core/_validators.py`.
 - **Rust:** `cargo deny` supply-chain policy enforced in CI.
-- **Checkpoint hygiene:** `torch.load(..., weights_only=True)` by default.
+- **Checkpoint hygiene:** `torch.load(..., weights_only=True)` by default (no
+  pickle code execution), plus a fail-closed weights-hash gate — when a digest is
+  pinned (an explicit value or a `<checkpoint>.sha256` sidecar) the disruption
+  model is verified before deserialisation and a mismatch is a hard error.
 - **RNG isolation:** All stochastic modules use scoped `numpy.random.Generator`.
 - **Pre-commit:** ruff, mypy, cargo fmt, merge-conflict, private-key detection.
 
