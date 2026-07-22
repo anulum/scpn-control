@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from validation import acquire_mast_disruption_shots as acq
 from validation import mast_source_object_manifest as source_manifest
@@ -25,8 +26,9 @@ _ANGLES = np.tile((np.arange(12, dtype=np.float64) * 30.0).reshape(-1, 1), (1, 2
 
 
 class _FakeVar:
-    def __init__(self, values: np.ndarray, key: str) -> None:
+    def __init__(self, values: NDArray[np.float64], key: str) -> None:
         self.values = values
+        self.dims: tuple[str, ...]
         if values.ndim == 2:
             self.dims = ("channel", "time_saddle" if "field" in key else "sample")
         else:
@@ -36,22 +38,27 @@ class _FakeVar:
 
 
 class _FakeDataset:
-    def __init__(self, variables: dict[str, np.ndarray]) -> None:
+    def __init__(self, variables: dict[str, NDArray[np.float64]]) -> None:
         self.variables = variables
 
     def __getitem__(self, key: str) -> _FakeVar:
         return _FakeVar(self.variables[key], key)
 
 
-def _group_vars(group: str, *, with_saddle: bool = True) -> dict[str, np.ndarray]:
+def _group_vars(group: str, *, with_saddle: bool = True) -> dict[str, NDArray[np.float64]]:
     if group == "summary":
         return {"time": np.linspace(0, 0.06, 60), "ip": np.full(60, 5.0e5), "line_average_n_e": np.full(60, 3.0e19)}
     if group == "equilibrium":
-        return {"time": np.linspace(0, 0.06, 20), "q95": np.full(20, 3.8), "beta_tor_normal": np.full(20, 1.5)}
+        return {
+            "time": np.linspace(0, 0.06, 20),
+            "q95": np.full(20, 3.8),
+            "beta_tor_normal": np.full(20, 1.5),
+            "magnetic_axis_z": np.linspace(-0.02, 0.02, 20),
+        }
     if group == "interferometer":
         return {"time": np.linspace(0, 0.06, 100), "n_e_line": np.full(100, 3.0e19)}
     if group == "magnetics":
-        base: dict[str, np.ndarray] = {"time_saddle": np.linspace(0, 0.06, 500)}
+        base: dict[str, NDArray[np.float64]] = {"time_saddle": np.linspace(0, 0.06, 500, dtype=np.float64)}
         if with_saddle:
             base["b_field_tor_probe_saddle_field"] = np.ones((12, 500))
             base["b_field_tor_probe_saddle_m_phi"] = _ANGLES
@@ -70,16 +77,19 @@ def _open_group(with_saddle: bool = True) -> Any:
 # mirror_shot
 # --------------------------------------------------------------------------- #
 def test_mirror_shot_collects_present_variables() -> None:
+    """The acquisition surface keeps exact present arrays and source metadata."""
     metadata: dict[str, dict[str, Any]] = {}
     payload = acq.mirror_shot(object(), 30421, open_group=_open_group(), metadata_out=metadata)
     assert "magnetics.b_field_tor_probe_saddle_field" in payload
     assert "summary.ip" in payload
     assert payload["equilibrium.q95"].shape == (20,)
+    assert payload["equilibrium.magnetic_axis_z"].shape == (20,)
     assert metadata["summary.ip"]["dimensions"] == ["time"]
     assert metadata["summary.ip"]["timebase"] == {"kind": "source_dimension", "dimensions": ["time"]}
 
 
 def test_mirror_shot_requires_saddle_array() -> None:
+    """A shot without the required toroidal saddle array fails closed."""
     with pytest.raises(ValueError, match="no toroidal saddle array"):
         acq.mirror_shot(object(), 30421, open_group=_open_group(with_saddle=False))
 
@@ -88,6 +98,7 @@ def test_mirror_shot_requires_saddle_array() -> None:
 # acquire (directory + manifest)
 # --------------------------------------------------------------------------- #
 def test_acquire_writes_mirrors_and_manifest(tmp_path: Path) -> None:
+    """Acquisition writes verified NPZ caches and a v2 lineage manifest."""
     manifest = acq.acquire(
         [30421, 30424],
         out_dir=tmp_path / "material",
@@ -130,6 +141,7 @@ def test_acquire_writes_mirrors_and_manifest(tmp_path: Path) -> None:
 
 
 def test_acquire_records_failed_shot(tmp_path: Path) -> None:
+    """A failed source read remains an explicit failed manifest record."""
     manifest = acq.acquire(
         [30421],
         out_dir=tmp_path / "material",
@@ -149,6 +161,7 @@ def test_acquire_records_failed_shot(tmp_path: Path) -> None:
 # make_filesystem / _open_group (S3 seam via stubbed modules)
 # --------------------------------------------------------------------------- #
 def test_make_filesystem_uses_fsspec(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The cache filesystem is anonymous and rooted at the caller cache path."""
     calls: dict[str, Any] = {}
     fake_fsspec = types.ModuleType("fsspec")
     fake_fsspec.filesystem = lambda protocol, **kw: calls.update({"protocol": protocol, **kw}) or "FS"  # type: ignore[attr-defined]
@@ -160,6 +173,7 @@ def test_make_filesystem_uses_fsspec(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_open_group_uses_xarray(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The source opener selects the exact shot group through consolidated Zarr."""
     seen: dict[str, Any] = {}
 
     def _open_zarr(store: Any, group: str, consolidated: bool) -> str:
@@ -184,6 +198,7 @@ def test_open_group_uses_xarray(monkeypatch: pytest.MonkeyPatch) -> None:
 # main (default seams resolved dynamically for monkeypatching)
 # --------------------------------------------------------------------------- #
 def test_main_writes_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The CLI parses shots and writes its production manifest output."""
     monkeypatch.setattr(acq, "make_filesystem", lambda _c: object())
     monkeypatch.setattr(acq, "_open_group", lambda _fs, _s, g: _FakeDataset(_group_vars(g)))
     manifest_out = tmp_path / "manifest.json"
@@ -208,6 +223,7 @@ def test_main_writes_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
 
 def test_parse_shots_ranges_and_ids() -> None:
+    """Shot-range parsing preserves the requested deterministic order."""
     assert acq._parse_shots("11766 30419-30421, 29876") == [11766, 30419, 30420, 30421, 29876]
 
 
@@ -226,15 +242,18 @@ def test_parse_shots_ranges_and_ids() -> None:
     ],
 )
 def test_json_metadata_value_preserves_supported_types(value: Any, expected: Any) -> None:
+    """Supported metadata types retain their JSON information content."""
     assert acq._json_metadata_value(value) == expected
 
 
 def test_json_metadata_value_rejects_unsupported_types() -> None:
+    """Unsupported source attributes fail instead of stringifying silently."""
     with pytest.raises(TypeError, match="unsupported source metadata type"):
         acq._json_metadata_value(object())
 
 
 def test_source_array_metadata_records_chunks_without_inventing_units_or_timebase() -> None:
+    """Metadata capture records chunks and preserves absent physical semantics."""
     source = types.SimpleNamespace(dims=("channel",), attrs={"calibration": 1}, chunks=((2,),))
     metadata = acq._source_array_metadata(source)
     assert metadata["units"] is None

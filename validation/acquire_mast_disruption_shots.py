@@ -65,6 +65,7 @@ GROUP_VARIABLES: dict[str, tuple[str, ...]] = {
         "beta_tor_normal",
         "beta_tor",
         "bvac_rmag",
+        "magnetic_axis_z",
         "z",
         "x_point_z",
         "wmhd",

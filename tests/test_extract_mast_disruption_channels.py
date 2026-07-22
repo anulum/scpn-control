@@ -15,6 +15,7 @@ from typing import Any
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from validation.acquire_mast_disruption_shots import acquire
 from validation.extract_mast_disruption_channels import (
@@ -33,7 +34,7 @@ _FIXED_TS = "2026-07-22T00:00:00Z"
 
 
 class _SourceArray:
-    def __init__(self, values: np.ndarray, *, dimensions: tuple[str, ...], units: str | None) -> None:
+    def __init__(self, values: NDArray[np.float64], *, dimensions: tuple[str, ...], units: str | None) -> None:
         self.values = values
         self.dims = dimensions
         self.attrs = {} if units is None else {"units": units}
@@ -50,23 +51,26 @@ class _SourceGroup:
 
 def _source_group(group: str, *, omit_density: bool = False) -> _SourceGroup:
     summary = {
-        "time": _SourceArray(np.linspace(0.0, 0.05, 32), dimensions=("time",), units="s"),
-        "ip": _SourceArray(np.linspace(5.0e5, 4.0e5, 32), dimensions=("time",), units="A"),
-        "line_average_n_e": _SourceArray(np.full(32, 3.0e19), dimensions=("time",), units="m^-3"),
+        "time": _SourceArray(np.linspace(0.0, 0.05, 32, dtype=np.float64), dimensions=("time",), units="s"),
+        "ip": _SourceArray(np.linspace(5.0e5, 4.0e5, 32, dtype=np.float64), dimensions=("time",), units="A"),
+        "line_average_n_e": _SourceArray(np.full(32, 3.0e19), dimensions=("time",), units="1 / m ** 3"),
     }
     if omit_density:
         del summary["line_average_n_e"]
     groups = {
         "summary": summary,
         "equilibrium": {
-            "time": _SourceArray(np.linspace(0.0, 0.05, 16), dimensions=("time",), units="s"),
-            "q95": _SourceArray(np.full(16, 3.8), dimensions=("time",), units=None),
-            "beta_tor_normal": _SourceArray(np.full(16, 1.5), dimensions=("time",), units=None),
+            "time": _SourceArray(np.linspace(0.0, 0.05, 16, dtype=np.float64), dimensions=("time",), units="s"),
+            "q95": _SourceArray(np.full(16, 3.8), dimensions=("time",), units=""),
+            "beta_tor_normal": _SourceArray(np.full(16, 1.5), dimensions=("time",), units="T"),
+            "magnetic_axis_z": _SourceArray(np.zeros(16), dimensions=("time",), units="m"),
             "z": _SourceArray(np.zeros((16, 9)), dimensions=("time", "profile"), units="m"),
         },
         "interferometer": {},
         "magnetics": {
-            "time_saddle": _SourceArray(np.linspace(0.0, 0.05, 64), dimensions=("time_saddle",), units="s"),
+            "time_saddle": _SourceArray(
+                np.linspace(0.0, 0.05, 64, dtype=np.float64), dimensions=("time_saddle",), units="s"
+            ),
             "b_field_tor_probe_saddle_field": _SourceArray(
                 np.ones((12, 64)), dimensions=("channel", "time_saddle"), units="T"
             ),
@@ -122,6 +126,15 @@ def test_same_schema_acquisition_to_verified_npz_to_binding_gate(tmp_path: Path)
     assert shot["unresolved"] == sorted(shot["unresolved"], key=lambda item: item["semantic"])
     assert "summary.ip" in shot["archive_keys"]
     assert "ip" not in shot["archive_keys"]
+    binding = shot["signal_binding_assessment"]
+    assert binding["binding_contract_complete"] is True
+    assert binding["channel_extraction_admissible"] is False
+    assert binding["n_source_metadata_verified"] == 5
+    assert binding["n_blocked"] == 6
+    assert report["shots"][0]["blocking_contracts"][1] == {
+        "contract": "mast_signal_binding_spec",
+        "reason_code": "binding_spec_contains_explicit_source_semantic_or_metadata_blockers",
+    }
     assert report["payload_sha256"] == canonical_json_sha256({**report, "payload_sha256": None})
 
 

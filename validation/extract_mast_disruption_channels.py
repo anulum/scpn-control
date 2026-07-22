@@ -22,6 +22,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from validation.mast_disruption_signal_binding import assess_artifact_signal_bindings
 from validation.mast_source_artifact_reader import (
     VerifiedSourceArtifact,
     load_verified_source_manifest,
@@ -76,6 +77,7 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
         until the versioned physical signal-binding contract is available.
     """
     available = set(artifact.archive_keys)
+    signal_binding_assessment = assess_artifact_signal_bindings(artifact)
     resolved: list[dict[str, str]] = []
     unresolved: list[dict[str, Any]] = []
     for semantic, archive_key in sorted(TRANSPORT_RESOLVABLE_KEYS.items()):
@@ -123,6 +125,7 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
         "archive_keys": list(artifact.archive_keys),
         "resolved": resolved,
         "unresolved": unresolved,
+        "signal_binding_assessment": signal_binding_assessment,
         "blocking_contracts": [
             {
                 "contract": "cross_group_timebase_alignment",
@@ -130,7 +133,7 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
             },
             {
                 "contract": "mast_signal_binding_spec",
-                "reason_code": "unit_dimension_timebase_sign_and_reduction_contract_not_yet_bound",
+                "reason_code": "binding_spec_contains_explicit_source_semantic_or_metadata_blockers",
             },
         ],
         "payload_sha256": None,
