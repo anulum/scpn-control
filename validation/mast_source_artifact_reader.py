@@ -17,6 +17,7 @@ logic.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -102,6 +103,28 @@ def _freeze_metadata(value: Any) -> Any:
     return value
 
 
+def _decode_source_manifest(manifest_bytes: bytes) -> Mapping[str, Any]:
+    try:
+        payload = json.loads(
+            manifest_bytes.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+        )
+    except SourceArtifactReaderError:
+        raise
+    except (UnicodeError, json.JSONDecodeError) as exc:
+        raise SourceArtifactReaderError(f"cannot read source-object manifest: {exc}") from exc
+    if not isinstance(payload, Mapping):
+        raise SourceArtifactReaderError("source-object manifest root must be an object")
+    return payload
+
+
+def _read_source_manifest_bytes(manifest_path: Path) -> bytes:
+    try:
+        return manifest_path.read_bytes()
+    except OSError as exc:
+        raise SourceArtifactReaderError(f"cannot read source-object manifest: {exc}") from exc
+
+
 def load_verified_source_manifest(manifest_path: Path, *, artifact_root: Path) -> dict[str, Any]:
     """Load and fully validate a SourceObjectManifest v2 document.
 
@@ -122,19 +145,50 @@ def load_verified_source_manifest(manifest_path: Path, *, artifact_root: Path) -
     SourceArtifactReaderError
         If JSON loading, schema validation, or local artefact verification fails.
     """
-    try:
-        payload = json.loads(
-            manifest_path.read_text(encoding="utf-8"),
-            object_pairs_hook=_reject_duplicate_keys,
-        )
-    except (OSError, UnicodeError, json.JSONDecodeError) as exc:
-        raise SourceArtifactReaderError(f"cannot read source-object manifest: {exc}") from exc
-    if not isinstance(payload, Mapping):
-        raise SourceArtifactReaderError("source-object manifest root must be an object")
+    payload = _decode_source_manifest(_read_source_manifest_bytes(manifest_path))
     try:
         return require_source_object_manifest_v2(payload, artifact_root=artifact_root)
     except (OSError, SourceObjectManifestError) as exc:
         raise SourceArtifactReaderError(f"source-object manifest verification failed: {exc}") from exc
+
+
+def load_pinned_source_manifest(
+    manifest_path: Path,
+    *,
+    artifact_root: Path,
+    expected_sha256: str,
+) -> tuple[dict[str, Any], str]:
+    """Load one exact-byte SourceObjectManifest v2 document.
+
+    Parameters
+    ----------
+    manifest_path:
+        JSON manifest produced by the FAIR-MAST acquisition surface.
+    artifact_root:
+        Root beneath which every declared local artefact must resolve.
+    expected_sha256:
+        Exact SHA-256 digest of the manifest bytes.
+
+    Returns
+    -------
+    tuple[dict[str, Any], str]
+        Fully validated manifest and its verified byte digest.
+
+    Raises
+    ------
+    SourceArtifactReaderError
+        If the bytes do not match, JSON is ambiguous, or v2 validation fails.
+    """
+    manifest_bytes = _read_source_manifest_bytes(manifest_path)
+    actual_sha256 = hashlib.sha256(manifest_bytes).hexdigest()
+    if actual_sha256 != expected_sha256:
+        raise SourceArtifactReaderError("source-object manifest SHA-256 does not match the pinned digest")
+    payload = _decode_source_manifest(manifest_bytes)
+    try:
+        verified = require_source_object_manifest_v2(payload, artifact_root=artifact_root)
+    except (OSError, SourceObjectManifestError) as exc:
+        raise SourceArtifactReaderError(f"source-object manifest verification failed: {exc}") from exc
+    return verified, actual_sha256
 
 
 def read_verified_npz_artifact(

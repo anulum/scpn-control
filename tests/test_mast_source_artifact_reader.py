@@ -11,24 +11,35 @@ from __future__ import annotations
 
 import copy
 import json
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from validation import mast_source_artifact_reader as reader
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
 from validation.mast_source_artifact_reader import (
     SourceArtifactReaderError,
+    load_pinned_source_manifest,
     load_verified_source_manifest,
     read_verified_npz_artifact,
 )
 from validation.mast_source_object_manifest import (
     SOURCE_OBJECT_MANIFEST_SCHEMA,
     build_derived_npz_artifact,
+    file_sha256,
     finalise_source_object_manifest,
+    require_source_object_manifest_v2,
 )
+
+
+def _save_named_arrays(path: Path, arrays: Mapping[str, object]) -> None:
+    """Write dynamically named members through NumPy's real NPZ interface."""
+    writer = cast(Callable[..., None], np.savez_compressed)
+    writer(path, **arrays)
 
 
 def _write_manifest(root: Path, *, failed: bool = False) -> tuple[Path, dict[str, Any]]:
@@ -38,7 +49,7 @@ def _write_manifest(root: Path, *, failed: bool = False) -> tuple[Path, dict[str
         "summary.time": np.linspace(0.0, 0.011, 12, dtype=np.float64),
     }
     artifact_path = root / "shot_30421.npz"
-    np.savez_compressed(artifact_path, **arrays)
+    _save_named_arrays(artifact_path, arrays)
     metadata = {
         key: {
             "dimensions": ["channel", "time"] if value.ndim == 2 else ["time"],
@@ -131,6 +142,9 @@ def test_reader_exposes_verified_group_aware_immutable_arrays(tmp_path: Path) ->
 
 def test_manifest_loader_rejects_non_object_and_invalid_json(tmp_path: Path) -> None:
     """Malformed JSON roots fail before any artefact can be selected."""
+    with pytest.raises(SourceArtifactReaderError, match="cannot read"):
+        load_verified_source_manifest(tmp_path / "missing.json", artifact_root=tmp_path)
+
     manifest_path = tmp_path / "manifest.json"
     manifest_path.write_text("[]", encoding="utf-8")
     with pytest.raises(SourceArtifactReaderError, match="root must be an object"):
@@ -155,6 +169,27 @@ def test_manifest_loader_wraps_schema_and_local_file_failures(tmp_path: Path) ->
     (tmp_path / "shot_30421.npz").write_bytes(b"changed")
     with pytest.raises(SourceArtifactReaderError, match="verification failed"):
         load_verified_source_manifest(manifest_path, artifact_root=tmp_path)
+
+
+def test_pinned_manifest_loader_binds_exact_bytes_and_v2_payload(tmp_path: Path) -> None:
+    """The pinned loader verifies both file bytes and the manifest self-digest."""
+    manifest_path, payload = _write_manifest(tmp_path)
+
+    verified, byte_sha256 = load_pinned_source_manifest(
+        manifest_path,
+        artifact_root=tmp_path,
+        expected_sha256=file_sha256(manifest_path),
+    )
+
+    assert byte_sha256 == file_sha256(manifest_path)
+    assert verified["payload_sha256"] == payload["payload_sha256"]
+
+    with pytest.raises(SourceArtifactReaderError, match="pinned digest"):
+        load_pinned_source_manifest(
+            manifest_path,
+            artifact_root=tmp_path,
+            expected_sha256="0" * 64,
+        )
 
 
 def test_reader_rejects_missing_failed_and_wrong_kind_shots(tmp_path: Path) -> None:
@@ -188,17 +223,17 @@ def test_reader_rejects_duplicate_kind_and_invalid_manifest(tmp_path: Path) -> N
 
 def _replace_after_manifest_verification(
     monkeypatch: pytest.MonkeyPatch,
-    replacement: dict[str, np.ndarray] | None,
+    replacement: dict[str, npt.NDArray[np.float64]] | None,
     artifact_path: Path,
 ) -> None:
-    original = reader.require_source_object_manifest_v2
+    original = require_source_object_manifest_v2
 
     def validate_then_replace(manifest: Any, *, artifact_root: Path | None = None) -> dict[str, Any]:
         verified = original(manifest, artifact_root=artifact_root)
         if replacement is None:
             artifact_path.unlink()
         else:
-            np.savez_compressed(artifact_path, **replacement)
+            _save_named_arrays(artifact_path, replacement)
         return verified
 
     monkeypatch.setattr(reader, "require_source_object_manifest_v2", validate_then_replace)
@@ -212,7 +247,7 @@ def test_reader_rechecks_member_set_after_manifest_verification(
     _manifest_path, payload = _write_manifest(tmp_path)
     _replace_after_manifest_verification(
         monkeypatch,
-        {"summary.time": np.linspace(0.0, 0.011, 12)},
+        {"summary.time": np.linspace(0.0, 0.011, 12, dtype=np.float64)},
         tmp_path / "shot_30421.npz",
     )
     with pytest.raises(SourceArtifactReaderError, match="member set changed"):
@@ -274,7 +309,7 @@ def test_reader_rechecks_root_confinement_after_manifest_verification(
     artifact_path = tmp_path / "shot_30421.npz"
     outside = tmp_path.parent / f"{tmp_path.name}_outside.npz"
     outside.write_bytes(artifact_path.read_bytes())
-    original = reader.require_source_object_manifest_v2
+    original = require_source_object_manifest_v2
 
     def validate_then_redirect(manifest: Any, *, artifact_root: Path | None = None) -> dict[str, Any]:
         verified = original(manifest, artifact_root=artifact_root)

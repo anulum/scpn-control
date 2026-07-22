@@ -25,12 +25,17 @@ import argparse
 import hashlib
 import json
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from validation.extract_mast_disruption_channels import assess_artifact_binding_readiness
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE
-from validation.mast_source_artifact_reader import SourceArtifactReaderError, read_verified_npz_artifact
+from validation.mast_source_artifact_reader import (
+    SourceArtifactReaderError,
+    VerifiedSourceArtifact,
+    read_verified_npz_artifact,
+)
 from validation.mast_source_object_manifest import SourceObjectManifestError, canonical_json_sha256
 from validation.migrate_mast_source_object_manifest import migrate_material_manifest_v1
 
@@ -39,6 +44,31 @@ REAL_OBJECT_SMOKE_SCHEMA = "scpn-control.mast-real-object-smoke.v1"
 
 class RealObjectSmokeError(ValueError):
     """Raised when the external object does not satisfy the pinned smoke contract."""
+
+
+@dataclass(frozen=True)
+class PinnedRealObject:
+    """One digest-pinned external object opened through the verified reader.
+
+    Parameters
+    ----------
+    artifact:
+        Immutable source artefact exposed by the production v2 reader.
+    legacy_manifest_sha256:
+        Exact byte digest of the input legacy material manifest.
+    migrated_manifest_sha256:
+        Self-digest of the in-memory SourceObjectManifest v2 reconstruction.
+    legacy_declared_licence:
+        Licence string retained only as migration provenance.
+    licence_spdx:
+        Authoritative source policy applied by the verified migration.
+    """
+
+    artifact: VerifiedSourceArtifact
+    legacy_manifest_sha256: str
+    migrated_manifest_sha256: str
+    legacy_declared_licence: str | None
+    licence_spdx: str
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
@@ -65,6 +95,67 @@ def _load_legacy_manifest(path: Path) -> tuple[Mapping[str, Any], str]:
     if not isinstance(payload, Mapping):
         raise RealObjectSmokeError("legacy material manifest root must be an object")
     return payload, hashlib.sha256(manifest_bytes).hexdigest()
+
+
+def read_pinned_real_object(
+    manifest_path: Path,
+    *,
+    artifact_root: Path,
+    shot_id: int,
+    expected_manifest_sha256: str,
+    expected_artifact_sha256: str,
+) -> PinnedRealObject:
+    """Open one exact legacy FAIR-MAST object through the verified v2 reader.
+
+    Parameters
+    ----------
+    manifest_path:
+        Legacy material manifest stored beside the external NPZ objects.
+    artifact_root:
+        External root beneath which all manifest paths must resolve.
+    shot_id:
+        Positive shot identifier selected for verification.
+    expected_manifest_sha256:
+        Exact SHA-256 digest of the legacy manifest bytes.
+    expected_artifact_sha256:
+        Exact SHA-256 digest of the selected NPZ bytes.
+
+    Returns
+    -------
+    PinnedRealObject
+        Immutable verified artefact plus the migration-policy digests needed by
+        downstream evidence surfaces.
+
+    Raises
+    ------
+    RealObjectSmokeError
+        If identity, manifest, source declaration, migration, or artefact
+        integrity verification fails.
+    """
+    if not isinstance(shot_id, int) or isinstance(shot_id, bool) or shot_id <= 0:
+        raise RealObjectSmokeError("shot_id must be a positive integer")
+    legacy, actual_manifest_sha256 = _load_legacy_manifest(manifest_path)
+    if actual_manifest_sha256 != expected_manifest_sha256:
+        raise RealObjectSmokeError("legacy material manifest SHA-256 does not match the pinned digest")
+    if legacy.get("synthetic") is not False:
+        raise RealObjectSmokeError("real-object smoke requires an explicit synthetic=false declaration")
+
+    try:
+        migrated = migrate_material_manifest_v1(legacy, artifact_root=artifact_root)
+        artifact = read_verified_npz_artifact(migrated, artifact_root=artifact_root, shot_id=shot_id)
+    except (OSError, SourceObjectManifestError, SourceArtifactReaderError) as exc:
+        raise RealObjectSmokeError(f"external source-object verification failed: {exc}") from exc
+    if artifact.artifact_sha256 != expected_artifact_sha256:
+        raise RealObjectSmokeError("selected NPZ SHA-256 does not match the pinned digest")
+
+    legacy_licence = migrated["migration"]["legacy_declared_licence"]
+    return PinnedRealObject(
+        artifact=artifact,
+        legacy_manifest_sha256=actual_manifest_sha256,
+        migrated_manifest_sha256=migrated["payload_sha256"],
+        legacy_declared_licence=legacy_licence if isinstance(legacy_licence, str) else None,
+        licence_spdx=migrated["licence_spdx"],
+    )
 
 
 def verify_real_object_smoke(
@@ -100,21 +191,14 @@ def verify_real_object_smoke(
     RealObjectSmokeError
         If an expected digest, source declaration, or selected shot is invalid.
     """
-    if not isinstance(shot_id, int) or isinstance(shot_id, bool) or shot_id <= 0:
-        raise RealObjectSmokeError("shot_id must be a positive integer")
-    legacy, actual_manifest_sha256 = _load_legacy_manifest(manifest_path)
-    if actual_manifest_sha256 != expected_manifest_sha256:
-        raise RealObjectSmokeError("legacy material manifest SHA-256 does not match the pinned digest")
-    if legacy.get("synthetic") is not False:
-        raise RealObjectSmokeError("real-object smoke requires an explicit synthetic=false declaration")
-
-    try:
-        migrated = migrate_material_manifest_v1(legacy, artifact_root=artifact_root)
-        artifact = read_verified_npz_artifact(migrated, artifact_root=artifact_root, shot_id=shot_id)
-    except (OSError, SourceObjectManifestError, SourceArtifactReaderError) as exc:
-        raise RealObjectSmokeError(f"external source-object verification failed: {exc}") from exc
-    if artifact.artifact_sha256 != expected_artifact_sha256:
-        raise RealObjectSmokeError("selected NPZ SHA-256 does not match the pinned digest")
+    pinned = read_pinned_real_object(
+        manifest_path,
+        artifact_root=artifact_root,
+        shot_id=shot_id,
+        expected_manifest_sha256=expected_manifest_sha256,
+        expected_artifact_sha256=expected_artifact_sha256,
+    )
+    artifact = pinned.artifact
 
     readiness = assess_artifact_binding_readiness(artifact)
     report: dict[str, Any] = {
@@ -126,15 +210,15 @@ def verify_real_object_smoke(
         "facility_claim_admissible": False,
         "control_admission_admissible": False,
         "shot_id": artifact.shot_id,
-        "legacy_manifest_sha256": actual_manifest_sha256,
-        "migrated_manifest_sha256": migrated["payload_sha256"],
+        "legacy_manifest_sha256": pinned.legacy_manifest_sha256,
+        "migrated_manifest_sha256": pinned.migrated_manifest_sha256,
         "artifact_sha256": artifact.artifact_sha256,
         "parent_digest": artifact.parent_digest,
         "transform_digest": artifact.transform_digest,
         "source_uri": artifact.source_uri,
-        "legacy_declared_licence": migrated["migration"]["legacy_declared_licence"],
-        "licence_spdx": migrated["licence_spdx"],
-        "licence_corrected_in_memory": migrated["licence_spdx"] == FAIR_MAST_LICENCE,
+        "legacy_declared_licence": pinned.legacy_declared_licence,
+        "licence_spdx": pinned.licence_spdx,
+        "licence_corrected_in_memory": pinned.licence_spdx == FAIR_MAST_LICENCE,
         "archive_key_count": len(artifact.archive_keys),
         "binding_readiness_sha256": readiness["payload_sha256"],
         "binding_blockers": readiness["blocking_contracts"],
