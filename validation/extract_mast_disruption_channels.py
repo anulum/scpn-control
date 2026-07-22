@@ -23,6 +23,11 @@ from pathlib import Path
 from typing import Any
 
 from validation.mast_disruption_signal_binding import assess_artifact_signal_bindings
+from validation.mast_disruption_time_alignment import (
+    MAST_TIME_ALIGNMENT_SCHEMA,
+    TimeAlignmentError,
+    align_verified_bound_channels,
+)
 from validation.mast_source_artifact_reader import (
     VerifiedSourceArtifact,
     load_verified_source_manifest,
@@ -78,6 +83,21 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
     """
     available = set(artifact.archive_keys)
     signal_binding_assessment = assess_artifact_signal_bindings(artifact)
+    try:
+        time_alignment_assessment = dict(align_verified_bound_channels(artifact).report)
+    except TimeAlignmentError as exc:
+        time_alignment_assessment = {
+            "schema_version": MAST_TIME_ALIGNMENT_SCHEMA,
+            "status": "alignment_blocked",
+            "shot_id": artifact.shot_id,
+            "artifact_sha256": artifact.artifact_sha256,
+            "bound_scalar_alignment_complete": False,
+            "full_canonical_extraction_admissible": False,
+            "reason_code": "reference_or_source_timebase_inadmissible",
+            "detail": str(exc),
+            "payload_sha256": None,
+        }
+        time_alignment_assessment["payload_sha256"] = canonical_json_sha256(time_alignment_assessment)
     resolved: list[dict[str, str]] = []
     unresolved: list[dict[str, Any]] = []
     for semantic, archive_key in sorted(TRANSPORT_RESOLVABLE_KEYS.items()):
@@ -109,6 +129,29 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
                 "available_source_keys": sorted(available.intersection(candidates)),
             }
         )
+    alignment_complete = bool(time_alignment_assessment["bound_scalar_alignment_complete"])
+    blocking_contracts = [
+        {
+            "contract": "mast_signal_binding_spec",
+            "reason_code": "binding_spec_contains_explicit_source_semantic_or_metadata_blockers",
+        }
+    ]
+    resolved_contracts: list[dict[str, str]] = []
+    if alignment_complete:
+        resolved_contracts.append(
+            {
+                "contract": "cross_group_timebase_alignment",
+                "status": "resolved_for_source_metadata_verified_scalar_bindings",
+            }
+        )
+    else:
+        blocking_contracts.insert(
+            0,
+            {
+                "contract": "cross_group_timebase_alignment",
+                "reason_code": "bound_scalar_time_alignment_not_complete",
+            },
+        )
     report: dict[str, Any] = {
         "schema_version": BINDING_READINESS_SCHEMA,
         "status": "blocked",
@@ -126,16 +169,9 @@ def assess_artifact_binding_readiness(artifact: VerifiedSourceArtifact) -> dict[
         "resolved": resolved,
         "unresolved": unresolved,
         "signal_binding_assessment": signal_binding_assessment,
-        "blocking_contracts": [
-            {
-                "contract": "cross_group_timebase_alignment",
-                "reason_code": "resampling_and_validity_mask_contract_not_yet_bound",
-            },
-            {
-                "contract": "mast_signal_binding_spec",
-                "reason_code": "binding_spec_contains_explicit_source_semantic_or_metadata_blockers",
-            },
-        ],
+        "time_alignment_assessment": time_alignment_assessment,
+        "resolved_contracts": resolved_contracts,
+        "blocking_contracts": blocking_contracts,
         "payload_sha256": None,
     }
     report["payload_sha256"] = canonical_json_sha256(report)

@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any
 
 import numpy as np
@@ -131,7 +133,18 @@ def test_same_schema_acquisition_to_verified_npz_to_binding_gate(tmp_path: Path)
     assert binding["channel_extraction_admissible"] is False
     assert binding["n_source_metadata_verified"] == 5
     assert binding["n_blocked"] == 6
-    assert report["shots"][0]["blocking_contracts"][1] == {
+    alignment = shot["time_alignment_assessment"]
+    assert alignment["status"] == "bound_scalar_alignment_complete"
+    assert alignment["bound_scalar_alignment_complete"] is True
+    assert alignment["n_bound_channels_aligned"] == 5
+    assert alignment["n_channels_not_aligned"] == 6
+    assert shot["resolved_contracts"] == [
+        {
+            "contract": "cross_group_timebase_alignment",
+            "status": "resolved_for_source_metadata_verified_scalar_bindings",
+        }
+    ]
+    assert report["shots"][0]["blocking_contracts"][0] == {
         "contract": "mast_signal_binding_spec",
         "reason_code": "binding_spec_contains_explicit_source_semantic_or_metadata_blockers",
     }
@@ -150,6 +163,30 @@ def test_readiness_reports_absent_transport_key_without_aliasing(tmp_path: Path)
     assert density["status"] == "source_key_absent"
     assert density["required_source_keys"] == ["summary.line_average_n_e"]
     assert {item["semantic"] for item in report["resolved"]} == set(TRANSPORT_RESOLVABLE_KEYS) - {"ne_per_m3"}
+
+
+def test_readiness_keeps_inadmissible_reference_timebase_as_blocker(tmp_path: Path) -> None:
+    """A nonuniform reference grid becomes a digest-bound alignment blocker."""
+    manifest_path = _acquire_to_disk(tmp_path)
+    manifest = load_verified_source_manifest(manifest_path, artifact_root=tmp_path / "material")
+    artifact = read_verified_npz_artifact(manifest, artifact_root=tmp_path / "material", shot_id=_SHOT_ID)
+    arrays = dict(artifact.arrays)
+    irregular = np.asarray(arrays["summary.time"], dtype=np.float64).copy()
+    irregular[2] += 2.0e-4
+    irregular.setflags(write=False)
+    arrays["summary.time"] = irregular
+
+    report = assess_artifact_binding_readiness(replace(artifact, arrays=MappingProxyType(arrays)))
+
+    alignment = report["time_alignment_assessment"]
+    assert alignment["status"] == "alignment_blocked"
+    assert alignment["reason_code"] == "reference_or_source_timebase_inadmissible"
+    assert alignment["payload_sha256"] == canonical_json_sha256({**alignment, "payload_sha256": None})
+    assert report["resolved_contracts"] == []
+    assert report["blocking_contracts"][0] == {
+        "contract": "cross_group_timebase_alignment",
+        "reason_code": "bound_scalar_time_alignment_not_complete",
+    }
 
 
 def test_campaign_report_preserves_failed_shot_boundary(tmp_path: Path) -> None:
