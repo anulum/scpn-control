@@ -145,6 +145,11 @@ def test_build_dataset_writes_manifest_report_and_verifies(tmp_path: Path) -> No
     manifest = load_real_data_manifest(manifest_path, verify_artifact=True)
     assert manifest.synthetic is False
     assert manifest.source.kind == "local_archive"
+    assert manifest.licence == "CC-BY-SA-4.0"
+    assert manifest.licence_url == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert len(manifest.citations) == 2
+    assert manifest.citation is not None and "10.1109/TPS.2025.3583419" in manifest.citation
+    assert manifest.source_policy_url == "https://mastapp.site/"
     assert len(manifest.artifacts) == 2
 
 

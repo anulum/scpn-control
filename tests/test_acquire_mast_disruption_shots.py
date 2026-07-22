@@ -91,6 +91,11 @@ def test_acquire_writes_mirrors_and_manifest(tmp_path: Path) -> None:
     assert manifest["n_acquired"] == 2
     assert manifest["synthetic"] is False
     assert manifest["consumers"] == ["SCPN-CONTROL", "SCPN-FUSION-CORE", "MIF-CORE"]
+    assert manifest["licence"] == "CC-BY-SA-4.0"
+    assert manifest["licence_url"] == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert len(manifest["citations"]) == 2
+    assert "10.1109/TPS.2025.3583419" in manifest["citation"]
+    assert manifest["source_policy_url"] == "https://mastapp.site/"
     assert manifest["payload_sha256"] == acq._sha256_json({**manifest, "payload_sha256": None})
     record = next(r for r in manifest["shots"] if r["shot_id"] == 30421)
     assert record["saddle_channels"] == 12 and record["saddle_samples"] == 500

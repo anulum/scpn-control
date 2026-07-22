@@ -24,6 +24,7 @@ from validation.evaluate_mast_disruption import (
     main,
     render_markdown,
 )
+from validation.fair_mast_source_policy import fair_mast_provenance
 
 _FIXED_TS = "2026-07-10T00:00:00+00:00"
 
@@ -64,10 +65,12 @@ def _write_manifest(path: Path, *, synthetic: bool = True) -> None:
             {"name": "dBdt_gauss_per_s", "path": "dBdt", "units": "G/s", "timebase": "time_s"},
         ],
         "retrieved_at": None if synthetic else "2026-07-10T00:00:00+00:00",
-        "licence": None if synthetic else "MIT",
+        "checksum_sha256": None if synthetic else "a" * 64,
         "synthetic_generator": "unit-test-generator" if synthetic else None,
         "synthetic_seed": 0 if synthetic else None,
     }
+    if not synthetic:
+        payload.update(fair_mast_provenance())
     path.write_text(json.dumps(payload), encoding="utf-8")
 
 
@@ -168,6 +171,31 @@ def test_build_report_is_deterministic(campaign: tuple[Path, Path]) -> None:
     first = build_report(shots, **kwargs)
     second = build_report(shots, **kwargs)
     assert first["payload_sha256"] == second["payload_sha256"]
+
+
+def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> None:
+    shots_dir = tmp_path / "shots"
+    shots_dir.mkdir()
+    _write_shot(shots_dir / "shot_0001_locked.npz", disruptive=True, seed=1)
+    manifest = tmp_path / "campaign.manifest.json"
+    _write_manifest(manifest, synthetic=False)
+
+    report = build_report(
+        load_shots(shots_dir),
+        manifest_path=manifest,
+        window_size=64,
+        alarm_threshold=0.65,
+        warning_ms=(10, 50),
+        generated_at=_FIXED_TS,
+    )
+
+    provenance = report["data_provenance"]
+    assert provenance["synthetic"] is False
+    assert provenance["licence"] == "CC-BY-SA-4.0"
+    assert provenance["licence_url"] == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert len(provenance["citations"]) == 2
+    assert "10.1016/j.softx.2024.101869" in provenance["citation"]
+    assert provenance["source_policy_url"] == "https://mastapp.site/"
 
 
 def test_render_markdown_summarises_report(campaign: tuple[Path, Path]) -> None:

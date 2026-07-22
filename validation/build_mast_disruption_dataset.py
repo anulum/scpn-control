@@ -35,6 +35,7 @@ from numpy.typing import NDArray
 
 from scpn_control.core.real_data_manifest import validate_real_data_manifest
 from validation.audit_mast_disruption_feature_sources import LABEL_ALGORITHM
+from validation.fair_mast_source_policy import fair_mast_provenance
 
 DATASET_SCHEMA = "scpn-control.mast-disruption-supervised-dataset.v1"
 
@@ -190,7 +191,7 @@ def _build_manifest(
         ],
         "retrieved_at": retrieved_at,
         "checksum_sha256": None,
-        "licence": "MIT",
+        **fair_mast_provenance(),
         "synthetic_generator": None,
         "synthetic_seed": None,
         "artifacts": [{"uri": r["npz"], "checksum_sha256": r["checksum_sha256"]} for r in records],

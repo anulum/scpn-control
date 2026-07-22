@@ -30,6 +30,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+from validation.fair_mast_source_policy import fair_mast_provenance
+
 REPORT_SCHEMA = "scpn-control.mast-disruption-feature-source-audit.v1"
 
 # The ``run_real_shot_replay`` channel schema the dataset builder must fill.
@@ -223,8 +225,7 @@ def build_feature_source_audit(*, ip_max_floor_ka: float = 100.0) -> dict[str, A
             "signal_format": "zarr_v3_level2",
             "catalogue": "mast-level2-signals.parquet",
             "cpf_catalogue": "mast_cpf_data.parquet",
-            "licence": "MIT",
-            "citation": "Jackson et al., SoftwareX 27 (2024) 101869, DOI 10.1016/j.softx.2024.101869",
+            **fair_mast_provenance(),
         },
         "blocked_reason": (
             "channels are still lookup_needed; acquisition must locate their level2 "

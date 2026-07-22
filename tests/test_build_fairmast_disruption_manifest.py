@@ -63,6 +63,11 @@ def test_build_campaign_is_planned_and_self_digested() -> None:
     assert report["n_selected"] == 1
     assert report["n_excluded"] == 4
     assert report["label_algorithm"]["ip_max_floor_ka"] == 100.0
+    assert report["data_access"]["licence"] == "CC-BY-SA-4.0"
+    assert report["data_access"]["licence_url"] == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert len(report["data_access"]["citations"]) == 2
+    assert "10.1016/j.softx.2024.101869" in report["data_access"]["citation"]
+    assert report["data_access"]["source_policy_url"] == "https://mastapp.site/"
     assert report["generated_at"] == _FIXED_TS
     assert report["payload_sha256"] == _sha256_json({**report, "payload_sha256": None})
 

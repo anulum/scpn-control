@@ -177,6 +177,10 @@ def build_report(
             "source_kind": manifest.source.kind,
             "source_uri": manifest.source.uri,
             "licence": manifest.licence,
+            "licence_url": manifest.licence_url,
+            "citation": manifest.citation,
+            "citations": list(manifest.citations),
+            "source_policy_url": manifest.source_policy_url,
         },
         "predictor": {
             "score_source": "fixed_weight_logistic_heuristic",

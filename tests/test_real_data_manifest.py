@@ -45,6 +45,10 @@ def _real_payload() -> dict[str, object]:
         "retrieved_at": "2026-05-18T01:20:00Z",
         "checksum_sha256": "a" * 64,
         "licence": "facility data policy",
+        "licence_url": "https://example.invalid/facility-data-policy",
+        "citation": "Facility data handbook, revision 1",
+        "citations": ["Facility data handbook, revision 1"],
+        "source_policy_url": "https://example.invalid/facility-data",
         "signals": [
             {
                 "name": "plasma_current",
@@ -93,6 +97,10 @@ def test_real_manifest_accepts_physical_provenance() -> None:
     assert manifest.kind == "real"
     assert manifest.source.kind == "mdsplus"
     assert manifest.signals[0].units == "A"
+    assert manifest.licence_url == "https://example.invalid/facility-data-policy"
+    assert manifest.citation == "Facility data handbook, revision 1"
+    assert manifest.citations == ("Facility data handbook, revision 1",)
+    assert manifest.source_policy_url == "https://example.invalid/facility-data"
 
 
 def test_load_real_data_manifest_from_json(tmp_path: Path) -> None:
@@ -148,6 +156,22 @@ def test_manifest_requires_mandatory_top_level_keys() -> None:
     payload.pop("dataset_id")
 
     with pytest.raises(RealDataManifestError, match=r"manifest missing required key\(s\): dataset_id"):
+        validate_real_data_manifest(payload)
+
+
+@pytest.mark.parametrize(
+    ("citations", "message"),
+    [
+        ([], "citations must be a non-empty string array"),
+        ("not-an-array", "citations must be a non-empty string array"),
+        (["valid", ""], r"citations\[1\] must be a non-empty string"),
+    ],
+)
+def test_manifest_rejects_malformed_optional_citations(citations: object, message: str) -> None:
+    payload = _real_payload()
+    payload["citations"] = citations
+
+    with pytest.raises(RealDataManifestError, match=message):
         validate_real_data_manifest(payload)
 
 

@@ -17,7 +17,7 @@ poloidal probe arrays, plus the equilibrium, summary and interferometer scalar
 channels — with no downsampling or derived reduction, so every consumer can build
 its own view without re-downloading. A schema-versioned manifest records the
 per-shot files, SHA-256 checksums, the variable inventory, timebases, units and
-MIT provenance.
+the official FAIR-MAST licence and citations.
 
 Labels are deliberately not assigned here (the DEFUSE HDF5 labels return HTTP 403
 and the DEFUSE shot ids do not intersect the level2 shot range); consumers derive
@@ -37,6 +37,8 @@ from typing import Any, Callable
 import numpy as np
 from numpy.typing import NDArray
 
+from validation.fair_mast_source_policy import fair_mast_provenance
+
 # Injection seams so the S3/Zarr I/O can be stubbed in offline tests.
 FilesystemFactory = Callable[[Path], Any]
 GroupOpener = Callable[[Any, int, str], Any]
@@ -44,8 +46,6 @@ GroupOpener = Callable[[Any, int, str], Any]
 MANIFEST_SCHEMA = "scpn-control.mast-disruption-material.v1"
 ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
 BUCKET = "mast"
-LICENCE = "MIT"
-CITATION = "Jackson et al., SoftwareX 27 (2024) 101869, DOI 10.1016/j.softx.2024.101869"
 
 # Native-resolution variables mirrored per group. Geometry (phi/r/z) accompanies
 # each probe array so consumers can perform toroidal-mode decomposition. Units are
@@ -191,8 +191,7 @@ def acquire(
             "format": "zarr_v3_level2",
             "path_template": f"s3://{BUCKET}/level2/shots/{{shot_id}}.zarr",
         },
-        "licence": LICENCE,
-        "citation": CITATION,
+        **fair_mast_provenance(),
         "fidelity": "native_resolution_no_downsampling",
         "group_variables": {group: list(variables) for group, variables in GROUP_VARIABLES.items()},
         "label_policy": (

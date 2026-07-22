@@ -77,6 +77,10 @@ class RealDataManifest:
     synthetic_generator: str | None = None
     synthetic_seed: int | None = None
     artifacts: tuple[ArtifactManifest, ...] = ()
+    licence_url: str | None = None
+    citation: str | None = None
+    citations: tuple[str, ...] = ()
+    source_policy_url: str | None = None
 
     @property
     def kind(self) -> ManifestKind:
@@ -174,6 +178,10 @@ def validate_real_data_manifest(payload: dict[str, Any]) -> RealDataManifest:
         retrieved_at=_optional_non_empty_str(payload, "retrieved_at"),
         checksum_sha256=_optional_non_empty_str(payload, "checksum_sha256"),
         licence=_optional_non_empty_str(payload, "licence"),
+        licence_url=_optional_non_empty_str(payload, "licence_url"),
+        citation=_optional_non_empty_str(payload, "citation"),
+        citations=_optional_non_empty_str_tuple(payload, "citations"),
+        source_policy_url=_optional_non_empty_str(payload, "source_policy_url"),
         synthetic_generator=_optional_non_empty_str(payload, "synthetic_generator"),
         synthetic_seed=_optional_int(payload, "synthetic_seed"),
         artifacts=_parse_artifacts(payload),
@@ -279,6 +287,20 @@ def _optional_non_empty_str(payload: dict[str, Any], key: str) -> str | None:
     if not isinstance(value, str) or not value.strip():
         raise RealDataManifestError(f"{key} must be a non-empty string when present")
     return value.strip()
+
+
+def _optional_non_empty_str_tuple(payload: dict[str, Any], key: str) -> tuple[str, ...]:
+    value = payload.get(key)
+    if value is None:
+        return ()
+    if not isinstance(value, list) or not value:
+        raise RealDataManifestError(f"{key} must be a non-empty string array when present")
+    out: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            raise RealDataManifestError(f"{key}[{index}] must be a non-empty string")
+        out.append(item.strip())
+    return tuple(out)
 
 
 def _optional_int(payload: dict[str, Any], key: str) -> int | None:

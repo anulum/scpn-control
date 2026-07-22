@@ -31,6 +31,11 @@ def test_audit_is_blocked_while_a_channel_is_lookup_needed() -> None:
     assert report["status"] == "blocked"
     assert report["channels"]["BT_T"]["status"] == "lookup_needed"
     assert set(report["channels"]) == set(NPZ_CHANNELS)
+    assert report["data_access"]["licence"] == "CC-BY-SA-4.0"
+    assert report["data_access"]["licence_url"] == "https://creativecommons.org/licenses/by-sa/4.0/"
+    assert len(report["data_access"]["citations"]) == 2
+    assert "10.1109/TPS.2025.3583419" in report["data_access"]["citation"]
+    assert report["data_access"]["source_policy_url"] == "https://mastapp.site/"
 
 
 def test_audit_records_label_algorithm_and_floor() -> None:

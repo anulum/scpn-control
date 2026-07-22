@@ -30,14 +30,13 @@ from pathlib import Path
 from typing import Any
 
 from validation.audit_mast_disruption_feature_sources import LABEL_ALGORITHM
+from validation.fair_mast_source_policy import fair_mast_provenance
 
 CAMPAIGN_SCHEMA = "scpn-control.mast-disruption-acquisition-campaign.v1"
 S3_BUCKET = "s3://mast"
 S3_ENDPOINT = "https://s3.echo.stfc.ac.uk"
 S3_ACCESS = "--no-sign-request"
 S3_LEVEL2_PREFIX = "level2/shots"
-LICENCE = "MIT"
-CITATION = "Jackson et al., SoftwareX 27 (2024) 101869, DOI 10.1016/j.softx.2024.101869"
 
 _REQUIRED_CPF_KEYS: tuple[str, ...] = ("shot_id", "useful", "abort", "ip_max_ka")
 
@@ -109,8 +108,7 @@ def build_campaign(
             "access": S3_ACCESS,
             "level2_prefix": S3_LEVEL2_PREFIX,
             "signal_format": "zarr_v3",
-            "licence": LICENCE,
-            "citation": CITATION,
+            **fair_mast_provenance(),
         },
         "selection_filter": {
             "useful": 1,
