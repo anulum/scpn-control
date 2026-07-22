@@ -206,10 +206,36 @@ still expose the `scpn-control.native-coverage-matrix.v1` contract.
 
 ### FAIR-MAST source-object binding readiness
 
+Acquire each requested shot into an off-repository material root and use a
+separate off-repository cache root:
+
+```bash
+python -m validation.acquire_mast_disruption_shots \
+  --shots "30421 30424" \
+  --out-dir /path/to/material \
+  --cache-dir /path/to/cache \
+  --manifest-out /path/to/source_object_manifest.json \
+  --generated-at 2026-07-22T00:00:00Z \
+  --retrieved-at 2026-07-22T00:00:00Z
+```
+
+The acquisition reads each shot's exact upstream Zarr-v3 root `zarr.json`
+outside `simplecache`, requires inline consolidated metadata, and records its
+SHA-256, byte count, ETag, and Last-Modified header. It creates a new empty
+cache namespace bound to the shot, both acquisition labels, and the root
+metadata digest. An existing namespace is never reused. After all selected
+arrays are read, acquisition fetches the root metadata again and writes no NPZ
+when the source-byte generation changed. The accepted generation record is
+bound into the derived artifact's selected-array parent digest. Older valid v2
+or migrated manifests may omit this pin because their historical generation
+cannot be reconstructed safely; they do not gain a generation-pinned fidelity
+claim.
+
 The FAIR-MAST disruption extractor accepts acquisition output only through
 `scpn-control.source-object-manifest.v2.0.0`. The reader validates the manifest
 self-digest, local NPZ bytes, member set, dtype, shape, array-value digests,
-parent snapshot, and transform descriptor before exposing exact
+parent snapshot including any source-generation pin, and transform descriptor
+before exposing exact
 `<group>.<array_name>` keys.
 
 ```bash

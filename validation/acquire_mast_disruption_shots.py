@@ -28,9 +28,13 @@ shared datasets root. Requires the optional FAIR-MAST stack (``zarr``, ``s3fs``,
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
+import urllib.error
+import urllib.request
 from collections.abc import Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
@@ -39,8 +43,11 @@ from numpy.typing import NDArray
 
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
 from validation.mast_source_object_manifest import (
+    SOURCE_GENERATION_DIGEST_KIND,
+    SOURCE_GENERATION_SCHEMA,
     SOURCE_OBJECT_MANIFEST_SCHEMA,
     build_derived_npz_artifact,
+    canonical_json_sha256,
     finalise_source_object_manifest,
     validate_source_object_manifest,
 )
@@ -52,6 +59,132 @@ GroupOpener = Callable[[Any, int, str], Any]
 MANIFEST_SCHEMA = SOURCE_OBJECT_MANIFEST_SCHEMA
 ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
 BUCKET = "mast"
+CACHE_GENERATION_SCHEMA = "scpn-control.fair-mast-cache-generation.v1.0.0"
+_MAX_ROOT_METADATA_BYTES = 16 << 20
+_SOURCE_METADATA_TIMEOUT_S = 30.0
+
+
+class SourceGenerationError(ValueError):
+    """Raised when a FAIR-MAST source generation cannot be pinned safely."""
+
+
+@dataclass(frozen=True)
+class SourceGenerationPin:
+    """Exact upstream root-metadata identity for one FAIR-MAST shot."""
+
+    source_uri: str
+    sha256: str
+    byte_count: int
+    etag: str | None
+    last_modified: str | None
+
+    def to_dict(self) -> dict[str, Any]:
+        """Return the manifest-bound source-generation record."""
+        return {
+            "schema_version": SOURCE_GENERATION_SCHEMA,
+            "digest_kind": SOURCE_GENERATION_DIGEST_KIND,
+            "source_uri": self.source_uri,
+            "metadata_path": "zarr.json",
+            "sha256": self.sha256,
+            "bytes": self.byte_count,
+            "zarr_format": 3,
+            "consolidated_metadata_kind": "inline",
+            "etag": self.etag,
+            "last_modified": self.last_modified,
+        }
+
+
+GenerationReader = Callable[[int], SourceGenerationPin]
+
+
+def _object_without_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise SourceGenerationError(f"duplicate JSON key {key!r} in root metadata")
+        result[key] = value
+    return result
+
+
+def read_source_generation(shot_id: int) -> SourceGenerationPin:
+    """Read exact root ``zarr.json`` bytes outside simplecache and pin them."""
+    if not isinstance(shot_id, int) or isinstance(shot_id, bool) or shot_id <= 0:
+        raise SourceGenerationError("shot_id must be a positive integer")
+    source_uri = f"s3://{BUCKET}/level2/shots/{shot_id}.zarr"
+    url = f"{ENDPOINT_URL}/{BUCKET}/level2/shots/{shot_id}.zarr/zarr.json"
+    request = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": "SCPN-CONTROL-FAIR-MAST-acquisition/1"},
+    )
+    try:
+        # The URL has a fixed HTTPS origin and a validated positive-integer path component.
+        with urllib.request.urlopen(  # nosec B310
+            request, timeout=_SOURCE_METADATA_TIMEOUT_S
+        ) as response:
+            raw = response.read(_MAX_ROOT_METADATA_BYTES + 1)
+            etag = response.headers.get("ETag")
+            last_modified = response.headers.get("Last-Modified")
+    except (OSError, urllib.error.URLError) as exc:
+        raise SourceGenerationError(f"cannot read upstream root metadata for shot {shot_id}: {exc}") from exc
+    if len(raw) > _MAX_ROOT_METADATA_BYTES:
+        raise SourceGenerationError(
+            f"upstream root metadata for shot {shot_id} exceeds {_MAX_ROOT_METADATA_BYTES} bytes"
+        )
+    try:
+        metadata = json.loads(raw, object_pairs_hook=_object_without_duplicate_keys)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise SourceGenerationError(f"invalid upstream root metadata for shot {shot_id}: {exc}") from exc
+    if not isinstance(metadata, Mapping) or metadata.get("zarr_format") != 3:
+        raise SourceGenerationError(f"shot {shot_id} root metadata is not Zarr format 3")
+    consolidated = metadata.get("consolidated_metadata")
+    if not isinstance(consolidated, Mapping) or consolidated.get("kind") != "inline":
+        raise SourceGenerationError(f"shot {shot_id} root metadata is not inline consolidated metadata")
+    return SourceGenerationPin(
+        source_uri=source_uri,
+        sha256=hashlib.sha256(raw).hexdigest(),
+        byte_count=len(raw),
+        etag=etag,
+        last_modified=last_modified,
+    )
+
+
+def _new_cache_namespace(
+    cache_dir: Path,
+    *,
+    shot_id: int,
+    generated_at: str,
+    retrieved_at: str,
+    source_generation: SourceGenerationPin,
+) -> tuple[Path, dict[str, Any]]:
+    descriptor: dict[str, Any] = {
+        "schema_version": CACHE_GENERATION_SCHEMA,
+        "shot_id": shot_id,
+        "generated_at": generated_at,
+        "retrieved_at": retrieved_at,
+        "source_generation_sha256": source_generation.sha256,
+    }
+    namespace_id = canonical_json_sha256(descriptor)
+    relative_path = Path("runs") / namespace_id
+    namespace = cache_dir / relative_path
+    try:
+        namespace.mkdir(parents=True, exist_ok=False)
+    except FileExistsError as exc:
+        raise SourceGenerationError(
+            f"isolated cache namespace {relative_path.as_posix()!r} already exists; refusing cross-run cache reuse"
+        ) from exc
+    return namespace, {
+        **descriptor,
+        "namespace_id": namespace_id,
+        "relative_path": relative_path.as_posix(),
+        "existing_cache_reused": False,
+        "pre_and_post_source_generation_match": True,
+    }
+
+
+def _same_source_generation(left: SourceGenerationPin, right: SourceGenerationPin) -> bool:
+    """Compare immutable content identity, excluding advisory HTTP headers."""
+    return left.source_uri == right.source_uri and left.sha256 == right.sha256 and left.byte_count == right.byte_count
+
 
 # Native-resolution variables mirrored per group. Geometry (phi/r/z) accompanies
 # each probe array so consumers can perform toroidal-mode decomposition. Units are
@@ -196,17 +329,32 @@ def acquire(
     retrieved_at: str,
     make_fs: FilesystemFactory | None = None,
     open_group: GroupOpener | None = None,
+    read_generation: GenerationReader | None = None,
 ) -> dict[str, Any]:
     """Mirror every shot to ``out_dir`` and return a schema-versioned manifest."""
+    if not generated_at.strip() or not retrieved_at.strip():
+        raise ValueError("generated_at and retrieved_at must be non-empty reproducibility labels")
     make_fs = make_fs if make_fs is not None else make_filesystem
     open_group = open_group if open_group is not None else _open_group
-    fs = make_fs(cache_dir)
+    read_generation = read_generation if read_generation is not None else read_source_generation
     out_dir.mkdir(parents=True, exist_ok=True)
     records: list[dict[str, Any]] = []
     for shot_id in shot_ids:
         try:
+            generation_before = read_generation(shot_id)
+            namespace, cache_generation = _new_cache_namespace(
+                cache_dir,
+                shot_id=shot_id,
+                generated_at=generated_at,
+                retrieved_at=retrieved_at,
+                source_generation=generation_before,
+            )
+            fs = make_fs(namespace)
             source_metadata: dict[str, dict[str, Any]] = {}
             payload = mirror_shot(fs, shot_id, open_group=open_group, metadata_out=source_metadata)
+            generation_after = read_generation(shot_id)
+            if not _same_source_generation(generation_before, generation_after):
+                raise SourceGenerationError(f"upstream root metadata changed while shot {shot_id} was being acquired")
         except Exception as exc:  # noqa: BLE001 - record and continue over unavailable shots
             records.append(
                 {
@@ -225,12 +373,14 @@ def acquire(
             source_uri=f"s3://{BUCKET}/level2/shots/{shot_id}.zarr",
             arrays=payload,
             source_metadata=source_metadata,
+            source_generation=generation_before.to_dict(),
         )
         record: dict[str, Any] = {
             "shot_id": shot_id,
             "status": "acquired",
             "programme_class": "unknown",
             "artifacts": [artifact],
+            "cache_generation": cache_generation,
             "summary": _shot_summary(payload),
         }
         records.append(record)
@@ -262,6 +412,14 @@ def acquire(
             "source_hierarchy": "preserved in manifest, flattened in NPZ archive keys",
             "source_metadata": "preserved in manifest when exposed by xarray",
             "source_chunking": "recorded when exposed; not preserved in NPZ",
+            "source_generation": "exact root zarr.json bytes checked before and after acquisition",
+        },
+        "cache_policy": {
+            "schema_version": CACHE_GENERATION_SCHEMA,
+            "strategy": "unique empty namespace per shot and acquisition label",
+            "persistent_cross_run_reuse": False,
+            "generation_identity": SOURCE_GENERATION_DIGEST_KIND,
+            "pre_and_post_generation_check": True,
         },
         "group_variables": {group: list(variables) for group, variables in GROUP_VARIABLES.items()},
         "label_policy": (
@@ -297,8 +455,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument("--out-dir", type=Path, required=True, help="Shared datasets directory for shot_<id>.npz.")
     parser.add_argument("--cache-dir", type=Path, required=True, help="Local S3 cache directory (off-repo).")
     parser.add_argument("--manifest-out", type=Path, required=True, help="Manifest JSON output path.")
-    parser.add_argument("--generated-at", type=str, default="", help="Fixed UTC timestamp label.")
-    parser.add_argument("--retrieved-at", type=str, default="", help="Acquisition timestamp (ISO 8601).")
+    parser.add_argument("--generated-at", type=str, required=True, help="Fixed UTC timestamp label.")
+    parser.add_argument("--retrieved-at", type=str, required=True, help="Acquisition timestamp (ISO 8601).")
     return parser.parse_args(argv)
 
 

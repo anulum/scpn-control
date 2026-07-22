@@ -34,6 +34,8 @@ from validation.fair_mast_source_policy import (
 SOURCE_OBJECT_MANIFEST_SCHEMA = "scpn-control.source-object-manifest.v2.0.0"
 LEGACY_MATERIAL_MANIFEST_SCHEMA = "scpn-control.mast-disruption-material.v1"
 DERIVED_NPZ_ARTIFACT_KIND = "derived_npz_cache"
+SOURCE_GENERATION_SCHEMA = "scpn-control.fair-mast-source-generation.v1.0.0"
+SOURCE_GENERATION_DIGEST_KIND = "zarr-v3-root-metadata-sha256"
 _SHA256_HEX_LENGTH = 64
 
 
@@ -130,17 +132,24 @@ def build_derived_npz_artifact(
     source_uri: str,
     arrays: Mapping[str, NDArray[Any]],
     source_metadata: Mapping[str, Mapping[str, Any]] | None = None,
+    source_generation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a provenance-bound descriptor for one derived NPZ cache file."""
     _validate_relative_path(local_path, field="local_path")
     if not artifact_path.is_file():
         raise SourceObjectManifestError(f"derived artefact does not exist: {artifact_path}")
+    generation: dict[str, Any] | None = None
+    if source_generation is not None:
+        _validate_source_generation(source_generation, source_uri=source_uri, field="source_generation")
+        generation = dict(source_generation)
     inventory = build_array_inventory(arrays, source_metadata=source_metadata)
     snapshot_descriptor: dict[str, Any] = {
         "artifact_kind": "remote_zarr_v3_selected_arrays",
         "source_uri": source_uri,
         "arrays": inventory,
     }
+    if generation is not None:
+        snapshot_descriptor["source_generation"] = generation
     parent_digest = canonical_json_sha256(snapshot_descriptor)
     transform_descriptor: dict[str, Any] = {
         "name": "fair-mast-zarr-selection-to-npz",
@@ -161,6 +170,7 @@ def build_derived_npz_artifact(
         "sha256": file_sha256(artifact_path),
         "bytes": int(artifact_path.stat().st_size),
         "source_uri": source_uri,
+        "source_generation": generation,
         "source_hierarchy": source_hierarchy(inventory),
         "arrays": inventory,
         "parent": {
@@ -177,6 +187,7 @@ def build_derived_npz_artifact(
             "source_hierarchy_preserved_in_manifest": True,
             "source_metadata_preserved_in_manifest": source_metadata is not None,
             "source_chunking_preserved_in_npz": False,
+            "source_generation_pinned": generation is not None,
         },
     }
 
@@ -309,6 +320,24 @@ def _validate_artifact(artifact: Any, *, field: str, artifact_root: Path | None)
         raise SourceObjectManifestError(f"{field}.parent descriptor must bind the exact array inventory")
     if descriptor.get("source_uri") != source_uri:
         raise SourceObjectManifestError(f"{field}.parent source_uri mismatch")
+    source_generation = artifact.get("source_generation")
+    if source_generation is not None:
+        _validate_source_generation(source_generation, source_uri=source_uri, field=f"{field}.source_generation")
+    if descriptor.get("source_generation") != source_generation:
+        raise SourceObjectManifestError(f"{field}.parent source_generation mismatch")
+    fidelity = artifact.get("fidelity")
+    if fidelity is None:
+        if source_generation is not None:
+            raise SourceObjectManifestError(f"{field}.fidelity must attest the source-generation pin")
+    else:
+        if not isinstance(fidelity, Mapping):
+            raise SourceObjectManifestError(f"{field}.fidelity must be an object")
+        generation_pinned = fidelity.get("source_generation_pinned")
+        expected_generation_pinned = source_generation is not None
+        if expected_generation_pinned and generation_pinned is not True:
+            raise SourceObjectManifestError(f"{field}.fidelity source_generation_pinned mismatch")
+        if not expected_generation_pinned and generation_pinned is not None and generation_pinned is not False:
+            raise SourceObjectManifestError(f"{field}.fidelity source_generation_pinned mismatch")
     if parent.get("digest_kind") != "selected-array-snapshot-sha256":
         raise SourceObjectManifestError(f"{field}.parent digest_kind is unsupported")
     parent_digest = canonical_json_sha256(descriptor)
@@ -338,6 +367,37 @@ def _validate_artifact(artifact: Any, *, field: str, artifact_root: Path | None)
             raise SourceObjectManifestError(f"{field}.sha256 does not match the local file")
         _validate_npz_arrays(path, arrays, field=field)
     return byte_count
+
+
+def _validate_source_generation(
+    generation: Any,
+    *,
+    source_uri: str,
+    field: str,
+) -> None:
+    if not isinstance(generation, Mapping):
+        raise SourceObjectManifestError(f"{field} must be an object or null")
+    if generation.get("schema_version") != SOURCE_GENERATION_SCHEMA:
+        raise SourceObjectManifestError(f"{field}.schema_version must equal {SOURCE_GENERATION_SCHEMA!r}")
+    if generation.get("digest_kind") != SOURCE_GENERATION_DIGEST_KIND:
+        raise SourceObjectManifestError(f"{field}.digest_kind must equal {SOURCE_GENERATION_DIGEST_KIND!r}")
+    if generation.get("source_uri") != source_uri:
+        raise SourceObjectManifestError(f"{field}.source_uri mismatch")
+    if generation.get("metadata_path") != "zarr.json":
+        raise SourceObjectManifestError(f"{field}.metadata_path must equal 'zarr.json'")
+    if not _is_sha256(generation.get("sha256")):
+        raise SourceObjectManifestError(f"{field}.sha256 must be a lowercase SHA-256 hex digest")
+    byte_count = generation.get("bytes")
+    if not isinstance(byte_count, int) or isinstance(byte_count, bool) or byte_count <= 0:
+        raise SourceObjectManifestError(f"{field}.bytes must be a positive integer")
+    if generation.get("zarr_format") != 3:
+        raise SourceObjectManifestError(f"{field}.zarr_format must equal 3")
+    if generation.get("consolidated_metadata_kind") != "inline":
+        raise SourceObjectManifestError(f"{field}.consolidated_metadata_kind must equal 'inline'")
+    for header in ("etag", "last_modified"):
+        value = generation.get(header)
+        if value is not None and (not isinstance(value, str) or not value.strip()):
+            raise SourceObjectManifestError(f"{field}.{header} must be a non-empty string or null")
 
 
 def _validate_array_inventory(arrays: list[Any], *, field: str) -> None:

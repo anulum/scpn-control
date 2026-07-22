@@ -19,7 +19,7 @@ import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from validation.acquire_mast_disruption_shots import acquire
+from validation.acquire_mast_disruption_shots import SourceGenerationPin, acquire
 from validation.extract_mast_disruption_channels import (
     BINDING_READINESS_SCHEMA,
     PHYSICAL_BINDING_BLOCKERS,
@@ -89,6 +89,16 @@ def _source_group(group: str, *, omit_density: bool = False) -> _SourceGroup:
     return _SourceGroup(groups[group])
 
 
+def _source_generation(shot_id: int) -> SourceGenerationPin:
+    return SourceGenerationPin(
+        source_uri=f"s3://mast/level2/shots/{shot_id}.zarr",
+        sha256=f"{shot_id:064x}",
+        byte_count=742024,
+        etag=f'"etag-{shot_id}"',
+        last_modified="Thu, 18 Jun 2026 15:57:36 GMT",
+    )
+
+
 def _acquire_to_disk(root: Path, *, with_failed_shot: bool = False, omit_density: bool = False) -> Path:
     def open_group(_fs: Any, shot_id: int, group: str) -> _SourceGroup:
         if with_failed_shot and shot_id == _SHOT_ID + 1:
@@ -105,6 +115,7 @@ def _acquire_to_disk(root: Path, *, with_failed_shot: bool = False, omit_density
         retrieved_at=_FIXED_TS,
         make_fs=lambda _path: object(),
         open_group=open_group,
+        read_generation=_source_generation,
     )
     manifest_path = root / "manifest.json"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")

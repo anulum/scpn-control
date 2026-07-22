@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 import types
+import urllib.error
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -23,6 +26,20 @@ from validation import acquire_mast_disruption_shots as acq
 from validation import mast_source_object_manifest as source_manifest
 
 _ANGLES = np.tile((np.arange(12, dtype=np.float64) * 30.0).reshape(-1, 1), (1, 28))
+
+
+def _generation(shot_id: int, *, sha256: str | None = None) -> acq.SourceGenerationPin:
+    return acq.SourceGenerationPin(
+        source_uri=f"s3://mast/level2/shots/{shot_id}.zarr",
+        sha256=sha256 or f"{shot_id:064x}",
+        byte_count=742024,
+        etag=f'"etag-{shot_id}"',
+        last_modified="Thu, 18 Jun 2026 15:57:36 GMT",
+    )
+
+
+def _stable_generation_reader(shot_id: int) -> acq.SourceGenerationPin:
+    return _generation(shot_id)
 
 
 class _FakeVar:
@@ -107,6 +124,7 @@ def test_acquire_writes_mirrors_and_manifest(tmp_path: Path) -> None:
         retrieved_at="2026-07-10T00:00:00Z",
         make_fs=lambda _c: object(),
         open_group=_open_group(),
+        read_generation=_stable_generation_reader,
     )
     assert manifest["schema_version"] == "scpn-control.source-object-manifest.v2.0.0"
     assert manifest["manifest_kind"] == "source_object_inventory"
@@ -130,6 +148,12 @@ def test_acquire_writes_mirrors_and_manifest(tmp_path: Path) -> None:
     assert artifact["parent_digest"] == artifact["parent"]["sha256"]
     assert artifact["transform_digest"] == artifact["transform"]["sha256"]
     assert artifact["fidelity"]["native_zarr_bytes_preserved"] is False
+    assert artifact["fidelity"]["source_generation_pinned"] is True
+    assert artifact["source_generation"] == artifact["parent"]["descriptor"]["source_generation"]
+    assert artifact["source_generation"]["sha256"] == f"{30421:064x}"
+    assert record["cache_generation"]["existing_cache_reused"] is False
+    assert record["cache_generation"]["pre_and_post_source_generation_match"] is True
+    assert manifest["cache_policy"]["persistent_cross_run_reuse"] is False
     saddle = next(array for array in artifact["arrays"] if array["archive_key"].endswith("saddle_field"))
     assert saddle["group"] == "magnetics"
     assert saddle["dimensions"] == ["channel", "time_saddle"]
@@ -150,6 +174,7 @@ def test_acquire_records_failed_shot(tmp_path: Path) -> None:
         retrieved_at="2026-07-10T00:00:00Z",
         make_fs=lambda _c: object(),
         open_group=_open_group(with_saddle=False),
+        read_generation=_stable_generation_reader,
     )
     assert manifest["n_acquired"] == 0
     assert manifest["status"] == "empty"
@@ -170,6 +195,201 @@ def test_make_filesystem_uses_fsspec(tmp_path: Path, monkeypatch: pytest.MonkeyP
     assert fs == "FS"
     assert calls["protocol"] == "simplecache"
     assert calls["target_options"]["anon"] is True
+
+
+def test_read_source_generation_hashes_exact_uncached_root_metadata(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Generation identity comes from bounded exact Zarr-v3 root metadata bytes."""
+    raw = json.dumps({"zarr_format": 3, "consolidated_metadata": {"kind": "inline", "metadata": {}}}).encode()
+
+    class _Response:
+        headers = {"ETag": '"etag"', "Last-Modified": "Thu, 18 Jun 2026 15:57:36 GMT"}
+
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, _limit: int) -> bytes:
+            return raw
+
+    seen: dict[str, Any] = {}
+
+    def fake_urlopen(request: Any, *, timeout: float) -> _Response:
+        seen.update(url=request.full_url, timeout=timeout)
+        return _Response()
+
+    monkeypatch.setattr(urllib.request, "urlopen", fake_urlopen)
+    pin = acq.read_source_generation(30421)
+    assert pin.source_uri == "s3://mast/level2/shots/30421.zarr"
+    assert pin.sha256 == hashlib.sha256(raw).hexdigest()
+    assert pin.byte_count == len(raw)
+    assert pin.etag == '"etag"'
+    assert seen["url"].endswith("/mast/level2/shots/30421.zarr/zarr.json")
+    assert seen["timeout"] == 30.0
+
+
+@pytest.mark.parametrize(
+    ("raw", "match"),
+    [
+        (b"{", "invalid upstream root metadata"),
+        (b'{"zarr_format":2}', "not Zarr format 3"),
+        (b'{"zarr_format":3}', "not inline consolidated"),
+        (b'{"zarr_format":3,"zarr_format":3}', "duplicate JSON key"),
+    ],
+)
+def test_read_source_generation_rejects_inadmissible_metadata(
+    raw: bytes,
+    match: str,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Malformed, ambiguous, or non-consolidated roots never reach simplecache."""
+
+    class _Response:
+        headers: dict[str, str] = {}
+
+        def __enter__(self) -> _Response:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, _limit: int) -> bytes:
+            return raw
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: _Response())
+    with pytest.raises(acq.SourceGenerationError, match=match):
+        acq.read_source_generation(30421)
+
+
+def test_read_source_generation_rejects_oversized_or_unreadable_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The direct generation probe is bounded and translates transport failures."""
+
+    class _OversizedResponse:
+        headers: dict[str, str] = {}
+
+        def __enter__(self) -> _OversizedResponse:
+            return self
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+        def read(self, limit: int) -> bytes:
+            return b"x" * limit
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *_args, **_kwargs: _OversizedResponse())
+    with pytest.raises(acq.SourceGenerationError, match="exceeds"):
+        acq.read_source_generation(30421)
+
+    def fail_urlopen(*_args: object, **_kwargs: object) -> None:
+        raise urllib.error.URLError("offline")
+
+    monkeypatch.setattr(urllib.request, "urlopen", fail_urlopen)
+    with pytest.raises(acq.SourceGenerationError, match="cannot read"):
+        acq.read_source_generation(30421)
+
+
+@pytest.mark.parametrize("shot_id", [0, -1, True, "30421"])
+def test_read_source_generation_rejects_invalid_shot_id(shot_id: Any) -> None:
+    """Only positive integer shot identifiers may reach the endpoint."""
+    with pytest.raises(acq.SourceGenerationError, match="positive integer"):
+        acq.read_source_generation(shot_id)
+
+
+def test_acquire_rejects_source_generation_drift_before_npz_write(tmp_path: Path) -> None:
+    """A changed root metadata identity makes the shot fail closed."""
+    calls = 0
+
+    def drifting_reader(shot_id: int) -> acq.SourceGenerationPin:
+        nonlocal calls
+        calls += 1
+        return _generation(shot_id, sha256=("a" if calls == 1 else "b") * 64)
+
+    manifest = acq.acquire(
+        [30421],
+        out_dir=tmp_path / "material",
+        cache_dir=tmp_path / "cache",
+        generated_at="2026-07-10T00:00:00Z",
+        retrieved_at="2026-07-10T00:00:00Z",
+        make_fs=lambda _c: object(),
+        open_group=_open_group(),
+        read_generation=drifting_reader,
+    )
+
+    assert manifest["n_acquired"] == 0
+    assert "changed while shot 30421" in manifest["shots"][0]["error"]
+    assert not (tmp_path / "material" / "shot_30421.npz").exists()
+
+
+def test_acquire_ignores_advisory_header_drift_when_exact_bytes_match(tmp_path: Path) -> None:
+    """ETag/header churn cannot masquerade as a source-byte generation change."""
+    calls = 0
+
+    def header_drift_reader(shot_id: int) -> acq.SourceGenerationPin:
+        nonlocal calls
+        calls += 1
+        pin = _generation(shot_id)
+        return acq.SourceGenerationPin(
+            source_uri=pin.source_uri,
+            sha256=pin.sha256,
+            byte_count=pin.byte_count,
+            etag=f'"etag-{calls}"',
+            last_modified=f"revision-{calls}",
+        )
+
+    manifest = acq.acquire(
+        [30421],
+        out_dir=tmp_path / "material",
+        cache_dir=tmp_path / "cache",
+        generated_at="2026-07-10T00:00:00Z",
+        retrieved_at="2026-07-10T00:00:00Z",
+        make_fs=lambda _c: object(),
+        open_group=_open_group(),
+        read_generation=header_drift_reader,
+    )
+
+    assert manifest["n_acquired"] == 1
+    assert manifest["shots"][0]["artifacts"][0]["source_generation"]["etag"] == '"etag-1"'
+
+
+def test_acquire_refuses_cross_run_cache_namespace_reuse(tmp_path: Path) -> None:
+    """Identical run labels cannot reopen a persistent cache namespace."""
+    kwargs = {
+        "cache_dir": tmp_path / "cache",
+        "generated_at": "2026-07-10T00:00:00Z",
+        "retrieved_at": "2026-07-10T00:00:00Z",
+        "make_fs": lambda _c: object(),
+        "open_group": _open_group(),
+        "read_generation": _stable_generation_reader,
+    }
+    first = acq.acquire([30421], out_dir=tmp_path / "first", **kwargs)
+    second = acq.acquire([30421], out_dir=tmp_path / "second", **kwargs)
+
+    assert first["n_acquired"] == 1
+    assert second["n_acquired"] == 0
+    assert "refusing cross-run cache reuse" in second["shots"][0]["error"]
+    assert not (tmp_path / "second" / "shot_30421.npz").exists()
+
+
+@pytest.mark.parametrize(("generated_at", "retrieved_at"), [("", "x"), ("x", " ")])
+def test_acquire_requires_nonempty_reproducibility_labels(
+    tmp_path: Path,
+    generated_at: str,
+    retrieved_at: str,
+) -> None:
+    """Blank acquisition labels are rejected before filesystem mutation."""
+    with pytest.raises(ValueError, match="must be non-empty"):
+        acq.acquire(
+            [30421],
+            out_dir=tmp_path / "material",
+            cache_dir=tmp_path / "cache",
+            generated_at=generated_at,
+            retrieved_at=retrieved_at,
+            read_generation=_stable_generation_reader,
+        )
+    assert not tmp_path.joinpath("material").exists()
 
 
 def test_open_group_uses_xarray(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -201,6 +421,7 @@ def test_main_writes_manifest(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     """The CLI parses shots and writes its production manifest output."""
     monkeypatch.setattr(acq, "make_filesystem", lambda _c: object())
     monkeypatch.setattr(acq, "_open_group", lambda _fs, _s, g: _FakeDataset(_group_vars(g)))
+    monkeypatch.setattr(acq, "read_source_generation", _stable_generation_reader)
     manifest_out = tmp_path / "manifest.json"
     code = acq.main(
         [

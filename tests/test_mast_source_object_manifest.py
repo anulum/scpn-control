@@ -5,22 +5,24 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — FAIR-MAST source-object manifest tests
+# ruff: noqa: D103 - legacy tests predate the public-test docstring policy
 """Real-NPZ tests for :mod:`validation.mast_source_object_manifest`."""
 
 from __future__ import annotations
 
 import copy
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any, Callable, cast
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 from validation import mast_source_object_manifest as manifest
 from validation import migrate_mast_source_object_manifest as migration
 
 
-def _arrays() -> dict[str, np.ndarray]:
+def _arrays() -> dict[str, NDArray[Any]]:
     return {
         "magnetics.b_field_tor_probe_saddle_field": np.arange(24, dtype="<f8").reshape(2, 12),
         "magnetics.time_saddle": np.linspace(0.0, 2.2e-4, 12, dtype="<f8"),
@@ -57,10 +59,25 @@ def _metadata() -> dict[str, dict[str, Any]]:
     }
 
 
-def _write_npz(root: Path, name: str = "shot_30421.npz") -> tuple[Path, dict[str, np.ndarray]]:
+def _source_generation() -> dict[str, Any]:
+    return {
+        "schema_version": manifest.SOURCE_GENERATION_SCHEMA,
+        "digest_kind": manifest.SOURCE_GENERATION_DIGEST_KIND,
+        "source_uri": "s3://mast/level2/shots/30421.zarr",
+        "metadata_path": "zarr.json",
+        "sha256": "a" * 64,
+        "bytes": 742024,
+        "zarr_format": 3,
+        "consolidated_metadata_kind": "inline",
+        "etag": '"etag-30421"',
+        "last_modified": "Thu, 18 Jun 2026 15:57:36 GMT",
+    }
+
+
+def _write_npz(root: Path, name: str = "shot_30421.npz") -> tuple[Path, dict[str, NDArray[Any]]]:
     arrays = _arrays()
     path = root / name
-    np.savez_compressed(path, **arrays)
+    np.savez_compressed(path, **arrays)  # type: ignore[arg-type]  # numpy stub treats **kwds as allow_pickle
     return path, arrays
 
 
@@ -72,6 +89,18 @@ def _artifact(root: Path) -> dict[str, Any]:
         source_uri="s3://mast/level2/shots/30421.zarr",
         arrays=arrays,
         source_metadata=_metadata(),
+    )
+
+
+def _pinned_artifact(root: Path) -> dict[str, Any]:
+    path, arrays = _write_npz(root)
+    return manifest.build_derived_npz_artifact(
+        local_path=path.name,
+        artifact_path=path,
+        source_uri="s3://mast/level2/shots/30421.zarr",
+        arrays=arrays,
+        source_metadata=_metadata(),
+        source_generation=_source_generation(),
     )
 
 
@@ -168,6 +197,97 @@ def test_build_and_validate_derived_npz_binds_values_metadata_and_lineage(tmp_pa
     assert saddle["unrepresented_metadata"] == {}
     assert artifact["parent_digest"] == artifact["parent"]["sha256"]
     assert artifact["transform_digest"] == artifact["transform"]["sha256"]
+
+
+def test_generation_pinned_artifact_binds_exact_upstream_identity(tmp_path: Path) -> None:
+    """A new artifact binds the exact upstream root metadata into its parent."""
+    artifact = _pinned_artifact(tmp_path)
+    payload = _v2(artifact)
+
+    manifest.validate_source_object_manifest(payload, artifact_root=tmp_path)
+    assert artifact["source_generation"] == _source_generation()
+    assert artifact["parent"]["descriptor"]["source_generation"] == _source_generation()
+    assert artifact["fidelity"]["source_generation_pinned"] is True
+
+
+def test_unpinned_v2_artifact_remains_backward_compatible(tmp_path: Path) -> None:
+    """Existing v2 manifests need not invent an unavailable generation pin."""
+    artifact = _artifact(tmp_path)
+    artifact.pop("source_generation")
+    artifact.pop("fidelity")
+    payload = _v2(artifact)
+
+    manifest.validate_source_object_manifest(payload, artifact_root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (lambda generation: generation.update(schema_version="wrong"), "schema_version"),
+        (lambda generation: generation.update(digest_kind="raw-byte-sha256"), "digest_kind"),
+        (lambda generation: generation.update(source_uri="s3://mast/level2/shots/30424.zarr"), "source_uri"),
+        (lambda generation: generation.update(metadata_path=".zmetadata"), "metadata_path"),
+        (lambda generation: generation.update(sha256="bad"), "sha256"),
+        (lambda generation: generation.update(bytes=0), "positive integer"),
+        (lambda generation: generation.update(bytes=True), "positive integer"),
+        (lambda generation: generation.update(zarr_format=2), "zarr_format"),
+        (lambda generation: generation.update(consolidated_metadata_kind="external"), "consolidated_metadata_kind"),
+        (lambda generation: generation.update(etag=""), "etag"),
+        (lambda generation: generation.update(last_modified=1), "last_modified"),
+    ],
+)
+def test_builder_rejects_false_source_generation_identity(
+    tmp_path: Path,
+    mutation: Callable[[dict[str, Any]], None],
+    match: str,
+) -> None:
+    """Every source-generation field is validated before lineage is emitted."""
+    path, arrays = _write_npz(tmp_path)
+    generation = _source_generation()
+    mutation(generation)
+    with pytest.raises(manifest.SourceObjectManifestError, match=match):
+        manifest.build_derived_npz_artifact(
+            local_path=path.name,
+            artifact_path=path,
+            source_uri="s3://mast/level2/shots/30421.zarr",
+            arrays=arrays,
+            source_generation=generation,
+        )
+
+
+def test_builder_rejects_nonobject_source_generation(tmp_path: Path) -> None:
+    """Non-object generation claims fail before an artifact is constructed."""
+    path, arrays = _write_npz(tmp_path)
+    with pytest.raises(manifest.SourceObjectManifestError, match="must be an object"):
+        manifest.build_derived_npz_artifact(
+            local_path=path.name,
+            artifact_path=path,
+            source_uri="s3://mast/level2/shots/30421.zarr",
+            arrays=arrays,
+            source_generation=cast(Any, []),
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutation", "match"),
+    [
+        (lambda artifact: artifact["parent"]["descriptor"].pop("source_generation"), "parent source_generation"),
+        (lambda artifact: artifact.pop("fidelity"), "must attest the source-generation pin"),
+        (lambda artifact: artifact["fidelity"].pop("source_generation_pinned"), "source_generation_pinned"),
+        (lambda artifact: artifact["fidelity"].update(source_generation_pinned=False), "source_generation_pinned"),
+    ],
+)
+def test_manifest_rejects_unbound_source_generation(
+    tmp_path: Path,
+    mutation: Callable[[dict[str, Any]], None],
+    match: str,
+) -> None:
+    """The generation pin must agree across artifact, parent, and fidelity."""
+    artifact = _pinned_artifact(tmp_path)
+    mutation(artifact)
+    payload = _v2(artifact)
+    with pytest.raises(manifest.SourceObjectManifestError, match=match):
+        manifest.validate_source_object_manifest(payload, artifact_root=tmp_path)
 
 
 def test_value_digest_binds_dtype_shape_and_values() -> None:
@@ -267,6 +387,11 @@ def test_manifest_rejects_missing_or_false_source_identity(
         (lambda artifact: artifact.update(source_hierarchy={}), "source_hierarchy"),
         (lambda artifact: artifact.update(parent=None), "parent must be an object"),
         (lambda artifact: artifact.update(parent={}), "parent descriptor"),
+        (lambda artifact: artifact.update(fidelity="unknown"), "fidelity must be an object"),
+        (
+            lambda artifact: artifact["fidelity"].update(source_generation_pinned="unknown"),
+            "source_generation_pinned",
+        ),
         (lambda artifact: artifact["parent"]["descriptor"].update(source_uri="s3://mast/wrong"), "source_uri mismatch"),
         (lambda artifact: artifact["parent"].update(digest_kind="raw-byte-sha256"), "digest_kind"),
         (lambda artifact: artifact.update(parent_digest="0" * 64), "parent_digest"),
@@ -313,7 +438,7 @@ def test_manifest_rejects_npz_member_value_drift_even_with_rebound_file_digest(t
     path = tmp_path / "shot_30421.npz"
     arrays = _arrays()
     arrays["summary.ip"][0] = 1.0
-    np.savez_compressed(path, **arrays)
+    np.savez_compressed(path, **arrays)  # type: ignore[arg-type]  # numpy stub treats **kwds as allow_pickle
     artifact = payload["shots"][0]["artifacts"][0]
     artifact["sha256"] = manifest.file_sha256(path)
     artifact["bytes"] = path.stat().st_size
@@ -421,7 +546,10 @@ def test_manifest_rejects_npz_structure_drift(
 def test_manifest_rejects_npz_member_drift_and_rebound_byte_digest(tmp_path: Path) -> None:
     artifact = _artifact(tmp_path)
     path = tmp_path / "shot_30421.npz"
-    np.savez_compressed(path, **{"summary.ip": _arrays()["summary.ip"]})
+    np.savez_compressed(
+        path,
+        **{"summary.ip": _arrays()["summary.ip"]},  # type: ignore[arg-type]  # numpy stub treats **kwds as bool
+    )
     artifact["sha256"] = manifest.file_sha256(path)
     artifact["bytes"] = path.stat().st_size
     payload = _v2(artifact)
