@@ -137,7 +137,7 @@ def test_unresolved_semantics_are_named_blockers_not_fallback_bindings() -> None
 
     assert blockers == {
         "BT_T": "toroidal_field_authority_incomplete",
-        "beta_N": "source_units_conflict_with_dimensionless_definition",
+        "beta_N": "normalised_beta_authority_incomplete",
         "n1_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
         "n2_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",
         "locked_mode_amp": "saddle_geometry_angle_units_and_modal_reduction_unresolved",

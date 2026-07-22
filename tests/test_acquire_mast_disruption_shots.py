@@ -72,6 +72,7 @@ def _group_vars(group: str, *, with_saddle: bool = True) -> dict[str, NDArray[np
             "beta_tor_normal": np.full(20, 1.5),
             "bphi_rmag": np.full(20, -0.61),
             "bvac_rmag": np.full(20, -0.56),
+            "minor_radius": np.linspace(0.5, 0.6, 20),
             "magnetic_axis_r": np.linspace(0.8, 0.9, 20),
             "magnetic_axis_z": np.linspace(-0.02, 0.02, 20),
         }
@@ -105,6 +106,7 @@ def test_mirror_shot_collects_present_variables() -> None:
     assert payload["equilibrium.q95"].shape == (20,)
     assert payload["equilibrium.bphi_rmag"].shape == (20,)
     assert payload["equilibrium.bvac_rmag"].shape == (20,)
+    assert payload["equilibrium.minor_radius"].shape == (20,)
     assert payload["equilibrium.magnetic_axis_r"].shape == (20,)
     assert payload["equilibrium.magnetic_axis_z"].shape == (20,)
     assert metadata["summary.ip"]["dimensions"] == ["time"]

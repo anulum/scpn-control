@@ -180,11 +180,18 @@ def test_build_channels_and_stage2_round_trip(tmp_path: Path) -> None:
     assert report["n_derived"] == 2
     assert report["synthetic"] is False
     assert report["schema_version"] == REPORT_SCHEMA
-    assert report["channel_authority"]["BT_T"] == {
-        "source_key": "equilibrium.bphi_rmag",
-        "reference_radius_key": "equilibrium.magnetic_axis_r",
-        "canonical_binding_admissible": False,
-        "blocker": "toroidal_field_authority_incomplete",
+    assert report["channel_authority"] == {
+        "BT_T": {
+            "source_key": "equilibrium.bphi_rmag",
+            "reference_radius_key": "equilibrium.magnetic_axis_r",
+            "canonical_binding_admissible": False,
+            "blocker": "toroidal_field_authority_incomplete",
+        },
+        "beta_N": {
+            "source_key": "equilibrium.beta_tor_normal",
+            "canonical_binding_admissible": False,
+            "blocker": "normalised_beta_authority_incomplete",
+        },
     }
     assert all(value is False for value in report["claim_boundary"].values())
     binding = report["channels_archive"]

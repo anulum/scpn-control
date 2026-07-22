@@ -312,7 +312,12 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
                 "reference_radius_key": "equilibrium.magnetic_axis_r",
                 "canonical_binding_admissible": False,
                 "blocker": "toroidal_field_authority_incomplete",
-            }
+            },
+            "beta_N": {
+                "source_key": "equilibrium.beta_tor_normal",
+                "canonical_binding_admissible": False,
+                "blocker": "normalised_beta_authority_incomplete",
+            },
         },
         "claim_boundary": {
             "scientific_validation": False,

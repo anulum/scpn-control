@@ -13,6 +13,13 @@
   definition directly.
 
 ### Added
+- Add a self-digested MAST normalised-beta authority gate that pins the
+  FAIR-MAST and current IMAS definitions, treats the live `EFM_BETAN` T-to-1
+  conflict as a metadata-repair candidate without changing values, retains
+  `minor_radius` without resampling, inventories the independent formula
+  inputs, and keeps canonical `beta_N` blocked until sign, scale, negative-value
+  validity, reconstruction quality, complete input lineage, and
+  one-standard-deviation uncertainty are authoritative.
 - Add a self-digested MAST toroidal-field authority gate that distinguishes
   total `bphi_rmag` from vacuum `bvac_rmag`, binds the time-varying
   magnetic-axis radius and source generation, declares the complete TF-current

@@ -316,8 +316,8 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_key="equilibrium.time",
                 timebase_dimensions=("time",),
                 timebase_units="s",
-                transform="identity_candidate_only",
-                blocker="source_units_conflict_with_dimensionless_definition",
+                transform="metadata_unit_repair_candidate_no_numeric_transform",
+                blocker="normalised_beta_authority_incomplete",
             ),
             _binding(
                 "q95",

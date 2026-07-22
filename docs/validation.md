@@ -26,6 +26,16 @@ paired magnetic-axis radius, and fails closed until physical sign and
 one-standard-deviation uncertainty are source-attested. It never promotes a
 field from its name, units, observed sign, or approximate magnitude.
 
+## MAST normalised-beta authority
+
+The L2F-12b gate is documented in
+[MAST normalised-beta authority](mast_normalised_beta_authority.md). It records
+the conflict between the live `EFM_BETAN` unit and the current IMAS definition,
+forbids a fabricated numerical unit conversion, and keeps canonical `beta_N`
+blocked until formula inputs, sign and scale, reconstruction quality,
+negative-value validity, and one-standard-deviation uncertainty are
+source-authoritative.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics
