@@ -10,10 +10,10 @@
 
 Given per-shot channel arrays (the eleven measured ``run_real_shot_replay``
 channels, extracted from acquired level2 signals out-of-band), this builder
-derives the disruption labels with the documented Ip current-quench detector,
-writes each shot as an ``.npz`` in the full replay schema, checksums every file,
-and emits a ``synthetic:false`` :class:`RealDataManifest` plus a schema-versioned
-dataset report.
+derives explicit Ip-proxy labels with the documented current-quench detector,
+writes each shot as an ``.npz`` in the full replay schema with a self-digested
+``ShotLabelRecord``, checksums every file, and emits a ``synthetic:false``
+:class:`RealDataManifest` plus a schema-versioned dataset report.
 
 The mapping from raw level2 Zarr variables to the extracted channels — including
 the derived-channel recipes (n-mode decomposition, EFIT q95, toroidal field) — is
@@ -28,16 +28,21 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control.core.real_data_manifest import validate_real_data_manifest
-from validation.audit_mast_disruption_feature_sources import LABEL_ALGORITHM
 from validation.fair_mast_source_policy import fair_mast_provenance
+from validation.mast_disruption_shot_label import (
+    SHOT_LABEL_RECORD_SCHEMA,
+    ProgrammeClass,
+    derive_ip_quench_proxy,
+    ip_quench_proxy_algorithm,
+)
 
-DATASET_SCHEMA = "scpn-control.mast-disruption-supervised-dataset.v1"
+DATASET_SCHEMA = "scpn-control.mast-disruption-supervised-dataset.v2.0.0"
 
 # The eleven measured channels the acquisition must supply per shot; the three
 # label channels (is_disruption, disruption_time_idx, disruption_type) are derived
@@ -68,8 +73,6 @@ CHANNEL_UNITS: dict[str, str] = {
     "dBdt_gauss_per_s": "G/s",
     "vertical_position_m": "m",
 }
-# Near-flat-top fraction used to locate the quench onset before the collapse.
-_FLAT_TOP_FRACTION = 0.8
 
 
 def _sha256_json(payload: dict[str, Any]) -> str:
@@ -104,21 +107,14 @@ def derive_ip_quench_label(
     ``-1`` for a non-disruptive shot, implementing the algorithm documented by the
     feature-source audit's ``LABEL_ALGORITHM``.
     """
-    ip_abs = np.abs(np.asarray(ip, dtype=np.float64))
-    ip_max = float(ip_abs.max()) if ip_abs.size else 0.0
-    if ip_max <= 0.0:
-        return (False, -1, "no_current")
-    low_threshold = (1.0 - drop_fraction) * ip_max
-    # The maximum sample always clears the flat-top band, so an onset exists.
-    onset = int(np.nonzero(ip_abs >= _FLAT_TOP_FRACTION * ip_max)[0][-1])
-    collapsed = np.nonzero(ip_abs[onset:] < low_threshold)[0]
-    if collapsed.size == 0:
-        return (False, -1, "no_quench")
-    first_collapsed = onset + int(collapsed[0])
-    quench_ms = float((time_s[first_collapsed] - time_s[onset]) * 1000.0)
-    if quench_ms <= quench_window_ms:
-        return (True, onset, "current_quench")
-    return (False, -1, "slow_rampdown")
+    result = derive_ip_quench_proxy(
+        np.asarray(ip, dtype=np.float64),
+        np.asarray(time_s, dtype=np.float64),
+        shot_id=1,
+        drop_fraction=drop_fraction,
+        quench_window_ms=quench_window_ms,
+    )
+    return (result.is_disruption, result.onset_index, result.classification)
 
 
 def _validate_channels(shot_id: int, channels: dict[str, NDArray[np.float64]]) -> int:
@@ -142,18 +138,28 @@ def build_shot_npz(
     out_dir: Path,
     drop_fraction: float,
     quench_window_ms: float,
+    programme_class: ProgrammeClass = "unknown",
 ) -> dict[str, Any]:
     """Label one shot, write its ``.npz``, and return a checksummed record."""
     _validate_channels(shot_id, channels)
     ip = np.asarray(channels["Ip_MA"], dtype=np.float64)
     time_s = np.asarray(channels["time_s"], dtype=np.float64)
-    is_disruption, onset, disruption_type = derive_ip_quench_label(
-        ip, time_s, drop_fraction=drop_fraction, quench_window_ms=quench_window_ms
+    proxy = derive_ip_quench_proxy(
+        ip,
+        time_s,
+        shot_id=shot_id,
+        programme_class=programme_class,
+        drop_fraction=drop_fraction,
+        quench_window_ms=quench_window_ms,
     )
+    label_record = proxy.record.to_dict()
     payload = {name: np.asarray(channels[name], dtype=np.float64) for name in MEASURED_CHANNELS}
-    payload["is_disruption"] = np.asarray(is_disruption)
-    payload["disruption_time_idx"] = np.asarray(onset)
-    payload["disruption_type"] = np.asarray(disruption_type)
+    payload["is_disruption"] = np.asarray(proxy.is_disruption)
+    payload["disruption_time_idx"] = np.asarray(proxy.onset_index)
+    payload["disruption_type"] = np.asarray(proxy.classification)
+    payload["shot_label_record_json"] = np.asarray(
+        json.dumps(label_record, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / f"shot_{shot_id}.npz"
     np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
@@ -161,9 +167,10 @@ def build_shot_npz(
         "shot_id": shot_id,
         "npz": npz_path.name,
         "checksum_sha256": _sha256_file(npz_path),
-        "label": 1 if is_disruption else 0,
-        "disruption_time_idx": onset,
-        "disruption_type": disruption_type,
+        "label": 1 if proxy.is_disruption else 0,
+        "disruption_time_idx": proxy.onset_index,
+        "disruption_type": proxy.classification,
+        "label_record": label_record,
         "n_samples": int(time_s.shape[0]),
     }
 
@@ -225,6 +232,7 @@ def build_dataset(
             out_dir=out_dir,
             drop_fraction=drop_fraction,
             quench_window_ms=quench_window_ms,
+            programme_class=cast(ProgrammeClass, shot.get("programme_class", "unknown")),
         )
         for shot in shots
     ]
@@ -235,17 +243,17 @@ def build_dataset(
     dataset_fingerprint = hashlib.sha256(
         "".join(sorted(r["checksum_sha256"] for r in records)).encode("utf-8")
     ).hexdigest()
-    label_algorithm = dict(LABEL_ALGORITHM)
-    label_algorithm["drop_fraction"] = drop_fraction
-    label_algorithm["quench_window_ms"] = quench_window_ms
+    label_algorithm = ip_quench_proxy_algorithm(
+        drop_fraction=drop_fraction,
+        quench_window_ms=quench_window_ms,
+    )
     report: dict[str, Any] = {
         "schema_version": DATASET_SCHEMA,
         "status": "blocked",
         "admission_ready": False,
         "blocked_reason": (
-            "derived Ip current-quench labels are a bounded detector, not "
-            "facility-validated; the detector must be cross-checked on manually "
-            "inspected shots before promotion."
+            "all labels have ip_proxy authority derived from an input feature; "
+            "they are uncalibrated and are not independent facility ground truth"
         ),
         "dataset_id": dataset_id,
         "synthetic": False,
@@ -253,7 +261,11 @@ def build_dataset(
         "dataset_sha256": dataset_fingerprint,
         "n_shots": len(records),
         "n_disruptive": sum(r["label"] for r in records),
+        "n_ambiguous": sum(r["label_record"]["outcome"] == "ambiguous" for r in records),
         "channel_schema": [*MEASURED_CHANNELS, "is_disruption", "disruption_time_idx", "disruption_type"],
+        "metadata_schema": {"shot_label_record_json": SHOT_LABEL_RECORD_SCHEMA},
+        "label_authority_counts": {"ip_proxy": len(records)},
+        "independent_label_count": 0,
         "label_algorithm": label_algorithm,
         "shots": records,
         "generated_at": generated_at,

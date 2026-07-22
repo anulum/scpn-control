@@ -25,6 +25,7 @@ from validation.audit_mast_disruption_feature_sources import (
 
 
 def test_audit_is_blocked_while_a_channel_is_lookup_needed() -> None:
+    """Keep the source audit blocked while BT authority is unresolved."""
     report = build_feature_source_audit()
     assert report["schema_version"] == "scpn-control.mast-disruption-feature-source-audit.v1"
     # BT_T has no catalogued level2 signal yet → overall blocked.
@@ -39,14 +40,22 @@ def test_audit_is_blocked_while_a_channel_is_lookup_needed() -> None:
 
 
 def test_audit_records_label_algorithm_and_floor() -> None:
+    """Expose the Ip proxy authority and its configured catalogue floor."""
     report = build_feature_source_audit(ip_max_floor_ka=150.0)
     label = report["label_algorithm"]
     assert label["method"] == "ip_current_quench"
     assert label["drop_fraction"] == 0.8
     assert label["ip_max_floor_ka"] == 150.0
+    assert label["label_authority"] == "ip_proxy"
+    assert label["independent_of_input_features"] is False
+    assert label["label_record_schema"] == "scpn-control.mast-shot-label-record.v1.0.0"
+    assert label["algorithm_digest"] == label["algorithm_contract"]["payload_sha256"]
+    assert report["channel_status_counts"]["proxy"] == 3
+    assert report["channels"]["disruption_type"]["level2_source"] == "proxy derived from summary.ip only"
 
 
 def test_audit_payload_digest_is_self_consistent() -> None:
+    """Bind the complete audit report to its canonical payload digest."""
     report = build_feature_source_audit()
     digest = report["payload_sha256"]
     assert isinstance(digest, str) and len(digest) == 64
@@ -54,6 +63,7 @@ def test_audit_payload_digest_is_self_consistent() -> None:
 
 
 def test_audit_status_is_source_ready_when_all_resolved(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Resolve source readiness only after the final signal blocker clears."""
     patched = {name: dict(entry) for name, entry in audit.FEATURE_SOURCE_POLICY.items()}
     patched["BT_T"]["status"] = "derived"
     monkeypatch.setattr(audit, "FEATURE_SOURCE_POLICY", patched)
@@ -64,12 +74,14 @@ def test_audit_status_is_source_ready_when_all_resolved(monkeypatch: pytest.Monk
 
 
 def test_audit_rejects_incomplete_policy(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject a feature policy missing any replay schema member."""
     monkeypatch.setattr(audit, "NPZ_CHANNELS", (*NPZ_CHANNELS, "phantom_channel"))
     with pytest.raises(ValueError, match="missing channels"):
         build_feature_source_audit()
 
 
 def test_audit_rejects_incomplete_label_algorithm(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject a label audit missing an algorithm contract field."""
     broken = {k: v for k, v in audit.LABEL_ALGORITHM.items() if k != "quench_criterion"}
     monkeypatch.setattr(audit, "LABEL_ALGORITHM", broken)
     with pytest.raises(ValueError, match="missing keys"):
@@ -77,6 +89,7 @@ def test_audit_rejects_incomplete_label_algorithm(monkeypatch: pytest.MonkeyPatc
 
 
 def test_render_markdown_lists_every_channel() -> None:
+    """Render each source, derived, proxy, and blocked channel."""
     report = build_feature_source_audit()
     markdown = render_markdown(report)
     assert "# FAIR-MAST Disruption Feature-Source Audit" in markdown
@@ -86,6 +99,7 @@ def test_render_markdown_lists_every_channel() -> None:
 
 
 def test_main_writes_reports(tmp_path: Path) -> None:
+    """Write JSON and Markdown reports through the audit CLI."""
     json_out = tmp_path / "audit.json"
     md_out = tmp_path / "audit.md"
     exit_code = main(["--json-out", str(json_out), "--report-out", str(md_out), "--ip-max-floor-ka", "120"])

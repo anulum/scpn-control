@@ -13,7 +13,7 @@ schema from public FAIR-MAST level2 signals, and it must derive disruption label
 (the ``level2/defuse`` DEFUSE labels are listed but return HTTP 403). This module
 is the committed, schema-versioned contract for both: for every NPZ channel it
 records the source level2 signal group, units, transform and readiness status
-(``source_ready`` / ``derived`` / ``lookup_needed``), and it documents the exact
+(``source_ready`` / ``derived`` / ``proxy`` / ``lookup_needed``), and it documents the exact
 Ip current-quench labelling algorithm and its parameters.
 
 It is a policy audit, not a live Zarr probe: the heavy MAST stores are acquired
@@ -31,6 +31,10 @@ from pathlib import Path
 from typing import Any
 
 from validation.fair_mast_source_policy import fair_mast_provenance
+from validation.mast_disruption_shot_label import (
+    SHOT_LABEL_RECORD_SCHEMA,
+    ip_quench_proxy_algorithm,
+)
 
 REPORT_SCHEMA = "scpn-control.mast-disruption-feature-source-audit.v1"
 
@@ -56,6 +60,7 @@ NPZ_CHANNELS: tuple[str, ...] = (
 # (docs/internal/fairmast_level2_inventory_2026-07-07.md, sample shot 11766):
 #   source_ready  — a catalogued level2 signal maps directly (unit transform only)
 #   derived       — recipe from catalogued signals is known but not yet implemented
+#   proxy         — a label derived from a model-input signal, not independent truth
 #   lookup_needed — no catalogued signal located yet; acquisition must resolve it
 FEATURE_SOURCE_POLICY: dict[str, dict[str, str]] = {
     "time_s": {
@@ -125,45 +130,49 @@ FEATURE_SOURCE_POLICY: dict[str, dict[str, str]] = {
         "status": "derived",
     },
     "is_disruption": {
-        "level2_source": "derived from magnetics/ip",
+        "level2_source": "proxy derived from summary.ip",
         "units": "boolean",
         "transform": "ip_current_quench_label",
-        "status": "derived",
+        "status": "proxy",
     },
     "disruption_time_idx": {
-        "level2_source": "derived from magnetics/ip",
+        "level2_source": "proxy derived from summary.ip",
         "units": "sample index",
         "transform": "ip_current_quench_onset",
-        "status": "derived",
+        "status": "proxy",
     },
     "disruption_type": {
-        "level2_source": "derived from magnetics/ip and mode activity",
+        "level2_source": "proxy derived from summary.ip only",
         "units": "category",
         "transform": "ip_current_quench_class",
-        "status": "derived",
+        "status": "proxy",
     },
 }
 
 # The documented Ip current-quench labelling algorithm (DEFUSE labels are 403).
+_DEFAULT_IP_PROXY_ALGORITHM = ip_quench_proxy_algorithm(drop_fraction=0.8, quench_window_ms=5.0)
 LABEL_ALGORITHM: dict[str, Any] = {
     "method": "ip_current_quench",
-    "signal": "magnetics/ip",
+    "signal": "summary.ip",
+    "algorithm_contract": _DEFAULT_IP_PROXY_ALGORITHM,
+    "algorithm_digest": _DEFAULT_IP_PROXY_ALGORITHM["payload_sha256"],
     "flat_top_reference": "pre-quench Ip flat-top maximum",
     "quench_criterion": (
         "terminal current quench where |Ip| falls below (1 - drop_fraction) of the "
         "flat-top maximum within quench_window_ms"
     ),
-    "drop_fraction": 0.8,
-    "quench_window_ms": 5.0,
+    "drop_fraction": _DEFAULT_IP_PROXY_ALGORITHM["drop_fraction"],
+    "quench_window_ms": _DEFAULT_IP_PROXY_ALGORITHM["quench_window_ms"],
     "disruption_time": "onset sample of the terminal current quench",
     "exclusions": [
         "cpf abort == 1",
         "cpf useful != 1",
         "cpf ip_max below a declared floor",
     ],
-    "validation_requirement": (
-        "the detector must be cross-checked on >= 50 manually inspected shots before the derived labels are trusted"
-    ),
+    "label_record_schema": SHOT_LABEL_RECORD_SCHEMA,
+    "label_authority": "ip_proxy",
+    "independent_of_input_features": False,
+    "validation_requirement": "L2F-22 parameter-sensitivity and independent-authority disagreement audit",
     "defuse_cross_check": (
         "level2/defuse HDF5 labels return HTTP 403; labels are derived only, with "
         "DEFUSE reserved as a future cross-check if access is granted"
@@ -203,7 +212,7 @@ def build_feature_source_audit(*, ip_max_floor_ka: float = 100.0) -> dict[str, A
         raise ValueError(f"label algorithm is missing keys: {missing_label}")
 
     channels = {name: dict(FEATURE_SOURCE_POLICY[name]) for name in NPZ_CHANNELS}
-    status_counts = {"source_ready": 0, "derived": 0, "lookup_needed": 0}
+    status_counts = {"source_ready": 0, "derived": 0, "proxy": 0, "lookup_needed": 0}
     for entry in channels.values():
         status_counts[entry["status"]] += 1
     overall_status = "blocked" if status_counts["lookup_needed"] > 0 else "source_ready"
@@ -248,7 +257,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         f"- **Status**: {report['status']}",
         f"- **Channels**: {len(report['npz_channel_schema'])} "
         f"(source_ready={counts['source_ready']}, derived={counts['derived']}, "
-        f"lookup_needed={counts['lookup_needed']})",
+        f"proxy={counts['proxy']}, lookup_needed={counts['lookup_needed']})",
         f"- **Label method**: {report['label_algorithm']['method']} "
         f"(drop_fraction={report['label_algorithm']['drop_fraction']}, "
         f"window={report['label_algorithm']['quench_window_ms']} ms)",
