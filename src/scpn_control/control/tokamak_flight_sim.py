@@ -217,6 +217,15 @@ class IsoFluxController:
         if self.verbose:
             logger.info(message)
 
+    def pid_step(self, pid: PIDController, error: float) -> float:
+        """Advance one position PID and return its (anti-windup) control output.
+
+        A thin delegator to :meth:`PIDController.step` kept as an overridable seam:
+        controller-comparison benchmarks monkeypatch this method on an instance to
+        substitute an alternative law (e.g. H-infinity) for the same ``run_shot``.
+        """
+        return pid.step(error)
+
     def _add_coil_current(self, coil_idx: int, delta: float) -> None:
         coils = self.kernel.cfg.get("coils", [])
         if 0 <= coil_idx < len(coils):
@@ -288,8 +297,8 @@ class IsoFluxController:
             err_Z = TARGET_Z - curr_Z
 
             # Control Actions (Current Deltas)
-            ctrl_radial_cmd = self.pid_R.step(err_R)
-            ctrl_vertical_cmd = self.pid_Z.step(err_Z)
+            ctrl_radial_cmd = self.pid_step(self.pid_R, err_R)
+            ctrl_vertical_cmd = self.pid_step(self.pid_Z, err_Z)
 
             # First-order actuator transfer layer (power-supply lag / inductance).
             ctrl_radial = self._act_radial.step(ctrl_radial_cmd)

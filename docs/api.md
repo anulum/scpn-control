@@ -421,6 +421,18 @@ actuation, review bypass, or approval claims.
 
 ---
 
+## Control — Anti-Windup PID Controller
+
+`scpn_control.control.pid_controller` provides a single-axis position PID with an
+optional saturation/slew envelope and conditional-integration anti-windup. With no
+envelope configured it reproduces the ideal `kp*e + ki*Σe + kd*Δe` law exactly; an
+envelope freezes the integrator for any step clamped in the error's own direction,
+closing the integral-windup hazard on a saturating actuator.
+
+::: scpn_control.control.pid_controller.PIDController
+
+---
+
 ## Control — Federated Disruption Prediction
 
 `scpn_control.control.federated_disruption` supports FedAvg and FedProx
@@ -1121,6 +1133,17 @@ is schema-versioned, self-digested, and fail-closed.
 ::: scpn_control.scpn.runtime_safety_certificate.replay_runtime_safety_certificate
 
 ::: scpn_control.scpn.runtime_safety_certificate.assert_runtime_certificate_admissible
+
+### Runtime Deadline Monitor
+
+`scpn_control.scpn.deadline_monitor` closes the gap between the certificate's
+declared `deadline_us` and the actual control-cycle duration: each measured cycle
+is checked against the admitted deadline, fail-soft by default (overruns counted
+and exposed) with an opt-in strict mode that raises on a single overrun.
+
+::: scpn_control.scpn.deadline_monitor.DeadlineMonitor
+
+::: scpn_control.scpn.deadline_monitor.DeadlineOverrunError
 
 ::: scpn_control.scpn.z3_model_checking.Z3BoundedModelChecker
 

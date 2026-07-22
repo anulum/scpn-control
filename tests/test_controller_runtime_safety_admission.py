@@ -262,6 +262,29 @@ def test_admitted_controller_wires_and_logs_deadline_monitor(tmp_path: Path) -> 
     assert record["deadline_overruns"] == controller.deadline_monitor.overruns
 
 
+def test_strict_deadline_overrun_discards_the_action_and_raises(tmp_path: Path) -> None:
+    """In strict mode an overrun raises before return, so the cycle's action is dropped (SS-14)."""
+    from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
+
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+    # Install a strict monitor whose deadline no real cycle can meet, so the very
+    # next step deterministically overruns; strict mode must raise (dropping the
+    # computed action) rather than return it.
+    controller.deadline_monitor = DeadlineMonitor(deadline_us=1.0e-9, strict=True)
+    with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
+        controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0)
+    assert controller.deadline_monitor.overruns == 1
+
+
 def test_admitted_controller_forwards_strict_deadline_flag(tmp_path: Path) -> None:
     """The deadline_monitor_strict flag reaches the wired monitor."""
     net = _certified_net()

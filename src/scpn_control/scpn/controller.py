@@ -585,8 +585,12 @@ class NeuroSymbolicController:
         """Record the measured cycle against the deadline monitor.
 
         Returns whether the cycle met the deadline, or ``None`` when no runtime
-        certificate (and hence no monitor) is admitted. In strict mode an overrun
-        raises :class:`DeadlineOverrunError`.
+        certificate (and hence no monitor) is admitted. In STRICT mode an overrun
+        raises :class:`DeadlineOverrunError` here, before ``step`` returns — so the
+        overrunning cycle's computed control action is DISCARDED, not delivered to
+        the caller (a late computation is treated as untrustworthy, and the raise
+        is the signal for the supervisor to enter its safe fallback). The fail-soft
+        default only counts and exposes the overrun and always returns the action.
         """
         if self.deadline_monitor is None:
             return None
