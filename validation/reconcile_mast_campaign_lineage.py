@@ -175,6 +175,17 @@ def _resolve_beneath(root: Path, relative: str, *, field: str) -> Path:
     return resolved
 
 
+def _require_output_outside_campaign(campaign_root: Path, output_path: Path) -> None:
+    """Reject a report destination that could mutate campaign evidence."""
+    resolved_root = campaign_root.resolve()
+    resolved_output = output_path.resolve()
+    try:
+        resolved_output.relative_to(resolved_root)
+    except ValueError:
+        return
+    raise CampaignReconciliationError("json_out must be outside campaign_root")
+
+
 def _load_spec(path: Path) -> tuple[str, dict[str, tuple[str, str]], str, str]:
     payload, file_digest = _read_json(path, label="reconciliation spec")
     if set(payload) != {"schema_version", "dataset_id", "inputs", "payload_sha256"}:
@@ -618,6 +629,7 @@ def main(argv: list[str] | None = None) -> int:
         spec_path=args.spec,
         generated_at=args.generated_at,
     )
+    _require_output_outside_campaign(args.campaign_root, args.json_out)
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     source = cast(Mapping[str, Any], report["source_inventory"])

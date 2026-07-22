@@ -363,6 +363,34 @@ def test_cli_writes_the_deterministic_report(tmp_path: Path, capsys: pytest.Capt
     assert "requested=3 acquired=2 dataset=1" in capsys.readouterr().out
 
 
+@pytest.mark.parametrize("relative_output", ["material.json", "evidence/report.json"])
+def test_cli_refuses_output_inside_campaign_root(tmp_path: Path, relative_output: str) -> None:
+    """Prevent the report writer from replacing or adding campaign evidence."""
+    root = tmp_path / "campaign01"
+    spec = _tree(root)
+    material = root / "material.json"
+    material_before = material.read_bytes()
+    output = root / relative_output
+
+    with pytest.raises(CampaignReconciliationError, match="json_out must be outside campaign_root"):
+        main(
+            [
+                "--campaign-root",
+                str(root),
+                "--spec",
+                str(spec),
+                "--generated-at",
+                _FIXED_TS,
+                "--json-out",
+                str(output),
+            ]
+        )
+
+    assert material.read_bytes() == material_before
+    if relative_output != "material.json":
+        assert not output.exists()
+
+
 @pytest.mark.parametrize(
     ("name", "relative"),
     [
@@ -499,7 +527,7 @@ def test_channels_archive_structure_is_verified(
     mutate: Callable[[dict[str, np.ndarray[Any, Any]]], None],
     message: str,
 ) -> None:
-    """Reject missing, extra, non-finite, mis-shaped, or mis-typed members."""
+    """Reject missing, extra, non-finite, incorrectly shaped, or incorrectly typed members."""
     root = tmp_path / "campaign01"
     spec = _tree(root)
     _write_channels(root / "derived/channels.npz", mutate=mutate)
