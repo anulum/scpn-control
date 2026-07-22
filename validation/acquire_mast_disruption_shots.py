@@ -6,18 +6,17 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — FAIR-MAST level2 disruption-shot high-fidelity acquisition
-"""Mirror FAIR-MAST level2 disruption-relevant signals at native resolution.
+"""Cache selected FAIR-MAST level2 disruption signals without resampling.
 
 This produces a shared, high-fidelity MAST disruption material set consumed by
 SCPN-CONTROL, SCPN-FUSION-CORE and MIF-CORE. For each shot it reads the public
 FAIR-MAST level2 Zarr v3 store (anonymous S3, ``s3.echo.stfc.ac.uk``) and writes
-one ``shot_<id>.npz`` holding the disruption-relevant variables at their native
-timebases — the fast toroidal saddle array (12 channels, 20 us), the Mirnov and
-poloidal probe arrays, plus the equilibrium, summary and interferometer scalar
-channels — with no downsampling or derived reduction, so every consumer can build
-its own view without re-downloading. A schema-versioned manifest records the
-per-shot files, SHA-256 checksums, the variable inventory, timebases, units and
-the official FAIR-MAST licence and citations.
+one derived ``shot_<id>.npz`` cache holding selected values at their source sample
+resolution.  The remote Zarr remains the native source: NPZ does not preserve its
+chunking, hierarchy, or attributes.  A SourceObjectManifest v2 therefore records
+the source hierarchy and available xarray metadata separately, binds each array's
+exact values, binds the derived-file bytes, and declares the lossy container
+boundary instead of calling NPZ a raw native object.
 
 Labels are deliberately not assigned here (the DEFUSE HDF5 labels return HTTP 403
 and the DEFUSE shot ids do not intersect the level2 shot range); consumers derive
@@ -29,21 +28,28 @@ shared datasets root. Requires the optional FAIR-MAST stack (``zarr``, ``s3fs``,
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import math
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
 from numpy.typing import NDArray
 
-from validation.fair_mast_source_policy import fair_mast_provenance
+from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
+from validation.mast_source_object_manifest import (
+    SOURCE_OBJECT_MANIFEST_SCHEMA,
+    build_derived_npz_artifact,
+    finalise_source_object_manifest,
+    validate_source_object_manifest,
+)
 
 # Injection seams so the S3/Zarr I/O can be stubbed in offline tests.
 FilesystemFactory = Callable[[Path], Any]
 GroupOpener = Callable[[Any, int, str], Any]
 
-MANIFEST_SCHEMA = "scpn-control.mast-disruption-material.v1"
+MANIFEST_SCHEMA = SOURCE_OBJECT_MANIFEST_SCHEMA
 ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
 BUCKET = "mast"
 
@@ -105,29 +111,67 @@ def _open_group(fs: Any, shot_id: int, group: str) -> Any:
     return xr.open_zarr(store, group=group, consolidated=True)
 
 
-def mirror_shot(fs: Any, shot_id: int, *, open_group: GroupOpener = _open_group) -> dict[str, NDArray[Any]]:
-    """Read the native-resolution disruption-relevant variables for one shot."""
+def mirror_shot(
+    fs: Any,
+    shot_id: int,
+    *,
+    open_group: GroupOpener = _open_group,
+    metadata_out: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, NDArray[Any]]:
+    """Read selected source-resolution values and optional source metadata."""
     payload: dict[str, NDArray[Any]] = {}
     for group, variables in GROUP_VARIABLES.items():
         dataset = open_group(fs, shot_id, group)
         for variable in variables:
             if variable in dataset.variables:
-                payload[f"{group}.{variable}"] = np.asarray(dataset[variable].values)
+                archive_key = f"{group}.{variable}"
+                source_array = dataset[variable]
+                payload[archive_key] = np.asarray(source_array.values)
+                if metadata_out is not None:
+                    metadata_out[archive_key] = _source_array_metadata(source_array)
     if not any(key.startswith("magnetics.b_field_tor_probe_saddle_field") for key in payload):
         raise ValueError(f"shot {shot_id}: no toroidal saddle array present.")
     return payload
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1 << 20), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _json_metadata_value(value: Any) -> Any:
+    """Convert source metadata to deterministic JSON without silent stringification."""
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if math.isfinite(value):
+            return value
+        return {"non_finite_float": str(value)}
+    if isinstance(value, np.generic):
+        return _json_metadata_value(value.item())
+    if isinstance(value, np.ndarray):
+        return [_json_metadata_value(item) for item in value.tolist()]
+    if isinstance(value, bytes):
+        return {"bytes_hex": value.hex()}
+    if isinstance(value, Mapping):
+        return {
+            str(key): _json_metadata_value(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        }
+    if isinstance(value, (list, tuple)):
+        return [_json_metadata_value(item) for item in value]
+    raise TypeError(f"unsupported source metadata type: {type(value).__module__}.{type(value).__qualname__}")
 
 
-def _sha256_json(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+def _source_array_metadata(source_array: Any) -> dict[str, Any]:
+    """Capture xarray structure without inventing absent physical metadata."""
+    dimensions = [str(dimension) for dimension in getattr(source_array, "dims", ())]
+    attributes = _json_metadata_value(dict(getattr(source_array, "attrs", {})))
+    units = attributes.get("units") if isinstance(attributes.get("units"), str) else None
+    time_dimensions = [dimension for dimension in dimensions if "time" in dimension.casefold()]
+    chunks = getattr(source_array, "chunks", None)
+    return {
+        "dimensions": dimensions,
+        "units": units,
+        "timebase": {"kind": "source_dimension", "dimensions": time_dimensions} if time_dimensions else None,
+        "source_attributes": attributes,
+        "source_chunks": [list(chunk_sizes) for chunk_sizes in chunks] if chunks is not None else None,
+        "metadata_status": "source_xarray",
+    }
 
 
 def _shot_summary(payload: dict[str, NDArray[Any]]) -> dict[str, Any]:
@@ -160,27 +204,44 @@ def acquire(
     records: list[dict[str, Any]] = []
     for shot_id in shot_ids:
         try:
-            payload = mirror_shot(fs, shot_id, open_group=open_group)
+            source_metadata: dict[str, dict[str, Any]] = {}
+            payload = mirror_shot(fs, shot_id, open_group=open_group, metadata_out=source_metadata)
         except Exception as exc:  # noqa: BLE001 - record and continue over unavailable shots
-            records.append({"shot_id": shot_id, "status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+            records.append(
+                {
+                    "shot_id": shot_id,
+                    "status": "failed",
+                    "programme_class": "unknown",
+                    "error": f"{type(exc).__name__}: {exc}",
+                }
+            )
             continue
         shot_path = out_dir / f"shot_{shot_id}.npz"
         np.savez_compressed(shot_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
-        record = {
+        artifact = build_derived_npz_artifact(
+            local_path=shot_path.name,
+            artifact_path=shot_path,
+            source_uri=f"s3://{BUCKET}/level2/shots/{shot_id}.zarr",
+            arrays=payload,
+            source_metadata=source_metadata,
+        )
+        record: dict[str, Any] = {
             "shot_id": shot_id,
             "status": "acquired",
-            "npz": shot_path.name,
-            "checksum_sha256": _sha256_file(shot_path),
-            "bytes": int(shot_path.stat().st_size),
+            "programme_class": "unknown",
+            "artifacts": [artifact],
+            "summary": _shot_summary(payload),
         }
-        record.update(_shot_summary(payload))
         records.append(record)
 
     acquired = [r for r in records if r["status"] == "acquired"]
     failed = [r for r in records if r["status"] == "failed"]
     status = "empty" if not acquired else ("partial" if failed else "complete")
     manifest: dict[str, Any] = {
-        "schema_version": MANIFEST_SCHEMA,
+        "schema_version": SOURCE_OBJECT_MANIFEST_SCHEMA,
+        "manifest_kind": "source_object_inventory",
+        "machine": "MAST",
+        "campaign": "FAIR-MAST level2 disruption material",
         "status": status,
         "synthetic": False,
         "consumers": ["SCPN-CONTROL", "SCPN-FUSION-CORE", "MIF-CORE"],
@@ -191,8 +252,16 @@ def acquire(
             "format": "zarr_v3_level2",
             "path_template": f"s3://{BUCKET}/level2/shots/{{shot_id}}.zarr",
         },
+        "licence_spdx": FAIR_MAST_LICENCE,
         **fair_mast_provenance(),
-        "fidelity": "native_resolution_no_downsampling",
+        "fidelity": {
+            "sample_values": "selected source-resolution values; no resampling",
+            "native_source": "remote FAIR-MAST Zarr v3",
+            "local_cache": "derived NPZ; not a native/raw object",
+            "source_hierarchy": "preserved in manifest, flattened in NPZ archive keys",
+            "source_metadata": "preserved in manifest when exposed by xarray",
+            "source_chunking": "recorded when exposed; not preserved in NPZ",
+        },
         "group_variables": {group: list(variables) for group, variables in GROUP_VARIABLES.items()},
         "label_policy": (
             "labels not assigned; DEFUSE HDF5 labels are HTTP 403 and its shot ids do "
@@ -201,13 +270,13 @@ def acquire(
         "retrieved_at": retrieved_at,
         "n_acquired": len(acquired),
         "n_requested": len(shot_ids),
-        "total_bytes": sum(int(r["bytes"]) for r in acquired),
+        "total_bytes": sum(int(r["artifacts"][0]["bytes"]) for r in acquired),
         "shots": records,
         "generated_at": generated_at,
-        "payload_sha256": None,
     }
-    manifest["payload_sha256"] = _sha256_json(manifest)
-    return manifest
+    finalised = finalise_source_object_manifest(manifest)
+    validate_source_object_manifest(finalised, artifact_root=out_dir)
+    return finalised
 
 
 def _parse_shots(text: str) -> list[int]:

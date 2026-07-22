@@ -200,9 +200,9 @@ blocked until the required external artefacts exist.
 | Python public classes | 539 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 135 |
+| Validation scripts | 137 |
 | Optional extras | 19 |
-| Python test files | 492 |
+| Python test files | 494 |
 | Public documentation pages | 62 |
 | GitHub Actions workflows | 10 |
 
@@ -390,7 +390,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 492 Python test files (generated inventory)
+tests/                 # 494 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
