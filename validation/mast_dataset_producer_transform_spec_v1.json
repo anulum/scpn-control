@@ -1,0 +1,20 @@
+{
+  "independent_label_authority": false,
+  "input_schema": "scpn-control.mast-disruption-replay-channels.v2.0.0",
+  "label_authority": "ip_proxy",
+  "lineage_mode": "producer_time_attested",
+  "operation_chain": [
+    "select_verified_replay_v2_members",
+    "bind_source_object_parent",
+    "derive_ip_quench_proxy_label",
+    "write_shot_npz",
+    "sha256_bind_output"
+  ],
+  "output_schema": "scpn-control.mast-disruption-supervised-dataset.v2.0.0",
+  "payload_sha256": "6783fc6f27b12c39f05b005c1c42e12bc6e7af592c8b86414a6dc3003d5a03d4",
+  "producer_time_attested": true,
+  "schema_version": "scpn-control.mast-dataset-producer-transform-spec.v1.0.0",
+  "source_schema": "scpn-control.source-object-manifest.v2.0.0",
+  "training_admission": false,
+  "transform_id": "mast-disruption-replay-v2-to-supervised-npz-v1"
+}

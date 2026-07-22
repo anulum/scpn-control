@@ -13,6 +13,15 @@
   definition directly.
 
 ### Added
+- Add a fresh-output FAIR-MAST dataset producer-lineage contract that verifies
+  source-object manifest v2, replay report/archive v2, and a self-digested
+  transform specification before labelling. It binds every dataset NPZ to its
+  selected-array parent, acquisition transform, optional source generation,
+  replay member, label record, transform, and output checksum; records exact
+  replay exclusions; validates the sealed output against tampering; refuses
+  overwrite or input-directory mutation; rolls back handled failures; and keeps
+  proxy-label, training, scientific, reuse, facility, cohort, and control claims
+  false.
 - Upgrade new disruption replay production to report schema v2 with an
   archive-first producer binding: the reopened `channels.npz` byte length and
   SHA-256, canonical per-shot digests over all eleven finite channel vectors,
