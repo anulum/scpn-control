@@ -13,6 +13,12 @@
   definition directly.
 
 ### Added
+- Add a two-run FAIR-MAST regeneration verifier that reopens the exact
+  SourceObjectManifest-v2 artifacts, producer-bound replay report/archive, and
+  every lineage-bound dataset output; rejects tree or binding drift; requires
+  native source-generation pins; seals complete per-file inventories; proves
+  fixed-input/fixed-time byte identity; and preserves all proxy-label,
+  training, scientific, reuse, facility, cohort, and control blockers.
 - Add a fresh-output FAIR-MAST dataset producer-lineage contract that verifies
   source-object manifest v2, replay report/archive v2, and a self-digested
   transform specification before labelling. It binds every dataset NPZ to its

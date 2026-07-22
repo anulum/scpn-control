@@ -255,6 +255,17 @@ invent aliases for top-level names. Eleven-channel extraction remains disabled
 until a versioned MAST signal-binding specification supplies those physical
 contracts.
 
+For regenerated proxy-labelled datasets, run
+`validation.verify_mast_lineage_bound_regeneration` after two fixed-time fresh
+builds. The verifier reopens the SourceObjectManifest-v2 artifact set, exact
+producer-bound replay bytes, both producer-lineage manifests, and every emitted
+dataset file. It requires native source-generation pins and byte-identical
+complete tree inventories, then emits a self-digested
+`scpn-control.mast-lineage-bound-regeneration-verification.v1.0.0` report with
+status `reproducible_blocked`. Reproducibility does not supply independent
+outcome labels, an admitted cohort, or any training, scientific, facility,
+prediction, reuse, or control claim.
+
 Real-data manifest provenance gate:
 
 ```bash

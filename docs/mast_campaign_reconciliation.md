@@ -178,6 +178,48 @@ scientific, reuse, facility-prediction, cohort, and control claims remain false.
 If any source artifact lacks a native-generation pin, that limitation is also an
 explicit blocker.
 
+## Fresh regeneration verification (L2F-90d)
+
+`validation/verify_mast_lineage_bound_regeneration.py` turns two fresh dataset
+roots into one fail-closed reproducibility proof. It revalidates the exact
+SourceObjectManifest-v2 artifacts, replay-v2 report and archive, and both
+`producer-lineage.json` manifests with their complete output trees. It samples
+each run tree before and after validation, rejects symlinks and non-regular
+entries, and requires the source, replay, archive, dataset identity, generation
+time, blockers, claims, filenames, byte lengths, and SHA-256 values to agree.
+
+Run the verifier only after creating two previously absent output roots with
+identical explicit timestamps:
+
+```bash
+PYTHONPATH=src python -m validation.verify_mast_lineage_bound_regeneration \
+  --source-manifest /path/to/source-v2/source_object_manifest.json \
+  --replay-report /path/to/replay-v2/report.json \
+  --replay-archive /path/to/replay-v2/channels.npz \
+  --run-a /path/to/fresh/dataset-run-a \
+  --run-b /path/to/fresh/dataset-run-b \
+  --generated-at 2026-07-22T21:50:00Z \
+  --json-out /path/to/fresh/regeneration-verification.json
+```
+
+The verifier emits
+`scpn-control.mast-lineage-bound-regeneration-verification.v1.0.0` with status
+`reproducible_blocked`. It accepts only producer manifests that pin native
+source generation for every record. Byte reproducibility and source-generation
+identity close the corresponding lineage gaps, but do not convert the
+input-derived `ip_proxy` label into independent outcome authority. The sealed
+cohort, training, scientific, reuse, facility-prediction, and control gates
+therefore remain false.
+
+The bounded real-object L2F-90d run used FAIR-MAST shots 30421 and 30424. The
+verified source snapshot contains 14,695,227 bytes and exact Zarr-v3 generation
+pins for both shots. Fresh replay-v2 derived both shots, and the two dataset
+roots reproduced all five output files byte-for-byte. The verification payload
+digest is `76543760016d8622cdb607066258cdb065341cc08b72a07a46e3ec556732985b`;
+its complete output-inventory digest is
+`d9f56fc1af099be9549374dc4b8f24ffaf6df1a8f88e17ebc4aed408aaa758b8`.
+All seven claim fields remain false.
+
 ## Current bounded result
 
 The read-only campaign reconciliation produced this exact inventory:
