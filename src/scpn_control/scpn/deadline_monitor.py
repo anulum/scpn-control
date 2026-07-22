@@ -47,6 +47,8 @@ class DeadlineMonitor:
     _overruns: int = field(default=0, init=False)
     _last_cycle_us: float = field(default=0.0, init=False)
     _max_cycle_us: float = field(default=0.0, init=False)
+    _trace_overruns: int = field(default=0, init=False)
+    _max_total_us: float = field(default=0.0, init=False)
 
     def __post_init__(self) -> None:
         """Reject a non-finite or non-positive deadline."""
@@ -80,6 +82,31 @@ class DeadlineMonitor:
                 )
         return within
 
+    def observe_trace_write(self, total_us: float) -> None:
+        """Fold a fail-soft cycle's full cost (compute + synchronous trace write).
+
+        :meth:`record` measures the real-time-critical compute latency. This method
+        additionally accounts the *measure-through* cost — compute plus the
+        synchronous JSONL write that follows it — so a fail-soft cycle whose true
+        wall-clock exceeds the deadline because of the write is visible via
+        :attr:`trace_overruns` and :attr:`max_total_us`. It never increments the
+        cycle counter (the cycle is already counted by :meth:`record`) and never
+        raises: strict callers forbid the synchronous write entirely, so this path is
+        fail-soft only.
+
+        Raises
+        ------
+        ValueError
+            If ``total_us`` is not finite and non-negative.
+        """
+        total_us = float(total_us)
+        if not math.isfinite(total_us) or total_us < 0.0:
+            raise ValueError("total_us must be finite and >= 0")
+        if total_us > self._max_total_us:
+            self._max_total_us = total_us
+        if total_us > self.deadline_us:
+            self._trace_overruns += 1
+
     @property
     def cycles(self) -> int:
         """Total number of recorded control cycles."""
@@ -100,6 +127,16 @@ class DeadlineMonitor:
         """Longest recorded cycle duration in microseconds."""
         return self._max_cycle_us
 
+    @property
+    def trace_overruns(self) -> int:
+        """Fail-soft cycles whose compute + trace-write cost exceeded the deadline."""
+        return self._trace_overruns
+
+    @property
+    def max_total_us(self) -> float:
+        """Longest full step cost (compute + trace write) recorded, in microseconds."""
+        return self._max_total_us
+
     def as_dict(self) -> dict[str, float | int | bool]:
         """Return a JSON-serialisable snapshot of the monitor state."""
         return {
@@ -109,6 +146,8 @@ class DeadlineMonitor:
             "overruns": self._overruns,
             "last_cycle_us": self._last_cycle_us,
             "max_cycle_us": self._max_cycle_us,
+            "trace_overruns": self._trace_overruns,
+            "max_total_us": self._max_total_us,
         }
 
     def reset(self) -> None:
@@ -117,3 +156,5 @@ class DeadlineMonitor:
         self._overruns = 0
         self._last_cycle_us = 0.0
         self._max_cycle_us = 0.0
+        self._trace_overruns = 0
+        self._max_total_us = 0.0

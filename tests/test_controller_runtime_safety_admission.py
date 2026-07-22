@@ -412,6 +412,58 @@ def test_failsoft_logging_exposes_trace_write_cost(tmp_path: Path) -> None:
     assert controller.last_trace_write_us >= 0.0
 
 
+def test_failsoft_logging_measures_through_the_trace_write(tmp_path: Path) -> None:
+    """A fail-soft logging cycle folds the trace write into the monitor (SS-14 b).
+
+    The compute deadline is recorded on ``t0..t1`` (excluding the write); the
+    controller additionally measures THROUGH the write into the monitor's
+    ``max_total_us``/``trace_overruns`` so the synchronous I/O is not a hidden
+    under-count. The measure-through must not add a second compute cycle.
+    """
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+    assert controller.deadline_monitor is not None
+    assert controller.deadline_monitor.max_total_us == 0.0
+
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0, log_path="cycle.jsonl", log_root=tmp_path)
+
+    monitor = controller.deadline_monitor
+    # One compute cycle recorded; the write was folded in as measure-through, not a
+    # second cycle. The total step cost (incl. I/O) is at least the compute cost.
+    assert monitor.cycles == 1
+    assert monitor.max_total_us >= monitor.max_cycle_us
+    assert monitor.max_total_us > 0.0
+
+
+def test_nonlogging_cycle_does_not_record_measure_through(tmp_path: Path) -> None:
+    """A cycle without logging performs no measure-through accounting (SS-14 b)."""
+    net = _certified_net()
+    artifact = _artifact_from_net(net)
+    certificate, binding = _issued_certificate(net, tmp_path)
+    controller = NeuroSymbolicController(
+        **_controller_kwargs(artifact),
+        runtime_safety_certificate=certificate,
+        runtime_safety_binding=binding,
+        runtime_safety_target=_runtime_target(),
+        runtime_safety_replay=CertificateReplayResult(True, True, True, True),
+    )
+
+    controller.step({"R_axis_m": 6.2, "Z_axis_m": 0.0}, 0)
+
+    assert controller.deadline_monitor is not None
+    assert controller.deadline_monitor.cycles == 1
+    assert controller.deadline_monitor.max_total_us == 0.0
+    assert controller.last_trace_write_us is None
+
+
 def test_admitted_controller_forwards_strict_deadline_flag(tmp_path: Path) -> None:
     """The deadline_monitor_strict flag reaches the wired monitor."""
     net = _certified_net()

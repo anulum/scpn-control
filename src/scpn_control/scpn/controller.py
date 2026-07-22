@@ -608,6 +608,7 @@ class NeuroSymbolicController:
             }
             self._attach_deadline_telemetry(rec, within_deadline)
             self._write_trace_record(safe_log_path, rec)
+            self._measure_through_trace_write(t0)
 
         # Build result from all decoded actions
         return cast(ControlAction, dict(actions_dict))
@@ -694,6 +695,21 @@ class NeuroSymbolicController:
         _append_jsonl_record(safe_log_path, record)
         self.last_trace_write_us = (time.perf_counter() - w0) * 1.0e6
 
+    def _measure_through_trace_write(self, t0: float) -> None:
+        """Fold a fail-soft cycle's full cost (compute + trace write) into the monitor.
+
+        The per-cycle compute deadline is recorded by :meth:`_monitor_deadline` on the
+        ``t0..t1`` interval, which excludes the JSONL write that follows. This measures
+        THROUGH that write — from ``t0`` to now — and hands the total to the monitor's
+        measure-through accounting, so a fail-soft cycle whose true wall-clock exceeds
+        the deadline because of the synchronous I/O is visible via the monitor's
+        ``trace_overruns``/``max_total_us`` (SS-14 b). No-op when no monitor is admitted;
+        strict mode never reaches here (it forbids the synchronous write).
+        """
+        if self.deadline_monitor is None:
+            return
+        self.deadline_monitor.observe_trace_write((time.perf_counter() - t0) * 1.0e6)
+
     def _monitor_deadline(self, t0: float, t1: float) -> bool | None:
         """Record the measured cycle against the deadline monitor.
 
@@ -776,6 +792,7 @@ class NeuroSymbolicController:
             }
             self._attach_deadline_telemetry(rec, within_deadline)
             self._write_trace_record(safe_log_path, rec)
+            self._measure_through_trace_write(t0)
 
         return actions_vec
 

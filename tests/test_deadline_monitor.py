@@ -70,6 +70,7 @@ def test_record_rejects_non_finite_or_negative_elapsed() -> None:
 def test_as_dict_snapshots_state() -> None:
     monitor = DeadlineMonitor(deadline_us=500.0)
     monitor.record(700.0)
+    monitor.observe_trace_write(900.0)
     snapshot = monitor.as_dict()
     assert snapshot == {
         "deadline_us": 500.0,
@@ -78,15 +79,50 @@ def test_as_dict_snapshots_state() -> None:
         "overruns": 1,
         "last_cycle_us": 700.0,
         "max_cycle_us": 700.0,
+        "trace_overruns": 1,
+        "max_total_us": 900.0,
     }
+
+
+def test_observe_trace_write_folds_full_cost_without_counting_a_cycle() -> None:
+    """Measure-through folds compute + trace-write cost without a new cycle (SS-14 b)."""
+    monitor = DeadlineMonitor(deadline_us=100.0)
+    monitor.record(50.0)
+    assert monitor.cycles == 1
+    assert monitor.overruns == 0
+
+    # A fail-soft cycle whose compute + write exceeds the deadline is a trace overrun,
+    # but the compute-cycle accounting is untouched (no extra cycle, no compute overrun).
+    monitor.observe_trace_write(150.0)
+    assert monitor.trace_overruns == 1
+    assert monitor.max_total_us == 150.0
+    assert monitor.cycles == 1
+    assert monitor.overruns == 0
+
+    # A within-deadline total neither overruns nor lowers the recorded maximum.
+    monitor.observe_trace_write(80.0)
+    assert monitor.trace_overruns == 1
+    assert monitor.max_total_us == 150.0
+
+
+def test_observe_trace_write_rejects_non_finite_or_negative_total() -> None:
+    """observe_trace_write fails closed on a non-finite or negative total."""
+    monitor = DeadlineMonitor(deadline_us=100.0)
+    with pytest.raises(ValueError, match="total_us must be finite and >= 0"):
+        monitor.observe_trace_write(-1.0)
+    with pytest.raises(ValueError, match="total_us must be finite and >= 0"):
+        monitor.observe_trace_write(float("nan"))
 
 
 def test_reset_clears_statistics() -> None:
     monitor = DeadlineMonitor(deadline_us=500.0)
     monitor.record(700.0)
     monitor.record(100.0)
+    monitor.observe_trace_write(1200.0)
     monitor.reset()
     assert monitor.cycles == 0
     assert monitor.overruns == 0
     assert monitor.last_cycle_us == 0.0
     assert monitor.max_cycle_us == 0.0
+    assert monitor.trace_overruns == 0
+    assert monitor.max_total_us == 0.0
