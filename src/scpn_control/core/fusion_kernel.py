@@ -34,6 +34,7 @@ from numpy.typing import NDArray
 
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core import fusion_kernel_config as _fk_config
+from scpn_control.core import gs_elliptic_iterators as _gs_ell
 from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core import gs_multigrid as _gs_mg
 from scpn_control.core.hpc_bridge import HPCBridge
@@ -688,29 +689,8 @@ class FusionKernel:
     # ── elliptic sub-solvers ──────────────────────────────────────────
 
     def _jacobi_step(self, Psi: FloatArray, Source: FloatArray) -> FloatArray:
-        """Perform one Jacobi iteration with toroidal 1/R stencil.
-
-        Solves the GS* operator ∂²ψ/∂R² - (1/R)∂ψ/∂R + ∂²ψ/∂Z² = Source
-        using the same cylindrical coefficients as ``_sor_step``.
-        """
-        Psi_new = Psi.copy()
-        dR2 = self.dR**2
-        dZ2 = self.dZ**2
-        R_int = self.RR[1:-1, 1:-1]
-        R_safe = np.maximum(R_int, 1e-10)
-
-        # GS* operator: ∂²ψ/∂R² − (1/R)∂ψ/∂R + ∂²ψ/∂Z²
-        # East (R+dR) coefficient: 1/dR² − 1/(2R·dR)
-        # West (R−dR) coefficient: 1/dR² + 1/(2R·dR)
-        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)
-        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)
-        a_NS = 1.0 / dZ2
-        a_C = 2.0 / dR2 + 2.0 / dZ2
-
-        Psi_new[1:-1, 1:-1] = (
-            a_E * Psi[1:-1, 2:] + a_W * Psi[1:-1, 0:-2] + a_NS * (Psi[0:-2, 1:-1] + Psi[2:, 1:-1]) - Source[1:-1, 1:-1]
-        ) / a_C
-        return Psi_new
+        """Perform one Jacobi iteration with toroidal 1/R stencil."""
+        return _gs_ell.jacobi_step(Psi, Source, self.RR, self.dR, self.dZ)
 
     def _sor_step(
         self,
@@ -718,63 +698,8 @@ class FusionKernel:
         Source: FloatArray,
         omega: float = 1.6,
     ) -> FloatArray:
-        """Vectorised Red-Black SOR iteration with toroidal 1/R stencil.
-
-        The GS* operator in cylindrical (R, Z) coordinates is:
-
-            ∂²ψ/∂R² - (1/R) ∂ψ/∂R + ∂²ψ/∂Z² = Source
-
-        Discretised with central differences this gives R-dependent
-        coefficients a_E, a_W (east/west neighbours in R) and constant
-        a_N, a_S (north/south neighbours in Z).
-
-        Parameters
-        ----------
-        Psi : FloatArray
-            Current flux estimate.
-        Source : FloatArray
-            Right-hand-side source term ``-mu0 R J_phi``.
-        omega : float
-            Over-relaxation factor.  Must satisfy 1.0 <= omega < 2.0.
-
-        Returns
-        -------
-        FloatArray
-            Updated flux array after one full red-black sweep.
-        """
-        Psi_new = Psi.copy()
-        NZ, NR = Psi.shape
-        dR2 = self.dR**2
-        dZ2 = self.dZ**2
-
-        # Toroidal stencil coefficients (arrays over interior grid)
-        R_int = self.RR[1:-1, 1:-1]
-        R_safe = np.maximum(R_int, 1e-10)
-        # GS* east/west coefficients (matches Rust sor.rs)
-        a_E = 1.0 / dR2 - 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
-        a_W = 1.0 / dR2 + 1.0 / (2.0 * R_safe * self.dR)  # (NZ-2, NR-2)
-        a_NS = 1.0 / dZ2  # scalar — same for north and south
-        a_C = 2.0 / dR2 + 2.0 / dZ2  # scalar
-
-        # Checkerboard mask for interior points
-        ii, jj = np.mgrid[1 : NZ - 1, 1 : NR - 1]
-
-        for parity in (0, 1):  # 0 = red, 1 = black
-            mask = ((ii + jj) % 2) == parity
-            gs_update = (
-                a_E[mask] * Psi_new[1:-1, 2:][mask]
-                + a_W[mask] * Psi_new[1:-1, 0:-2][mask]
-                + a_NS * Psi_new[0:-2, 1:-1][mask]
-                + a_NS * Psi_new[2:, 1:-1][mask]
-                - Source[1:-1, 1:-1][mask]
-            ) / a_C
-
-            old_vals = Psi_new[1:-1, 1:-1][mask]
-            interior = Psi_new[1:-1, 1:-1]
-            interior[mask] = (1.0 - omega) * old_vals + omega * gs_update
-            Psi_new[1:-1, 1:-1] = interior
-
-        return Psi_new
+        """Vectorised Red-Black SOR iteration with toroidal 1/R stencil."""
+        return _gs_ell.sor_step(Psi, Source, self.RR, self.dR, self.dZ, omega=omega)
 
     # ── multigrid sub-solvers ─────────────────────────────────────────
 
@@ -844,81 +769,12 @@ class FusionKernel:
         res_history: list[FloatArray],
         m: int = 5,
     ) -> FloatArray:
-        """Anderson acceleration (mixing) for the Picard iterate sequence.
-
-        Computes optimal coefficients from the last *m* residuals via a
-        least-squares solve, then returns the mixed iterate.
-
-        Parameters
-        ----------
-        psi_history : list[FloatArray]
-            List of recent Psi iterates.
-        res_history : list[FloatArray]
-            Corresponding residuals ``Psi_{k+1} - Psi_k`` for each iterate.
-        m : int
-            Mixing depth (number of previous iterates to use).
-
-        Returns
-        -------
-        FloatArray
-            Anderson-mixed Psi iterate.
-        """
-        k = len(res_history)
-        mk = min(m, k)
-
-        if mk < 2:
-            # Not enough history — fall back to latest iterate
-            return psi_history[-1].copy()
-
-        # Stack the last mk residuals as column vectors
-        res_cols = [r.ravel() for r in res_history[-mk:]]
-        F = np.column_stack(res_cols)  # (N, mk)
-
-        # Solve min ||F @ alpha||^2 s.t. sum(alpha) = 1
-        # via: delta_F[:,j] = F[:,j+1] - F[:,j], then solve normal equations
-        dF = np.diff(F, axis=1)  # (N, mk-1)
-        rhs = F[:, -1]  # latest residual
-
-        # Tikhonov regularisation for numerical stability
-        gram = dF.T @ dF
-        gram += 1e-10 * np.eye(gram.shape[0])
-        try:
-            gamma = np.linalg.solve(gram, dF.T @ rhs)
-        except np.linalg.LinAlgError:  # pragma: no cover - Tikhonov term keeps the Gram matrix positive-definite
-            return psi_history[-1].copy()
-
-        # Reconstruct alpha from gamma
-        alpha = np.zeros(mk)
-        alpha[-1] = 1.0 - np.sum(gamma)
-        alpha[:-1] -= gamma  # alpha_j -= gamma_j
-        # But alpha must sum to 1; fix via normalisation
-        alpha_sum = np.sum(alpha)
-        if abs(alpha_sum) < 1e-12:  # pragma: no cover - regularised solve keeps alpha_sum away from zero
-            return psi_history[-1].copy()
-        alpha /= alpha_sum
-
-        # Mix iterates
-        mixed = np.zeros_like(psi_history[-1])
-        psi_cols = psi_history[-mk:]
-        for j in range(mk):
-            mixed += alpha[j] * psi_cols[j]
-
-        return mixed
+        """Anderson acceleration (mixing) for the Picard iterate sequence."""
+        return _gs_ell.anderson_step(psi_history, res_history, m=m)
 
     def _apply_boundary_conditions(self, Psi: FloatArray, Psi_bc: FloatArray) -> None:
-        """Copy vacuum-field boundary values onto the edges of *Psi*.
-
-        Parameters
-        ----------
-        Psi : FloatArray
-            Array to update (modified in place).
-        Psi_bc : FloatArray
-            Boundary-condition source (typically the vacuum field).
-        """
-        Psi[0, :] = Psi_bc[0, :]
-        Psi[-1, :] = Psi_bc[-1, :]
-        Psi[:, 0] = Psi_bc[:, 0]
-        Psi[:, -1] = Psi_bc[:, -1]
+        """Copy vacuum-field boundary values onto the edges of *Psi*."""
+        _gs_ell.apply_boundary_conditions(Psi, Psi_bc)
 
     def _elliptic_solve(self, Source: FloatArray, Psi_bc: FloatArray) -> FloatArray:
         """Run the inner elliptic solve (HPC or Python fallback).
@@ -930,18 +786,7 @@ class FusionKernel:
           slowest convergence).
         - ``"sor"`` — Red-Black SOR with toroidal 1/R stencil (default).
         - ``"anderson"`` — SOR + Anderson acceleration (best convergence).
-
-        Parameters
-        ----------
-        Source : FloatArray
-            Right-hand-side ``-mu0 R J_phi``.
-        Psi_bc : FloatArray
-            Vacuum-field array used for Dirichlet boundary conditions.
-
-        Returns
-        -------
-        FloatArray
-            Updated Psi after elliptic solve + boundary enforcement.
+        - ``"multigrid"`` — geometric V-cycle.
         """
         if self.hpc.is_available():
             Psi_acc = self.hpc.solve(self.J_phi, iterations=50)
@@ -949,26 +794,18 @@ class FusionKernel:
                 self._apply_boundary_conditions(Psi_acc, Psi_bc)
                 return Psi_acc
 
-        method = self.cfg["solver"].get("solver_method", "multigrid")
-        omega = self.cfg["solver"].get("sor_omega", 1.6)
-
-        if method == "jacobi":
-            Psi_new = self._jacobi_step(self.Psi, Source)
-        elif method == "multigrid":
-            Psi_new = self._multigrid_vcycle(
-                self.Psi.copy(),
-                Source,
-                self.RR,
-                self.dR,
-                self.dZ,
-                omega=omega,
-            )
-        else:
-            # Both "sor" and "anderson" use SOR as the inner sweep
-            Psi_new = self._sor_step(self.Psi, Source, omega=omega)
-
-        self._apply_boundary_conditions(Psi_new, Psi_bc)
-        return Psi_new
+        method = str(self.cfg["solver"].get("solver_method", "multigrid"))
+        omega = float(self.cfg["solver"].get("sor_omega", 1.6))
+        return _gs_ell.elliptic_solve_python(
+            method,
+            self.Psi,
+            Source,
+            Psi_bc,
+            self.RR,
+            self.dR,
+            self.dZ,
+            omega=omega,
+        )
 
     # ── seed plasma ───────────────────────────────────────────────────
 

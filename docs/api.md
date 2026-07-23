@@ -589,6 +589,21 @@ remain stable under dual-home C.
 
 ::: scpn_control.core.gs_multigrid.multigrid_vcycle
 
+### Grad-Shafranov Elliptic Iterators
+
+Jacobi and Red-Black SOR steps, Anderson mixing, boundary enforcement, and the
+pure-Python elliptic solve path live in a dedicated leaf. `FusionKernel` keeps
+thin wrappers so HPC offload and existing solver/parity paths remain stable
+under dual-home C.
+
+::: scpn_control.core.gs_elliptic_iterators.jacobi_step
+
+::: scpn_control.core.gs_elliptic_iterators.sor_step
+
+::: scpn_control.core.gs_elliptic_iterators.anderson_step
+
+::: scpn_control.core.gs_elliptic_iterators.elliptic_solve_python
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

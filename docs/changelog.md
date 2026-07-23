@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract linear elliptic iterators (Jacobi, Red-Black SOR, Anderson mixing,
+  Python elliptic solve) into `core/gs_elliptic_iterators.py` (CTL-G07 R0-S4
+  under dual-home C). The CONTROL `FusionKernel` product surface remains
+  first-class with thin wrappers including the HPC offload branch; FUSION is
+  not edited. Inventory cascade: 176 modules / 525 test files.
 - Extract geometric multigrid primitives (restrict, prolongate, smooth,
   residual, V-cycle) into `core/gs_multigrid.py` (CTL-G07 R0-S3 under dual-home
   C). The CONTROL `FusionKernel` product surface remains first-class with thin
