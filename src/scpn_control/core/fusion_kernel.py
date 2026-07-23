@@ -31,11 +31,26 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from pydantic import BaseModel, ConfigDict, Field, StrictInt, field_validator, model_validator
 from scipy.special import ellipe, ellipk
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.core import fusion_kernel_config as _fk_config
 from scpn_control.core.hpc_bridge import HPCBridge
+
+# Stable public re-exports: configuration schemas + parse/dump (R0-S1 leaf).
+CoilConfig = _fk_config.CoilConfig
+DimensionsConfig = _fk_config.DimensionsConfig
+FusionKernelConfig = _fk_config.FusionKernelConfig
+PhysicsConfig = _fk_config.PhysicsConfig
+SolverConfig = _fk_config.SolverConfig
+_normalize_boundary_variant = _fk_config._normalize_boundary_variant
+_reject_duplicate_json_keys = _fk_config._reject_duplicate_json_keys
+_parse_fusion_kernel_config = _fk_config._parse_fusion_kernel_config
+_fusion_kernel_config_dump = _fk_config._fusion_kernel_config_dump
+parse_fusion_kernel_config = _fk_config.parse_fusion_kernel_config
+fusion_kernel_config_dump = _fk_config.fusion_kernel_config_dump
+normalize_boundary_variant = _fk_config.normalize_boundary_variant
+reject_duplicate_json_keys = _fk_config.reject_duplicate_json_keys
 
 logger = logging.getLogger(__name__)
 
@@ -114,150 +129,6 @@ def neutron_wall_loading_mw_m2(P_fus_MW: float, R0_m: float, a_m: float, kappa: 
     P_n_MW = P_fus_MW * (1.0 - ALPHA_FRACTION)
     A_wall = 4.0 * np.pi * R0_m * a_m * kappa  # m^2; first-wall area approximation
     return float(P_n_MW / max(A_wall, 1e-6))
-
-
-def _normalize_boundary_variant(variant: str | None) -> str:
-    raw = "fixed_boundary" if variant is None else str(variant).strip().lower()
-    raw = raw.replace("-", "_").replace(" ", "_")
-
-    if raw in {"fixed", "fixed_boundary", "fixedboundary"}:
-        return "fixed_boundary"
-    if raw in {"free", "free_boundary", "freeboundary"}:
-        return "free_boundary"
-
-    raise ValueError("solver.boundary_variant must be one of: 'fixed_boundary', 'free_boundary', 'fixed', 'free'.")
-
-
-def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    out: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in out:
-            raise ValueError(f"Duplicate JSON key in fusion kernel config: {key}")
-        out[key] = value
-    return out
-
-
-class DimensionsConfig(BaseModel):
-    """Pydantic v2 schema for Grad-Shafranov domain bounds."""
-
-    model_config = ConfigDict(extra="allow")
-
-    R_min: float
-    R_max: float
-    Z_min: float
-    Z_max: float
-
-    @field_validator("R_min", "R_max", "Z_min", "Z_max")
-    @classmethod
-    def _finite_bound(cls, value: float) -> float:
-        value = float(value)
-        if not np.isfinite(value):
-            raise ValueError("dimension bounds must be finite")
-        return value
-
-    @model_validator(mode="after")
-    def _ordered_bounds(self) -> "DimensionsConfig":
-        if self.R_min <= 0.0 or self.R_max <= self.R_min:
-            raise ValueError("dimensions must satisfy 0 < R_min < R_max")
-        if self.Z_max <= self.Z_min:
-            raise ValueError("dimensions must satisfy Z_min < Z_max")
-        return self
-
-
-class PhysicsConfig(BaseModel):
-    """Pydantic v2 schema for scalar physics controls."""
-
-    model_config = ConfigDict(extra="allow")
-
-    plasma_current_target: float = Field(..., description="Target plasma current magnitude in MA or configured units")
-    plasma_current_sign: float | None = None
-    vacuum_permeability: float | None = None
-
-    @field_validator("plasma_current_target")
-    @classmethod
-    def _positive_current(cls, value: float) -> float:
-        value = float(value)
-        if not np.isfinite(value) or value <= 0.0:
-            raise ValueError("plasma_current_target must be positive finite")
-        return value
-
-    @field_validator("plasma_current_sign")
-    @classmethod
-    def _valid_current_sign(cls, value: float | None) -> float | None:
-        if value is None:
-            return None
-        value = float(value)
-        if not np.isfinite(value) or value not in {-1.0, 1.0}:
-            raise ValueError("plasma_current_sign must be -1.0 or 1.0 when configured")
-        return value
-
-    @field_validator("vacuum_permeability")
-    @classmethod
-    def _positive_permeability(cls, value: float | None) -> float | None:
-        if value is None:
-            return None
-        value = float(value)
-        if not np.isfinite(value) or value <= 0.0:
-            raise ValueError("vacuum_permeability must be positive finite")
-        return value
-
-
-class SolverConfig(BaseModel):
-    """Pydantic v2 schema for solver controls, preserving extension keys."""
-
-    model_config = ConfigDict(extra="allow")
-
-    boundary_variant: str = "fixed_boundary"
-
-    @field_validator("boundary_variant", mode="before")
-    @classmethod
-    def _normalised_boundary_variant(cls, value: str | None) -> str:
-        return _normalize_boundary_variant(value)
-
-
-class CoilConfig(BaseModel):
-    """Pydantic v2 schema for coil entries, preserving extension keys."""
-
-    model_config = ConfigDict(extra="allow")
-
-
-class FusionKernelConfig(BaseModel):
-    """Pydantic v2 schema for Grad-Shafranov runtime JSON configuration."""
-
-    model_config = ConfigDict(extra="allow")
-
-    reactor_name: str = Field(..., min_length=1)
-    dimensions: DimensionsConfig
-    grid_resolution: tuple[StrictInt, StrictInt]
-    physics: PhysicsConfig
-    solver: SolverConfig = Field(default_factory=SolverConfig)
-    coils: list[CoilConfig] = Field(default_factory=list)
-
-    @field_validator("reactor_name")
-    @classmethod
-    def _non_empty_reactor_name(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("fusion kernel config requires non-empty 'reactor_name'")
-        return value
-
-    @field_validator("grid_resolution")
-    @classmethod
-    def _valid_grid_resolution(cls, value: tuple[int, int]) -> tuple[int, int]:
-        if any(isinstance(entry, bool) or int(entry) < 3 for entry in value):
-            raise ValueError("grid_resolution entries must be integers >= 3")
-        return value
-
-
-def _parse_fusion_kernel_config(raw: Any) -> FusionKernelConfig:
-    if not isinstance(raw, dict):
-        raise ValueError("fusion kernel config root must be a JSON object.")
-    return FusionKernelConfig.model_validate(raw)
-
-
-def _fusion_kernel_config_dump(config: FusionKernelConfig) -> dict[str, Any]:
-    validated = config.model_dump(mode="python", exclude_none=True)
-    validated["grid_resolution"] = list(validated["grid_resolution"])
-    return validated
 
 
 def _psi_gradient_fields(Psi: FloatArray, dR: float, dZ: float) -> tuple[FloatArray, FloatArray]:

@@ -536,9 +536,27 @@ to `blocked`, and binds the decision digest into the advisory certificate.
 the root must be an object, duplicate JSON keys are rejected, dimensions and
 grid resolution must be physical, `physics.plasma_current_target` must be
 positive finite, and `physics.vacuum_permeability` must be positive finite
-when supplied.
+when supplied. Configuration models and parse/dump helpers live in a dedicated
+leaf; the CONTROL `FusionKernel` product surface remains first-class and
+re-exports those contracts (dual-home C).
 
 ::: scpn_control.core.fusion_kernel.FusionKernel
+
+### Fusion Kernel Configuration
+
+::: scpn_control.core.fusion_kernel_config.DimensionsConfig
+
+::: scpn_control.core.fusion_kernel_config.PhysicsConfig
+
+::: scpn_control.core.fusion_kernel_config.SolverConfig
+
+::: scpn_control.core.fusion_kernel_config.CoilConfig
+
+::: scpn_control.core.fusion_kernel_config.FusionKernelConfig
+
+::: scpn_control.core.fusion_kernel_config.parse_fusion_kernel_config
+
+::: scpn_control.core.fusion_kernel_config.fusion_kernel_config_dump
 
 ### Global Design Scanner
 

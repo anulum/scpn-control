@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract fusion-kernel configuration models and parse/dump helpers into
+  `core/fusion_kernel_config.py` (CTL-G07 R0-S1 under dual-home C). The CONTROL
+  `FusionKernel` product surface remains first-class and re-exports the public
+  config contracts; FUSION is not edited. Inventory cascade: 173 modules /
+  522 test files.
 - Extract core Crank-Nicolson step and multi-step rollout numerics into
   `core/differentiable_transport_core.py` (CTL-G07 R1-S3). The facade remains
   an orchestration surface for validators and campaign metadata and re-exports
