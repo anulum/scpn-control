@@ -1,2 +1,2 @@
 build>=1.5.1
-cyclonedx-bom>=4.0
+cyclonedx-bom>=7.3.1
