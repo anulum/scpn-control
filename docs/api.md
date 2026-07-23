@@ -878,19 +878,25 @@ module. The numerical facade re-exports these symbols so existing
 
 ::: scpn_control.core.differentiable_transport_evidence.save_transport_rollout_gradient_latency_report
 
-::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
+### Differentiable Transport Equilibrium Weighting
 
-::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_tracking_loss
+GS-flux radial weights and equilibrium-weighted one-step / multi-step losses
+and JAX gradients live in a dedicated leaf. The numerical facade re-exports
+these symbols; core step and rollout primitives remain on the facade.
 
-::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_loss_gradient
+::: scpn_control.core.differentiable_transport_equilibrium_weight.equilibrium_radial_weights
 
-::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportGradient
+::: scpn_control.core.differentiable_transport_equilibrium_weight.equilibrium_weighted_transport_tracking_loss
 
-::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_rollout_tracking_loss
+::: scpn_control.core.differentiable_transport_equilibrium_weight.equilibrium_weighted_transport_loss_gradient
 
-::: scpn_control.core.differentiable_transport.equilibrium_weighted_transport_rollout_source_gradient
+::: scpn_control.core.differentiable_transport_equilibrium_weight.EquilibriumWeightedTransportGradient
 
-::: scpn_control.core.differentiable_transport.EquilibriumWeightedTransportRolloutGradient
+::: scpn_control.core.differentiable_transport_equilibrium_weight.equilibrium_weighted_transport_rollout_tracking_loss
+
+::: scpn_control.core.differentiable_transport_equilibrium_weight.equilibrium_weighted_transport_rollout_source_gradient
+
+::: scpn_control.core.differentiable_transport_equilibrium_weight.EquilibriumWeightedTransportRolloutGradient
 
 ### End-to-End Differentiable Scenario
 

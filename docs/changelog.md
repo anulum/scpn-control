@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract equilibrium-weighted transport losses, gradients, and radial weight
+  helpers into `core/differentiable_transport_equilibrium_weight.py` (CTL-G07
+  R1-S6). The facade re-exports public symbols; the leaf lazy-imports step and
+  rollout primitives plus the facade JAX gate so admission monkeypatches stay
+  on the production path. Inventory cascade: 171 modules / 520 test files.
 - Extract multi-step rollout source gradients and finite-difference audit
   contracts into `core/differentiable_transport_rollout_ad.py` (CTL-G07
   R1-S5). The facade re-exports public symbols; the leaf lazy-imports rollout
