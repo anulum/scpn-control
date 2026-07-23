@@ -644,6 +644,33 @@ Requires `pip install "scpn-control[jax]"`. GPU execution automatic when jaxlib 
 
 ::: scpn_control.core.jax_solvers.batched_crank_nicolson
 
+### DIII-D IDA Free-Boundary Adapter
+
+Requires `pip install "scpn-control[fusion]"`. The adapter validates uniform SI
+grids, PF-coil geometry and currents, normalised-flux knots, and compact
+p-prime/FF-prime B-spline coefficients before calling the FUSION 4.x implicit
+free-boundary solver. It requires JAX FP64, records the JAX and jaxlib versions,
+hashes the exact upstream solver and profile-basis source files used at runtime,
+and exposes a vector-Jacobian product for coil-current and compact-profile
+sensitivities.
+
+The Grad-Shafranov mathematics remains FUSION-owned; CONTROL does not carry a
+second implementation in this adapter. Every returned evidence record keeps
+scientific validation, facility validation, control admission, PCS deployment,
+and safety admission false until separately bound evidence closes those gates.
+
+::: scpn_control.core.ida_equilibrium_adapter.IDAEquilibriumRequest
+
+::: scpn_control.core.ida_equilibrium_adapter.IDAEquilibriumEvidence
+
+::: scpn_control.core.ida_equilibrium_adapter.IDAEquilibriumResult
+
+::: scpn_control.core.ida_equilibrium_adapter.IDAEquilibriumVJPResult
+
+::: scpn_control.core.ida_equilibrium_adapter.solve_ida_equilibrium
+
+::: scpn_control.core.ida_equilibrium_adapter.ida_equilibrium_vjp
+
 ### Differentiable Transport Facade
 
 Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy

@@ -32,6 +32,13 @@
   definition directly.
 
 ### Added
+- Add a bounded DIII-D IDA equilibrium adapter that keeps free-boundary
+  Grad-Shafranov mathematics in SCPN-FUSION-CORE while exposing validated SI
+  grids, PF-coil currents, compact p-prime/FF-prime coefficients, the FUSION
+  4.x implicit solve, and a three-input vector-Jacobian product at the CONTROL
+  boundary. Require JAX FP64, bind exact upstream solver/profile source hashes,
+  enforce finite shape and resource limits, and keep scientific, facility,
+  control, PCS, and safety claims false.
 - Add a self-digested MAST dB/dt source-authority gate that measures the live
   five-row centre-column Mirnov source without transforming it, records the
   official `T` versus live `Tesla/sec` ambiguity, and admits exactly one of two

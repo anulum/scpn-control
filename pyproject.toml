@@ -57,6 +57,7 @@ formal = ["z3-solver>=4.12"]
 ml = ["torch>=2.0"]
 facility = ["mdsthin>=1.6.3"]
 jax = ["jax>=0.4.20", "jaxlib>=0.4.20"]
+fusion = ["scpn-fusion>=4.0,<5.0"]  # FUSION-owned IDA free-boundary solver facade
 neuro = ["sc-neurocore>=3.8.0"]
 studio = ["scpn-studio-platform>=0.1,<0.9; python_version >= '3.12'"]  # SCPN STUDIO vertical (scpn_control.studio); the SDK requires Python >= 3.12
 nengo = []  # pure-numpy LIF+NEF engine, no external deps
@@ -84,6 +85,7 @@ all = [
     "optuna>=3.0",
     "freegs>=0.6",
     "z3-solver>=4.12",
+    "scpn-fusion>=4.0,<5.0",
 ]
 dev = [
     "pytest>=7.0",

@@ -83,6 +83,17 @@ def test_facility_optional_extra_declares_mdsplus_thin_client() -> None:
     assert "mdsthin>=1.6.3" in extras["all"]
 
 
+def test_fusion_optional_extra_pins_the_ida_solver_major() -> None:
+    """Keep the CONTROL IDA facade on the compatible FUSION 4.x contract."""
+    pyproject = _load_pyproject()
+
+    project = cast("dict[str, Any]", pyproject["project"])
+    extras = cast("dict[str, list[str]]", project["optional-dependencies"])
+    requirement = "scpn-fusion>=4.0,<5.0"
+    assert requirement in extras["fusion"]
+    assert requirement in extras["all"]
+
+
 def test_mypy_optional_overrides_do_not_hide_removed_first_party_modules() -> None:
     """Keep optional mypy imports aligned with live repository modules."""
     pyproject = _load_pyproject()
@@ -106,7 +117,6 @@ def test_mypy_optional_overrides_do_not_hide_removed_first_party_modules() -> No
 
 def test_version_sync_guard_covers_release_badges_and_metadata() -> None:
     """Run the release metadata guard through its production CLI path."""
-
     assert check_version_sync.main() == 0
 
     result = subprocess.run(
@@ -127,7 +137,6 @@ def test_version_sync_guard_fails_without_canonical_version(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Missing canonical metadata must fail closed."""
-
     monkeypatch.setattr(check_version_sync, "ROOT", tmp_path)
 
     assert check_version_sync.main() == 1
@@ -140,7 +149,6 @@ def test_version_sync_guard_reports_metadata_drift(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Version, docs, README badge, and release-note drift must fail together."""
-
     _write_release_metadata(tmp_path, "1.2.3")
     (tmp_path / "CITATION.cff").write_text('version: "1.2.2"\n', encoding="utf-8")
     (tmp_path / ".zenodo.json").write_text('{"version": "1.2.1"}\n', encoding="utf-8")
@@ -165,7 +173,6 @@ def test_version_sync_guard_warns_on_missing_secondary_metadata(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Missing optional metadata warns but missing badges still fail the guard."""
-
     (tmp_path / "pyproject.toml").write_text('[project]\nversion = "1.2.3"\n', encoding="utf-8")
     monkeypatch.setattr(check_version_sync, "ROOT", tmp_path)
 
