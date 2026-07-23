@@ -22,7 +22,7 @@ from typing import Any, cast
 
 import numpy as np
 
-from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control._typing import FloatArray
 from scpn_control.core import differentiable_transport_closures as _closures
 from scpn_control.core import differentiable_transport_evidence as _evidence
 from scpn_control.core import jax_solvers as _jax_solvers
@@ -116,6 +116,16 @@ _validate_equilibrium_psi = _eq_weight._validate_equilibrium_psi
 _equilibrium_radial_weights_jax = _eq_weight._equilibrium_radial_weights_jax
 _equilibrium_weighted_tracking_loss_jax = _eq_weight._equilibrium_weighted_tracking_loss_jax
 _equilibrium_weighted_rollout_tracking_loss_jax = _eq_weight._equilibrium_weighted_rollout_tracking_loss_jax
+
+# Stable public re-exports: core Crank-Nicolson step + multi-step rollout.
+from scpn_control.core import differentiable_transport_core as _core
+
+_transport_step_numpy = _core._transport_step_numpy
+_transport_step_jax = _core._transport_step_jax
+_transport_rollout_numpy = _core._transport_rollout_numpy
+_transport_rollout_jax = _core._transport_rollout_jax
+differentiable_transport_step = _core.differentiable_transport_step
+differentiable_transport_rollout = _core.differentiable_transport_rollout
 
 
 try:
@@ -332,56 +342,6 @@ def _resolve_use_jax(
     )
 
 
-def _transport_step_numpy(
-    profiles: AnyFloatArray,
-    chi: AnyFloatArray,
-    sources: AnyFloatArray,
-    rho: AnyFloatArray,
-    dt: float,
-    edge_values: AnyFloatArray,
-) -> FloatArray:
-    drho = float(rho[1] - rho[0])
-    return np.stack(
-        [
-            _jax_solvers.crank_nicolson_step(
-                profiles[channel],
-                chi[channel],
-                sources[channel],
-                rho,
-                drho,
-                float(dt),
-                float(edge_values[channel]),
-                use_jax=False,
-            )
-            for channel in range(CHANNEL_COUNT)
-        ]
-    )
-
-
-def _transport_step_jax(
-    profiles: Any,
-    chi: Any,
-    sources: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-) -> Any:
-    if jnp is None or jax is None:
-        raise RuntimeError("JAX transport step requested but JAX is unavailable")
-    rho_jax = jnp.asarray(rho, dtype=jnp.float64)
-    drho = rho_jax[1] - rho_jax[0]
-    step = jax.vmap(_jax_solvers._cn_step_jax, in_axes=(0, 0, 0, None, None, None, 0))
-    return step(
-        jnp.asarray(profiles, dtype=jnp.float64),
-        jnp.asarray(chi, dtype=jnp.float64),
-        jnp.asarray(sources, dtype=jnp.float64),
-        rho_jax,
-        drho,
-        float(dt),
-        jnp.asarray(edge_values, dtype=jnp.float64),
-    )
-
-
 def _validate_transport_rollout_inputs(
     initial_profiles: Any,
     chi: Any,
@@ -434,123 +394,3 @@ def _validate_transport_rollout_inputs(
             raise ValueError("weights must be non-negative")
 
     return profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array
-
-
-def _transport_rollout_numpy(
-    initial_profiles: AnyFloatArray,
-    chi: AnyFloatArray,
-    source_sequence: AnyFloatArray,
-    rho: AnyFloatArray,
-    dt: float,
-    edge_values: AnyFloatArray,
-) -> FloatArray:
-    current = initial_profiles
-    history: list[FloatArray] = []
-    for source_step in source_sequence:
-        current = _transport_step_numpy(current, chi, source_step, rho, dt, edge_values)
-        history.append(current)
-    return np.stack(history)
-
-
-def _transport_rollout_jax(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-) -> Any:
-    if jnp is None or jax is None:
-        raise RuntimeError("JAX transport rollout requested but JAX is unavailable")
-    chi_jax = jnp.asarray(chi, dtype=jnp.float64)
-    rho_jax = jnp.asarray(rho, dtype=jnp.float64)
-    edge_jax = jnp.asarray(edge_values, dtype=jnp.float64)
-
-    def body(carry: Any, source_step: Any) -> tuple[Any, Any]:
-        next_profiles = _transport_step_jax(carry, chi_jax, source_step, rho_jax, dt, edge_jax)
-        return next_profiles, next_profiles
-
-    _, history = jax.lax.scan(
-        body,
-        jnp.asarray(initial_profiles, dtype=jnp.float64),
-        jnp.asarray(source_sequence, dtype=jnp.float64),
-    )
-    return history
-
-
-def differentiable_transport_rollout(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    use_jax: bool = True,
-    allow_numpy_fallback: bool = False,
-    allow_legacy_numpy_fallback: bool = False,
-) -> Any:
-    """Advance a time-series of four-channel transport source schedules.
-
-    The returned array has shape ``(n_steps, 4, n_rho)``. Transport
-    coefficients are held fixed over the rollout, while ``source_sequence``
-    supplies differentiable additive heating, fuelling, and impurity-source
-    schedules at each step. This is a bounded controller-tuning primitive, not
-    an externally validated integrated-transport campaign.
-    """
-    profile_array, chi_array, source_array, rho_array, edge_array, _, _ = _validate_transport_rollout_inputs(
-        initial_profiles,
-        chi,
-        source_sequence,
-        rho,
-        dt,
-        edge_values,
-    )
-    use_jax_runtime = _resolve_use_jax(
-        use_jax,
-        allow_numpy_fallback=allow_numpy_fallback,
-        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
-        context="differentiable_transport_rollout",
-    )
-    if use_jax_runtime:
-        return _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-    return _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-
-
-def differentiable_transport_step(
-    profiles: Any,
-    chi: Any,
-    sources: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    use_jax: bool = True,
-    allow_numpy_fallback: bool = False,
-    allow_legacy_numpy_fallback: bool = False,
-) -> Any:
-    """Advance four transport channels by one differentiable radial step.
-
-    Channel order is electron temperature, ion temperature, electron density,
-    and impurity density. The radial coordinate is a strictly increasing,
-    uniformly spaced normalised axis from core-side interior to edge. The core
-    boundary uses the inherited zero-gradient condition, and each channel uses
-    its supplied Dirichlet edge value.
-    """
-    profile_array, chi_array, source_array, rho_array, edge_array, _, _ = _validate_transport_inputs(
-        profiles,
-        chi,
-        sources,
-        rho,
-        dt,
-        edge_values,
-    )
-    use_jax_runtime = _resolve_use_jax(
-        use_jax,
-        allow_numpy_fallback=allow_numpy_fallback,
-        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
-        context="differentiable_transport_step",
-    )
-    if use_jax_runtime:
-        return _transport_step_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-    return _transport_step_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)

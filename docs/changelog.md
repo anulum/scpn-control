@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract core Crank-Nicolson step and multi-step rollout numerics into
+  `core/differentiable_transport_core.py` (CTL-G07 R1-S3). The facade remains
+  an orchestration surface for validators and campaign metadata and re-exports
+  the public step/rollout symbols; the leaf lazy-imports facade validators and
+  the facade JAX gate. Inventory cascade: 172 modules / 521 test files.
 - Extract equilibrium-weighted transport losses, gradients, and radial weight
   helpers into `core/differentiable_transport_equilibrium_weight.py` (CTL-G07
   R1-S6). The facade re-exports public symbols; the leaf lazy-imports step and

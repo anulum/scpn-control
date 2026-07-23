@@ -761,13 +761,21 @@ rollout. `equilibrium_weighted_transport_rollout_source_gradient()` returns
 fail-closed JAX gradients with respect to both the source schedule and the
 equilibrium flux map for controller-tuning studies.
 
-::: scpn_control.core.differentiable_transport.differentiable_transport_step
+### Differentiable Transport Core Step / Rollout
+
+One-step Crank-Nicolson channel advance and multi-step source-schedule rollout
+live in a dedicated numerics leaf. The numerical facade re-exports these
+symbols and retains validators plus campaign metadata.
+
+::: scpn_control.core.differentiable_transport_core.differentiable_transport_step
+
+::: scpn_control.core.differentiable_transport_core.differentiable_transport_rollout
 
 ### Differentiable Transport Parameter AD
 
 One-step tracking loss, chi/source parameter gradients, and sampled
 finite-difference admission audits live in a dedicated leaf. The numerical
-facade re-exports these symbols; step primitives remain on the facade.
+facade re-exports these symbols; step primitives remain on the core leaf.
 
 ::: scpn_control.core.differentiable_transport_parameter_ad.transport_tracking_loss
 
@@ -783,13 +791,11 @@ facade re-exports these symbols; step primitives remain on the facade.
 
 ::: scpn_control.core.differentiable_transport.TransportGradientAudit
 
-::: scpn_control.core.differentiable_transport.differentiable_transport_rollout
-
 ### Differentiable Transport Rollout Source AD
 
 Multi-step tracking loss, source-schedule gradients, and sampled
 finite-difference admission audits live in a dedicated leaf. The numerical
-facade re-exports these symbols; core rollout primitives remain on the facade.
+facade re-exports these symbols; core rollout primitives remain on the core leaf.
 
 ::: scpn_control.core.differentiable_transport_rollout_ad.transport_rollout_tracking_loss
 
