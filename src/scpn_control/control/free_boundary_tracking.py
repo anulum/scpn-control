@@ -33,18 +33,15 @@ import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.control import free_boundary_tracking_limits as _fb_limits
+from scpn_control.control import free_boundary_tracking_observation as _fb_obs
 from scpn_control.control.state_estimator import ExtendedKalmanFilter
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
 
 logger = logging.getLogger(__name__)
 
-
-@dataclass(frozen=True)
-class _ObjectiveBlock:
-    name: str
-    start: int
-    stop: int
+# Stable private alias: objective-block topology lives on the observation leaf.
+_ObjectiveBlock = _fb_obs.ObjectiveBlock
 
 
 @dataclass(frozen=True)
@@ -412,93 +409,29 @@ class FreeBoundaryTrackingController:
             actuator._delay_buffer = [current] * max(actuator.delay_steps, 1)
 
     def _build_target_vector(self) -> tuple[FloatArray, tuple[_ObjectiveBlock, ...]]:
-        values: list[float] = []
-        blocks: list[_ObjectiveBlock] = []
-        start = 0
-
-        if self.coils.target_flux_points is not None and self.coils.target_flux_values is not None:
-            target_flux = np.asarray(self.coils.target_flux_values, dtype=np.float64).reshape(-1)
-            values.extend(float(v) for v in target_flux)
-            stop = start + target_flux.size
-            blocks.append(_ObjectiveBlock("shape_flux", start, stop))
-            start = stop
-
-        if self.coils.x_point_target is not None:
-            x_target = np.asarray(self.coils.x_point_target, dtype=np.float64).reshape(2)
-            values.extend((float(x_target[0]), float(x_target[1])))
-            stop = start + 2
-            blocks.append(_ObjectiveBlock("x_point_position", start, stop))
-            start = stop
-            if self.coils.x_point_flux_target is not None:
-                values.append(float(self.coils.x_point_flux_target))
-                stop = start + 1
-                blocks.append(_ObjectiveBlock("x_point_flux", start, stop))
-                start = stop
-        elif self.coils.x_point_flux_target is not None:
-            raise ValueError(
-                "x_point_flux_target requires x_point_target for free-boundary tracking."
-            )  # pragma: no cover - defensive: kernel builds x-point flux and position targets together
-
-        if self.coils.divertor_strike_points is not None and self.coils.divertor_flux_values is not None:
-            divertor_flux = np.asarray(self.coils.divertor_flux_values, dtype=np.float64).reshape(-1)
-            values.extend(float(v) for v in divertor_flux)
-            stop = start + divertor_flux.size
-            blocks.append(_ObjectiveBlock("divertor_flux", start, stop))
-            start = stop
-
-        return np.asarray(values, dtype=np.float64), tuple(blocks)
+        """Build the stacked objective target vector and block map from the coil set."""
+        return _fb_obs.build_target_vector(self.coils)
 
     def _resolve_measurement_vector(self, raw_value: Any, *, name: str) -> FloatArray:
-        vector = np.zeros_like(self.target_vector, dtype=np.float64)
-        if raw_value is None:
-            return vector
-        if not isinstance(raw_value, dict):
-            raise ValueError(f"{name} must be a mapping of objective block names to finite scalars or vectors.")
-
-        block_map = {block.name: block for block in self.objective_blocks}
-        allowed_keys = ", ".join(sorted(block_map))
-        for key, raw_block_value in raw_value.items():
-            block = block_map.get(key)
-            if block is None:
-                raise ValueError(f"Unknown {name} key {key!r}. Allowed keys: {allowed_keys}.")
-            width = block.stop - block.start
-            if np.isscalar(raw_block_value):
-                block_values = np.full(width, float(cast(Any, raw_block_value)), dtype=np.float64)
-            else:
-                block_values = np.asarray(raw_block_value, dtype=np.float64).reshape(-1)
-                if block_values.size == 1:
-                    block_values = np.full(width, float(block_values[0]), dtype=np.float64)
-            if block_values.shape != (width,):
-                raise ValueError(f"{name}.{key} must be a scalar or contain exactly {width} entries.")
-            if np.any(~np.isfinite(block_values)):
-                raise ValueError(f"{name}.{key} must contain only finite values.")
-            vector[block.start : block.stop] = block_values
-        return cast(FloatArray, np.asarray(vector, dtype=np.float64))
+        """Resolve a per-block measurement offset/bias vector aligned to the target."""
+        return _fb_obs.resolve_measurement_vector(
+            raw_value,
+            objective_blocks=self.objective_blocks,
+            target_size=int(self.target_vector.size),
+            name=name,
+        )
 
     def _weight_from_tolerances(self, *keys: str) -> float:
-        weight = 1.0
-        for key in keys:
-            tol = self.objective_tolerances.get(key)
-            if tol is None:
-                continue
-            weight = max(weight, 1.0 / max(float(tol), 1.0e-12))
-        return float(weight)
+        """Map objective tolerances to a control weight (larger weight for tighter tol)."""
+        return _fb_obs.weight_from_tolerances(self.objective_tolerances, *keys)
 
     def _build_control_objective_weights(self) -> FloatArray:
-        weights = np.ones(self.target_vector.shape, dtype=np.float64)
-        for block in self.objective_blocks:
-            if block.name == "shape_flux":
-                block_weight = self._weight_from_tolerances("shape_rms", "shape_max_abs")
-            elif block.name == "x_point_position":
-                block_weight = self._weight_from_tolerances("x_point_position")
-            elif block.name == "x_point_flux":
-                block_weight = self._weight_from_tolerances("x_point_flux")
-            elif block.name == "divertor_flux":
-                block_weight = self._weight_from_tolerances("divertor_rms", "divertor_max_abs")
-            else:
-                raise ValueError(f"Unknown objective block {block.name!r}.")
-            weights[block.start : block.stop] = block_weight
-        return cast(FloatArray, np.asarray(weights, dtype=np.float64))
+        """Build per-entry control weights from objective blocks and tolerances."""
+        return _fb_obs.build_control_objective_weights(
+            int(self.target_vector.size),
+            self.objective_blocks,
+            self.objective_tolerances,
+        )
 
     def _sync_config_currents(self) -> None:
         coils_cfg = self.kernel.cfg.setdefault("coils", [])
@@ -530,15 +463,12 @@ class FreeBoundaryTrackingController:
         )
 
     def _current_measurement_offset(self) -> FloatArray:
-        return cast(
-            FloatArray,
-            np.asarray(
-                self.measurement_bias_vector
-                + self.measurement_drift_state
-                - self.measurement_correction_bias
-                - self.measurement_correction_drift_state,
-                dtype=np.float64,
-            ),
+        """Combine bias/drift and correction channels into the net measurement offset."""
+        return _fb_obs.current_measurement_offset(
+            self.measurement_bias_vector,
+            self.measurement_drift_state,
+            self.measurement_correction_bias,
+            self.measurement_correction_drift_state,
         )
 
     def _apply_measurement_latency(self, measurement: FloatArray, *, record: bool) -> FloatArray:

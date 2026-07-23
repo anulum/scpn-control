@@ -1910,6 +1910,21 @@ keeps thin wrappers; claim evidence remains a separate module.
 
 ::: scpn_control.control.free_boundary_tracking_limits.resolve_coil_slew_limits
 
+### Free-Boundary Tracking Observation Vectors
+
+Objective-block topology, target-vector construction from a coil set,
+measurement-offset resolution, and control-objective weighting live in a
+dedicated leaf. The controller keeps thin wrappers; latency-state and kernel
+observation remain on the owner.
+
+::: scpn_control.control.free_boundary_tracking_observation.ObjectiveBlock
+
+::: scpn_control.control.free_boundary_tracking_observation.build_target_vector
+
+::: scpn_control.control.free_boundary_tracking_observation.resolve_measurement_vector
+
+::: scpn_control.control.free_boundary_tracking_observation.build_control_objective_weights
+
 ### Free-Boundary Tracking Claim Evidence
 
 ::: scpn_control.control.free_boundary_tracking_claims.free_boundary_tracking_claim_evidence

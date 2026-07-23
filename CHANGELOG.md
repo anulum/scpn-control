@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract free-boundary tracking target/measurement vector builders into
+  `control/free_boundary_tracking_observation.py` (CTL-G07 R3-S2). The
+  `FreeBoundaryTrackingController` product surface remains first-class with thin
+  wrappers; claims stay separate; shot orchestration remains on the controller.
+  Inventory cascade: 183 modules / 532 test files.
 - Extract free-boundary tracking objective/supervisor limit resolvers into
   `control/free_boundary_tracking_limits.py` (CTL-G07 R3-S1). The
   `FreeBoundaryTrackingController` product surface remains first-class with thin
