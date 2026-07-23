@@ -37,6 +37,7 @@ from scpn_control.core import fusion_kernel_config as _fk_config
 from scpn_control.core import gs_elliptic_iterators as _gs_ell
 from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core import gs_multigrid as _gs_mg
+from scpn_control.core import gs_profile_source as _gs_prof
 from scpn_control.core.hpc_bridge import HPCBridge
 
 # Stable public re-exports: configuration schemas + parse/dump (R0-S1 leaf).
@@ -586,46 +587,12 @@ class FusionKernel:
         FloatArray
             Profile value; zero outside the plasma region.
         """
-        result = np.zeros_like(psi_norm)
-        mask = (psi_norm >= 0) & (psi_norm < 1.0)
-        x = psi_norm[mask]
-
-        y = np.clip((params["ped_top"] - x) / params["ped_width"], -20, 20)
-        pedestal = 0.5 * params["ped_height"] * (1.0 + np.tanh(y))
-
-        core = np.where(
-            x < params["ped_top"],
-            np.maximum(0.0, 1.0 - (x / params["ped_top"]) ** 2),
-            0.0,
-        )
-
-        result[mask] = pedestal + params["core_alpha"] * core
-        return result
+        return _gs_prof.mtanh_profile(psi_norm, params)
 
     @staticmethod
     def mtanh_profile_derivative(psi_norm: FloatArray, params: dict[str, float]) -> FloatArray:
         """Evaluate ``d(mtanh_profile)/dpsi_norm`` for H-mode Newton linearisation."""
-        result = np.zeros_like(psi_norm)
-        mask = (psi_norm >= 0) & (psi_norm < 1.0)
-        x = psi_norm[mask]
-        ped_top = params["ped_top"]
-        ped_width = params["ped_width"]
-        raw_y = (ped_top - x) / ped_width
-        y = np.clip(raw_y, -20, 20)
-        active_pedestal = (raw_y >= -20.0) & (raw_y <= 20.0)
-        sech2 = 1.0 - np.tanh(y) ** 2
-        pedestal_slope = np.where(
-            active_pedestal,
-            -0.5 * params["ped_height"] * sech2 / ped_width,
-            0.0,
-        )
-        core_slope = np.where(
-            x < ped_top,
-            -2.0 * params["core_alpha"] * x / (ped_top * ped_top),
-            0.0,
-        )
-        result[mask] = pedestal_slope + core_slope
-        return result
+        return _gs_prof.mtanh_profile_derivative(psi_norm, params)
 
     # ── source term ───────────────────────────────────────────────────
 
@@ -649,41 +616,25 @@ class FusionKernel:
             Updated ``J_phi`` on the (NZ, NR) grid.
         """
         mu0: float = self.cfg["physics"]["vacuum_permeability"]
-
-        denom = self._normalised_flux_denominator(Psi_axis, Psi_boundary)
-
-        Psi_norm = (self.Psi - Psi_axis) / denom
-        mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
-
-        if self.profile_mode == "external":
-            psi_flat = np.clip(Psi_norm.ravel(), 0.0, 1.0)
-            p_profile = np.interp(psi_flat, self._ext_psi_grid, self._ext_pprime).reshape(Psi_norm.shape)
-            ff_profile = np.interp(psi_flat, self._ext_psi_grid, self._ext_ffprime).reshape(Psi_norm.shape)
-            p_profile[~mask_plasma] = 0.0
-            ff_profile[~mask_plasma] = 0.0
-        elif self.profile_mode in ("h-mode", "H-mode", "hmode"):
-            p_profile = self.mtanh_profile(Psi_norm, self.ped_params_p)
-            ff_profile = self.mtanh_profile(Psi_norm, self.ped_params_ff)
-        else:
-            p_profile = np.zeros_like(self.Psi)
-            p_profile[mask_plasma] = 1.0 - Psi_norm[mask_plasma]
-            ff_profile = p_profile.copy()
-
-        J_p = self.RR * p_profile
-        J_f = (1.0 / (mu0 * self.RR)) * ff_profile
-
-        J_raw = J_p + J_f
-
-        I_current = float(np.sum(J_raw)) * self.dR * self.dZ
-        I_target: float = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
+        i_target: float = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
             "plasma_current_sign", 1.0
         )
-
-        if abs(I_current) > 1e-9:
-            self.J_phi = J_raw * (I_target / I_current)
-        else:
-            self.J_phi = np.zeros_like(self.Psi)
-
+        self.J_phi = _gs_prof.update_plasma_source_nonlinear(
+            self.Psi,
+            self.RR,
+            self.dR,
+            self.dZ,
+            Psi_axis,
+            Psi_boundary,
+            mu0=mu0,
+            I_target=i_target,
+            profile_mode=self.profile_mode,
+            ped_params_p=self.ped_params_p,
+            ped_params_ff=self.ped_params_ff,
+            ext_psi_grid=getattr(self, "_ext_psi_grid", None),
+            ext_pprime=getattr(self, "_ext_pprime", None),
+            ext_ffprime=getattr(self, "_ext_ffprime", None),
+        )
         return self.J_phi
 
     # ── elliptic sub-solvers ──────────────────────────────────────────
@@ -926,10 +877,8 @@ class FusionKernel:
 
     @staticmethod
     def _normalised_flux_denominator(Psi_axis: float, Psi_boundary: float) -> float:
-        denom = float(Psi_boundary) - float(Psi_axis)
-        if not np.isfinite(denom) or abs(denom) < 1e-9:
-            raise ValueError("degenerate equilibrium: separatrix flux is indistinguishable from magnetic-axis flux")
-        return denom
+        """Return (Psi_boundary - Psi_axis) or fail closed on a degenerate equilibrium."""
+        return _gs_prof.normalised_flux_denominator(Psi_axis, Psi_boundary)
 
     def _compute_profile_jacobian(self, Psi_axis: float, Psi_boundary: float, mu0: float) -> FloatArray:
         """Compute dJ_phi/dpsi as a 2D diagonal scaling field.
@@ -940,33 +889,20 @@ class FusionKernel:
 
         Returns a 2D array of the same shape as self.Psi.
         """
-        denom = self._normalised_flux_denominator(Psi_axis, Psi_boundary)
-
-        Psi_norm = (self.Psi - Psi_axis) / denom
-        mask_plasma = (Psi_norm >= 0) & (Psi_norm < 1.0)
-
-        dJ_dpsi = np.zeros_like(self.Psi)
-        if self.profile_mode in ("h-mode", "H-mode", "hmode"):
-            d_p = self.mtanh_profile_derivative(Psi_norm, self.ped_params_p)
-            d_ff = self.mtanh_profile_derivative(Psi_norm, self.ped_params_ff)
-            dJ_dpsi[mask_plasma] = (
-                self.RR[mask_plasma] * d_p[mask_plasma] + d_ff[mask_plasma] / (mu0 * self.RR[mask_plasma])
-            ) / denom
-        else:
-            # For the linear L-mode profile: Source = -mu0 * R * J_phi
-            # J_phi = c * (1 - psi_norm) * R  =>  dJ_phi/dpsi_norm = -c * R
-            # dJ_phi/dpsi = dJ_phi/dpsi_norm * dpsi_norm/dpsi = -c * R / denom
-            # c from Ip normalisation: I_p = ∫ J_phi dA
-            I_target = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get(
-                "plasma_current_sign", 1.0
-            )
-            # I = ∫ J_phi dA ≈ c · Σ_plasma((1-ψ_norm)·R)·ΔR·ΔZ  (midpoint quadrature)
-            s = float(np.sum(np.where(mask_plasma, (1 - Psi_norm) * self.RR, 0.0))) * self.dR * self.dZ
-            c = I_target / max(abs(s), 1e-9)
-
-            dJ_dpsi[mask_plasma] = -c * self.RR[mask_plasma] / denom
-
-        return dJ_dpsi
+        i_target = self.cfg["physics"]["plasma_current_target"] * self.cfg["physics"].get("plasma_current_sign", 1.0)
+        return _gs_prof.compute_profile_jacobian(
+            self.Psi,
+            self.RR,
+            self.dR,
+            self.dZ,
+            Psi_axis,
+            Psi_boundary,
+            mu0,
+            profile_mode=self.profile_mode,
+            ped_params_p=self.ped_params_p,
+            ped_params_ff=self.ped_params_ff,
+            I_target=i_target,
+        )
 
     def _newton_solve_dispatch(
         self,

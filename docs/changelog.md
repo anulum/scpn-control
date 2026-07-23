@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract mTanh pedestal profiles, normalised-flux guard, nonlinear plasma
+  source, and profile Jacobian helpers into `core/gs_profile_source.py`
+  (CTL-G07 R0-S5 under dual-home C). The CONTROL `FusionKernel` product surface
+  remains first-class with thin wrappers; FUSION is not edited. Inventory
+  cascade: 177 modules / 526 test files.
 - Extract linear elliptic iterators (Jacobi, Red-Black SOR, Anderson mixing,
   Python elliptic solve) into `core/gs_elliptic_iterators.py` (CTL-G07 R0-S4
   under dual-home C). The CONTROL `FusionKernel` product surface remains

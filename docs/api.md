@@ -604,6 +604,23 @@ under dual-home C.
 
 ::: scpn_control.core.gs_elliptic_iterators.elliptic_solve_python
 
+### Grad-Shafranov Profile and Plasma Source
+
+Modified-tanh pedestal profiles, the normalised-flux denominator guard,
+nonlinear plasma source construction, and profile Jacobians live in a dedicated
+leaf. `FusionKernel` keeps thin wrappers that supply mesh, config, and external
+profile tables so public solver paths remain stable under dual-home C.
+
+::: scpn_control.core.gs_profile_source.mtanh_profile
+
+::: scpn_control.core.gs_profile_source.mtanh_profile_derivative
+
+::: scpn_control.core.gs_profile_source.normalised_flux_denominator
+
+::: scpn_control.core.gs_profile_source.update_plasma_source_nonlinear
+
+::: scpn_control.core.gs_profile_source.compute_profile_jacobian
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by
