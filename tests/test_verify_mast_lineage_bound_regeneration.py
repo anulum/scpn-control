@@ -410,7 +410,10 @@ def test_builder_rejects_archive_and_run_tree_drift(tmp_path: Path) -> None:
         )
 
 
-def test_json_reader_and_tree_inventory_normalise_failures(tmp_path: Path) -> None:
+def test_json_reader_and_tree_inventory_normalise_failures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     """Normalise missing, malformed, duplicate-key, scalar, empty-tree, and bad-entry inputs."""
     with pytest.raises(RegenerationVerificationError, match="cannot read fixture"):
         verifier._read_json(tmp_path / "missing.json", label="fixture")
@@ -431,11 +434,43 @@ def test_json_reader_and_tree_inventory_normalise_failures(tmp_path: Path) -> No
     (nested / "child").mkdir(parents=True)
     (nested / "child/file.bin").write_bytes(b"bytes")
     assert verifier._tree_inventory(nested)[0]["path"] == "child/file.bin"
-    fifo_root = tmp_path / "fifo"
-    fifo_root.mkdir()
-    os.mkfifo(fifo_root / "pipe")
+    non_regular_root = tmp_path / "non_regular"
+    non_regular_root.mkdir()
+    if hasattr(os, "mkfifo"):
+        # POSIX: exercise a real non-regular filesystem entry.
+        os.mkfifo(non_regular_root / "pipe")
+    else:
+        # Windows and other platforms without FIFO: discover a real path via
+        # rglob, then force the production non-regular classification.
+        odd = non_regular_root / "odd"
+        odd.write_bytes(b"payload")
+        original_is_file = Path.is_file
+        original_is_dir = Path.is_dir
+        original_is_symlink = Path.is_symlink
+
+        def _is_target(candidate: Path) -> bool:
+            try:
+                return candidate.resolve() == odd.resolve()
+            except OSError:
+                return candidate == odd
+
+        monkeypatch.setattr(
+            Path,
+            "is_file",
+            lambda self: False if _is_target(self) else original_is_file(self),
+        )
+        monkeypatch.setattr(
+            Path,
+            "is_dir",
+            lambda self: False if _is_target(self) else original_is_dir(self),
+        )
+        monkeypatch.setattr(
+            Path,
+            "is_symlink",
+            lambda self: False if _is_target(self) else original_is_symlink(self),
+        )
     with pytest.raises(RegenerationVerificationError, match="non-regular"):
-        verifier._tree_inventory(fifo_root)
+        verifier._tree_inventory(non_regular_root)
 
 
 def test_helper_shape_guards_reject_non_collections_and_bad_shot_sets() -> None:
