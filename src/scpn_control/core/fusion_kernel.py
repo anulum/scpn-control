@@ -40,6 +40,7 @@ from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core import gs_multigrid as _gs_mg
 from scpn_control.core import gs_phase_sync as _gs_phase
 from scpn_control.core import gs_profile_source as _gs_prof
+from scpn_control.core import gs_rust_multigrid_bridge as _gs_rust_mg
 from scpn_control.core.hpc_bridge import HPCBridge
 
 # Stable public re-export: free-boundary coil set (R0-S6 leaf).
@@ -1038,59 +1039,11 @@ class FusionKernel:
 
         Falls back to Python SOR if the Rust extension is not installed.
         """
-        from scpn_control.core._rust_compat import RustAcceleratedKernel, _rust_available
-
-        if preserve_initial_state or boundary_flux is not None:
-            logger.warning("Boundary-constrained solve requested with rust_multigrid; falling back to Python SOR.")
-            prior_method = self.cfg["solver"].get("solver_method", "rust_multigrid")
-            self.cfg["solver"]["solver_method"] = "sor"
-            try:
-                return self.solve_equilibrium(
-                    preserve_initial_state=preserve_initial_state,
-                    boundary_flux=boundary_flux,
-                )
-            finally:
-                self.cfg["solver"]["solver_method"] = prior_method
-
-        if not _rust_available():
-            logger.warning("Rust unavailable; falling back to Python SOR.")
-            prior_method = self.cfg["solver"].get("solver_method", "rust_multigrid")
-            self.cfg["solver"]["solver_method"] = "sor"
-            try:
-                return self.solve_equilibrium()
-            finally:
-                self.cfg["solver"]["solver_method"] = prior_method
-
-        t0 = time.time()
-        rk = RustAcceleratedKernel(self._config_path)
-        rk.set_solver_method("multigrid")
-        rust_result = rk.solve_equilibrium()
-
-        # Sync state back
-        self.Psi = rk.Psi
-        self.J_phi = rk.J_phi
-        self.B_R: AnyFloatArray = rk.B_R
-        self.B_Z: AnyFloatArray = rk.B_Z
-
-        mu0: float = self.cfg["physics"]["vacuum_permeability"]
-        source = -mu0 * self.RR * self.J_phi
-        gs_residual = self._compute_gs_residual_rms(source)
-        elapsed = time.time() - t0
-        solver_tol = float(self.cfg.get("solver", {}).get("convergence_threshold", 1e-4))
-        practical_tol = max(solver_tol, 2e-3)
-        converged = bool(rust_result.converged or rust_result.residual <= practical_tol)
-        return {
-            "psi": self.Psi,
-            "converged": converged,
-            "iterations": rust_result.iterations,
-            "residual": rust_result.residual,
-            "residual_history": [],
-            "gs_residual": gs_residual,
-            "gs_residual_best": gs_residual,
-            "gs_residual_history": [],
-            "wall_time_s": elapsed,
-            "solver_method": "rust_multigrid",
-        }
+        return _gs_rust_mg.solve_via_rust_multigrid(
+            self,
+            preserve_initial_state=preserve_initial_state,
+            boundary_flux=boundary_flux,
+        )
 
     # ── main solver ───────────────────────────────────────────────────
 

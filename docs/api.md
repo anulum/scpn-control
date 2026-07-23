@@ -661,6 +661,16 @@ used by `FusionKernel` live in a dedicated leaf. Thin owner wrappers supply
 
 ::: scpn_control.core.gs_phase_sync.phase_sync_step_lyapunov
 
+### Rust Multigrid Bridge
+
+Python orchestration for ``solver_method=rust_multigrid`` lives in a dedicated
+leaf: availability probing, boundary-constrained and missing-Rust fallbacks to
+Python SOR, and state sync from the Rust accelerated kernel. `FusionKernel`
+keeps a thin wrapper under dual-home C; Rust multigrid algorithm semantics are
+unchanged.
+
+::: scpn_control.core.gs_rust_multigrid_bridge.solve_via_rust_multigrid
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

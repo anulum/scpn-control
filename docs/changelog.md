@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- Extract the Rust multigrid equilibrium bridge into
+  `core/gs_rust_multigrid_bridge.py` (CTL-G07 R0-S9 under dual-home C). The
+  CONTROL `FusionKernel` product surface remains first-class with a thin
+  wrapper; Python SOR fallback paths for missing Rust and boundary-constrained
+  solves are preserved. Rust algorithm semantics are unchanged. FUSION is not
+  edited. Inventory cascade: 181 modules / 530 test files.
 - Extract reduced-order phase-sync step and multi-step Lyapunov helpers into
   `core/gs_phase_sync.py` (CTL-G07 R0-S8 under dual-home C). The CONTROL
   `FusionKernel` product surface remains first-class with thin wrappers that
