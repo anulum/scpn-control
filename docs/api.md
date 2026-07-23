@@ -811,27 +811,46 @@ equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.GyrokineticTransportClosureResult
 
-::: scpn_control.core.differentiable_transport.TransportCampaignMetadata
-
 ::: scpn_control.core.differentiable_transport.transport_campaign_metadata
-
-::: scpn_control.core.differentiable_transport.save_transport_campaign_metadata
-
-::: scpn_control.core.differentiable_transport.load_transport_campaign_metadata
 
 ::: scpn_control.core.differentiable_transport.assert_transport_campaign_metadata_replay
 
-::: scpn_control.core.differentiable_transport.TransportDifferentiabilityEvidence
+### Differentiable Transport Evidence
 
-::: scpn_control.core.differentiable_transport.transport_differentiability_evidence
+Campaign metadata types, gradient-audit certificates, latency-report
+serialisation, and full-fidelity readiness claims live in a dedicated leaf
+module. The numerical facade re-exports these symbols so existing
+`scpn_control.core.differentiable_transport` imports remain stable.
 
-::: scpn_control.core.differentiable_transport.assert_transport_differentiability_claim_admissible
+::: scpn_control.core.differentiable_transport_evidence.TransportCampaignMetadata
 
-::: scpn_control.core.differentiable_transport.TransportFullFidelityReadinessEvidence
+::: scpn_control.core.differentiable_transport_evidence.save_transport_campaign_metadata
 
-::: scpn_control.core.differentiable_transport.transport_full_fidelity_readiness_evidence
+::: scpn_control.core.differentiable_transport_evidence.load_transport_campaign_metadata
 
-::: scpn_control.core.differentiable_transport.assert_transport_full_fidelity_claim_ready
+::: scpn_control.core.differentiable_transport_evidence.TransportDifferentiabilityEvidence
+
+::: scpn_control.core.differentiable_transport_evidence.transport_differentiability_evidence
+
+::: scpn_control.core.differentiable_transport_evidence.assert_transport_differentiability_claim_admissible
+
+::: scpn_control.core.differentiable_transport_evidence.TransportFullFidelityReadinessEvidence
+
+::: scpn_control.core.differentiable_transport_evidence.transport_full_fidelity_readiness_evidence
+
+::: scpn_control.core.differentiable_transport_evidence.assert_transport_full_fidelity_claim_ready
+
+::: scpn_control.core.differentiable_transport_evidence.TransportGradientAudit
+
+::: scpn_control.core.differentiable_transport_evidence.TransportRolloutGradientAudit
+
+::: scpn_control.core.differentiable_transport_evidence.TransportGradientLatencyReport
+
+::: scpn_control.core.differentiable_transport_evidence.TransportRolloutGradientLatencyReport
+
+::: scpn_control.core.differentiable_transport_evidence.save_transport_gradient_latency_report
+
+::: scpn_control.core.differentiable_transport_evidence.save_transport_rollout_gradient_latency_report
 
 ::: scpn_control.core.differentiable_transport.equilibrium_radial_weights
 
