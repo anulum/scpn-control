@@ -51,7 +51,6 @@ def _unix_domain_socket(path: Path) -> Iterator[socket.socket]:
     modern Windows (the CI ``windows-2025`` image), so this keeps the test on a
     real filesystem surface without monkeypatching pathlib.
     """
-
     if path.exists():
         path.unlink()
     server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
@@ -62,6 +61,7 @@ def _unix_domain_socket(path: Path) -> Iterator[socket.socket]:
         server.close()
         if path.exists():
             path.unlink()
+
 
 _FIXED_TS = "2026-07-22T21:46:00Z"
 _EVIDENCE_TS = "2026-07-22T21:50:00Z"
@@ -457,9 +457,11 @@ def test_json_reader_and_tree_inventory_normalise_failures(tmp_path: Path) -> No
     assert verifier._tree_inventory(nested)[0]["path"] == "child/file.bin"
     non_regular_root = tmp_path / "non_regular"
     non_regular_root.mkdir()
-    with _unix_domain_socket(non_regular_root / "sock"):
-        with pytest.raises(RegenerationVerificationError, match="non-regular"):
-            verifier._tree_inventory(non_regular_root)
+    with (
+        _unix_domain_socket(non_regular_root / "sock"),
+        pytest.raises(RegenerationVerificationError, match="non-regular"),
+    ):
+        verifier._tree_inventory(non_regular_root)
     if hasattr(os, "mkfifo"):
         # Second real special-file class on POSIX (Windows has no FIFO API).
         fifo_root = tmp_path / "fifo"
@@ -472,16 +474,18 @@ def test_json_reader_and_tree_inventory_normalise_failures(tmp_path: Path) -> No
 def test_build_regeneration_verification_rejects_non_regular_run_entry(tmp_path: Path) -> None:
     """Public regeneration verifier rejects a non-regular entry in a real run tree."""
     source, replay, archive, run_a, run_b = _build_fixture(tmp_path)
-    with _unix_domain_socket(run_a / "odd.sock"):
-        with pytest.raises(RegenerationVerificationError, match="non-regular"):
-            build_regeneration_verification(
-                source_manifest_path=source,
-                replay_report_path=replay,
-                replay_archive_path=archive,
-                run_a_root=run_a,
-                run_b_root=run_b,
-                generated_at=_EVIDENCE_TS,
-            )
+    with (
+        _unix_domain_socket(run_a / "odd.sock"),
+        pytest.raises(RegenerationVerificationError, match="non-regular"),
+    ):
+        build_regeneration_verification(
+            source_manifest_path=source,
+            replay_report_path=replay,
+            replay_archive_path=archive,
+            run_a_root=run_a,
+            run_b_root=run_b,
+            generated_at=_EVIDENCE_TS,
+        )
 
 
 def test_helper_shape_guards_reject_non_collections_and_bad_shot_sets() -> None:
