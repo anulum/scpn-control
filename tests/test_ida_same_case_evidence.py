@@ -56,7 +56,8 @@ def _case(role: str) -> dict[str, Any]:
         "candidate_current_a": -2.3e6,
         "psi_max_abs_error_wb": 1.4,
         "psi_rmse_wb": 1.1,
-        "psi_span_nrmse": 2.0 if evaluation else 0.01,
+        "psi_n_rmse": 2.0 if evaluation else 0.01,
+        "raw_psi_span_nrmse": 0.2 if evaluation else 0.01,
         "reference_axis_wb": -0.66,
         "reference_boundary_wb": -0.12,
         "reference_current_a": -1.5e6,
@@ -67,7 +68,7 @@ def _case(role: str) -> dict[str, Any]:
     threshold_results = {
         "gradient_audit": gradient_passed,
         "latency": not evaluation,
-        "psi_span_nrmse": not evaluation,
+        "psi_n_rmse": not evaluation,
         "relative_current_error": not evaluation,
         "relative_nonlinear_residual_rms": True,
     }
@@ -116,7 +117,7 @@ def _report() -> dict[str, Any]:
             | {
                 "evaluation_threshold_failed:gradient_audit",
                 "evaluation_threshold_failed:latency",
-                "evaluation_threshold_failed:psi_span_nrmse",
+                "evaluation_threshold_failed:psi_n_rmse",
                 "evaluation_threshold_failed:relative_current_error",
                 "execution_preceding_selection_lock_missing",
                 "isolated_latency_evidence_missing",
@@ -184,7 +185,7 @@ def test_valid_report_is_authentic_but_never_admitted(tmp_path: Path) -> None:
     assert admission.source_verified is False
     assert admission.admitted is False
     assert admission.status == evidence.CONTROL_BLOCKED_STATUS
-    assert admission.evaluation_metrics["psi_span_nrmse"] == 2.0
+    assert admission.evaluation_metrics["psi_n_rmse"] == 2.0
     assert admission.threshold_results["relative_nonlinear_residual_rms"] is True
     assert "upstream_source_tree_not_verified" in admission.blockers
     assert payload["claim_boundary"] == {field: False for field in evidence.CLAIM_FIELDS}
@@ -302,7 +303,7 @@ def test_tamper_nonfinite_and_threshold_projection_are_rejected(
         evidence.validate_ida_same_case_evidence(path)
 
     payload = _report()
-    payload["cases"][1]["metrics"]["psi_span_nrmse"] = float("inf")
+    payload["cases"][1]["metrics"]["psi_n_rmse"] = float("inf")
     payload["payload_sha256"] = "a" * 64
     path.write_text(json.dumps(payload), encoding="utf-8")
     with pytest.raises(evidence.IDASameCaseEvidenceError, match="finite JSON"):
@@ -364,7 +365,7 @@ def test_low_level_object_and_number_guards() -> None:
     ("mutate", "message"),
     [
         (
-            lambda payload: payload["source_artifacts"].pop("source"),
+            lambda payload: payload["source_artifacts"].pop("x_point"),
             "source_artifacts do not match",
         ),
         (

@@ -8,7 +8,7 @@
 """Validate FUSION-owned IDA same-case evidence at the CONTROL boundary.
 
 The validator distinguishes an authentic, internally consistent benchmark
-artifact from evidence that is sufficient for control admission.  The v1
+artifact from evidence that is sufficient for control admission.  The v2
 FUSION report records an integration-observed DIII-D-like case, so a valid
 artifact remains blocked even when every byte and threshold projection checks
 out.  No Grad-Shafranov mathematics is duplicated here.
@@ -24,12 +24,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-FUSION_SCHEMA_VERSION = "scpn-fusion.ida-same-case-evidence.v1"
+FUSION_SCHEMA_VERSION = "scpn-fusion.ida-same-case-evidence.v2"
 CONTROL_SCHEMA_VERSION = "scpn-control.ida-same-case-admission.v1"
 BENCHMARK_ID = "DIII-D-IDA-FB-JAX-B"
 FUSION_BLOCKED_STATUS = "blocked_same_case_evidence"
 CONTROL_BLOCKED_STATUS = "blocked_external_same_case_evidence"
-SOLVER_ID = "scpn_fusion.core.jax_free_boundary_gs_implicit.solve_free_boundary_gs_implicit"
+SOLVER_ID = "scpn_fusion.core.jax_free_boundary_predictive.solve_predictive_equilibrium_diff"
 CLAIM_FIELDS = (
     "control_admission",
     "facility_validation",
@@ -42,7 +42,7 @@ THRESHOLDS: dict[str, float] = {
     "gradient_smoothness_ratio_max": 2.5e-1,
     "latency_p95_ms_max": 20.0,
     "profile_gradient_relative_error_max": 1.0e-2,
-    "psi_span_nrmse_max": 5.0e-2,
+    "psi_n_rmse_max": 5.0e-2,
     "relative_current_error_max": 5.0e-2,
     "relative_nonlinear_residual_rms_max": 5.0e-2,
 }
@@ -50,8 +50,10 @@ SOURCE_PATHS = {
     "benchmark": "validation/benchmark_ida_same_case.py",
     "freegs_public_case_runner": ("validation/benchmark_freegs_public_example_reconstruction.py"),
     "profile_basis": "src/scpn_fusion/core/jax_profile_basis.py",
-    "solver": "src/scpn_fusion/core/jax_free_boundary_gs_implicit.py",
-    "source": "src/scpn_fusion/core/jax_free_boundary_gs.py",
+    "solver": "src/scpn_fusion/core/jax_free_boundary_predictive.py",
+    "compiled_forward": "src/scpn_fusion/core/jax_predictive_forward_compiled.py",
+    "o_point": "src/scpn_fusion/core/jax_o_point.py",
+    "x_point": "src/scpn_fusion/core/jax_x_point.py",
 }
 REQUIRED_FUSION_BLOCKERS = {
     "collaborator_solver_reference_not_bound",
@@ -77,7 +79,7 @@ _TOP_LEVEL_FIELDS = {
 _THRESHOLD_RESULT_FIELDS = {
     "gradient_audit",
     "latency",
-    "psi_span_nrmse",
+    "psi_n_rmse",
     "relative_current_error",
     "relative_nonlinear_residual_rms",
 }
@@ -208,6 +210,7 @@ def _solver_contract() -> dict[str, Any]:
             "latency_ms": 20.0,
             "picard_iterations": 10,
         },
+        "conditioned_inputs": ["ip_target_a"],
         "solver_id": SOLVER_ID,
         "units": {
             "coil_current": "A",
@@ -226,7 +229,7 @@ def _validate_source_contract(payload: dict[str, Any]) -> tuple[str, dict[str, s
         field="source_artifacts",
     )
     if set(source_artifacts) != {*SOURCE_PATHS, "repository"}:
-        raise IDASameCaseEvidenceError("source_artifacts do not match the IDA v1 contract")
+        raise IDASameCaseEvidenceError("source_artifacts do not match the IDA v2 contract")
     digests: dict[str, str] = {}
     for name, expected_path in SOURCE_PATHS.items():
         artifact = _require_dict(
@@ -234,7 +237,7 @@ def _validate_source_contract(payload: dict[str, Any]) -> tuple[str, dict[str, s
             field=f"source_artifacts.{name}",
         )
         if set(artifact) != {"path", "sha256"} or artifact.get("path") != expected_path:
-            raise IDASameCaseEvidenceError(f"source_artifacts.{name} does not match the IDA v1 contract")
+            raise IDASameCaseEvidenceError(f"source_artifacts.{name} does not match the IDA v2 contract")
         digests[expected_path] = _require_digest(
             artifact.get("sha256"),
             field=f"source_artifacts.{name}.sha256",
@@ -244,7 +247,7 @@ def _validate_source_contract(payload: dict[str, Any]) -> tuple[str, dict[str, s
         field="source_artifacts.repository",
     )
     if set(repository) != {"git_commit", "path"} or repository.get("path") != ".":
-        raise IDASameCaseEvidenceError("source_artifacts.repository does not match the IDA v1 contract")
+        raise IDASameCaseEvidenceError("source_artifacts.repository does not match the IDA v2 contract")
     source_commit = _require_digest(
         repository.get("git_commit"),
         field="source_artifacts.repository.git_commit",
@@ -256,7 +259,7 @@ def _validate_source_contract(payload: dict[str, Any]) -> tuple[str, dict[str, s
 def _validate_gradient_audit(case: dict[str, Any], *, field: str) -> bool:
     audit = _require_dict(case.get("gradient_audit"), field=f"{field}.gradient_audit")
     if set(audit) != {"all_finite", "cotangent_sha256", "rows"}:
-        raise IDASameCaseEvidenceError(f"{field}.gradient_audit fields do not match the IDA v1 contract")
+        raise IDASameCaseEvidenceError(f"{field}.gradient_audit fields do not match the IDA v2 contract")
     if audit.get("all_finite") is not True:
         return False
     _require_digest(
@@ -336,8 +339,8 @@ def _validate_case(case_value: object, *, role: str, index: int) -> dict[str, An
     )
     metrics = _require_dict(case.get("metrics"), field=f"{field}.metrics")
     psi_nrmse = _require_finite_float(
-        metrics.get("psi_span_nrmse"),
-        field=f"{field}.metrics.psi_span_nrmse",
+        metrics.get("psi_n_rmse"),
+        field=f"{field}.metrics.psi_n_rmse",
     )
     current_error = _require_finite_float(
         metrics.get("relative_current_error"),
@@ -356,7 +359,7 @@ def _validate_case(case_value: object, *, role: str, index: int) -> dict[str, An
     projected = {
         "gradient_audit": gradient_passed,
         "latency": p95_ms <= THRESHOLDS["latency_p95_ms_max"],
-        "psi_span_nrmse": psi_nrmse <= THRESHOLDS["psi_span_nrmse_max"],
+        "psi_n_rmse": psi_nrmse <= THRESHOLDS["psi_n_rmse_max"],
         "relative_current_error": (current_error <= THRESHOLDS["relative_current_error_max"]),
         "relative_nonlinear_residual_rms": (residual <= THRESHOLDS["relative_nonlinear_residual_rms_max"]),
     }
@@ -365,7 +368,7 @@ def _validate_case(case_value: object, *, role: str, index: int) -> dict[str, An
         field=f"{field}.threshold_results",
     )
     if set(threshold_results) != _THRESHOLD_RESULT_FIELDS:
-        raise IDASameCaseEvidenceError(f"{field}.threshold_results fields do not match the IDA v1 contract")
+        raise IDASameCaseEvidenceError(f"{field}.threshold_results fields do not match the IDA v2 contract")
     if threshold_results != projected:
         raise IDASameCaseEvidenceError(f"{field}.threshold_results are inconsistent with measured values")
     if role == "evaluation_candidate" and case.get("grid_shape") != [129, 129]:
@@ -405,7 +408,7 @@ def validate_ida_same_case_evidence(
     """Validate one FUSION report and return fail-closed CONTROL admission."""
     payload = load_ida_same_case_report(report_path)
     if set(payload) != _TOP_LEVEL_FIELDS:
-        raise IDASameCaseEvidenceError("IDA evidence top-level fields do not match the v1 schema")
+        raise IDASameCaseEvidenceError("IDA evidence top-level fields do not match the v2 schema")
     if payload.get("schema_version") != FUSION_SCHEMA_VERSION:
         raise IDASameCaseEvidenceError("unsupported IDA evidence schema")
     if payload.get("benchmark_id") != BENCHMARK_ID:
@@ -414,13 +417,13 @@ def validate_ida_same_case_evidence(
     if digest != _payload_sha256(payload):
         raise IDASameCaseEvidenceError("payload_sha256 does not match report content")
     if payload.get("thresholds") != THRESHOLDS:
-        raise IDASameCaseEvidenceError("thresholds do not match the frozen v1 contract")
+        raise IDASameCaseEvidenceError("thresholds do not match the frozen v2 contract")
     if payload.get("solver_contract") != _solver_contract():
-        raise IDASameCaseEvidenceError("solver_contract does not match the frozen v1 contract")
+        raise IDASameCaseEvidenceError("solver_contract does not match the frozen v2 contract")
     if payload.get("claim_boundary") != {field: False for field in CLAIM_FIELDS}:
         raise IDASameCaseEvidenceError("claim_boundary must keep every promotion claim false")
     if payload.get("status") != FUSION_BLOCKED_STATUS:
-        raise IDASameCaseEvidenceError("v1 integration evidence must remain blocked")
+        raise IDASameCaseEvidenceError("v2 integration evidence must remain blocked")
     blockers_value = payload.get("blockers")
     if (
         not isinstance(blockers_value, list)
@@ -498,7 +501,7 @@ def validate_ida_same_case_evidence(
     evaluation_metrics = {
         name: _require_finite_float(metrics.get(name), field=f"cases[1].metrics.{name}")
         for name in (
-            "psi_span_nrmse",
+            "psi_n_rmse",
             "relative_current_error",
             "relative_nonlinear_residual_rms",
         )
