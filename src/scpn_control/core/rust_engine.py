@@ -18,8 +18,11 @@ Responsibility is split by design:
 
 from __future__ import annotations
 
+import hmac
 import json
 import logging
+import os
+import stat
 import time
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -58,9 +61,59 @@ _NATIVE_BACKEND_AVAILABLE = bool(_RUST_TRANSPORT_CONTROLLER_AVAILABLE and _Nativ
 
 _LOGGER = logging.getLogger("SCPN.Control.RustEngine")
 
+TRANSPORT_HEARTBEAT_MAGIC = b"SCPNHB01"
+TRANSPORT_HEARTBEAT_FRAME_BYTES = 48
+TRANSPORT_HEARTBEAT_MIN_KEY_BYTES = 32
+TRANSPORT_HEARTBEAT_MAX_KEY_BYTES = 64
+
 _ITPA_DEFAULT_PATH = (
     Path(__file__).resolve().parents[3] / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
 )
+
+
+def _validate_transport_heartbeat_key(key: object) -> bytes:
+    if not isinstance(key, (bytes, bytearray, memoryview)):
+        raise TypeError("transport heartbeat HMAC key must be bytes-like")
+    key_bytes = bytes(key)
+    if not TRANSPORT_HEARTBEAT_MIN_KEY_BYTES <= len(key_bytes) <= TRANSPORT_HEARTBEAT_MAX_KEY_BYTES:
+        raise ValueError(
+            "transport heartbeat HMAC key must contain "
+            f"{TRANSPORT_HEARTBEAT_MIN_KEY_BYTES}..={TRANSPORT_HEARTBEAT_MAX_KEY_BYTES} bytes"
+        )
+    return key_bytes
+
+
+def load_transport_heartbeat_key(path: str | Path) -> bytes:
+    """Load a bounded heartbeat HMAC key from a private regular file."""
+    key_path = Path(path)
+    if key_path.is_symlink():
+        raise ValueError("transport heartbeat HMAC key path must not be a symlink")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0) | getattr(os, "O_CLOEXEC", 0)
+    try:
+        descriptor = os.open(key_path, flags)
+    except OSError as exc:
+        raise ValueError("transport heartbeat HMAC key file is not a readable non-symlink file") from exc
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode):
+            raise ValueError("transport heartbeat HMAC key path must be a regular file")
+        if os.name == "posix" and metadata.st_mode & 0o077:
+            raise PermissionError("transport heartbeat HMAC key file must not grant group or other permissions")
+        with os.fdopen(descriptor, "rb", closefd=False) as stream:
+            key = stream.read(TRANSPORT_HEARTBEAT_MAX_KEY_BYTES + 1)
+    finally:
+        os.close(descriptor)
+    return _validate_transport_heartbeat_key(key)
+
+
+def build_transport_heartbeat_frame(counter: int, key: bytes | bytearray | memoryview) -> bytes:
+    """Build one authenticated, replay-ordered UDP transport heartbeat frame."""
+    if isinstance(counter, bool) or not isinstance(counter, int) or not 1 <= counter <= 0xFFFF_FFFF_FFFF_FFFF:
+        raise ValueError("transport heartbeat counter must be an integer in 1..=2^64-1")
+    key_bytes = _validate_transport_heartbeat_key(key)
+    signed = TRANSPORT_HEARTBEAT_MAGIC + counter.to_bytes(8, byteorder="big", signed=False)
+    return signed + hmac.digest(key_bytes, signed, "sha256")
+
 
 _PYO3_ARG_ORDER: dict[str, tuple[str, ...]] = {
     "set_transport_settings": (

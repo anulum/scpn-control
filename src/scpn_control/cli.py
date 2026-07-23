@@ -388,7 +388,12 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     type=click.Choice(["auto", "native", "python"], case_sensitive=False),
     help="Execution backend (auto / native / python)",
 )
-@click.option("--heartbeat-port", default=0, type=int, help="Heartbeat listen port used for dead-man switch")
+@click.option(
+    "--heartbeat-port",
+    default=0,
+    type=int,
+    help="Authenticated transport-liveness heartbeat listen port",
+)
 @click.option("--heartbeat-timeout-ms", default=3, type=int, help="Heartbeat timeout threshold (ms)")
 @click.option("--core-snn", default=1, type=int, help="Core pinned to SNN execution")
 @click.option("--core-z3", default=2, type=int, help="Core pinned to Z3 verification")

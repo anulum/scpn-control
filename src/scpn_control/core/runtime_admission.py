@@ -251,9 +251,9 @@ def evaluate_runtime_admission(
             warnings.append(message)
 
     if request.require_heartbeat and request.heartbeat_port <= 0:
-        errors.append("heartbeat dead-man switch port is required for production admission")
+        errors.append("transport-liveness heartbeat port is required for strict runtime admission")
     elif request.heartbeat_port <= 0:
-        warnings.append("heartbeat dead-man switch is disabled")
+        warnings.append("transport-liveness heartbeat is disabled")
 
     status = "fail" if errors else "pass"
     production_claim_allowed = bool(

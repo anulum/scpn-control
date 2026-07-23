@@ -11,7 +11,7 @@ The admission report records:
 - Scheduler policy and priority for the calling process.
 - CPU governor state for requested cores.
 - `RLIMIT_MEMLOCK` soft and hard limits.
-- Heartbeat dead-man switch configuration.
+- Authenticated transport-liveness heartbeat configuration.
 - Native PyO3 runtime snapshot when the extension exposes it.
 
 ## Policies
@@ -30,8 +30,14 @@ used to claim hard real-time PCS timing.
 ## Strict production example
 
 ```bash
+install -m 600 /secure/source/heartbeat.key /run/secrets/scpn-heartbeat.key
+
 sudo chrt -f 99 taskset -c 4,5,6,7 \
-  env PYTHONPATH=src python -m scpn_control.cli run-hardware-campaign \
+  env PYTHONPATH=src \
+    SCPN_CONTROL_HEARTBEAT_KEY_FILE=/run/secrets/scpn-heartbeat.key \
+    SCPN_CONTROL_HEARTBEAT_ALLOWED_SOURCE=127.0.0.1 \
+    SCPN_CONTROL_HEARTBEAT_BIND_HOST=127.0.0.1 \
+    python -m scpn_control.cli run-hardware-campaign \
     --execution-backend native \
     --pacing-mode spin \
     --formal-mode aot_certificate \
@@ -48,6 +54,25 @@ sudo chrt -f 99 taskset -c 4,5,6,7 \
 
 If any runtime condition is missing, the command fails before the native loop is
 entered. That fail-closed behavior is intentional.
+
+When heartbeat monitoring is enabled, the Rust bridge refuses to start unless
+`SCPN_CONTROL_HEARTBEAT_KEY_FILE` names a non-symlink regular file containing
+32–64 raw key bytes with no group/other permissions on POSIX hosts and
+`SCPN_CONTROL_HEARTBEAT_ALLOWED_SOURCE` is one exact source IP. The bind host
+defaults to `127.0.0.1`; set `SCPN_CONTROL_HEARTBEAT_BIND_HOST` explicitly for a
+non-loopback interface. Raw key bytes do not enter CLI arguments or telemetry.
+
+The accepted datagram is exactly 48 bytes: ASCII magic `SCPNHB01`, a strictly
+increasing unsigned 64-bit big-endian counter, and the full HMAC-SHA256 tag over
+those first 16 bytes. Use `load_transport_heartbeat_key()` and
+`build_transport_heartbeat_frame()` to construct sender packets. Wrong source,
+length, magic, tag, zero/repeated/reordered counter within one receiver
+lifetime, or malformed configuration never refreshes liveness. Sender and
+receiver must establish a new counter epoch after a receiver restart; this
+one-way hint does not claim durable cross-restart replay protection.
+
+This heartbeat is a bounded transport-liveness hint. It is not an independent
+machine-protection interlock, safety function, or PCS deployment credential.
 
 ## Python API
 

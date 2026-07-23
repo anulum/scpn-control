@@ -2489,6 +2489,16 @@ This wrapper is an execution boundary, not a physics solver. It does not turn a
 local workstation run into target-hardware PCS evidence unless the matching
 runtime-admission and benchmark-context reports pass.
 
+The optional UDP heartbeat is an authenticated transport-liveness hint, not a
+safety interlock. When enabled, the Rust receiver uses an explicit bind host
+(loopback by default), exact source-IP allowlist, fixed `SCPNHB01` frame magic,
+strictly increasing per-receiver 64-bit counter, and full HMAC-SHA256
+verification before it refreshes liveness. The secret is loaded from a private
+key file named by `SCPN_CONTROL_HEARTBEAT_KEY_FILE`; it is never accepted as a
+CLI value. Python
+senders can use `load_transport_heartbeat_key()` and
+`build_transport_heartbeat_frame()` for the same exact 48-byte protocol.
+
 ::: scpn_control.core.rust_engine
 
 ## API surface usage model

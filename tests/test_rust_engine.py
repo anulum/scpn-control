@@ -8,10 +8,12 @@
 
 from __future__ import annotations
 
+import hmac
 import json
 import math
+import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -19,6 +21,54 @@ import scpn_control.core.rust_engine
 from scpn_control.core import rust_engine
 
 assert scpn_control.core.rust_engine is rust_engine
+
+
+def test_transport_heartbeat_frame_is_exact_authenticated_protocol() -> None:
+    key = bytes([0x42]) * 32
+    frame = rust_engine.build_transport_heartbeat_frame(1, key)
+
+    assert len(frame) == rust_engine.TRANSPORT_HEARTBEAT_FRAME_BYTES == 48
+    assert frame[:8] == rust_engine.TRANSPORT_HEARTBEAT_MAGIC == b"SCPNHB01"
+    assert frame.hex() == (
+        "5343504e484230310000000000000001ea6862d2eb66c246fb80c98e9001d8e16136e8714fa64cb6e14e453b0cc9a7f8"
+    )
+    assert hmac.compare_digest(frame[16:], hmac.digest(key, frame[:16], "sha256"))
+
+
+@pytest.mark.parametrize("counter", [True, 0, -1, 2**64])
+def test_transport_heartbeat_frame_rejects_invalid_counter(counter: object) -> None:
+    with pytest.raises(ValueError, match="counter"):
+        rust_engine.build_transport_heartbeat_frame(cast(Any, counter), b"k" * 32)
+
+
+@pytest.mark.parametrize("key", [b"", b"k" * 31, b"k" * 65, "not-bytes"])
+def test_transport_heartbeat_frame_rejects_invalid_key(key: object) -> None:
+    error = TypeError if isinstance(key, str) else ValueError
+    with pytest.raises(error, match="HMAC key"):
+        rust_engine.build_transport_heartbeat_frame(1, cast(Any, key))
+
+
+def test_load_transport_heartbeat_key_requires_private_regular_file(tmp_path: Path) -> None:
+    with pytest.raises(ValueError, match="not a readable"):
+        rust_engine.load_transport_heartbeat_key(tmp_path / "missing.key")
+    with pytest.raises(ValueError, match="regular file|not a readable"):
+        rust_engine.load_transport_heartbeat_key(tmp_path)
+
+    key_path = tmp_path / "heartbeat.key"
+    key_path.write_bytes(b"k" * 32)
+    key_path.chmod(0o600)
+    assert rust_engine.load_transport_heartbeat_key(key_path) == b"k" * 32
+
+    if os.name == "posix":
+        key_path.chmod(0o640)
+        with pytest.raises(PermissionError, match="group or other"):
+            rust_engine.load_transport_heartbeat_key(key_path)
+
+        key_path.chmod(0o600)
+        link_path = tmp_path / "heartbeat-link.key"
+        link_path.symlink_to(key_path)
+        with pytest.raises(ValueError, match="must not be a symlink"):
+            rust_engine.load_transport_heartbeat_key(link_path)
 
 
 def test_execute_hardware_loop_rejects_unknown_execution_backend() -> None:

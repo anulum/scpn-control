@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Authenticate the default-off Rust UDP transport heartbeat with an exact
+  `SCPNHB01` frame, HMAC-SHA256, strict source-IP allowlist, private key-file
+  policy, loopback-default bind host, and monotonically increasing counter.
+  Invalid, spoofed, oversized, or repeated/reordered datagrams within a receiver
+  lifetime no longer refresh liveness; public wording now treats the heartbeat
+  as a transport-liveness hint rather than an independent safety function.
 - Harden the CODAC/EPICS actuation boundary: reject non-finite controller
   outputs, clamp every finite command to its declared channel envelope, export
   analog `DRVH`/`DRVL` drive limits, and make `run_cycle` return a zero-output

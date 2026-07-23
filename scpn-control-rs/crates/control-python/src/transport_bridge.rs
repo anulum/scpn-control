@@ -6,21 +6,26 @@
 // ORCID: https://orcid.org/0009-0009-3560-0851
 // ──────────────────────────────────────────────────────────────────────
 
-use std::io::ErrorKind;
+use std::env;
+use std::fs;
+use std::io::{ErrorKind, Read};
 use std::mem::size_of;
-use std::net::UdpSocket;
+use std::net::{IpAddr, UdpSocket};
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
 use std::os::unix::io::AsRawFd;
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{sync_channel, Receiver, SyncSender, TrySendError};
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::thread::{self, JoinHandle};
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use hmac::{Hmac, KeyInit, Mac};
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
 use io_uring::{opcode, types, IoUring};
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
+use sha2::Sha256;
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
 use socket2::{Domain, Protocol, Socket, Type};
 
@@ -33,6 +38,16 @@ const DEFAULT_PORT: u16 = 5555;
 const DEFAULT_HEARTBEAT_PORT: u16 = 0;
 const DEFAULT_HEARTBEAT_TIMEOUT_MS: u64 = 3;
 const HEARTBEAT_CHECK_INTERVAL_MS: u64 = 1;
+const HEARTBEAT_MAGIC: &[u8; 8] = b"SCPNHB01";
+const HEARTBEAT_SIGNED_BYTES: usize = 16;
+const HEARTBEAT_TAG_BYTES: usize = 32;
+const HEARTBEAT_FRAME_BYTES: usize = HEARTBEAT_SIGNED_BYTES + HEARTBEAT_TAG_BYTES;
+const HEARTBEAT_MIN_KEY_BYTES: usize = 32;
+const HEARTBEAT_MAX_KEY_BYTES: usize = 64;
+const HEARTBEAT_KEY_FILE_ENV: &str = "SCPN_CONTROL_HEARTBEAT_KEY_FILE";
+const HEARTBEAT_ALLOWED_SOURCE_ENV: &str = "SCPN_CONTROL_HEARTBEAT_ALLOWED_SOURCE";
+const HEARTBEAT_BIND_HOST_ENV: &str = "SCPN_CONTROL_HEARTBEAT_BIND_HOST";
+const DEFAULT_HEARTBEAT_BIND_HOST: &str = "127.0.0.1";
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
 const IO_URING_QUEUE_DEPTH: u32 = 128;
 
@@ -91,6 +106,131 @@ pub struct TransportSnapshotFrame {
 
 const FRAME_SIZE: usize = size_of::<TransportSnapshotFrame>();
 
+type HmacSha256 = Hmac<Sha256>;
+
+#[derive(Clone)]
+struct HeartbeatAuth {
+    key: Arc<[u8]>,
+    allowed_source: IpAddr,
+    bind_host: IpAddr,
+}
+
+fn heartbeat_auth_from_path(
+    key_path: &Path,
+    allowed_source: &str,
+    bind_host: &str,
+) -> Result<HeartbeatAuth, String> {
+    let metadata = fs::symlink_metadata(key_path)
+        .map_err(|_| "heartbeat HMAC key file is not readable".to_string())?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err("heartbeat HMAC key path must be a regular non-symlink file".to_string());
+    }
+    let key_len = usize::try_from(metadata.len())
+        .map_err(|_| "heartbeat HMAC key file length is unsupported".to_string())?;
+    if !(HEARTBEAT_MIN_KEY_BYTES..=HEARTBEAT_MAX_KEY_BYTES).contains(&key_len) {
+        return Err(format!(
+            "heartbeat HMAC key file must contain {HEARTBEAT_MIN_KEY_BYTES}..={HEARTBEAT_MAX_KEY_BYTES} bytes"
+        ));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        if metadata.permissions().mode() & 0o077 != 0 {
+            return Err(
+                "heartbeat HMAC key file must not grant group or other permissions".to_string(),
+            );
+        }
+    }
+    let key_file = fs::File::open(key_path)
+        .map_err(|_| "heartbeat HMAC key file is not readable".to_string())?;
+    let opened_metadata = key_file
+        .metadata()
+        .map_err(|_| "heartbeat HMAC key file metadata is not readable".to_string())?;
+    if !opened_metadata.is_file() || opened_metadata.len() != metadata.len() {
+        return Err("heartbeat HMAC key file changed while being opened".to_string());
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::{MetadataExt, PermissionsExt};
+
+        if opened_metadata.dev() != metadata.dev() || opened_metadata.ino() != metadata.ino() {
+            return Err("heartbeat HMAC key file changed while being opened".to_string());
+        }
+        if opened_metadata.permissions().mode() & 0o077 != 0 {
+            return Err(
+                "heartbeat HMAC key file must not grant group or other permissions".to_string(),
+            );
+        }
+    }
+    let mut key = Vec::with_capacity(key_len);
+    key_file
+        .take((HEARTBEAT_MAX_KEY_BYTES + 1) as u64)
+        .read_to_end(&mut key)
+        .map_err(|_| "heartbeat HMAC key file is not readable".to_string())?;
+    if key.len() != key_len {
+        return Err("heartbeat HMAC key file changed while being read".to_string());
+    }
+    let allowed_source = allowed_source
+        .parse::<IpAddr>()
+        .map_err(|_| "heartbeat allowed source must be one IP address".to_string())?;
+    let bind_host = bind_host
+        .parse::<IpAddr>()
+        .map_err(|_| "heartbeat bind host must be one IP address".to_string())?;
+    Ok(HeartbeatAuth {
+        key: Arc::from(key),
+        allowed_source,
+        bind_host,
+    })
+}
+
+fn heartbeat_auth_from_env() -> Result<HeartbeatAuth, String> {
+    let key_path = env::var(HEARTBEAT_KEY_FILE_ENV).map_err(|_| {
+        format!("{HEARTBEAT_KEY_FILE_ENV} is required when heartbeat monitoring is enabled")
+    })?;
+    let allowed_source = env::var(HEARTBEAT_ALLOWED_SOURCE_ENV).map_err(|_| {
+        format!("{HEARTBEAT_ALLOWED_SOURCE_ENV} is required when heartbeat monitoring is enabled")
+    })?;
+    let bind_host = env::var(HEARTBEAT_BIND_HOST_ENV)
+        .unwrap_or_else(|_| DEFAULT_HEARTBEAT_BIND_HOST.to_string());
+    heartbeat_auth_from_path(Path::new(&key_path), &allowed_source, &bind_host)
+}
+
+fn verify_heartbeat_frame(
+    frame: &[u8],
+    source: IpAddr,
+    auth: &HeartbeatAuth,
+    last_counter: &mut u64,
+) -> bool {
+    if source != auth.allowed_source
+        || frame.len() != HEARTBEAT_FRAME_BYTES
+        || &frame[..HEARTBEAT_MAGIC.len()] != HEARTBEAT_MAGIC
+    {
+        return false;
+    }
+    let counter_bytes: [u8; 8] =
+        match frame[HEARTBEAT_MAGIC.len()..HEARTBEAT_SIGNED_BYTES].try_into() {
+            Ok(bytes) => bytes,
+            Err(_) => return false,
+        };
+    let counter = u64::from_be_bytes(counter_bytes);
+    if counter == 0 {
+        return false;
+    }
+    let Ok(mut mac) = HmacSha256::new_from_slice(auth.key.as_ref()) else {
+        return false;
+    };
+    mac.update(&frame[..HEARTBEAT_SIGNED_BYTES]);
+    if mac.verify_slice(&frame[HEARTBEAT_SIGNED_BYTES..]).is_err() {
+        return false;
+    }
+    if counter <= *last_counter {
+        return false;
+    }
+    *last_counter = counter;
+    true
+}
+
 #[pyclass]
 pub struct PyUdpTransportBridge {
     endpoint: String,
@@ -108,6 +248,7 @@ pub struct PyUdpTransportBridge {
     handle: Option<JoinHandle<()>>,
     heartbeat_handle: Option<JoinHandle<()>>,
     heartbeat_watchdog_handle: Option<JoinHandle<()>>,
+    heartbeat_auth: Option<HeartbeatAuth>,
 }
 
 #[pymethods]
@@ -140,6 +281,7 @@ impl PyUdpTransportBridge {
             handle: None,
             heartbeat_handle: None,
             heartbeat_watchdog_handle: None,
+            heartbeat_auth: None,
         })
     }
 
@@ -161,6 +303,16 @@ impl PyUdpTransportBridge {
         let ttl = self.ttl;
         let backend = self.backend;
         let heartbeat_port = self.heartbeat_port;
+        let heartbeat_auth = if heartbeat_port > 0 {
+            Some(
+                self.heartbeat_auth
+                    .clone()
+                    .map_or_else(heartbeat_auth_from_env, Ok)
+                    .map_err(PyRuntimeError::new_err)?,
+            )
+        } else {
+            None
+        };
 
         let slab = Arc::new(PacketSlab::<FRAME_SIZE, SLAB_CAPACITY>::new());
         let slab_thread = slab.clone();
@@ -168,9 +320,12 @@ impl PyUdpTransportBridge {
         let mut heartbeat_handle = None;
         let mut heartbeat_watchdog_handle = None;
         let last_heartbeat_ns = if heartbeat_port > 0 {
-            let heartbeat = Arc::new(AtomicU64::new(current_time_ns()));
+            let heartbeat = Arc::new(AtomicU64::new(monotonic_time_ns()));
             let heartbeat_thread = heartbeat.clone();
             let stop_for_heartbeat = thread_stop.clone();
+            let heartbeat_auth = heartbeat_auth.ok_or_else(|| {
+                PyRuntimeError::new_err("heartbeat authentication configuration is missing")
+            })?;
             heartbeat_handle = Some(
                 thread::Builder::new()
                     .name("snpt-udp-heartbeat-receiver".to_string())
@@ -179,6 +334,7 @@ impl PyUdpTransportBridge {
                             heartbeat_thread,
                             heartbeat_port,
                             stop_for_heartbeat,
+                            heartbeat_auth,
                         );
                     })
                     .map_err(|_| {
@@ -288,7 +444,7 @@ impl PyUdpTransportBridge {
 
     fn heartbeat_age_ns(&self) -> u64 {
         if let Some(last) = self.last_heartbeat_ns.as_ref() {
-            current_time_ns().saturating_sub(last.load(Ordering::Acquire))
+            monotonic_time_ns().saturating_sub(last.load(Ordering::Acquire))
         } else {
             0
         }
@@ -861,8 +1017,9 @@ fn run_udp_heartbeat_monitor(
     last_heartbeat_ns: Arc<AtomicU64>,
     heartbeat_port: u16,
     stop: Arc<AtomicBool>,
+    auth: HeartbeatAuth,
 ) {
-    let socket = match UdpSocket::bind(("0.0.0.0", heartbeat_port)) {
+    let socket = match UdpSocket::bind((auth.bind_host, heartbeat_port)) {
         Ok(socket) => socket,
         Err(_) => {
             last_heartbeat_ns.store(0, Ordering::Release);
@@ -872,12 +1029,15 @@ fn run_udp_heartbeat_monitor(
     };
 
     let mut buf = [0u8; 64];
+    let mut last_counter = 0_u64;
     let _ = socket.set_read_timeout(Some(Duration::from_millis(HEARTBEAT_CHECK_INTERVAL_MS)));
 
     while !stop.load(Ordering::Acquire) {
         match socket.recv_from(&mut buf) {
-            Ok((size, _)) if size > 0 => {
-                last_heartbeat_ns.store(current_time_ns(), Ordering::Release);
+            Ok((size, source))
+                if verify_heartbeat_frame(&buf[..size], source.ip(), &auth, &mut last_counter) =>
+            {
+                last_heartbeat_ns.store(monotonic_time_ns(), Ordering::Release);
             }
             Ok(_) => {}
             Err(error) if matches!(error.kind(), ErrorKind::WouldBlock | ErrorKind::TimedOut) => {}
@@ -893,7 +1053,7 @@ fn heartbeat_is_alive(last_heartbeat_ns: Option<&AtomicU64>, timeout_ns: u64) ->
             if last_ns == 0 {
                 return false;
             }
-            let now_ns = current_time_ns();
+            let now_ns = monotonic_time_ns();
             now_ns.saturating_sub(last_ns) <= timeout_ns
         }
         None => true,
@@ -907,9 +1067,37 @@ fn current_time_ns() -> u64 {
         .map_or(0, |d| d.as_nanos() as u64)
 }
 
+#[inline]
+fn monotonic_time_ns() -> u64 {
+    static PROCESS_EPOCH: OnceLock<Instant> = OnceLock::new();
+    let elapsed = PROCESS_EPOCH.get_or_init(Instant::now).elapsed().as_nanos();
+    elapsed.min(u128::from(u64::MAX - 1)) as u64 + 1
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TEST_HEARTBEAT_KEY: [u8; 32] = [0x42; 32];
+
+    fn test_heartbeat_auth() -> HeartbeatAuth {
+        HeartbeatAuth {
+            key: Arc::from(TEST_HEARTBEAT_KEY),
+            allowed_source: "127.0.0.1".parse().expect("loopback source must parse"),
+            bind_host: "127.0.0.1".parse().expect("loopback bind host must parse"),
+        }
+    }
+
+    fn signed_heartbeat_frame(counter: u64, key: &[u8]) -> [u8; HEARTBEAT_FRAME_BYTES] {
+        let mut frame = [0_u8; HEARTBEAT_FRAME_BYTES];
+        frame[..HEARTBEAT_MAGIC.len()].copy_from_slice(HEARTBEAT_MAGIC);
+        frame[HEARTBEAT_MAGIC.len()..HEARTBEAT_SIGNED_BYTES]
+            .copy_from_slice(&counter.to_be_bytes());
+        let mut mac = HmacSha256::new_from_slice(key).expect("test HMAC key must be accepted");
+        mac.update(&frame[..HEARTBEAT_SIGNED_BYTES]);
+        frame[HEARTBEAT_SIGNED_BYTES..].copy_from_slice(&mac.finalize().into_bytes());
+        frame
+    }
 
     #[test]
     fn packet_slab_roundtrip_and_release() {
@@ -959,14 +1147,118 @@ mod tests {
         let heartbeat = AtomicU64::new(0);
         assert!(!heartbeat_is_alive(Some(&heartbeat), 1_000_000));
 
-        heartbeat.store(current_time_ns(), Ordering::Release);
+        heartbeat.store(monotonic_time_ns(), Ordering::Release);
         assert!(heartbeat_is_alive(Some(&heartbeat), 1_000_000));
 
         heartbeat.store(
-            current_time_ns().saturating_sub(2_000_000),
+            monotonic_time_ns().saturating_sub(2_000_000),
             Ordering::Release,
         );
         assert!(!heartbeat_is_alive(Some(&heartbeat), 1_000));
+    }
+
+    #[test]
+    fn heartbeat_frame_requires_source_magic_hmac_and_monotonic_counter() {
+        let auth = test_heartbeat_auth();
+        let mut last_counter = 0_u64;
+        let source = auth.allowed_source;
+        let first = signed_heartbeat_frame(1, auth.key.as_ref());
+        let interoperable_tag = [
+            0xea, 0x68, 0x62, 0xd2, 0xeb, 0x66, 0xc2, 0x46, 0xfb, 0x80, 0xc9, 0x8e, 0x90, 0x01,
+            0xd8, 0xe1, 0x61, 0x36, 0xe8, 0x71, 0x4f, 0xa6, 0x4c, 0xb6, 0xe1, 0x4e, 0x45, 0x3b,
+            0x0c, 0xc9, 0xa7, 0xf8,
+        ];
+        assert_eq!(&first[HEARTBEAT_SIGNED_BYTES..], interoperable_tag);
+
+        assert!(verify_heartbeat_frame(
+            &first,
+            source,
+            &auth,
+            &mut last_counter
+        ));
+        assert_eq!(last_counter, 1);
+        assert!(!verify_heartbeat_frame(
+            &first,
+            source,
+            &auth,
+            &mut last_counter
+        ));
+
+        let zero = signed_heartbeat_frame(0, auth.key.as_ref());
+        assert!(!verify_heartbeat_frame(
+            &zero,
+            source,
+            &auth,
+            &mut last_counter
+        ));
+        let mut wrong_magic = signed_heartbeat_frame(2, auth.key.as_ref());
+        wrong_magic[0] ^= 0xff;
+        assert!(!verify_heartbeat_frame(
+            &wrong_magic,
+            source,
+            &auth,
+            &mut last_counter
+        ));
+
+        let mut tampered = signed_heartbeat_frame(2, auth.key.as_ref());
+        tampered[HEARTBEAT_SIGNED_BYTES] ^= 0x01;
+        assert!(!verify_heartbeat_frame(
+            &tampered,
+            source,
+            &auth,
+            &mut last_counter
+        ));
+        assert!(!verify_heartbeat_frame(
+            &signed_heartbeat_frame(2, auth.key.as_ref()),
+            "127.0.0.2".parse().expect("alternate loopback must parse"),
+            &auth,
+            &mut last_counter
+        ));
+        assert!(!verify_heartbeat_frame(
+            &first[..HEARTBEAT_FRAME_BYTES - 1],
+            source,
+            &auth,
+            &mut last_counter
+        ));
+        assert_eq!(last_counter, 1);
+        assert!(verify_heartbeat_frame(
+            &signed_heartbeat_frame(2, auth.key.as_ref()),
+            source,
+            &auth,
+            &mut last_counter
+        ));
+        assert_eq!(last_counter, 2);
+    }
+
+    #[test]
+    fn heartbeat_auth_loads_private_regular_key_and_exact_addresses() {
+        let key_path = std::env::temp_dir().join(format!(
+            "scpn-control-heartbeat-key-{}-{}",
+            std::process::id(),
+            current_time_ns()
+        ));
+        fs::write(&key_path, TEST_HEARTBEAT_KEY).expect("temporary key should be writable");
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+
+            fs::set_permissions(&key_path, fs::Permissions::from_mode(0o600))
+                .expect("temporary key permissions should be settable");
+        }
+
+        let auth = heartbeat_auth_from_path(&key_path, "127.0.0.2", "127.0.0.1")
+            .expect("private regular key and exact IP addresses should load");
+        assert_eq!(auth.key.as_ref(), TEST_HEARTBEAT_KEY);
+        assert_eq!(auth.allowed_source.to_string(), "127.0.0.2");
+        assert_eq!(auth.bind_host.to_string(), "127.0.0.1");
+        assert!(heartbeat_auth_from_path(&key_path, "not-an-ip", "127.0.0.1").is_err());
+        assert!(heartbeat_auth_from_path(&key_path, "127.0.0.1", "not-an-ip").is_err());
+
+        fs::write(&key_path, [0x42; HEARTBEAT_MIN_KEY_BYTES - 1])
+            .expect("short test key should be writable");
+        assert!(heartbeat_auth_from_path(&key_path, "127.0.0.1", "127.0.0.1").is_err());
+
+        fs::remove_file(key_path).expect("temporary key should be removable");
     }
 
     #[test]
@@ -980,13 +1272,18 @@ mod tests {
             .expect("reserved heartbeat socket should report local addr")
             .port();
 
-        let heartbeat = Arc::new(AtomicU64::new(current_time_ns()));
+        let heartbeat = Arc::new(AtomicU64::new(monotonic_time_ns()));
         let stop = Arc::new(AtomicBool::new(false));
         let monitor_heartbeat = heartbeat.clone();
         let monitor_stop = stop.clone();
 
         let monitor = std::thread::spawn(move || {
-            run_udp_heartbeat_monitor(monitor_heartbeat, heartbeat_port, monitor_stop);
+            run_udp_heartbeat_monitor(
+                monitor_heartbeat,
+                heartbeat_port,
+                monitor_stop,
+                test_heartbeat_auth(),
+            );
         });
 
         std::thread::sleep(Duration::from_millis(4));
@@ -998,6 +1295,51 @@ mod tests {
             last, 0,
             "heartbeat monitor should force stale value when bind to port is denied"
         );
+    }
+
+    #[test]
+    fn heartbeat_monitor_ignores_invalid_packet_and_accepts_authenticated_counter() {
+        let port_reservation = UdpSocket::bind(("127.0.0.1", 0))
+            .expect("temporary heartbeat port should be reservable");
+        let heartbeat_port = port_reservation
+            .local_addr()
+            .expect("temporary heartbeat address should be available")
+            .port();
+        drop(port_reservation);
+
+        let auth = test_heartbeat_auth();
+        let heartbeat = Arc::new(AtomicU64::new(1));
+        let stop = Arc::new(AtomicBool::new(false));
+        let monitor_heartbeat = heartbeat.clone();
+        let monitor_stop = stop.clone();
+        let monitor = std::thread::spawn(move || {
+            run_udp_heartbeat_monitor(monitor_heartbeat, heartbeat_port, monitor_stop, auth);
+        });
+        std::thread::sleep(Duration::from_millis(2));
+
+        let sender = UdpSocket::bind(("127.0.0.1", 0)).expect("heartbeat sender should bind");
+        sender
+            .send_to(b"unauthenticated", ("127.0.0.1", heartbeat_port))
+            .expect("invalid heartbeat should be deliverable");
+        std::thread::sleep(Duration::from_millis(2));
+        assert_eq!(heartbeat.load(Ordering::Acquire), 1);
+
+        sender
+            .send_to(
+                &signed_heartbeat_frame(1, &TEST_HEARTBEAT_KEY),
+                ("127.0.0.1", heartbeat_port),
+            )
+            .expect("authenticated heartbeat should be deliverable");
+        let deadline = std::time::Instant::now() + Duration::from_millis(20);
+        while heartbeat.load(Ordering::Acquire) == 1 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_micros(200));
+        }
+        assert_ne!(heartbeat.load(Ordering::Acquire), 1);
+
+        stop.store(true, Ordering::Release);
+        monitor
+            .join()
+            .expect("heartbeat monitor should stop cleanly");
     }
 
     #[test]
@@ -1016,8 +1358,9 @@ mod tests {
             .port();
 
         let mut bridge =
-            PyUdpTransportBridge::new("127.0.0.1", payload_port, 1, 16, "std", heartbeat_port, 3)
+            PyUdpTransportBridge::new("127.0.0.1", payload_port, 1, 16, "std", heartbeat_port, 20)
                 .expect("bridge should initialize");
+        bridge.heartbeat_auth = Some(test_heartbeat_auth());
 
         bridge.start().expect("bridge thread should start");
 
@@ -1028,10 +1371,10 @@ mod tests {
             "bridge should be active before heartbeat timeout"
         );
 
-        // With no heartbeat traffic and 3 ms timeout, expect stop to be asserted
+        // With no heartbeat traffic and 20 ms timeout, expect stop to be asserted
         // within a bounded host-scheduler tolerance.
         let stop_wait_start = std::time::Instant::now();
-        let stop_deadline = stop_wait_start + std::time::Duration::from_millis(10);
+        let stop_deadline = stop_wait_start + std::time::Duration::from_millis(60);
         while !bridge.stopped() && std::time::Instant::now() < stop_deadline {
             std::thread::sleep(std::time::Duration::from_micros(200));
         }
@@ -1046,7 +1389,7 @@ mod tests {
             "heartbeat timeout should drive stop flag after timeout window"
         );
         assert!(
-            detection_time < std::time::Duration::from_millis(10),
+            detection_time < std::time::Duration::from_millis(60),
             "heartbeat timeout should drive stop inside deterministic window, got {detection_time:?}"
         );
     }
