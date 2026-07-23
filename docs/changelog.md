@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Changed
+- Extract neural and reduced gyrokinetic transport-closure adapters into
+  `core/differentiable_transport_closures.py` (CTL-G07 R1-S2). The numerical
+  facade re-exports the same public symbols so controller tuning imports stay
+  stable while the facade owns only step/rollout/AD orchestration.
+
 ### Fixed
 - Require FUSION IDA same-case latency evidence to identify synchronised,
   same-input solves from a converged equilibrium, bind cold/warm iteration

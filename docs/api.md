@@ -803,13 +803,19 @@ equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.save_transport_rollout_gradient_latency_report
 
-::: scpn_control.core.differentiable_transport.transport_coefficients_from_neural_closure
+### Differentiable Transport Closures
 
-::: scpn_control.core.differentiable_transport.gyrokinetic_transport_closure_profiles
+Neural and reduced gyrokinetic closure → four-channel coefficient adapters live
+in a dedicated leaf module. The numerical facade re-exports these symbols so
+existing `scpn_control.core.differentiable_transport` imports remain stable.
 
-::: scpn_control.core.differentiable_transport.transport_coefficients_from_gyrokinetic_closure
+::: scpn_control.core.differentiable_transport_closures.transport_coefficients_from_neural_closure
 
-::: scpn_control.core.differentiable_transport.GyrokineticTransportClosureResult
+::: scpn_control.core.differentiable_transport_closures.gyrokinetic_transport_closure_profiles
+
+::: scpn_control.core.differentiable_transport_closures.transport_coefficients_from_gyrokinetic_closure
+
+::: scpn_control.core.differentiable_transport_closures.GyrokineticTransportClosureResult
 
 ::: scpn_control.core.differentiable_transport.transport_campaign_metadata
 
