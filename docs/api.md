@@ -572,6 +572,23 @@ wrappers so existing free-boundary and EFIT import paths remain stable.
 
 ::: scpn_control.core.gs_green_vacuum.build_mutual_inductance_matrix
 
+### Grad-Shafranov Multigrid Primitives
+
+Full-weighting restriction, bilinear prolongation, Red-Black SOR smoothing,
+residual evaluation, and V-cycle recursion live in a dedicated leaf.
+`FusionKernel` keeps thin wrappers so existing solver and Rust-parity paths
+remain stable under dual-home C.
+
+::: scpn_control.core.gs_multigrid.restrict_full_weight
+
+::: scpn_control.core.gs_multigrid.prolongate_bilinear
+
+::: scpn_control.core.gs_multigrid.mg_smooth
+
+::: scpn_control.core.gs_multigrid.mg_residual
+
+::: scpn_control.core.gs_multigrid.multigrid_vcycle
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

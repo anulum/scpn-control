@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract geometric multigrid primitives (restrict, prolongate, smooth,
+  residual, V-cycle) into `core/gs_multigrid.py` (CTL-G07 R0-S3 under dual-home
+  C). The CONTROL `FusionKernel` product surface remains first-class with thin
+  wrappers; FUSION is not edited. Inventory cascade: 175 modules / 524 test
+  files.
 - Extract toroidal Green's function, vacuum poloidal flux, and mutual-inductance
   helpers into `core/gs_green_vacuum.py` (CTL-G07 R0-S2 under dual-home C). The
   CONTROL `FusionKernel` product surface remains first-class with thin wrappers;

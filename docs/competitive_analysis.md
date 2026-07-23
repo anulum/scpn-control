@@ -114,12 +114,12 @@ mirror that manifest; curated domain rows follow.
 
 | Metric | Value |
 |--------|-------|
-| Python control/physics modules | 174 |
+| Python control/physics modules | 175 |
 | Python source LOC | ~30,700 |
 | Rust crates | 5 |
 | Rust source files | 64 |
 | Rust LOC (all .rs) | ~61,900 |
-| Python test files | 523 |
+| Python test files | 524 |
 | Python public classes | 546 |
 | Test coverage gate | 100% |
 | GitHub Actions workflows | 10 |
