@@ -32,6 +32,7 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control import free_boundary_tracking_limits as _fb_limits
 from scpn_control.control.state_estimator import ExtendedKalmanFilter
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
 from scpn_control.core.fusion_kernel import CoilSet, FusionKernel
@@ -307,32 +308,8 @@ class FreeBoundaryTrackingController:
         cfg_tolerances: Any,
         override_tolerances: dict[str, float] | None,
     ) -> dict[str, float]:
-        allowed = {
-            "shape_rms",
-            "shape_max_abs",
-            "x_point_position",
-            "x_point_flux",
-            "divertor_rms",
-            "divertor_max_abs",
-        }
-        merged: dict[str, float] = {}
-        for raw, name in (
-            (cfg_tolerances, "free_boundary.objective_tolerances"),
-            (override_tolerances, "objective_tolerances"),
-        ):
-            if raw is None:
-                continue
-            if not isinstance(raw, dict):
-                raise ValueError(f"{name} must be a mapping of tolerance names to non-negative floats.")
-            for key, value in raw.items():
-                if key not in allowed:
-                    allowed_keys = ", ".join(sorted(allowed))
-                    raise ValueError(f"Unknown {name} key {key!r}. Allowed keys: {allowed_keys}.")
-                tol_value = float(value)
-                if not np.isfinite(tol_value) or tol_value < 0.0:
-                    raise ValueError(f"{name}.{key} must be finite and >= 0.")
-                merged[key] = tol_value
-        return merged
+        """Validate and merge free-boundary objective tolerances for tracking."""
+        return _fb_limits.resolve_objective_tolerances(cfg_tolerances, override_tolerances)
 
     @staticmethod
     def _resolve_positive_float(
@@ -342,15 +319,8 @@ class FreeBoundaryTrackingController:
         default: float,
         name: str,
     ) -> float:
-        raw_value = (
-            default
-            if override_value is None and cfg_value is None
-            else (cfg_value if override_value is None else override_value)
-        )
-        value = float(raw_value)
-        if not np.isfinite(value) or value <= 0.0:
-            raise ValueError(f"{name} must be finite and > 0.")
-        return value
+        """Resolve a positive finite float from cfg/override/default."""
+        return _fb_limits.resolve_positive_float(cfg_value, override_value, default=default, name=name)
 
     @staticmethod
     def _resolve_nonnegative_int(
@@ -360,15 +330,8 @@ class FreeBoundaryTrackingController:
         default: int,
         name: str,
     ) -> int:
-        raw_value = (
-            default
-            if override_value is None and cfg_value is None
-            else (cfg_value if override_value is None else override_value)
-        )
-        value = int(raw_value)
-        if value < 0:
-            raise ValueError(f"{name} must be >= 0.")
-        return value
+        """Resolve a non-negative integer from cfg/override/default."""
+        return _fb_limits.resolve_nonnegative_int(cfg_value, override_value, default=default, name=name)
 
     @staticmethod
     def _resolve_nonnegative_float(
@@ -377,13 +340,8 @@ class FreeBoundaryTrackingController:
         default: float,
         name: str,
     ) -> float:
-        raw_value = default if cfg_value is None else cfg_value
-        value = float(raw_value)
-        if not np.isfinite(value) and not np.isinf(value):
-            raise ValueError(f"{name} must be finite or infinity.")
-        if value < 0.0:
-            raise ValueError(f"{name} must be >= 0.")
-        return value
+        """Resolve a non-negative float (infinity allowed) from cfg/default."""
+        return _fb_limits.resolve_nonnegative_float(cfg_value, default=default, name=name)
 
     @staticmethod
     def _resolve_fraction(
@@ -392,76 +350,28 @@ class FreeBoundaryTrackingController:
         default: float,
         name: str,
     ) -> float:
-        raw_value = default if cfg_value is None else cfg_value
-        value = float(raw_value)
-        if not np.isfinite(value) or value < 0.0 or value > 1.0:
-            raise ValueError(f"{name} must be finite and in [0, 1].")
-        return value
+        """Resolve a finite float in ``[0, 1]`` from cfg/default."""
+        return _fb_limits.resolve_fraction(cfg_value, default=default, name=name)
 
     def _resolve_coil_slew_limits(
         self,
         cfg_limits: Any,
         override_limits: float | list[float] | None,
     ) -> FloatArray:
-        raw = cfg_limits if override_limits is None else override_limits
-        if raw is None:
-            return np.full(self.n_coils, np.inf, dtype=np.float64)
-        if np.isscalar(raw):
-            limits = np.full(self.n_coils, float(cast(Any, raw)), dtype=np.float64)
-        else:
-            limits = np.asarray(raw, dtype=np.float64).reshape(-1)
-        if limits.shape != (self.n_coils,):
-            raise ValueError("coil_slew_limits must be a scalar or match the number of coils.")
-        if np.any(~np.isfinite(limits)) or np.any(limits <= 0.0):
-            raise ValueError("coil_slew_limits must contain finite values > 0.")
-        return cast(FloatArray, np.asarray(limits, dtype=np.float64))
+        """Resolve per-coil positive finite slew limits (or ``+inf`` default)."""
+        return _fb_limits.resolve_coil_slew_limits(self.n_coils, cfg_limits, override_limits)
 
     @staticmethod
     def _resolve_supervisor_limits(
         cfg_limits: Any,
         override_limits: dict[str, float] | None,
     ) -> dict[str, float]:
-        allowed = {
-            "tracking_error_norm",
-            "shape_rms",
-            "shape_max_abs",
-            "x_point_position",
-            "x_point_flux",
-            "divertor_rms",
-            "divertor_max_abs",
-            "max_abs_coil_current",
-            "max_abs_actuator_lag",
-        }
-        merged: dict[str, float] = {}
-        for raw, source_name in (
-            (cfg_limits, "free_boundary_tracking.supervisor_limits"),
-            (override_limits, "supervisor_limits"),
-        ):
-            if raw is None:
-                continue
-            if not isinstance(raw, dict):
-                raise ValueError(f"{source_name} must be a mapping of limit names to non-negative floats.")
-            for key, value in raw.items():
-                if key not in allowed:
-                    allowed_keys = ", ".join(sorted(allowed))
-                    raise ValueError(f"Unknown {source_name} key {key!r}. Allowed keys: {allowed_keys}.")
-                limit_value = float(value)
-                if not np.isfinite(limit_value) or limit_value < 0.0:
-                    raise ValueError(f"{source_name}.{key} must be finite and >= 0.")
-                merged[key] = limit_value
-        return merged
+        """Validate and merge free-boundary tracking supervisor limits."""
+        return _fb_limits.resolve_supervisor_limits(cfg_limits, override_limits)
 
     def _resolve_fallback_currents(self, cfg_value: Any) -> FloatArray | None:
-        if cfg_value is None:
-            return None
-        values = np.asarray(cfg_value, dtype=np.float64).reshape(-1)
-        if values.shape != (self.n_coils,):
-            raise ValueError("free_boundary_tracking.fallback_currents must match the number of coils.")
-        if np.any(~np.isfinite(values)):
-            raise ValueError("free_boundary_tracking.fallback_currents must be finite.")
-        if np.any(np.abs(values) - self.coil_current_limits > 1e-12):
-            raise ValueError("free_boundary_tracking.fallback_currents must respect CoilSet.current_limits.")
-        return cast(FloatArray, values.copy())
+        """Resolve optional fallback currents that respect per-coil current limits."""
+        return _fb_limits.resolve_fallback_currents(self.n_coils, self.coil_current_limits, cfg_value)
 
     def _build_coil_actuators(self) -> list[FirstOrderActuator]:
         actuators: list[FirstOrderActuator] = []

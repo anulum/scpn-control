@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract free-boundary tracking objective/supervisor limit resolvers into
+  `control/free_boundary_tracking_limits.py` (CTL-G07 R3-S1). The
+  `FreeBoundaryTrackingController` product surface remains first-class with thin
+  wrappers; claims stay in `free_boundary_tracking_claims` (not re-merged).
+  Inventory cascade: 182 modules / 531 test files.
 - Extract the Rust multigrid equilibrium bridge into
   `core/gs_rust_multigrid_bridge.py` (CTL-G07 R0-S9 under dual-home C). The
   CONTROL `FusionKernel` product surface remains first-class with a thin

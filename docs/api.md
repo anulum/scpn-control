@@ -1898,6 +1898,18 @@ print(summary["shape_rms"], summary["objective_converged"], summary["supervisor_
 
 ::: scpn_control.control.free_boundary_tracking.run_free_boundary_tracking
 
+### Free-Boundary Tracking Limit Resolvers
+
+Pure objective-tolerance, supervisor-limit, coil-slew, and scalar config
+resolvers for free-boundary tracking live in a dedicated leaf. The controller
+keeps thin wrappers; claim evidence remains a separate module.
+
+::: scpn_control.control.free_boundary_tracking_limits.resolve_objective_tolerances
+
+::: scpn_control.control.free_boundary_tracking_limits.resolve_supervisor_limits
+
+::: scpn_control.control.free_boundary_tracking_limits.resolve_coil_slew_limits
+
 ### Free-Boundary Tracking Claim Evidence
 
 ::: scpn_control.control.free_boundary_tracking_claims.free_boundary_tracking_claim_evidence
