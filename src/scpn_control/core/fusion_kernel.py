@@ -38,6 +38,7 @@ from scpn_control.core import gs_free_boundary_control as _gs_fb
 from scpn_control.core import gs_free_boundary_solve as _gs_fb_solve
 from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core import gs_multigrid as _gs_mg
+from scpn_control.core import gs_phase_sync as _gs_phase
 from scpn_control.core import gs_profile_source as _gs_prof
 from scpn_control.core.hpc_bridge import HPCBridge
 
@@ -1650,25 +1651,17 @@ class FusionKernel:
         Ψ is exogenous when psi_mode="external" (no dotΨ equation).
         This is the reviewer's ζ sin(Ψ−θ) injection for plasma sync stability.
         """
-        from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
-
-        cfg = self.cfg.get("phase_sync", {})
-        K_eff = float(cfg.get("K", 1.0) if K is None else K)
-        alpha_eff = float(cfg.get("alpha", 0.0) if alpha is None else alpha)
-        zeta_eff = float(cfg.get("zeta", 0.0) if zeta is None else zeta)
-        psi_mode_eff = str(cfg.get("psi_mode", "external") if psi_mode is None else psi_mode)
-        gain = float(cfg.get("actuation_gain", 1.0) if actuation_gain is None else actuation_gain)
-
-        return kuramoto_sakaguchi_step(
-            theta=np.asarray(theta, dtype=np.float64),
-            omega=np.asarray(omega, dtype=np.float64),
+        return _gs_phase.phase_sync_step(
+            theta,
+            omega,
             dt=dt,
-            K=K_eff * gain,
-            alpha=alpha_eff,
-            zeta=zeta_eff * gain,
+            K=K,
+            alpha=alpha,
+            zeta=zeta,
             psi_driver=psi_driver,
-            psi_mode=psi_mode_eff,
-            wrap=True,
+            psi_mode=psi_mode,
+            actuation_gain=actuation_gain,
+            phase_sync_cfg=self.cfg.get("phase_sync", {}),
         )
 
     def phase_sync_step_lyapunov(
@@ -1688,44 +1681,17 @@ class FusionKernel:
         Returns final state, R trajectory, V trajectory, and λ exponent.
         λ < 0 ⟹ stable convergence toward Ψ.
         """
-        from scpn_control.phase.kuramoto import (
-            kuramoto_sakaguchi_step,
-            lyapunov_exponent,
-            lyapunov_v,
+        return _gs_phase.phase_sync_step_lyapunov(
+            theta,
+            omega,
+            n_steps=n_steps,
+            dt=dt,
+            K=K,
+            zeta=zeta,
+            psi_driver=psi_driver,
+            psi_mode=psi_mode,
+            phase_sync_cfg=self.cfg.get("phase_sync", {}),
         )
-
-        cfg = self.cfg.get("phase_sync", {})
-        K_eff = float(cfg.get("K", 1.0) if K is None else K)
-        zeta_eff = float(cfg.get("zeta", 0.0) if zeta is None else zeta)
-        psi_mode_eff = str(cfg.get("psi_mode", "external") if psi_mode is None else psi_mode)
-
-        th = np.asarray(theta, dtype=np.float64)
-        om = np.asarray(omega, dtype=np.float64)
-        r_hist = []
-        v_hist = []
-
-        for _ in range(n_steps):
-            out = kuramoto_sakaguchi_step(
-                th,
-                om,
-                dt=dt,
-                K=K_eff,
-                zeta=zeta_eff,
-                psi_driver=psi_driver,
-                psi_mode=psi_mode_eff,
-            )
-            th = out["theta1"]
-            r_hist.append(out["R"])
-            v_hist.append(lyapunov_v(th, out["Psi"]))
-
-        lam = lyapunov_exponent(v_hist, dt)
-        return {
-            "theta_final": th,
-            "R_hist": np.array(r_hist),
-            "V_hist": np.array(v_hist),
-            "lambda": lam,
-            "stable": lam < 0.0,
-        }
 
     def save_results(self, filename: str = "equilibrium_nonlinear.npz") -> None:
         """Save the equilibrium state to a compressed NumPy archive.

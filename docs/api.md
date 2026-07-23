@@ -650,6 +650,17 @@ steps and the Rust multigrid bridge remain on the owner class.
 
 ::: scpn_control.core.gs_free_boundary_solve.solve_free_boundary
 
+### Phase-Sync Steps
+
+Reduced-order phase-sync (`ζ sin(Ψ−θ)`) and multi-step Lyapunov tracking helpers
+used by `FusionKernel` live in a dedicated leaf. Thin owner wrappers supply
+`phase_sync` config defaults; Kuramoto numerics remain in
+`scpn_control.phase.kuramoto` under dual-home C.
+
+::: scpn_control.core.gs_phase_sync.phase_sync_step
+
+::: scpn_control.core.gs_phase_sync.phase_sync_step_lyapunov
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

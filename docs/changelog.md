@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- Extract reduced-order phase-sync step and multi-step Lyapunov helpers into
+  `core/gs_phase_sync.py` (CTL-G07 R0-S8 under dual-home C). The CONTROL
+  `FusionKernel` product surface remains first-class with thin wrappers that
+  supply `phase_sync` config; Kuramoto numerics remain in
+  `scpn_control.phase.kuramoto`. FUSION is not edited. Inventory cascade: 180
+  modules / 529 test files.
 - Extract free-boundary solve orchestration into
   `core/gs_free_boundary_solve.py` (CTL-G07 R0-S7 under dual-home C). The
   CONTROL `FusionKernel` product surface remains first-class with a thin
