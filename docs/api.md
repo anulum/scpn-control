@@ -621,6 +621,25 @@ profile tables so public solver paths remain stable under dual-home C.
 
 ::: scpn_control.core.gs_profile_source.compute_profile_jacobian
 
+### Free-Boundary Coil Control
+
+Coil-current least-squares optimisation, free-boundary objective tolerances and
+status evaluation, divertor configuration labels, and the public `CoilSet`
+dataclass live in a dedicated leaf. `FusionKernel` re-exports `CoilSet` and
+keeps thin wrappers that supply Green/mutual response operators so free-boundary
+solver paths remain stable under dual-home C. Full free-boundary solve
+orchestration remains on the owner class.
+
+::: scpn_control.core.gs_free_boundary_control.CoilSet
+
+::: scpn_control.core.gs_free_boundary_control.optimize_coil_currents
+
+::: scpn_control.core.gs_free_boundary_control.resolve_free_boundary_objective_tolerances
+
+::: scpn_control.core.gs_free_boundary_control.evaluate_free_boundary_objective_status
+
+::: scpn_control.core.gs_free_boundary_control.divertor_configuration_label
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

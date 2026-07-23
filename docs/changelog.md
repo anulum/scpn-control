@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Changed
+- Extract free-boundary coil optimisation, objective tolerances/status,
+  divertor configuration labels, and `CoilSet` into
+  `core/gs_free_boundary_control.py` (CTL-G07 R0-S6 under dual-home C). The
+  CONTROL `FusionKernel` product surface remains first-class with thin wrappers
+  and re-exports `CoilSet`; full free-boundary solve orchestration stays on the
+  owner (R0-S7). FUSION is not edited. Inventory cascade: 178 modules / 527
+  test files.
 - Extract mTanh pedestal profiles, normalised-flux guard, nonlinear plasma
   source, and profile Jacobian helpers into `core/gs_profile_source.py`
   (CTL-G07 R0-S5 under dual-home C). The CONTROL `FusionKernel` product surface

@@ -25,7 +25,6 @@ from __future__ import annotations
 import json
 import logging
 import time
-from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
@@ -35,10 +34,14 @@ from numpy.typing import NDArray
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core import fusion_kernel_config as _fk_config
 from scpn_control.core import gs_elliptic_iterators as _gs_ell
+from scpn_control.core import gs_free_boundary_control as _gs_fb
 from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core import gs_multigrid as _gs_mg
 from scpn_control.core import gs_profile_source as _gs_prof
 from scpn_control.core.hpc_bridge import HPCBridge
+
+# Stable public re-export: free-boundary coil set (R0-S6 leaf).
+CoilSet = _gs_fb.CoilSet
 
 # Stable public re-exports: configuration schemas + parse/dump (R0-S1 leaf).
 CoilConfig = _fk_config.CoilConfig
@@ -178,63 +181,6 @@ def _select_x_point_index(
         return int(iz), int(ir), False
 
     return -1, -1, False
-
-
-@dataclass
-class CoilSet:
-    """External coil set for the free-boundary variant.
-
-    Attributes
-    ----------
-    positions : list of (R, Z) tuples
-        Coil centre coordinates [m].
-    currents : AnyFloatArray
-        Current per coil [A].
-    turns : list of int
-        Number of turns per coil.
-    current_limits : AnyFloatArray or None
-        Per-coil maximum absolute current [A].  Shape ``(n_coils,)``.
-        When set, ``optimize_coil_currents`` enforces these bounds.
-    target_flux_points : AnyFloatArray or None
-        Points ``(R, Z)`` on the desired separatrix for shape optimisation.
-        Shape ``(n_pts, 2)``.
-    target_flux_values : AnyFloatArray or None
-        Explicit target flux values at ``target_flux_points``.  When set, the
-        free-boundary shape objective becomes an actual target-tracking problem
-        instead of reproducing the current solved boundary flux.
-    x_point_target : AnyFloatArray or None
-        Explicit X-point target location ``(R, Z)``. When set, the free-boundary
-        objective can enforce null-field and isoflux constraints there.
-    x_point_flux_target : float or None
-        Optional target flux value at ``x_point_target``. When omitted, the
-        free-boundary path derives a separatrix target from boundary/divertor
-        objectives or falls back to the current local flux.
-    x_point_weight : float
-        Weight applied to the X-point isoflux objective row.
-    x_point_null_weight : float
-        Weight applied to the X-point null-field objective rows.
-    divertor_strike_points : AnyFloatArray or None
-        Explicit divertor strike-point targets ``(R, Z)``. These are enforced
-        as isoflux constraints during free-boundary optimisation.
-    divertor_flux_values : AnyFloatArray or None
-        Optional target flux value at each divertor strike point.
-    divertor_weight : float
-        Weight applied to divertor strike-point isoflux constraints.
-    """
-
-    positions: list[tuple[float, float]] = field(default_factory=list)
-    currents: NDArray[np.float64] = field(default_factory=lambda: np.array([]))
-    turns: list[int] = field(default_factory=list)
-    current_limits: NDArray[np.float64] | None = None
-    target_flux_points: NDArray[np.float64] | None = None
-    target_flux_values: NDArray[np.float64] | None = None
-    x_point_target: NDArray[np.float64] | None = None
-    x_point_flux_target: float | None = None
-    x_point_weight: float = 1.0
-    x_point_null_weight: float = 1.0
-    divertor_strike_points: NDArray[np.float64] | None = None
-    divertor_flux_values: NDArray[np.float64] | None = None
-    divertor_weight: float = 1.0
 
 
 class FusionKernel:
@@ -1415,13 +1361,7 @@ class FusionKernel:
     @staticmethod
     def _shape_error_metrics(current_flux: FloatArray, target_flux: FloatArray) -> dict[str, float]:
         """Compute RMS and max-abs error for a boundary-shape target."""
-        residual = np.asarray(current_flux, dtype=np.float64) - np.asarray(target_flux, dtype=np.float64)
-        if residual.size == 0:
-            return {"shape_error_rms": 0.0, "shape_error_max_abs": 0.0}
-        return {
-            "shape_error_rms": float(np.sqrt(np.mean(residual * residual))),
-            "shape_error_max_abs": float(np.max(np.abs(residual))),
-        }
+        return _gs_fb.shape_error_metrics(current_flux, target_flux)
 
     def _coil_flux_response_at_point(
         self, coils: CoilSet, point: FloatArray
@@ -1437,42 +1377,17 @@ class FusionKernel:
         Z_pt: float,
     ) -> tuple[FloatArray, FloatArray]:
         """Estimate d/dR and d/dZ using central or one-sided finite differences."""
-        r_min = float(self.R[0])
-        r_max = float(self.R[-1])
-        z_min = float(self.Z[0])
-        z_max = float(self.Z[-1])
-        step_r = max(0.5 * self.dR, 1e-4)
-        step_z = max(0.5 * self.dZ, 1e-4)
-
-        center = np.asarray(sample_fn(R_pt, Z_pt), dtype=np.float64)
-
-        if (R_pt - step_r) >= r_min and (R_pt + step_r) <= r_max:
-            sample_plus_r = np.asarray(sample_fn(R_pt + step_r, Z_pt), dtype=np.float64)
-            sample_minus_r = np.asarray(sample_fn(R_pt - step_r, Z_pt), dtype=np.float64)
-            d_dR = (sample_plus_r - sample_minus_r) / (2.0 * step_r)
-        elif (R_pt + step_r) <= r_max:
-            sample_plus_r = np.asarray(sample_fn(R_pt + step_r, Z_pt), dtype=np.float64)
-            d_dR = (sample_plus_r - center) / step_r
-        elif (R_pt - step_r) >= r_min:
-            sample_minus_r = np.asarray(sample_fn(R_pt - step_r, Z_pt), dtype=np.float64)
-            d_dR = (center - sample_minus_r) / step_r
-        else:
-            d_dR = np.zeros_like(center)
-
-        if (Z_pt - step_z) >= z_min and (Z_pt + step_z) <= z_max:
-            sample_plus_z = np.asarray(sample_fn(R_pt, Z_pt + step_z), dtype=np.float64)
-            sample_minus_z = np.asarray(sample_fn(R_pt, Z_pt - step_z), dtype=np.float64)
-            d_dZ = (sample_plus_z - sample_minus_z) / (2.0 * step_z)
-        elif (Z_pt + step_z) <= z_max:
-            sample_plus_z = np.asarray(sample_fn(R_pt, Z_pt + step_z), dtype=np.float64)
-            d_dZ = (sample_plus_z - center) / step_z
-        elif (Z_pt - step_z) >= z_min:
-            sample_minus_z = np.asarray(sample_fn(R_pt, Z_pt - step_z), dtype=np.float64)
-            d_dZ = (center - sample_minus_z) / step_z
-        else:
-            d_dZ = np.zeros_like(center)
-
-        return d_dR, d_dZ
+        return _gs_fb.estimate_point_gradient(
+            sample_fn,
+            R_pt,
+            Z_pt,
+            r_min=float(self.R[0]),
+            r_max=float(self.R[-1]),
+            z_min=float(self.Z[0]),
+            z_max=float(self.Z[-1]),
+            dR=float(self.dR),
+            dZ=float(self.dZ),
+        )
 
     def _coil_flux_gradient_response(  # pragma: no cover - defensive free-boundary fallback path
         self,
@@ -1503,13 +1418,7 @@ class FusionKernel:
         shape_target_flux: FloatArray | None,
     ) -> float | None:
         """Resolve a scalar separatrix-flux target from active objectives."""
-        if coils.x_point_flux_target is not None:
-            return float(coils.x_point_flux_target)
-        if coils.divertor_flux_values is not None and coils.divertor_flux_values.size > 0:
-            return float(np.mean(np.asarray(coils.divertor_flux_values, dtype=np.float64)))
-        if shape_target_flux is not None and np.asarray(shape_target_flux).size > 0:
-            return float(np.mean(np.asarray(shape_target_flux, dtype=np.float64)))
-        return None
+        return _gs_fb.resolve_separatrix_flux_target(coils, shape_target_flux)
 
     def _resolve_x_point_flux_target(  # pragma: no cover - defensive free-boundary fallback path
         self,
@@ -1517,15 +1426,11 @@ class FusionKernel:
         separatrix_flux_target: float | None,
     ) -> tuple[float | None, str]:
         """Resolve the X-point flux target mode and scalar target."""
-        if coils.x_point_target is None:
-            return None, "disabled"
-
-        R_x, Z_x = np.asarray(coils.x_point_target, dtype=np.float64).reshape(2)
-        if coils.x_point_flux_target is not None:
-            return float(coils.x_point_flux_target), "explicit_target"
-        if separatrix_flux_target is not None:
-            return float(separatrix_flux_target), "derived_separatrix"
-        return float(self._interp_psi(float(R_x), float(Z_x))), "self_flux_tracking"
+        local_flux: float | None = None
+        if coils.x_point_target is not None and coils.x_point_flux_target is None and separatrix_flux_target is None:
+            R_x, Z_x = np.asarray(coils.x_point_target, dtype=np.float64).reshape(2)
+            local_flux = float(self._interp_psi(float(R_x), float(Z_x)))
+        return _gs_fb.resolve_x_point_flux_target(coils, separatrix_flux_target, local_flux)
 
     def _resolve_divertor_flux_targets(  # pragma: no cover - defensive free-boundary fallback path
         self,
@@ -1533,14 +1438,14 @@ class FusionKernel:
         separatrix_flux_target: float | None,
     ) -> tuple[FloatArray | None, str]:
         """Resolve divertor strike-point flux targets and mode."""
-        if coils.divertor_strike_points is None:
-            return None, "disabled"
-        if coils.divertor_flux_values is not None:
-            return np.asarray(coils.divertor_flux_values, dtype=np.float64).reshape(-1), "explicit_target"
-        if separatrix_flux_target is not None:
-            n_pts = int(coils.divertor_strike_points.shape[0])
-            return np.full(n_pts, float(separatrix_flux_target), dtype=np.float64), "derived_separatrix"
-        return self._sample_flux_at_points(coils.divertor_strike_points), "self_flux_tracking"
+        sampled: FloatArray | None = None
+        if (
+            coils.divertor_strike_points is not None
+            and coils.divertor_flux_values is None
+            and separatrix_flux_target is None
+        ):
+            sampled = self._sample_flux_at_points(coils.divertor_strike_points)
+        return _gs_fb.resolve_divertor_flux_targets(coils, separatrix_flux_target, sampled)
 
     @staticmethod
     def _resolve_free_boundary_objective_tolerances(
@@ -1548,34 +1453,10 @@ class FusionKernel:
         override_objective_tolerances: dict[str, float] | None = None,
     ) -> dict[str, float]:
         """Validate and merge free-boundary objective tolerances."""
-        allowed = {
-            "shape_rms",
-            "shape_max_abs",
-            "x_point_position",
-            "x_point_gradient",
-            "x_point_flux",
-            "divertor_rms",
-            "divertor_max_abs",
-        }
-
-        merged: dict[str, float] = {}
-        for raw, source_name in (
-            (cfg_objective_tolerances, "free_boundary.objective_tolerances"),
-            (override_objective_tolerances, "objective_tolerances"),
-        ):
-            if raw is None:
-                continue
-            if not isinstance(raw, dict):
-                raise ValueError(f"{source_name} must be a mapping of tolerance names to non-negative floats.")
-            for key, value in raw.items():
-                if key not in allowed:
-                    allowed_keys = ", ".join(sorted(allowed))
-                    raise ValueError(f"Unknown {source_name} key {key!r}. Allowed keys: {allowed_keys}.")
-                tol_value = float(value)
-                if not np.isfinite(tol_value) or tol_value < 0.0:
-                    raise ValueError(f"{source_name}.{key} must be finite and >= 0.")
-                merged[key] = tol_value
-        return merged
+        return _gs_fb.resolve_free_boundary_objective_tolerances(
+            cfg_objective_tolerances,
+            override_objective_tolerances,
+        )
 
     @staticmethod
     def _evaluate_free_boundary_objective_status(
@@ -1590,48 +1471,21 @@ class FusionKernel:
         divertor_error_max_abs: float | None,
     ) -> dict[str, Any]:
         """Evaluate which configured free-boundary objective tolerances are satisfied."""
-
-        def check_metric(metric: float | None, tolerance_key: str) -> bool:
-            if metric is None or not np.isfinite(metric):
-                return False
-            return float(abs(metric)) <= tolerances[tolerance_key]
-
-        checks: dict[str, bool] = {}
-        if "shape_rms" in tolerances and shape_error_rms is not None:
-            checks["shape_rms"] = check_metric(shape_error_rms, "shape_rms")
-        if "shape_max_abs" in tolerances and shape_error_max_abs is not None:
-            checks["shape_max_abs"] = check_metric(shape_error_max_abs, "shape_max_abs")
-        if "x_point_position" in tolerances and x_point_detected_error is not None:
-            checks["x_point_position"] = check_metric(x_point_detected_error, "x_point_position")
-        if "x_point_gradient" in tolerances and x_point_gradient_norm is not None:
-            checks["x_point_gradient"] = check_metric(x_point_gradient_norm, "x_point_gradient")
-        if "x_point_flux" in tolerances and x_point_flux_error is not None:
-            checks["x_point_flux"] = check_metric(x_point_flux_error, "x_point_flux")
-        if "divertor_rms" in tolerances and divertor_error_rms is not None:
-            checks["divertor_rms"] = check_metric(divertor_error_rms, "divertor_rms")
-        if "divertor_max_abs" in tolerances and divertor_error_max_abs is not None:
-            checks["divertor_max_abs"] = check_metric(divertor_error_max_abs, "divertor_max_abs")
-
-        return {
-            "objective_tolerances": tolerances.copy(),
-            "objective_checks": checks,
-            "objective_convergence_active": bool(checks),
-            "objective_converged": all(checks.values()) if checks else True,
-        }
+        return _gs_fb.evaluate_free_boundary_objective_status(
+            tolerances,
+            shape_error_rms=shape_error_rms,
+            shape_error_max_abs=shape_error_max_abs,
+            x_point_detected_error=x_point_detected_error,
+            x_point_gradient_norm=x_point_gradient_norm,
+            x_point_flux_error=x_point_flux_error,
+            divertor_error_rms=divertor_error_rms,
+            divertor_error_max_abs=divertor_error_max_abs,
+        )
 
     @staticmethod
     def _divertor_configuration_label(strike_points: FloatArray | None) -> str:
         """Return a coarse divertor-target configuration label."""
-        if strike_points is None:
-            return "none"
-        n_pts = int(np.asarray(strike_points).shape[0])
-        if n_pts <= 0:
-            return "none"
-        if n_pts == 1:
-            return "single_strike"
-        if n_pts == 2:
-            return "double_strike"
-        return "multi_strike"
+        return _gs_fb.divertor_configuration_label(strike_points)
 
     def _resolve_shape_target_flux(  # pragma: no cover - defensive free-boundary fallback path
         self,
@@ -1639,12 +1493,7 @@ class FusionKernel:
         current_flux: FloatArray,
     ) -> tuple[FloatArray, str]:
         """Resolve the shape objective target for free-boundary optimisation."""
-        if coils.target_flux_values is not None:
-            target_flux = np.asarray(coils.target_flux_values, dtype=np.float64).reshape(-1)
-            if target_flux.shape != current_flux.shape:
-                raise ValueError("CoilSet.target_flux_values must match the sampled target_flux_points shape.")
-            return target_flux, "explicit_target"
-        return np.asarray(current_flux, dtype=np.float64).copy(), "self_flux_tracking"
+        return _gs_fb.resolve_shape_target_flux(coils, current_flux)
 
     def optimize_coil_currents(  # pragma: no cover - defensive free-boundary fallback path
         self,
@@ -1687,71 +1536,16 @@ class FusionKernel:
         FloatArray, shape (n_coils,)
             Optimised coil currents [A].
         """
-        from scipy.optimize import lsq_linear
-
-        n_coils = len(coils.positions)
-        row_blocks: list[FloatArray] = []
-        rhs_blocks: list[FloatArray] = []
-
-        target_flux_arr = np.asarray(target_flux, dtype=np.float64).reshape(-1)
-        if coils.target_flux_points is not None:
-            if target_flux_arr.shape != (coils.target_flux_points.shape[0],):
-                raise ValueError("target_flux must match CoilSet.target_flux_points shape.")
-            M = self._build_mutual_inductance_matrix(coils, coils.target_flux_points)  # (n_coils, n_pts)
-            row_blocks.append(M.T)
-            rhs_blocks.append(target_flux_arr)
-        elif target_flux_arr.size > 0:
-            raise ValueError("target_flux requires CoilSet.target_flux_points to be set.")
-
-        if coils.x_point_target is not None:
-            x_target = np.asarray(coils.x_point_target, dtype=np.float64).reshape(2)
-            x_flux_target = float(x_point_flux_target) if x_point_flux_target is not None else None
-            if x_flux_target is not None and coils.x_point_weight > 0.0:
-                x_flux_row = self._coil_flux_response_at_point(coils, x_target).reshape(1, -1)
-                row_blocks.append(float(coils.x_point_weight) * x_flux_row)
-                rhs_blocks.append(np.asarray([float(coils.x_point_weight) * x_flux_target], dtype=np.float64))
-
-            if coils.x_point_null_weight > 0.0:
-                dpsi_dR_row, dpsi_dZ_row = self._coil_flux_gradient_response(coils, x_target)
-                gradient_block = np.vstack([dpsi_dR_row, dpsi_dZ_row])
-                row_blocks.append(float(coils.x_point_null_weight) * gradient_block)
-                rhs_blocks.append(np.zeros(2, dtype=np.float64))
-
-        if coils.divertor_strike_points is not None and divertor_flux_targets is not None:
-            divertor_flux_arr = np.asarray(divertor_flux_targets, dtype=np.float64).reshape(-1)
-            if divertor_flux_arr.shape != (coils.divertor_strike_points.shape[0],):
-                raise ValueError("divertor_flux_targets must match CoilSet.divertor_strike_points shape.")
-            if coils.divertor_weight > 0.0:
-                divertor_block = self._build_mutual_inductance_matrix(coils, coils.divertor_strike_points).T
-                row_blocks.append(float(coils.divertor_weight) * divertor_block)
-                rhs_blocks.append(float(coils.divertor_weight) * divertor_flux_arr)
-
-        if not row_blocks:
-            raise ValueError("At least one free-boundary optimisation target must be set.")
-
-        A_base = np.vstack(row_blocks)
-        b_base = np.concatenate(rhs_blocks)
-
-        # Build augmented system: [A_base; sqrt(alpha)*I] I = [b_base; 0]
-        A = np.vstack([A_base, np.sqrt(tikhonov_alpha) * np.eye(n_coils)])
-        b = np.concatenate([b_base, np.zeros(n_coils, dtype=np.float64)])
-
-        # Bounds
-        if coils.current_limits is not None:
-            lb = -np.abs(coils.current_limits)
-            ub = np.abs(coils.current_limits)
-        else:
-            lb = -np.inf * np.ones(n_coils)
-            ub = np.inf * np.ones(n_coils)
-
-        result = lsq_linear(A, b, bounds=(lb, ub), method="trf")
-        logger.info(
-            "Coil optimisation: cost=%.4e, status=%d (%s)",
-            result.cost,
-            result.status,
-            result.message,
+        return _gs_fb.optimize_coil_currents(
+            coils,
+            target_flux,
+            build_mutual_inductance_matrix=self._build_mutual_inductance_matrix,
+            coil_flux_response_at_point=self._coil_flux_response_at_point,
+            coil_flux_gradient_response=self._coil_flux_gradient_response,
+            tikhonov_alpha=tikhonov_alpha,
+            x_point_flux_target=x_point_flux_target,
+            divertor_flux_targets=divertor_flux_targets,
         )
-        return np.asarray(result.x, dtype=np.float64)
 
     def solve_free_boundary(
         self,
