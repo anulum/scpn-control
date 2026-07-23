@@ -1256,12 +1256,20 @@ under that root and verifies the report bytes against the declared SHA-256.
 Z3 and Lean report files reached through an artifact manifest are loaded through
 duplicate-key-safe and schema-strict public report loaders.
 Z3 reports are additionally schema-versioned as
-`scpn-control.z3-formal-report.v1`, carry a canonical payload SHA-256 over the
+`scpn-control.z3-formal-report.v2`, carry a canonical payload SHA-256 over the
 proof payload, reject unknown top-level and proof-section fields, schema-check
 serialized counterexample records, enforce solver-status/holds/counterexample
 consistency, reject counterexamples on `unknown` solver sections, and must
 match the manifest status, solver, proof depth, and
 checked specification list before a safety-critical artifact is admitted.
+Temporal sections distinguish a witness-producing `sat` result from an
+`unsat` counterexample search, publish `mixed` when both occur in one admitted
+contract, and publish `not-run` when no temporal obligation was submitted.
+Existential firing obligations require exact unit transition weights; a
+parametric or fractional weight envelope is rejected instead of being treated
+as a discrete firing witness. Version 1 reports are not admitted under the new
+contract and must be regenerated, because they cannot distinguish a successful
+existential SAT witness from a universal UNSAT proof.
 Each Z3 proof section must also carry unique non-empty `checked_specs`; duplicate
 section obligations are rejected before top-level report/spec matching.
 Blocked Z3 reports are not proof evidence: they must use the unavailable solver

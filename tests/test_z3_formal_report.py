@@ -27,7 +27,7 @@ from typing import Any
 
 import pytest
 
-from scpn_control.scpn.formal_verification import EventuallyFires, FormalViolation
+from scpn_control.scpn.formal_verification import EventuallyFires, FormalViolation, NeverCoMarked
 from scpn_control.scpn.structure import StochasticPetriNet
 from scpn_control.scpn.z3_formal_report import (
     Z3FormalVerificationReport,
@@ -164,6 +164,7 @@ def test_load_rejects_non_object_payload(tmp_path: Path) -> None:
     ("field", "value", "match"),
     [
         ("schema_version", "scpn-control.z3-formal-report.v0", "schema_version is unsupported"),
+        ("schema_version", "scpn-control.z3-formal-report.v1", "schema_version is unsupported"),
         ("max_depth", -1, "max_depth must be non-negative"),
         ("checked_specs", ["marking_bounds", "marking_bounds"], "checked_specs must be unique"),
         ("payload_sha256", "abc", "payload_sha256 must be a SHA-256 hex digest"),
@@ -191,6 +192,56 @@ def test_validator_rejects_section_solver_inconsistency(solver_status: str, hold
     _reseal(payload)
     with pytest.raises(ValueError, match=match):
         validate_z3_formal_report_payload(payload)
+
+
+@pytest.mark.parametrize(
+    ("section_name", "solver_status", "holds", "checked_specs", "carry_violation", "match"),
+    [
+        ("safety", "mixed", True, ["marking_bounds", "second"], False, "one counterexample query"),
+        ("temporal", "not-run", False, [], False, "must hold vacuously"),
+        ("temporal", "not-run", True, ["response_ok"], False, "must not carry checked specs"),
+        ("temporal", "not-run", True, [], True, "must not carry violations"),
+        ("temporal", "unknown", True, ["response_ok"], False, "unknown section must not hold"),
+        ("temporal", "unknown", False, ["response_ok"], True, "unknown section must not carry violations"),
+        ("temporal", "mixed", True, ["response_ok"], False, "at least two checked specs"),
+        ("temporal", "sat", True, ["response_ok"], True, "holding section must not carry violations"),
+        ("temporal", "sat", False, ["response_ok"], False, "non-holding solver result must carry a violation"),
+    ],
+)
+def test_validator_rejects_v2_solver_aggregate_inconsistency(
+    section_name: str,
+    solver_status: str,
+    holds: bool,
+    checked_specs: list[str],
+    carry_violation: bool,
+    match: str,
+) -> None:
+    payload = _valid_pass_payload()
+    section = payload[section_name]
+    section["solver_status"] = solver_status
+    section["holds"] = holds
+    section["checked_specs"] = checked_specs
+    section["violations"] = _valid_fail_payload()["safety"]["violations"] if carry_violation else []
+    _reseal(payload)
+
+    with pytest.raises(ValueError, match=match):
+        validate_z3_formal_report_payload(payload)
+
+
+def test_validator_accepts_unknown_temporal_solver_as_fail_closed() -> None:
+    payload = build_z3_formal_report_payload(
+        Z3FormalVerificationReport(
+            holds=False,
+            backend="z3",
+            max_depth=2,
+            safety=Z3ModelCheckingReport(True, "z3", 2, "unsat", [], ["marking_bounds"]),
+            temporal=Z3ModelCheckingReport(False, "z3", 2, "unknown", [], ["response_unknown"]),
+        )
+    )
+
+    assert payload["status"] == "fail"
+    assert payload["temporal"]["solver_status"] == "unknown"
+    assert payload["temporal"]["violations"] == []
 
 
 def test_validator_rejects_section_with_empty_checked_spec() -> None:
@@ -339,8 +390,9 @@ def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> 
     write_z3_formal_report(report, json_path=json_path, markdown_path=markdown_path)
 
     assert report.holds is True
+    assert report.temporal.solver_status == "sat"
     payload = json.loads(json_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == "scpn-control.z3-formal-report.v1"
+    assert payload["schema_version"] == "scpn-control.z3-formal-report.v2"
     assert payload["status"] == "pass"
     assert payload["checked_specs"] == ["marking_bounds", "move_eventually_fires"]
     assert validate_z3_formal_report_payload(payload) == payload
@@ -348,6 +400,39 @@ def test_z3_formal_report_writer_publishes_json_and_markdown(tmp_path: Path) -> 
     assert "# SCPN Z3 Formal Verification Report" in markdown
     assert "bounded SMT evidence" in markdown
     assert payload["payload_sha256"] in markdown
+
+
+@requires_z3
+def test_z3_formal_report_preserves_mixed_temporal_solver_outcomes() -> None:
+    report = verify_z3_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+        temporal_specs=[
+            EventuallyFires("move_eventually_fires", "move"),
+            NeverCoMarked("source_sink_exclusive", "source", "sink", threshold=0.5),
+        ],
+    )
+    payload = build_z3_formal_report_payload(report)
+
+    assert report.holds is True
+    assert report.temporal.solver_status == "mixed"
+    assert payload["temporal"]["solver_status"] == "mixed"
+    assert "Aggregate solver status: `mixed`" in _render_markdown(payload)
+
+
+@requires_z3
+def test_z3_formal_report_marks_empty_temporal_section_not_run() -> None:
+    report = verify_z3_formal_contracts(
+        _transfer_net(),
+        max_depth=2,
+        marking_bounds={"source": (0.0, 1.0), "sink": (0.0, 1.0)},
+    )
+    payload = build_z3_formal_report_payload(report)
+
+    assert payload["temporal"]["solver_status"] == "not-run"
+    assert payload["temporal"]["holds"] is True
+    assert payload["temporal"]["checked_specs"] == []
 
 
 def test_load_z3_formal_report_rejects_duplicate_json_keys(tmp_path: Path) -> None:
@@ -657,7 +742,7 @@ def test_z3_formal_report_validator_rejects_semantically_invalid_pass_fail_repor
 def test_blocked_z3_formal_report_is_schema_versioned_and_fail_closed() -> None:
     payload = build_blocked_z3_formal_report_payload("z3-solver unavailable")
 
-    assert payload["schema_version"] == "scpn-control.z3-formal-report.v1"
+    assert payload["schema_version"] == "scpn-control.z3-formal-report.v2"
     assert payload["status"] == "blocked"
     assert payload["holds"] is False
     assert payload["safety"] is None

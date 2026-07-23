@@ -9,7 +9,7 @@
   "claim_boundary": "not hardware timing evidence, PCS certification, or unbounded liveness proof",
   "holds": true,
   "max_depth": 2,
-  "payload_sha256": "ca5e6eacc411dc4a8c97fe77511d315f639393ecca0cc5a422cde127ced96826",
+  "payload_sha256": "62be9bbeffa46f509e8c6e0ba144eca743aa8e9ef336226ebfae4e8e54c11bff",
   "safety": {
     "backend": "z3",
     "checked_specs": [],
@@ -18,7 +18,7 @@
     "solver_status": "unsat",
     "violations": []
   },
-  "schema_version": "scpn-control.z3-formal-report.v1",
+  "schema_version": "scpn-control.z3-formal-report.v2",
   "scope": "bounded SMT evidence for compiled Petri-net control logic",
   "solver": "z3-solver 4.16.0",
   "status": "pass",
@@ -31,7 +31,7 @@
     ],
     "holds": true,
     "max_depth": 2,
-    "solver_status": "unsat",
+    "solver_status": "mixed",
     "violations": []
   }
 }

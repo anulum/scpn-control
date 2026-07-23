@@ -144,47 +144,84 @@ class Z3BoundedModelChecker:
         self._validate_max_depth(max_depth)
         checked_weight_bounds = weight_bounds or {}
         checked: list[str] = []
+        solver_statuses: list[str] = []
         for spec in specs:
             checked.append(spec.name)
             if isinstance(spec, AlwaysBounded):
                 report = self.prove_marking_bounds(
                     spec.bounds, max_depth=max_depth, weight_bounds=checked_weight_bounds
                 )
+                solver_statuses.append(report.solver_status)
                 if not report.holds:
                     return Z3ModelCheckingReport(
-                        False, "z3", max_depth, report.solver_status, report.violations, checked
+                        False,
+                        "z3",
+                        max_depth,
+                        self._aggregate_solver_status(solver_statuses),
+                        report.violations,
+                        checked,
                     )
             elif isinstance(spec, EventuallyFires):
                 report = self._prove_eventually_fires(spec, max_depth=max_depth, weight_bounds=checked_weight_bounds)
+                solver_statuses.append(report.solver_status)
                 if not report.holds:
                     return Z3ModelCheckingReport(
-                        False, "z3", max_depth, report.solver_status, report.violations, checked
+                        False,
+                        "z3",
+                        max_depth,
+                        self._aggregate_solver_status(solver_statuses),
+                        report.violations,
+                        checked,
                     )
             elif isinstance(spec, NeverCoMarked):
                 report = self._prove_never_comarked(spec, max_depth=max_depth, weight_bounds=checked_weight_bounds)
+                solver_statuses.append(report.solver_status)
                 if not report.holds:
                     return Z3ModelCheckingReport(
-                        False, "z3", max_depth, report.solver_status, report.violations, checked
+                        False,
+                        "z3",
+                        max_depth,
+                        self._aggregate_solver_status(solver_statuses),
+                        report.violations,
+                        checked,
                     )
             elif isinstance(spec, FireLeadsToMarking):
                 report = self._prove_fire_leads_to_marking(
                     spec, max_depth=max_depth, weight_bounds=checked_weight_bounds
                 )
+                solver_statuses.append(report.solver_status)
                 if not report.holds:
                     return Z3ModelCheckingReport(
-                        False, "z3", max_depth, report.solver_status, report.violations, checked
+                        False,
+                        "z3",
+                        max_depth,
+                        self._aggregate_solver_status(solver_statuses),
+                        report.violations,
+                        checked,
                     )
             elif isinstance(spec, AlwaysEventuallyMarked):
                 report = self._prove_always_eventually_marked(
                     spec, max_depth=max_depth, weight_bounds=checked_weight_bounds
                 )
+                solver_statuses.append(report.solver_status)
                 if not report.holds:
                     return Z3ModelCheckingReport(
-                        False, "z3", max_depth, report.solver_status, report.violations, checked
+                        False,
+                        "z3",
+                        max_depth,
+                        self._aggregate_solver_status(solver_statuses),
+                        report.violations,
+                        checked,
                     )
             else:
                 raise TypeError(f"unsupported temporal specification: {type(spec).__name__}")
-        return Z3ModelCheckingReport(True, "z3", max_depth, "unsat", checked_specs=checked)
+        return Z3ModelCheckingReport(
+            True,
+            "z3",
+            max_depth,
+            self._aggregate_solver_status(solver_statuses),
+            checked_specs=checked,
+        )
 
     def verify_ctl_specs(self, specs: list[CTLFormula], *, max_depth: int) -> Z3ModelCheckingReport:
         """Verify bounded CTL formulas with the Z3 transition relation."""
@@ -345,6 +382,15 @@ class Z3BoundedModelChecker:
         self, spec: EventuallyFires, *, max_depth: int, weight_bounds: dict[str, tuple[float, float]] | None = None
     ) -> Z3ModelCheckingReport:
         self._require_transition(spec.transition)
+        validated_bounds = self._validate_weight_bounds(weight_bounds or {})
+        non_unit_bounds = sorted(
+            transition for transition, bounds in validated_bounds.items() if bounds != (Fraction(1), Fraction(1))
+        )
+        if non_unit_bounds:
+            raise ValueError(
+                "EventuallyFires requires exact unit transition weights; "
+                f"non-unit bounds declared for: {', '.join(non_unit_bounds)}"
+            )
         z3, solver, markings, firings, _idle = self._transition_system(max_depth, weight_bounds=weight_bounds or {})
         t_idx = self._transition_index[spec.transition]
         solver.add(z3.Or(*(firings[step][t_idx] for step in range(max_depth))))
@@ -774,6 +820,15 @@ class Z3BoundedModelChecker:
     def _validate_max_depth(max_depth: int) -> None:
         if isinstance(max_depth, bool) or int(max_depth) != max_depth or max_depth < 0:
             raise ValueError("max_depth must be an integer >= 0")
+
+    @staticmethod
+    def _aggregate_solver_status(statuses: list[str]) -> str:
+        if not statuses:
+            return "not-run"
+        first = statuses[0]
+        if all(status == first for status in statuses):
+            return first
+        return "mixed"
 
     def _require_place(self, place: str) -> None:
         if place not in self._place_index:

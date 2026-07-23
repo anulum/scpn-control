@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Reject non-unit transition-weight envelopes for existential Z3 firing
+  obligations so fractional token flow cannot satisfy a discrete firing claim.
+  Version the formal report schema to v2 and distinguish `sat`, `unsat`,
+  `mixed`, `unknown`, and `not-run` temporal solver outcomes instead of
+  labelling every successful temporal bundle `unsat`; v1 evidence must be
+  regenerated before admission.
 - Restored the elongation- and triangularity-shear (`s_kappa`, `s_delta`) terms in
   the Miller local-equilibrium radial derivatives (`core.gk_geometry.miller_geometry`,
   Miller et al. 1998 Eqs. 36-37). The parameters were accepted and validated but

@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from validation.benchmark_differentiable_transport_latency import _controller_formal_digest
 from validation.validate_differentiable_transport_latency import validate_differentiable_transport_latency
 
 
@@ -91,6 +92,24 @@ def _readiness_report() -> dict[str, object]:
         "blocked_reasons": ["external_reference_artifact_sha256"],
         "claim_status": "bounded differentiable transport readiness only; full-fidelity claim remains blocked",
     }
+
+
+def test_controller_formal_digest_requires_current_passing_schema(tmp_path: Path) -> None:
+    report_path = tmp_path / "formal.json"
+    digest = "a" * 64
+    payload = {
+        "schema_version": "scpn-control.z3-formal-report.v2",
+        "status": "pass",
+        "holds": True,
+        "payload_sha256": digest,
+    }
+    report_path.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert _controller_formal_digest(report_path) == digest
+    payload["schema_version"] = "scpn-control.z3-formal-report.v1"
+    report_path.write_text(json.dumps(payload), encoding="utf-8")
+    assert _controller_formal_digest(report_path) is None
+    assert _controller_formal_digest(tmp_path / "missing.json") is None
 
 
 def test_differentiable_transport_latency_admits_complete_reports(tmp_path: Path) -> None:

@@ -193,6 +193,14 @@ def test_temporal_obligations_report_indeterminate_solver_status(spec: Any, monk
 # ── verify_temporal_specs dispatch branches ───────────────────────────
 
 
+def test_empty_temporal_contract_reports_no_solver_run() -> None:
+    report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs([], max_depth=2)
+
+    assert report.holds is True
+    assert report.solver_status == "not-run"
+    assert report.checked_specs == []
+
+
 @requires_z3
 def test_temporal_specs_short_circuit_on_failed_marking_bound() -> None:
     report = Z3BoundedModelChecker(_transfer_net()).verify_temporal_specs(
@@ -425,6 +433,26 @@ def test_weight_bounds_reject_negative_lower_bound() -> None:
         checker.prove_marking_bounds({"sink": (0.0, 1.0)}, max_depth=1, weight_bounds={"move": (-1.0, 1.0)})
 
 
+@requires_z3
+def test_eventual_firing_rejects_non_unit_weight_on_any_path_transition() -> None:
+    checker = Z3BoundedModelChecker(_latency_chain_net())
+
+    with pytest.raises(ValueError, match="exact unit transition weights.*stage"):
+        checker.verify_temporal_specs(
+            [EventuallyFires("response_fires", "response")],
+            max_depth=3,
+            weight_bounds={"stage": (0.5, 0.5)},
+        )
+
+    report = checker.verify_temporal_specs(
+        [EventuallyFires("response_fires", "response")],
+        max_depth=3,
+        weight_bounds={"trigger": (1.0, 1.0), "stage": (1.0, 1.0), "response": (1.0, 1.0)},
+    )
+    assert report.holds is True
+    assert report.solver_status == "sat"
+
+
 def test_build_symbiyosys_contract_rejects_unpaired_trigger_and_budget_violations() -> None:
     checker = Z3BoundedModelChecker(_latency_chain_net())
     with pytest.raises(ValueError, match="must be provided together"):
@@ -529,6 +557,31 @@ def test_z3_model_checker_distinguishes_dead_transition_liveness() -> None:
 
 
 @requires_z3
+def test_z3_temporal_specs_preserve_mixed_status_before_liveness_failure() -> None:
+    net = StochasticPetriNet()
+    net.add_place("source", initial_tokens=1.0)
+    net.add_place("sink", initial_tokens=0.0)
+    net.add_place("empty", initial_tokens=0.0)
+    net.add_transition("move", threshold=1.0)
+    net.add_transition("needs_token", threshold=1.0)
+    net.add_arc("source", "move", weight=1.0)
+    net.add_arc("move", "sink", weight=1.0)
+    net.add_arc("empty", "needs_token", weight=1.0)
+    net.add_arc("needs_token", "sink", weight=1.0)
+    net.compile()
+
+    report = Z3BoundedModelChecker(net).verify_temporal_specs(
+        [EventuallyFires("move_fires", "move"), EventuallyFires("dead_transition", "needs_token")],
+        max_depth=2,
+    )
+
+    assert report.holds is False
+    assert report.solver_status == "mixed"
+    assert report.checked_specs == ["move_fires", "dead_transition"]
+    assert report.violations[0].transition == "needs_token"
+
+
+@requires_z3
 def test_z3_temporal_specs_find_exclusivity_counterexample() -> None:
     net = StochasticPetriNet()
     net.add_place("armed", initial_tokens=1.0)
@@ -614,6 +667,7 @@ def test_z3_temporal_specs_prove_all_supported_contracts_together() -> None:
     )
 
     assert report.holds is True
+    assert report.solver_status == "mixed"
     assert report.checked_specs == [
         "bounded_transfer",
         "move_fires",

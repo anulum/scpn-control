@@ -130,20 +130,26 @@ omit it are not admissible safety-case evidence.
 ## Z3 proof evidence admission
 
 Z3 formal-verification reports use the
-`scpn-control.z3-formal-report.v1` schema and are admitted only as bounded SMT
+`scpn-control.z3-formal-report.v2` schema and are admitted only as bounded SMT
 evidence for compiled Petri-net transition relations. The public report loader
 rejects duplicate JSON keys, unknown top-level fields, unknown proof-section
 fields, malformed counterexample records, duplicate or malformed section
 `checked_specs`, blocked reports that carry proof depth or live solver labels,
 pass/fail reports that do not identify `z3-solver`, pass/fail reports that
 reuse the unavailable-solver label, and inconsistent solver-state
-combinations. `unsat` sections must hold and carry
-no counterexamples; `sat` sections must not hold and must carry a schema-checked
-counterexample; `unknown` sections must not hold and must not carry
-counterexamples because an unknown solver state is not a discovered violation
-path. Safety-critical `.scpnctl` artifact admission applies the same Z3 report
-loader before matching the manifest status, solver, bounded depth, checked
-specifications, report digest, and compiled artifact digest.
+combinations. The safety section is a single counterexample query: `unsat`
+must hold without a counterexample and `sat` must fail with one. Temporal
+sections may combine universal counterexample searches with existential witness
+searches, so they publish `mixed` when successful obligations return both
+statuses and `not-run` when no temporal obligation was submitted. `unknown`
+never holds and carries no counterexample because it is not a discovered
+violation path. An `EventuallyFires` obligation is accepted only under exact
+unit transition weights; non-unit bounds are rejected because fractional token
+flow is not a discrete firing witness. Version 1 reports must be regenerated and
+are rejected by the v2 loader because their aggregate status does not preserve
+that distinction. Safety-critical `.scpnctl` artifact admission applies the same
+Z3 report loader before matching the manifest status, solver, bounded depth,
+checked specifications, report digest, and compiled artifact digest.
 
 ## Quantum disruption bridge
 
@@ -947,7 +953,7 @@ promotion campaigns after the affected reports have been rerun or deliberately
 accepted as historical evidence.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
-Markdown. The JSON uses `scpn-control.z3-formal-report.v1`, binds the proof
+Markdown. The JSON uses `scpn-control.z3-formal-report.v2`, binds the proof
 payload with `payload_sha256`, and records pass, fail, or blocked status. A
 missing optional `z3-solver` dependency produces a blocked report in normal
 publication mode; strict mode fails so release campaigns cannot mistake missing

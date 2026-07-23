@@ -23,7 +23,7 @@ reverse.
 
 Notes
 -----
-The emitted schema version is ``scpn-control.z3-formal-report.v1``. The scope and
+The emitted schema version is ``scpn-control.z3-formal-report.v2``. The scope and
 claim-boundary strings are pinned constants: the evidence is bounded SMT proof for
 compiled Petri-net control logic, and explicitly **not** hardware-timing evidence,
 PCS certification, or an unbounded liveness proof.
@@ -48,11 +48,12 @@ from scpn_control.scpn.formal_verification import (
 from scpn_control.scpn.structure import StochasticPetriNet
 from scpn_control.scpn.z3_model_checking import Z3BoundedModelChecker, Z3ModelCheckingReport
 
-Z3_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.z3-formal-report.v1"
+Z3_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.z3-formal-report.v2"
 Z3_FORMAL_REPORT_SCOPE = "bounded SMT evidence for compiled Petri-net control logic"
 Z3_FORMAL_REPORT_CLAIM_BOUNDARY = "not hardware timing evidence, PCS certification, or unbounded liveness proof"
 _Z3_BLOCKED_SOLVER_LABEL = "z3-solver unavailable"
 _Z3_BLOCKED_CHECKED_SPECS = ["z3_solver_available"]
+_Z3_SECTION_SOLVER_STATUSES = frozenset({"mixed", "not-run", "sat", "unknown", "unsat"})
 
 _Z3_REPORT_PASS_FAIL_KEYS = frozenset(
     {
@@ -235,26 +236,52 @@ def _validate_z3_violation_record(violation: Any, *, context: str) -> None:
             raise ValueError(f"{context} violation {optional_name} must be null or a non-empty string")
 
 
-def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context: str) -> None:
+def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context: str, section_name: str) -> None:
     solver_status = section["solver_status"]
     holds = section["holds"]
     violations = section["violations"]
-    if solver_status == "unsat":
-        if not holds:
-            raise ValueError(f"{context} unsat section must hold")
-        if violations:
-            raise ValueError(f"{context} unsat section must not carry violations")
-        return
-    if solver_status == "sat":
+    checked_specs = section["checked_specs"]
+    if section_name == "safety":
+        if solver_status == "unsat":
+            if not holds:
+                raise ValueError(f"{context} unsat section must hold")
+            if violations:
+                raise ValueError(f"{context} unsat section must not carry violations")
+            return
+        if solver_status == "sat":
+            if holds:
+                raise ValueError(f"{context} sat section must not hold")
+            if not violations:
+                raise ValueError(f"{context} sat section must carry counterexample violations")
+            return
+        if solver_status in {"mixed", "not-run"}:
+            raise ValueError(f"{context} solver_status must describe one counterexample query")
         if holds:
-            raise ValueError(f"{context} sat section must not hold")
-        if not violations:
-            raise ValueError(f"{context} sat section must carry counterexample violations")
+            raise ValueError(f"{context} unknown section must not hold")
+        if violations:
+            raise ValueError(f"{context} unknown section must not carry violations")
         return
-    if holds:
-        raise ValueError(f"{context} unknown section must not hold")
-    if violations:
-        raise ValueError(f"{context} unknown section must not carry violations")
+
+    if solver_status == "not-run":
+        if not holds:
+            raise ValueError(f"{context} not-run section must hold vacuously")
+        if checked_specs:
+            raise ValueError(f"{context} not-run section must not carry checked specs")
+        if violations:
+            raise ValueError(f"{context} not-run section must not carry violations")
+        return
+    if solver_status == "unknown":
+        if holds:
+            raise ValueError(f"{context} unknown section must not hold")
+        if violations:
+            raise ValueError(f"{context} unknown section must not carry violations")
+        return
+    if solver_status == "mixed" and len(checked_specs) < 2:
+        raise ValueError(f"{context} mixed section must carry at least two checked specs")
+    if holds and violations:
+        raise ValueError(f"{context} holding section must not carry violations")
+    if not holds and not violations:
+        raise ValueError(f"{context} non-holding solver result must carry a violation")
 
 
 def _validate_z3_section_checked_specs(checked_specs: list[Any], *, context: str) -> None:
@@ -344,7 +371,7 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
             raise ValueError(f"Z3 formal report {section_name} backend must be 'z3'")
         if section.get("max_depth") != payload["max_depth"]:
             raise ValueError(f"Z3 formal report {section_name} depth must match report depth")
-        if section.get("solver_status") not in {"sat", "unsat", "unknown"}:
+        if section.get("solver_status") not in _Z3_SECTION_SOLVER_STATUSES:
             raise ValueError(f"Z3 formal report {section_name} solver_status is unsupported")
         if not isinstance(section.get("holds"), bool):
             raise ValueError(f"Z3 formal report {section_name} holds must be a boolean")
@@ -352,10 +379,14 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
             raise ValueError(f"Z3 formal report {section_name} violations must be a list")
         for violation in section["violations"]:
             _validate_z3_violation_record(violation, context=f"Z3 formal report {section_name}")
-        _validate_z3_section_solver_consistency(section, context=f"Z3 formal report {section_name}")
         if not isinstance(section.get("checked_specs"), list):
             raise ValueError(f"Z3 formal report {section_name} checked_specs must be a list")
         _validate_z3_section_checked_specs(section["checked_specs"], context=f"Z3 formal report {section_name}")
+        _validate_z3_section_solver_consistency(
+            section,
+            context=f"Z3 formal report {section_name}",
+            section_name=section_name,
+        )
     if payload["holds"] != (payload["safety"]["holds"] and payload["temporal"]["holds"]):
         raise ValueError("Z3 formal report holds must match safety and temporal sections")
     if payload["checked_specs"] != _checked_specs(payload["safety"], payload["temporal"]):
@@ -415,8 +446,8 @@ def _render_markdown(payload: dict[str, Any]) -> str:
             "## Temporal",
             "",
             f"- Holds: `{payload['temporal']['holds']}`",
-            f"- Solver status: `{payload['temporal']['solver_status']}`",
-            f"- Checked specs: `{', '.join(payload['checked_specs'])}`",
+            f"- Aggregate solver status: `{payload['temporal']['solver_status']}`",
+            f"- Checked specs: `{', '.join(payload['temporal']['checked_specs'])}`",
             "",
         ]
     )

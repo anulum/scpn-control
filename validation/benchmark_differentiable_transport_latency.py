@@ -31,6 +31,7 @@ from scpn_control.core.differentiable_transport import (
     transport_campaign_metadata,
     transport_full_fidelity_readiness_evidence,
 )
+from scpn_control.scpn.z3_formal_report import Z3_FORMAL_REPORT_SCHEMA_VERSION
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 JSON_REPORT = REPORT_DIR / "differentiable_transport_latency.json"
@@ -52,13 +53,12 @@ def _profiles(rho: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
 def _controller_formal_digest(report_path: Path = FORMAL_REPORT) -> str | None:
     """Return the admitted bounded formal-report payload digest if present."""
-
     if not report_path.exists():
         return None
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     digest = payload.get("payload_sha256")
     if (
-        payload.get("schema_version") != "scpn-control.z3-formal-report.v1"
+        payload.get("schema_version") != Z3_FORMAL_REPORT_SCHEMA_VERSION
         or payload.get("status") != "pass"
         or payload.get("holds") is not True
         or not isinstance(digest, str)
@@ -71,7 +71,6 @@ def _controller_formal_digest(report_path: Path = FORMAL_REPORT) -> str | None:
 
 def main() -> None:
     """Run local audited transport-gradient latency benchmark and write reports."""
-
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     if not has_jax():
         blocked_payload = {
