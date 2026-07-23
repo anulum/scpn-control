@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract multi-step rollout source gradients and finite-difference audit
+  contracts into `core/differentiable_transport_rollout_ad.py` (CTL-G07
+  R1-S5). The facade re-exports public symbols; the leaf lazy-imports rollout
+  primitives and the facade JAX gate so admission monkeypatches stay on the
+  production path. Inventory cascade: 170 modules / 519 test files.
 - Extract one-step parameter / loss gradients and finite-difference audit
   contracts into `core/differentiable_transport_parameter_ad.py` (CTL-G07
   R1-S4). The facade re-exports public symbols; the leaf lazy-imports step

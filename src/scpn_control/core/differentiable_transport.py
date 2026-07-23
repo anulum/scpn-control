@@ -90,6 +90,16 @@ _tracking_loss_jax = _parameter_ad._tracking_loss_jax
 _gradient_audit_indices = _parameter_ad._gradient_audit_indices
 _central_difference_parameter = _parameter_ad._central_difference_parameter
 
+# Stable public re-exports: multi-step rollout source gradients + FD audit.
+from scpn_control.core import differentiable_transport_rollout_ad as _rollout_ad
+
+TransportRolloutSourceGradients = _rollout_ad.TransportRolloutSourceGradients
+transport_rollout_tracking_loss = _rollout_ad.transport_rollout_tracking_loss
+transport_rollout_source_gradients = _rollout_ad.transport_rollout_source_gradients
+audit_transport_rollout_source_gradients = _rollout_ad.audit_transport_rollout_source_gradients
+assert_transport_rollout_source_gradients_consistent = _rollout_ad.assert_transport_rollout_source_gradients_consistent
+_rollout_gradient_audit_indices = _rollout_ad._rollout_gradient_audit_indices
+
 
 try:
     import jax
@@ -122,15 +132,6 @@ class EquilibriumWeightedTransportRolloutGradient:
     source_gradient: FloatArray
     equilibrium_gradient: FloatArray
     radial_weights: FloatArray
-    final_profiles: FloatArray
-
-
-@dataclass(frozen=True)
-class TransportRolloutSourceGradients:
-    """JAX gradients of multi-step transport loss for source schedules."""
-
-    loss: float
-    source_gradient: FloatArray
     final_profiles: FloatArray
 
 
@@ -518,268 +519,6 @@ def differentiable_transport_rollout(
     if use_jax_runtime:
         return _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
     return _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-
-
-def transport_rollout_tracking_loss(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    target_history: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    weights: Any | None = None,
-    use_jax: bool = True,
-    allow_numpy_fallback: bool = False,
-    allow_legacy_numpy_fallback: bool = False,
-) -> Any:
-    """Return weighted multi-step transport tracking loss."""
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
-        _validate_transport_rollout_inputs(
-            initial_profiles,
-            chi,
-            source_sequence,
-            rho,
-            dt,
-            edge_values,
-            target_history=target_history,
-            weights=weights,
-        )
-    )
-    if target_array is None:
-        raise ValueError("target_history is required")
-    if weight_array is None:
-        weight_array = np.ones(CHANNEL_COUNT)
-    use_jax_runtime = _resolve_use_jax(
-        use_jax,
-        allow_numpy_fallback=allow_numpy_fallback,
-        allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
-        context="transport_rollout_tracking_loss",
-    )
-    if use_jax_runtime:
-        history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-        residual = history - jnp.asarray(target_array, dtype=jnp.float64)
-        return jnp.mean(jnp.asarray(weight_array, dtype=jnp.float64)[None, :, None] * residual * residual)
-    history = _transport_rollout_numpy(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-    residual = history - target_array
-    return float(np.mean(weight_array[None, :, None] * residual * residual))
-
-
-def transport_rollout_source_gradients(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    target_history: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    weights: Any | None = None,
-) -> TransportRolloutSourceGradients:
-    """Return JAX gradients for a multi-step transport source schedule."""
-    if not _HAS_JAX or jax is None or jnp is None:
-        raise RuntimeError("transport_rollout_source_gradients requires JAX")
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
-        _validate_transport_rollout_inputs(
-            initial_profiles,
-            chi,
-            source_sequence,
-            rho,
-            dt,
-            edge_values,
-            target_history=target_history,
-            weights=weights,
-        )
-    )
-    if target_array is None:
-        raise ValueError("target_history is required")
-    if weight_array is None:
-        weight_array = np.ones(CHANNEL_COUNT)
-
-    def loss_for_sources(source_candidate: Any) -> Any:
-        history = _transport_rollout_jax(
-            profile_array,
-            chi_array,
-            source_candidate,
-            rho_array,
-            float(dt),
-            edge_array,
-        )
-        residual = history - jnp.asarray(target_array, dtype=jnp.float64)
-        return jnp.mean(jnp.asarray(weight_array, dtype=jnp.float64)[None, :, None] * residual * residual)
-
-    loss, gradient = jax.value_and_grad(loss_for_sources)(jnp.asarray(source_array, dtype=jnp.float64))
-    history = _transport_rollout_jax(profile_array, chi_array, source_array, rho_array, float(dt), edge_array)
-    return TransportRolloutSourceGradients(
-        loss=float(np.asarray(loss)),
-        source_gradient=np.asarray(gradient),
-        final_profiles=np.asarray(history[-1]),
-    )
-
-
-def _rollout_gradient_audit_indices(
-    source_shape: tuple[int, ...],
-    sample_indices: Any | None,
-) -> tuple[tuple[int, int, int], ...]:
-    if len(source_shape) != 3:
-        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho)")
-    n_steps, n_channels, n_rho = source_shape
-    if n_steps < 1 or n_channels != CHANNEL_COUNT or n_rho < 3:
-        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho) with n_rho >= 3")
-    if sample_indices is None:
-        candidates: tuple[tuple[int, int, int], ...] = (
-            (0, 0, 1),
-            (n_steps - 1, 1, n_rho // 2),
-            (n_steps // 2, 2, n_rho - 2),
-            (n_steps - 1, 3, max(1, n_rho // 3)),
-        )
-    else:
-        try:
-            parsed = []
-            for raw_index in sample_indices:
-                index = tuple(int(part) for part in raw_index)
-                if len(index) != 3:
-                    raise ValueError
-                parsed.append((index[0], index[1], index[2]))
-            candidates = tuple(parsed)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("sample_indices must contain three-part rollout source indices") from exc
-    unique: list[tuple[int, int, int]] = []
-    for step, channel, radius in candidates:
-        if not (0 <= step < n_steps and 0 <= channel < n_channels and 0 <= radius < n_rho):
-            raise ValueError("sample_indices contain an out-of-range rollout source index")
-        index = (int(step), int(channel), int(radius))
-        if index not in unique:
-            unique.append(index)
-    if not unique:
-        raise ValueError("sample_indices must contain at least one rollout source index")
-    return tuple(unique)
-
-
-def audit_transport_rollout_source_gradients(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    target_history: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    weights: Any | None = None,
-    epsilon: float = 1.0e-5,
-    tolerance: float = 5.0e-4,
-    sample_indices: Any | None = None,
-) -> TransportRolloutGradientAudit:
-    """Compare JAX rollout source gradients with sampled finite differences."""
-    epsilon_float = float(epsilon)
-    tolerance_float = float(tolerance)
-    if not np.isfinite(epsilon_float) or epsilon_float <= 0.0:
-        raise ValueError("epsilon must be positive and finite")
-    if not np.isfinite(tolerance_float) or tolerance_float <= 0.0:
-        raise ValueError("tolerance must be positive and finite")
-    profile_array, chi_array, source_array, rho_array, edge_array, target_array, weight_array = (
-        _validate_transport_rollout_inputs(
-            initial_profiles,
-            chi,
-            source_sequence,
-            rho,
-            dt,
-            edge_values,
-            target_history=target_history,
-            weights=weights,
-        )
-    )
-    if target_array is None:
-        raise ValueError("target_history is required")
-    if weight_array is None:
-        weight_array = np.ones(CHANNEL_COUNT)
-    gradient_result = transport_rollout_source_gradients(
-        profile_array,
-        chi_array,
-        source_array,
-        target_array,
-        rho_array,
-        float(dt),
-        edge_array,
-        weights=weight_array,
-    )
-    indices = _rollout_gradient_audit_indices(source_array.shape, sample_indices)
-    max_abs_error = 0.0
-    for index in indices:
-        plus_sources = source_array.copy()
-        minus_sources = source_array.copy()
-        plus_sources[index] += epsilon_float
-        minus_sources[index] -= epsilon_float
-        plus_loss = float(
-            transport_rollout_tracking_loss(
-                profile_array,
-                chi_array,
-                plus_sources,
-                target_array,
-                rho_array,
-                float(dt),
-                edge_array,
-                weights=weight_array,
-                use_jax=False,
-            )
-        )
-        minus_loss = float(
-            transport_rollout_tracking_loss(
-                profile_array,
-                chi_array,
-                minus_sources,
-                target_array,
-                rho_array,
-                float(dt),
-                edge_array,
-                weights=weight_array,
-                use_jax=False,
-            )
-        )
-        finite_difference = (plus_loss - minus_loss) / (2.0 * epsilon_float)
-        max_abs_error = max(max_abs_error, abs(float(gradient_result.source_gradient[index]) - finite_difference))
-    return TransportRolloutGradientAudit(
-        loss=float(gradient_result.loss),
-        epsilon=epsilon_float,
-        tolerance=tolerance_float,
-        checked_indices=indices,
-        source_max_abs_error=float(max_abs_error),
-        passed=bool(max_abs_error <= tolerance_float),
-    )
-
-
-def assert_transport_rollout_source_gradients_consistent(
-    initial_profiles: Any,
-    chi: Any,
-    source_sequence: Any,
-    target_history: Any,
-    rho: Any,
-    dt: float,
-    edge_values: Any,
-    *,
-    weights: Any | None = None,
-    epsilon: float = 1.0e-5,
-    tolerance: float = 5.0e-4,
-    sample_indices: Any | None = None,
-) -> TransportRolloutGradientAudit:
-    """Return rollout source-gradient audit evidence or fail closed."""
-    audit = audit_transport_rollout_source_gradients(
-        initial_profiles,
-        chi,
-        source_sequence,
-        target_history,
-        rho,
-        dt,
-        edge_values,
-        weights=weights,
-        epsilon=epsilon,
-        tolerance=tolerance,
-        sample_indices=sample_indices,
-    )
-    if not audit.passed:
-        raise ValueError("transport rollout source-gradient audit failed")
-    return audit
 
 
 def _equilibrium_weighted_rollout_tracking_loss_jax(

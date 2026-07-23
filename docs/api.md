@@ -785,15 +785,21 @@ facade re-exports these symbols; step primitives remain on the facade.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_rollout
 
-::: scpn_control.core.differentiable_transport.transport_rollout_tracking_loss
+### Differentiable Transport Rollout Source AD
 
-::: scpn_control.core.differentiable_transport.transport_rollout_source_gradients
+Multi-step tracking loss, source-schedule gradients, and sampled
+finite-difference admission audits live in a dedicated leaf. The numerical
+facade re-exports these symbols; core rollout primitives remain on the facade.
 
-::: scpn_control.core.differentiable_transport.TransportRolloutSourceGradients
+::: scpn_control.core.differentiable_transport_rollout_ad.transport_rollout_tracking_loss
 
-::: scpn_control.core.differentiable_transport.audit_transport_rollout_source_gradients
+::: scpn_control.core.differentiable_transport_rollout_ad.transport_rollout_source_gradients
 
-::: scpn_control.core.differentiable_transport.assert_transport_rollout_source_gradients_consistent
+::: scpn_control.core.differentiable_transport_rollout_ad.TransportRolloutSourceGradients
+
+::: scpn_control.core.differentiable_transport_rollout_ad.audit_transport_rollout_source_gradients
+
+::: scpn_control.core.differentiable_transport_rollout_ad.assert_transport_rollout_source_gradients_consistent
 
 ::: scpn_control.core.differentiable_transport.TransportRolloutGradientAudit
 
