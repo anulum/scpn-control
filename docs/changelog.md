@@ -13,6 +13,16 @@
   definition directly.
 
 ### Added
+- Add a self-digested MAST dB/dt source-authority gate that measures the live
+  five-row centre-column Mirnov source without transforming it, records the
+  official `T` versus live `Tesla/sec` ambiguity, and admits exactly one of two
+  source-attested branches: one derivative for magnetic field or no derivative
+  for an existing field derivative. Require matching source units, content
+  digest, row/geometry join, mapping-scale semantics, component/orientation/sign,
+  reduction/missing/bad-channel/filter/edge policies, calibration uncertainty,
+  and released geometry. Bind its blocker and digest into signal-binding and
+  replay reports so the historical zero-fill/gradient/peak recipe remains a
+  compatibility candidate only.
 - Add a self-digested MAST locked-mode authority gate that binds the official
   outer-midplane saddle observation to the existing saddle row/geometry gate,
   measures the legacy 201-sample boxcar in physical time without executing it,

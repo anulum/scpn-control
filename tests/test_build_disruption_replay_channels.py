@@ -32,6 +32,12 @@ from validation.build_disruption_replay_channels import (
     main,
 )
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS, _load_shots, build_dataset
+from validation.mast_dbdt_authority import (
+    GEOMETRY_KEYS as DBDT_GEOMETRY_KEYS,
+)
+from validation.mast_dbdt_authority import (
+    mast_dbdt_authority_spec,
+)
 from validation.mast_locked_mode_authority import mast_locked_mode_authority_spec
 from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
 
@@ -214,6 +220,13 @@ def test_build_channels_and_stage2_round_trip(tmp_path: Path) -> None:
             "authority_spec_sha256": mast_locked_mode_authority_spec()["payload_sha256"],
             "canonical_binding_admissible": False,
             "blocker": "locked_mode_authority_incomplete",
+        },
+        "dBdt_gauss_per_s": {
+            "source_key": "magnetics.b_field_pol_probe_cc_field",
+            "geometry_keys": list(DBDT_GEOMETRY_KEYS),
+            "authority_spec_sha256": mast_dbdt_authority_spec()["payload_sha256"],
+            "canonical_binding_admissible": False,
+            "blocker": "dbdt_authority_incomplete",
         },
     }
     assert all(value is False for value in report["claim_boundary"].values())

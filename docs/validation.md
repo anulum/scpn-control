@@ -55,6 +55,19 @@ saddle array to the L2F-12c row/geometry contract. It measures the historical
 reduction until component, frame, filter/edge, background/pickup/vessel correction,
 calibration uncertainty, and estimator evidence are source-attested.
 
+## MAST dB/dt source authority
+
+The second L2F-12d gate is documented in
+[MAST dB/dt source authority](mast_dbdt_authority.md). It records the conflict
+between the official `T` mapping and live `Tesla/sec` label, measures the five
+centre-column Mirnov rows and their 500 kHz timebase, and executes no signal
+transform. A content-digested source contract must select exactly one path:
+differentiate an attested `T` magnetic field once, or convert an attested `T/s`
+derivative without differentiating it. Ordered row/geometry identity, scale
+semantics, component/orientation/sign, reduction and missing-data policies,
+filter/edge policy, calibration uncertainty, and released geometry remain
+mandatory.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics

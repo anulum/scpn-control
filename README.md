@@ -200,10 +200,10 @@ blocked until the required external artefacts exist.
 | Python public classes | 539 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 154 |
+| Validation scripts | 155 |
 | Optional extras | 19 |
-| Python test files | 511 |
-| Public documentation pages | 67 |
+| Python test files | 512 |
+| Public documentation pages | 68 |
 | GitHub Actions workflows | 10 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -624,7 +624,11 @@ git push --tags
   legacy FAIR-MAST campaign is now covered by a
   [digest-bound reconciliation gate](docs/mast_campaign_reconciliation.md),
   which verifies the preserved inventory while keeping reuse, training,
-  scientific, facility, and control claims blocked.
+  scientific, facility, and control claims blocked. The current Mirnov
+  candidate is separately protected by a
+  [dB/dt source-authority gate](docs/mast_dbdt_authority.md), so the unresolved
+  `T` versus `Tesla/sec` source cannot be differentiated zero or two times by
+  assumption.
 - **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
   runs on GPU if available. Public MAST EFM prediction evidence is available as
   fail-closed flux and derived-geometry evaluation with exact public EFM

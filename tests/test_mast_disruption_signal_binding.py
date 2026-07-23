@@ -141,11 +141,12 @@ def test_unresolved_semantics_are_named_blockers_not_fallback_bindings() -> None
         "n1_amp": "saddle_modal_authority_incomplete",
         "n2_amp": "saddle_modal_authority_incomplete",
         "locked_mode_amp": "locked_mode_authority_incomplete",
-        "dBdt_gauss_per_s": "source_units_and_label_conflict",
+        "dBdt_gauss_per_s": "dbdt_authority_incomplete",
     }
     assert all(bindings[channel].status == "blocked" for channel in blockers)
     assert all("never" in binding.missing_data_rule for binding in bindings.values())
     assert bindings["locked_mode_amp"].transform == "authority_gated_stationary_n1_radial_field_estimator"
+    assert bindings["dBdt_gauss_per_s"].transform == "authority_gated_source_quantity_transform"
 
 
 def test_spec_payload_is_fresh_self_digested_json() -> None:

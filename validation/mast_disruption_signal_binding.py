@@ -385,8 +385,8 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_key="magnetics.time_mirnov",
                 timebase_dimensions=("time_mirnov",),
                 timebase_units="s",
-                transform="probe_reduction_and_scale_unresolved",
-                blocker="source_units_and_label_conflict",
+                transform="authority_gated_source_quantity_transform",
+                blocker="dbdt_authority_incomplete",
             ),
             _binding(
                 "vertical_position_m",

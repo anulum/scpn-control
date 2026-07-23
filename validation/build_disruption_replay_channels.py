@@ -26,7 +26,10 @@ alias away; the equilibrium and summary scalar channels are linearly
 interpolated. The modal candidates retain the historical missing-row
 zero-replacement recipe but remain inadmissible under the L2F-12c authority
 gate. The locked-mode envelope is additionally blocked by the L2F-12d
-stationary-estimator authority gate. Labels are added by the dataset builder.
+stationary-estimator authority gate. The poloidal-probe candidate is blocked by
+the dB/dt source-quantity gate, which prevents either a missed derivative or a
+second derivative until the ``T`` versus ``Tesla/sec`` conflict is attested.
+Labels are added by the dataset builder.
 """
 
 from __future__ import annotations
@@ -50,6 +53,12 @@ from validation.disruption_channel_recipes import (
     locked_mode_envelope,
     n_mode_amplitude,
     per_1e19,
+)
+from validation.mast_dbdt_authority import (
+    GEOMETRY_KEYS as DBDT_GEOMETRY_KEYS,
+)
+from validation.mast_dbdt_authority import (
+    mast_dbdt_authority_spec,
 )
 from validation.mast_locked_mode_authority import mast_locked_mode_authority_spec
 from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
@@ -343,6 +352,13 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
                 "authority_spec_sha256": mast_locked_mode_authority_spec()["payload_sha256"],
                 "canonical_binding_admissible": False,
                 "blocker": "locked_mode_authority_incomplete",
+            },
+            "dBdt_gauss_per_s": {
+                "source_key": "magnetics.b_field_pol_probe_cc_field",
+                "geometry_keys": list(DBDT_GEOMETRY_KEYS),
+                "authority_spec_sha256": mast_dbdt_authority_spec()["payload_sha256"],
+                "canonical_binding_admissible": False,
+                "blocker": "dbdt_authority_incomplete",
             },
         },
         "claim_boundary": {
