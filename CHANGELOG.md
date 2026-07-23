@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract toroidal Green's function, vacuum poloidal flux, and mutual-inductance
+  helpers into `core/gs_green_vacuum.py` (CTL-G07 R0-S2 under dual-home C). The
+  CONTROL `FusionKernel` product surface remains first-class with thin wrappers;
+  FUSION is not edited. Inventory cascade: 174 modules / 523 test files.
 - Extract fusion-kernel configuration models and parse/dump helpers into
   `core/fusion_kernel_config.py` (CTL-G07 R0-S1 under dual-home C). The CONTROL
   `FusionKernel` product surface remains first-class and re-exports the public

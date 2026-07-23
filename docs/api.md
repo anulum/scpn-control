@@ -558,6 +558,20 @@ re-exports those contracts (dual-home C).
 
 ::: scpn_control.core.fusion_kernel_config.fusion_kernel_config_dump
 
+### Grad-Shafranov Green / Vacuum Helpers
+
+Toroidal Green's function, vacuum poloidal flux from coil sets, and mutual
+inductance construction live in a dedicated leaf. `FusionKernel` keeps thin
+wrappers so existing free-boundary and EFIT import paths remain stable.
+
+::: scpn_control.core.gs_green_vacuum.green_function
+
+::: scpn_control.core.gs_green_vacuum.green_function_array
+
+::: scpn_control.core.gs_green_vacuum.vacuum_poloidal_flux
+
+::: scpn_control.core.gs_green_vacuum.build_mutual_inductance_matrix
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by

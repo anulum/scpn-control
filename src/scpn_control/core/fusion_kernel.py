@@ -31,10 +31,10 @@ from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
-from scipy.special import ellipe, ellipk
 
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core import fusion_kernel_config as _fk_config
+from scpn_control.core import gs_green_vacuum as _gs_green
 from scpn_control.core.hpc_bridge import HPCBridge
 
 # Stable public re-exports: configuration schemas + parse/dump (R0-S1 leaf).
@@ -521,28 +521,8 @@ class FusionKernel:
             Vacuum flux Psi_vac on the (NZ, NR) grid.
         """
         logger.debug("Computing vacuum field (toroidal exact)…")
-        Psi_vac = np.zeros((self.NZ, self.NR))
         mu0: float = self.cfg["physics"].get("vacuum_permeability", 1.0)
-
-        for coil in self.cfg["coils"]:
-            Rc, Zc = coil["r"], coil["z"]
-            I_coil = coil["current"] * coil.get("turns", 1)
-
-            dZ = self.ZZ - Zc
-            R_plus_Rc_sq = (self.RR + Rc) ** 2
-
-            k2 = (4.0 * self.RR * Rc) / (R_plus_Rc_sq + dZ**2)
-            k2 = np.clip(k2, 1e-9, 0.999999)
-
-            K = ellipk(k2)
-            E = ellipe(k2)
-
-            prefactor = (mu0 * I_coil) / (2 * np.pi)
-            sqrt_term = np.sqrt(R_plus_Rc_sq + dZ**2)
-            term = ((2.0 - k2) * K - 2.0 * E) / k2
-            Psi_vac += prefactor * sqrt_term * term
-
-        return Psi_vac
+        return _gs_green.vacuum_poloidal_flux(self.RR, self.ZZ, self.cfg["coils"], mu0)
 
     # ── topology analysis ─────────────────────────────────────────────
 
@@ -1801,50 +1781,16 @@ class FusionKernel:
     @staticmethod
     def _green_function(R_src: float, Z_src: float, R_obs: float, Z_obs: float) -> float:
         """Toroidal Green's function using elliptic integrals."""
-        mu0 = 4e-7 * np.pi
-        denom = (R_obs + R_src) ** 2 + (Z_obs - Z_src) ** 2
-        if denom < 1e-30:
-            return 0.0
-        k2 = 4.0 * R_obs * R_src / denom
-        k2 = np.clip(k2, 1e-9, 0.999999)
-        from scipy.special import ellipe, ellipk
-
-        K_val = ellipk(k2)
-        E_val = ellipe(k2)
-        prefactor = mu0 / (2.0 * np.pi) * np.sqrt(R_obs * R_src)
-        psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
-        return float(psi)
+        return _gs_green.green_function(R_src, Z_src, R_obs, Z_obs)
 
     @staticmethod
     def _green_function_array(R_src: float, Z_src: float, R_obs: FloatArray, Z_obs: FloatArray) -> FloatArray:
         """Vectorised toroidal Green's function over observation grids."""
-        from scipy.special import ellipe, ellipk
-
-        mu0 = 4e-7 * np.pi
-        R_arr = np.asarray(R_obs, dtype=np.float64)
-        Z_arr = np.asarray(Z_obs, dtype=np.float64)
-        denom = (R_arr + float(R_src)) ** 2 + (Z_arr - float(Z_src)) ** 2
-        active = denom >= 1e-30
-        denom_safe = np.where(active, denom, 1.0)
-        k2 = 4.0 * R_arr * float(R_src) / denom_safe
-        k2 = np.clip(k2, 1e-9, 0.999999)
-        K_val = ellipk(k2)
-        E_val = ellipe(k2)
-        prefactor = mu0 / (2.0 * np.pi) * np.sqrt(np.maximum(R_arr * float(R_src), 0.0))
-        psi = prefactor * ((2.0 - k2) * K_val - 2.0 * E_val) / k2
-        return np.asarray(np.where(active, psi, 0.0), dtype=np.float64)
+        return _gs_green.green_function_array(R_src, Z_src, R_obs, Z_obs)
 
     def _compute_external_flux(self, coils: Any) -> FloatArray:
         """Sum Green's function contributions on boundary from CoilSet."""
-        NR, NZ = len(self.R), len(self.Z)
-        psi_ext = np.zeros((NZ, NR))
-        R_obs, Z_obs = np.meshgrid(self.R, self.Z)
-        for idx, (pos, current) in enumerate(zip(coils.positions, coils.currents)):
-            R_c, Z_c = pos
-            turns = coils.turns[idx] if idx < len(coils.turns) else 1
-            I_eff = current * turns
-            psi_ext += I_eff * self._green_function_array(R_c, Z_c, R_obs, Z_obs)
-        return psi_ext
+        return _gs_green.external_flux_from_coilset(self.R, self.Z, coils)
 
     def _build_mutual_inductance_matrix(
         self,
@@ -1867,17 +1813,7 @@ class FusionKernel:
         -------
         FloatArray, shape (n_coils, n_pts)
         """
-        n_coils = len(coils.positions)
-        n_pts = obs_points.shape[0]
-        M = np.zeros((n_coils, n_pts))
-
-        for k, (Rc, Zc) in enumerate(coils.positions):
-            turns = coils.turns[k] if k < len(coils.turns) else 1
-            for p in range(n_pts):
-                R_obs, Z_obs = obs_points[p]
-                M[k, p] = turns * self._green_function(Rc, Zc, R_obs, Z_obs)
-
-        return M
+        return _gs_green.build_mutual_inductance_matrix(coils, obs_points)
 
     def _sample_flux_at_points(self, obs_points: FloatArray) -> FloatArray:
         """Sample the current ``Psi`` field at arbitrary observation points."""
