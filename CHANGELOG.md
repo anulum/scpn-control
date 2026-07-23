@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- Extract free-boundary solve orchestration into
+  `core/gs_free_boundary_solve.py` (CTL-G07 R0-S7 under dual-home C). The
+  CONTROL `FusionKernel` product surface remains first-class with a thin
+  wrapper over the outer coil/equilibrium loop; phase-sync and Rust multigrid
+  stay on the owner. FUSION is not edited. Inventory cascade: 179 modules /
+  528 test files.
 - Extract free-boundary coil optimisation, objective tolerances/status,
   divertor configuration labels, and `CoilSet` into
   `core/gs_free_boundary_control.py` (CTL-G07 R0-S6 under dual-home C). The

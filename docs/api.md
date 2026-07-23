@@ -640,6 +640,16 @@ orchestration remains on the owner class.
 
 ::: scpn_control.core.gs_free_boundary_control.divertor_configuration_label
 
+### Free-Boundary Solve Orchestration
+
+The experimental external-coil outer loop around the fixed-boundary
+Grad-Shafranov solve lives in a dedicated leaf. `FusionKernel.solve_free_boundary`
+is a thin wrapper that supplies mesh, equilibrium, vacuum/Green responses, and
+already-extracted free-boundary control helpers under dual-home C. Phase-sync
+steps and the Rust multigrid bridge remain on the owner class.
+
+::: scpn_control.core.gs_free_boundary_solve.solve_free_boundary
+
 ### Global Design Scanner
 
 `GlobalDesignExplorer` provides the bounded scalar design metrics consumed by
