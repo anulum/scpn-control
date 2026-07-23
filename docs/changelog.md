@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Fixed
+- Require FUSION IDA same-case latency evidence to identify synchronised,
+  same-input solves from a converged equilibrium, bind cold/warm iteration
+  counts below their declared caps, and project P50/P95 from the exact warm
+  samples. Legacy v2 reports that relabelled JIT-warm cold continuation as
+  steady-state latency can no longer cross the CONTROL evidence boundary.
 - Authenticate the default-off Rust UDP transport heartbeat with an exact
   `SCPNHB01` frame, HMAC-SHA256, strict source-IP allowlist, private key-file
   policy, loopback-default bind host, and monotonically increasing counter.

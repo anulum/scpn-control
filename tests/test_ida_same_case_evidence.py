@@ -93,8 +93,25 @@ def _case(role: str) -> dict[str, Any]:
             ],
         },
         "grid_shape": [129, 129] if evaluation else [65, 65],
-        "input_contract": {},
-        "latency": {"p95_ms": p95_ms},
+        "input_contract": {
+            "n_iter_cap": 180,
+            "warm_start_iteration_cap": evidence.WARM_START_ITERATION_CAP,
+        },
+        "latency": {
+            "admissible_isolated_evidence": False,
+            "cold_start_iterations": 180 if evaluation else 120,
+            "compile_and_first_ms": 25000.0,
+            "measurement_mode": evidence.WARM_START_MEASUREMENT_MODE,
+            "p50_ms": p95_ms,
+            "p95_ms": p95_ms,
+            "reference_freegs_ms": 30000.0,
+            "repeat_count": 3,
+            "synchronised": True,
+            "warm_compile_and_first_ms": 20000.0,
+            "warm_ms": [p95_ms, p95_ms, p95_ms],
+            "warm_start_iterations": [2, 2, 2],
+            "warm_start_setup_iterations": 7 if evaluation else 2,
+        },
         "machine_class": "DIIID" if evaluation else "TestTokamak",
         "metrics": metrics,
         "public_example": {
@@ -470,6 +487,54 @@ def test_case_shape_and_projection_guards() -> None:
     case = _case("evaluation_candidate")
     case["grid_shape"] = [65, 65]
     with pytest.raises(evidence.IDASameCaseEvidenceError, match="129x129"):
+        evidence._validate_case(
+            case,
+            role="evaluation_candidate",
+            index=1,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda case: case["latency"].update(measurement_mode="jit_warm_cold_start"),
+            "same-input evidence",
+        ),
+        (
+            lambda case: case["latency"].update(warm_start_iterations=[2, 2]),
+            "repeat_count",
+        ),
+        (
+            lambda case: case["latency"].update(warm_start_iterations=[2, evidence.WARM_START_ITERATION_CAP, 2]),
+            "did not converge",
+        ),
+        (
+            lambda case: case["latency"].update(warm_start_setup_iterations=evidence.WARM_START_ITERATION_CAP),
+            "warm setup",
+        ),
+        (
+            lambda case: case["latency"].update(cold_start_iterations=181),
+            "cold solve",
+        ),
+        (
+            lambda case: case["latency"].update(p95_ms=1.0),
+            "percentiles",
+        ),
+        (
+            lambda case: case["latency"].pop("warm_start_iterations"),
+            "fields",
+        ),
+    ],
+)
+def test_warm_latency_contract_rejects_relabelled_or_unconverged_evidence(
+    mutate: Callable[[dict[str, Any]], object],
+    message: str,
+) -> None:
+    """Reject the legacy cold-start loop and malformed warm-start projections."""
+    case = _case("evaluation_candidate")
+    mutate(case)
+    with pytest.raises(evidence.IDASameCaseEvidenceError, match=message):
         evidence._validate_case(
             case,
             role="evaluation_candidate",

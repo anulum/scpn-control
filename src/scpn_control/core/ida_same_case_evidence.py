@@ -11,7 +11,9 @@ The validator distinguishes an authentic, internally consistent benchmark
 artifact from evidence that is sufficient for control admission.  The v2
 FUSION report records an integration-observed DIII-D-like case, so a valid
 artifact remains blocked even when every byte and threshold projection checks
-out.  No Grad-Shafranov mathematics is duplicated here.
+out.  Warm latency must bind same-input solves from a converged equilibrium;
+legacy JIT-warm cold-start timings are rejected.  No Grad-Shafranov mathematics
+is duplicated here.
 """
 
 from __future__ import annotations
@@ -23,6 +25,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+import numpy as np
 
 FUSION_SCHEMA_VERSION = "scpn-fusion.ida-same-case-evidence.v2"
 CONTROL_SCHEMA_VERSION = "scpn-control.ida-same-case-admission.v1"
@@ -46,6 +50,8 @@ THRESHOLDS: dict[str, float] = {
     "relative_current_error_max": 5.0e-2,
     "relative_nonlinear_residual_rms_max": 5.0e-2,
 }
+WARM_START_ITERATION_CAP = 20
+WARM_START_MEASUREMENT_MODE = "same_input_from_converged_equilibrium"
 SOURCE_PATHS = {
     "benchmark": "validation/benchmark_ida_same_case.py",
     "freegs_public_case_runner": ("validation/benchmark_freegs_public_example_reconstruction.py"),
@@ -82,6 +88,21 @@ _THRESHOLD_RESULT_FIELDS = {
     "psi_n_rmse",
     "relative_current_error",
     "relative_nonlinear_residual_rms",
+}
+_LATENCY_FIELDS = {
+    "admissible_isolated_evidence",
+    "cold_start_iterations",
+    "compile_and_first_ms",
+    "measurement_mode",
+    "p50_ms",
+    "p95_ms",
+    "reference_freegs_ms",
+    "repeat_count",
+    "synchronised",
+    "warm_compile_and_first_ms",
+    "warm_ms",
+    "warm_start_iterations",
+    "warm_start_setup_iterations",
 }
 _SHA256_LENGTHS = frozenset({64})
 _GIT_OID_LENGTHS = frozenset({40, 64})
@@ -196,6 +217,12 @@ def _require_finite_float(value: object, *, field: str) -> float:
     if not math.isfinite(result):
         raise IDASameCaseEvidenceError(f"{field} must be a finite number")
     return result
+
+
+def _require_positive_int(value: object, *, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise IDASameCaseEvidenceError(f"{field} must be a positive integer")
+    return value
 
 
 def _solver_contract() -> dict[str, Any]:
@@ -315,6 +342,84 @@ def _validate_gradient_audit(case: dict[str, Any], *, field: str) -> bool:
     return all_passed
 
 
+def _validate_warm_latency(case: dict[str, Any], *, field: str) -> float:
+    input_contract = _require_dict(
+        case.get("input_contract"),
+        field=f"{field}.input_contract",
+    )
+    if input_contract.get("warm_start_iteration_cap") != WARM_START_ITERATION_CAP:
+        raise IDASameCaseEvidenceError(f"{field}.input_contract omits the frozen warm-start iteration cap")
+    n_iter_cap = _require_positive_int(
+        input_contract.get("n_iter_cap"),
+        field=f"{field}.input_contract.n_iter_cap",
+    )
+    latency = _require_dict(case.get("latency"), field=f"{field}.latency")
+    if set(latency) != _LATENCY_FIELDS:
+        raise IDASameCaseEvidenceError(f"{field}.latency fields do not match the corrected warm-start contract")
+    if (
+        latency.get("admissible_isolated_evidence") is not False
+        or latency.get("synchronised") is not True
+        or latency.get("measurement_mode") != WARM_START_MEASUREMENT_MODE
+    ):
+        raise IDASameCaseEvidenceError(
+            f"{field}.latency does not identify non-admissible synchronised same-input evidence"
+        )
+    repeat_count = _require_positive_int(
+        latency.get("repeat_count"),
+        field=f"{field}.latency.repeat_count",
+    )
+    cold_iterations = _require_positive_int(
+        latency.get("cold_start_iterations"),
+        field=f"{field}.latency.cold_start_iterations",
+    )
+    warm_setup_iterations = _require_positive_int(
+        latency.get("warm_start_setup_iterations"),
+        field=f"{field}.latency.warm_start_setup_iterations",
+    )
+    if cold_iterations > n_iter_cap:
+        raise IDASameCaseEvidenceError(f"{field}.latency cold solve exceeds its iteration cap")
+    if warm_setup_iterations >= WARM_START_ITERATION_CAP:
+        raise IDASameCaseEvidenceError(f"{field}.latency warm setup did not converge below its cap")
+
+    warm_values = latency.get("warm_ms")
+    warm_iterations = latency.get("warm_start_iterations")
+    if (
+        not isinstance(warm_values, list)
+        or not isinstance(warm_iterations, list)
+        or len(warm_values) != repeat_count
+        or len(warm_iterations) != repeat_count
+    ):
+        raise IDASameCaseEvidenceError(f"{field}.latency warm samples and iterations must match repeat_count")
+    warm_ms = [
+        _require_finite_float(value, field=f"{field}.latency.warm_ms[{index}]")
+        for index, value in enumerate(warm_values)
+    ]
+    if any(value < 0.0 for value in warm_ms):
+        raise IDASameCaseEvidenceError(f"{field}.latency warm samples must be non-negative")
+    for index, value in enumerate(warm_iterations):
+        iterations = _require_positive_int(
+            value,
+            field=f"{field}.latency.warm_start_iterations[{index}]",
+        )
+        if iterations >= WARM_START_ITERATION_CAP:
+            raise IDASameCaseEvidenceError(f"{field}.latency warm solve did not converge below its cap")
+
+    for name in (
+        "compile_and_first_ms",
+        "p50_ms",
+        "p95_ms",
+        "reference_freegs_ms",
+        "warm_compile_and_first_ms",
+    ):
+        if _require_finite_float(latency.get(name), field=f"{field}.latency.{name}") < 0.0:
+            raise IDASameCaseEvidenceError(f"{field}.latency.{name} must be non-negative")
+    expected_p50 = float(np.percentile(np.asarray(warm_ms, dtype=np.float64), 50.0))
+    expected_p95 = float(np.percentile(np.asarray(warm_ms, dtype=np.float64), 95.0))
+    if latency.get("p50_ms") != expected_p50 or latency.get("p95_ms") != expected_p95:
+        raise IDASameCaseEvidenceError(f"{field}.latency percentiles do not match the recorded warm samples")
+    return expected_p95
+
+
 def _validate_case(case_value: object, *, role: str, index: int) -> dict[str, Any]:
     field = f"cases[{index}]"
     case = _require_dict(case_value, field=field)
@@ -350,11 +455,7 @@ def _validate_case(case_value: object, *, role: str, index: int) -> dict[str, An
         metrics.get("relative_nonlinear_residual_rms"),
         field=f"{field}.metrics.relative_nonlinear_residual_rms",
     )
-    latency = _require_dict(case.get("latency"), field=f"{field}.latency")
-    p95_ms = _require_finite_float(
-        latency.get("p95_ms"),
-        field=f"{field}.latency.p95_ms",
-    )
+    p95_ms = _validate_warm_latency(case, field=field)
     gradient_passed = _validate_gradient_audit(case, field=field)
     projected = {
         "gradient_audit": gradient_passed,
