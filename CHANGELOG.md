@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Changed
+- Extract local JAX gradient-admission latency benchmarks into
+  `core/differentiable_transport_latency.py` (CTL-G07 R1-S7). The facade
+  re-exports the public symbols; benchmarks lazy-import AD asserts so the
+  measured path remains the production admission contract.
+
+### Changed
 - Extract neural and reduced gyrokinetic transport-closure adapters into
   `core/differentiable_transport_closures.py` (CTL-G07 R1-S2). The numerical
   facade re-exports the same public symbols so controller tuning imports stay

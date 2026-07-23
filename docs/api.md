@@ -791,13 +791,21 @@ equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.TransportGradientAudit
 
-::: scpn_control.core.differentiable_transport.benchmark_transport_parameter_gradient_latency
+### Differentiable Transport Latency Benchmarks
+
+Local timed admission of JAX gradient contracts lives in a dedicated leaf.
+The numerical facade re-exports these symbols; report serialisation remains on
+the evidence leaf.
+
+::: scpn_control.core.differentiable_transport_latency.transport_runtime_metadata
+
+::: scpn_control.core.differentiable_transport_latency.benchmark_transport_parameter_gradient_latency
 
 ::: scpn_control.core.differentiable_transport.TransportGradientLatencyReport
 
 ::: scpn_control.core.differentiable_transport.save_transport_gradient_latency_report
 
-::: scpn_control.core.differentiable_transport.benchmark_transport_rollout_source_gradient_latency
+::: scpn_control.core.differentiable_transport_latency.benchmark_transport_rollout_source_gradient_latency
 
 ::: scpn_control.core.differentiable_transport.TransportRolloutGradientLatencyReport
 
