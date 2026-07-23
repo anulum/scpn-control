@@ -373,7 +373,7 @@ def mast_level2_signal_binding_spec() -> MastSignalBindingSpec:
                 timebase_key="magnetics.time_saddle",
                 timebase_dimensions=("time_saddle",),
                 timebase_units="s",
-                transform="locked_mode_reduction_unresolved",
+                transform="authority_gated_stationary_n1_radial_field_estimator",
                 blocker="locked_mode_authority_incomplete",
             ),
             _blocked_binding(

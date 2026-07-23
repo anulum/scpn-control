@@ -25,7 +25,8 @@ per-bin peak, preserving warning-relevant bursts a plain interpolation would
 alias away; the equilibrium and summary scalar channels are linearly
 interpolated. The modal candidates retain the historical missing-row
 zero-replacement recipe but remain inadmissible under the L2F-12c authority
-gate. Labels are added by the dataset builder.
+gate. The locked-mode envelope is additionally blocked by the L2F-12d
+stationary-estimator authority gate. Labels are added by the dataset builder.
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ from validation.disruption_channel_recipes import (
     n_mode_amplitude,
     per_1e19,
 )
+from validation.mast_locked_mode_authority import mast_locked_mode_authority_spec
 from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
 from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256
 
@@ -334,6 +336,13 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
                 "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
                 "canonical_binding_admissible": False,
                 "blocker": "saddle_modal_authority_incomplete",
+            },
+            "locked_mode_amp": {
+                "source_key": "magnetics.b_field_tor_probe_saddle_field",
+                "geometry_keys": list(GEOMETRY_KEYS),
+                "authority_spec_sha256": mast_locked_mode_authority_spec()["payload_sha256"],
+                "canonical_binding_admissible": False,
+                "blocker": "locked_mode_authority_incomplete",
             },
         },
         "claim_boundary": {

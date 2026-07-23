@@ -45,6 +45,16 @@ verifies the observed polygon centres and finite row coverage, and performs no
 modal reduction until the field-row join, vertical set, released geometry,
 calibration uncertainty, baseline, and bad-channel policies are source-attested.
 
+## MAST locked-mode authority
+
+The first L2F-12d gate is documented in
+[MAST locked-mode authority](mast_locked_mode_authority.md). It binds the MAST
+description of a growing stationary n=1 radial perturbation on the outer-midplane
+saddle array to the L2F-12c row/geometry contract. It measures the historical
+201-sample boxcar's physical time scale but performs no filter or locked-mode
+reduction until component, frame, filter/edge, background/pickup/vessel correction,
+calibration uncertainty, and estimator evidence are source-attested.
+
 ## Local-first physics debug assistance
 
 `scpn_control.physics_debug` is an advisory triage boundary for physics

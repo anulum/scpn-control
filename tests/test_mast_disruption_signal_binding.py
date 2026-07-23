@@ -145,6 +145,7 @@ def test_unresolved_semantics_are_named_blockers_not_fallback_bindings() -> None
     }
     assert all(bindings[channel].status == "blocked" for channel in blockers)
     assert all("never" in binding.missing_data_rule for binding in bindings.values())
+    assert bindings["locked_mode_amp"].transform == "authority_gated_stationary_n1_radial_field_estimator"
 
 
 def test_spec_payload_is_fresh_self_digested_json() -> None:

@@ -13,6 +13,15 @@
   definition directly.
 
 ### Added
+- Add a self-digested MAST locked-mode authority gate that binds the official
+  outer-midplane saddle observation to the existing saddle row/geometry gate,
+  measures the legacy 201-sample boxcar in physical time without executing it,
+  and keeps canonical `locked_mode_amp` blocked until the radial component,
+  probe location, stationary frame, n=1 estimator, physical-frequency
+  filter/edge policy, pickup/background/vessel corrections, calibration
+  uncertainty, and estimator
+  evidence are source-attested. Bind its digest into signal-binding and replay
+  reports while retaining historical values as compatibility candidates only.
 - Add a self-digested MAST saddle-modal authority gate that pins the complete
   FAIR-MAST mapping and geometry identity, verifies per-row finite coverage and
   toroidal polygon centres without reducing them, and keeps canonical `n1_amp`
