@@ -196,13 +196,13 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.10 |
 | Project scripts | 5 |
 | Public API exports | 44 |
-| Python control/physics modules | 164 |
-| Python public classes | 544 |
+| Python control/physics modules | 165 |
+| Python public classes | 546 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 155 |
 | Optional extras | 20 |
-| Python test files | 513 |
+| Python test files | 514 |
 | Public documentation pages | 68 |
 | GitHub Actions workflows | 10 |
 

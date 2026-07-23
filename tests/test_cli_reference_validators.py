@@ -41,21 +41,26 @@ from scpn_control.cli_reference_validators import (
     ],
 )
 def test_split_csv_option_trims_and_drops_empty(value: str | None, expected: tuple[str, ...]) -> None:
+    """Normalize comma-separated CLI values."""
     assert _split_csv_option(value) == expected
 
 
 def test_reference_validator_commands_are_click_commands() -> None:
+    """Keep the registration surface immutable and Click-native."""
     assert isinstance(REFERENCE_VALIDATOR_COMMANDS, tuple)
-    assert len(REFERENCE_VALIDATOR_COMMANDS) == 27
+    assert len(REFERENCE_VALIDATOR_COMMANDS) == 28
     assert all(isinstance(command, click.Command) for command in REFERENCE_VALIDATOR_COMMANDS)
 
 
 def test_reference_validator_command_names_are_unique_and_validate_prefixed() -> None:
+    """Prevent duplicate or misleading root command names."""
     names = [command.name for command in REFERENCE_VALIDATOR_COMMANDS]
     assert all(name is not None and name.startswith("validate-") for name in names)
     assert len(names) == len(set(names)), "duplicate command name in REFERENCE_VALIDATOR_COMMANDS"
 
 
 def test_reference_validator_commands_are_registered_on_root_group() -> None:
+    """Expose every validator through the installed root CLI."""
     for command in REFERENCE_VALIDATOR_COMMANDS:
+        assert command.name is not None
         assert main.commands.get(command.name) is command

@@ -671,6 +671,27 @@ and safety admission false until separately bound evidence closes those gates.
 
 ::: scpn_control.core.ida_equilibrium_adapter.ida_equilibrium_vjp
 
+### DIII-D IDA Same-Case Evidence Admission
+
+`scpn-control validate-ida-same-case REPORT --fusion-root FUSION_ROOT`
+validates the FUSION-owned JSON report, recomputes its self-digest and every
+numeric threshold projection, checks the three differentiated-input gradient
+rows, and resolves the recorded source files directly from the bound FUSION
+Git commit. Omitting `--fusion-root` is allowed for structural inspection but
+adds `upstream_source_tree_not_verified`.
+
+Artifact validity and admission are separate. The current v1 report uses a
+DIII-D-like case already observed during integration and therefore returns
+`artifact_valid=true`, `admitted=false`, and exit code `2` even when all source
+bytes authenticate. Facility, PCS, safety, control, and scientific claims
+remain false.
+
+::: scpn_control.core.ida_same_case_evidence.IDASameCaseAdmission
+
+::: scpn_control.core.ida_same_case_evidence.load_ida_same_case_report
+
+::: scpn_control.core.ida_same_case_evidence.validate_ida_same_case_evidence
+
 ### Differentiable Transport Facade
 
 Requires `pip install "scpn-control[jax]"` for gradient evaluation. The NumPy

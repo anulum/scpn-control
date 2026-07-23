@@ -921,6 +921,46 @@ def validate_soc_reference_command(
         raise click.exceptions.Exit(1)
 
 
+@click.command("validate-ida-same-case")
+@click.argument(
+    "report_path",
+    type=click.Path(exists=True, dir_okay=False, path_type=str),
+)
+@click.option(
+    "--fusion-root",
+    type=click.Path(exists=True, file_okay=False, path_type=str),
+    help="FUSION Git tree used to verify every source digest at the bound commit",
+)
+@click.option("--json-out", is_flag=True, help="Emit the CONTROL admission record as JSON")
+def validate_ida_same_case_command(
+    report_path: str,
+    fusion_root: str | None,
+    json_out: bool,
+) -> None:
+    """Validate FUSION IDA same-case evidence without granting admission."""
+    from scpn_control.core.ida_same_case_evidence import (
+        validate_ida_same_case_evidence,
+    )
+
+    admission = validate_ida_same_case_evidence(
+        report_path,
+        fusion_root=fusion_root,
+    )
+    payload = admission.as_dict()
+    if json_out:
+        click.echo(json.dumps(payload, indent=2, sort_keys=True))
+    else:
+        click.echo(
+            "IDA same-case evidence: "
+            f"{admission.status} artifact_valid={admission.artifact_valid} "
+            f"source_verified={admission.source_verified} "
+            f"admitted={admission.admitted}"
+        )
+        for blocker in admission.blockers:
+            click.echo(f"BLOCKED {blocker}", err=True)
+    raise click.exceptions.Exit(2)
+
+
 REFERENCE_VALIDATOR_COMMANDS: tuple[click.Command, ...] = (
     validate_gk_crosscode_command,
     validate_gk_geometry_reference_command,
@@ -949,4 +989,5 @@ REFERENCE_VALIDATOR_COMMANDS: tuple[click.Command, ...] = (
     validate_disruption_reference_command,
     validate_digital_twin_reference_command,
     validate_soc_reference_command,
+    validate_ida_same_case_command,
 )

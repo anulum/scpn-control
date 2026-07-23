@@ -32,6 +32,13 @@
   definition directly.
 
 ### Added
+- Add a public `validate-ida-same-case` command and strict CONTROL admission
+  model for FUSION-owned IDA evidence. The validator rejects duplicate keys,
+  digest/schema/threshold projection drift, forged claims, malformed gradient
+  audits, and optionally verifies every upstream source byte from the exact
+  bound Git commit. A valid integration-observed report remains explicitly
+  blocked rather than becoming control, facility, PCS, safety, or scientific
+  admission.
 - Add a bounded DIII-D IDA equilibrium adapter that keeps free-boundary
   Grad-Shafranov mathematics in SCPN-FUSION-CORE while exposing validated SI
   grids, PF-coil currents, compact p-prime/FF-prime coefficients, the FUSION
