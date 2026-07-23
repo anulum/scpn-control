@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract one-step parameter / loss gradients and finite-difference audit
+  contracts into `core/differentiable_transport_parameter_ad.py` (CTL-G07
+  R1-S4). The facade re-exports public symbols; the leaf lazy-imports step
+  validators and the facade JAX gate so admission monkeypatches stay on the
+  production path. Inventory cascade: 169 modules / 518 test files.
 - Extract local JAX gradient-admission latency benchmarks into
   `core/differentiable_transport_latency.py` (CTL-G07 R1-S7). The facade
   re-exports the public symbols; benchmarks lazy-import AD asserts so the

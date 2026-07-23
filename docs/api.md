@@ -763,13 +763,25 @@ equilibrium flux map for controller-tuning studies.
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_step
 
-::: scpn_control.core.differentiable_transport.transport_tracking_loss
+### Differentiable Transport Parameter AD
 
-::: scpn_control.core.differentiable_transport.transport_loss_gradient
+One-step tracking loss, chi/source parameter gradients, and sampled
+finite-difference admission audits live in a dedicated leaf. The numerical
+facade re-exports these symbols; step primitives remain on the facade.
 
-::: scpn_control.core.differentiable_transport.transport_parameter_gradients
+::: scpn_control.core.differentiable_transport_parameter_ad.transport_tracking_loss
 
-::: scpn_control.core.differentiable_transport.TransportParameterGradients
+::: scpn_control.core.differentiable_transport_parameter_ad.transport_loss_gradient
+
+::: scpn_control.core.differentiable_transport_parameter_ad.transport_parameter_gradients
+
+::: scpn_control.core.differentiable_transport_parameter_ad.TransportParameterGradients
+
+::: scpn_control.core.differentiable_transport_parameter_ad.audit_transport_parameter_gradients
+
+::: scpn_control.core.differentiable_transport_parameter_ad.assert_transport_parameter_gradients_consistent
+
+::: scpn_control.core.differentiable_transport.TransportGradientAudit
 
 ::: scpn_control.core.differentiable_transport.differentiable_transport_rollout
 
@@ -784,12 +796,6 @@ equilibrium flux map for controller-tuning studies.
 ::: scpn_control.core.differentiable_transport.assert_transport_rollout_source_gradients_consistent
 
 ::: scpn_control.core.differentiable_transport.TransportRolloutGradientAudit
-
-::: scpn_control.core.differentiable_transport.audit_transport_parameter_gradients
-
-::: scpn_control.core.differentiable_transport.assert_transport_parameter_gradients_consistent
-
-::: scpn_control.core.differentiable_transport.TransportGradientAudit
 
 ### Differentiable Transport Latency Benchmarks
 
