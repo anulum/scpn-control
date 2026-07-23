@@ -32,6 +32,24 @@ def _interface() -> CODACInterface:
     return CODACInterface(CODACConfig(), _MappingController())
 
 
+def _nominal_pv_values() -> dict[str, float]:
+    """Return a complete nominal hard-limit and external-interlock packet."""
+
+    config = CODACConfig()
+    values = {
+        "Ip": 15.0,
+        "beta_N": 2.5,
+        "q95": 3.0,
+        "n_e": 10.0,
+        "Te_axis": 20.0,
+        "locked_mode_amp": 5.0,
+        "R_axis": 6.2,
+        "Z_axis": 0.0,
+    }
+    values.update({pv: 0.0 for pv in config.interlock_pvs})
+    return values
+
+
 def test_unpack_action_accepts_generic_numeric_mapping() -> None:
     iface = _interface()
     action: Mapping[str, float] = {"dI_PF3": 125.0, "NBI_power": 12.5}
@@ -46,7 +64,7 @@ def test_unpack_action_accepts_generic_numeric_mapping() -> None:
 def test_run_cycle_maps_sparse_controller_actions_to_all_output_pvs() -> None:
     iface = _interface()
 
-    pvs = iface.run_cycle({"R_axis": 6.2, "Z_axis": 0.0})
+    pvs = iface.run_cycle(_nominal_pv_values())
 
     assert pvs["ITER-SCPN:dI_PF3"] == pytest.approx(125.0)
     assert pvs["ITER-SCPN:SPI_trigger"] == pytest.approx(1.0)

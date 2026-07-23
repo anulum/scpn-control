@@ -1937,6 +1937,26 @@ artifacts with source provenance, model identity, SHA-256 reference hash, unit
 contracts, equilibrium metadata, case count, and free-boundary metrics inside
 declared tolerances.
 
+## CODAC/EPICS boundary evidence
+
+CODAC runtime reports use `scpn-control.codac-runtime-evidence.v2`. Admission
+requires boolean declarations for finite/clamped output enforcement, generated
+analog `DRVH`/`DRVL` drive limits, and fail-closed interlock execution. A
+facility-qualified load additionally requires all three guards, at least one
+observed interlock block, deadline-clean measurements, and zero backpressure.
+Version 1 reports are rejected because they predate these actuation-boundary
+semantics and must be regenerated.
+
+At runtime, every configured external interlock PV and every hard-limit process
+signal is mandatory. Missing, non-numeric, non-finite, tripped, or out-of-range
+input returns a complete zero-output packet without calling the controller;
+external binary interlocks define `0.0` as clear and every non-zero value as a
+trip.
+Finite controller actions are clamped to the declared output channel envelope;
+non-finite actions are rejected before a packet is returned. This validates a
+bounded software adapter only, not independent plant protection or a deployed
+PCS.
+
 ## CI workflows
 
 - Core CI: `.github/workflows/ci.yml`

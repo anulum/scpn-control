@@ -37,7 +37,11 @@ from scpn_control.control.codac_interface import (
 class _StubController:
     """Minimal controller stub returning fixed actuator commands."""
 
+    def __init__(self):
+        self.calls = 0
+
     def step(self, obs, k):
+        self.calls += 1
         return {"dI_PF3": 100.0, "dI_PF_topbot_A": 50.0}
 
 
@@ -45,6 +49,22 @@ def _make_interface(config=None):
     ctrl = _StubController()
     cfg = config or CODACConfig()
     return CODACInterface(cfg, ctrl)
+
+
+def _nominal_pv_values(config=None):
+    cfg = config or CODACConfig()
+    values = {
+        "Ip": 15.0,
+        "beta_N": 2.5,
+        "q95": 3.0,
+        "n_e": 10.0,
+        "Te_axis": 20.0,
+        "locked_mode_amp": 5.0,
+        "R_axis": 6.2,
+        "Z_axis": 0.0,
+    }
+    values.update({pv: 0.0 for pv in cfg.interlock_pvs})
+    return values
 
 
 # ── Config ────────────────────────────────────────────────────────────
@@ -103,16 +123,63 @@ def test_unpack_action():
     assert pvs["ITER-SCPN:SPI_trigger"] == 1.0
 
 
+def test_unpack_action_clamps_every_declared_output_limit():
+    iface = _make_interface()
+    pvs = iface.unpack_action(
+        {
+            "dI_PF1": -2e6,
+            "dI_PF2": 2e6,
+            "gas_valve_D2": -1.0,
+            "gas_valve_Ne": 100.0,
+            "ECRH_power": 21.0,
+            "NBI_power": 41.0,
+            "SPI_trigger": 2.0,
+        }
+    )
+
+    assert pvs["ITER-SCPN:dI_PF1"] == -1e6
+    assert pvs["ITER-SCPN:dI_PF2"] == 1e6
+    assert pvs["ITER-SCPN:gas_valve_D2"] == 0.0
+    assert pvs["ITER-SCPN:gas_valve_Ne"] == 50.0
+    assert pvs["ITER-SCPN:ECRH_power"] == 20.0
+    assert pvs["ITER-SCPN:NBI_power"] == 40.0
+    assert pvs["ITER-SCPN:SPI_trigger"] == 1.0
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+def test_unpack_action_rejects_non_finite_output(value):
+    with pytest.raises(ValueError, match="CODAC output NBI_power must be finite"):
+        _make_interface().unpack_action({"NBI_power": value})
+
+
+def test_unpack_action_rejects_non_numeric_output():
+    with pytest.raises(ValueError, match="CODAC output NBI_power must be numeric"):
+        _make_interface().unpack_action({"NBI_power": None})
+
+
 # ── Run cycle ─────────────────────────────────────────────────────────
 
 
 def test_run_cycle():
     iface = _make_interface()
-    pv = {"R_axis": 6.2, "Z_axis": 0.0}
+    pv = _nominal_pv_values()
     result = iface.run_cycle(pv)
     assert isinstance(result, dict)
     assert "ITER-SCPN:dI_PF3" in result
     assert result["ITER-SCPN:dI_PF3"] == 100.0
+    assert iface.controller.calls == 1
+
+
+def test_run_cycle_blocks_controller_and_returns_stationary_packet_on_trip():
+    iface = _make_interface()
+    pv = _nominal_pv_values()
+    pv["Ip"] = 18.0
+
+    result = iface.run_cycle(pv)
+
+    assert iface.controller.calls == 0
+    assert set(result) == {channel.pv_name for channel in iface.define_output_channels()}
+    assert all(value == 0.0 for value in result.values())
 
 
 # ── Safety interlock ──────────────────────────────────────────────────
@@ -120,14 +187,50 @@ def test_run_cycle():
 
 def test_safety_interlock_triggers_on_out_of_range():
     iface = _make_interface()
-    pv_bad = {"Ip": 18.0, "q95": 3.0}  # Ip > 17.0 hard limit
+    pv_bad = _nominal_pv_values()
+    pv_bad["Ip"] = 18.0  # Ip > 17.0 hard limit
     assert iface.safety_interlock(pv_bad) is True
 
 
 def test_safety_interlock_passes_on_nominal():
     iface = _make_interface()
-    pv_ok = {"Ip": 15.0, "q95": 3.0, "beta_N": 2.5, "n_e": 10.0, "Te_axis": 20.0}
+    pv_ok = _nominal_pv_values()
     assert iface.safety_interlock(pv_ok) is False
+
+
+def test_safety_interlock_fails_closed_on_missing_or_invalid_required_input():
+    iface = _make_interface()
+    assert iface.safety_interlock({}) is True
+
+    missing = _nominal_pv_values()
+    del missing["Ip"]
+    assert iface.safety_interlock(missing) is True
+
+    for value in (float("nan"), float("inf"), "invalid"):
+        pv = _nominal_pv_values()
+        pv["Ip"] = value
+        assert iface.safety_interlock(pv) is True
+
+
+def test_safety_interlock_fails_closed_on_missing_invalid_or_tripped_external_pv():
+    iface = _make_interface()
+    interlock_pv = iface.config.interlock_pvs[0]
+
+    missing = _nominal_pv_values()
+    del missing[interlock_pv]
+    assert iface.safety_interlock(missing) is True
+
+    for value in (float("nan"), "invalid", 1.0, -1.0):
+        pv = _nominal_pv_values()
+        pv[interlock_pv] = value
+        assert iface.safety_interlock(pv) is True
+
+
+def test_safety_interlock_fails_closed_without_configured_external_pvs():
+    config = CODACConfig(interlock_pvs=())
+    iface = _make_interface(config)
+
+    assert iface.safety_interlock(_nominal_pv_values(config)) is True
 
 
 # ── EPICS .db generation ─────────────────────────────────────────────
@@ -145,6 +248,11 @@ def test_generate_epics_db(tmp_path):
     assert 'field(EGU, "MA")' in text
     # Verify all 23 channels present (12 input + 11 output)
     assert text.count("record(") == 23
+    assert text.count("field(DRVH") == 10
+    assert text.count("field(DRVL") == 10
+    nbi_record = text.split('record(ao, "ITER-SCPN:NBI_power") {', maxsplit=1)[1].split("}", maxsplit=1)[0]
+    assert 'field(DRVH, "40.0")' in nbi_record
+    assert 'field(DRVL, "0.0")' in nbi_record
 
 
 def test_render_epics_db_matches_written_export(tmp_path):
@@ -197,6 +305,10 @@ def test_codac_runtime_evidence_binds_exports_and_payload(tmp_path):
     assert evidence.input_channel_count == 12
     assert evidence.output_channel_count == 11
     assert evidence.interlock_pv_count == len(iface.config.interlock_pvs)
+    assert evidence.schema_version == "scpn-control.codac-runtime-evidence.v2"
+    assert evidence.output_limits_enforced is True
+    assert evidence.epics_drive_limits_exported is True
+    assert evidence.interlock_fail_closed is True
     assert len(evidence.epics_db_sha256) == 64
     assert len(evidence.opcua_nodeset_sha256) == 64
     assert len(evidence.payload_sha256) == 64
@@ -351,6 +463,13 @@ def test_payload_rejects_unsupported_schema_version(tmp_path):
         _load_payload(tmp_path, payload)
 
 
+def test_payload_rejects_legacy_v1_schema(tmp_path):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, schema_version="scpn-control.codac-runtime-evidence.v1")
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        _load_payload(tmp_path, payload)
+
+
 def test_payload_rejects_non_sha256_digest(tmp_path):
     iface = _make_interface()
     payload = _sealed_payload(iface)
@@ -421,6 +540,28 @@ def test_payload_rejects_blocks_exceeding_checks(tmp_path):
     payload = _sealed_payload(iface, interlock_blocks=5, interlock_checks=2)
     with pytest.raises(ValueError, match="interlock_blocks cannot exceed"):
         _load_payload(tmp_path, payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["output_limits_enforced", "epics_drive_limits_exported", "interlock_fail_closed"],
+)
+def test_payload_rejects_non_boolean_boundary_guard(tmp_path, field):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, **{field: "yes"})
+    with pytest.raises(ValueError, match=f"{field} must be boolean"):
+        _load_payload(tmp_path, payload)
+
+
+@pytest.mark.parametrize(
+    "field",
+    ["output_limits_enforced", "epics_drive_limits_exported", "interlock_fail_closed"],
+)
+def test_payload_requires_every_boundary_guard_for_facility_claim(tmp_path, field):
+    iface = _make_interface()
+    payload = _sealed_payload(iface, **{field: False})
+    with pytest.raises(ValueError, match="all fail-closed boundary guards"):
+        _load_payload(tmp_path, payload, require_facility_claim=True)
 
 
 @pytest.mark.parametrize("field", ["epics_db_sha256", "opcua_nodeset_sha256"])

@@ -2036,6 +2036,22 @@ This index keeps the published API reference aligned with every tracked Python m
 
 #### Codac Interface
 
+`CODACInterface.run_cycle()` is a fail-closed software-adapter boundary. Every
+configured external interlock PV and every hard-limit process signal must be
+present, numeric, finite, nominal, and within its declared hard range before
+the controller is invoked. External binary interlocks use `0.0` for clear and
+any non-zero value for trip. A blocked cycle does not call the controller and
+returns the complete fail-stationary zero-output packet. Controller outputs are
+rejected if non-numeric or non-finite and otherwise clamped to the envelopes in
+`_OUTPUT_CHANNELS`; generated analog EPICS records carry matching `DRVH` and
+`DRVL` drive limits.
+
+CODAC runtime evidence uses `scpn-control.codac-runtime-evidence.v2` and records
+that output limits, EPICS drive limits, and the fail-closed interlock path are
+active. Version 1 evidence is rejected and must be regenerated. These software
+guards do not constitute an independent machine-protection interlock, hardware
+commissioning, or facility qualification.
+
 ::: scpn_control.control.codac_interface
 
 ::: scpn_control.control.codac_interface.CODACRuntimeEvidence

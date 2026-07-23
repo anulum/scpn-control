@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Fixed
+- Harden the CODAC/EPICS actuation boundary: reject non-finite controller
+  outputs, clamp every finite command to its declared channel envelope, export
+  analog `DRVH`/`DRVL` drive limits, and make `run_cycle` return a zero-output
+  packet without invoking the controller whenever a required plant signal or
+  external interlock PV is missing, invalid, tripped, or outside its hard
+  limit. Version runtime evidence to v2 so legacy reports cannot support the
+  corrected fail-closed boundary claim.
 - Reject non-unit transition-weight envelopes for existential Z3 firing
   obligations so fractional token flow cannot satisfy a discrete firing claim.
   Version the formal report schema to v2 and distinguish `sat`, `unsat`,

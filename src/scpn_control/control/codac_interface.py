@@ -41,7 +41,7 @@ from typing import Any, Mapping
 
 from scpn_control.scpn.contracts import ControlObservation
 
-CODAC_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.codac-runtime-evidence.v1"
+CODAC_RUNTIME_EVIDENCE_SCHEMA_VERSION = "scpn-control.codac-runtime-evidence.v2"
 CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY = "bounded_codac_runtime_evidence_only"
 CODAC_RUNTIME_EVIDENCE_QUALIFIED = "qualified_codac_runtime_evidence"
 
@@ -97,6 +97,9 @@ class CODACRuntimeEvidence:
     interlock_checks: int
     interlock_blocks: int
     backpressure_events: int
+    output_limits_enforced: bool
+    epics_drive_limits_exported: bool
+    interlock_fail_closed: bool
     epics_db_sha256: str
     opcua_nodeset_sha256: str
     facility_claim_allowed: bool
@@ -138,8 +141,6 @@ _OUTPUT_CHANNELS: tuple[tuple[str, str, str, float, float, str], ...] = (
 
 # Pre-built obs_key → column index for pack_observation
 _INPUT_KEY_MAP: dict[str, str] = {row[0]: row[5] for row in _INPUT_CHANNELS}
-# Pre-built action_key → column suffix for unpack_action
-_OUTPUT_KEY_MAP: dict[str, str] = {row[5]: row[0] for row in _OUTPUT_CHANNELS}
 
 
 def _utc_now() -> str:
@@ -258,6 +259,13 @@ def _validate_evidence_payload(payload: Mapping[str, Any], *, require_facility_c
     if interlock_blocks > interlock_checks:
         raise ValueError("interlock_blocks cannot exceed interlock_checks")
 
+    boundary_guards: dict[str, bool] = {}
+    for guard_name in ("output_limits_enforced", "epics_drive_limits_exported", "interlock_fail_closed"):
+        guard_value = payload.get(guard_name)
+        if not isinstance(guard_value, bool):
+            raise ValueError(f"CODAC runtime evidence {guard_name} must be boolean")
+        boundary_guards[guard_name] = guard_value
+
     if not _is_sha256(payload.get("epics_db_sha256")):
         raise ValueError("epics_db_sha256 must be a SHA-256 hex digest")
     if not _is_sha256(payload.get("opcua_nodeset_sha256")):
@@ -280,6 +288,8 @@ def _validate_evidence_payload(payload: Mapping[str, Any], *, require_facility_c
             raise ValueError("CODAC runtime evidence must exercise and block at least one interlock path")
         if backpressure_events != 0:
             raise ValueError("CODAC runtime evidence with backpressure events cannot support a facility claim")
+        if not all(boundary_guards.values()):
+            raise ValueError("CODAC runtime evidence requires all fail-closed boundary guards for a facility claim")
 
     return CODACRuntimeEvidence(
         schema_version=str(payload["schema_version"]),
@@ -301,6 +311,9 @@ def _validate_evidence_payload(payload: Mapping[str, Any], *, require_facility_c
         interlock_checks=interlock_checks,
         interlock_blocks=interlock_blocks,
         backpressure_events=backpressure_events,
+        output_limits_enforced=boundary_guards["output_limits_enforced"],
+        epics_drive_limits_exported=boundary_guards["epics_drive_limits_exported"],
+        interlock_fail_closed=boundary_guards["interlock_fail_closed"],
         epics_db_sha256=str(payload["epics_db_sha256"]),
         opcua_nodeset_sha256=str(payload["opcua_nodeset_sha256"]),
         facility_claim_allowed=facility_claim_allowed,
@@ -384,41 +397,69 @@ class CODACInterface:
         Parameters
         ----------
         action : Mapping[str, float]
-            Controller action values keyed by the CODAC action names in
-            ``_OUTPUT_KEY_MAP``. Missing actions default to zero output so an
-            incomplete controller command maps to a fail-stationary actuator
-            packet.
+            Controller action values keyed by the names declared in
+            ``_OUTPUT_CHANNELS``. Missing actions default to zero output, finite
+            values are clamped to the channel envelope, and non-finite values
+            are rejected before an actuator packet is returned.
 
         Returns
         -------
         dict[str, float]
             EPICS process-variable values keyed by fully qualified PV names.
         """
-        prefix = self.config.pv_prefix
         out: dict[str, float] = {}
-        for action_key, suffix in _OUTPUT_KEY_MAP.items():
-            pv = f"{prefix}:{suffix}"
-            out[pv] = float(action.get(action_key, 0.0))
+        for suffix, _units, _description, low_limit, high_limit, action_key in _OUTPUT_CHANNELS:
+            raw_value = action.get(action_key, 0.0)
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError) as exc:
+                raise ValueError(f"CODAC output {action_key} must be numeric") from exc
+            if not math.isfinite(value):
+                raise ValueError(f"CODAC output {action_key} must be finite")
+            out[f"{self.config.pv_prefix}:{suffix}"] = min(max(value, low_limit), high_limit)
         return out
 
     def run_cycle(self, pv_values: Mapping[str, float]) -> dict[str, float]:
-        """Single control cycle: pack -> step -> unpack."""
+        """Run one fail-closed interlocked control cycle."""
         self._cycle_timer.start_cycle()
-        obs = self.pack_observation(pv_values)
-        action = self.controller.step(obs, self._step_k)
-        self._step_k += 1
-        result = self.unpack_action(action)
-        self._cycle_timer.end_cycle()
-        return result
+        try:
+            if self.safety_interlock(pv_values):
+                return self.unpack_action({})
+            obs = self.pack_observation(pv_values)
+            action = self.controller.step(obs, self._step_k)
+            result = self.unpack_action(action)
+            self._step_k += 1
+            return result
+        finally:
+            self._cycle_timer.end_cycle()
 
     def safety_interlock(self, pv_values: Mapping[str, float]) -> bool:
-        """Return True if any hard limit is violated (actuation must be blocked)."""
+        """Return whether missing, invalid, tripped, or unsafe inputs block actuation.
+
+        Configured external binary interlocks use ``0.0`` for clear. Missing,
+        non-finite, non-numeric, or non-zero values are blocking.
+        """
+        if not self.config.interlock_pvs:
+            return True
+        for interlock_pv in self.config.interlock_pvs:
+            raw_value = pv_values.get(interlock_pv)
+            if raw_value is None:
+                return True
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                return True
+            if not math.isfinite(value) or value != 0.0:
+                return True
         for key, (lo, hi) in _HARD_LIMITS.items():
-            val = pv_values.get(key)
-            if val is None:
-                continue
-            v = float(val)
-            if v < lo or v > hi:
+            raw_value = pv_values.get(key)
+            if raw_value is None:
+                return True
+            try:
+                value = float(raw_value)
+            except (TypeError, ValueError):
+                return True
+            if not math.isfinite(value) or value < lo or value > hi:
                 return True
         return False
 
@@ -435,6 +476,9 @@ class CODACInterface:
                 lines.append(f'    field(EGU, "{ch.units}")')
             lines.append(f'    field(HOPR, "{ch.high_limit}")')
             lines.append(f'    field(LOPR, "{ch.low_limit}")')
+            if ch.direction == "output" and ch.dtype == "ao":
+                lines.append(f'    field(DRVH, "{ch.high_limit}")')
+                lines.append(f'    field(DRVL, "{ch.low_limit}")')
             lines.append("}")
             lines.append("")
         return "\n".join(lines)
@@ -529,6 +573,9 @@ def codac_runtime_evidence(
         "interlock_checks": interlock_checks,
         "interlock_blocks": interlock_blocks,
         "backpressure_events": backpressure_events,
+        "output_limits_enforced": True,
+        "epics_drive_limits_exported": True,
+        "interlock_fail_closed": True,
         "epics_db_sha256": _text_sha256(interface.render_epics_db()),
         "opcua_nodeset_sha256": _text_sha256(interface.render_opcua_nodeset()),
         "facility_claim_allowed": bool(facility_claim_allowed),
