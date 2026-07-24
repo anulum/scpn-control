@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract SCPN artifact topology/payload model dataclasses into
+  `scpn/artifact_model.py` (CTL-G07 R4-S1). The `Artifact` product surface and
+  validate/load/save/schema/codec remain on `scpn/artifact.py` with re-exports.
+  Inventory cascade: 185 modules / 535 test files.
 - Harden permanent privacy for `docs/internal/` (gitignored forever, MkDocs
   exclude, preflight + CI gate `tools/check_docs_internal_private.py`). Internal
   TODO/audits/handovers must never be tracked or published.

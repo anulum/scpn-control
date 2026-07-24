@@ -1545,6 +1545,13 @@ runtime validator.
 
 ::: scpn_control.scpn.artifact.FormalVerificationEvidence
 
+Topology/meta/weight/readout model dataclasses live in a dedicated leaf and are
+re-exported from the owner module:
+
+::: scpn_control.scpn.artifact_model.Topology
+
+::: scpn_control.scpn.artifact_model.Weights
+
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.validate_artifact
