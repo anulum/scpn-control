@@ -1775,7 +1775,7 @@
     },
     {
       "component": "two-point scrape-off-layer divertor model contract",
-      "equation_contract": "Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-Härm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation.",
+      "equation_contract": "Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-H\u00e4rm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Stangeby 2000 two-point model and sheath heat transmission",
@@ -1791,7 +1791,7 @@
       "unit_contract": "SI metres, megawatts, density in 10^19 m^-3, temperature in eV, heat flux in MW/m^2, connection length in metres, and dimensionless inverse aspect ratio, safety factor, and radiated fraction.",
       "validation_evidence": [
         "tests/test_sol_model.py two-point, Eich, peak-heat-flux, and detachment checks",
-        "validation/validate_sol_two_point.py validates the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, pressure balance, Eich regression exponents, peak target heat flux, and the detachment density boundary against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_sol_two_point.py validates the connection length, parallel-flux mapping, Spitzer-H\u00e4rm upstream conduction integral, pressure balance, Eich regression exponents, peak target heat flux, and the detachment density boundary against exact closed forms, with tamper-evident sealed evidence",
         "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, peak-flux, detachment-boundary, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1812,7 +1812,7 @@
         "validation/reports/sol_two_point.md human-readable conduction, scaling, and detachment summary",
         "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, detachment-boundary, and tamper checks"
       ],
-      "validity_domain": "Analytic two-point SOL and divertor regression with the production model now validated to satisfy the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, upstream-target pressure balance, Eich regression exponents, peak-heat-flux geometry, and the sheath-limited detachment density boundary to machine precision; not facility-validated edge-transport or divertor-heat-load evidence until measured probe-campaign or documented public artifacts pass declared tolerances.",
+      "validity_domain": "Analytic two-point SOL and divertor regression with the production model now validated to satisfy the connection length, parallel-flux mapping, Spitzer-H\u00e4rm upstream conduction integral, upstream-target pressure balance, Eich regression exponents, peak-heat-flux geometry, and the sheath-limited detachment density boundary to machine precision; not facility-validated edge-transport or divertor-heat-load evidence until measured probe-campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
@@ -1936,6 +1936,45 @@
       ],
       "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with tamper-evident sealed evidence; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding now reconstruct the same analytic equilibrium to the second-order discretisation floor (the V-cycle defect sign was corrected and the Rust binding is fed the negated forcing for its -Delta*psi sign convention). Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
       "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "Fusion-kernel reduced-order phase-sync leaf",
+      "equation_contract": "Reduced-order Paper-27 / \u03b6\u00b7sin(\u03a8\u2212\u03b8) phase-reduction and multi-step Lyapunov helpers extracted from FusionKernel must declare the phase-reduction approximation, Kuramoto coupling assumptions, and that they are not a full plasma-phase control law until facility phase-control validation is complete.",
+      "fidelity_status": "validation_gap",
+      "model_references": [
+        "Paper-27 phase reduction / \u03b6\u00b7sin(\u03a8\u2212\u03b8) references",
+        "Kuramoto-Sakaguchi mean-field synchronisation literature",
+        "Repository FusionKernel dual-home phase-sync contract"
+      ],
+      "module_path": "src/scpn_control/core/gs_phase_sync.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Keep FusionKernel thin wrappers as the product surface under dual-home C",
+        "Validate reduced-order phase-sync helpers against mean-field Kuramoto benchmarks before plasma-phase control claims",
+        "Do not claim a full plasma-phase control law from this leaf alone"
+      ],
+      "unit_contract": "Dimensionless oscillator phases, coupling strengths, and Lyapunov metrics in SI time for multi-step tracking helpers.",
+      "validation_evidence": [
+        "tests/test_gs_phase_sync.py",
+        "tests/test_fusion_kernel.py",
+        "tests/test_kuramoto_synchronisation_validation.py"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/gs_phase_sync.py",
+        "tests/test_gs_phase_sync.py",
+        "src/scpn_control/phase/kuramoto.py",
+        "docs/physics_methods.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/gs_phase_sync.py"
+      ],
+      "evidence": [
+        "CTL-G07 R0-S8 leaf extraction of FusionKernel phase-sync helpers",
+        "tests/test_gs_phase_sync.py real-surface unit coverage of the leaf",
+        "Kuramoto numerics remain in scpn_control.phase.kuramoto"
+      ],
+      "validity_domain": "Reduced-order phase-sync helpers for the CONTROL fusion-kernel product surface only; not a facility plasma-phase control law and not a replacement for full Kuramoto/UPDE validation.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "gyrokinetic online learner stability contract",
