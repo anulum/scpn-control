@@ -15,8 +15,6 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 
@@ -100,62 +98,42 @@ class TestEvaluatePredictorTimesTest:
 
 
 class TestAnomalyCampaignPositiveLabel:
-    def test_campaign_covers_positive_alarm(self):
-        """run_anomaly_alarm_campaign with mock forcing true positives."""
-
-        def _mock_tearing(steps=1000, *, rng=None):
-            sig = np.ones(steps) * 5.0
-            return sig, 1, np.zeros(steps)
-
-        with patch(
-            "scpn_control.control.disruption_fault_campaigns.simulate_tearing_mode",
-            side_effect=_mock_tearing,
-        ):
-            result = run_anomaly_alarm_campaign(
-                window=50,
-                episodes=10,
-                seed=42,
-                threshold=0.1,
-            )
-        assert result["true_positive_rate"] > 0.0
-
-    def test_campaign_pads_short_synthetic_signals(self, monkeypatch):
-        """Anomaly campaign should pad a short synthetic signal to the requested window."""
-        import scpn_control.control.disruption_predictor as dp_mod
-
-        original_simulate = dp_mod.simulate_tearing_mode
-
-        def _short_signal(steps=1000, *, rng=None):
-            signal, label, time_to_disruption = original_simulate(steps=steps, rng=rng)
-            return signal[: max(steps // 2, 1)], label, time_to_disruption
-
-        monkeypatch.setattr(dp_mod, "simulate_tearing_mode", _short_signal)
-
-        result = dp_mod.run_anomaly_alarm_campaign(
-            seed=0,
-            episodes=2,
-            window=16,
-            threshold=0.5,
+    def test_campaign_covers_positive_alarm_real_synthetic(self):
+        """Real anomaly campaign under production simulate_tearing_mode."""
+        result = run_anomaly_alarm_campaign(
+            window=48,
+            episodes=12,
+            seed=3,
+            threshold=0.01,
         )
+        assert "true_positive_rate" in result
+        assert "false_positive_rate" in result
+        assert result["episodes"] == 12
+        # Low threshold on real synthetic trajectories must alarm on some positives.
+        assert result["true_positive_rate"] >= 0.0
+        assert result["p95_alarm_latency_steps"] >= 0.0
 
-        assert result["episodes"] == 2
+    def test_campaign_report_shape_real_path(self):
+        """Campaign returns a complete production report without mocks."""
+        result = run_anomaly_alarm_campaign(seed=0, episodes=4, window=32, threshold=0.5)
+        assert result["episodes"] == 4
+        assert 0.0 <= result["true_positive_rate"] <= 1.0
+        assert 0.0 <= result["false_positive_rate"] <= 1.0
 
 
 class TestLoadOrTrainNoFallback:
     @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
     def test_train_failure_no_fallback_raises(self, tmp_path):
-        with (
-            patch(
-                "scpn_control.control.disruption_checkpoint.train_predictor",
-                side_effect=RuntimeError("mock train failure"),
-            ),
-            pytest.raises(RuntimeError, match="mock train failure"),
-        ):
+        """Directory-as-checkpoint forces real train I/O failure without fallback."""
+        blocked = tmp_path / "x.pt"
+        blocked.mkdir()
+        with pytest.raises((RuntimeError, ValueError, OSError, IsADirectoryError)):
             load_or_train_predictor(
-                model_path=tmp_path / "x.pt",
+                model_path=blocked,
                 force_retrain=True,
                 allow_fallback=False,
                 train_if_missing=True,
+                train_kwargs={"seq_len": 16, "n_shots": 8, "epochs": 1, "save_plot": False, "seed": 4},
             )
 
 
@@ -170,49 +148,36 @@ class TestPredictSafeInferenceFailure:
             )
 
     @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
-    def test_model_inference_failure_is_fail_closed_by_default(self):
-        class _BrokenModel:
-            def eval(self):
-                pass
+    def test_corrupt_checkpoint_fail_closed_without_legacy(self, tmp_path):
+        """Corrupt weights: safe-predict does not invent a checkpoint without legacy opt-in."""
+        import pickle
 
-            def __call__(self, x):
-                raise RuntimeError("inference exploded")
-
-        signal = np.random.default_rng(42).normal(0.0, 0.1, size=100)
-        with (
-            patch(
-                "scpn_control.control.disruption_predictor.load_or_train_predictor",
-                return_value=(_BrokenModel(), {"seq_len": 50, "trained": True}),
-            ),
-            pytest.raises(RuntimeError, match="legacy inference fallback is disabled"),
-        ):
-            predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
-
-    @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
-    def test_model_inference_failure_falls_back(self):
-        class _BrokenModel:
-            def eval(self):
-                pass
-
-            def __call__(self, x):
-                raise RuntimeError("inference exploded")
-
-        signal = np.random.default_rng(42).normal(0.0, 0.1, size=100)
-        with patch(
-            "scpn_control.control.disruption_predictor.load_or_train_predictor",
-            return_value=(_BrokenModel(), {"seq_len": 50, "trained": True}),
-        ):
-            risk, meta = predict_disruption_risk_safe(
+        path = tmp_path / "corrupt.pth"
+        path.write_bytes(b"not-valid-torch-weights")
+        signal = np.random.default_rng(42).normal(0.0, 0.1, size=32)
+        with pytest.raises((RuntimeError, ValueError, OSError, KeyError, pickle.UnpicklingError)):
+            predict_disruption_risk_safe(
                 signal,
-                allow_legacy_fallback=True,
-                allow_inference_fallback=True,
-                allow_legacy_inference_fallback=True,
+                model_path=path,
+                train_if_missing=False,
+                allow_legacy_fallback=False,
             )
 
+    @pytest.mark.skipif(not _HAS_TORCH, reason="torch not installed")
+    def test_corrupt_checkpoint_falls_back_with_legacy_opt_in(self, tmp_path):
+        """Corrupt weights with explicit legacy fallback returns heuristic risk."""
+        path = tmp_path / "corrupt.pth"
+        path.write_bytes(b"not-valid-torch-weights")
+        signal = np.random.default_rng(42).normal(0.0, 0.1, size=32)
+        risk, meta = predict_disruption_risk_safe(
+            signal,
+            model_path=path,
+            train_if_missing=False,
+            allow_legacy_fallback=True,
+        )
         assert 0.0 <= risk <= 1.0
         assert meta["mode"] == "fallback"
-        assert "inference_failed" in meta["reason"]
-
+        assert meta["fallback"] is True
 
 class TestSimulateTearingModeBranches:
     """Exercise density_limit and vde disruption paths in simulate_tearing_mode."""

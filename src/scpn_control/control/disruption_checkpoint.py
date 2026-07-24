@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import pickle
 from pathlib import Path
 from typing import Any
 
@@ -156,7 +157,7 @@ def _owner_signal_helpers() -> tuple[Any, Any, Any]:
     return owner.DisruptionTransformer, owner._normalize_seq_len, owner._prepare_signal_window
 
 
-def train_predictor(  # pragma: no cover - requires torch+matplotlib
+def train_predictor(
     seq_len: int = _DEFAULT_SEQ_LEN,
     n_shots: int = 500,
     epochs: int = 50,
@@ -362,7 +363,7 @@ def load_or_train_predictor(
     seq_len = normalize_seq_len(seq_len)
     kwargs = dict(train_kwargs or {})
 
-    if path.exists() and not force_retrain:  # pragma: no cover - requires torch checkpoint
+    if path.exists() and not force_retrain:
         # Fail-closed weights-integrity gate BEFORE deserialisation: a pinned
         # digest mismatch (or a missing pin under require_pin) raises hard and is
         # never swallowed by allow_fallback.
@@ -390,7 +391,7 @@ def load_or_train_predictor(
                     "weights_sha256": weights_sha256,
                 }
             )
-        except (RuntimeError, ValueError, KeyError, OSError) as exc:
+        except (RuntimeError, ValueError, KeyError, OSError, pickle.UnpicklingError) as exc:
             if not allow_fallback:
                 raise
             return None, _attach_disruption_claim_boundary(
@@ -403,7 +404,7 @@ def load_or_train_predictor(
                 }
             )
 
-    if not train_if_missing and not force_retrain:  # pragma: no cover - requires torch
+    if not train_if_missing and not force_retrain:
         if allow_fallback:
             return None, _attach_disruption_claim_boundary(
                 {
@@ -419,8 +420,8 @@ def load_or_train_predictor(
     kwargs.setdefault("seq_len", seq_len)
     kwargs.setdefault("model_path", path)
     try:
-        model, info = train_predictor(**kwargs)  # pragma: no cover - requires torch
-    except (RuntimeError, ValueError, OSError) as exc:  # pragma: no cover - requires torch
+        model, info = train_predictor(**kwargs)
+    except (RuntimeError, ValueError, OSError) as exc:
         if not allow_fallback:
             raise
         return None, _attach_disruption_claim_boundary(
@@ -432,10 +433,8 @@ def load_or_train_predictor(
                 "seq_len": int(seq_len),
             }
         )
-    info["trained"] = True  # pragma: no cover - requires torch
-    info["fallback"] = False  # pragma: no cover - requires torch
-    info["facility_roc_validated"] = False  # pragma: no cover - requires torch
-    info.setdefault(
-        "claim_boundary", disruption_risk_claim_boundary().to_metadata()
-    )  # pragma: no cover - requires torch
-    return model, info  # pragma: no cover - requires torch
+    info["trained"] = True
+    info["fallback"] = False
+    info["facility_roc_validated"] = False
+    info.setdefault("claim_boundary", disruption_risk_claim_boundary().to_metadata())
+    return model, info

@@ -2,7 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+- Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
+  weights fail closed or fall back when opted in (CTL-G07 R7-S4 fidelity).
 ### Changed
+- Rewrite disruption checkpoint / safe-API / fallback tests to real torch
+  train→pin→load→predict paths; remove FakeTorch and patched train/load
+  surfaces (real-surface E2E policy).
 - Extract disruption checkpoint integrity and train/load orchestration into
   `control/disruption_checkpoint.py` (CTL-G07 R7-S4). The disruption predictor
   re-exports the checkpoint leaf; the optional torch model class remains on the
