@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Decompose free-boundary `run_tracking_shot` into cohesive private stage methods
+  on `FreeBoundaryTrackingController` (CTL-G07 R3-S4): validate args, initialise
+  shot, observe/plan correction, gain-search or recover, record history, summarise.
+  Public shot entry and summary keys are unchanged; claims stay separate; dual-home
+  C held. Inventory cascade: 184 modules / 533 test files (in-module only).
 - Extract free-boundary tracking response diagnostics, activation mask, coil
   headroom penalties, and Tikhonov coil correction into
   `control/free_boundary_tracking_control_law.py` (CTL-G07 R3-S3). The

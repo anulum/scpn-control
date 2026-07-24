@@ -59,6 +59,24 @@ class _ObservationSnapshot:
     effective: FloatArray
 
 
+@dataclass
+class _ShotStepRecord:
+    """Mutable per-step bookkeeping for closed-loop free-boundary tracking."""
+
+    observation_snapshot_before: _ObservationSnapshot
+    metrics_before: dict[str, Any]
+    true_metrics_before: dict[str, Any]
+    delta_currents: FloatArray
+    accepted_gain: float
+    last_metrics: dict[str, Any]
+    last_true_metrics: dict[str, Any]
+    last_supervisor: dict[str, Any]
+    supervisor_intervened: bool
+    max_abs_actuator_lag: float
+    fallback_active: bool
+    tolerance_regression_blocked: bool
+
+
 class FreeBoundaryTrackingController:
     """Direct free-boundary controller using local coil-response identification.
 
@@ -944,40 +962,19 @@ class FreeBoundaryTrackingController:
             regressions[key] = bool(before_scalar <= tolerance + 1.0e-12 and after_scalar > tolerance + 1.0e-12)
         return regressions
 
-    def run_tracking_shot(
-        self,
-        *,
-        shot_steps: int = 10,
-        gain: float = 1.0,
-        disturbance_callback: Callable[[Any, CoilSet, int], None] | None = None,
-        stop_on_convergence: bool = False,
-    ) -> dict[str, Any]:
-        """Run a closed-loop free-boundary shape-tracking shot.
-
-        Parameters
-        ----------
-        shot_steps
-            Number of control steps; must be at least 1.
-        gain
-            Correction gain; must be finite and positive.
-        disturbance_callback
-            Optional callback ``(state, coils, step) -> None`` injecting
-            disturbances each step.
-        stop_on_convergence
-            Whether to stop early once the tracking error converges.
-
-        Returns
-        -------
-        dict[str, Any]
-            The shot history and final tracking metrics.
-        """
+    @staticmethod
+    def _validate_tracking_shot_args(*, shot_steps: int, gain: float) -> tuple[int, float]:
+        """Validate closed-loop shot length and correction gain."""
         steps = int(shot_steps)
         if steps < 1:
             raise ValueError("shot_steps must be >= 1.")
         gain_value = float(gain)
         if not np.isfinite(gain_value) or gain_value <= 0.0:
             raise ValueError("gain must be finite and > 0.")
-        start_time = time.time()
+        return steps, gain_value
+
+    def _initialise_tracking_shot(self) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+        """Reset history/observers and evaluate the initial free-boundary snapshot."""
         self.history = {key: [] for key in self.history}
         self._hold_steps_remaining = 0
         self._reset_objective_observer()
@@ -993,209 +990,271 @@ class FreeBoundaryTrackingController:
             max_abs_coil_current=float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0,
             max_abs_actuator_lag=0.0,
         )
+        return last_metrics, last_true_metrics, last_supervisor
 
-        for step in range(steps):
-            if disturbance_callback is not None:
-                disturbance_callback(self.kernel, self.coils, step)
+    def _observe_and_plan_step_correction(self, step: int) -> _ShotStepRecord:
+        """Solve, optionally refresh the response, observe, and plan a coil correction."""
+        self._solve_free_boundary_state()
+        if step % self.response_refresh_steps == 0:
+            self.identify_response_matrix()
 
+        observation_snapshot_before = self._observe_snapshot()
+        observation_before = observation_snapshot_before.effective
+        true_observation_before = observation_snapshot_before.true
+        self._update_objective_observer(observation_before)
+        metrics_before = self.evaluate_objectives(observation_before)
+        true_metrics_before = self.evaluate_objectives(true_observation_before)
+        delta_currents = self.compute_correction(observation_before, metrics=metrics_before)
+        return _ShotStepRecord(
+            observation_snapshot_before=observation_snapshot_before,
+            metrics_before=metrics_before,
+            true_metrics_before=true_metrics_before,
+            delta_currents=delta_currents,
+            accepted_gain=0.0,
+            last_metrics=metrics_before,
+            last_true_metrics=true_metrics_before,
+            last_supervisor=self.evaluate_supervisor(
+                metrics_before,
+                max_abs_coil_current=(
+                    float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+                ),
+                max_abs_actuator_lag=0.0,
+            ),
+            supervisor_intervened=False,
+            max_abs_actuator_lag=0.0,
+            fallback_active=False,
+            tolerance_regression_blocked=False,
+        )
+
+    def _apply_gain_search_or_recover(
+        self,
+        record: _ShotStepRecord,
+        *,
+        gain_value: float,
+        baseline_currents: FloatArray,
+        actuator_snapshot: tuple[_ActuatorSnapshot, ...],
+    ) -> None:
+        """Apply trial gains with supervisor checks, or recover on reject/hold/degeneracy."""
+        metrics_before = record.metrics_before
+        true_metrics_before = record.true_metrics_before
+        delta_currents = record.delta_currents
+
+        if self.response_degenerate:
+            record.delta_currents = np.zeros_like(delta_currents)
+            (
+                record.last_metrics,
+                record.last_true_metrics,
+                record.last_supervisor,
+                record.max_abs_actuator_lag,
+                record.fallback_active,
+            ) = self._recover_to_safe_state(
+                actuator_snapshot=actuator_snapshot,
+                baseline_currents=baseline_currents,
+                metrics_before=metrics_before,
+                true_metrics_before=true_metrics_before,
+            )
+            record.supervisor_intervened = True
+            if self.hold_steps_after_reject > 0:
+                self._hold_steps_remaining = self.hold_steps_after_reject
+            return
+
+        if self._hold_steps_remaining > 0:
+            self._hold_steps_remaining -= 1
+            record.delta_currents = np.zeros_like(delta_currents)
+            (
+                record.last_metrics,
+                record.last_true_metrics,
+                record.last_supervisor,
+                record.max_abs_actuator_lag,
+                record.fallback_active,
+            ) = self._recover_to_safe_state(
+                actuator_snapshot=actuator_snapshot,
+                baseline_currents=baseline_currents,
+                metrics_before=metrics_before,
+                true_metrics_before=true_metrics_before,
+            )
+            record.supervisor_intervened = True
+            return
+
+        trial_gain = gain_value
+        for _ in range(6):
+            self._restore_actuator_states(actuator_snapshot)
+            self.coils.currents = baseline_currents.copy()
+            commanded_currents = self._command_currents(delta_currents, gain=trial_gain)
+            applied_currents = self._apply_correction(delta_currents, gain=trial_gain)
+            max_abs_actuator_lag = (
+                float(np.max(np.abs(commanded_currents - applied_currents))) if applied_currents.size > 0 else 0.0
+            )
             self._solve_free_boundary_state()
-            if step % self.response_refresh_steps == 0:
-                self.identify_response_matrix()
-
-            observation_snapshot_before = self._observe_snapshot()
-            observation_before = observation_snapshot_before.effective
-            true_observation_before = observation_snapshot_before.true
-            self._update_objective_observer(observation_before)
-            metrics_before = self.evaluate_objectives(observation_before)
-            true_metrics_before = self.evaluate_objectives(true_observation_before)
-            delta_currents = self.compute_correction(observation_before, metrics=metrics_before)
-            baseline_currents = self.coils.currents.copy()
-            actuator_snapshot = self._snapshot_actuator_states()
-            accepted_gain = 0.0
-            last_metrics = metrics_before
-            last_true_metrics = true_metrics_before
-            supervisor_intervened = False
-            max_abs_actuator_lag = 0.0
-            fallback_active = False
-            tolerance_regression_blocked = False
-
-            if self.response_degenerate:
-                delta_currents = np.zeros_like(delta_currents)
-                (
-                    last_metrics,
-                    last_true_metrics,
-                    last_supervisor,
-                    max_abs_actuator_lag,
-                    fallback_active,
-                ) = self._recover_to_safe_state(
-                    actuator_snapshot=actuator_snapshot,
-                    baseline_currents=baseline_currents,
-                    metrics_before=metrics_before,
-                    true_metrics_before=true_metrics_before,
-                )
-                supervisor_intervened = True
-                if self.hold_steps_after_reject > 0:
-                    self._hold_steps_remaining = self.hold_steps_after_reject
-            elif self._hold_steps_remaining > 0:
-                self._hold_steps_remaining -= 1
-                delta_currents = np.zeros_like(delta_currents)
-                (
-                    last_metrics,
-                    last_true_metrics,
-                    last_supervisor,
-                    max_abs_actuator_lag,
-                    fallback_active,
-                ) = self._recover_to_safe_state(
-                    actuator_snapshot=actuator_snapshot,
-                    baseline_currents=baseline_currents,
-                    metrics_before=metrics_before,
-                    true_metrics_before=true_metrics_before,
-                )
-                supervisor_intervened = True
-            else:
-                trial_gain = gain_value
-                for _ in range(6):
-                    self._restore_actuator_states(actuator_snapshot)
-                    self.coils.currents = baseline_currents.copy()
-                    commanded_currents = self._command_currents(delta_currents, gain=trial_gain)
-                    applied_currents = self._apply_correction(delta_currents, gain=trial_gain)
-                    max_abs_actuator_lag = (
-                        float(np.max(np.abs(commanded_currents - applied_currents)))
-                        if applied_currents.size > 0
-                        else 0.0
-                    )
-                    self._solve_free_boundary_state()
-                    observation_snapshot_after = self._observe_snapshot(apply_latency=False)
-                    observation_after = observation_snapshot_after.effective
-                    true_observation_after = observation_snapshot_after.true
-                    metrics_after = self.evaluate_objectives(observation_after)
-                    true_metrics_after = self.evaluate_objectives(true_observation_after)
-                    supervisor_after = self.evaluate_supervisor(
-                        metrics_after,
-                        max_abs_coil_current=(
-                            float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
-                        ),
-                        max_abs_actuator_lag=max_abs_actuator_lag,
-                    )
-                    improved = bool(metrics_after["control_error_norm"] <= metrics_before["control_error_norm"] + 1e-12)
-                    tolerance_regressions = self._detect_tolerance_regressions(metrics_before, metrics_after)
-                    newly_converged = (not metrics_before["objective_converged"]) and metrics_after[
-                        "objective_converged"
-                    ]
-                    if (
-                        (improved or newly_converged)
-                        and supervisor_after["supervisor_safe"]
-                        and not any(tolerance_regressions.values())
-                    ):
-                        accepted_gain = trial_gain
-                        last_metrics = metrics_after
-                        last_true_metrics = true_metrics_after
-                        last_supervisor = supervisor_after
-                        break
-                    if any(tolerance_regressions.values()):
-                        tolerance_regression_blocked = True
-                    trial_gain *= 0.5
-
-                if accepted_gain == 0.0:
-                    (
-                        last_metrics,
-                        last_true_metrics,
-                        last_supervisor,
-                        max_abs_actuator_lag,
-                        fallback_active,
-                    ) = self._recover_to_safe_state(
-                        actuator_snapshot=actuator_snapshot,
-                        baseline_currents=baseline_currents,
-                        metrics_before=metrics_before,
-                        true_metrics_before=true_metrics_before,
-                    )
-                    supervisor_intervened = True
-                    if self.hold_steps_after_reject > 0:
-                        self._hold_steps_remaining = self.hold_steps_after_reject
-
-            max_abs_delta = float(np.max(np.abs(delta_currents))) if delta_currents.size > 0 else 0.0
-            max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
-            measurement_offset = self._current_measurement_offset()
-            measurement_offset_abs = np.abs(measurement_offset)
-            measurement_error_norm = float(
-                np.linalg.norm(observation_snapshot_before.measured - observation_snapshot_before.true)
+            observation_snapshot_after = self._observe_snapshot(apply_latency=False)
+            observation_after = observation_snapshot_after.effective
+            true_observation_after = observation_snapshot_after.true
+            metrics_after = self.evaluate_objectives(observation_after)
+            true_metrics_after = self.evaluate_objectives(true_observation_after)
+            supervisor_after = self.evaluate_supervisor(
+                metrics_after,
+                max_abs_coil_current=(
+                    float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+                ),
+                max_abs_actuator_lag=max_abs_actuator_lag,
             )
-            delayed_observation_error_norm = float(
-                np.linalg.norm(observation_snapshot_before.delayed - observation_snapshot_before.true)
-            )
-            estimated_observation_error_norm = float(
-                np.linalg.norm(observation_snapshot_before.effective - observation_snapshot_before.true)
-            )
-            self.history["t"].append(int(step))
-            self.history["tracking_error_norm"].append(last_metrics["tracking_error_norm"])
-            self.history["true_tracking_error_norm"].append(last_true_metrics["tracking_error_norm"])
-            self.history["control_error_norm"].append(last_metrics["control_error_norm"])
-            self.history["true_control_error_norm"].append(last_true_metrics["control_error_norm"])
-            self.history["shape_rms"].append(last_metrics["shape_rms"])
-            self.history["true_shape_rms"].append(last_true_metrics["shape_rms"])
-            self.history["shape_max_abs"].append(last_metrics["shape_max_abs"])
-            self.history["true_shape_max_abs"].append(last_true_metrics["shape_max_abs"])
-            self.history["x_point_position_error"].append(last_metrics["x_point_position_error"])
-            self.history["true_x_point_position_error"].append(last_true_metrics["x_point_position_error"])
-            self.history["x_point_flux_error"].append(last_metrics["x_point_flux_error"])
-            self.history["true_x_point_flux_error"].append(last_true_metrics["x_point_flux_error"])
-            self.history["divertor_rms"].append(last_metrics["divertor_rms"])
-            self.history["true_divertor_rms"].append(last_true_metrics["divertor_rms"])
-            self.history["divertor_max_abs"].append(last_metrics["divertor_max_abs"])
-            self.history["true_divertor_max_abs"].append(last_true_metrics["divertor_max_abs"])
-            self.history["max_abs_delta_i"].append(max_abs_delta)
-            self.history["max_abs_coil_current"].append(max_abs_coil)
-            self.history["max_abs_actuator_lag"].append(max_abs_actuator_lag)
-            self.history["max_abs_measurement_offset"].append(
-                float(np.max(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
-            )
-            self.history["mean_abs_measurement_offset"].append(
-                float(np.mean(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
-            )
-            self.history["measurement_error_norm"].append(measurement_error_norm)
-            self.history["delayed_observation_error_norm"].append(delayed_observation_error_norm)
-            self.history["estimated_observation_error_norm"].append(estimated_observation_error_norm)
-            self.history["accepted_gain"].append(float(accepted_gain))
-            self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
-            bias_abs = np.abs(self.objective_bias_estimate)
-            self.history["max_abs_objective_bias_estimate"].append(float(np.max(bias_abs)) if bias_abs.size else 0.0)
-            self.history["mean_abs_objective_bias_estimate"].append(float(np.mean(bias_abs)) if bias_abs.size else 0.0)
-            rate_abs = np.abs(self.objective_rate_estimate)
-            self.history["max_abs_objective_rate_estimate"].append(float(np.max(rate_abs)) if rate_abs.size else 0.0)
-            self.history["response_rank"].append(int(self.response_rank))
-            self.history["response_condition_number"].append(float(self.response_condition_number))
-            self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
-            self.history["response_degenerate"].append(bool(self.response_degenerate))
-            self.history["active_control_rows"].append(int(last_metrics["active_control_rows"]))
-            self.history["max_coil_penalty"].append(
-                float(np.max(self.last_coil_penalties)) if self.last_coil_penalties.size else 1.0
-            )
-            self.history["supervisor_intervened"].append(bool(supervisor_intervened))
-            self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
-            self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
-            self.history["fallback_active"].append(bool(fallback_active))
-            self.history["tolerance_regression_blocked"].append(bool(tolerance_regression_blocked))
-
-            self._log(
-                f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
-                f"ctrl={last_metrics['control_error_norm']:.4e} | "
-                f"active={int(last_metrics['active_control_rows'])} | "
-                f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
-                f"coil_pen={self.history['max_coil_penalty'][-1]:.2f} | "
-                f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
-                f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
-                f"meas_off={self.history['max_abs_measurement_offset'][-1]:.3e} | "
-                f"delay_obs={delayed_observation_error_norm:.3e} | "
-                f"est_obs={estimated_observation_error_norm:.3e} | "
-                f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
-                f"safe={last_supervisor['supervisor_safe']} | "
-                f"converged={last_metrics['objective_converged']}"
-            )
-            self._advance_measurement_offsets()
-            if stop_on_convergence and last_metrics["objective_converged"]:
+            improved = bool(metrics_after["control_error_norm"] <= metrics_before["control_error_norm"] + 1e-12)
+            tolerance_regressions = self._detect_tolerance_regressions(metrics_before, metrics_after)
+            newly_converged = (not metrics_before["objective_converged"]) and metrics_after["objective_converged"]
+            if (
+                (improved or newly_converged)
+                and supervisor_after["supervisor_safe"]
+                and not any(tolerance_regressions.values())
+            ):
+                record.accepted_gain = trial_gain
+                record.last_metrics = metrics_after
+                record.last_true_metrics = true_metrics_after
+                record.last_supervisor = supervisor_after
+                record.max_abs_actuator_lag = max_abs_actuator_lag
                 break
+            if any(tolerance_regressions.values()):
+                record.tolerance_regression_blocked = True
+            trial_gain *= 0.5
 
-        runtime_seconds = time.time() - start_time
+        if record.accepted_gain == 0.0:
+            (
+                record.last_metrics,
+                record.last_true_metrics,
+                record.last_supervisor,
+                record.max_abs_actuator_lag,
+                record.fallback_active,
+            ) = self._recover_to_safe_state(
+                actuator_snapshot=actuator_snapshot,
+                baseline_currents=baseline_currents,
+                metrics_before=metrics_before,
+                true_metrics_before=true_metrics_before,
+            )
+            record.supervisor_intervened = True
+            if self.hold_steps_after_reject > 0:
+                self._hold_steps_remaining = self.hold_steps_after_reject
+
+    def _run_tracking_shot_step(
+        self,
+        step: int,
+        *,
+        gain_value: float,
+        disturbance_callback: Callable[[Any, CoilSet, int], None] | None,
+    ) -> _ShotStepRecord:
+        """Execute one closed-loop tracking step (observe → correct → accept/recover)."""
+        if disturbance_callback is not None:
+            disturbance_callback(self.kernel, self.coils, step)
+
+        record = self._observe_and_plan_step_correction(step)
+        baseline_currents = self.coils.currents.copy()
+        actuator_snapshot = self._snapshot_actuator_states()
+        self._apply_gain_search_or_recover(
+            record,
+            gain_value=gain_value,
+            baseline_currents=baseline_currents,
+            actuator_snapshot=actuator_snapshot,
+        )
+        return record
+
+    def _record_tracking_shot_step(self, step: int, record: _ShotStepRecord) -> None:
+        """Append step metrics/history and emit the step log line."""
+        last_metrics = record.last_metrics
+        last_true_metrics = record.last_true_metrics
+        last_supervisor = record.last_supervisor
+        delta_currents = record.delta_currents
+        accepted_gain = record.accepted_gain
+        max_abs_actuator_lag = record.max_abs_actuator_lag
+        fallback_active = record.fallback_active
+        observation_snapshot_before = record.observation_snapshot_before
+
+        max_abs_delta = float(np.max(np.abs(delta_currents))) if delta_currents.size > 0 else 0.0
+        max_abs_coil = float(np.max(np.abs(self.coils.currents))) if self.coils.currents.size > 0 else 0.0
+        measurement_offset = self._current_measurement_offset()
+        measurement_offset_abs = np.abs(measurement_offset)
+        measurement_error_norm = float(
+            np.linalg.norm(observation_snapshot_before.measured - observation_snapshot_before.true)
+        )
+        delayed_observation_error_norm = float(
+            np.linalg.norm(observation_snapshot_before.delayed - observation_snapshot_before.true)
+        )
+        estimated_observation_error_norm = float(
+            np.linalg.norm(observation_snapshot_before.effective - observation_snapshot_before.true)
+        )
+        self.history["t"].append(int(step))
+        self.history["tracking_error_norm"].append(last_metrics["tracking_error_norm"])
+        self.history["true_tracking_error_norm"].append(last_true_metrics["tracking_error_norm"])
+        self.history["control_error_norm"].append(last_metrics["control_error_norm"])
+        self.history["true_control_error_norm"].append(last_true_metrics["control_error_norm"])
+        self.history["shape_rms"].append(last_metrics["shape_rms"])
+        self.history["true_shape_rms"].append(last_true_metrics["shape_rms"])
+        self.history["shape_max_abs"].append(last_metrics["shape_max_abs"])
+        self.history["true_shape_max_abs"].append(last_true_metrics["shape_max_abs"])
+        self.history["x_point_position_error"].append(last_metrics["x_point_position_error"])
+        self.history["true_x_point_position_error"].append(last_true_metrics["x_point_position_error"])
+        self.history["x_point_flux_error"].append(last_metrics["x_point_flux_error"])
+        self.history["true_x_point_flux_error"].append(last_true_metrics["x_point_flux_error"])
+        self.history["divertor_rms"].append(last_metrics["divertor_rms"])
+        self.history["true_divertor_rms"].append(last_true_metrics["divertor_rms"])
+        self.history["divertor_max_abs"].append(last_metrics["divertor_max_abs"])
+        self.history["true_divertor_max_abs"].append(last_true_metrics["divertor_max_abs"])
+        self.history["max_abs_delta_i"].append(max_abs_delta)
+        self.history["max_abs_coil_current"].append(max_abs_coil)
+        self.history["max_abs_actuator_lag"].append(max_abs_actuator_lag)
+        self.history["max_abs_measurement_offset"].append(
+            float(np.max(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
+        )
+        self.history["mean_abs_measurement_offset"].append(
+            float(np.mean(measurement_offset_abs)) if measurement_offset_abs.size else 0.0
+        )
+        self.history["measurement_error_norm"].append(measurement_error_norm)
+        self.history["delayed_observation_error_norm"].append(delayed_observation_error_norm)
+        self.history["estimated_observation_error_norm"].append(estimated_observation_error_norm)
+        self.history["accepted_gain"].append(float(accepted_gain))
+        self.history["objective_converged"].append(bool(last_metrics["objective_converged"]))
+        bias_abs = np.abs(self.objective_bias_estimate)
+        self.history["max_abs_objective_bias_estimate"].append(float(np.max(bias_abs)) if bias_abs.size else 0.0)
+        self.history["mean_abs_objective_bias_estimate"].append(float(np.mean(bias_abs)) if bias_abs.size else 0.0)
+        rate_abs = np.abs(self.objective_rate_estimate)
+        self.history["max_abs_objective_rate_estimate"].append(float(np.max(rate_abs)) if rate_abs.size else 0.0)
+        self.history["response_rank"].append(int(self.response_rank))
+        self.history["response_condition_number"].append(float(self.response_condition_number))
+        self.history["response_max_singular_value"].append(float(self.response_max_singular_value))
+        self.history["response_degenerate"].append(bool(self.response_degenerate))
+        self.history["active_control_rows"].append(int(last_metrics["active_control_rows"]))
+        self.history["max_coil_penalty"].append(
+            float(np.max(self.last_coil_penalties)) if self.last_coil_penalties.size else 1.0
+        )
+        self.history["supervisor_intervened"].append(bool(record.supervisor_intervened))
+        self.history["supervisor_safe"].append(bool(last_supervisor["supervisor_safe"]))
+        self.history["supervisor_hold_steps_remaining"].append(int(self._hold_steps_remaining))
+        self.history["fallback_active"].append(bool(fallback_active))
+        self.history["tolerance_regression_blocked"].append(bool(record.tolerance_regression_blocked))
+
+        self._log(
+            f"Step {step}: err={last_metrics['tracking_error_norm']:.4e} | "
+            f"ctrl={last_metrics['control_error_norm']:.4e} | "
+            f"active={int(last_metrics['active_control_rows'])} | "
+            f"max dI={max_abs_delta:.3e} | gain={accepted_gain:.3e} | "
+            f"coil_pen={self.history['max_coil_penalty'][-1]:.2f} | "
+            f"resp_rank={self.response_rank} | resp_deg={self.response_degenerate} | "
+            f"obs_bias={self.history['max_abs_objective_bias_estimate'][-1]:.3e} | "
+            f"meas_off={self.history['max_abs_measurement_offset'][-1]:.3e} | "
+            f"delay_obs={delayed_observation_error_norm:.3e} | "
+            f"est_obs={estimated_observation_error_norm:.3e} | "
+            f"lag={max_abs_actuator_lag:.3e} | fallback={fallback_active} | "
+            f"safe={last_supervisor['supervisor_safe']} | "
+            f"converged={last_metrics['objective_converged']}"
+        )
+        self._advance_measurement_offsets()
+
+    def _summarise_tracking_shot(
+        self,
+        *,
+        last_metrics: dict[str, Any],
+        last_true_metrics: dict[str, Any],
+        last_supervisor: dict[str, Any],
+        runtime_seconds: float,
+    ) -> dict[str, Any]:
+        """Collapse shot history arrays into the public summary mapping."""
         error_arr = np.asarray(self.history["tracking_error_norm"], dtype=np.float64)
         true_error_arr = np.asarray(self.history["true_tracking_error_norm"], dtype=np.float64)
         control_error_arr = np.asarray(self.history["control_error_norm"], dtype=np.float64)
@@ -1310,6 +1369,57 @@ class FreeBoundaryTrackingController:
             "divertor_max_abs": last_metrics["divertor_max_abs"],
             "true_divertor_max_abs": last_true_metrics["divertor_max_abs"],
         }
+
+    def run_tracking_shot(
+        self,
+        *,
+        shot_steps: int = 10,
+        gain: float = 1.0,
+        disturbance_callback: Callable[[Any, CoilSet, int], None] | None = None,
+        stop_on_convergence: bool = False,
+    ) -> dict[str, Any]:
+        """Run a closed-loop free-boundary shape-tracking shot.
+
+        Parameters
+        ----------
+        shot_steps
+            Number of control steps; must be at least 1.
+        gain
+            Correction gain; must be finite and positive.
+        disturbance_callback
+            Optional callback ``(state, coils, step) -> None`` injecting
+            disturbances each step.
+        stop_on_convergence
+            Whether to stop early once the tracking error converges.
+
+        Returns
+        -------
+        dict[str, Any]
+            The shot history and final tracking metrics.
+        """
+        steps, gain_value = self._validate_tracking_shot_args(shot_steps=shot_steps, gain=gain)
+        start_time = time.time()
+        last_metrics, last_true_metrics, last_supervisor = self._initialise_tracking_shot()
+
+        for step in range(steps):
+            record = self._run_tracking_shot_step(
+                step,
+                gain_value=gain_value,
+                disturbance_callback=disturbance_callback,
+            )
+            self._record_tracking_shot_step(step, record)
+            last_metrics = record.last_metrics
+            last_true_metrics = record.last_true_metrics
+            last_supervisor = record.last_supervisor
+            if stop_on_convergence and last_metrics["objective_converged"]:
+                break
+
+        return self._summarise_tracking_shot(
+            last_metrics=last_metrics,
+            last_true_metrics=last_true_metrics,
+            last_supervisor=last_supervisor,
+            runtime_seconds=time.time() - start_time,
+        )
 
     def _map_observation_to_ekf(self, observation: FloatArray) -> FloatArray | None:
         """Extract [R, Z, Ip, Te] measurement from observation vector."""
