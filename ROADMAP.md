@@ -314,8 +314,10 @@ below are closed and a real tag is cut.
 - [ ] Resolve the public bounded-claim queue tracked in
   `docs/physics_traceability.md` (generated from
   `validation/physics_traceability.json`). Production work must close open
-  fidelity gaps with real evidence or keep claims explicitly bounded. Live
-  inventory counts live only in the generated report — not in this roadmap.
+  fidelity gaps with real evidence or keep claims explicitly bounded.
+  **Live inventory counts are tracked only in internal
+  `docs/internal/TODO_CONSOLIDATED.md` (Current Canonical Status) and the
+  generated report — not here.**
 
 ### Remaining production work before broader production focus
 - [ ] Acquire facility-approved DIII-D MDSplus or equivalent shot artefacts and
