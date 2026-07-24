@@ -570,6 +570,8 @@ jobs:
         run: python tools/check_joss_submission.py
       - name: Public surface hygiene
         run: python tools/check_public_surface_hygiene.py
+      - name: docs/internal forever private
+        run: python tools/check_docs_internal_private.py
 
   # ─── Job 12: Python security scan (Bandit) ───
   python-security:

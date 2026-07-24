@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Changed
+- Harden permanent privacy for `docs/internal/` (gitignored forever, MkDocs
+  exclude, preflight + CI gate `tools/check_docs_internal_private.py`). Internal
+  TODO/audits/handovers must never be tracked or published.
 - Decompose free-boundary `run_tracking_shot` into cohesive private stage methods
   on `FreeBoundaryTrackingController` (CTL-G07 R3-S4): validate args, initialise
   shot, observe/plan correction, gain-search or recover, record history, summarise.

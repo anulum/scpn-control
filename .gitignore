@@ -101,11 +101,23 @@ src/scpn_control/core/scpn_solver.dll
 # Jupyter
 .ipynb_checkpoints/
 
-# Internal business docs — never commit
+# ---------------------------------------------------------------------------
+# Internal operational surfaces — NEVER commit, NEVER publish, FOREVER private
+# ---------------------------------------------------------------------------
+# docs/internal/ holds TODO, audits, handovers, SOTA plans, and other private
+# ops content. It must not appear in: git index, public markdown inventory,
+# MkDocs site, PyPI package data, or GitHub Pages. Guards:
+#   tools/check_docs_internal_private.py (preflight + CI)
+#   tools/check_public_surface_hygiene.py (skips prefix)
+#   tools/capability_manifest.py (rejects public_markdown under /internal/)
+#   tools/check_history_exposure.py (blocked path pattern)
+# Do NOT add negation rules (!docs/internal/...) that re-include this tree.
 docs/internal/
+docs/internal/**
 .agent_metadata.json
 docs/assets/orcid_qr.png
 .coordination/
+.coordination/**
 
 
 # Local backups — never committed
