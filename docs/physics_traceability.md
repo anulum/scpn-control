@@ -5,20 +5,20 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 
 ## Summary
 
-- Status: fail
-- Registry entries: 64
-- Open fidelity gaps: 64
-- Full-fidelity public claims blocked: 64
-- Resolved module paths: 64
-- Resolved evidence paths: 595
+- Status: pass
+- Registry entries: 68
+- Open fidelity gaps: 68
+- Full-fidelity public claims blocked: 68
+- Resolved module paths: 68
+- Resolved evidence paths: 611
 - External validation trackers: 8
-- Source marker coverage: 37/40
+- Source marker coverage: 40/40
 
 ## External Validation Collaboration Trackers
 
 - External validation artefacts needed for full-fidelity SCPN-CONTROL claims: [#46](https://github.com/anulum/scpn-control/issues/46) — 0 open claim(s) — Parent tracker for external code, reference data, facility replay, benchmark, and hardware evidence requests.
 - External gyrokinetic validation artefacts: [#47](https://github.com/anulum/scpn-control/issues/47) — 9 open claim(s) (external_dependency_blocked=2, validation_gap=7) — TGLF, GENE, GS2, CGYRO, QuaLiKiz, nonlinear CBC, Miller geometry, species, JAX parity, OOD, and online-learning artefacts.
-- Equilibrium and reconstruction reference artefacts: [#48](https://github.com/anulum/scpn-control/issues/48) — 7 open claim(s) (validation_gap=3, bounded_model=4) — DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts.
+- Equilibrium and reconstruction reference artefacts: [#48](https://github.com/anulum/scpn-control/issues/48) — 11 open claim(s) (validation_gap=3, bounded_model=8) — DIII-D or equivalent shots, EFIT, P-EFIT, GEQDSK, VMEC, and stellarator replay artefacts.
 - Transport, edge, MHD, and scenario benchmark artefacts: [#49](https://github.com/anulum/scpn-control/issues/49) — 18 open claim(s) (validation_gap=12, bounded_model=6) — Integrated transport, momentum, pedestal, ELM, MARFE, NTM, current drive, stability, tearing, SOL, orbit, UQ, and scenario benchmarks.
 - Neural surrogate validation artefacts: [#50](https://github.com/anulum/scpn-control/issues/50) — 3 open claim(s) (external_dependency_blocked=2, validation_gap=1) — QLKNN, QuaLiKiz, gyrokinetic, transport, turbulence, and equilibrium surrogate reference datasets and weight provenance.
 - Plasma-control and facility replay artefacts: [#51](https://github.com/anulum/scpn-control/issues/51) — 15 open claim(s) (validation_gap=1, bounded_model=14) — RZIP, RWM, free-boundary, density, digital twin, SOC learning, burn, volt-second, mu-synthesis, and reduced-plant replay evidence.
@@ -60,7 +60,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/control/digital_twin_online_update.py` | Online model-update claims must declare tunable bounded parameters, external TRANSP/TSC simulator artifact provenance, target summary metrics, tolerances, deterministic random seed, Gaussian-process acquisition settings, finite non-negative loss history, source-bound Bayesian results, parameter-domain admission, observation-unit coverage, and fail-closed behavior when external artifacts are absent or malformed. | TRANSP integrated modelling evidence contract; TSC time-dependent simulation evidence contract; Bayesian optimisation for bounded model calibration; Repository digital-twin runtime contract | Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, non-negative loss values, and simulator time base in seconds. | tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks; tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC; validation/benchmark_digital_twin_online_update.py deterministic bounded online-update benchmark | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/control/free_boundary_tracking.py` | Free-boundary tracking claims must declare direct kernel-in-the-loop coil-response identification, bounded least-squares correction, actuator lag, slew limits, supervisor rejection, measurement bias, drift, latency, and observer compensation assumptions. | Grad-Shafranov free-boundary control references; Repository FusionKernel free-boundary objective contract; Repository deterministic free-boundary acceptance campaign; Repository fail-closed free-boundary claim-admission contract | SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains. | tests/test_free_boundary_tracking.py controller, disturbance-observer, and controller-to-claim pipeline checks; tests/test_free_boundary_tracking_claims.py fail-closed claim-evidence validation, reference-artifact admission, and persistence checks; tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks; tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign; validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate; validation/benchmark_free_boundary_tracking_claims.py bounded claim-admission benchmark | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/control/disruption_roc.py` | Disruption ROC-core claims must declare the per-window risk-scoring convention (the dBdt signal window plus n=1/n=2 toroidal observables with the n=3 amplitude as a bounded 0.4*n=2 approximation and a toroidal-amplitude clip), the endpoint-forced FPR-sorted trapezoidal AUC assembly, and the warning-time convention that an alarm on a disruptive shot is a true positive only if it fires strictly before the labelled disruption sample. | Repository per-window disruption risk-scoring convention shared with disruption_contracts.run_real_shot_replay; n=3 toroidal amplitude bounded approximation 0.4 * n=2 (no dedicated n=3 diagnostic channel); DisruptionBench-style warning-time convention: true positive only when the alarm precedes the labelled disruption sample | dBdt in gauss per second, dimensionless toroidal mode amplitudes clipped to [0, 10], dimensionless risk in [0, 1], false-positive and true-positive rates in [0, 1], and warning lead time in seconds on the shot timebase. | tests/test_disruption_roc.py ROC, scoring, and warning-time unit checks | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
+| `src/scpn_control/control/disruption_checkpoint.py` | Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch (CTL-G07 R7-S4). Synthetic training and pinned-weight load path. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_fault_campaigns.py` | Deterministic fault-injection and hybrid anomaly-alarm campaign helpers (CTL-G07 R7-S3). Synthetic campaigns only. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/control/disruption_contracts.py` | Disruption-contract claims must declare synthetic disruption signal generation, toroidal-mode amplitudes, mitigation-cocktail coupling, impurity transport response, halo/runaway post-disruption response, TBR equivalence scaling, and RL action bias assumptions. | Pautasso et al. 2017 disruption current-quench constraints; Riccardo et al. 2010 halo-current rise-time references; Abdou et al. 2015 blanket neutronics calibration references | SI seconds, milliseconds, mega-amperes, megajoules, moles, megawatts, dimensionless risk, toroidal mode amplitudes, and tritium breeding ratio. | tests/test_disruption_contracts.py contract smoke checks; tests/test_disruption_contracts_pure.py pure physics-path checks; tests/test_disruption_edge_cases.py edge-case disruption checks; validation/validate_disruption_reference.py strict disruption reference artifact gate | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
+| `src/scpn_control/control/disruption_physics_proxies.py` | Synthetic tearing-mode trajectories, fixed-weight logistic heuristic risk score, and warning-time evaluation (CTL-G07 R7-S2). Synthetic-only domain. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_risk_claims.py` | Public disruption-risk claim boundary, heuristic provenance constants, and metadata attachment (CTL-G07 R7-S1). No facility ROC training claim. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/core/disruption_sequence.py` | Disruption-sequence claims must declare phase ordering, finite positive configuration domains, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance. | ITER disruption mitigation sequence references; repository disruption phase-state contract | Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, magnetic field in tesla, geometry in metres, density in 10^20 m^-3, and dimensionless phase labels. | tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks; tests/test_disruption_safe_api.py; validation/validate_disruption_sequence.py validates the bounded phase-ordering, total-duration, wall-heat-load, current-trace, halo-force, post-TQ temperature, and SPI mitigation-branch contracts against exact repository-owned identities, with tamper-evident sealed evidence; tests/test_disruption_sequence_validation.py exact phase-order, current-trace, mitigation-branch, CLI, and evidence-seal checks | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
 | `src/scpn_control/control/disruption_predictor.py` | predict_disruption_risk claims must declare that the score is a deterministic fixed-weight logistic combination of thermal-quench and toroidal-asymmetry features (n=1,2,3 mode amplitudes) with a hand-chosen logit bias, not a model trained or fitted on a real disruption database, and must declare the feature vector contract and the synthetic sanity-check provenance. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | tests/test_disruption_predictor.py heuristic feature-vector and bounded-output checks; tests/test_disruption_predictor_claim_boundary.py machine-readable claim-boundary and public-surface checks; validation/reports/disruption_replay_pipeline_benchmark.md synthetic sanity-check provenance | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/core/gk_interface.py` | Generated input decks and parsed outputs must round-trip through real TGLF, GENE, GS2, CGYRO, or QuaLiKiz executables. | TGLF Staebler et al. 2007; GENE Jenko et al. 2000; GS2 Kotschenreuther et al. 1995; CGYRO Candy et al. 2016; QuaLiKiz Bourdelle et al. 2007 | Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata. | docs/joss_paper.md external GK limitation; validation/validate_gk_interface_artifacts.py strict digest-bound external interface artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate code/run rejection, and blocked public-claim state | external_dependency_blocked | [#47](https://github.com/anulum/scpn-control/issues/47) |
@@ -483,6 +487,28 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Replace the n=3-from-n=2 bounded approximation with a measured n=3 toroidal diagnostic channel when available
   - Validate the scoring convention and ROC/warning-time metrics against measured labelled disruption windows before any predictive claim
 
+### disruption checkpoint integrity and train/load leaf
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/control/disruption_checkpoint.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
+- Covered source paths: 1
+- Required actions:
+  - Supply measured disruption databases with immutable provenance before any facility predictive claim
+  - Keep public_claim_allowed false until facility ROC is proven on measured data
+
+### disruption fault/anomaly campaigns leaf
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/control/disruption_fault_campaigns.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
+- Covered source paths: 1
+- Required actions:
+  - Supply measured disruption databases with immutable provenance before any facility predictive claim
+  - Keep public_claim_allowed false until facility ROC is proven on measured data
+
 ### disruption mitigation contract layer
 
 - Fidelity status: `bounded_model`
@@ -493,6 +519,28 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Replace synthetic disruption signals with measured labelled disruption windows before predictive claims
   - Validate mitigation-cocktail, halo, runaway, and TBR couplings against experimental or benchmark artefacts
+
+### disruption physics proxies leaf
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/control/disruption_physics_proxies.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
+- Covered source paths: 1
+- Required actions:
+  - Supply measured disruption databases with immutable provenance before any facility predictive claim
+  - Keep public_claim_allowed false until facility ROC is proven on measured data
+
+### disruption risk claim boundary leaf
+
+- Fidelity status: `bounded_model`
+- Module path: `src/scpn_control/control/disruption_risk_claims.py`
+- Full-fidelity public claim: blocked
+- External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
+- Covered source paths: 1
+- Required actions:
+  - Supply measured disruption databases with immutable provenance before any facility predictive claim
+  - Keep public_claim_allowed false until facility ROC is proven on measured data
 
 ### disruption sequence phase-ordering contract
 
@@ -853,7 +901,3 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims
   - Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation
-
-## Validation Errors
-
-- `covered_source_paths`: source files with approximation markers must be covered by traceability entries

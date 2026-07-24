@@ -2780,6 +2780,130 @@
       ],
       "validity_domain": "Local fail-closed runtime-admission evidence for native hardware-campaign launch policy and benchmark-report admission; not a production hard-real-time PCS timing claim unless qualified PREEMPT_RT or equivalent realtime-kernel, scheduler, governor, hard-isolation, IRQ-shielding, transport, heartbeat, and hardware evidence is supplied.",
       "external_validation_tracker_issue": 53
+    },
+    {
+      "component": "disruption risk claim boundary leaf",
+      "equation_contract": "Public disruption-risk claim boundary, heuristic provenance constants, and metadata attachment (CTL-G07 R7-S1). No facility ROC training claim.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
+        "Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs)"
+      ],
+      "module_path": "src/scpn_control/control/disruption_risk_claims.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured disruption databases with immutable provenance before any facility predictive claim",
+        "Keep public_claim_allowed false until facility ROC is proven on measured data"
+      ],
+      "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
+      "validation_evidence": [
+        "Real-surface tests under tests/test_disruption_*.py for leaf contracts",
+        "Owner re-export facade remains scpn_control.control.disruption_predictor"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_risk_claims.py",
+        "tests/test_disruption_checkpoint.py",
+        "tests/test_disruption_safe_api.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_risk_claims.py"
+      ],
+      "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
+      "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "disruption physics proxies leaf",
+      "equation_contract": "Synthetic tearing-mode trajectories, fixed-weight logistic heuristic risk score, and warning-time evaluation (CTL-G07 R7-S2). Synthetic-only domain.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
+        "Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs)"
+      ],
+      "module_path": "src/scpn_control/control/disruption_physics_proxies.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured disruption databases with immutable provenance before any facility predictive claim",
+        "Keep public_claim_allowed false until facility ROC is proven on measured data"
+      ],
+      "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
+      "validation_evidence": [
+        "Real-surface tests under tests/test_disruption_*.py for leaf contracts",
+        "Owner re-export facade remains scpn_control.control.disruption_predictor"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_physics_proxies.py",
+        "tests/test_disruption_checkpoint.py",
+        "tests/test_disruption_safe_api.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_physics_proxies.py"
+      ],
+      "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
+      "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "disruption fault/anomaly campaigns leaf",
+      "equation_contract": "Deterministic fault-injection and hybrid anomaly-alarm campaign helpers (CTL-G07 R7-S3). Synthetic campaigns only.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
+        "Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs)"
+      ],
+      "module_path": "src/scpn_control/control/disruption_fault_campaigns.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured disruption databases with immutable provenance before any facility predictive claim",
+        "Keep public_claim_allowed false until facility ROC is proven on measured data"
+      ],
+      "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
+      "validation_evidence": [
+        "Real-surface tests under tests/test_disruption_*.py for leaf contracts",
+        "Owner re-export facade remains scpn_control.control.disruption_predictor"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_fault_campaigns.py",
+        "tests/test_disruption_checkpoint.py",
+        "tests/test_disruption_safe_api.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_fault_campaigns.py"
+      ],
+      "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
+      "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "disruption checkpoint integrity and train/load leaf",
+      "equation_contract": "Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch (CTL-G07 R7-S4). Synthetic training and pinned-weight load path.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
+        "Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs)"
+      ],
+      "module_path": "src/scpn_control/control/disruption_checkpoint.py",
+      "public_claim_allowed": false,
+      "required_actions": [
+        "Supply measured disruption databases with immutable provenance before any facility predictive claim",
+        "Keep public_claim_allowed false until facility ROC is proven on measured data"
+      ],
+      "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
+      "validation_evidence": [
+        "Real-surface tests under tests/test_disruption_*.py for leaf contracts",
+        "Owner re-export facade remains scpn_control.control.disruption_predictor"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_checkpoint.py",
+        "tests/test_disruption_checkpoint.py",
+        "tests/test_disruption_safe_api.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_checkpoint.py"
+      ],
+      "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
+      "external_validation_tracker_issue": 48
     }
   ],
   "schema_version": "1.0",
