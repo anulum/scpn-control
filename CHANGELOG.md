@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract disruption-risk claim boundary and heuristic provenance into
+  `control/disruption_risk_claims.py` (CTL-G07 R7-S1). The disruption
+  predictor product surface re-exports the claim leaf; physics proxies and
+  training remain on the owner. Inventory cascade: 193 modules / 543 test files.
 - Extract integrated-scenario Spitzer, gyro-Bohm, and diffusion-step helpers
   into `core/integrated_scenario_micro_physics.py` (CTL-G07 R5-S3). The
   `IntegratedScenarioSimulator` product surface re-exports the helpers;

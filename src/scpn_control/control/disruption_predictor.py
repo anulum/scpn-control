@@ -10,7 +10,6 @@ from __future__ import annotations
 import hashlib
 import logging
 import math
-from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -66,109 +65,30 @@ DEFAULT_MODEL_FILENAME = "disruption_model.pth"
 PROBABILISTIC_SIGMA_LEVELS = (-1.5, -1.0, -0.5, 0.0, 0.5, 1.0, 1.5)
 TOROIDAL_PERTURB_FRACTION = 0.08
 MIN_PROBABILISTIC_NOISE_SCALE = 1.0e-4
-DISRUPTION_FEATURE_CONTRACT: tuple[str, ...] = (
-    "mean",
-    "std",
-    "max",
-    "slope",
-    "energy",
-    "last",
-    "toroidal_n1_amp",
-    "toroidal_n2_amp",
-    "toroidal_n3_amp",
-    "toroidal_asymmetry_index",
-    "toroidal_radial_spread",
+from scpn_control.control.disruption_risk_claims import (
+    DISRUPTION_FEATURE_CONTRACT as DISRUPTION_FEATURE_CONTRACT,
 )
-DISRUPTION_HEURISTIC_SCORE_SOURCE = "fixed_weight_logistic_heuristic"
-DISRUPTION_HEURISTIC_TRAINING_PROVENANCE = "hand_chosen_weights_no_real_disruption_database_fit"
-DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE = (
-    "synthetic_sanity_check:validation/reports/disruption_replay_pipeline_benchmark.md"
+from scpn_control.control.disruption_risk_claims import (
+    DISRUPTION_HEURISTIC_REQUIRED_ACTION as DISRUPTION_HEURISTIC_REQUIRED_ACTION,
 )
-DISRUPTION_HEURISTIC_REQUIRED_ACTION = (
-    "Train or fit on an admitted real disruption database before any facility disruption-prediction claim."
+from scpn_control.control.disruption_risk_claims import (
+    DISRUPTION_HEURISTIC_SCORE_SOURCE as DISRUPTION_HEURISTIC_SCORE_SOURCE,
 )
-
-# Minimum required alarm lead time.
-# Lehnen et al. 2015, J. Nucl. Mater. 463, 39 — τ_warning > τ_TQ + τ_mitigation.
-# For ITER τ_TQ ≈ 1–5 ms, τ_mitigation ≈ 10–20 ms → lower bound 10 ms.
-TAU_WARNING_MIN_S: float = 0.010  # s
-
-# Locked-mode amplitude threshold above which disruption alarm is raised.
-# de Vries et al. 2011, Nucl. Fusion 51, 053018, §3 — locked-mode onset
-# is identified as the dominant disruption precursor across JET, DIII-D, AUG.
-LOCKED_MODE_ALARM_THRESHOLD: float = 0.15  # normalised units
-
-
-@dataclass(frozen=True, slots=True)
-class DisruptionRiskClaimBoundary:
-    """Machine-readable claim boundary for the public disruption-risk score.
-
-    The boundary is intentionally narrow: ``predict_disruption_risk`` emits a
-    deterministic fixed-weight logistic heuristic. It is not trained on, fitted
-    to, or ROC-validated against a real disruption database.
-    """
-
-    predictor_id: str
-    score_source: str
-    feature_contract: tuple[str, ...]
-    training_provenance: str
-    validation_provenance: str
-    public_claim_allowed: bool
-    facility_roc_validated: bool
-    required_action: str
-
-    def __post_init__(self) -> None:
-        """Reject empty fields and any widened facility-claim boundary."""
-        for name in (
-            "predictor_id",
-            "score_source",
-            "training_provenance",
-            "validation_provenance",
-            "required_action",
-        ):
-            value = getattr(self, name)
-            if not isinstance(value, str) or not value.strip():
-                raise ValueError(f"DisruptionRiskClaimBoundary.{name} must be a non-empty string")
-        if not self.feature_contract or any(not item.strip() for item in self.feature_contract):
-            raise ValueError("DisruptionRiskClaimBoundary.feature_contract must contain non-empty feature names")
-        if self.public_claim_allowed:
-            raise ValueError("DisruptionRiskClaimBoundary.public_claim_allowed must remain false")
-        if self.facility_roc_validated:
-            raise ValueError("DisruptionRiskClaimBoundary.facility_roc_validated must remain false")
-
-    def to_metadata(self) -> dict[str, Any]:
-        """Return a JSON-serialisable metadata representation."""
-        return {
-            "predictor_id": self.predictor_id,
-            "score_source": self.score_source,
-            "feature_contract": list(self.feature_contract),
-            "training_provenance": self.training_provenance,
-            "validation_provenance": self.validation_provenance,
-            "public_claim_allowed": self.public_claim_allowed,
-            "facility_roc_validated": self.facility_roc_validated,
-            "required_action": self.required_action,
-        }
-
-
-def disruption_risk_claim_boundary() -> DisruptionRiskClaimBoundary:
-    """Return the fixed public boundary for ``predict_disruption_risk`` claims."""
-    return DisruptionRiskClaimBoundary(
-        predictor_id="predict_disruption_risk",
-        score_source=DISRUPTION_HEURISTIC_SCORE_SOURCE,
-        feature_contract=DISRUPTION_FEATURE_CONTRACT,
-        training_provenance=DISRUPTION_HEURISTIC_TRAINING_PROVENANCE,
-        validation_provenance=DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE,
-        public_claim_allowed=False,
-        facility_roc_validated=False,
-        required_action=DISRUPTION_HEURISTIC_REQUIRED_ACTION,
-    )
-
-
-def _attach_disruption_claim_boundary(metadata: dict[str, Any]) -> dict[str, Any]:
-    """Attach the fixed disruption-risk claim boundary to an output mapping."""
-    enriched = dict(metadata)
-    enriched["claim_boundary"] = disruption_risk_claim_boundary().to_metadata()
-    return enriched
+from scpn_control.control.disruption_risk_claims import (
+    DISRUPTION_HEURISTIC_TRAINING_PROVENANCE as DISRUPTION_HEURISTIC_TRAINING_PROVENANCE,
+)
+from scpn_control.control.disruption_risk_claims import (
+    DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE as DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE,
+)
+from scpn_control.control.disruption_risk_claims import (
+    DisruptionRiskClaimBoundary as DisruptionRiskClaimBoundary,
+)
+from scpn_control.control.disruption_risk_claims import (
+    _attach_disruption_claim_boundary as _attach_disruption_claim_boundary,
+)
+from scpn_control.control.disruption_risk_claims import (
+    disruption_risk_claim_boundary as disruption_risk_claim_boundary,
+)
 
 
 def _linear_percentile(values: Any, percentile: float) -> float:
