@@ -1552,6 +1552,13 @@ re-exported from the owner module:
 
 ::: scpn_control.scpn.artifact_model.Weights
 
+Structural validation and safety-critical admit live in a dedicated leaf and are
+re-exported from the owner module:
+
+::: scpn_control.scpn.artifact_validate.validate_artifact
+
+::: scpn_control.scpn.artifact_validate.validate_safety_critical_artifact
+
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.validate_artifact

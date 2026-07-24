@@ -9,8 +9,9 @@
 """Pure dataclass model for SCPN controller artifacts (``.scpnctl.json``).
 
 This leaf owns the topology/weight/readout/meta/formal-evidence dataclasses and
-the ``Artifact`` container. Validation, load/save, schema, and compact codec
-remain on :mod:`scpn_control.scpn.artifact` (CTL-G07 R4-S2+).
+the ``Artifact`` container. Structural validation lives in
+:mod:`scpn_control.scpn.artifact_validate` (CTL-G07 R4-S2); load/save, schema,
+and compact codec remain on :mod:`scpn_control.scpn.artifact`.
 """
 
 from __future__ import annotations
@@ -417,8 +418,8 @@ class Artifact:
     def __post_init__(self, validate_on_init: bool) -> None:
         """Validate direct artifact construction unless explicitly disabled."""
         if validate_on_init:
-            # Lazy import: validation lives on the owner module (R4-S2+).
-            from scpn_control.scpn.artifact import validate_artifact
+            # Lazy import: validation lives on the validate leaf (R4-S2).
+            from scpn_control.scpn.artifact_validate import validate_artifact
 
             validate_artifact(self)
 
@@ -436,5 +437,3 @@ class Artifact:
 ARTIFACT_PAYLOAD_REQUIRED_SECTIONS = tuple(
     field.name for field in fields(Artifact) if field.name != "formal_verification"
 )
-
-

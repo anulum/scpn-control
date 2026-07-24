@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract SCPN artifact structural validation and safety-critical admit into
+  `scpn/artifact_validate.py` (CTL-G07 R4-S2). The `Artifact` product surface
+  re-exports `validate_artifact` / `validate_safety_critical_artifact`;
+  load/save/schema/codec remain on `scpn/artifact.py`. Inventory cascade:
+  186 modules / 536 test files.
 - Extract SCPN artifact topology/payload model dataclasses into
   `scpn/artifact_model.py` (CTL-G07 R4-S1). The `Artifact` product surface and
   validate/load/save/schema/codec remain on `scpn/artifact.py` with re-exports.
