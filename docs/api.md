@@ -1277,8 +1277,25 @@ the owner module:
 
 ::: scpn_control.core.integrated_scenario.save_scenario_coupling_report
 
-Coupling-audit types and report I/O are implemented in `scpn_control.core.integrated_scenario_coupling_audit` Transport micro-physics helpers live in `scpn_control.core.integrated_scenario_micro_physics` (re-exported by `integrated_scenario`). (re-exported by `integrated_scenario`).
+Coupling-audit types and report I/O live in a dedicated leaf and are re-exported
+from the owner module:
 
+::: scpn_control.core.integrated_scenario_coupling_audit.ScenarioModuleExchange
+
+::: scpn_control.core.integrated_scenario_coupling_audit.ScenarioCouplingMetadata
+
+::: scpn_control.core.integrated_scenario_coupling_audit.ScenarioCouplingAudit
+
+::: scpn_control.core.integrated_scenario_coupling_audit.audit_scenario_coupling
+
+::: scpn_control.core.integrated_scenario_coupling_audit.scenario_coupling_audit_to_dict
+
+::: scpn_control.core.integrated_scenario_coupling_audit.save_scenario_coupling_report
+
+Transport micro-physics helpers live in a dedicated leaf and are re-exported by
+`integrated_scenario`:
+
+::: scpn_control.core.integrated_scenario_micro_physics
 
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
 
@@ -2005,11 +2022,42 @@ returns the same bounded scalar-risk shape expected by `evaluate_predictor()`,
 so trained transformer instances can be evaluated directly without wrapper
 adapters.
 
+Checkpoint integrity, train/load, physics proxies, fault campaigns, and claim
+boundaries live in dedicated leaves re-exported by the owner module.
+
 ::: scpn_control.control.disruption_predictor.DisruptionTransformer
 
 ::: scpn_control.control.disruption_predictor.predict_disruption_risk
 
 ::: scpn_control.control.disruption_predictor.predict_disruption_risk_safe
+
+::: scpn_control.control.disruption_checkpoint.DisruptionCheckpointIntegrityError
+
+::: scpn_control.control.disruption_checkpoint.verify_checkpoint_integrity
+
+::: scpn_control.control.disruption_checkpoint.train_predictor
+
+::: scpn_control.control.disruption_checkpoint.load_or_train_predictor
+
+::: scpn_control.control.disruption_physics_proxies.simulate_tearing_mode
+
+::: scpn_control.control.disruption_physics_proxies.build_disruption_feature_vector
+
+::: scpn_control.control.disruption_physics_proxies.predict_disruption_risk
+
+::: scpn_control.control.disruption_physics_proxies.disruption_warning_time
+
+::: scpn_control.control.disruption_fault_campaigns.apply_bit_flip_fault
+
+::: scpn_control.control.disruption_fault_campaigns.run_fault_noise_campaign
+
+::: scpn_control.control.disruption_fault_campaigns.HybridAnomalyDetector
+
+::: scpn_control.control.disruption_fault_campaigns.run_anomaly_alarm_campaign
+
+::: scpn_control.control.disruption_risk_claims.DisruptionRiskClaimBoundary
+
+::: scpn_control.control.disruption_risk_claims.disruption_risk_claim_boundary
 
 ### Disruption Contracts
 
