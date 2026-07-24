@@ -282,3 +282,233 @@ def test_resolve_separatrix_priority_and_none() -> None:
     assert fb.resolve_separatrix_flux_target(coils, None) == pytest.approx(2.0)
     coils.x_point_flux_target = 9.0
     assert fb.resolve_separatrix_flux_target(coils, np.array([0.0])) == pytest.approx(9.0)
+
+
+def test_estimate_point_gradient_z_one_sided_boundaries() -> None:
+    """Z-edge points exercise forward and backward one-sided FD branches."""
+
+    def sample(r: float, z: float) -> float:
+        return r + 5.0 * z
+
+    # Lower-Z boundary: forward difference in Z.
+    _d_dr, d_dz_lo = fb.estimate_point_gradient(
+        sample,
+        1.0,
+        -1.0,
+        r_min=0.0,
+        r_max=2.0,
+        z_min=-1.0,
+        z_max=1.0,
+        dR=0.1,
+        dZ=0.1,
+    )
+    assert float(d_dz_lo) == pytest.approx(5.0, rel=1e-6)
+    # Upper-Z boundary: backward difference in Z.
+    _d_dr, d_dz_hi = fb.estimate_point_gradient(
+        sample,
+        1.0,
+        1.0,
+        r_min=0.0,
+        r_max=2.0,
+        z_min=-1.0,
+        z_max=1.0,
+        dR=0.1,
+        dZ=0.1,
+    )
+    assert float(d_dz_hi) == pytest.approx(5.0, rel=1e-6)
+
+
+def test_resolve_separatrix_from_shape_target_only() -> None:
+    """Shape-target mean is used when no X-point or divertor flux is set."""
+    coils = CoilSet(positions=[(3.0, 0.0)], currents=np.array([1.0]), turns=[1])
+    shape = np.array([1.0, 3.0, 5.0], dtype=float)
+    assert fb.resolve_separatrix_flux_target(coils, shape) == pytest.approx(3.0)
+    # Empty divertor values fall through to shape target.
+    coils.divertor_flux_values = np.array([], dtype=float)
+    assert fb.resolve_separatrix_flux_target(coils, shape) == pytest.approx(3.0)
+    # Empty shape target yields None.
+    assert fb.resolve_separatrix_flux_target(coils, np.array([], dtype=float)) is None
+
+
+def test_resolve_shape_target_flux_shape_mismatch_and_self_tracking() -> None:
+    """Shape resolver rejects mismatched explicit targets and returns self-tracking."""
+    coils = _coilset_with_targets()
+    current = np.array([0.1, 0.2, 0.3], dtype=float)
+    target, mode = fb.resolve_shape_target_flux(coils, current)
+    assert mode == "self_flux_tracking"
+    np.testing.assert_allclose(target, current)
+    coils.target_flux_values = np.array([0.1, 0.2], dtype=float)
+    with pytest.raises(ValueError, match="must match the sampled target_flux_points shape"):
+        fb.resolve_shape_target_flux(coils, current)
+
+
+def test_optimize_coil_currents_x_point_and_divertor_blocks(tmp_path: Path) -> None:
+    """X-point and divertor constraint blocks, plus fail-closed shape mismatches."""
+    cfg = _write_config(tmp_path / "opt.json")
+    kernel = FusionKernel(cfg)
+    coils = CoilSet(
+        positions=[(3.0, 2.0), (3.5, -2.0), (4.0, 2.0)],
+        currents=np.ones(3) * 1e4,
+        turns=[10, 10, 10],
+        current_limits=np.ones(3) * 5e4,
+        target_flux_points=np.array([[3.5, 0.0], [4.0, 0.5]], dtype=float),
+        x_point_target=np.array([3.8, 0.1], dtype=float),
+        x_point_weight=1.0,
+        x_point_null_weight=1.0,
+        divertor_strike_points=np.array([[3.2, -1.5], [4.2, -1.5]], dtype=float),
+        divertor_weight=1.0,
+    )
+    target = np.array([0.1, 0.2], dtype=float)
+    result = fb.optimize_coil_currents(
+        coils,
+        target,
+        build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+        coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+        coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+        tikhonov_alpha=1e-3,
+        x_point_flux_target=0.05,
+        divertor_flux_targets=np.array([0.02, 0.03], dtype=float),
+    )
+    assert result.shape == (3,)
+    assert np.all(np.isfinite(result))
+
+    with pytest.raises(ValueError, match="target_flux must match"):
+        fb.optimize_coil_currents(
+            coils,
+            np.array([0.1]),
+            build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+            coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+            coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+        )
+    with pytest.raises(ValueError, match="divertor_flux_targets must match"):
+        fb.optimize_coil_currents(
+            coils,
+            target,
+            build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+            coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+            coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+            divertor_flux_targets=np.array([0.02], dtype=float),
+        )
+    # target_flux without observation points fails closed.
+    bare = CoilSet(
+        positions=[(3.0, 2.0)],
+        currents=np.array([1e4]),
+        turns=[10],
+        x_point_target=np.array([3.5, 0.0], dtype=float),
+    )
+    with pytest.raises(ValueError, match="target_flux requires CoilSet.target_flux_points"):
+        fb.optimize_coil_currents(
+            bare,
+            np.array([0.1]),
+            build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+            coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+            coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+            x_point_flux_target=0.0,
+        )
+
+
+def test_objective_status_covers_all_tolerance_keys() -> None:
+    """Every configured objective key is checked when metrics are provided."""
+    tolerances = {
+        "shape_rms": 0.1,
+        "shape_max_abs": 0.2,
+        "x_point_position": 0.05,
+        "x_point_gradient": 0.1,
+        "x_point_flux": 0.01,
+        "divertor_rms": 0.1,
+        "divertor_max_abs": 0.2,
+    }
+    status = fb.evaluate_free_boundary_objective_status(
+        tolerances,
+        shape_error_rms=0.05,
+        shape_error_max_abs=0.1,
+        x_point_detected_error=0.01,
+        x_point_gradient_norm=0.05,
+        x_point_flux_error=0.005,
+        divertor_error_rms=0.02,
+        divertor_error_max_abs=0.03,
+    )
+    assert set(status["objective_checks"]) == set(tolerances)
+    assert status["objective_converged"] is True
+    # Non-finite metric fails its check.
+    bad = fb.evaluate_free_boundary_objective_status(
+        {"shape_rms": 0.1},
+        shape_error_rms=float("nan"),
+        shape_error_max_abs=None,
+        x_point_detected_error=None,
+        x_point_gradient_norm=None,
+        x_point_flux_error=None,
+        divertor_error_rms=None,
+        divertor_error_max_abs=None,
+    )
+    assert bad["objective_checks"]["shape_rms"] is False
+
+
+def test_optimize_skips_zero_weights_and_unbounded_limits(tmp_path: Path) -> None:
+    """Zero objective weights skip blocks; missing current limits use unbounded bounds."""
+    kernel = FusionKernel(_write_config(tmp_path / "opt2.json"))
+    coils = CoilSet(
+        positions=[(3.0, 2.0), (3.5, -2.0)],
+        currents=np.ones(2) * 1e4,
+        turns=[10, 10],
+        current_limits=None,
+        x_point_target=np.array([3.5, 0.0], dtype=float),
+        x_point_weight=0.0,
+        x_point_null_weight=1.0,
+        divertor_strike_points=np.array([[3.2, -1.5]], dtype=float),
+        divertor_weight=0.0,
+    )
+    result = fb.optimize_coil_currents(
+        coils,
+        np.array([], dtype=float),
+        build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+        coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+        coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+        tikhonov_alpha=1e-3,
+        x_point_flux_target=0.1,
+        divertor_flux_targets=np.array([0.02], dtype=float),
+    )
+    assert result.shape == (2,)
+    assert np.all(np.isfinite(result))
+
+
+def test_objective_status_skips_missing_metrics() -> None:
+    """Tolerance keys without corresponding metrics do not emit checks."""
+    status = fb.evaluate_free_boundary_objective_status(
+        {"shape_rms": 0.1, "shape_max_abs": 0.2},
+        shape_error_rms=None,
+        shape_error_max_abs=None,
+        x_point_detected_error=None,
+        x_point_gradient_norm=None,
+        x_point_flux_error=None,
+        divertor_error_rms=None,
+        divertor_error_max_abs=None,
+    )
+    assert status["objective_checks"] == {}
+    assert status["objective_convergence_active"] is False
+    assert status["objective_converged"] is True
+
+
+def test_optimize_x_point_flux_without_null_weight(tmp_path: Path) -> None:
+    """X-point isoflux constraint applies when null-field weight is zero."""
+    kernel = FusionKernel(_write_config(tmp_path / "opt3.json"))
+    coils = CoilSet(
+        positions=[(3.0, 2.0), (3.5, -2.0)],
+        currents=np.ones(2) * 1e4,
+        turns=[10, 10],
+        current_limits=np.ones(2) * 5e4,
+        x_point_target=np.array([3.5, 0.0], dtype=float),
+        x_point_weight=1.0,
+        x_point_null_weight=0.0,
+    )
+    result = fb.optimize_coil_currents(
+        coils,
+        np.array([], dtype=float),
+        build_mutual_inductance_matrix=kernel._build_mutual_inductance_matrix,
+        coil_flux_response_at_point=kernel._coil_flux_response_at_point,
+        coil_flux_gradient_response=kernel._coil_flux_gradient_response,
+        tikhonov_alpha=1e-3,
+        x_point_flux_target=0.05,
+    )
+    assert result.shape == (2,)
+    assert np.all(np.isfinite(result))
