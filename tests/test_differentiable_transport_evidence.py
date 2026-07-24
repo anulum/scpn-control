@@ -14,8 +14,8 @@ from dataclasses import asdict
 import numpy as np
 import pytest
 
+import scpn_control.core.differentiable_transport_evidence as evidence
 from scpn_control.core import differentiable_transport as facade
-from scpn_control.core import differentiable_transport_evidence as evidence
 
 
 def test_evidence_leaf_owns_campaign_and_claim_types() -> None:
