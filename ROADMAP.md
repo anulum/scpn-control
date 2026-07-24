@@ -311,10 +311,11 @@ below are closed and a real tag is cut.
 - [ ] External JOSS submission and reviewer/editorial issue lifecycle
 - [ ] Streamlit dashboard v2
 - [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
-- [ ] Resolve the public bounded-claim queue in `docs/physics_traceability.md`.
-  Current generated status is 64 registry entries, 64 open fidelity gaps, and
-  64 blocked full-fidelity public claims; production work must close these with
-  real evidence or keep the claims explicitly bounded.
+- [ ] Resolve the public bounded-claim queue tracked in
+  `docs/physics_traceability.md` (generated from
+  `validation/physics_traceability.json`). Production work must close open
+  fidelity gaps with real evidence or keep claims explicitly bounded. Live
+  inventory counts live only in the generated report — not in this roadmap.
 
 ### Remaining production work before broader production focus
 - [ ] Acquire facility-approved DIII-D MDSplus or equivalent shot artefacts and

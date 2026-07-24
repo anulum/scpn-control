@@ -534,16 +534,19 @@ def test_external_validation_trackers_are_linked_from_roadmap_and_report() -> No
         assert f"#{tracker['issue']}" in generated_report
 
 
-def test_roadmap_generated_traceability_counts_match_registry() -> None:
-    report = validate_physics_traceability(ROOT / "validation" / "physics_traceability.json")
-    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    expected = (
-        f"Current generated status is {report['total']} registry entries, "
-        f"{report['open_fidelity_gaps']} open fidelity gaps, and\n"
-        f"  {report['public_claim_blocked']} blocked full-fidelity public claims"
-    )
+def test_roadmap_does_not_embed_live_traceability_inventory_counts() -> None:
+    """ROADMAP is a public readiness narrative, not a live inventory mirror.
 
-    assert expected in roadmap
+    Exact registry totals belong in ``docs/physics_traceability.md`` (generated
+    from ``validation/physics_traceability.json``). Embedding them in ROADMAP
+    forced residual/registry churn into a public product document.
+    """
+    roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
+    assert "Current generated status is" not in roadmap
+    assert "open fidelity gaps" not in roadmap
+    assert "blocked full-fidelity public claims" not in roadmap
+    assert "docs/physics_traceability.md" in roadmap
+    assert "validation/physics_traceability.json" in roadmap
 
 
 def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path) -> None:
