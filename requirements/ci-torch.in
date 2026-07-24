@@ -1,0 +1,4 @@
+# CPU-only wheel for GHA coverage (disruption_checkpoint real torch E2E).
+# PyPI default resolves to CUDA; force the CPU build from the pytorch index.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.13.0+cpu

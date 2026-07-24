@@ -75,6 +75,8 @@ jobs:
           pip install --require-hashes -r requirements/ci-viz.txt
           pip install --require-hashes -r requirements/ci-hdf5.txt
           pip install --require-hashes -r requirements/ci-jax.txt
+          # Real torch for disruption_checkpoint train/load E2E (CPU wheel; hashes in ci-torch.txt).
+          pip install --require-hashes -r requirements/ci-torch.txt
           pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=100
           mkdir -p artifacts/coverage/python
           cp .coverage artifacts/coverage/python/.coverage.python

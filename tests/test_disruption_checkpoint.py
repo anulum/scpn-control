@@ -18,7 +18,6 @@ optional-dependency contract (module attribute ``torch is None``), not fakes.
 from __future__ import annotations
 
 import hashlib
-import os
 from pathlib import Path
 
 import numpy as np
@@ -78,6 +77,9 @@ def test_verify_checkpoint_integrity_real_bytes_and_fail_closed(tmp_path: Path) 
         leaf.verify_checkpoint_integrity(path, "0" * 64)
     with pytest.raises(ValueError, match="64-character hex"):
         leaf.verify_checkpoint_integrity(path, "deadbeef")
+    # 64 characters that are not hex digits exercises _is_hex's ValueError path.
+    with pytest.raises(ValueError, match="64-character hex"):
+        leaf.verify_checkpoint_integrity(path, "g" * 64)
     with pytest.raises(leaf.DisruptionCheckpointIntegrityError, match="no pinned"):
         leaf.verify_checkpoint_integrity(path, require_pin=True)
 
@@ -90,6 +92,10 @@ def test_verify_checkpoint_integrity_real_bytes_and_fail_closed(tmp_path: Path) 
     bad.with_name(bad.name + ".sha256").write_text("not-a-digest\n", encoding="utf-8")
     with pytest.raises(leaf.DisruptionCheckpointIntegrityError, match="valid SHA-256"):
         leaf.verify_checkpoint_integrity(bad)
+
+    # Empty explicit pin after strip is rejected the same way as a short token.
+    with pytest.raises(ValueError, match="64-character hex"):
+        leaf.verify_checkpoint_integrity(path, "   ")
 
 
 def test_default_model_path_under_repo() -> None:
@@ -264,6 +270,16 @@ def test_train_failure_via_unwritable_path_real_torch(tmp_path: Path) -> None:
     assert model is None
     assert info["fallback"] is True
     assert "train_failed" in info["reason"]
+
+    # Same I/O fault without fallback must raise, not soft-fail (covers re-raise arm).
+    with pytest.raises((RuntimeError, ValueError, OSError, TypeError)):
+        leaf.load_or_train_predictor(
+            model_path=blocked,
+            force_retrain=True,
+            train_if_missing=True,
+            allow_fallback=False,
+            train_kwargs={"seq_len": 16, "n_shots": 8, "epochs": 1, "save_plot": False, "seed": 2},
+        )
 
 
 def test_optional_torch_absent_contract(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
