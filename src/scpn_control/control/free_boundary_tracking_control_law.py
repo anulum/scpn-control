@@ -78,9 +78,7 @@ def build_control_activation_mask(
             # Annotate as list[str] so the per-block reassignments below (each a
             # comprehension over a different literal tuple) share one type; mypy
             # 2.2.0 otherwise pins the variable to the first branch's Literal set.
-            relevant: list[str] = [
-                key for key in ("shape_rms", "shape_max_abs") if key in objective_tolerances
-            ]
+            relevant: list[str] = [key for key in ("shape_rms", "shape_max_abs") if key in objective_tolerances]
         elif block.name == "x_point_position":
             relevant = [key for key in ("x_point_position",) if key in objective_tolerances]
         elif block.name == "x_point_flux":
