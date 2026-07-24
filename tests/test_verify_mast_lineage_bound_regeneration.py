@@ -43,24 +43,43 @@ from validation.verify_mast_lineage_bound_regeneration import (
 
 
 @contextmanager
-def _unix_domain_socket(path: Path) -> Iterator[socket.socket]:
-    """Bind a real AF_UNIX socket at ``path`` (non-regular filesystem entry).
+def _non_regular_fs_entry(path: Path) -> Iterator[None]:
+    """Create a real non-regular filesystem entry at ``path`` when the OS allows.
 
     Production ``_tree_inventory`` rejects any rglob entry that is not a
-    regular file or directory. AF_UNIX sockets are available on POSIX and on
-    modern Windows (the CI ``windows-2025`` image), so this keeps the test on a
-    real filesystem surface without monkeypatching pathlib.
+    regular file or directory. Prefer FIFO (``os.mkfifo``) on POSIX — path
+    length is unrestricted. Fall back to AF_UNIX only when the bind path is
+    short enough for the platform sun_path limit (Darwin ~104 bytes). Skip
+    when neither real special-file surface is available (some Windows Python
+    builds lack AF_UNIX; monkeypatching pathlib is forbidden by real-surface
+    policy).
     """
     if path.exists():
         path.unlink()
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    try:
-        server.bind(str(path))
-        yield server
-    finally:
-        server.close()
-        if path.exists():
-            path.unlink()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if hasattr(os, "mkfifo"):
+        os.mkfifo(path)
+        try:
+            yield
+        finally:
+            if path.exists():
+                path.unlink()
+        return
+    if hasattr(socket, "AF_UNIX"):
+        # Conservative sun_path budget (Darwin 104; Linux 108).
+        encoded = os.fsencode(str(path))
+        if len(encoded) > 100:
+            pytest.skip(f"AF_UNIX bind path too long for platform sun_path ({len(encoded)} bytes)")
+        server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            server.bind(str(path))
+            yield
+        finally:
+            server.close()
+            if path.exists():
+                path.unlink()
+        return
+    pytest.skip("no portable special-file create (mkfifo/AF_UNIX) on this Python build")
 
 
 _FIXED_TS = "2026-07-22T21:46:00Z"
@@ -458,24 +477,17 @@ def test_json_reader_and_tree_inventory_normalise_failures(tmp_path: Path) -> No
     non_regular_root = tmp_path / "non_regular"
     non_regular_root.mkdir()
     with (
-        _unix_domain_socket(non_regular_root / "sock"),
+        _non_regular_fs_entry(non_regular_root / "special"),
         pytest.raises(RegenerationVerificationError, match="non-regular"),
     ):
         verifier._tree_inventory(non_regular_root)
-    if hasattr(os, "mkfifo"):
-        # Second real special-file class on POSIX (Windows has no FIFO API).
-        fifo_root = tmp_path / "fifo"
-        fifo_root.mkdir()
-        os.mkfifo(fifo_root / "pipe")
-        with pytest.raises(RegenerationVerificationError, match="non-regular"):
-            verifier._tree_inventory(fifo_root)
 
 
 def test_build_regeneration_verification_rejects_non_regular_run_entry(tmp_path: Path) -> None:
     """Public regeneration verifier rejects a non-regular entry in a real run tree."""
     source, replay, archive, run_a, run_b = _build_fixture(tmp_path)
     with (
-        _unix_domain_socket(run_a / "odd.sock"),
+        _non_regular_fs_entry(run_a / "odd"),
         pytest.raises(RegenerationVerificationError, match="non-regular"),
     ):
         build_regeneration_verification(
