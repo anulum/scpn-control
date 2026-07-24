@@ -19,15 +19,15 @@ from tools.evidence_gap_matrix import ROOT, build_evidence_gap_matrix, main
 def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None:
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
 
-    assert len(matrix.entries) == 63
-    assert matrix.public_claim_blocked == 63
-    assert matrix.open_fidelity_gaps == 63
+    assert len(matrix.entries) == 64
+    assert matrix.public_claim_blocked == 64
+    assert matrix.open_fidelity_gaps == 64
     assert len(matrix.trackers) == 8
     assert matrix.untracked_open_entries == 0
     assert matrix.status_counts == {
         "bounded_model": 36,
         "external_dependency_blocked": 4,
-        "validation_gap": 23,
+        "validation_gap": 24,
     }
     assert {package.tracker.issue for package in matrix.work_packages} == {47, 48, 49, 50, 51, 52, 53}
 
@@ -37,7 +37,7 @@ def test_evidence_gap_matrix_renders_tracker_work_package_details() -> None:
     rendered = matrix.to_markdown()
 
     assert "# SCPN Control Evidence Gap Matrix" in rendered
-    assert "Public full-fidelity claims blocked: `63`" in rendered
+    assert "Public full-fidelity claims blocked: `64`" in rendered
     assert "### Tracker #47: External gyrokinetic validation artefacts" in rendered
     assert "`src/scpn_control/core/gk_interface.py`" in rendered
 
@@ -52,7 +52,7 @@ def test_evidence_gap_matrix_cli_writes_json_and_markdown(tmp_path: Path, capsys
 
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "scpn-control.evidence-gap-matrix.v1"
-    assert payload["summary"]["public_claim_blocked"] == 63
+    assert payload["summary"]["public_claim_blocked"] == 64
     assert "Tracker #47" in output_md.read_text(encoding="utf-8")
 
 
@@ -60,7 +60,7 @@ def test_evidence_gap_matrix_cli_emits_json_stdout(capsys: CaptureFixture[str]) 
     assert main(["--json-out"]) == 0
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload["summary"]["open_fidelity_gaps"] == 63
+    assert payload["summary"]["open_fidelity_gaps"] == 64
     assert payload["summary"]["untracked_open_entries"] == 0
 
 
