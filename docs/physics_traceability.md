@@ -5,14 +5,14 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 
 ## Summary
 
-- Status: pass
+- Status: fail
 - Registry entries: 63
 - Open fidelity gaps: 63
 - Full-fidelity public claims blocked: 63
 - Resolved module paths: 63
 - Resolved evidence paths: 591
 - External validation trackers: 8
-- Source marker coverage: 36/36
+- Source marker coverage: 36/37
 
 ## External Validation Collaboration Trackers
 
@@ -840,3 +840,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Required actions:
   - Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims
   - Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation
+
+## Validation Errors
+
+- `covered_source_paths`: source files with approximation markers must be covered by traceability entries
