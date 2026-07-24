@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract integrated-scenario Spitzer, gyro-Bohm, and diffusion-step helpers
+  into `core/integrated_scenario_micro_physics.py` (CTL-G07 R5-S3). The
+  `IntegratedScenarioSimulator` product surface re-exports the helpers;
+  **R5 ladder complete**. Inventory cascade: 192 modules / 542 test files.
 - Extract integrated-scenario coupling audit, module-exchange records, and
   report I/O into `core/integrated_scenario_coupling_audit.py` (CTL-G07 R5-S2).
   The `IntegratedScenarioSimulator` product surface re-exports the audit leaf;

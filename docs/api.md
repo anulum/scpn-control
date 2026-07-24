@@ -1277,7 +1277,7 @@ the owner module:
 
 ::: scpn_control.core.integrated_scenario.save_scenario_coupling_report
 
-Coupling-audit types and report I/O are implemented in `scpn_control.core.integrated_scenario_coupling_audit` (re-exported by `integrated_scenario`).
+Coupling-audit types and report I/O are implemented in `scpn_control.core.integrated_scenario_coupling_audit` Transport micro-physics helpers live in `scpn_control.core.integrated_scenario_micro_physics` (re-exported by `integrated_scenario`). (re-exported by `integrated_scenario`).
 
 
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
