@@ -124,7 +124,8 @@ def test_optional_rust_kernel_import_path_runs_public_control(monkeypatch: pytes
 
             assert summary["steps"] == 3
             assert summary["plot_saved"] is False
-            assert summary["backend_r"] == "numpy_lif"
+            # Environment may have sc_neurocore installed; both backends exercise the public path.
+            assert summary["backend_r"] in {"numpy_lif", "sc_neurocore"}
     finally:
         importlib.reload(controller_mod)
 

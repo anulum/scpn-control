@@ -30,7 +30,7 @@ maturin develop --release
 ## Private internal docs (never public)
 
 `docs/internal/` is a **forever-private** operational surface (TODO, audits,
-handovers, SOTA plans). It is gitignored, excluded from MkDocs, rejected by the
+handovers, strategy plans). It is gitignored, excluded from MkDocs, rejected by the
 public markdown inventory, and gated by `tools/check_docs_internal_private.py`
 in preflight + CI. **Never** `git add -f docs/internal/…`, never re-include it
 with a `.gitignore` negation, and never paste its content into public docs

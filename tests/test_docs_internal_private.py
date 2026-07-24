@@ -46,9 +46,7 @@ def test_gitignore_rules_reject_missing_and_negation() -> None:
 def test_tracked_and_history_paths_fail_closed() -> None:
     """Any tracked or historical docs/internal path is a hard failure."""
     guard = _load_guard()
-    tracked = guard.check_no_tracked_internal_paths(
-        ["README.md", "docs/internal/TODO_CONSOLIDATED.md", "docs/api.md"]
-    )
+    tracked = guard.check_no_tracked_internal_paths(["README.md", "docs/internal/TODO_CONSOLIDATED.md", "docs/api.md"])
     assert any("TODO_CONSOLIDATED" in err for err in tracked)
     history = guard.check_no_history_internal_paths(["docs/changelog.md", "docs/internal/secret.md"])
     assert any("secret.md" in err for err in history)

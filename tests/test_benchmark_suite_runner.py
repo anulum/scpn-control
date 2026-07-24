@@ -186,7 +186,8 @@ def _fake_measure_python_only(**kwargs: object) -> dict:
 
 
 def test_capacitor_bank_discharge_normalises_both_languages(monkeypatch: pytest.MonkeyPatch) -> None:
-    import benchmarks.bench_capacitor_bank_energy as bench
+    """Normalise polyglot harness stats even when FUSION shadows ``benchmarks``."""
+    bench = rbs._load_control_benchmark_module("bench_capacitor_bank_energy.py")
 
     monkeypatch.setattr(bench, "_measure", _fake_measure)
     result = rbs._capacitor_bank_discharge(steps=5, warmup=1)
@@ -196,7 +197,8 @@ def test_capacitor_bank_discharge_normalises_both_languages(monkeypatch: pytest.
 
 
 def test_capacitor_bank_discharge_handles_absent_rust(monkeypatch: pytest.MonkeyPatch) -> None:
-    import benchmarks.bench_capacitor_bank_energy as bench
+    """Python-only harness output remains admissible without a Rust backend."""
+    bench = rbs._load_control_benchmark_module("bench_capacitor_bank_energy.py")
 
     monkeypatch.setattr(bench, "_measure", _fake_measure_python_only)
     result = rbs._capacitor_bank_discharge(steps=5, warmup=1)

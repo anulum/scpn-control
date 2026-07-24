@@ -60,7 +60,7 @@ from scpn_control.scpn.artifact import (
 )
 from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn import controller as controller_mod
-from scpn_control.scpn import artifact as artifact_mod
+import scpn_control.scpn.artifact_codec as artifact_codec_mod
 
 
 # ── Fixture: 8-place controller net ─────────────────────────────────────────
@@ -333,7 +333,8 @@ class TestLevel0Static:
             decode_u64_compact(bad)
 
     def test_compact_u64_codec_rejects_oversized_compressed_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(artifact_mod, "MAX_COMPRESSED_BYTES", 8)
+        # Limits live on the codec leaf (CTL-G07 R4-S3); patch the leaf binding.
+        monkeypatch.setattr(artifact_codec_mod, "MAX_COMPRESSED_BYTES", 8)
         payload = base64.b64encode(b"x" * 32).decode("ascii")
         bad = {
             "encoding": "u64-le-zlib-base64",
@@ -344,8 +345,8 @@ class TestLevel0Static:
             decode_u64_compact(bad)
 
     def test_compact_u64_codec_rejects_oversized_decompressed_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(artifact_mod, "MAX_PACKED_WORDS", 1)
-        monkeypatch.setattr(artifact_mod, "MAX_DECOMPRESSED_BYTES", 8)
+        monkeypatch.setattr(artifact_codec_mod, "MAX_PACKED_WORDS", 1)
+        monkeypatch.setattr(artifact_codec_mod, "MAX_DECOMPRESSED_BYTES", 8)
         raw = (1).to_bytes(8, "little") + (2).to_bytes(8, "little")
         payload = base64.b64encode(zlib.compress(raw, level=9)).decode("ascii")
         bad = {

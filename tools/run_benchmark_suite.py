@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
 import os
 import platform
@@ -32,6 +33,7 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from types import ModuleType
 from typing import Any, Callable
 
 try:
@@ -128,9 +130,31 @@ def _language_metrics(stats: dict[str, Any]) -> dict[str, float]:
     }
 
 
+def _load_control_benchmark_module(module_file_name: str) -> ModuleType:
+    """Load a CONTROL ``benchmarks/*.py`` harness by file path.
+
+    Dual-home environments often put SCPN-FUSION-CORE on ``sys.path``. FUSION
+    ships a regular ``benchmarks`` package (``__init__.py``), which shadows the
+    CONTROL harness namespace and breaks ``import benchmarks.*``. Path-based
+    loading keeps this runner bound to the CONTROL tree.
+    """
+    harness_path = Path(__file__).resolve().parent.parent / "benchmarks" / module_file_name
+    module_name = f"_scpn_control_bench_{harness_path.stem}"
+    if module_name in sys.modules:
+        return sys.modules[module_name]
+    spec = importlib.util.spec_from_file_location(module_name, harness_path)
+    if spec is None or spec.loader is None:
+        raise ImportError(f"cannot load CONTROL benchmark harness at {harness_path}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[module_name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
 def _capacitor_bank_discharge(steps: int, warmup: int) -> dict[str, Any]:
     """Polyglot capacitor-bank discharge benchmark via the existing harness."""
-    from benchmarks.bench_capacitor_bank_energy import _measure
+    bench = _load_control_benchmark_module("bench_capacitor_bank_energy.py")
+    _measure = bench._measure
 
     measured = _measure(steps=steps, warmup=warmup, discharge_steps=200, dt_s=1.0e-7)
     languages_raw = measured["languages"]
