@@ -179,6 +179,7 @@ class TestPredictSafeInferenceFailure:
         assert meta["mode"] == "fallback"
         assert meta["fallback"] is True
 
+
 class TestSimulateTearingModeBranches:
     """Exercise density_limit and vde disruption paths in simulate_tearing_mode."""
 

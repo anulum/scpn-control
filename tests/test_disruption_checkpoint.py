@@ -248,6 +248,7 @@ def test_train_multi_epoch_log_branch_and_optional_plot(tmp_path: Path) -> None:
     assert path.is_file()
     assert info["epochs"] == 3
 
+
 def test_train_failure_via_unwritable_path_real_torch(tmp_path: Path) -> None:
     """Force a real train I/O failure (directory-as-file) through production load_or_train."""
     blocked = tmp_path / "not_a_file_path"
