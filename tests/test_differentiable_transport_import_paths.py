@@ -16,8 +16,8 @@ from types import ModuleType
 from typing import Any, cast
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
+from numpy.typing import NDArray
 
 
 def _profiles(rho: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -32,6 +32,7 @@ def _profiles(rho: NDArray[np.float64]) -> NDArray[np.float64]:
 def test_import_without_jax_keeps_numpy_transport_available(monkeypatch: pytest.MonkeyPatch) -> None:
     """Import-time JAX absence leaves the deterministic NumPy transport path usable."""
     module_name = "scpn_control.core.differentiable_transport"
+    package_name = "scpn_control.core"
     original_import = builtins.__import__
 
     def guarded_import(
@@ -46,25 +47,34 @@ def test_import_without_jax_keeps_numpy_transport_available(monkeypatch: pytest.
         return original_import(name, globals_, locals_, fromlist, level)
 
     original_module = sys.modules.pop(module_name, None)
+    package = sys.modules.get(package_name)
+    original_package_attr = getattr(package, "differentiable_transport", None) if package is not None else None
     monkeypatch.setattr(builtins, "__import__", guarded_import)
     try:
         module = importlib.import_module(module_name)
+        module_any = cast(Any, module)
+        rho = np.linspace(0.05, 1.0, 8, dtype=np.float64)
+        profiles = _profiles(rho)
+        chi = np.full_like(profiles, 0.05)
+        sources = np.zeros_like(profiles)
+        edge = profiles[:, -1]
+
+        stepped = module_any.differentiable_transport_step(profiles, chi, sources, rho, 1.0e-4, edge, use_jax=False)
+
+        assert isinstance(module, ModuleType)
+        assert module_any._HAS_JAX is False
+        assert module_any.jax is None
+        assert module_any.jnp is None
+        assert np.asarray(stepped).shape == profiles.shape
     finally:
+        # Restore both sys.modules and the package attribute. importlib rebinding
+        # leaves package.differentiable_transport pointing at the no-JAX module even
+        # after sys.modules is restored, which would poison later suite tests.
         sys.modules.pop(module_name, None)
         if original_module is not None:
             sys.modules[module_name] = original_module
-
-    module_any = cast(Any, module)
-    rho = np.linspace(0.05, 1.0, 8, dtype=np.float64)
-    profiles = _profiles(rho)
-    chi = np.full_like(profiles, 0.05)
-    sources = np.zeros_like(profiles)
-    edge = profiles[:, -1]
-
-    stepped = module_any.differentiable_transport_step(profiles, chi, sources, rho, 1.0e-4, edge, use_jax=False)
-
-    assert isinstance(module, ModuleType)
-    assert module_any._HAS_JAX is False
-    assert module_any.jax is None
-    assert module_any.jnp is None
-    assert np.asarray(stepped).shape == profiles.shape
+        if package is not None:
+            if original_package_attr is not None:
+                package.differentiable_transport = original_package_attr
+            elif hasattr(package, "differentiable_transport"):
+                delattr(package, "differentiable_transport")
