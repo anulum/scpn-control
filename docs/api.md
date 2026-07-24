@@ -1559,6 +1559,13 @@ re-exported from the owner module:
 
 ::: scpn_control.scpn.artifact_validate.validate_safety_critical_artifact
 
+Compact packed-weight codec helpers live in a dedicated leaf and are re-exported
+from the owner module:
+
+::: scpn_control.scpn.artifact_codec.encode_u64_compact
+
+::: scpn_control.scpn.artifact_codec.decode_u64_compact
+
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.validate_artifact

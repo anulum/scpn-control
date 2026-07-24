@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-import scpn_control.scpn.artifact as artifact_module
+import scpn_control.scpn.artifact_codec as artifact_codec_module
 from scpn_control.scpn.artifact import (
     ActionReadout,
     Artifact,
@@ -1432,7 +1432,7 @@ def test_decode_rejects_decompressed_payload_over_limit(monkeypatch: pytest.Monk
     import base64
     import zlib
 
-    monkeypatch.setattr(artifact_module, "MAX_DECOMPRESSED_BYTES", 8)
+    monkeypatch.setattr(artifact_codec_module, "MAX_DECOMPRESSED_BYTES", 8)
     raw = b"\x00" * 9  # one byte over the patched ceiling, fully consumed (no tail)
     payload = base64.b64encode(zlib.compress(raw)).decode("ascii")
     with pytest.raises(ArtifactValidationError, match="exceeds configured limit"):

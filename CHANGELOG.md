@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract SCPN artifact compact packed-weight codec into
+  `scpn/artifact_codec.py` (CTL-G07 R4-S3). The `Artifact` product surface
+  re-exports `encode_u64_compact` / `decode_u64_compact`; load/save and JSON
+  schema remain on `scpn/artifact.py`. Inventory cascade: 187 modules / 537
+  test files.
 - Extract SCPN artifact structural validation and safety-critical admit into
   `scpn/artifact_validate.py` (CTL-G07 R4-S2). The `Artifact` product surface
   re-exports `validate_artifact` / `validate_safety_critical_artifact`;

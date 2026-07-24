@@ -16,7 +16,7 @@ from typing import cast
 
 import pytest
 
-import scpn_control.scpn.artifact as artifact_module
+import scpn_control.scpn.artifact_codec as artifact_codec_module
 from scpn_control.scpn.artifact import (
     ActionReadout,
     Artifact,
@@ -92,7 +92,7 @@ def _compact_payload(raw: bytes) -> dict[str, object]:
 
 def test_decode_rejects_compressed_payload_over_configured_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     """Oversized compressed data fails before decompression."""
-    monkeypatch.setattr(artifact_module, "MAX_COMPRESSED_BYTES", 1)
+    monkeypatch.setattr(artifact_codec_module, "MAX_COMPRESSED_BYTES", 1)
 
     with pytest.raises(ArtifactValidationError, match="Compressed payload too large"):
         _decode_u64_compact(_compact_payload(zlib.compress(b"12345678")))
@@ -100,7 +100,7 @@ def test_decode_rejects_compressed_payload_over_configured_limit(monkeypatch: py
 
 def test_decode_rejects_payload_exceeding_decompressed_limit(monkeypatch: pytest.MonkeyPatch) -> None:
     """The streaming decompressor limit is enforced via ``unconsumed_tail``."""
-    monkeypatch.setattr(artifact_module, "MAX_DECOMPRESSED_BYTES", 7)
+    monkeypatch.setattr(artifact_codec_module, "MAX_DECOMPRESSED_BYTES", 7)
 
     with pytest.raises(ArtifactValidationError, match="exceeds configured limit"):
         _decode_u64_compact(_compact_payload(zlib.compress(b"1234567890123456")))
