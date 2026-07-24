@@ -6,13 +6,13 @@
 | Python requirement | >=3.10 |
 | Project scripts | 5 |
 | Public API exports | 44 |
-| Python control/physics modules | 190 |
-| Python public classes | 550 |
+| Python control/physics modules | 191 |
+| Python public classes | 551 |
 | Rust source files | 64 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 155 |
 | Optional extras | 20 |
-| Python test files | 540 |
+| Python test files | 541 |
 | Public documentation pages | 68 |
 | GitHub Actions workflows | 10 |
 

@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract integrated-scenario coupling audit, module-exchange records, and
+  report I/O into `core/integrated_scenario_coupling_audit.py` (CTL-G07 R5-S2).
+  The `IntegratedScenarioSimulator` product surface re-exports the audit leaf;
+  transport micro-physics remains on the owner. Inventory cascade: 191 modules /
+  541 test files.
 - Extract integrated-scenario configuration presets and ScenarioConfig into
   `core/integrated_scenario_presets.py` (CTL-G07 R5-S1). The
   `IntegratedScenarioSimulator` product surface re-exports presets; coupling

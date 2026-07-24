@@ -1277,6 +1277,9 @@ the owner module:
 
 ::: scpn_control.core.integrated_scenario.save_scenario_coupling_report
 
+Coupling-audit types and report I/O are implemented in `scpn_control.core.integrated_scenario_coupling_audit` (re-exported by `integrated_scenario`).
+
+
 ::: scpn_control.core.integrated_scenario.iter_baseline_scenario
 
 ::: scpn_control.control.closed_loop_scenario.run_integrated_scenario_closed_loop
