@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract disruption physics proxies (tearing, features, risk, warning time)
+  into `control/disruption_physics_proxies.py` (CTL-G07 R7-S2). The disruption
+  predictor re-exports the proxies leaf; fault campaigns and checkpointed torch
+  training remain on the owner. Inventory cascade: 194 modules / 544 test files.
 - Extract disruption-risk claim boundary and heuristic provenance into
   `control/disruption_risk_claims.py` (CTL-G07 R7-S1). The disruption
   predictor product surface re-exports the claim leaf; physics proxies and

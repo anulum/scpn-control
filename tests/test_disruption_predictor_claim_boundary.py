@@ -143,6 +143,12 @@ def test_claim_boundary_rejects_empty_contract_fields() -> None:
 def test_feature_builder_rejects_contract_length_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
     """Feature construction fails if the declared contract length is tampered."""
 
+    import scpn_control.control.disruption_physics_proxies as proxies_module
+    import scpn_control.control.disruption_risk_claims as claims_module
+
+    # Contract is owned by the claims leaf and consumed by physics proxies.
+    monkeypatch.setattr(claims_module, "DISRUPTION_FEATURE_CONTRACT", ("mean",))
+    monkeypatch.setattr(proxies_module, "DISRUPTION_FEATURE_CONTRACT", ("mean",))
     monkeypatch.setattr(disruption_module, "DISRUPTION_FEATURE_CONTRACT", ("mean",))
     with pytest.raises(RuntimeError, match="feature vector length"):
         build_disruption_feature_vector(np.ones(3, dtype=np.float64))
