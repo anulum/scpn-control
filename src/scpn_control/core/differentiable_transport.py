@@ -26,12 +26,10 @@ from scpn_control._typing import FloatArray
 from scpn_control.core import differentiable_transport_closures as _closures
 from scpn_control.core import differentiable_transport_evidence as _evidence
 from scpn_control.core import jax_solvers as _jax_solvers
-from scpn_control.core.differentiable_transport_evidence import (
-    CHANNEL_COUNT,
-    CHANNELS,
-)
-
 # Stable public re-exports: campaign / claim / latency evidence leaf.
+# Assignment form (not bare re-import) so mypy treats CHANNEL_* as explicit exports.
+CHANNEL_COUNT = _evidence.CHANNEL_COUNT
+CHANNELS = _evidence.CHANNELS
 TransportCampaignMetadata = _evidence.TransportCampaignMetadata
 TransportDifferentiabilityEvidence = _evidence.TransportDifferentiabilityEvidence
 TransportFullFidelityReadinessEvidence = _evidence.TransportFullFidelityReadinessEvidence
