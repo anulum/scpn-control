@@ -525,6 +525,18 @@ def test_case_shape_and_projection_guards() -> None:
             lambda case: case["latency"].pop("warm_start_iterations"),
             "fields",
         ),
+        (
+            lambda case: case["input_contract"].update(warm_start_iteration_cap=1),
+            "warm-start iteration cap",
+        ),
+        (
+            lambda case: case["latency"].update(warm_ms=[-0.1, 1.0, 1.0], p50_ms=1.0, p95_ms=1.0),
+            "warm samples must be non-negative",
+        ),
+        (
+            lambda case: case["latency"].update(compile_and_first_ms=-1.0),
+            "compile_and_first_ms must be non-negative",
+        ),
     ],
 )
 def test_warm_latency_contract_rejects_relabelled_or_unconverged_evidence(
@@ -540,6 +552,14 @@ def test_warm_latency_contract_rejects_relabelled_or_unconverged_evidence(
             role="evaluation_candidate",
             index=1,
         )
+
+
+def test_require_positive_int_rejects_non_positive_values() -> None:
+    """Positive-integer helper fails closed on zero and non-integers."""
+    with pytest.raises(evidence.IDASameCaseEvidenceError, match="positive integer"):
+        evidence._require_positive_int(0, field="n_iter_cap")
+    with pytest.raises(evidence.IDASameCaseEvidenceError, match="positive integer"):
+        evidence._require_positive_int(True, field="n_iter_cap")
 
 
 def test_source_verifier_rejects_nonrepo_and_missing_commit(tmp_path: Path) -> None:
@@ -657,3 +677,20 @@ def test_public_cli_emits_blocked_json_and_exit_two(tmp_path: Path) -> None:
     assert payload["artifact_valid"] is True
     assert payload["admitted"] is False
     assert payload["status"] == evidence.CONTROL_BLOCKED_STATUS
+
+
+def test_public_cli_emits_human_readable_blocked_summary(tmp_path: Path) -> None:
+    """Human-readable CLI path prints status and each blocker line."""
+    path = tmp_path / "report.json"
+    report = _report()
+    _write_report(path, report)
+
+    result = CliRunner().invoke(
+        main,
+        ["validate-ida-same-case", str(path)],
+    )
+
+    assert result.exit_code == 2
+    assert "IDA same-case evidence:" in result.stdout
+    assert "BLOCKED" in result.stderr
+    assert report["blockers"][0] in result.stderr or any("BLOCKED" in line for line in result.output.splitlines())
