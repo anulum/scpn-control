@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract disruption fault/noise and anomaly-alarm campaigns into
+  `control/disruption_fault_campaigns.py` (CTL-G07 R7-S3). The disruption
+  predictor re-exports the campaigns leaf; checkpointed torch training remains
+  on the owner. Inventory cascade: 195 modules / 545 test files.
 - Extract disruption physics proxies (tearing, features, risk, warning time)
   into `control/disruption_physics_proxies.py` (CTL-G07 R7-S2). The disruption
   predictor re-exports the proxies leaf; fault campaigns and checkpointed torch
