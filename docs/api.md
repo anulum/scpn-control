@@ -1264,6 +1264,13 @@ fails closed before calling the dynamic loader.
 
 ### Integrated Scenario (v0.16.0)
 
+Scenario configuration presets live in a dedicated leaf and are re-exported from
+the owner module:
+
+::: scpn_control.core.integrated_scenario_presets.ScenarioConfig
+
+::: scpn_control.core.integrated_scenario_presets.iter_baseline_scenario
+
 ::: scpn_control.core.integrated_scenario.IntegratedScenarioSimulator
 
 ::: scpn_control.core.integrated_scenario.audit_scenario_coupling

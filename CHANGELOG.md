@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract integrated-scenario configuration presets and ScenarioConfig into
+  `core/integrated_scenario_presets.py` (CTL-G07 R5-S1). The
+  `IntegratedScenarioSimulator` product surface re-exports presets; coupling
+  audit and micro-physics remain on the owner. Inventory cascade: 190 modules /
+  540 test files.
 - Extract SCPN artifact JSON schema emission into `scpn/artifact_schema.py`
   (CTL-G07 R4-S5). The `Artifact` product surface is a re-export facade over
   model, validate, codec, IO, and schema leaves. Inventory cascade: 189
