@@ -3,6 +3,13 @@
 ## Unreleased
 
 ### Changed
+- Extract free-boundary tracking response diagnostics, activation mask, coil
+  headroom penalties, and Tikhonov coil correction into
+  `control/free_boundary_tracking_control_law.py` (CTL-G07 R3-S3). The
+  `FreeBoundaryTrackingController` product surface remains first-class with thin
+  wrappers; kernel-coupled `identify_response_matrix` and actuator application
+  stay on the owner; claims stay separate; shot orchestration remains for R3-S4.
+  Inventory cascade: 184 modules / 533 test files.
 - Extract free-boundary tracking target/measurement vector builders into
   `control/free_boundary_tracking_observation.py` (CTL-G07 R3-S2). The
   `FreeBoundaryTrackingController` product surface remains first-class with thin

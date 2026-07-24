@@ -32,6 +32,7 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control import free_boundary_tracking_control_law as _fb_law
 from scpn_control.control import free_boundary_tracking_limits as _fb_limits
 from scpn_control.control import free_boundary_tracking_observation as _fb_obs
 from scpn_control.control.state_estimator import ExtendedKalmanFilter
@@ -699,73 +700,26 @@ class FreeBoundaryTrackingController:
         return self.response_matrix.copy()
 
     def _update_response_diagnostics(self) -> None:
-        singular_values = np.asarray(np.linalg.svd(self.response_matrix, compute_uv=False), dtype=np.float64).reshape(
-            -1
-        )
-        if singular_values.size < 1:  # pragma: no cover - unreachable: n_coils>=1 implies >=1 singular value
-            self.response_rank = 0
-            self.response_condition_number = float("inf")
-            self.response_max_singular_value = 0.0
-            self.response_degenerate = True
-            return
-
-        sigma_max = float(np.max(singular_values))
-        eps = float(np.finfo(np.float64).eps)
-        cutoff = float(max(eps * max(1.0, sigma_max), 1.0e-12))
-        nonzero = singular_values[np.asarray(singular_values > cutoff, dtype=np.bool_)]
-        self.response_rank = int(nonzero.size)
-        self.response_max_singular_value = sigma_max
-        self.response_condition_number = float(sigma_max / float(nonzero[-1])) if nonzero.size > 0 else float("inf")
-        self.response_degenerate = bool((not np.isfinite(sigma_max)) or sigma_max <= cutoff or nonzero.size < 1)
+        diagnostics = _fb_law.compute_response_diagnostics(self.response_matrix)
+        self.response_rank = diagnostics.rank
+        self.response_condition_number = diagnostics.condition_number
+        self.response_max_singular_value = diagnostics.max_singular_value
+        self.response_degenerate = diagnostics.degenerate
 
     def _build_control_activation_mask(self, metrics: dict[str, Any]) -> FloatArray:
-        objective_checks = cast(dict[str, bool], metrics.get("objective_checks", {}))
-        mask = np.ones(self.target_vector.shape, dtype=np.float64)
-        for block in self.objective_blocks:
-            if block.name == "shape_flux":
-                # Annotate as list[str] so the per-block reassignments below (each a
-                # comprehension over a different literal tuple) share one type; mypy
-                # 2.2.0 otherwise pins the variable to the first branch's Literal set.
-                relevant: list[str] = [
-                    key for key in ("shape_rms", "shape_max_abs") if key in self.objective_tolerances
-                ]
-            elif block.name == "x_point_position":
-                relevant = [key for key in ("x_point_position",) if key in self.objective_tolerances]
-            elif block.name == "x_point_flux":
-                relevant = [key for key in ("x_point_flux",) if key in self.objective_tolerances]
-            elif block.name == "divertor_flux":
-                relevant = [key for key in ("divertor_rms", "divertor_max_abs") if key in self.objective_tolerances]
-            else:
-                raise ValueError(f"Unknown objective block {block.name!r}.")
-            if relevant and all(objective_checks.get(key, False) for key in relevant):
-                mask[block.start : block.stop] = 0.0
-        return mask
+        return _fb_law.build_control_activation_mask(
+            int(self.target_vector.size),
+            self.objective_blocks,
+            self.objective_tolerances,
+            metrics,
+        )
 
     def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:
-        headrooms = np.ones(self.n_coils, dtype=np.float64)
-        penalties = np.ones(self.n_coils, dtype=np.float64)
-        for idx in range(self.n_coils):
-            limit = float(self.coil_current_limits[idx])
-            if not np.isfinite(limit) or limit <= 0.0:
-                headrooms[idx] = np.inf
-                continue
-            current = float(self.coils.currents[idx])
-            direction = float(delta_hint[idx]) if idx < delta_hint.size else 0.0
-            if direction > 1.0e-12:
-                headroom = limit - current
-            elif direction < -1.0e-12:
-                headroom = limit + current
-            else:
-                headroom = limit - abs(current)
-            headrooms[idx] = max(headroom, 1.0e-9)
-        finite_headrooms = headrooms[np.isfinite(headrooms)]
-        reference_headroom = float(np.max(finite_headrooms)) if finite_headrooms.size > 0 else 1.0
-        for idx in range(self.n_coils):
-            if not np.isfinite(headrooms[idx]):
-                penalties[idx] = 1.0
-                continue
-            penalties[idx] = float(np.sqrt(max(reference_headroom / float(headrooms[idx]), 1.0)))
-        return cast(FloatArray, penalties)
+        return _fb_law.build_coil_penalties(
+            self.coils.currents,
+            self.coil_current_limits,
+            delta_hint,
+        )
 
     def compute_correction(
         self,
@@ -793,27 +747,20 @@ class FreeBoundaryTrackingController:
             raise ValueError("observation must match the free-boundary target vector shape.")
         metrics_now = self.evaluate_objectives(obs) if metrics is None else metrics
         control_mask = self._build_control_activation_mask(metrics_now)
-        error = self.target_vector + self.objective_bias_estimate - obs
-        weight_vector = self.control_objective_weights * control_mask
-        weighted_response = weight_vector[:, None] * self.response_matrix
-        weighted_error = weight_vector * error
-        base_reg = np.sqrt(self.response_regularization) * np.eye(self.n_coils, dtype=np.float64)
-        base_aug_matrix = np.vstack([weighted_response, base_reg])
-        base_aug_rhs = np.concatenate([weighted_error, np.zeros(self.n_coils, dtype=np.float64)])
-        delta_hint, *_ = np.linalg.lstsq(base_aug_matrix, base_aug_rhs, rcond=None)
-        delta_hint = np.asarray(delta_hint, dtype=np.float64)
-        coil_penalties = self._build_coil_penalties(delta_hint)
-        self.last_coil_penalties[:] = coil_penalties
-        aug_matrix = np.vstack(
-            [
-                weighted_response,
-                np.sqrt(self.response_regularization) * np.diag(coil_penalties),
-            ]
+        delta, coil_penalties = _fb_law.compute_coil_correction(
+            obs,
+            target_vector=self.target_vector,
+            objective_bias_estimate=self.objective_bias_estimate,
+            control_objective_weights=self.control_objective_weights,
+            response_matrix=self.response_matrix,
+            response_regularization=self.response_regularization,
+            correction_limit=self.correction_limit,
+            control_mask=control_mask,
+            coil_currents=self.coils.currents,
+            coil_current_limits=self.coil_current_limits,
         )
-        aug_rhs = np.concatenate([weighted_error, np.zeros(self.n_coils, dtype=np.float64)])
-        delta, *_ = np.linalg.lstsq(aug_matrix, aug_rhs, rcond=None)
-        clipped = np.clip(np.asarray(delta, dtype=np.float64), -self.correction_limit, self.correction_limit)
-        return cast(FloatArray, np.asarray(clipped, dtype=np.float64))
+        self.last_coil_penalties[:] = coil_penalties
+        return delta
 
     def _apply_correction(self, delta_currents: FloatArray, gain: float) -> FloatArray:
         commanded = self._command_currents(delta_currents, gain=gain)

@@ -1925,6 +1925,23 @@ observation remain on the owner.
 
 ::: scpn_control.control.free_boundary_tracking_observation.build_control_objective_weights
 
+### Free-Boundary Tracking Control Law
+
+Response-matrix SVD diagnostics, objective-block activation masks, coil
+headroom penalties, and Tikhonov-regularised coil correction live in a
+dedicated leaf. The controller keeps thin wrappers; kernel-coupled response
+identification and actuator application remain on the owner.
+
+::: scpn_control.control.free_boundary_tracking_control_law.ResponseDiagnostics
+
+::: scpn_control.control.free_boundary_tracking_control_law.compute_response_diagnostics
+
+::: scpn_control.control.free_boundary_tracking_control_law.build_control_activation_mask
+
+::: scpn_control.control.free_boundary_tracking_control_law.build_coil_penalties
+
+::: scpn_control.control.free_boundary_tracking_control_law.compute_coil_correction
+
 ### Free-Boundary Tracking Claim Evidence
 
 ::: scpn_control.control.free_boundary_tracking_claims.free_boundary_tracking_claim_evidence

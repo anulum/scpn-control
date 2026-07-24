@@ -13,7 +13,8 @@ This leaf owns objective-block topology, target-vector construction from a
 resolution, and control-objective weighting. Shot orchestration, kernel
 observation, and latency-state machines stay on
 :class:`~scpn_control.control.free_boundary_tracking.FreeBoundaryTrackingController`
-(R3-S3/S4). Claims remain in ``free_boundary_tracking_claims``.
+(R3-S4). Control-law helpers live in ``free_boundary_tracking_control_law``.
+Claims remain in ``free_boundary_tracking_claims``.
 """
 
 from __future__ import annotations
