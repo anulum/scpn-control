@@ -108,7 +108,7 @@ class TestAnomalyCampaignPositiveLabel:
             return sig, 1, np.zeros(steps)
 
         with patch(
-            "scpn_control.control.disruption_predictor.simulate_tearing_mode",
+            "scpn_control.control.disruption_fault_campaigns.simulate_tearing_mode",
             side_effect=_mock_tearing,
         ):
             result = run_anomaly_alarm_campaign(
@@ -146,7 +146,7 @@ class TestLoadOrTrainNoFallback:
     def test_train_failure_no_fallback_raises(self, tmp_path):
         with (
             patch(
-                "scpn_control.control.disruption_predictor.train_predictor",
+                "scpn_control.control.disruption_checkpoint.train_predictor",
                 side_effect=RuntimeError("mock train failure"),
             ),
             pytest.raises(RuntimeError, match="mock train failure"),

@@ -67,7 +67,10 @@ def test_feature_contract_matches_boundary_metadata() -> None:
 
 def test_safe_fallback_metadata_carries_claim_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
     """Explicit fallback inference returns the no-real-ROC claim boundary."""
+    import scpn_control.control.disruption_checkpoint as checkpoint_mod
 
+    # load_or_train lives on the checkpoint leaf after R7-S4.
+    monkeypatch.setattr(checkpoint_mod, "torch", None)
     monkeypatch.setattr(disruption_module, "torch", None)
 
     risk, metadata = predict_disruption_risk_safe(
@@ -196,7 +199,9 @@ def test_anomaly_campaign_counts_false_positive(monkeypatch: pytest.MonkeyPatch)
 
 def test_load_or_train_predictor_rejects_implicit_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
     """Fallback loading requires both explicit fallback switches."""
+    import scpn_control.control.disruption_checkpoint as checkpoint_mod
 
+    monkeypatch.setattr(checkpoint_mod, "torch", None)
     monkeypatch.setattr(disruption_module, "torch", None)
     with pytest.raises(ValueError, match="allow_legacy_fallback"):
         load_or_train_predictor(allow_fallback=True)

@@ -18,6 +18,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+import scpn_control.control.disruption_checkpoint as checkpoint_mod
 import scpn_control.control.disruption_predictor as dp_mod
 from scpn_control.control.disruption_predictor import (
     load_or_train_predictor,
@@ -25,29 +26,43 @@ from scpn_control.control.disruption_predictor import (
 )
 
 
+def _patch_torch_absent(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Remove torch from the checkpoint leaf (and owner for safe-path inference).
+
+    After CTL-G07 R7-S4, ``load_or_train_predictor`` lives in
+    ``disruption_checkpoint`` and reads ``checkpoint_mod.torch``. Owner
+    ``predict_disruption_risk_safe`` still reads ``dp_mod.torch`` for MC
+    inference, so both are cleared when testing torch-absent behaviour.
+    """
+    monkeypatch.setattr(checkpoint_mod, "torch", None)
+    monkeypatch.setattr(checkpoint_mod, "optim", None)
+    monkeypatch.setattr(checkpoint_mod, "nn", None)
+    monkeypatch.setattr(dp_mod, "torch", None)
+
+
 # ── Fallback tests: monkeypatch torch away ──────────────────────────
 
 
 class TestLoadOrTrainPredictorFallback:
     def test_legacy_fallback_requires_explicit_opt_in(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         with pytest.raises(ValueError, match="allow_legacy_fallback=True"):
             load_or_train_predictor(allow_fallback=True)
 
     def test_returns_none_model_when_torch_absent(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         model, meta = load_or_train_predictor(allow_fallback=True, allow_legacy_fallback=True)
         assert model is None
         assert meta["fallback"] is True
         assert meta["reason"] == "torch_unavailable"
 
     def test_no_fallback_raises_when_torch_absent(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         with pytest.raises(RuntimeError, match="Torch is required"):
             load_or_train_predictor(allow_fallback=False)
 
     def test_custom_model_path_in_meta(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         _, meta = load_or_train_predictor(
             model_path=str(tmp_path / "custom.pth"),
             allow_fallback=True,
@@ -56,19 +71,19 @@ class TestLoadOrTrainPredictorFallback:
         assert "custom.pth" in meta["model_path"]
 
     def test_seq_len_propagated(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         _, meta = load_or_train_predictor(seq_len=64, allow_fallback=True, allow_legacy_fallback=True)
         assert meta["seq_len"] == 64
 
     def test_none_path_uses_default(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         _, meta = load_or_train_predictor(model_path=None, allow_fallback=True, allow_legacy_fallback=True)
         assert "disruption_model.pth" in meta["model_path"]
 
 
 class TestLoadOrTrainMissingCheckpoint:
     def test_missing_checkpoint_no_train_fallback(self, monkeypatch, tmp_path):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         _, meta = load_or_train_predictor(
             model_path=str(tmp_path / "nonexistent.pth"),
             train_if_missing=False,
@@ -113,7 +128,7 @@ class TestLoadOrTrainMissingCheckpoint:
 
 class TestPredictDisruptionRiskSafeFallback:
     def test_returns_bounded_risk_fallback(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         signal = np.ones(100) * 0.5
         risk, meta = predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
         assert 0.0 <= risk <= 1.0
@@ -121,7 +136,7 @@ class TestPredictDisruptionRiskSafeFallback:
         assert meta["risk_source"] == "predict_disruption_risk"
 
     def test_with_toroidal_fallback(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         signal = np.linspace(0.1, 5.0, 100)
         toroidal = {"toroidal_n1_amp": 1.0, "toroidal_n2_amp": 0.5, "toroidal_n3_amp": 0.3}
         risk, meta = predict_disruption_risk_safe(signal, toroidal, allow_legacy_fallback=True)
@@ -129,14 +144,14 @@ class TestPredictDisruptionRiskSafeFallback:
         assert meta["fallback"] is True
 
     def test_custom_seq_len_fallback(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         signal = np.ones(200)
         risk, meta = predict_disruption_risk_safe(signal, seq_len=64, allow_legacy_fallback=True)
         assert 0.0 <= risk <= 1.0
         assert meta["seq_len"] == 64
 
     def test_fallback_returns_probabilistic_metadata(self, monkeypatch):
-        monkeypatch.setattr(dp_mod, "torch", None)
+        _patch_torch_absent(monkeypatch)
         signal = np.linspace(0.2, 1.8, 96)
         risk, meta = predict_disruption_risk_safe(signal, allow_legacy_fallback=True)
         assert 0.0 <= risk <= 1.0

@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract disruption checkpoint integrity and train/load orchestration into
+  `control/disruption_checkpoint.py` (CTL-G07 R7-S4). The disruption predictor
+  re-exports the checkpoint leaf; the optional torch model class remains on the
+  owner. Inventory cascade: 196 modules / 546 test files.
 - Extract disruption fault/noise and anomaly-alarm campaigns into
   `control/disruption_fault_campaigns.py` (CTL-G07 R7-S3). The disruption
   predictor re-exports the campaigns leaf; checkpointed torch training remains

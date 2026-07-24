@@ -30,30 +30,28 @@ from scpn_control.control.disruption_predictor import (
 
 class TestTrainPredictorTorchGuard:
     def test_torch_missing_raises(self, monkeypatch):
-        """train_predictor without torch raises RuntimeError (line 549)."""
+        """train_predictor without torch raises RuntimeError."""
+        import scpn_control.control.disruption_checkpoint as leaf
         import scpn_control.control.disruption_predictor as dp
 
-        original_torch = dp.torch
-        monkeypatch.setattr(dp, "torch", None)
-        monkeypatch.setattr(dp, "optim", None)
-        try:
-            with pytest.raises(RuntimeError, match="Torch is required"):
-                dp.train_predictor(n_shots=8, epochs=1)
-        finally:
-            monkeypatch.setattr(dp, "torch", original_torch)
+        monkeypatch.setattr(leaf, "torch", None)
+        monkeypatch.setattr(leaf, "optim", None)
+        monkeypatch.setattr(leaf, "nn", None)
+        with pytest.raises(RuntimeError, match="Torch is required"):
+            dp.train_predictor(n_shots=8, epochs=1)
 
 
 class TestLoadOrTrainFallback:
     def test_train_failure_with_fallback(self, tmp_path, monkeypatch):
-        """Training failure with allow_fallback=True returns None (lines 704-707)."""
-        import scpn_control.control.disruption_predictor as dp
+        """Training failure with allow_fallback=True returns None."""
+        import scpn_control.control.disruption_checkpoint as leaf
 
         # Ensure torch appears available so the code reaches train_predictor
-        if dp.torch is None:
-            monkeypatch.setattr(dp, "torch", type(sys)("_fake_torch"))
+        if leaf.torch is None:
+            monkeypatch.setattr(leaf, "torch", type(sys)("_fake_torch"))
         fake_path = tmp_path / "nonexistent.pt"
         with patch(
-            "scpn_control.control.disruption_predictor.train_predictor",
+            "scpn_control.control.disruption_checkpoint.train_predictor",
             side_effect=RuntimeError("mock training failure"),
         ):
             model, info = load_or_train_predictor(
