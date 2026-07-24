@@ -9,8 +9,7 @@
 """Load/save and canonical payload hashing for SCPN controller artifacts.
 
 This leaf owns ``.scpnctl.json`` parse/serialise, formal-verification field
-parse/emit helpers, and :func:`compute_artifact_payload_sha256`. JSON schema
-emission remains on :mod:`scpn_control.scpn.artifact` (CTL-G07 R4-S4).
+parse/emit helpers, and :func:`compute_artifact_payload_sha256`. JSON schema emission lives in :mod:`scpn_control.scpn.artifact_schema` (CTL-G07 R4-S5).
 """
 
 from __future__ import annotations

@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Changed
+- Extract SCPN artifact JSON schema emission into `scpn/artifact_schema.py`
+  (CTL-G07 R4-S5). The `Artifact` product surface is a re-export facade over
+  model, validate, codec, IO, and schema leaves. Inventory cascade: 189
+  modules / 539 test files.
 - Extract SCPN artifact load/save and payload hashing into
   `scpn/artifact_io.py` (CTL-G07 R4-S4). The `Artifact` product surface
   re-exports `load_artifact` / `save_artifact` /

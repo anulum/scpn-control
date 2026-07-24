@@ -204,12 +204,13 @@ def test_artifact_json_schema_matches_raw_and_compact_packed_payloads(tmp_path: 
 
 def test_formal_schema_drift_guard_rejects_unmapped_evidence_field(monkeypatch: pytest.MonkeyPatch) -> None:
     """Formal evidence fields cannot drift away from the emitted schema."""
+    import scpn_control.scpn.artifact_schema as artifact_schema_module
 
     monkeypatch.setattr(
-        artifact_module,
+        artifact_schema_module,
         "FORMAL_VERIFICATION_ALLOWED_FIELDS",
-        artifact_module.FORMAL_VERIFICATION_ALLOWED_FIELDS | {"foreign_field"},
+        artifact_schema_module.FORMAL_VERIFICATION_ALLOWED_FIELDS | {"foreign_field"},
     )
 
     with pytest.raises(RuntimeError, match="formal_verification schema drift"):
-        artifact_module._formal_verification_schema()
+        artifact_schema_module._formal_verification_schema()

@@ -1575,6 +1575,11 @@ the owner module:
 
 ::: scpn_control.scpn.artifact_io.compute_artifact_payload_sha256
 
+JSON Schema emission lives in a dedicated leaf and is re-exported from the owner
+module:
+
+::: scpn_control.scpn.artifact_schema.get_artifact_json_schema
+
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.validate_artifact
