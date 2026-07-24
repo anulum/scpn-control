@@ -157,3 +157,14 @@ def test_rollout_gradient_audit_indices_default_and_bounds() -> None:
         rollout_ad._rollout_gradient_audit_indices(shape, [])
     with pytest.raises(ValueError, match="shape"):
         rollout_ad._rollout_gradient_audit_indices((4, 5), None)
+
+
+def test_rollout_tracking_loss_jax_path_requires_jnp(monkeypatch: pytest.MonkeyPatch) -> None:
+    """JAX-selected rollout tracking loss fails closed when jnp is unavailable."""
+    profiles, chi, sources, target_history, rho, edge = _rollout_fixture()
+    monkeypatch.setattr(facade, "jnp", None)
+    monkeypatch.setattr(facade, "_resolve_use_jax", lambda *a, **k: True)
+    with pytest.raises(RuntimeError, match="JAX is unavailable"):
+        rollout_ad.transport_rollout_tracking_loss(
+            profiles, chi, sources, target_history, rho, 1.0e-3, edge, use_jax=True
+        )

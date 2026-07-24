@@ -91,3 +91,9 @@ def test_public_symbol_identity_on_facade() -> None:
     assert facade.GyrokineticTransportClosureResult is closures.GyrokineticTransportClosureResult
     assert facade.transport_coefficients_from_neural_closure is closures.transport_coefficients_from_neural_closure
     assert facade.gyrokinetic_transport_closure_profiles is closures.gyrokinetic_transport_closure_profiles
+
+
+def test_as_float_array_rejects_non_finite() -> None:
+    """Closure array coercion fails closed on NaN or infinite entries."""
+    with pytest.raises(ValueError, match="finite"):
+        closures._as_float_array("chi", np.array([1.0, np.nan]))

@@ -440,10 +440,6 @@ class FreeBoundaryTrackingController:
             name=name,
         )
 
-    def _weight_from_tolerances(self, *keys: str) -> float:
-        """Map objective tolerances to a control weight (larger weight for tighter tol)."""
-        return _fb_obs.weight_from_tolerances(self.objective_tolerances, *keys)
-
     def _build_control_objective_weights(self) -> FloatArray:
         """Build per-entry control weights from objective blocks and tolerances."""
         return _fb_obs.build_control_objective_weights(
@@ -730,13 +726,6 @@ class FreeBoundaryTrackingController:
             self.objective_blocks,
             self.objective_tolerances,
             metrics,
-        )
-
-    def _build_coil_penalties(self, delta_hint: FloatArray) -> FloatArray:
-        return _fb_law.build_coil_penalties(
-            self.coils.currents,
-            self.coil_current_limits,
-            delta_hint,
         )
 
     def compute_correction(

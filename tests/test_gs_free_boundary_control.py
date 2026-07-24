@@ -182,3 +182,103 @@ def test_resolve_shape_and_separatrix_targets() -> None:
     np.testing.assert_allclose(target, coils.target_flux_values)
     sep = fb.resolve_separatrix_flux_target(coils, target)
     assert sep == pytest.approx(float(np.mean(coils.target_flux_values)))
+
+
+def test_estimate_point_gradient_one_sided_and_degenerate_domain() -> None:
+    """Edge and degenerate domains exercise one-sided and zero-span FD branches."""
+
+    def sample(r: float, z: float) -> float:
+        return 4.0 * r + z
+
+    # Point at lower-R boundary: forward difference in R only.
+    d_dr, d_dz = fb.estimate_point_gradient(
+        sample,
+        0.0,
+        0.0,
+        r_min=0.0,
+        r_max=2.0,
+        z_min=-1.0,
+        z_max=1.0,
+        dR=0.1,
+        dZ=0.1,
+    )
+    assert float(d_dr) == pytest.approx(4.0, rel=1e-6)
+    assert float(d_dz) == pytest.approx(1.0, rel=1e-6)
+    # Point at upper-R boundary: backward difference in R.
+    d_dr_u, _ = fb.estimate_point_gradient(
+        sample,
+        2.0,
+        0.0,
+        r_min=0.0,
+        r_max=2.0,
+        z_min=-1.0,
+        z_max=1.0,
+        dR=0.1,
+        dZ=0.1,
+    )
+    assert float(d_dr_u) == pytest.approx(4.0, rel=1e-6)
+    # Degenerate R domain (no step fits): zero gradient in R.
+    d_dr_z, d_dz_z = fb.estimate_point_gradient(
+        sample,
+        1.0,
+        0.0,
+        r_min=1.0,
+        r_max=1.0,
+        z_min=0.0,
+        z_max=0.0,
+        dR=0.1,
+        dZ=0.1,
+    )
+    assert float(d_dr_z) == pytest.approx(0.0)
+    assert float(d_dz_z) == pytest.approx(0.0)
+
+
+def test_resolve_x_point_and_divertor_flux_modes() -> None:
+    """X-point and divertor resolvers cover explicit, derived, self, and disabled modes."""
+    coils = CoilSet(
+        positions=[(3.0, 2.0)],
+        currents=np.array([1e4], dtype=float),
+        turns=[10],
+    )
+    # Disabled when no X-point target.
+    assert fb.resolve_x_point_flux_target(coils, 0.5, 0.1) == (None, "disabled")
+    coils.x_point_target = np.array([3.5, 0.0], dtype=float)
+    coils.x_point_flux_target = 1.25
+    assert fb.resolve_x_point_flux_target(coils, 0.5, 0.1) == (1.25, "explicit_target")
+    coils.x_point_flux_target = None
+    assert fb.resolve_x_point_flux_target(coils, 0.75, None) == (0.75, "derived_separatrix")
+    assert fb.resolve_x_point_flux_target(coils, None, 0.33) == (0.33, "self_flux_tracking")
+    with pytest.raises(ValueError, match="local_flux_at_x_point is required"):
+        fb.resolve_x_point_flux_target(coils, None, None)
+
+    # Divertor disabled without strike points.
+    assert fb.resolve_divertor_flux_targets(coils, 0.5, None)[1] == "disabled"
+    coils.divertor_strike_points = np.array([[3.0, -1.0], [4.0, -1.0]], dtype=float)
+    coils.divertor_flux_values = np.array([0.2, 0.3], dtype=float)
+    vals, mode = fb.resolve_divertor_flux_targets(coils, 0.5, None)
+    assert mode == "explicit_target"
+    np.testing.assert_allclose(vals, [0.2, 0.3])
+    coils.divertor_flux_values = None
+    vals, mode = fb.resolve_divertor_flux_targets(coils, 0.5, None)
+    assert mode == "derived_separatrix"
+    np.testing.assert_allclose(vals, [0.5, 0.5])
+    sampled = np.array([0.1, 0.2], dtype=float)
+    vals, mode = fb.resolve_divertor_flux_targets(coils, None, sampled)
+    assert mode == "self_flux_tracking"
+    np.testing.assert_allclose(vals, sampled)
+    with pytest.raises(ValueError, match="sampled_strike_flux is required"):
+        fb.resolve_divertor_flux_targets(coils, None, None)
+
+    assert fb.divertor_configuration_label(np.array([[1.0, 0.0]])) == "single_strike"
+    assert fb.divertor_configuration_label(np.zeros((0, 2))) == "none"
+    assert fb.divertor_configuration_label(np.ones((4, 2))) == "multi_strike"
+
+
+def test_resolve_separatrix_priority_and_none() -> None:
+    """Separatrix target prefers X-point flux, then divertor mean, then shape mean."""
+    coils = CoilSet(positions=[(3.0, 0.0)], currents=np.array([1.0]), turns=[1])
+    assert fb.resolve_separatrix_flux_target(coils, None) is None
+    coils.divertor_flux_values = np.array([1.0, 3.0], dtype=float)
+    assert fb.resolve_separatrix_flux_target(coils, None) == pytest.approx(2.0)
+    coils.x_point_flux_target = 9.0
+    assert fb.resolve_separatrix_flux_target(coils, np.array([0.0])) == pytest.approx(9.0)

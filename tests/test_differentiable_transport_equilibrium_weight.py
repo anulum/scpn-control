@@ -159,3 +159,9 @@ def test_eq_weighted_rollout_source_gradient_finite_via_facade() -> None:
     assert np.all(np.isfinite(result.source_gradient))
     assert result.final_profiles.shape == profiles.shape
     assert result.loss >= 0.0
+
+
+def test_as_float_array_rejects_non_finite() -> None:
+    """Equilibrium-weight array coercion fails closed on non-finite values."""
+    with pytest.raises(ValueError, match="finite"):
+        eq_weight._as_float_array("equilibrium_psi", np.array([[1.0, np.inf], [0.0, 1.0]]))

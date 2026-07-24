@@ -121,3 +121,34 @@ def test_mg_smooth_zero_source_preserves_zeros() -> None:
     source = np.zeros((n, n))
     out = mg.mg_smooth(psi, source, rr, float(r[1] - r[0]), float(z[1] - z[0]), 1.5, 3)
     np.testing.assert_allclose(out, 0.0, atol=1.0e-15)
+
+
+def test_fusion_kernel_mg_smooth_wrapper_matches_leaf(tmp_path: Path) -> None:
+    """Owner ``_mg_smooth`` delegates to the production multigrid leaf."""
+    cfg = {
+        "reactor_name": "MG-Wrap",
+        "dimensions": {"R_min": 2.0, "R_max": 6.0, "Z_min": -3.0, "Z_max": 3.0},
+        "grid_resolution": [8, 8],
+        "physics": {"plasma_current_target": 1.0, "vacuum_permeability": 1.0},
+        "solver": {
+            "boundary_variant": "fixed",
+            "solver_method": "sor",
+            "max_iterations": 5,
+            "convergence_threshold": 1e-4,
+        },
+        "coils": [],
+    }
+    path = tmp_path / "cfg.json"
+    path.write_text(json.dumps(cfg), encoding="utf-8")
+    kernel = FusionKernel(path)
+    n = 6
+    r = np.linspace(2.0, 4.0, n)
+    z = np.linspace(-1.0, 1.0, n)
+    rr, _zz = np.meshgrid(r, z)
+    psi = np.zeros((n, n), dtype=float)
+    source = np.zeros((n, n), dtype=float)
+    dR = float(r[1] - r[0])
+    dZ = float(z[1] - z[0])
+    owner = kernel._mg_smooth(psi, source, rr, dR, dZ, 1.5, 2)
+    leaf = mg.mg_smooth(psi, source, rr, dR, dZ, 1.5, 2)
+    np.testing.assert_allclose(owner, leaf)

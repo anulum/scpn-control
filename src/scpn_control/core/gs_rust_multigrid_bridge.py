@@ -44,11 +44,11 @@ class RustMultigridOwner(Protocol):
         boundary_flux: FloatArray | None = None,
     ) -> dict[str, Any]:
         """Run a fixed-boundary equilibrium solve (used for Python SOR fallback)."""
-        ...
+        raise NotImplementedError
 
     def _compute_gs_residual_rms(self, Source: FloatArray) -> float:
         """Return RMS GS residual over interior points."""
-        ...
+        raise NotImplementedError
 
 
 def solve_via_rust_multigrid(

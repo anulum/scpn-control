@@ -153,6 +153,58 @@ def test_compute_coil_correction_fail_closed_shapes() -> None:
             coil_currents=np.zeros(2),
             coil_current_limits=np.ones(2),
         )
+    with pytest.raises(ValueError, match="objective_bias_estimate must match"):
+        law.compute_coil_correction(
+            target,
+            target_vector=target,
+            objective_bias_estimate=np.zeros(3),
+            control_objective_weights=np.ones(2),
+            response_matrix=np.eye(2),
+            response_regularization=1e-3,
+            correction_limit=1.0,
+            control_mask=np.ones(2),
+            coil_currents=np.zeros(2),
+            coil_current_limits=np.ones(2),
+        )
+    with pytest.raises(ValueError, match="control_objective_weights must match"):
+        law.compute_coil_correction(
+            target,
+            target_vector=target,
+            objective_bias_estimate=np.zeros(2),
+            control_objective_weights=np.ones(3),
+            response_matrix=np.eye(2),
+            response_regularization=1e-3,
+            correction_limit=1.0,
+            control_mask=np.ones(2),
+            coil_currents=np.zeros(2),
+            coil_current_limits=np.ones(2),
+        )
+    with pytest.raises(ValueError, match="control_mask must match"):
+        law.compute_coil_correction(
+            target,
+            target_vector=target,
+            objective_bias_estimate=np.zeros(2),
+            control_objective_weights=np.ones(2),
+            response_matrix=np.eye(2),
+            response_regularization=1e-3,
+            correction_limit=1.0,
+            control_mask=np.ones(3),
+            coil_currents=np.zeros(2),
+            coil_current_limits=np.ones(2),
+        )
+    with pytest.raises(ValueError, match="response_matrix must be"):
+        law.compute_coil_correction(
+            target,
+            target_vector=target,
+            objective_bias_estimate=np.zeros(2),
+            control_objective_weights=np.ones(2),
+            response_matrix=np.ones(2),
+            response_regularization=1e-3,
+            correction_limit=1.0,
+            control_mask=np.ones(2),
+            coil_currents=np.zeros(2),
+            coil_current_limits=np.ones(2),
+        )
     with pytest.raises(ValueError, match="correction_limit"):
         law.compute_coil_correction(
             target,

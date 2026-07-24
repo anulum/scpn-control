@@ -36,7 +36,8 @@ class FreeBoundarySolveKernel(Protocol):
     Psi: FloatArray
     cfg: dict[str, Any]
 
-    def _compute_external_flux(self, coils: CoilSet) -> FloatArray: ...
+    def _compute_external_flux(self, coils: CoilSet) -> FloatArray:
+        raise NotImplementedError
 
     def solve_equilibrium(
         self,
@@ -44,31 +45,39 @@ class FreeBoundarySolveKernel(Protocol):
         boundary_flux: FloatArray | None = None,
     ) -> dict[str, Any]:
         """Run the inner fixed-boundary Grad-Shafranov solve."""
-        ...
+        raise NotImplementedError
 
-    def _sample_flux_at_points(self, obs_points: FloatArray) -> FloatArray: ...
+    def _sample_flux_at_points(self, obs_points: FloatArray) -> FloatArray:
+        raise NotImplementedError
 
-    def _resolve_shape_target_flux(self, coils: CoilSet, current_flux: FloatArray) -> tuple[FloatArray, str]: ...
+    def _resolve_shape_target_flux(self, coils: CoilSet, current_flux: FloatArray) -> tuple[FloatArray, str]:
+        raise NotImplementedError
 
-    def _shape_error_metrics(self, current_flux: FloatArray, target_flux: FloatArray) -> dict[str, float]: ...
+    def _shape_error_metrics(self, current_flux: FloatArray, target_flux: FloatArray) -> dict[str, float]:
+        raise NotImplementedError
 
-    def _resolve_separatrix_flux_target(self, coils: CoilSet, shape_target_flux: FloatArray | None) -> float | None: ...
+    def _resolve_separatrix_flux_target(self, coils: CoilSet, shape_target_flux: FloatArray | None) -> float | None:
+        raise NotImplementedError
 
     def _resolve_x_point_flux_target(
         self, coils: CoilSet, separatrix_flux_target: float | None
-    ) -> tuple[float | None, str]: ...
+    ) -> tuple[float | None, str]:
+        raise NotImplementedError
 
     def _resolve_divertor_flux_targets(
         self, coils: CoilSet, separatrix_flux_target: float | None
-    ) -> tuple[FloatArray | None, str]: ...
+    ) -> tuple[FloatArray | None, str]:
+        raise NotImplementedError
 
-    def _interp_psi_gradient(self, R_pt: float, Z_pt: float) -> tuple[float, float]: ...
+    def _interp_psi_gradient(self, R_pt: float, Z_pt: float) -> tuple[float, float]:
+        raise NotImplementedError
 
     def find_x_point(self, Psi: FloatArray) -> tuple[tuple[float, float], float]:
         """Locate an X-point candidate on the current flux map."""
-        ...
+        raise NotImplementedError
 
-    def _interp_psi(self, R_pt: float, Z_pt: float) -> float: ...
+    def _interp_psi(self, R_pt: float, Z_pt: float) -> float:
+        raise NotImplementedError
 
     def _evaluate_free_boundary_objective_status(
         self,
@@ -81,13 +90,15 @@ class FreeBoundarySolveKernel(Protocol):
         x_point_flux_error: float | None,
         divertor_error_rms: float | None,
         divertor_error_max_abs: float | None,
-    ) -> dict[str, Any]: ...
+    ) -> dict[str, Any]:
+        raise NotImplementedError
 
     def _resolve_free_boundary_objective_tolerances(
         self,
         cfg_objective_tolerances: Any,
         override_objective_tolerances: dict[str, float] | None = None,
-    ) -> dict[str, float]: ...
+    ) -> dict[str, float]:
+        raise NotImplementedError
 
     def optimize_coil_currents(
         self,
@@ -99,9 +110,10 @@ class FreeBoundarySolveKernel(Protocol):
         divertor_flux_targets: FloatArray | None = None,
     ) -> FloatArray:
         """Optimise coil currents against free-boundary objective targets."""
-        ...
+        raise NotImplementedError
 
-    def _divertor_configuration_label(self, strike_points: FloatArray | None) -> str: ...
+    def _divertor_configuration_label(self, strike_points: FloatArray | None) -> str:
+        raise NotImplementedError
 
 
 def solve_free_boundary(
