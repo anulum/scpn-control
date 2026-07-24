@@ -307,8 +307,8 @@ def validate_safety_critical_artifact(
     formal_report_root: str | Path | None = None,
 ) -> None:
     """Fail closed unless a controller artifact carries passing bounded-proof evidence."""
-    # Lazy import: payload hash lives on the owner (load/save/codec surface).
-    from scpn_control.scpn.artifact import compute_artifact_payload_sha256
+    # Lazy import: payload hash lives on the io leaf (CTL-G07 R4-S4).
+    from scpn_control.scpn.artifact_io import compute_artifact_payload_sha256
 
     if artifact.formal_verification is None:
         raise ArtifactValidationError("safety-critical artifact requires formal_verification evidence")

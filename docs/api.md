@@ -1566,6 +1566,15 @@ from the owner module:
 
 ::: scpn_control.scpn.artifact_codec.decode_u64_compact
 
+Load/save and payload hashing live in a dedicated leaf and are re-exported from
+the owner module:
+
+::: scpn_control.scpn.artifact_io.load_artifact
+
+::: scpn_control.scpn.artifact_io.save_artifact
+
+::: scpn_control.scpn.artifact_io.compute_artifact_payload_sha256
+
 ::: scpn_control.scpn.artifact.compute_artifact_payload_sha256
 
 ::: scpn_control.scpn.artifact.validate_artifact

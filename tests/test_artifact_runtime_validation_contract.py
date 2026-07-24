@@ -155,16 +155,19 @@ def test_artifact_post_init_bypass_still_requires_explicit_validation() -> None:
 
 def test_load_artifact_calls_public_runtime_validator(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """File loading routes parsed artifacts through the public validator."""
+    import scpn_control.scpn.artifact_io as artifact_io_module
+
     artifact_path = tmp_path / "valid.scpnctl.json"
     save_artifact(_valid_artifact(), artifact_path)
     validated: list[Artifact] = []
-    original_validate = artifact_module.validate_artifact
+    original_validate = artifact_io_module.validate_artifact
 
     def spy(artifact: Artifact) -> None:
         validated.append(artifact)
         original_validate(artifact)
 
-    monkeypatch.setattr(artifact_module, "validate_artifact", spy)
+    # Load/save live on the IO leaf (CTL-G07 R4-S4); spy the leaf binding.
+    monkeypatch.setattr(artifact_io_module, "validate_artifact", spy)
 
     loaded = load_artifact(artifact_path)
 

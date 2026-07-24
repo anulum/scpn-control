@@ -3,6 +3,11 @@
 ## Unreleased
 
 ### Changed
+- Extract SCPN artifact load/save and payload hashing into
+  `scpn/artifact_io.py` (CTL-G07 R4-S4). The `Artifact` product surface
+  re-exports `load_artifact` / `save_artifact` /
+  `compute_artifact_payload_sha256`; JSON schema remains on
+  `scpn/artifact.py`. Inventory cascade: 188 modules / 538 test files.
 - Extract SCPN artifact compact packed-weight codec into
   `scpn/artifact_codec.py` (CTL-G07 R4-S3). The `Artifact` product surface
   re-exports `encode_u64_compact` / `decode_u64_compact`; load/save and JSON
