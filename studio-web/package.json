@@ -2,9 +2,9 @@
   "name": "scpn-control-studio-web",
   "version": "0.1.0",
   "private": true,
-  "description": "The SCPN-CONTROL Control Studio UI remote — a Module Federation 2.x remote exposing the ControlStudioPanel the SCPN Studio Hub federates at runtime.",
+  "description": "The SCPN-CONTROL Control Studio UI remote \u2014 a Module Federation 2.x remote exposing the ControlStudioPanel the SCPN Studio Hub federates at runtime.",
   "license": "AGPL-3.0-or-later",
-  "author": "Miroslav Šotek <protoscience@anulum.li>",
+  "author": "Miroslav \u0160otek <protoscience@anulum.li>",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -35,6 +35,7 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.64.0",
     "vite": "8.1.4",
-    "vitest": "4.1.9"
+    "vitest": "4.1.9",
+    "postcss": "8.5.23"
   }
 }
