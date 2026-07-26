@@ -1,17 +1,32 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN-CONTROL — REUSE licensing metadata
+
 version = 1
 
 [[annotations]]
-path = ["*.md", "*.txt", "*.json", "*.yaml", "*.yml", "*.toml", "*.cfg", "*.ini", "*.lock"]
-SPDX-FileCopyrightText = "1998-2026 Miroslav Sotek <protoscience@anulum.li>"
+path = "**"
+precedence = "override"
+SPDX-FileCopyrightText = "1996-2026 Miroslav Šotek <protoscience@anulum.li>"
 SPDX-License-Identifier = "AGPL-3.0-or-later"
 
 [[annotations]]
-path = ["docs/**", "*.png", "*.svg", "*.jpg"]
-SPDX-FileCopyrightText = "1998-2026 Miroslav Sotek <protoscience@anulum.li>"
-SPDX-License-Identifier = "AGPL-3.0-or-later"
-
-[[annotations]]
-path = ["scpn-control-rs/**/*.rs"]
-SPDX-FileCopyrightText = "1998-2026 Miroslav Sotek <protoscience@anulum.li>"
-SPDX-License-Identifier = "AGPL-3.0-or-later"
+path = [
+    "validation/reference_data/sparc/device_description.json",
+    "validation/reference_data/sparc/lmode_hv.geqdsk",
+    "validation/reference_data/sparc/lmode_vh.geqdsk",
+    "validation/reference_data/sparc/lmode_vv.geqdsk",
+    "validation/reference_data/sparc/prd_popcon.csv",
+    "validation/reference_data/sparc/sparc_1300.eqdsk",
+    "validation/reference_data/sparc/sparc_1305.eqdsk",
+    "validation/reference_data/sparc/sparc_1310.eqdsk",
+    "validation/reference_data/sparc/sparc_1315.eqdsk",
+    "validation/reference_data/sparc/sparc_1349.eqdsk",
+]
+precedence = "override"
+SPDX-FileCopyrightText = "2022 aqkuang"
+SPDX-License-Identifier = "MIT"
