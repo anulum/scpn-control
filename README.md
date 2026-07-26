@@ -10,6 +10,7 @@
   <a href="https://pepy.tech/project/scpn-control"><img src="https://static.pepy.tech/badge/scpn-control" alt="All-time downloads"></a>
   <a href="https://scpn-control.streamlit.app"><img src="https://static.streamlit.io/badges/streamlit_badge_black_white.svg" alt="Open in Streamlit"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-AGPL--3.0-blue.svg" alt="License: AGPL-3.0-or-later"></a>
+  <a href="https://api.reuse.software/info/github.com/anulum/scpn-control"><img src="https://api.reuse.software/badge/github.com/anulum/scpn-control" alt="REUSE status"></a>
   <a href="https://www.bestpractices.dev/projects/12176"><img src="https://www.bestpractices.dev/projects/12176/badge" alt="OpenSSF Best Practices"></a>
   <a href="https://orcid.org/0009-0009-3560-0851"><img src="https://img.shields.io/badge/ORCID-0009--0009--3560--0851-green.svg" alt="ORCID"></a>
   <a href="https://arxiv.org/abs/2004.06344"><img src="https://img.shields.io/badge/Kuramoto_ref-2004.06344-b31b1b.svg" alt="Kuramoto-Sakaguchi reference"></a>
