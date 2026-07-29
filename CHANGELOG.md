@@ -34,6 +34,8 @@
 - Documented runtime kernel specialization and core Grad-Shafranov state,
   controls, solve results, and probe APIs; the crate now denies missing and
   broken-link rustdoc warnings at source.
+- Removed 16 redundant test-only configuration-path borrows so the complete
+  `control-core` all-target Clippy gate passes on the current Rust toolchain.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

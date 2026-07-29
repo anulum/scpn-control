@@ -354,7 +354,7 @@ mod tests {
 
     #[test]
     fn test_decay_index_finite() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         let grid = cfg.create_grid();
         let psi = calculate_vacuum_field(&grid, &cfg.coils, cfg.physics.vacuum_permeability)
             .expect("valid vacuum-field inputs");
@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_forces_finite() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         let grid = cfg.create_grid();
         let psi = calculate_vacuum_field(&grid, &cfg.coils, cfg.physics.vacuum_permeability)
             .expect("valid vacuum-field inputs");
@@ -378,7 +378,7 @@ mod tests {
 
     #[test]
     fn test_stability_analysis() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         let grid = cfg.create_grid();
         let psi = calculate_vacuum_field(&grid, &cfg.coils, cfg.physics.vacuum_permeability)
             .expect("valid vacuum-field inputs");
@@ -398,8 +398,7 @@ mod tests {
     #[test]
     fn test_force_balance_runs() {
         let mut cfg =
-            ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-                .unwrap();
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let grid = cfg.create_grid();
 
         // Use PF3 (index 2) and PF4 (index 3) as control coils
@@ -413,7 +412,7 @@ mod tests {
 
     #[test]
     fn test_stability_rejects_invalid_runtime_inputs() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         let grid = cfg.create_grid();
         let psi = calculate_vacuum_field(&grid, &cfg.coils, cfg.physics.vacuum_permeability)
             .expect("valid vacuum-field inputs");
@@ -422,7 +421,7 @@ mod tests {
         assert!(calculate_forces(&psi, &grid, 0.0, 0.0, 15.0).is_err());
         assert!(analyze_stability(&psi, &grid, 0.0, 0.0, 15.0).is_err());
 
-        let mut cfg2 = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let mut cfg2 = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         assert!(solve_force_balance(&mut cfg2, &grid, 6.2, 0.0, &[]).is_err());
     }
 }

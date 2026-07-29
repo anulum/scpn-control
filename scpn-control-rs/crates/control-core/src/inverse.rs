@@ -1284,8 +1284,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_api_input_validation() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let kcfg = KernelInverseConfig::default();
         let init = ProfileParams::default();
 
@@ -1309,8 +1309,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_rejects_invalid_kernel_iteration_config() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let kcfg = KernelInverseConfig {
             kernel_max_iterations: 0,
             ..Default::default()
@@ -1333,8 +1333,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_rejects_invalid_initial_profile_params() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let kcfg = KernelInverseConfig::default();
         let bad_init = ProfileParams {
             ped_width: 0.0,
@@ -1376,8 +1376,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_rejects_non_finite_measurements_or_probes() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let kcfg = KernelInverseConfig::default();
         let bad_probe_err = reconstruct_equilibrium_with_kernel(
             &cfg,
@@ -1412,8 +1412,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_rejects_out_of_domain_probes() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let kcfg = KernelInverseConfig::default();
         let err = reconstruct_equilibrium_with_kernel(
             &cfg,
@@ -1432,8 +1432,8 @@ mod tests {
 
     #[test]
     fn test_kernel_fd_jacobian_rejects_base_length_mismatch() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let probes = vec![(6.2, 0.0), (6.3, 0.1)];
         let kcfg = KernelInverseConfig::default();
         let params = ProfileParams::default();
@@ -1512,8 +1512,8 @@ mod tests {
 
     #[test]
     fn test_kernel_analytical_jacobian_computes() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let probes = vec![(6.2, 0.0), (6.35, 0.1), (6.45, -0.15)];
         let params_p = ProfileParams {
             ped_top: 0.9,
@@ -1548,8 +1548,8 @@ mod tests {
 
     #[test]
     fn test_kernel_analytical_jacobian_tracks_fd() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let probes = vec![(6.2, 0.0), (6.3, 0.08), (6.4, -0.12), (6.5, 0.0)];
         let params_p = ProfileParams {
             ped_top: 0.9,
@@ -1623,8 +1623,8 @@ mod tests {
 
     #[test]
     fn test_kernel_inverse_analytical_mode_reduces_residual() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         let probes = vec![(6.2, 0.0), (6.3, 0.1), (6.4, -0.1), (6.55, 0.0)];
 
         let true_p = ProfileParams {
