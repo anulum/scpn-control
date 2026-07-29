@@ -22,6 +22,9 @@
 - Documented the validated AMR solve policy/hierarchy outputs and the reduced
   EPED pedestal/ELM configuration and lifecycle, closing 24 additional
   `control-core` native-doc findings.
+- Documented MPI domain ownership, Cartesian-neighbour topology, and
+  VMEC-compatible boundary/equilibrium contracts, closing 37 additional
+  `control-core` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

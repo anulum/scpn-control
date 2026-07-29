@@ -17,27 +17,43 @@ use ndarray::{Array1, Array2};
 use std::collections::HashSet;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// One Fourier mode in a reduced VMEC-compatible boundary description.
 pub struct VmecFourierMode {
+    /// Poloidal mode number.
     pub m: i32,
+    /// Toroidal mode number.
     pub n: i32,
+    /// Cosine coefficient of the cylindrical R coordinate in metres.
     pub r_cos: f64,
+    /// Sine coefficient of the cylindrical R coordinate in metres.
     pub r_sin: f64,
+    /// Cosine coefficient of the cylindrical Z coordinate in metres.
     pub z_cos: f64,
+    /// Sine coefficient of the cylindrical Z coordinate in metres.
     pub z_sin: f64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+/// Validated magnetic-axis, shaping, and Fourier boundary state.
 pub struct VmecBoundaryState {
+    /// Cylindrical major radius of the magnetic axis in metres.
     pub r_axis: f64,
+    /// Vertical magnetic-axis position in metres.
     pub z_axis: f64,
+    /// Reference minor radius in metres.
     pub a_minor: f64,
+    /// Boundary elongation.
     pub kappa: f64,
+    /// Boundary triangularity.
     pub triangularity: f64,
+    /// Number of toroidal field periods.
     pub nfp: usize,
+    /// Additional Fourier boundary modes.
     pub modes: Vec<VmecFourierMode>,
 }
 
 impl VmecBoundaryState {
+    /// Validate finite shaping parameters, mode indices, and uniqueness.
     pub fn validate(&self) -> FusionResult<()> {
         if !self.r_axis.is_finite()
             || !self.z_axis.is_finite()
@@ -314,6 +330,7 @@ impl Default for VmecSolverConfig {
 }
 
 impl VmecSolverConfig {
+    /// Validate the grid, iteration, tolerance, and step-size policy.
     pub fn validate(&self) -> FusionResult<()> {
         if self.ns < 3 {
             return Err(FusionError::PhysicsViolation(
@@ -369,8 +386,11 @@ pub struct VmecEquilibrium {
     pub converged: bool,
     /// Grid parameters.
     pub ns_grid: usize,
+    /// Maximum poloidal mode number represented in the solution.
     pub m_pol: usize,
+    /// Maximum toroidal mode number represented in the solution.
     pub n_tor: usize,
+    /// Number of toroidal field periods.
     pub nfp: usize,
 }
 

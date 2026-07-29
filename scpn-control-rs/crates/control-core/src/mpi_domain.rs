@@ -15,13 +15,21 @@ use control_types::error::{FusionError, FusionResult};
 use ndarray::{s, Array2};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+/// One rank's contiguous ownership interval in a Z-axis decomposition.
 pub struct DomainSlice {
+    /// Zero-based rank that owns the interval.
     pub rank: usize,
+    /// Total number of ranks in the decomposition.
     pub nranks: usize,
+    /// Number of rows in the undistributed global domain.
     pub global_nz: usize,
+    /// Number of non-halo rows owned by this rank.
     pub local_nz: usize,
+    /// Requested ghost-row width on each neighbouring boundary.
     pub halo: usize,
+    /// Inclusive global index of the first owned row.
     pub z_start: usize,
+    /// Exclusive global index after the last owned row.
     pub z_end: usize,
 }
 
@@ -379,17 +387,21 @@ pub struct CartesianTile {
     pub pr_idx: usize,
     /// Total process-grid dimensions.
     pub pz: usize,
+    /// Number of process-grid columns along R.
     pub pr: usize,
     /// Global grid dimensions.
     pub global_nz: usize,
+    /// Number of columns in the undistributed global R dimension.
     pub global_nr: usize,
     /// Halo width (same on all faces).
     pub halo: usize,
     /// Owned Z range [z_start, z_end) in global indexing.
     pub z_start: usize,
+    /// Exclusive global index after the last owned Z row.
     pub z_end: usize,
     /// Owned R range [r_start, r_end) in global indexing.
     pub r_start: usize,
+    /// Exclusive global index after the last owned R column.
     pub r_end: usize,
 }
 
@@ -438,15 +450,19 @@ impl CartesianTile {
             0
         }
     }
+    /// Return whether a tile exists immediately above this tile.
     pub fn has_neighbor_top(&self) -> bool {
         self.pz_idx > 0
     }
+    /// Return whether a tile exists immediately below this tile.
     pub fn has_neighbor_bottom(&self) -> bool {
         self.pz_idx + 1 < self.pz
     }
+    /// Return whether a tile exists immediately to the left of this tile.
     pub fn has_neighbor_left(&self) -> bool {
         self.pr_idx > 0
     }
+    /// Return whether a tile exists immediately to the right of this tile.
     pub fn has_neighbor_right(&self) -> bool {
         self.pr_idx + 1 < self.pr
     }
@@ -727,6 +743,7 @@ pub struct DistributedSolverConfig {
     /// Process-grid dimensions (pz × pr). Product must be ≤ Rayon
     /// thread count for full parallel utilisation.
     pub pz: usize,
+    /// Number of process-grid columns along R.
     pub pr: usize,
     /// Halo width (number of overlap rows/columns per face). 1 is
     /// sufficient for the 5-point GS stencil.
