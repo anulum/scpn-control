@@ -5,6 +5,7 @@
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
 // SCPN Control — PyO3 bindings for Rust kernels.
+#![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 //! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
 use ndarray::{Array1, Array2};

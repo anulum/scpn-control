@@ -6,6 +6,10 @@
 - Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
   weights fail closed or fall back when opted in (CTL-G07 R7-S4 fidelity).
 ### Changed
+
+- Began strict native Rust API-documentation enforcement with the PyO3/transport
+  package, including crate-level missing-doc and broken-link denial for its library
+  and benchmark binary.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

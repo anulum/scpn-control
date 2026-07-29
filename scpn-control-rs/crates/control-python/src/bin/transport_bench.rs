@@ -5,6 +5,8 @@
 // Contact: www.anulum.li | protoscience@anulum.li
 // ORCID: https://orcid.org/0009-0009-3560-0851
 // ──────────────────────────────────────────────────────────────────────
+#![deny(missing_docs, rustdoc::broken_intra_doc_links)]
+//! UDP transport throughput benchmark for the native CONTROL snapshot frame.
 
 use std::io;
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
