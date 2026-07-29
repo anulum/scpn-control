@@ -15,12 +15,19 @@ use control_types::state::Grid2D;
 use ndarray::Array2;
 
 #[derive(Debug, Clone)]
+/// Iteration, refinement, and blending policy for the AMR equilibrium wrapper.
 pub struct AmrKernelConfig {
+    /// Maximum total hierarchy levels, including the base grid.
     pub max_levels: usize,
+    /// Error-field magnitude required to create the first refined patch.
     pub refinement_threshold: f64,
+    /// Successive-over-relaxation factor used on base and patch solves.
     pub omega: f64,
+    /// Number of SOR iterations on the base grid.
     pub coarse_iters: usize,
+    /// Number of SOR iterations on each refined patch.
     pub patch_iters: usize,
+    /// Refined-patch contribution to collocated base values in `[0, 1]`.
     pub blend: f64,
 }
 
@@ -38,11 +45,14 @@ impl Default for AmrKernelConfig {
 }
 
 #[derive(Debug, Clone)]
+/// AMR-assisted equilibrium solver with validated immutable configuration.
 pub struct AmrKernelSolver {
+    /// Iteration, refinement, and blending policy.
     pub config: AmrKernelConfig,
 }
 
 impl AmrKernelSolver {
+    /// Validate and construct an AMR equilibrium solver.
     pub fn new(config: AmrKernelConfig) -> FusionResult<Self> {
         if config.max_levels == 0 {
             return Err(FusionError::ConfigError(
@@ -90,11 +100,13 @@ impl AmrKernelSolver {
         Ok(())
     }
 
+    /// Solve on the base grid and return the blended finite poloidal-flux field.
     pub fn solve(&self, base_grid: &Grid2D, source: &Array2<f64>) -> FusionResult<Array2<f64>> {
         self.solve_with_hierarchy(base_grid, source)
             .map(|(psi, _)| psi)
     }
 
+    /// Solve and return both the blended base field and populated AMR hierarchy.
     pub fn solve_with_hierarchy(
         &self,
         base_grid: &Grid2D,

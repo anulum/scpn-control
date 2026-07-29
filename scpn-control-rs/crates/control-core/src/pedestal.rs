@@ -15,11 +15,17 @@ const MIN_T_KEV: f64 = 0.05;
 const MIN_NE: f64 = 1e-4;
 
 #[derive(Debug, Clone, Copy)]
+/// Reduced EPED width and ELM trigger/crash configuration.
 pub struct PedestalConfig {
+    /// Dimensionless poloidal beta at the pedestal.
     pub beta_p_ped: f64,
+    /// Ion sound gyroradius in metres.
     pub rho_s: f64,
+    /// Reference major radius in metres.
     pub r_major: f64,
+    /// Minimum dimensionless pressure-gradient trigger threshold.
     pub alpha_crit: f64,
+    /// Characteristic ELM crash duration in seconds.
     pub tau_elm: f64,
 }
 
@@ -36,13 +42,16 @@ impl Default for PedestalConfig {
 }
 
 #[derive(Debug, Clone)]
+/// Stateful reduced pedestal model with ELM cooldown and gradient memory.
 pub struct PedestalModel {
+    /// EPED scaling and ELM trigger/crash configuration.
     pub config: PedestalConfig,
     last_gradient: f64,
     elm_cooldown_s: f64,
 }
 
 impl PedestalModel {
+    /// Validate the physical configuration and initialise a ready model.
     pub fn new(config: PedestalConfig) -> FusionResult<Self> {
         if !config.beta_p_ped.is_finite() || config.beta_p_ped < 0.0 {
             return Err(FusionError::ConfigError(
@@ -90,6 +99,7 @@ impl PedestalModel {
         self.config.alpha_crit.max(2.5 * shear_proxy)
     }
 
+    /// Return whether the gradient exceeds threshold outside the cooldown window.
     pub fn is_elm_triggered(&self, pressure_gradient: f64) -> bool {
         self.elm_cooldown_s <= 0.0 && pressure_gradient.abs() > self.effective_alpha_crit()
     }
@@ -99,6 +109,7 @@ impl PedestalModel {
         self.elm_cooldown_s = (self.elm_cooldown_s - dt_s.max(0.0)).max(0.0);
     }
 
+    /// Return the most recently recorded pressure-gradient proxy.
     pub fn last_gradient(&self) -> f64 {
         self.last_gradient
     }
@@ -126,6 +137,7 @@ impl PedestalModel {
         self.elm_cooldown_s = 3.0 * tau;
     }
 
+    /// Store the pressure-gradient proxy used by the next reporting step.
     pub fn record_gradient(&mut self, pressure_gradient: f64) {
         self.last_gradient = pressure_gradient;
     }

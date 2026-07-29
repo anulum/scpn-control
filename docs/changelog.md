@@ -19,6 +19,9 @@
 - Documented the public BOUT++ validation, RF-heating parameters, radial
   transport state, and memory-kernel transport contracts, closing the first 16
   `control-core` native-doc findings.
+- Documented the validated AMR solve policy/hierarchy outputs and the reduced
+  EPED pedestal/ELM configuration and lifecycle, closing 24 additional
+  `control-core` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).
