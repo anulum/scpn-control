@@ -21,18 +21,26 @@ const MIN_DT_S: f64 = 1e-9;
 /// Plasma operation regime used for runtime kernel specialization.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum PlasmaRegime {
+    /// Low-confinement steady operating regime.
     LMode,
+    /// High-confinement steady operating regime.
     HMode,
+    /// Increasing-current transient regime.
     RampUp,
+    /// Decreasing-current transient regime.
     RampDown,
 }
 
 /// Minimal observation bundle used for regime routing.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct RegimeObservation {
+    /// Normalised plasma beta.
     pub beta_n: f64,
+    /// Safety factor at 95 percent poloidal flux.
     pub q95: f64,
+    /// Line-averaged density in units of 10^20 per cubic metre.
     pub density_line_avg_1e20_m3: f64,
+    /// Plasma-current ramp rate in megaamperes per second.
     pub current_ramp_ma_s: f64,
 }
 
@@ -90,13 +98,18 @@ fn validate_observation(observation: &RegimeObservation) -> FusionResult<()> {
 /// Compile-time shape metadata for generated kernels.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct KernelCompileSpec {
+    /// Length of the state vector accepted by the specialized kernel.
     pub n_state: usize,
+    /// Length of the control vector accepted by the specialized kernel.
     pub n_control: usize,
+    /// Integration time step in seconds.
     pub dt_s: f64,
+    /// Number of state elements evaluated per explicit inner chunk.
     pub unroll_factor: usize,
 }
 
 impl KernelCompileSpec {
+    /// Validate all dimensions, the integration step, and unroll factor.
     pub fn validated(self) -> FusionResult<Self> {
         if self.n_state == 0 {
             return Err(FusionError::ConfigError(
@@ -134,9 +147,13 @@ impl Default for KernelCompileSpec {
 }
 
 #[derive(Debug, Clone)]
+/// Cached reduced control kernel specialized for one plasma regime.
 pub struct CompiledKernel {
+    /// Plasma regime for which the kernel was specialized.
     pub regime: PlasmaRegime,
+    /// Monotonic compile-event identifier assigned by the manager.
     pub generation: u64,
+    /// Validated vector shape and integration metadata.
     pub spec: KernelCompileSpec,
     nonlinear_gain: f64,
     control_gain: f64,
@@ -239,6 +256,7 @@ pub struct RuntimeKernelJit {
 }
 
 impl RuntimeKernelJit {
+    /// Construct an empty specialization cache with no active regime.
     pub fn new() -> Self {
         Self::default()
     }
@@ -277,14 +295,17 @@ impl RuntimeKernelJit {
         Ok((regime, generation))
     }
 
+    /// Return the currently activated regime, if any.
     pub fn active_regime(&self) -> Option<PlasmaRegime> {
         self.active
     }
 
+    /// Return the number of regime-specialized kernels in the cache.
     pub fn cache_size(&self) -> usize {
         self.kernels.len()
     }
 
+    /// Return the number of kernel compilation events performed.
     pub fn compile_events(&self) -> u64 {
         self.compile_events
     }

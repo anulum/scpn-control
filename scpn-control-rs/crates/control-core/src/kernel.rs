@@ -67,30 +67,48 @@ pub enum SolverMethod {
 /// Grad-Shafranov equilibrium result.
 #[derive(Debug, Clone)]
 pub struct EquilibriumResult {
+    /// Whether Picard iteration reached the configured residual threshold.
     pub converged: bool,
+    /// Number of Picard iterations performed.
     pub iterations: usize,
+    /// Final maximum absolute flux update.
     pub residual: f64,
+    /// Cylindrical `(R, Z)` magnetic-axis position in metres.
     pub axis_position: (f64, f64),
+    /// Cylindrical `(R, Z)` X-point position in metres.
     pub x_point_position: (f64, f64),
+    /// Poloidal flux evaluated at the magnetic axis.
     pub psi_axis: f64,
+    /// Poloidal flux evaluated at the detected boundary X-point.
     pub psi_boundary: f64,
+    /// Wall-clock solve duration in milliseconds.
     pub solve_time_ms: f64,
 }
 
 /// The core Grad-Shafranov solver kernel.
 pub struct FusionKernel {
+    /// Reactor geometry, coils, physics constants, and solver policy.
     pub config: ReactorConfig,
+    /// Cylindrical computational grid derived from the reactor configuration.
     pub grid: Grid2D,
+    /// Mutable flux, current-density, and derived plasma state.
     pub state: PlasmaState,
+    /// Inner linear solver selected for Picard updates.
     pub solver_method: SolverMethod,
+    /// Whether externally supplied pressure and FF-prime profiles are active.
     pub external_profile_mode: bool,
+    /// Optional external pressure-profile parameters.
     pub profile_params_p: Option<ProfileParams>,
+    /// Optional external FF-prime-profile parameters.
     pub profile_params_ff: Option<ProfileParams>,
+    /// Optional particle-derived toroidal-current feedback field.
     pub particle_current_feedback: Option<Array2<f64>>,
+    /// Coupling fraction applied to particle-current feedback.
     pub particle_feedback_coupling: f64,
 }
 
 impl FusionKernel {
+    /// Construct a zero-state equilibrium kernel from a reactor configuration.
     pub fn new(config: ReactorConfig) -> Self {
         let grid = config.create_grid();
         let nz = grid.nz;
@@ -121,6 +139,7 @@ impl FusionKernel {
         }
     }
 
+    /// Load a reactor configuration file and construct a zero-state kernel.
     pub fn from_file(path: &str) -> FusionResult<Self> {
         let config = ReactorConfig::from_file(path)?;
         let grid = config.create_grid();
@@ -152,32 +171,39 @@ impl FusionKernel {
         })
     }
 
+    /// Borrow the current poloidal-flux field.
     pub fn psi(&self) -> &Array2<f64> {
         &self.state.psi
     }
 
+    /// Borrow the current toroidal current-density field.
     pub fn j_phi(&self) -> &Array2<f64> {
         &self.state.j_phi
     }
 
+    /// Borrow the computational grid.
     pub fn grid(&self) -> &Grid2D {
         &self.grid
     }
 
+    /// Borrow the configured external-coil descriptions.
     pub fn coils(&self) -> &[control_types::config::CoilConfig] {
         &self.config.coils
     }
 
+    /// Select the inner linear solver used by subsequent equilibrium solves.
     pub fn set_solver_method(&mut self, method: SolverMethod) {
         self.solver_method = method;
     }
 
+    /// Activate externally supplied pressure and FF-prime profile parameters.
     pub fn set_external_profiles(&mut self, params_p: ProfileParams, params_ff: ProfileParams) {
         self.external_profile_mode = true;
         self.profile_params_p = Some(params_p);
         self.profile_params_ff = Some(params_ff);
     }
 
+    /// Activate the supplied profiles and solve one equilibrium.
     pub fn solve_equilibrium_with_profiles(
         &mut self,
         params_p: ProfileParams,
@@ -187,6 +213,7 @@ impl FusionKernel {
         self.solve_equilibrium()
     }
 
+    /// Run bounded Picard iteration and return equilibrium diagnostics.
     pub fn solve_equilibrium(&mut self) -> FusionResult<EquilibriumResult> {
         let t0 = Instant::now();
         let nz = self.grid.nz;
@@ -300,11 +327,13 @@ impl FusionKernel {
         })
     }
 
+    /// Bilinearly sample poloidal flux at cylindrical coordinates `(r, z)`.
     pub fn sample_psi_at(&self, r: f64, z: f64) -> FusionResult<f64> {
         // Simple bilinear interpolation
         source::interpolate_2d(&self.state.psi, &self.grid.r, &self.grid.z, r, z)
     }
 
+    /// Sample poloidal flux at each cylindrical probe coordinate in order.
     pub fn sample_psi_at_probes(&self, probes_rz: &[(f64, f64)]) -> FusionResult<Vec<f64>> {
         let mut results = Vec::with_capacity(probes_rz.len());
         for &(r, z) in probes_rz {

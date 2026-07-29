@@ -31,6 +31,9 @@
 - Documented inverse-profile Jacobian selection, regularisation controls,
   reconstructed outputs, and coupled kernel-convergence policy, closing 21
   additional `control-core` native-doc findings.
+- Documented runtime kernel specialization and core Grad-Shafranov state,
+  controls, solve results, and probe APIs; the crate now denies missing and
+  broken-link rustdoc warnings at source.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).
