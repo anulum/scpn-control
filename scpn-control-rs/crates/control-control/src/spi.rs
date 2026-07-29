@@ -47,30 +47,43 @@ const L_PLASMA: f64 = 1e-6;
 /// Disruption phase.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Phase {
+    /// Injected pellet material is mixing into the plasma.
     Assimilation,
+    /// Radiative cooling is rapidly removing thermal energy.
     ThermalQuench,
+    /// Resistive decay is reducing the plasma current.
     CurrentQuench,
 }
 
 /// SPI time-step snapshot.
 #[derive(Debug, Clone)]
 pub struct SPISnapshot {
+    /// Simulation time in seconds.
     pub time: f64,
+    /// Plasma thermal energy in megajoules.
     pub w_th_mj: f64,
+    /// Plasma current in megaamperes.
     pub ip_ma: f64,
+    /// Electron temperature in kiloelectronvolts.
     pub te_kev: f64,
+    /// Active disruption-mitigation phase.
     pub phase: Phase,
 }
 
 /// Shattered Pellet Injection simulator.
 pub struct SPIMitigation {
+    /// Plasma thermal energy in joules.
     pub w_th: f64, // [J]
-    pub ip: f64,   // [A]
-    pub te: f64,   // [keV]
+    /// Plasma current in amperes.
+    pub ip: f64, // [A]
+    /// Electron temperature in kiloelectronvolts.
+    pub te: f64, // [keV]
+    /// Active disruption-mitigation phase.
     pub phase: Phase,
 }
 
 impl SPIMitigation {
+    /// Validate initial plasma state and construct an SPI simulation.
     pub fn new(w_th_mj: f64, ip_ma: f64, te_kev: f64) -> FusionResult<Self> {
         if !w_th_mj.is_finite() || w_th_mj <= 0.0 {
             return Err(FusionError::ConfigError(

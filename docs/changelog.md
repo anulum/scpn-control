@@ -36,6 +36,9 @@
   broken-link rustdoc warnings at source.
 - Removed 16 redundant test-only configuration-path borrows so the complete
   `control-core` all-target Clippy gate passes on the current Rust toolchain.
+- Documented PID/isoflux state, self-organized-criticality learning state, and
+  shattered-pellet disruption phases and snapshots, closing the first 31
+  `control-control` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

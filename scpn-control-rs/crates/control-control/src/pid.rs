@@ -36,8 +36,11 @@ const PID_Z_KD: f64 = 2.0;
 /// the integral-windup hazard for a position PID driving a saturating actuator.
 #[derive(Debug, Clone)]
 pub struct PIDController {
+    /// Proportional gain.
     pub kp: f64,
+    /// Integral gain.
     pub ki: f64,
+    /// Derivative gain.
     pub kd: f64,
     err_sum: f64,
     last_err: f64,
@@ -52,6 +55,7 @@ pub struct PIDController {
 }
 
 impl PIDController {
+    /// Validate the gains and construct an ideal, unsaturated PID controller.
     pub fn new(kp: f64, ki: f64, kd: f64) -> FusionResult<Self> {
         if !kp.is_finite() || !ki.is_finite() || !kd.is_finite() {
             return Err(FusionError::ConfigError(
@@ -163,15 +167,22 @@ impl PIDController {
 
 /// Isoflux position controller with R and Z PIDs.
 pub struct IsoFluxController {
+    /// Radial-position feedback controller.
     pub pid_r: PIDController,
+    /// Vertical-position feedback controller.
     pub pid_z: PIDController,
+    /// Desired cylindrical major radius in metres.
     pub target_r: f64,
+    /// Desired vertical position in metres.
     pub target_z: f64,
+    /// Recorded radial-position measurements.
     pub r_history: Vec<f64>,
+    /// Recorded vertical-position measurements.
     pub z_history: Vec<f64>,
 }
 
 impl IsoFluxController {
+    /// Validate the position targets and construct default radial/vertical PIDs.
     pub fn new(target_r: f64, target_z: f64) -> FusionResult<Self> {
         if !target_r.is_finite() || !target_z.is_finite() {
             return Err(FusionError::ConfigError(
