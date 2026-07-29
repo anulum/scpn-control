@@ -41,30 +41,44 @@ where
 /// Must deserialize ALL 6 existing JSON config files without modification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ReactorConfig {
+    /// Human-readable reactor configuration identifier.
     pub reactor_name: String,
+    /// Grid point counts `[nr, nz]`, each at least two.
     #[serde(deserialize_with = "deserialize_grid_resolution")]
     pub grid_resolution: [usize; 2],
+    /// Rectangular cylindrical-coordinate bounds.
     pub dimensions: GridDimensions,
+    /// Plasma-current and permeability inputs.
     pub physics: PhysicsParams,
+    /// Poloidal-field coil definitions.
     pub coils: Vec<CoilConfig>,
+    /// Elliptic-solver iteration policy.
     pub solver: SolverConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Rectangular `(R, Z)` grid bounds in configured length units.
 pub struct GridDimensions {
+    /// Minimum major-radius coordinate.
     #[serde(rename = "R_min")]
     pub r_min: f64,
+    /// Maximum major-radius coordinate.
     #[serde(rename = "R_max")]
     pub r_max: f64,
+    /// Minimum vertical coordinate.
     #[serde(rename = "Z_min")]
     pub z_min: f64,
+    /// Maximum vertical coordinate.
     #[serde(rename = "Z_max")]
     pub z_max: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Plasma-current target, magnetic scaling, and optional profile model.
 pub struct PhysicsParams {
+    /// Target plasma current in the configuration's declared current scale.
     pub plasma_current_target: f64,
+    /// Vacuum-permeability factor; configurations may use SI or normalised units.
     pub vacuum_permeability: f64,
     /// Optional H-mode pedestal profile configuration.
     /// When absent, the solver uses L-mode linear profiles.
@@ -84,10 +98,15 @@ pub struct ProfileConfig {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+/// Four-parameter pedestal/core profile shape.
 pub struct ProfileParams {
+    /// Normalised radial coordinate of the pedestal top.
     pub ped_top: f64,
+    /// Pedestal transition width in normalised radius.
     pub ped_width: f64,
+    /// Multiplicative pedestal amplitude.
     pub ped_height: f64,
+    /// Core-profile exponent.
     pub core_alpha: f64,
 }
 
@@ -105,9 +124,13 @@ impl Default for ProfileParams {
 /// Coil geometric and physical configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CoilConfig {
+    /// Stable coil identifier.
     pub name: String,
+    /// Coil major-radius coordinate in configured length units.
     pub r: f64,
+    /// Coil vertical coordinate in configured length units.
     pub z: f64,
+    /// Coil current in the configuration's declared current scale.
     pub current: f64,
 }
 
@@ -122,15 +145,20 @@ fn default_sor_omega() -> f64 {
 /// Linear solver configuration.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SolverConfig {
+    /// Solver implementation selector, defaulting to `sor`.
     #[serde(default = "default_solver_method")]
     pub solver_method: String,
+    /// Maximum permitted nonlinear or linear iterations.
     pub max_iterations: usize,
+    /// Residual threshold used to declare convergence.
     pub convergence_threshold: f64,
+    /// Successive-over-relaxation factor, defaulting to `1.8`.
     #[serde(default = "default_sor_omega")]
     pub sor_omega: f64,
 }
 
 impl ReactorConfig {
+    /// Load and deserialize a reactor configuration from a JSON file.
     pub fn from_file<P: AsRef<Path>>(path: P) -> FusionResult<Self> {
         let mut file = File::open(path)?;
         let mut contents = String::new();
@@ -139,6 +167,7 @@ impl ReactorConfig {
         Ok(config)
     }
 
+    /// Construct the uniform [`Grid2D`] described by this configuration.
     pub fn create_grid(&self) -> Grid2D {
         Grid2D::new(
             self.grid_resolution[0],
@@ -178,14 +207,14 @@ mod tests {
 
     #[test]
     fn test_load_iter_config() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         assert_eq!(cfg.reactor_name, "ITER-Like-Demo");
     }
 
     #[test]
     fn test_load_validated_config() {
-        let cfg = ReactorConfig::from_file(&config_path("validation/iter_validated_config.json"))
-            .unwrap();
+        let cfg =
+            ReactorConfig::from_file(config_path("validation/iter_validated_config.json")).unwrap();
         assert_eq!(cfg.reactor_name, "ITER-Validated");
     }
 
@@ -211,7 +240,7 @@ mod tests {
 
     #[test]
     fn test_roundtrip_serialization() {
-        let cfg = ReactorConfig::from_file(&config_path("iter_config.json")).unwrap();
+        let cfg = ReactorConfig::from_file(config_path("iter_config.json")).unwrap();
         let json = serde_json::to_string(&cfg).unwrap();
         let cfg2: ReactorConfig = serde_json::from_str(&json).unwrap();
         assert_eq!(cfg.reactor_name, cfg2.reactor_name);

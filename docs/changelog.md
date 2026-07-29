@@ -13,6 +13,9 @@
 - Documented the public adaptive-mesh, Chebyshev-SOR, NURBS, Kuramoto, and
   symplectic state contracts and made missing or broken Rust API documentation a
   hard failure throughout `control-math`.
+- Documented the native configuration, constants, typed errors, grid, plasma,
+  thermodynamics, and stability schemas and enabled strict rustdoc enforcement
+  throughout `control-types`.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

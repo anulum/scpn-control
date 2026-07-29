@@ -14,15 +14,22 @@ use serde::{Deserialize, Serialize};
 /// 2D rectangular grid in (R, Z) cylindrical coordinates.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Grid2D {
+    /// Number of major-radius grid points.
     pub nr: usize,
+    /// Number of vertical grid points.
     pub nz: usize,
+    /// Major-radius coordinate vector in configured length units.
     pub r: Array1<f64>,
+    /// Vertical coordinate vector in configured length units.
     pub z: Array1<f64>,
+    /// Uniform major-radius spacing.
     pub dr: f64,
+    /// Uniform vertical spacing.
     pub dz: f64,
 }
 
 impl Grid2D {
+    /// Construct a uniform endpoint-inclusive rectangular grid.
     pub fn new(nr: usize, nz: usize, r_min: f64, r_max: f64, z_min: f64, z_max: f64) -> Self {
         let r = Array1::linspace(r_min, r_max, nr);
         let z = Array1::linspace(z_min, z_max, nz);
@@ -74,6 +81,7 @@ pub struct RadialProfiles {
 /// Complete plasma state for a single time slice.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlasmaState {
+    /// Simulation or acquisition time in seconds.
     pub time: f64,
     /// Poloidal flux [nz, nr].
     pub psi: Array2<f64>,
@@ -94,27 +102,46 @@ pub struct PlasmaState {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Fusion-power, loss, gain, and stored-energy summary for one state.
 pub struct ThermodynamicsResult {
+    /// Total D-T fusion power in megawatts.
     pub p_fusion_mw: f64,
+    /// Alpha-particle heating power in megawatts.
     pub p_alpha_mw: f64,
+    /// Modelled confinement loss power in megawatts.
     pub p_loss_mw: f64,
+    /// Auxiliary heating power in megawatts.
     pub p_aux_mw: f64,
+    /// Net heating balance in megawatts.
     pub net_mw: f64,
+    /// Fusion gain `P_fusion / P_aux`, or zero when auxiliary power is negligible.
     pub q_factor: f64,
+    /// Peak temperature used by the reduced model in keV.
     pub t_peak_kev: f64,
+    /// Total thermal stored energy in megajoules.
     pub w_thermal_mj: f64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+/// Linearised force-balance and decay-index stability summary.
 pub struct StabilityResult {
+    /// Aggregate stability decision across the checked criteria.
     pub overall_stable: bool,
+    /// Number of criteria evaluated.
     pub n_criteria_checked: usize,
+    /// Number of criteria classified stable.
     pub n_criteria_stable: usize,
+    /// Eigenvalues of the two-dimensional force-stiffness matrix.
     pub eigenvalues: [f64; 2],
+    /// Column eigenvectors corresponding to `eigenvalues`.
     pub eigenvectors: [[f64; 2]; 2],
+    /// Dimensionless vertical-field decay index.
     pub decay_index: f64,
+    /// Equilibrium radial force in meganewtons.
     pub radial_force_mn: f64,
+    /// Equilibrium vertical force in meganewtons.
     pub vertical_force_mn: f64,
+    /// Decay-index stability predicate retained for compatibility.
     pub is_stable: bool,
 }
 
