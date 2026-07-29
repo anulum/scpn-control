@@ -34,8 +34,11 @@ const EXPECTED_TRANSITION_STATES: [&str; 8] = [
 /// One timestamped sample for a pulsed shot.
 #[derive(Clone, Copy, Debug)]
 pub struct CampaignShotSample {
+    /// Sample time from shot start in seconds.
     pub t_s: f64,
+    /// Plasma telemetry presented to the pulsed scheduler.
     pub plasma: PulsedPlasmaTelemetry,
+    /// Capacitor-bank telemetry presented to the pulsed scheduler.
     pub bank: CapacitorBankTelemetry,
 }
 
@@ -54,10 +57,15 @@ impl CampaignShotSample {
 /// Input contract for one shot in a campaign.
 #[derive(Clone, Debug)]
 pub struct CampaignShotPlan {
+    /// Stable non-empty identifier for the shot.
     pub shot_id: String,
+    /// Chronologically supplied shot telemetry samples.
     pub samples: Vec<CampaignShotSample>,
+    /// Capacitor-bank voltage at shot admission in volts.
     pub initial_bank_voltage_v: f64,
+    /// Capacitor-bank current at shot admission in amperes.
     pub initial_bank_current_a: f64,
+    /// Optional digest binding the pulsed-MPC admission decision.
     pub pulsed_mpc_admission_digest: Option<String>,
 }
 
@@ -103,11 +111,17 @@ impl CampaignShotPlan {
 /// Stable command log row.
 #[derive(Clone, Debug)]
 pub struct CampaignCommandLog {
+    /// Command time from shot start in seconds.
     pub t_s: f64,
+    /// Scheduler state that emitted the command.
     pub state: String,
+    /// Canonical commanded action.
     pub action: String,
+    /// Human-readable command rationale.
     pub reason: String,
+    /// Whether this command accompanied a state transition.
     pub transition: bool,
+    /// Time spent in the prior state in seconds.
     pub dwell_s: f64,
 }
 
@@ -127,42 +141,69 @@ impl From<PulsedScenarioCommand> for CampaignCommandLog {
 /// Stable phase-log row compatible with replay v1.1 shot metadata.
 #[derive(Clone, Debug)]
 pub struct CampaignPhaseLog {
+    /// Transition time from shot start in seconds.
     pub t_s: f64,
+    /// Scheduler state entered at the transition.
     pub state: String,
+    /// Human-readable transition rationale.
     pub reason: String,
 }
 
 /// Admission result for one shot.
 #[derive(Clone, Debug)]
 pub struct CampaignShotResult {
+    /// Stable input shot identifier.
     pub shot_id: String,
+    /// Campaign-bound deterministic pulse identifier.
     pub pulse_id: String,
+    /// Whether the shot satisfied all admission requirements.
     pub passed: bool,
+    /// First admission failure reason, when present.
     pub failure_reason: Option<String>,
+    /// Scheduler state after the final sample.
     pub terminal_state: String,
+    /// Ordered states entered during the shot.
     pub transition_states: Vec<String>,
+    /// Stable scheduler command log.
     pub command_log: Vec<CampaignCommandLog>,
+    /// Stable lifecycle transition log.
     pub shot_phase_log: Vec<CampaignPhaseLog>,
+    /// Initial capacitor-bank energy in joules.
     pub capacitor_state_initial_j: f64,
+    /// Final capacitor-bank energy in joules.
     pub capacitor_state_final_j: f64,
+    /// Energy recovered after the minimum-energy point in joules.
     pub energy_recovered_j: f64,
+    /// Burn-entry timestamp in nanoseconds from shot start, when reached.
     pub trigger_timestamp_ns: Option<u64>,
+    /// Optional digest binding the pulsed-MPC admission decision.
     pub pulsed_mpc_admission_digest: Option<String>,
 }
 
 /// Campaign report summary.
 #[derive(Clone, Debug)]
 pub struct MultiShotCampaignReport {
+    /// Version of the campaign report schema.
     pub schema_version: String,
+    /// Stable campaign identifier.
     pub campaign_id: String,
+    /// Number of evaluated shots.
     pub shot_count: usize,
+    /// Number of admitted shots.
     pub passed_count: usize,
+    /// Number of rejected shots.
     pub failed_count: usize,
+    /// Whether every shot had to traverse the complete lifecycle.
     pub require_complete_lifecycle: bool,
+    /// Canonical complete-lifecycle transition sequence.
     pub expected_transition_states: Vec<String>,
+    /// Version of the bound pulsed-MPC evidence schema.
     pub pulsed_mpc_evidence_schema_version: String,
+    /// Number of shots carrying pulsed-MPC admission digests.
     pub pulsed_mpc_admission_digest_count: usize,
+    /// Per-shot admission results in input order.
     pub shots: Vec<CampaignShotResult>,
+    /// SHA-256 digest binding the report payload.
     pub payload_sha256: String,
 }
 
@@ -327,15 +368,25 @@ impl MultiShotCampaignOrchestrator {
 /// Campaign orchestration errors.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum MultiShotCampaignError {
+    /// The campaign identifier was empty after trimming.
     EmptyCampaignId,
+    /// No shots were supplied to the orchestrator.
     EmptyCampaign,
+    /// A shot identifier was empty after trimming.
     EmptyShotId,
+    /// A shot contained no telemetry samples.
     EmptySamples,
+    /// More than one shot used the contained identifier.
     DuplicateShotId(String),
+    /// The named numeric field was not finite.
     NonFinite(&'static str),
+    /// The named numeric field was negative.
     Negative(&'static str),
+    /// The named digest was not lowercase SHA-256 hexadecimal.
     InvalidDigest(&'static str),
+    /// Capacitor-bank admission failed for the contained reason.
     Bank(String),
+    /// Pulsed-scheduler admission failed for the contained reason.
     Scheduler(String),
 }
 

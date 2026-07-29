@@ -10,6 +10,8 @@
 //!
 //! Stage 7: PID, optimal, MPC, SNN, digital twin, SPI, SOC-learning, analytic.
 
+#![deny(missing_docs, rustdoc::broken_intra_doc_links)]
+
 pub mod analytic;
 pub mod capacitor_bank;
 pub mod digital_twin;

@@ -45,6 +45,9 @@
 - Documented SNN synchronization and position-control state plus digital-twin
   noise, fault, delay, neural-policy, and plasma-state contracts, closing 45
   additional `control-control` native-doc findings.
+- Documented multi-shot plans, command/phase logs, admission reports, evidence
+  digests, and error contracts; the `control-control` crate now denies missing
+  and broken-link rustdoc warnings at source.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).
