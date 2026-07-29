@@ -31,39 +31,60 @@ import type {
 import { CONTROL_CLAIMS, CONTROL_VERBS } from './domain.js';
 
 /** A verb as it appears on the wire (snake_case, from the Python feed). */
-interface RawVerb {
+export interface RawVerb {
+  /** Stable manifest verb name. */
   readonly name: string;
+  /** Safety tier enforced by the Hub. */
   readonly safety_tier: SafetyTier;
+  /** Declared side-effect class. */
   readonly side_effect: SideEffect;
+  /** Declared execution timing class. */
   readonly timing_class: TimingClass;
+  /** Optional hard execution deadline in microseconds. */
   readonly deadline_us?: number;
+  /** Whether the verb is distinctive to the CONTROL domain. */
   readonly domain_distinctive: boolean;
 }
 
 /** A claim as it appears on the wire (snake_case, from the Python feed). */
-interface RawClaim {
+export interface RawClaim {
+  /** Evidence schema identifier. */
   readonly schema: string;
+  /** Scientific claim-boundary status. */
   readonly status: ClaimStatus;
+  /** Runtime admission decision. */
   readonly admission: AdmissionDecision;
+  /** Evidence modality. */
   readonly kind: EvidenceKind;
+  /** Optional evidence-freshness classification. */
   readonly freshness?: Freshness;
 }
 
 /** The studio feed document as it appears on the wire. */
-interface RawFeed {
+export interface RawFeed {
+  /** Version of the wire-feed schema. */
   readonly feed_schema: string;
+  /** Stable studio identifier. */
   readonly studio: string;
+  /** Version of the producing Studio package. */
   readonly studio_version: string;
+  /** Digest binding the emitted feed content. */
   readonly content_digest: string;
+  /** Advertised CONTROL verbs. */
   readonly verbs: readonly RawVerb[];
+  /** Emitted honesty-graded claims. */
   readonly claims: readonly RawClaim[];
 }
 
 /** The narrowed feed the panel consumes. */
 export interface StudioFeed {
+  /** Version of the producing Studio package. */
   readonly studioVersion: string;
+  /** Digest binding the emitted feed content. */
   readonly contentDigest: string;
+  /** Advertised CONTROL verbs. */
   readonly verbs: readonly ControlVerb[];
+  /** Emitted honesty-graded claims. */
   readonly claims: readonly ClaimSummary[];
 }
 

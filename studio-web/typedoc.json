@@ -1,0 +1,25 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": [
+    "src/ControlStudioPanel.tsx",
+    "src/auth.ts",
+    "src/domain.ts",
+    "src/feed.ts",
+    "src/federationContract.ts"
+  ],
+  "entryPointStrategy": "resolve",
+  "tsconfig": "tsconfig.json",
+  "out": "docs/api",
+  "readme": "none",
+  "cleanOutputDir": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "requiredToBeDocumented": ["Interface", "Function", "Variable", "TypeAlias", "Property"],
+  "validation": {
+    "invalidLink": true,
+    "notDocumented": true,
+    "notExported": true
+  },
+  "treatWarningsAsErrors": true,
+  "treatValidationWarningsAsErrors": true
+}

@@ -65,6 +65,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("studio-deploy-key", [_PY, "tools/check_studio_deploy_key.py"], None),
     ("studio-offline-sealing", [_PY, "tools/check_studio_offline_sealing.py"], None),
     ("studio-web-manifest", [_PY, "tools/sync_studio_web_manifest.py", "--check"], None),
+    ("studio-api-docs", ["pnpm", "docs:api"], ROOT / "studio-web"),
     ("generated-traceability", [_PY, "tools/check_generated_traceability.py"], None),
     ("release-evidence", [_PY, "-m", "scpn_control.cli", "validate-release-evidence"], None),
     ("benchmark-regression", [_PY, "validation/validate_benchmark_regression_gates.py"], None),

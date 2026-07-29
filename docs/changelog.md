@@ -50,6 +50,8 @@
   and broken-link rustdoc warnings at source.
 - Added warnings-denied workspace Cargo documentation to CI, local preflight,
   and the documented Makefile build path so native API regressions fail closed.
+- Added strict TypeDoc generation for every exported Control Studio entry point
+  to CI, local preflight, and the documented Makefile build path.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

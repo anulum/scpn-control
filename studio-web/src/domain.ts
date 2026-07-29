@@ -54,20 +54,31 @@ export type AdmissionDecision = 'admitted' | 'rejected';
 
 /** A CONTROL verb with the attribute contract the Hub federates against. */
 export interface ControlVerb {
+  /** Stable manifest verb name. */
   readonly name: string;
+  /** Safety tier enforced by the Hub. */
   readonly safetyTier: SafetyTier;
+  /** Declared side-effect class. */
   readonly sideEffect: SideEffect;
+  /** Declared execution timing class. */
   readonly timingClass: TimingClass;
+  /** Optional hard execution deadline in microseconds. */
   readonly deadlineUs?: number;
+  /** Whether the verb is distinctive to the CONTROL domain. */
   readonly domainDistinctive: boolean;
 }
 
 /** A claim summary the panel renders, with its boundary and modality. */
 export interface ClaimSummary {
+  /** Evidence schema identifier. */
   readonly schema: string;
+  /** Scientific claim-boundary status. */
   readonly status: ClaimStatus;
+  /** Runtime admission decision. */
   readonly admission: AdmissionDecision;
+  /** Evidence modality. */
   readonly kind: EvidenceKind;
+  /** Optional evidence-freshness classification. */
   readonly freshness?: Freshness;
 }
 

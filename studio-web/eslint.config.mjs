@@ -11,7 +11,16 @@ import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
-  { ignores: ['coverage/**', 'dist/**', 'node_modules/**', '*.config.*', 'eslint.config.mjs'] },
+  {
+    ignores: [
+      'coverage/**',
+      'dist/**',
+      'docs/**',
+      'node_modules/**',
+      '*.config.*',
+      'eslint.config.mjs',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {

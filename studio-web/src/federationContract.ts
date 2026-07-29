@@ -8,14 +8,22 @@
 
 import type { ModuleFederationOptions } from '@module-federation/vite';
 
+/** Stable Studio registry identifier. */
 export const STUDIO_ID = 'scpn-control';
+/** Module Federation runtime name. */
 export const FEDERATION_REMOTE_NAME = 'scpn_control';
+/** Public base path from which the Studio remote is served. */
 export const FEDERATION_BASE_PATH = '/studios/scpn-control/';
+/** Module Federation remote-entry filename. */
 export const FEDERATION_REMOTE_ENTRY = 'remoteEntry.js';
+/** Public module-exposure key for the panel. */
 export const FEDERATION_PANEL_EXPOSE = './Panel';
+/** Source module implementing the exposed panel. */
 export const FEDERATION_PANEL_MODULE = './src/ControlStudioPanel.tsx';
+/** Runtime packages shared with the Studio host. */
 export const FEDERATION_SHARED_DEPENDENCIES = ['react', 'react-dom'] as const;
 
+/** Complete Module Federation configuration consumed by Vite. */
 export const FEDERATION_OPTIONS: ModuleFederationOptions = {
   name: FEDERATION_REMOTE_NAME,
   filename: FEDERATION_REMOTE_ENTRY,

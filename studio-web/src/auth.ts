@@ -7,30 +7,53 @@
 // Control Studio UI remote — portal session loader
 
 /** Raw account payload returned by SCPN-STUDIO's portal backend. */
-interface RawPortalAccount {
+export interface RawPortalAccount {
+  /** Stable backend user identifier. */
   readonly user_id: string;
+  /** Account email address. */
   readonly email: string;
+  /** User-facing account name. */
   readonly display_name: string;
+  /** Whether the backend has verified the email address. */
   readonly email_verified: boolean;
+  /** Portal entitlement tier. */
   readonly tier: string;
+  /** Whether multi-factor authentication is enabled. */
   readonly mfa_enabled: boolean;
 }
 
 /** The authenticated account narrowed to the panel's camelCase domain. */
 export interface PortalAccount {
+  /** Stable backend user identifier. */
   readonly userId: string;
+  /** Account email address. */
   readonly email: string;
+  /** User-facing account name. */
   readonly displayName: string;
+  /** Whether the backend has verified the email address. */
   readonly emailVerified: boolean;
+  /** Portal entitlement tier. */
   readonly tier: string;
+  /** Whether multi-factor authentication is enabled. */
   readonly mfaEnabled: boolean;
 }
 
 /** Portal session state consumed by the CONTROL panel. */
 export type PortalAuthState =
-  | { readonly status: 'authenticated'; readonly account: PortalAccount }
-  | { readonly status: 'anonymous' }
-  | { readonly status: 'unavailable' };
+  | {
+      /** Authenticated-session discriminator. */
+      readonly status: 'authenticated';
+      /** Narrowed authenticated portal account. */
+      readonly account: PortalAccount;
+    }
+  | {
+      /** Anonymous-session discriminator. */
+      readonly status: 'anonymous';
+    }
+  | {
+      /** Unavailable-backend discriminator. */
+      readonly status: 'unavailable';
+    };
 
 /** Default same-origin portal endpoint for session rehydration. */
 export const DEFAULT_AUTH_URL = '/api/v1/auth/me';

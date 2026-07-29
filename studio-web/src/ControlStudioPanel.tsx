@@ -20,8 +20,11 @@ import {
 
 /** The verbs and claims the panel renders — supplied from the live feed, or sampled. */
 export interface ControlStudioPanelProps {
+  /** Control verbs to render in manifest order. */
   readonly verbs?: readonly ControlVerb[];
+  /** Honesty-graded claim summaries to render. */
   readonly claims?: readonly ClaimSummary[];
+  /** Current portal authentication state. */
   readonly portalAuth?: PortalAuthState;
 }
 
