@@ -10,6 +10,9 @@
 - Began strict native Rust API-documentation enforcement with the PyO3/transport
   package, including crate-level missing-doc and broken-link denial for its library
   and benchmark binary.
+- Documented the public adaptive-mesh, Chebyshev-SOR, NURBS, Kuramoto, and
+  symplectic state contracts and made missing or broken Rust API documentation a
+  hard failure throughout `control-math`.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

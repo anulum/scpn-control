@@ -6,6 +6,7 @@
 // ORCID: https://orcid.org/0009-0009-3560-0851
 // ──────────────────────────────────────────────────────────────────────
 
+#![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 //! Mathematical primitives for SCPN Control.
 
 pub mod amr;

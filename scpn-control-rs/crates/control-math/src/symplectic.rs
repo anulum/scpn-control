@@ -15,7 +15,9 @@
 /// Canonical 1D phase-space state `(q, p)`.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CanonicalState {
+    /// Generalised coordinate.
     pub q: f64,
+    /// Canonical momentum conjugate to `q`.
     pub p: f64,
 }
 
@@ -111,6 +113,7 @@ pub fn max_energy_drift<S: HamiltonianSystem>(trajectory: &[CanonicalState], sys
 /// `H = 0.5 * (p^2 + (ω q)^2)`.
 #[derive(Debug, Clone, Copy)]
 pub struct HarmonicOscillator {
+    /// Angular frequency in radians per unit time.
     pub omega: f64,
 }
 

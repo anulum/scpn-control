@@ -12,22 +12,33 @@ use control_types::state::Grid2D;
 use ndarray::Array2;
 
 #[derive(Debug, Clone)]
+/// One refined rectangular patch embedded in the base-grid index space.
 pub struct AmrPatch {
+    /// Uniform grid covering the refined patch extent.
     pub grid: Grid2D,
+    /// Poloidal-flux values on the refined grid.
     pub psi: Array2<f64>,
+    /// Refinement level, where the base grid is level zero.
     pub level: usize,
+    /// Inclusive base-grid bounds `(iz_lo, iz_hi, ir_lo, ir_hi)`.
     pub bounds: (usize, usize, usize, usize), // (iz_lo, iz_hi, ir_lo, ir_hi)
 }
 
 #[derive(Debug, Clone)]
+/// Base grid and nested 2:1 refined patches selected by an error threshold.
 pub struct AmrHierarchy {
+    /// Level-zero grid used for error selection and restriction.
     pub base: Grid2D,
+    /// Active refined patches ordered from coarse to fine.
     pub patches: Vec<AmrPatch>,
+    /// Maximum total hierarchy levels, including the base grid.
     pub max_levels: usize,
+    /// Minimum error-field magnitude required to create level-one cells.
     pub refinement_threshold: f64,
 }
 
 impl AmrHierarchy {
+    /// Create an empty hierarchy, clamping the total level count to at least one.
     pub fn new(base: Grid2D, max_levels: usize, refinement_threshold: f64) -> Self {
         Self {
             base,
@@ -180,6 +191,7 @@ impl AmrHierarchy {
         }
     }
 
+    /// Remove every refined patch while preserving the base-grid configuration.
     pub fn coarsen(&mut self) {
         self.patches.clear();
     }

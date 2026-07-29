@@ -48,9 +48,13 @@ pub fn wrap_phase(x: f64) -> f64 {
 
 /// Result of a single Kuramoto–Sakaguchi step.
 pub struct KuramotoStepResult {
+    /// Wrapped oscillator phases after the Euler update.
     pub theta: Array1<f64>,
+    /// Order-parameter magnitude computed from the input phases.
     pub r: f64,
+    /// Mean-field phase computed from the input phases.
     pub psi_r: f64,
+    /// External driver phase, or the mean-field phase when no driver was supplied.
     pub psi_global: f64,
 }
 
