@@ -384,11 +384,17 @@ pub fn transport_step(solver: &mut TransportSolver, p_aux_mw: f64, dt: f64) -> F
 
 /// 1.5D radial transport solver.
 pub struct TransportSolver {
+    /// Evolving radial temperature, density, safety-factor, and field profiles.
     pub profiles: RadialProfiles,
+    /// Effective radial heat-diffusivity profile in solver units.
     pub chi: Array1<f64>,
+    /// Default profile-evolution time step in seconds.
     pub dt: f64,
+    /// Edge-pedestal and ELM cycle model.
     pub pedestal: PedestalModel,
+    /// Amplitudes of the retained toroidal perturbation modes.
     pub toroidal_mode_amplitudes: Vec<f64>,
+    /// Coupling strength applied to the toroidal mode amplitudes.
     pub toroidal_coupling_gain: f64,
     /// Optional neoclassical transport model (replaces constant CHI_BASE).
     pub neoclassical: Option<NeoclassicalParams>,

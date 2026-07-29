@@ -16,6 +16,9 @@
 - Documented the native configuration, constants, typed errors, grid, plasma,
   thermodynamics, and stability schemas and enabled strict rustdoc enforcement
   throughout `control-types`.
+- Documented the public BOUT++ validation, RF-heating parameters, radial
+  transport state, and memory-kernel transport contracts, closing the first 16
+  `control-core` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

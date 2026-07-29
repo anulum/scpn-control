@@ -46,6 +46,7 @@ impl Default for BoutGridConfig {
 }
 
 impl BoutGridConfig {
+    /// Require supported point counts and ordered finite normalised-flux bounds.
     pub fn validate(&self) -> FusionResult<()> {
         if self.nx < 4 {
             return Err(FusionError::PhysicsViolation(
