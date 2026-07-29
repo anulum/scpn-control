@@ -32,18 +32,28 @@ use control_math::kuramoto::{self, UpdeTick};
 
 /// Real-time phase sync monitor for multi-layer UPDE systems.
 pub struct RealtimeMonitor {
+    /// Inter-layer coupling matrix.
     pub knm: Array2<f64>,
+    /// Coupling phase-lag matrix.
     pub alpha: Array2<f64>,
+    /// Number of oscillator layers.
     pub n_layers: usize,
+    /// Number of oscillators per layer.
     pub n_per: usize,
+    /// Integration step in seconds.
     pub dt: f64,
+    /// Flattened oscillator phases.
     pub theta_flat: Array1<f64>,
+    /// Flattened intrinsic oscillator frequencies.
     pub omega_flat: Array1<f64>,
+    /// Per-layer damping coefficients.
     pub zeta: Array1<f64>,
+    /// External phase-driver strength.
     pub psi_driver: f64,
 }
 
 impl RealtimeMonitor {
+    /// Construct a zero-state phase-synchronization monitor.
     pub fn new(
         knm: Array2<f64>,
         alpha: Array2<f64>,
@@ -64,6 +74,7 @@ impl RealtimeMonitor {
         }
     }
 
+    /// Evaluate one UPDE synchronization tick for the supplied phases.
     pub fn tick(&mut self, theta: &Array1<f64>) -> UpdeTick {
         self.theta_flat.assign(theta);
         kuramoto::upde_tick(
@@ -94,6 +105,7 @@ pub struct LIFNeuron {
 }
 
 impl LIFNeuron {
+    /// Construct a resting leaky integrate-and-fire neuron.
     pub fn new() -> Self {
         LIFNeuron {
             v: -65e-3,
@@ -140,7 +152,9 @@ impl Default for LIFNeuron {
 
 /// Population of LIF neurons with rate coding.
 pub struct SpikingControllerPool {
+    /// Number of neurons in each signed population.
     pub n_neurons: usize,
+    /// Scaling applied to the signed rate difference.
     pub gain: f64,
     pop_pos: Vec<LIFNeuron>,
     pop_neg: Vec<LIFNeuron>,
@@ -150,6 +164,7 @@ pub struct SpikingControllerPool {
 }
 
 impl SpikingControllerPool {
+    /// Validate dimensions and construct positive/negative neuron populations.
     pub fn new(n_neurons: usize, gain: f64, window_size: usize) -> FusionResult<Self> {
         if n_neurons == 0 {
             return Err(FusionError::ConfigError(
@@ -223,13 +238,18 @@ impl SpikingControllerPool {
 
 /// Neuro-cybernetic controller with R and Z SNN pools.
 pub struct NeuroCyberneticController {
+    /// Radial-error spiking controller pool.
     pub brain_r: SpikingControllerPool,
+    /// Vertical-error spiking controller pool.
     pub brain_z: SpikingControllerPool,
+    /// Desired cylindrical major radius in metres.
     pub target_r: f64,
+    /// Desired vertical position in metres.
     pub target_z: f64,
 }
 
 impl NeuroCyberneticController {
+    /// Validate targets and construct the radial/vertical spiking pools.
     pub fn new(target_r: f64, target_z: f64) -> FusionResult<Self> {
         if !target_r.is_finite() || !target_z.is_finite() {
             return Err(FusionError::ConfigError(
