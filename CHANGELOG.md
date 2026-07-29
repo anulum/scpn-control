@@ -25,6 +25,9 @@
 - Documented MPI domain ownership, Cartesian-neighbour topology, and
   VMEC-compatible boundary/equilibrium contracts, closing 37 additional
   `control-core` native-doc findings.
+- Documented charged macro-particle phase-space fields and aggregate energy,
+  current, weight, and runaway diagnostics, closing 20 additional
+  `control-core` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

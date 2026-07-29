@@ -34,9 +34,13 @@ use pyo3::prelude::*;
 
 /// Summary of a particle population for diagnostics.
 pub struct ParticleSummary {
+    /// Number of macro-particles in the population.
     pub count: usize,
+    /// Sum of all macro-particle statistical weights.
     pub total_weight: f64,
+    /// Maximum non-relativistic kinetic energy in megaelectronvolts.
     pub max_energy_mev: f64,
+    /// Total deposited toroidal current in megaamperes.
     pub total_current_ma: f64,
 }
 
@@ -44,28 +48,38 @@ pub struct ParticleSummary {
 #[pyclass(from_py_object)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct ChargedParticle {
+    /// Cartesian X position in metres.
     #[pyo3(get, set)]
     pub x_m: f64,
+    /// Cartesian Y position in metres.
     #[pyo3(get, set)]
     pub y_m: f64,
+    /// Cartesian Z position in metres.
     #[pyo3(get, set)]
     pub z_m: f64,
+    /// Cartesian X velocity in metres per second.
     #[pyo3(get, set)]
     pub vx_m_s: f64,
+    /// Cartesian Y velocity in metres per second.
     #[pyo3(get, set)]
     pub vy_m_s: f64,
+    /// Cartesian Z velocity in metres per second.
     #[pyo3(get, set)]
     pub vz_m_s: f64,
+    /// Physical particle charge in coulombs.
     #[pyo3(get, set)]
     pub charge_c: f64,
+    /// Physical particle mass in kilograms.
     #[pyo3(get, set)]
     pub mass_kg: f64,
+    /// Number of physical particles represented by the macro-particle.
     #[pyo3(get, set)]
     pub weight: f64,
 }
 
 #[pymethods]
 impl ChargedParticle {
+    /// Construct a charged macro-particle from Cartesian phase-space state.
     #[new]
     #[allow(clippy::too_many_arguments)]
     pub fn new(
@@ -118,11 +132,17 @@ impl ChargedParticle {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
+/// Energy-distribution and runaway diagnostics for a particle population.
 pub struct ParticlePopulationSummary {
+    /// Number of macro-particles included in the summary.
     pub count: usize,
+    /// Arithmetic mean kinetic energy in megaelectronvolts.
     pub mean_energy_mev: f64,
+    /// Nearest-rank 95th-percentile kinetic energy in megaelectronvolts.
     pub p95_energy_mev: f64,
+    /// Maximum kinetic energy in megaelectronvolts.
     pub max_energy_mev: f64,
+    /// Fraction at or above the configured runaway threshold.
     pub runaway_fraction: f64,
 }
 
