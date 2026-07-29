@@ -76,6 +76,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
     ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),
     ("cargo clippy", ["cargo", "clippy", "--", "-D", "warnings"], RUST_DIR),
+    ("cargo doc", ["cargo", "doc", "--workspace", "--all-features", "--no-deps"], RUST_DIR),
     ("cargo test", ["cargo", "test", "--workspace", "--exclude", "scpn-control-rs"], RUST_DIR),
 ]
 
@@ -97,7 +98,7 @@ COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
     None,
 )
 
-RUST_GATES = {"cargo fmt", "cargo clippy", "cargo test"}
+RUST_GATES = {"cargo fmt", "cargo clippy", "cargo doc", "cargo test"}
 TEST_GATES = {"pytest", "cargo test"}
 
 
@@ -116,10 +117,13 @@ def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
         return run_release_evidence_gate()
 
     t0 = time.monotonic()
+    env = _subprocess_env()
+    if name == "cargo doc":
+        env["RUSTDOCFLAGS"] = "-D warnings -D missing_docs"
     result = subprocess.run(  # noqa: S603
         cmd,
         cwd=cwd or ROOT,
-        env=_subprocess_env(),
+        env=env,
         capture_output=True,
         encoding="utf-8",
         errors="replace",
