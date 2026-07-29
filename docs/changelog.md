@@ -28,6 +28,9 @@
 - Documented charged macro-particle phase-space fields and aggregate energy,
   current, weight, and runaway diagnostics, closing 20 additional
   `control-core` native-doc findings.
+- Documented inverse-profile Jacobian selection, regularisation controls,
+  reconstructed outputs, and coupled kernel-convergence policy, closing 21
+  additional `control-core` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

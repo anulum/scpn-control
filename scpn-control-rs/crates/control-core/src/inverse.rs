@@ -26,19 +26,29 @@ const MIN_RADIUS: f64 = 1e-9;
 const SENSITIVITY_RELAXATION: f64 = 0.8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Default)]
+/// Jacobian construction strategy for inverse profile reconstruction.
 pub enum JacobianMode {
+    /// Approximate sensitivities by perturbing each profile parameter.
     #[default]
     FiniteDifference,
+    /// Evaluate the implemented closed-form profile sensitivities.
     Analytical,
 }
 
 #[derive(Debug, Clone)]
+/// Iteration, regularisation, and Jacobian policy for inverse reconstruction.
 pub struct InverseConfig {
+    /// Maximum accepted Gauss-Newton updates.
     pub max_iterations: usize,
+    /// Residual norm required to declare convergence.
     pub tolerance: f64,
+    /// Multiplicative damping applied to each parameter update.
     pub damping: f64,
+    /// Relative perturbation used for finite-difference sensitivities.
     pub fd_step: f64,
+    /// Tikhonov regularisation strength used in the pseudoinverse solve.
     pub tikhonov: f64,
+    /// Strategy used to construct the response Jacobian.
     pub jacobian_mode: JacobianMode,
 }
 
@@ -56,19 +66,30 @@ impl Default for InverseConfig {
 }
 
 #[derive(Debug, Clone)]
+/// Reconstructed pressure and FF-prime profiles with convergence diagnostics.
 pub struct InverseResult {
+    /// Reconstructed pressure-profile parameters.
     pub params_p: ProfileParams,
+    /// Reconstructed FF-prime-profile parameters.
     pub params_ff: ProfileParams,
+    /// Whether the residual reached the configured tolerance.
     pub converged: bool,
+    /// Number of reconstruction iterations performed.
     pub iterations: usize,
+    /// Final response residual norm.
     pub residual: f64,
+    /// Residual norm recorded after each evaluated iteration.
     pub residual_history: Vec<f64>,
 }
 
 #[derive(Debug, Clone)]
+/// Coupled equilibrium-kernel and inverse-reconstruction policy.
 pub struct KernelInverseConfig {
+    /// Profile reconstruction iteration and regularisation policy.
     pub inverse: InverseConfig,
+    /// Maximum iterations allowed for each forward kernel solve.
     pub kernel_max_iterations: usize,
+    /// Require every forward kernel evaluation to report convergence.
     pub require_kernel_converged: bool,
 }
 
