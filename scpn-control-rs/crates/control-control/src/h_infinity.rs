@@ -135,25 +135,37 @@ fn zoh_discretize(a: &Array2<f64>, b: &Array2<f64>, dt: f64) -> (Array2<f64>, Ar
 /// Result of the H-infinity gamma bisection.
 #[derive(Debug, Clone)]
 pub struct HInfSynthesisResult {
+    /// Smallest feasible disturbance-attenuation bound found by bisection.
     pub gamma: f64,
+    /// State-feedback gain vector.
     pub gain_k: Array1<f64>,
+    /// Observer gain vector.
     pub gain_l: Array1<f64>,
+    /// Whether the synthesized closed-loop poles are stable.
     pub is_stable: bool,
+    /// Whether the robust-control feasibility tests passed.
     pub robust_feasible: bool,
+    /// Estimated loop gain margin in decibels.
     pub gain_margin_db: f64,
 }
 
 /// Continuous-time plant matrices for H-infinity design.
 #[derive(Debug, Clone)]
 pub struct HInfPlant {
+    /// Continuous-time state-transition matrix.
     pub a: Array2<f64>,
+    /// Disturbance-input matrix.
     pub b1: Array2<f64>,
+    /// Control-input matrix.
     pub b2: Array2<f64>,
+    /// Performance-output matrix.
     pub c1: Array2<f64>,
+    /// Measurement-output matrix.
     pub c2: Array2<f64>,
 }
 
 impl HInfPlant {
+    /// Validate compatible plant-matrix dimensions and construct the model.
     pub fn new(
         a: Array2<f64>,
         b1: Array2<f64>,
@@ -180,6 +192,7 @@ impl HInfPlant {
         Ok(Self { a, b1, b2, c1, c2 })
     }
 
+    /// Return the number of plant state variables.
     pub fn n_states(&self) -> usize {
         self.a.nrows()
     }
@@ -188,8 +201,11 @@ impl HInfPlant {
 /// Discrete-time observer-based H-infinity controller state.
 #[derive(Debug, Clone)]
 pub struct HInfController {
+    /// Continuous-time plant model being controlled.
     pub plant: HInfPlant,
+    /// Requested disturbance-attenuation bound.
     pub gamma: f64,
+    /// Symmetric absolute control-output limit.
     pub u_max: f64,
     state: Array1<f64>,
     cached_dt: f64,
@@ -250,6 +266,7 @@ impl HInfController {
         u_raw.clamp(-self.u_max, self.u_max)
     }
 
+    /// Reset the internal observer state to zero.
     pub fn reset(&mut self) {
         self.state.fill(0.0);
     }

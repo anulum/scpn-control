@@ -39,6 +39,9 @@
 - Documented PID/isoflux state, self-organized-criticality learning state, and
   shattered-pellet disruption phases and snapshots, closing the first 31
   `control-control` native-doc findings.
+- Documented H-infinity synthesis/observer state and MPC surrogate, decision,
+  evidence-digest, and rollout contracts, closing 37 additional
+  `control-control` native-doc findings.
 - Rewrite disruption checkpoint / safe-API / fallback tests to real torch
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).

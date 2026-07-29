@@ -156,6 +156,7 @@ pub struct NeuralSurrogate {
 }
 
 impl NeuralSurrogate {
+    /// Construct a linear surrogate from its state-by-coil impact matrix.
     pub fn new(b_matrix: Array2<f64>) -> Self {
         NeuralSurrogate { b_matrix }
     }
@@ -184,31 +185,50 @@ impl NeuralSurrogate {
 
 /// Result of the Rust pulsed-shot MPC admission adapter.
 pub struct PulsedMpcDecision {
+    /// Admitted coil action vector.
     pub action: Array1<f64>,
+    /// Objective value of the original MPC proposal.
     pub mpc_objective: f64,
+    /// Minimum constraint slack associated with the proposal.
     pub constraint_slack: f64,
+    /// Canonical pulsed-shot scheduler state.
     pub scheduler_state: String,
+    /// Canonical capacitor-bank feasibility state.
     pub bank_feasibility: String,
+    /// Human-readable admission or fallback reason.
     pub reason: String,
+    /// Whether the capacitor-bank constraints admit the proposal.
     pub bank_feasible: bool,
+    /// Whether a safe fallback action replaced the proposal.
     pub safe_action_applied: bool,
+    /// Whether burn-only components were masked outside a burn state.
     pub burn_components_masked: bool,
+    /// Maximum absolute coil current in amperes.
     pub peak_current_a: f64,
+    /// Version of the deterministic decision-evidence schema.
     pub evidence_schema_version: &'static str,
+    /// SHA-256 digest of the proposed action vector.
     pub action_sha256: String,
+    /// SHA-256 digest of the configured safe action vector.
     pub safe_action_sha256: String,
+    /// SHA-256 digest of the burn-component mask.
     pub burn_action_mask_sha256: String,
+    /// SHA-256 digest binding all admission inputs and outputs.
     pub admission_digest: String,
 }
 
 /// Model Predictive Controller.
 pub struct MPController {
+    /// Linear state-transition surrogate used for rollouts.
     pub model: NeuralSurrogate,
+    /// Desired state vector.
     pub target: Array1<f64>,
+    /// Number of control steps in each optimization rollout.
     pub horizon: usize,
 }
 
 impl MPController {
+    /// Validate model and target dimensions and construct an MPC controller.
     pub fn new(model: NeuralSurrogate, target: Array1<f64>) -> FusionResult<Self> {
         let n_state = model.b_matrix.nrows();
         let n_coils = model.b_matrix.ncols();
