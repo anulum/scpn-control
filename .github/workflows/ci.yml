@@ -758,7 +758,19 @@ jobs:
             exit 0
           fi
           workdir="$(mktemp -d)"
+          message_files=()
           for sha in $shas; do
-            git log -1 --format=%B "$sha" > "${workdir}/${sha}.txt"
+            author_email="$(git log -1 --format=%ae "$sha")"
+            if [ "$author_email" = "49699333+dependabot[bot]@users.noreply.github.com" ]; then
+              echo "Skipping trusted Dependabot commit ${sha}."
+              continue
+            fi
+            message_file="${workdir}/${sha}.txt"
+            git log -1 --format=%B "$sha" > "$message_file"
+            message_files+=("$message_file")
           done
-          python tools/check_commit_authorship.py "${workdir}"/*.txt
+          if [ "${#message_files[@]}" -eq 0 ]; then
+            echo "No human-authored commits to verify."
+            exit 0
+          fi
+          python tools/check_commit_authorship.py "${message_files[@]}"
