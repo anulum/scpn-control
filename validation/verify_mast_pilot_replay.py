@@ -32,6 +32,11 @@ from typing import Any, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from validation import acquire_mast_disruption_shots as _acquisition_module
+from validation import fair_mast_source_policy as _source_policy_module
+from validation import mast_disruption_signal_binding as _signal_binding_module
+from validation import mast_source_object_manifest as _source_manifest_module
+from validation import verify_mast_real_object_alignment as _alignment_module
 from validation.acquire_mast_disruption_shots import GROUP_VARIABLES, _source_array_metadata
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
 from validation.mast_disruption_signal_binding import mast_level2_signal_binding_spec
@@ -46,9 +51,16 @@ from validation.mast_source_object_manifest import (
 from validation.verify_mast_real_object_alignment import verify_real_object_alignment
 
 PILOT_PROVENANCE_SCHEMA = "scpn-fusion-open-disruption-data-provenance.v1"
-PILOT_REPLAY_SCHEMA = "scpn-control.mast-pilot-replay.v1.0.0"
+PILOT_REPLAY_SCHEMA = "scpn-control.mast-pilot-replay.v1.1.0"
 EXPECTED_MISSING_GROUPS = ("equilibrium", "interferometer")
 _SOURCE_URL_PREFIX = "https://s3.echo.stfc.ac.uk/mast/level2/shots"
+_RUNTIME_SOURCE_MODULES = {
+    "acquire_mast_disruption_shots": _acquisition_module,
+    "fair_mast_source_policy": _source_policy_module,
+    "mast_disruption_signal_binding": _signal_binding_module,
+    "mast_source_object_manifest": _source_manifest_module,
+    "verify_mast_real_object_alignment": _alignment_module,
+}
 
 
 class MastPilotReplayError(ValueError):
@@ -126,6 +138,32 @@ def _hash_file_once(path: Path) -> tuple[str, int]:
     return digest.hexdigest(), size
 
 
+def _native_object_inventory(object_root: Path, *, shot_id: int) -> set[str]:
+    shot_root = object_root / "raw" / f"{shot_id}.zarr"
+    if not shot_root.is_dir():
+        raise MastPilotReplayError("pilot shot root does not resolve to a directory")
+    inventory: set[str] = set()
+    try:
+        for path in shot_root.rglob("*"):
+            if path.is_symlink():
+                raise MastPilotReplayError(f"pilot object tree contains a symbolic link: {path}")
+            if path.is_file():
+                inventory.add(path.relative_to(object_root).as_posix())
+    except OSError as exc:
+        raise MastPilotReplayError(f"cannot inventory pilot object tree: {exc}") from exc
+    return inventory
+
+
+def _runtime_source_sha256() -> dict[str, str]:
+    sources = {"verify_mast_pilot_replay": Path(__file__)}
+    for name, module in _RUNTIME_SOURCE_MODULES.items():
+        source = getattr(module, "__file__", None)
+        if source is None:
+            raise MastPilotReplayError(f"runtime source path is unavailable for {name}")
+        sources[name] = Path(source)
+    return {name: file_sha256(path) for name, path in sorted(sources.items())}
+
+
 def _verify_native_objects(
     provenance: Mapping[str, Any],
     *,
@@ -196,6 +234,13 @@ def _verify_native_objects(
         raise MastPilotReplayError("recomputed pilot aggregate SHA-256 does not match provenance")
     if dataset.get("total_size_bytes") != total_size:
         raise MastPilotReplayError("pilot total_size_bytes does not match verified objects")
+    inventory = _native_object_inventory(object_root, shot_id=shot_id)
+    if inventory != seen:
+        undeclared = sorted(inventory - seen)
+        missing = sorted(seen - inventory)
+        raise MastPilotReplayError(
+            f"pilot object inventory differs from provenance: undeclared={undeclared!r}, missing={missing!r}"
+        )
     retrieved_at = provenance.get("retrieved_at_utc")
     if not isinstance(retrieved_at, str) or not retrieved_at:
         raise MastPilotReplayError("pilot retrieved_at_utc must be a non-empty string")
@@ -231,7 +276,7 @@ def _read_selected_arrays(
             raise MastPilotReplayError(f"declared pilot group does not resolve to a directory: {group!r}")
         try:
             dataset = open_group(group_path)
-        except Exception as exc:  # noqa: BLE001 - optional xarray/zarr boundary is normalised here
+        except (ImportError, OSError, RuntimeError, TypeError, ValueError) as exc:
             raise MastPilotReplayError(f"cannot open preserved pilot group {group!r}: {exc}") from exc
         try:
             for variable in GROUP_VARIABLES[group]:
@@ -461,6 +506,7 @@ def verify_mast_pilot_replay(
         "source_generation_pinned": False,
         "source_generation_blocker": "historical_pilot_root_zarr_json_not_preserved",
         "gate_implementation_sha256": file_sha256(Path(__file__)),
+        "runtime_source_sha256": _runtime_source_sha256(),
         "source_manifest_payload_sha256": manifest["payload_sha256"],
         "artifact_sha256": artifact["sha256"],
         "parent_digest": artifact["parent_digest"],

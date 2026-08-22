@@ -13,7 +13,7 @@ import hashlib
 import json
 import sys
 import types
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +29,7 @@ from validation.verify_mast_pilot_replay import (
     main,
     verify_mast_pilot_replay,
 )
+from validation.verify_mast_real_object_alignment import verify_real_object_alignment
 
 _SHOT_ID = 27707
 
@@ -61,13 +62,13 @@ def _fake_groups() -> dict[str, _FakeDataset]:
     summary = _FakeDataset(
         {
             "time": _FakeVar(time, dims=("time",), units="s"),
-            "ip": _FakeVar(np.linspace(6.0e5, 4.0e5, 21), dims=("time",), units="A"),
+            "ip": _FakeVar(np.linspace(6.0e5, 4.0e5, 21, dtype=np.float64), dims=("time",), units="A"),
             "line_average_n_e": _FakeVar(
-                np.asarray([2.0e19] * 10 + [np.nan] + [1.5e19] * 10),
+                np.asarray([2.0e19] * 10 + [np.nan] + [1.5e19] * 10, dtype=np.float64),
                 dims=("time",),
                 units="1 / m ** 3",
             ),
-            "greenwald_density": _FakeVar(np.full(21, 2.5e19), dims=("time",), units="1 / m ** 3"),
+            "greenwald_density": _FakeVar(np.full(21, 2.5e19, dtype=np.float64), dims=("time",), units="1 / m ** 3"),
         }
     )
     magnetics = _FakeDataset(
@@ -166,6 +167,16 @@ def test_exact_pilot_replay_verifies_objects_masks_and_fail_closed_groups(tmp_pa
     assert report["n_bound_channels_aligned"] == 3
     assert report["n_channels_not_aligned"] == 8
     assert report["selected_array_count"] == 8
+    assert report["schema_version"] == "scpn-control.mast-pilot-replay.v1.1.0"
+    assert set(report["runtime_source_sha256"]) == {
+        "acquire_mast_disruption_shots",
+        "fair_mast_source_policy",
+        "mast_disruption_signal_binding",
+        "mast_source_object_manifest",
+        "verify_mast_pilot_replay",
+        "verify_mast_real_object_alignment",
+    }
+    assert all(len(digest) == 64 for digest in report["runtime_source_sha256"].values())
     assert all(dataset.closed for dataset in groups.values())
     aligned = [channel for channel in report["channels"] if channel["status"] == "aligned_with_validity_mask"]
     assert {channel["channel"] for channel in aligned} == {"time_s", "Ip_MA", "ne_1e19"}
@@ -247,11 +258,41 @@ def test_pilot_replay_detects_native_object_change_during_read(tmp_path: Path) -
         )
 
 
+def test_pilot_replay_rejects_undeclared_objects_and_symbolic_links(tmp_path: Path) -> None:
+    """The selected Zarr tree must equal the provenance inventory exactly."""
+    provenance, object_root, provenance_sha, aggregate = _write_fixture(tmp_path)
+    undeclared = object_root / "raw/27707.zarr/summary/time/c/1"
+    undeclared.write_bytes(b"undeclared-chunk")
+    with pytest.raises(MastPilotReplayError, match="inventory differs.*undeclared"):
+        verify_mast_pilot_replay(
+            provenance,
+            object_root=object_root,
+            shot_id=_SHOT_ID,
+            expected_provenance_sha256=provenance_sha,
+            expected_aggregate_sha256=aggregate,
+            open_group=_opener(_fake_groups()),
+        )
+
+    undeclared.unlink()
+    outside = tmp_path / "outside-chunk"
+    outside.write_bytes(b"outside")
+    undeclared.symlink_to(outside)
+    with pytest.raises(MastPilotReplayError, match="contains a symbolic link"):
+        verify_mast_pilot_replay(
+            provenance,
+            object_root=object_root,
+            shot_id=_SHOT_ID,
+            expected_provenance_sha256=provenance_sha,
+            expected_aggregate_sha256=aggregate,
+            open_group=_opener(_fake_groups()),
+        )
+
+
 def test_pilot_replay_rejects_unsafe_or_inconsistent_object_metadata(tmp_path: Path) -> None:
     """Paths, URLs, object counts, bytes, and downloaded groups are hard boundaries."""
     provenance, object_root, provenance_sha, aggregate = _write_fixture(tmp_path)
     payload = json.loads(provenance.read_text())
-    cases = (
+    cases: tuple[tuple[Callable[[dict[str, Any]], None], str], ...] = (
         (lambda p: p["dataset"].update(object_count=99), "object_count"),
         (lambda p: p["dataset"].update(total_size_bytes=99), "total_size_bytes"),
         (lambda p: p["dataset"].update(downloaded_groups=["summary", "summary"]), "downloaded_groups"),
@@ -279,7 +320,7 @@ def test_native_manifest_shape_guards_cover_every_rejected_field(tmp_path: Path)
     """Malformed provenance fields cannot reach Zarr or the mapping layer."""
     provenance, object_root, _provenance_sha, aggregate = _write_fixture(tmp_path)
     valid = json.loads(provenance.read_text())
-    cases = (
+    cases: tuple[tuple[Callable[[dict[str, Any]], None], str], ...] = (
         (lambda p: p.update(schema="wrong"), "provenance schema"),
         (lambda p: p.update(dataset=[]), "dataset must be an object"),
         (lambda p: p["dataset"].update(files=[], object_count=0), "files must be a non-empty"),
@@ -346,6 +387,9 @@ def test_path_and_file_io_guards_are_bounded(tmp_path: Path, monkeypatch: pytest
     with pytest.raises(MastPilotReplayError, match="cannot hash pilot object"):
         replay._hash_file_once(directory)
 
+    with pytest.raises(MastPilotReplayError, match="shot root does not resolve"):
+        replay._native_object_inventory(root, shot_id=_SHOT_ID)
+
     symlink = root / "outside-link"
     outside = tmp_path / "outside.txt"
     outside.write_text("outside", encoding="utf-8")
@@ -356,6 +400,27 @@ def test_path_and_file_io_guards_are_bounded(tmp_path: Path, monkeypatch: pytest
     monkeypatch.setattr(Path, "resolve", lambda _self, strict=False: (_ for _ in ()).throw(OSError("bad-root")))
     with pytest.raises(OSError, match="bad-root"):
         replay._object_path(root, "file")
+
+
+def test_runtime_source_digest_fails_without_a_module_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Evidence cannot omit a runtime module whose source path is unavailable."""
+    module = types.ModuleType("missing_source")
+    monkeypatch.setattr(replay, "_RUNTIME_SOURCE_MODULES", {"missing_source": module})
+    with pytest.raises(MastPilotReplayError, match="source path is unavailable"):
+        replay._runtime_source_sha256()
+
+
+def test_native_inventory_normalises_io_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Filesystem traversal errors remain inside the replay error contract."""
+    shot_root = tmp_path / "raw" / f"{_SHOT_ID}.zarr"
+    shot_root.mkdir(parents=True)
+
+    def broken_rglob(_path: Path, _pattern: str) -> list[Path]:
+        raise OSError("inventory-failed")
+
+    monkeypatch.setattr(Path, "rglob", broken_rglob)
+    with pytest.raises(MastPilotReplayError, match="cannot inventory.*inventory-failed"):
+        replay._native_object_inventory(tmp_path, shot_id=_SHOT_ID)
 
 
 def test_group_directory_and_nonclosable_dataset_paths(tmp_path: Path) -> None:
@@ -428,7 +493,7 @@ def test_impossible_alignment_and_post_pin_states_are_rejected(tmp_path: Path, m
         )
 
     monkeypatch.setattr(replay, "_verify_native_objects", real_verify)
-    real_alignment = replay.verify_real_object_alignment
+    real_alignment = verify_real_object_alignment
 
     def missing_mask(*args: Any, **kwargs: Any) -> dict[str, Any]:
         report = real_alignment(*args, **kwargs)
@@ -479,34 +544,42 @@ def test_pilot_replay_rejects_duplicate_keys_and_invalid_json(tmp_path: Path) ->
 def test_pilot_replay_normalises_group_open_and_missing_saddle_failures(tmp_path: Path) -> None:
     """Optional Zarr errors and incomplete magnetic selection remain bounded."""
     provenance, object_root, provenance_sha, aggregate = _write_fixture(tmp_path)
-    kwargs = {
-        "object_root": object_root,
-        "shot_id": _SHOT_ID,
-        "expected_provenance_sha256": provenance_sha,
-        "expected_aggregate_sha256": aggregate,
-    }
 
     def broken_opener(_path: Path) -> None:
         raise RuntimeError("broken-zarr")
 
     with pytest.raises(MastPilotReplayError, match="cannot open preserved pilot group"):
-        verify_mast_pilot_replay(provenance, **kwargs, open_group=broken_opener)
+        verify_mast_pilot_replay(
+            provenance,
+            object_root=object_root,
+            shot_id=_SHOT_ID,
+            expected_provenance_sha256=provenance_sha,
+            expected_aggregate_sha256=aggregate,
+            open_group=broken_opener,
+        )
     groups = _fake_groups()
     groups["magnetics"].variables.pop("b_field_tor_probe_saddle_field")
     with pytest.raises(MastPilotReplayError, match="no toroidal saddle"):
-        verify_mast_pilot_replay(provenance, **kwargs, open_group=_opener(groups))
+        verify_mast_pilot_replay(
+            provenance,
+            object_root=object_root,
+            shot_id=_SHOT_ID,
+            expected_provenance_sha256=provenance_sha,
+            expected_aggregate_sha256=aggregate,
+            open_group=_opener(groups),
+        )
 
 
 def test_local_group_opener_and_cli_output(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The lazy xarray seam and CLI write only the bounded JSON report."""
     seen: dict[str, Any] = {}
-    fake_xarray = types.ModuleType("xarray")
-    fake_xarray.open_zarr = lambda path, consolidated: (
-        seen.update(  # type: ignore[attr-defined]
-            path=path, consolidated=consolidated
-        )
-        or "dataset"
-    )
+
+    class _FakeXarrayModule(types.ModuleType):
+        def open_zarr(self, path: Path, *, consolidated: bool) -> str:
+            seen.update(path=path, consolidated=consolidated)
+            return "dataset"
+
+    fake_xarray = _FakeXarrayModule("xarray")
     monkeypatch.setitem(sys.modules, "xarray", fake_xarray)
     assert _open_local_group(tmp_path) == "dataset"
     assert seen == {"path": tmp_path, "consolidated": False}
