@@ -18,7 +18,7 @@ affiliations:
   - name: ANULUM CH & LI
     index: 1
 date: 17 March 2026
-bibliography: paper.bib
+bibliography: references.bib
 ---
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 
@@ -44,8 +44,7 @@ boundary, JAX-differentiable), a 1.5D Crank-Nicolson transport solver with
 multi-ion physics, a native linear gyrokinetic eigenvalue solver with
 electromagnetic extension, a native TGLF-equivalent quasilinear model
 (SAT0/SAT1/SAT2 saturation rules), a nonlinear $\delta f$ gyrokinetic
-solver in flux-tube geometry with JAX GPU acceleration measured in a bounded
-local GPU benchmark (62$\times$ in that recorded context), interfaces to five
+solver in flux-tube geometry with a JAX GPU path, interfaces to five
 external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) whose quantitative
 external-code claims remain blocked until real artefacts are admitted, a
 hybrid surrogate+GK validation layer with out-of-distribution detection
@@ -67,8 +66,8 @@ nonlinear CBC agreement until a longer, reverified convergence campaign is
 complete.
 
 The codebase comprises a Python package and 5 Rust crates with broad Python
-module tests, a 99% local package-coverage gate, and a multi-workflow CI
-matrix.
+module tests, a 100% local package-coverage gate configured consistently for
+CI, and a multi-workflow CI matrix.
 
 # Statement of Need
 
@@ -78,25 +77,23 @@ safety guarantees. Existing open-source tools address subsets of this problem:
 TORAX [@torax2024] provides JAX-differentiable transport with TGLF coupling,
 TCV-RL [@degrave2022] applies deep RL to tokamak control, FreeGS [@freegs]
 solves free-boundary equilibria, and FUSE [@fuse2024] offers integrated
-design-to-operations modelling. No single package combines compilable control
-logic (SPNs), neuromorphic execution (SNNs), first-principles gyrokinetic
-transport from quasilinear through nonlinear, and multi-layer phase dynamics
-in one coherent stack.
+design-to-operations modelling. These systems establish distinct reference
+points rather than a single matched benchmark.
 
-`scpn-control` fills this gap with four distinguishing capabilities:
+This paper evaluates four connected `scpn-control` capabilities:
 
 1. **Five-tier gyrokinetic transport** — spanning critical-gradient models
    ($\sim\mu$s), a QLKNN-style neural-transport facade with a compact MLP
    loader and analytic critical-gradient fallback, a native linear GK
-   eigenvalue solver ($\sim$0.3 s per flux surface) [@dimits2000; @miller1998],
+   eigenvalue solver (approximately 0.3 s per flux surface in the recorded
+   repository context) [@dimits2000; @miller1998],
    a native TGLF-equivalent model with SAT0/SAT1/SAT2 spectral saturation
    [@staebler2007; @staebler2017; @maeyama2015], and a nonlinear $\delta f$
    gyrokinetic solver with dealiased E$\times$B bracket, ballooning connection
    boundary conditions, Rosenbluth-Hinton zonal flow physics
    [@rosenbluth1998], Sugama collision operator [@sugama2006], and optional
    kinetic electrons via semi-implicit backward-Euler treatment.
-   JAX GPU acceleration is reported as a bounded local benchmark result
-   (62$\times$ in the recorded GPU context), not as a facility or production
+   The JAX GPU path is not promoted here to a portable speedup or facility
    timing claim. The current public neural-transport claim report is
    `analytic_fallback`; quantitative QLKNN/QuaLiKiz claims remain blocked
    unless trained weights and strict reference artefacts are supplied.
@@ -178,7 +175,7 @@ evidence.
 
 # Validation
 
-The solver is validated against:
+Repository validation evidence includes:
 
 - **Cyclone Base Case** [@dimits2000]: CBC input construction, nonlinear
   $\delta f$ evolution, JAX acceleration, kinetic-electron support, Sugama
@@ -200,11 +197,11 @@ The solver is validated against:
   ($\nu = 0.01$), Sugama and Krook agree on the low-collisionality collision
   response in the verified operator tests; saturated nonlinear $\chi_i$ remains
   part of the CBC revalidation target.
-- **SPARC/ITER equilibria**: RMSE-gated against CFS SPARCPublic GEQDSK files
-  and ITER design parameters.
-- **DIII-D disruption shots**: 17 synthetic fixture shots covering H-mode, VDE,
-  beta-limit, locked-mode, density-limit, tearing, and snowflake
-  configurations.
+- **SPARC/ITER equilibria**: regression-gated against CFS SPARCPublic GEQDSK
+  files and ITER design parameters; this is not independent same-case
+  experimental reconstruction evidence.
+- **DIII-D disruption fixtures**: synthetic scenarios covering multiple
+  disruption classes; they are CI plumbing rather than measured-shot evidence.
 - **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
@@ -212,13 +209,9 @@ The test suite comprises Python module tests and Rust workspace tests across
 CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
 CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
 configuration currently enforces a 100% package-coverage gate while publishing
-XML coverage artefacts. The project holds an OpenSSF CII Best Practices badge.
-All physics equations cite their source papers; ~80 citations spanning
-Porcelli (1996), Sauter (1999), Rosenbluth-Putvinski (1997), Stix (1972),
-Bosch-Hale (1992), Doyle (1989), Rawlings (2017), Stangeby (2000),
-Hirshman (1983), and others. Twelve cross-module integration tests verify
-consistency across physics chains (bootstrap→NTM, EPED→Troyon, L-H→EPED,
-runaway→SPI).
+XML coverage artefacts. Physics equations cite their source papers, and named
+integration tests exercise cross-module chains such as bootstrap→NTM,
+EPED→Troyon, L-H→EPED, and runaway→SPI.
 
 **Limitations**: external GK interfaces are mock-tested (no real Fortran
 binaries in CI); DIII-D shots use synthetic data, not real MDSplus archives;

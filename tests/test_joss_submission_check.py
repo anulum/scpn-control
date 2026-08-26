@@ -18,7 +18,6 @@ import pytest
 
 from tools import check_joss_submission
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -26,13 +25,15 @@ def _write_valid_joss_tree(root: Path) -> None:
     """Create a minimal JOSS paper tree that satisfies the submission guard."""
 
     (root / "docs").mkdir()
-    (root / "paper.md").write_text(
+    submission = root / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software"
+    submission.mkdir(parents=True)
+    (submission / "manuscript.md").write_text(
         "\n".join(
             [
                 "---",
                 "title: 'SCPN Control: Test Paper'",
                 "orcid: 0009-0009-3560-0851",
-                "bibliography: paper.bib",
+                "bibliography: references.bib",
                 "---",
                 "# Summary",
                 "quantitative external-code claims remain blocked until real artefacts are admitted [@dimits2000].",
@@ -51,17 +52,15 @@ def _write_valid_joss_tree(root: Path) -> None:
             [
                 "# JOSS Paper: SCPN Control",
                 "SCPN Control: Test Paper",
-                "canonical JOSS-formatted source is [`paper.md`](../paper.md)",
-                "with bibliography in [`paper.bib`](../paper.bib)",
-                "Use this paper draft as the publication-grade summary",
-                "Keep the manuscript aligned with reproducible code and benchmark evidence.",
-                "Do not introduce new benchmark claims in this document without upstream evidence updates.",
-                "Reference [@dimits2000].",
+                "The canonical manuscript package is",
+                "papers/submissions/001_neuro_symbolic_tokamak_control_software/.",
+                "It contains manuscript.md, references.bib, and manuscript.pdf.",
+                "This review draft has not been submitted.",
             ]
         ),
         encoding="utf-8",
     )
-    (root / "paper.bib").write_text(
+    (submission / "references.bib").write_text(
         "@article{dimits2000,\n  title = {Dimits test},\n  year = {2000}\n}\n",
         encoding="utf-8",
     )
@@ -70,10 +69,12 @@ def _write_valid_joss_tree(root: Path) -> None:
 def _point_guard_at(monkeypatch: pytest.MonkeyPatch, root: Path) -> None:
     """Redirect the guard module constants to a temporary repository tree."""
 
+    submission = root / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software"
     monkeypatch.setattr(check_joss_submission, "ROOT", root)
-    monkeypatch.setattr(check_joss_submission, "PAPER_PATH", root / "paper.md")
+    monkeypatch.setattr(check_joss_submission, "SUBMISSION_PATH", submission)
+    monkeypatch.setattr(check_joss_submission, "PAPER_PATH", submission / "manuscript.md")
     monkeypatch.setattr(check_joss_submission, "DOCS_PATH", root / "docs" / "joss_paper.md")
-    monkeypatch.setattr(check_joss_submission, "BIB_PATH", root / "paper.bib")
+    monkeypatch.setattr(check_joss_submission, "BIB_PATH", submission / "references.bib")
 
 
 def test_joss_submission_guard_accepts_current_repository() -> None:
@@ -90,7 +91,7 @@ def test_joss_submission_guard_accepts_current_repository() -> None:
     )
 
     assert result.returncode == 0, result.stdout + result.stderr
-    assert "OK: JOSS paper, bibliography, and docs mirror" in result.stdout
+    assert "OK: canonical JOSS package and documentation pointer" in result.stdout
 
 
 def test_joss_submission_guard_reports_missing_files(
@@ -104,9 +105,9 @@ def test_joss_submission_guard_reports_missing_files(
 
     assert check_joss_submission.main() == 1
     output = capsys.readouterr().out
-    assert "MISSING: paper.md" in output
+    assert "MISSING: papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md" in output
     assert "MISSING: docs/joss_paper.md" in output
-    assert "MISSING: paper.bib" in output
+    assert "MISSING: papers/submissions/001_neuro_symbolic_tokamak_control_software/references.bib" in output
 
 
 def test_joss_submission_guard_handles_non_repo_paths() -> None:
@@ -125,12 +126,13 @@ def test_joss_submission_guard_reports_editorial_and_citation_drift(
     """Stale editorial markers and missing citation keys must be reported."""
 
     _write_valid_joss_tree(tmp_path)
-    (tmp_path / "paper.md").write_text(
+    submission = tmp_path / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software"
+    (submission / "manuscript.md").write_text(
         "\n".join(
             [
                 "---",
                 "title: 'SCPN Control: Drifted Paper'",
-                "bibliography: paper.bib",
+                "bibliography: references.bib",
                 "---",
                 "# Summary",
                 "A stale claim [@missingkey].",
@@ -142,7 +144,7 @@ def test_joss_submission_guard_reports_editorial_and_citation_drift(
         "# JOSS Paper: SCPN Control\nReference [@missingdoc].\n",
         encoding="utf-8",
     )
-    (tmp_path / "paper.bib").write_text(
+    (submission / "references.bib").write_text(
         "\n".join(
             [
                 "@article{dimits2000,",
@@ -159,12 +161,11 @@ def test_joss_submission_guard_reports_editorial_and_citation_drift(
 
     assert check_joss_submission.main() == 1
     output = capsys.readouterr().out
-    assert "paper.md missing 'orcid: 0009-0009-3560-0851'" in output
-    assert "docs/joss_paper.md missing 'canonical JOSS-formatted source" in output
+    assert "manuscript.md missing 'orcid: 0009-0009-3560-0851'" in output
+    assert "docs/joss_paper.md missing 'canonical manuscript package" in output
     assert "docs/joss_paper.md missing paper title 'SCPN Control: Drifted Paper'" in output
-    assert "paper.bib duplicate bibliography key 'dimits2000'" in output
-    assert "paper.md cites missing bibliography keys: missingkey" in output
-    assert "docs/joss_paper.md cites missing bibliography keys: missingdoc" in output
+    assert "references.bib duplicate bibliography key 'dimits2000'" in output
+    assert "manuscript.md cites missing bibliography keys: missingkey" in output
 
 
 def test_joss_submission_guard_reports_missing_yaml_title(
@@ -174,13 +175,17 @@ def test_joss_submission_guard_reports_missing_yaml_title(
     """A paper without a YAML title cannot enter the JOSS review workflow."""
 
     _write_valid_joss_tree(tmp_path)
-    paper = tmp_path / "paper.md"
+    paper = tmp_path / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software" / "manuscript.md"
     paper.write_text(
         paper.read_text(encoding="utf-8").replace("title: 'SCPN Control: Test Paper'\n", ""), encoding="utf-8"
     )
     _point_guard_at(monkeypatch, tmp_path)
 
-    assert "MISMATCH: paper.md missing YAML title" in check_joss_submission.check_repository()
+    errors = check_joss_submission.check_repository()
+    assert (
+        "MISMATCH: papers/submissions/001_neuro_symbolic_tokamak_control_software/"
+        "manuscript.md missing YAML title" in errors
+    )
 
 
 def test_joss_submission_guard_skips_missing_markdown_during_citation_scan(

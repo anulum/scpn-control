@@ -16,6 +16,9 @@ from typing import Any, Final, cast
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 MANIFEST: Final = ROOT / "docs" / "_generated" / "capability_manifest.json"
+JOSS_MANUSCRIPT: Final = (
+    ROOT / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software" / "manuscript.md"
+)
 
 
 def _manifest_counts() -> dict[str, int]:
@@ -183,7 +186,7 @@ def test_public_coverage_gate_claims_match_configuration() -> None:
 
     gate = _coverage_gate()
     pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
-    paper = (ROOT / "paper.md").read_text(encoding="utf-8")
+    paper = JOSS_MANUSCRIPT.read_text(encoding="utf-8")
 
     assert f"{gate}% configured coverage gate" in pitch
     assert f"{gate}% package-coverage gate" in paper
@@ -195,7 +198,7 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
     checked_paths = (
         ROOT / "README.md",
         ROOT / "docs" / "pitch.md",
-        ROOT / "paper.md",
+        JOSS_MANUSCRIPT,
     )
     stale_fragments = (
         "153 Python modules",
@@ -243,15 +246,15 @@ def test_competitive_analysis_metrics_bound_to_generated_inventory() -> None:
 
 
 def test_joss_paper_coverage_gate_claim_matches_configuration() -> None:
-    """The docs JOSS mirror must state the configured coverage gate, not a stale one."""
+    """The canonical JOSS manuscript must state the configured coverage gate."""
 
     gate = _coverage_gate()
-    prose = _normalized_prose(ROOT / "docs" / "joss_paper.md")
+    prose = _normalized_prose(JOSS_MANUSCRIPT)
 
     assert f"{gate}% local package-coverage gate" in prose
     assert f"{gate}% package-coverage gate" in prose
     for stale in ("99% local", "99% package-coverage gate"):
-        assert stale not in prose, f"joss_paper.md contains stale {stale!r}"
+        assert stale not in prose, f"canonical JOSS manuscript contains stale {stale!r}"
 
 
 def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
@@ -259,10 +262,7 @@ def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
 
     expected = "safe RL (CPO-formulated Lagrangian constraints with control barrier functions, Ames 2017)"
     stale = "safe RL (PPO with MHD constraint veto)"
-    checked_paths = (
-        ROOT / "paper.md",
-        ROOT / "docs" / "joss_paper.md",
-    )
+    checked_paths = (JOSS_MANUSCRIPT,)
 
     for path in checked_paths:
         text = path.read_text(encoding="utf-8").replace("\n  ", " ")
@@ -319,8 +319,7 @@ def test_public_physics_monitor_claims_keep_open_issue_caveats() -> None:
 
     checked_paths = (
         ROOT / "ROADMAP.md",
-        ROOT / "paper.md",
-        ROOT / "docs" / "joss_paper.md",
+        JOSS_MANUSCRIPT,
     )
     required_fragments = (
         "research-prototype",
@@ -347,10 +346,7 @@ def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
     assert evidence["surrogate_mode"] == "analytic_fallback"
     assert evidence["quantitative_claim_allowed"] is False
 
-    checked_paths = (
-        ROOT / "paper.md",
-        ROOT / "docs" / "joss_paper.md",
-    )
+    checked_paths = (JOSS_MANUSCRIPT,)
     required_fragments = (
         "QLKNN-style neural-transport facade",
         "analytic critical-gradient fallback",
@@ -384,10 +380,7 @@ def test_joss_mu_synthesis_claim_matches_static_bound_report() -> None:
     assert report["static_dc_analysis_only"] is True
     assert report["validated_claim_allowed"] is False
 
-    checked_paths = (
-        ROOT / "paper.md",
-        ROOT / "docs" / "joss_paper.md",
-    )
+    checked_paths = (JOSS_MANUSCRIPT,)
     required_fragments = (
         "D-scaling upper bound",
         "bounded static $\\mu$-analysis",

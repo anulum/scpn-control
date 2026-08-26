@@ -223,9 +223,10 @@ CI deploys to GitHub Pages on push to `main` via `.github/workflows/docs-pages.y
 ## JOSS Submission Review
 
 Run `python tools/check_joss_submission.py` before sending the paper to an
-external JOSS workflow. The guard checks the canonical `paper.md` front matter,
-the root `paper.bib` bibliography, bracketed citation coverage, the
-`docs/joss_paper.md` mirror, and the claim-boundary/editorial text that keeps
+external JOSS workflow. The guard checks the canonical
+`papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md`
+front matter, its `references.bib` bibliography, bracketed citation coverage,
+the `docs/joss_paper.md` pointer, and the claim-boundary/editorial text that keeps
 benchmark and validation statements tied to admitted evidence.
 
 The guard runs in local preflight and CI lint so the paper, docs mirror, and

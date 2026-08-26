@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "catalogue_id": "002",
+  "status": "review_draft_not_submitted",
+  "title": "SCPN Control: Compiling Stochastic Petri Nets into Spiking Neural Network Controllers for Real-Time Tokamak Plasma Control",
+  "author": {
+    "name": "Miroslav Sotek",
+    "orcid": "0009-0009-3560-0851"
+  },
+  "evidence_revision": "856adaf10f247bc77943f0c034fdc3a0e997eaa6",
+  "source_date_epoch": 1787386155,
+  "evidence_files": [
+    "../../../validation/reports/controller_latency.json",
+    "../../../validation/reports/controller_latency.local.json",
+    "../../../validation/reports/native_handoff_comparison.json",
+    "../../../validation/reports/native_handoff_comparison.local.json"
+  ],
+  "doi": null,
+  "manuscript_content_license": null
+}

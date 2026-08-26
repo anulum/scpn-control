@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+message: "If you use this review draft and its software artefacts, use the preferred citation."
+type: software
+title: "Supporting materials for the SCPN Control software-paper review draft"
+authors:
+  - family-names: "Sotek"
+    given-names: "Miroslav"
+    orcid: "https://orcid.org/0009-0009-3560-0851"
+repository-code: "https://github.com/anulum/scpn-control"
+url: "https://www.anulum.li"
+preferred-citation:
+  type: article
+  title: "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control"
+  authors:
+    - family-names: "Sotek"
+      given-names: "Miroslav"
+      orcid: "https://orcid.org/0009-0009-3560-0851"
+  year: 2026

@@ -1821,7 +1821,7 @@
 - CI Job: `synthetic-diiid-reference` — validates synthetic DIII-D-like
   reference fixtures (25 CI jobs total)
 - CI: JAX solver parity tests added to `jax-parity` job
-- **JOSS paper** (`paper.md`, `paper.bib`): submission-ready for Journal of
+- **JOSS review draft** (now under `papers/submissions/001_neuro_symbolic_tokamak_control_software/`): prepared for Journal of
   Open Source Software review
 - API docs: JAX transport primitives added to `docs/api.md`
 

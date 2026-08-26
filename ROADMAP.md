@@ -121,7 +121,7 @@
 - [x] Synthetic DIII-D-like reference fixture validation (manifest checksums,
   parser contract, phase-monitor ingestion, CI job; measured DIII-D replay
   remains a validation gap)
-- [x] JOSS paper draft (`paper.md`, `paper.bib`)
+- [x] JOSS review draft (`papers/submissions/001_neuro_symbolic_tokamak_control_software/`)
 - [x] 25 CI jobs, 2024+ tests
 
 ### v0.11.0 — 2026-03-10

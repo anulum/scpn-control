@@ -7,7 +7,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — JOSS submission metadata guard.
 
-"""Validate the local JOSS paper, bibliography, and docs mirror."""
+"""Validate the canonical JOSS package and its documentation pointer."""
 
 from __future__ import annotations
 
@@ -17,13 +17,14 @@ from collections import Counter
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-PAPER_PATH = ROOT / "paper.md"
+SUBMISSION_PATH = ROOT / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software"
+PAPER_PATH = SUBMISSION_PATH / "manuscript.md"
 DOCS_PATH = ROOT / "docs" / "joss_paper.md"
-BIB_PATH = ROOT / "paper.bib"
+BIB_PATH = SUBMISSION_PATH / "references.bib"
 
 REQUIRED_PAPER_MARKERS = (
     "title: 'SCPN Control:",
-    "bibliography: paper.bib",
+    "bibliography: references.bib",
     "orcid: 0009-0009-3560-0851",
     "# Summary",
     "# Statement of Need",
@@ -37,11 +38,12 @@ REQUIRED_PAPER_MARKERS = (
 
 REQUIRED_DOC_MARKERS = (
     "# JOSS Paper: SCPN Control",
-    "canonical JOSS-formatted source is [`paper.md`",
-    "with bibliography in [`paper.bib`",
-    "Use this paper draft as the publication-grade summary",
-    "Keep the manuscript aligned with reproducible code and benchmark evidence.",
-    "Do not introduce new benchmark claims in this document without upstream evidence updates.",
+    "canonical manuscript package",
+    "papers/submissions/001_neuro_symbolic_tokamak_control_software/",
+    "manuscript.md",
+    "references.bib",
+    "manuscript.pdf",
+    "review draft has not been submitted",
 )
 
 _BIB_KEY_RE = re.compile(r"@\w+\{\s*([^,\s]+)\s*,")
@@ -129,7 +131,7 @@ def check_repository() -> list[str]:
         keys, duplicates = _bib_keys(bibliography)
         for duplicate in duplicates:
             errors.append(f"MISMATCH: {_relative(BIB_PATH)} duplicate bibliography key {duplicate!r}")
-        for path, text in ((PAPER_PATH, paper), (DOCS_PATH, docs)):
+        for path, text in ((PAPER_PATH, paper),):
             if not text:
                 continue
             missing = sorted(_citation_keys(text) - keys)
@@ -149,7 +151,7 @@ def main() -> int:
         print(f"\n{len(errors)} JOSS submission issue(s) detected.")
         return 1
 
-    print("OK: JOSS paper, bibliography, and docs mirror are submission-review aligned")
+    print("OK: canonical JOSS package and documentation pointer are submission-review aligned")
     return 0
 
 

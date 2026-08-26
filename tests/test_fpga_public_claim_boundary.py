@@ -17,8 +17,7 @@ def test_public_surface_does_not_claim_fpga_bitstream_export() -> None:
     """Public docs must not claim that HDL export emits FPGA bitstreams."""
     repo_root = Path(__file__).resolve().parents[1]
     checked_paths = (
-        repo_root / "paper.md",
-        repo_root / "docs" / "joss_paper.md",
+        repo_root / "papers" / "submissions" / "001_neuro_symbolic_tokamak_control_software" / "manuscript.md",
         repo_root / "src" / "scpn_control" / "scpn" / "fpga_export.py",
     )
 

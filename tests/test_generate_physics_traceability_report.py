@@ -9,17 +9,17 @@
 from __future__ import annotations
 
 import importlib.util
-from pathlib import Path
 import re
 import sys
+from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
 import validation.generate_physics_traceability_report as traceability_report
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown, main
 from validation.validate_physics_traceability import validate_physics_traceability
-
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -79,7 +79,10 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
     assert "Five-dimensional delta-f flux-tube Vlasov evolution" in markdown
     assert "Dimits et al. 2000 Cyclone Base Case" in markdown
     assert "Gyro-Bohm-normalised heat flux" in markdown
-    assert "docs/joss_paper.md nonlinear GK validation limitation" in markdown
+    assert (
+        "papers/submissions/001_neuro_symbolic_tokamak_control_software/"
+        "manuscript.md nonlinear GK validation limitation" in markdown
+    )
     assert "DIII-D experimental replay" in markdown
     assert "RZIP rigid vertical stability model" in markdown
     assert "resistive-wall-mode feedback model" in markdown

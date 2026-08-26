@@ -85,6 +85,7 @@ src/scpn_control/core/scpn_solver.dll
 *.blg
 *Notes.bib
 !docs/**/*.pdf
+!papers/submissions/**/manuscript.pdf
 
 # Release archives
 *.zip

@@ -7,6 +7,10 @@
 \usepackage{booktabs}
 \usepackage{siunitx}
 \usepackage{xcolor}
+\hypersetup{
+  pdftitle={SCPN Control: Compiling Stochastic Petri Nets into Spiking Neural Network Controllers for Real-Time Tokamak Plasma Control},
+  pdfauthor={Miroslav Sotek}
+}
 
 \begin{document}
 
@@ -47,10 +51,10 @@ with L-mode and H-mode profile support.
 Disruption prediction with shattered pellet injection (SPI) mitigation,
 a Gymnasium-compatible environment, and a digital twin complete the
 control stack.
-Benchmarked against published DIII-D and SPARC equilibria (GEQDSK format),
-the solver achieves $<2\%$ RMSE on pressure and safety-factor profiles.
-The system (48 Python modules, 5 Rust crates, 701 tests, 17 CI jobs) is
-MIT/Apache-2.0 dual-licensed at
+The repository includes provenance-bound equilibrium fixtures and validation
+gates, but this manuscript does not promote them to independent experimental or
+same-case external-solver validation. The software is distributed under
+AGPL-3.0-or-later, with a separate commercial licence available, at
 \url{https://github.com/anulum/scpn-control}.
 \end{abstract}
 
@@ -106,13 +110,12 @@ the compiled SNN is fast and neuromorphic-hardware-compatible.
         SNN, neuro-cybernetic) sharing a common contract interface,
         with a Gymnasium-compatible environment for RL benchmarking
         (Section~\ref{sec:control}).
-  \item A CPU-only Rust-accelerated runtime whose control compute sits well
-        within the real-time budget (\SI{5.62}{\micro\second} P50 native
-        integrated control cycle on the CI reference runner), with equilibrium
-        models validated against DIII-D and SPARC at $<2\%$ RMSE
-        (Section~\ref{sec:validation}).
-  \item Complete open-source release: 48 Python modules, 5 Rust
-        crates, 701 tests, 17 CI jobs, Zenodo DOI
+  \item A CPU-only Rust-accelerated runtime with a measured
+        \SI{5.62}{\micro\second} P50 native integrated control cycle on the
+        named CI reference runner; this is controller-side timing, not an
+        end-to-end facility-loop claim (Section~\ref{sec:validation}).
+  \item A Python package and five-crate Rust workspace with configured
+        coverage, documentation, security, and polyglot verification gates
         (Section~\ref{sec:software}).
 \end{enumerate}
 
@@ -147,9 +150,9 @@ arithmetic suited to noisy plasma environments.
 
 \textbf{Petri nets in control.}\quad
 Petri nets have been used for supervisory control and discrete-event
-systems~\cite{murata1989} but not previously compiled into neural
-network controllers.  Our SPN-to-SNN compilation is, to our knowledge,
-the first such pipeline applied to continuous plasma control.
+systems~\cite{murata1989}.  We study an SPN-to-SNN compilation path for
+continuous plasma-control research while making no priority claim over the
+broader neural, supervisory-control, or neuromorphic-control literature.
 
 
 %% ════════════════════════════════════════════════════════════════
@@ -288,10 +291,10 @@ the popcount:
   \right)
 \end{equation}
 %
-With \texttt{sc-neurocore} $\geq 3.8.0$, this uses
-\texttt{VectorizedSCLayer} with a Rust SIMD backend,
-achieving $512\times$ real-time throughput via packed
-\texttt{uint64} operations.
+With \texttt{sc-neurocore} $\geq 3.8.0$, this can use
+\texttt{VectorizedSCLayer} with a Rust SIMD backend and packed
+\texttt{uint64} operations. Performance is reported only through committed,
+host-labelled benchmark artefacts.
 
 \textbf{Antithetic variance reduction.}\quad
 For $n$ stochastic passes, we use antithetic sampling:
@@ -530,8 +533,8 @@ drive based on source coherence:
 %
 When source layer $\ell'$ desynchronizes ($R_{\ell'} \downarrow$),
 inter-layer coupling increases, implementing a stabilizing
-negative feedback.  The overhead is ${\sim}12\%$ (${\sim}98$~\si{\micro\second}
-per step on $16 \times 256$ oscillators).
+negative feedback. The repository benchmark harness measures the added compute
+path, but no portable PAC-overhead value is admitted in this manuscript.
 
 \subsection{Lyapunov Stability Guard}
 \label{sec:lyapunov}
@@ -752,13 +755,15 @@ Table~\ref{tab:timing} reports median (P50) and tail (P99) per-step latencies,
 measured by the committed reproducible benchmarks (warm-up plus repeated samples,
 not single-run averages) on the CI reference runner (AMD EPYC 7763). Every
 available backend is reported; a backend whose dependency is absent is listed as
-such rather than estimated. The local workstation (Intel i5-11600K) is faster by
-roughly $1.5\times$ and is published side by side in the repository.
+such rather than estimated. The repository publishes a separately measured
+Intel i5-11600K workstation column alongside the CI result, without treating
+either host as hardware-independent performance.
 
 \begin{table}[tb]
 \centering
-\caption{Control-loop latency, CI reference runner (AMD EPYC 7763), 5000 steps;
-isolated per-controller step except the final integrated row.}
+\caption{Control-loop latency on the recorded AMD EPYC 7763 CI runner. Isolated
+controllers use 200 warm-up steps and 2000 measured steps, except MPC with 500
+measured steps. The integrated row uses 5000 steps in each of seven repeats.}
 \label{tab:timing}
 \begin{tabular}{llrrr}
 \toprule
@@ -795,90 +800,38 @@ require a non-Python (C/Rust) control loop, not merely a compiled QP solver. The
 MPC row is therefore reported as a research-grade tick latency, not a real-time
 claim.
 
-\subsection{Competitive Comparison}
+\subsection{Capability Context}
 
-Table~\ref{tab:competitive} compares \textsc{scpn-control}
-against open-source fusion codes.
-
-\begin{table}[tb]
-\centering
-\caption{Comparison with open-source fusion software.}
-\label{tab:competitive}
-\begin{tabular}{lccl}
-\toprule
-Code & GS & RT Control & Language \\
-\midrule
-DIII-D PCS~\cite{ferron1998} & Yes & PID & C/Fortran \\
-TORAX~\cite{fanni2024torax} & Yes & --- & JAX \\
-FreeGS~\cite{freegs} & Yes & --- & Python \\
-DeepMind~\cite{degrave2022} & --- & RL & TF/JAX \\
-\textsc{scpn-control} & Yes & 5 types & Py + Rust \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\textsc{scpn-control} is the only open-source package combining
-equilibrium solving, multiple real-time controller types
-(including SNN), formal contract verification, disruption
-prediction, and a Gymnasium environment in a single installation.
+The related systems solve different problem slices. DIII-D PCS
+demonstrates fielded equilibrium reconstruction and control~\cite{ferron1998};
+TORAX provides differentiable transport~\cite{fanni2024torax}; FreeGS provides
+an open Grad--Shafranov solver~\cite{freegs}; and the TCV work demonstrates
+learned magnetic control~\cite{degrave2022}. The contribution evaluated here is
+the repository's explicit SPN-to-SNN compilation and contract boundary. No
+overall superiority claim follows from this capability difference.
 
 \subsection{Kuramoto Phase Sync: Python vs.\ Rust}
 
-Table~\ref{tab:kuramoto_bench} reports Kuramoto step latency
-for increasing oscillator count $N$.
-
-\begin{table}[tb]
-\centering
-\caption{Kuramoto step latency: Python vs.\ Rust.}
-\label{tab:kuramoto_bench}
-\begin{tabular}{rrrr}
-\toprule
-$N$ & Python (ms) & Rust (ms) & Speedup \\
-\midrule
-64     & 0.050 & 0.003 & $17\times$ \\
-1{,}000  & 0.087 & 0.062 & $1.4\times$ \\
-4{,}096  & 0.328 & 0.180 & $1.8\times$ \\
-16{,}384 & 1.240 & 0.544 & $2.3\times$ \\
-65{,}536 & 5.010 & 1.980 & $2.5\times$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-At $N = 16{,}384$ the Rust backend achieves sub-millisecond
-Kuramoto steps ($0.544$~ms), enabling real-time UPDE solving
-for large oscillator populations.
+The repository includes a side-by-side Python/Rust Kuramoto benchmark over
+increasing oscillator counts. Those observations are useful for local
+regression, but this paper does not reproduce them as a portable speedup claim
+because the legacy table is not accompanied by a sealed raw host-context
+artefact at the manuscript revision.
 
 \subsection{Equilibrium RMSE}
 
-Table~\ref{tab:rmse} reports RMSE against published DIII-D
-shot 164984 and SPARC v2c equilibria in GEQDSK format.
-
-\begin{table}[tb]
-\centering
-\caption{Normalized RMSE against reference equilibria.}
-\label{tab:rmse}
-\begin{tabular}{lcc}
-\toprule
-Profile & DIII-D & SPARC \\
-\midrule
-$\psi(R,Z)$ & $< 1\%$ & $< 1.5\%$ \\
-$p(\rho)$   & $< 2\%$ & $< 2\%$   \\
-$q(\rho)$   & $< 2\%$ & $< 2.5\%$ \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-These RMSE values are CI-gated: if any regression exceeds the
-threshold, the CI pipeline fails and the commit is rejected.
+The repository carries checksum-bound GEQDSK fixtures and regression gates.
+These are software-regression evidence, not independent reconstruction accuracy
+against a current experimental reference code on identical measurements. The
+legacy percentage table is therefore withdrawn from this review draft pending a
+same-case, provenance-complete comparison.
 
 \subsection{Phase Dynamics Convergence}
 
-With $N = 50$ oscillators per layer, $L = 16$ layers,
-$\zeta = 0.5$, and the Paper~27 $K_{nm}$ matrix:
-the order parameter $R$ converges from $R(0) \approx 0.15$ to
-$R(500) = 0.92$ within 500 ticks.  The Lyapunov exponent
-$\lambda$ (Eq.~\ref{eq:lambda}) settles to $-0.47$, confirming
-asymptotic stability of the synchronized state.
+The repository provides deterministic phase-synchronisation scenarios and a
+sliding-window Lyapunov monitor. Their outputs establish reproducible simulated
+behaviour for the configured model only; they do not establish experimental
+plasma stability or an independent fail-closed safety interlock.
 
 
 %% ════════════════════════════════════════════════════════════════
@@ -888,19 +841,11 @@ asymptotic stability of the synchronized state.
 
 \subsection{Python Package}
 
-48 modules organized into four subpackages:
-\texttt{scpn/} (5 modules: SPN graph, compiler, contracts,
-controller, safety interlocks),
-\texttt{core/} (11 modules: GS solver, transport, scaling laws,
-EQDSK I/O, uncertainty),
-\texttt{control/} (17 modules: 5 controller types, digital twin,
-flight sim, Gymnasium env, disruption predictor),
-\texttt{phase/} (7 modules: Kuramoto, UPDE, $K_{nm}$, Lyapunov
-guard, realtime monitor, WebSocket server).
-Core dependencies: \texttt{numpy $\geq 1.24$},
-\texttt{scipy $\geq 1.10$}, \texttt{click $\geq 8.0$}.
-All other dependencies (torch, matplotlib, streamlit, h5py,
-websockets, sc-neurocore, nengo) are optional extras.
+The Python package is organised by responsibility into \texttt{scpn/},
+\texttt{core/}, \texttt{control/}, and \texttt{phase/}, with validation and
+public interfaces outside those implementation packages. Exact module and test
+inventories are generated from the repository tree rather than frozen in the
+manuscript because they change as the software evolves.
 
 \subsection{Rust Workspace}
 \label{sec:rust}
@@ -935,16 +880,17 @@ for all functionality.
 
 \subsection{Testing and CI}
 
-701 tests across 50 files, 61\% line coverage, enforced by
-17 CI jobs:
+The repository runs module-specific Python tests, Rust workspace tests, and
+integration checks across its hosted workflows. The configured Python package
+coverage gate is 100\%; the manuscript does not substitute a historical test or
+workflow count for exact-head CI evidence:
 \begin{itemize}
   \item \textbf{Python}: pytest, ruff, mypy, bandit, coverage
-        ($\geq 55\%$ gate), RMSE regression gates
-        (DIII-D, SPARC, ITER)
+        (100\% configured package gate), scientific regression gates
   \item \textbf{Rust}: \texttt{cargo test}, clippy, fmt, audit,
         Criterion benchmarks (Kuramoto, transport, LIF, Boris)
-  \item \textbf{Integration}: phase-sync benchmark
-        ($N = 1000, 4096$), docs build (MkDocs)
+  \item \textbf{Integration}: named public/runtime paths, documentation builds,
+        and generated-evidence drift checks
 \end{itemize}
 
 
@@ -957,29 +903,30 @@ We state limitations explicitly so they are not overstated
 by inference:
 
 \begin{enumerate}
-  \item \textbf{Equilibrium}: Fixed-boundary Grad--Shafranov only.
-    Free-boundary with external coil currents is not implemented.
-    No stellarator geometry.
-  \item \textbf{Transport}: 1.5D flux-surface-averaged with
-    Chang--Hinton neoclassical + scaling-law anomalous transport.
-    No TGLF or QuaLiKiz micro-instability models.
-  \item \textbf{Validation}: Benchmarked against analytic
-    Solov'ev solutions and published DIII-D/SPARC GEQDSK files.
-    No real MDSplus shot data from active experiments.
-  \item \textbf{Disruption predictor}: Trained on synthetic data
-    only.  Not validated on experimental disruption databases
-    (e.g., DIII-D disruption DB, JET disruption DB).
-  \item \textbf{Deployment}: Research-grade software.
-    Not hardened for production PCS integration.
-    No ITER CODAC, EPICS, or FPGA interface.
+  \item \textbf{Equilibrium}: fixed- and free-boundary implementations are
+    repository software surfaces; independent same-case reconstruction against
+    a current external reference and facility diagnostics remains open.
+  \item \textbf{Transport}: native and adapter surfaces do not establish
+    quantitative equivalence to TGLF, GENE, GS2, CGYRO, or QuaLiKiz without
+    admitted external artefacts on identical inputs. Nonlinear CBC saturation
+    and unit-normalised cross-code agreement remain open.
+  \item \textbf{Validation}: repository fixtures include synthetic and public
+    reference data. Offline replay is not live MDSplus acquisition or a facility
+    experiment, and no fielded PCS validation is claimed.
+  \item \textbf{Disruption prediction}: available measured-shot evidence is
+    offline and dataset-bounded; it is not a deployed predictor or actuator
+    authority.
+  \item \textbf{Deployment}: CODAC, EPICS, IMAS, HDL-export, and hardware-facing
+    adapters are integration surfaces, not proof of installation, post-route
+    timing, HIL operation, or certified plant control.
   \item \textbf{Plasma $K_{nm}$ calibration}: Coupling strengths
     are order-of-magnitude estimates derived from published
     scalings, not fitted to experimental multi-diagnostic
     correlation data.  Real-time adaptive mode requires
     closing the diagnostic-to-coupling loop.
-  \item \textbf{Rust acceleration}: Optional.
-    Pure-Python fallback is 5--10$\times$ slower for GS solve
-    and $2$--$3\times$ slower for Kuramoto steps at $N > 1000$.
+  \item \textbf{Rust acceleration}: optional acceleration is reported only
+    where paired, host-labelled artefacts exist. Performance does not imply
+    mathematical parity outside the explicitly tested path.
 \end{enumerate}
 
 
@@ -993,17 +940,12 @@ that compiles Stochastic Petri Nets into spiking neural network
 controllers through a formal pipeline preserving contract
 verification at every control tick.
 
-The key technical results are:
-(i) control logic is specified declaratively as a Petri net graph
-and compiled automatically into LIF neuron pools;
-(ii) every control action is contract-verified before reaching the
-plant, with five physics invariants monitored at runtime;
-(iii) the Rust-accelerated SNN achieves \SI{2.1}{\micro\second}
-P50 latency, exceeding the DIII-D PCS rate by ${\sim}50\times$;
-(iv) the 16-layer UPDE phase engine with Lyapunov monitoring
-converges to $R = 0.92$ (from $R_0 = 0.15$) with
-$\lambda = -0.47$ under Paper~27 $K_{nm}$ coupling;
-(v) a plasma-native 8-layer $K_{nm}$ grounded in
+The technical result is an inspectable compilation-and-contract architecture:
+control logic is specified as a Petri-net graph, compiled into LIF neuron pools,
+and checked at the observation/action boundary. The committed host-labelled
+benchmarks show microsecond-scale controller-side native handoff on their named
+machines, but do not compare end-to-end facility loops. The phase engine adds a
+plasma-native 8-layer $K_{nm}$ grounded in
 drift-wave/zonal-flow~\cite{diamond2005},
 NTM/bootstrap-current~\cite{lahaye2006}, and
 ELM/pedestal interactions, with machine-parameter scaling
@@ -1017,18 +959,14 @@ Future work targets:
         scattering, soft X-ray) to per-tick coupling updates,
         making $K_{nm}(t)$ a function of the instantaneous
         plasma state rather than a static operating-point selection
-  \item Free-boundary GS with external coil current optimization
-  \item TGLF/QuaLiKiz turbulence closure via neural surrogates
-  \item Validation on real MDSplus shot data (DIII-D, EAST)
-  \item FPGA deployment via the \texttt{sc-neurocore} HDL backend
-        for sub-microsecond latency
-  \item Integration with IMAS/OMAS for cross-device portability
+  \item Same-case independent equilibrium and transport-code comparison
+  \item Shot-disjoint measured-data validation with uncertainty and failure accounting
+  \item Named-target post-route and hardware-in-the-loop evidence
+  \item Facility-approved non-actuating shadow operation
 \end{itemize}
 
-The software is MIT/Apache-2.0 dual-licensed and available at
-\url{https://github.com/anulum/scpn-control} with a live
-dashboard at \url{https://scpn-control.streamlit.app} and
-archived at \url{https://doi.org/10.5281/zenodo.18804940}.
+The software is available at \url{https://github.com/anulum/scpn-control}
+under AGPL-3.0-or-later, with a separate commercial licence available.
 
 %% ════════════════════════════════════════════════════════════════
 \begin{acknowledgments}
@@ -1039,7 +977,7 @@ the DIII-D team for published GEQDSK data, and the Commonwealth
 Fusion Systems team for SPARC equilibrium parameters.
 \end{acknowledgments}
 
-\bibliography{scpn_control}
+\bibliography{references}
 \bibliographystyle{apsrev4-2}
 
 \end{document}

@@ -97,13 +97,13 @@
       "unit_contract": "Gyro-Bohm-normalised heat flux and chi_i with explicit R/L_Ti, rho_s, c_s, and reference gradient normalisation.",
       "validation_evidence": [
         "ROADMAP.md v0.18.0 open revalidation item",
-        "docs/joss_paper.md nonlinear GK validation limitation",
+        "papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md nonlinear GK validation limitation",
         "validation/gk_nonlinear_cyclone.py saturation-evidence assessor",
         "validation/reference_data/cyclone_base/cyclone_nonlinear_chi_i_reference.json obtained published cross-code reference (Dimits et al. 2000, verified at source): offset-linear fit chi_i L_n/(rho_i^2 v_ti) = 15.4(1 - 6.0 L_T/R) giving ~2.0 at R/L_T=6.9, Dimits shift (linear critical R/L_T ~4.0, nonlinear effective ~6.0), and cross-model factors, with an explicit unit-conversion caveat to the module's chi_i_gB normalisation"
       ],
       "evidence_paths": [
         "ROADMAP.md",
-        "docs/joss_paper.md",
+        "papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md",
         "src/scpn_control/core/gk_nonlinear.py",
         "validation/gk_nonlinear_cyclone.py",
         "validation/reference_data/cyclone_base/cyclone_nonlinear_chi_i_reference.json",
@@ -344,11 +344,11 @@
       ],
       "unit_contract": "Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata.",
       "validation_evidence": [
-        "docs/joss_paper.md external GK limitation",
+        "papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md external GK limitation",
         "validation/validate_gk_interface_artifacts.py strict digest-bound external interface artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate code/run rejection, and blocked public-claim state"
       ],
       "evidence_paths": [
-        "docs/joss_paper.md",
+        "papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md",
         "tests/test_gk_interface_artifact_validation.py",
         "validation/validate_gk_interface_artifacts.py",
         "validation/reports/gk_interface_artifacts.json",
