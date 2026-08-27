@@ -9,12 +9,14 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import os
-from dataclasses import asdict
-from pathlib import Path
+import shlex
 import sys
 import time
+from dataclasses import asdict
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -83,7 +85,7 @@ def _blocked_payload(reason: str) -> dict[str, Any]:
     }
 
 
-def _write_markdown(payload: dict[str, Any]) -> None:
+def _write_markdown(payload: dict[str, Any], path: Path) -> None:
     status = str(payload["status"])
     readiness = payload.get("readiness", {})
     raw_blocked_reasons = readiness.get("blocked_reasons", []) if isinstance(readiness, dict) else []
@@ -128,12 +130,42 @@ def _write_markdown(payload: dict[str, Any]) -> None:
                 "a hardware benchmark, real-time guarantee, or facility-control claim.",
             ]
         )
-    MD_REPORT.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
-def main() -> None:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--json-out",
+        type=Path,
+        default=JSON_REPORT,
+        help="JSON evidence output (default: validation/reports/differentiable_scenario_readiness.json)",
+    )
+    parser.add_argument(
+        "--md-out",
+        type=Path,
+        default=MD_REPORT,
+        help="Markdown evidence output (default: validation/reports/differentiable_scenario_readiness.md)",
+    )
+    return parser.parse_args(argv)
+
+
+def _producer_command(json_out: Path, md_out: Path) -> str:
+    return shlex.join(
+        [
+            "python",
+            "validation/benchmark_differentiable_scenario.py",
+            "--json-out",
+            str(json_out),
+            "--md-out",
+            str(md_out),
+        ]
+    )
+
+
+def main(argv: list[str] | None = None) -> int:
     """Generate differentiable-scenario readiness evidence."""
-
     from scpn_control.core.differentiable_scenario import (
         assert_differentiable_scenario_gradient_consistent,
         differentiable_scenario_readiness_evidence,
@@ -141,12 +173,15 @@ def main() -> None:
         scenario_campaign_metadata,
     )
 
-    REPORT_DIR.mkdir(parents=True, exist_ok=True)
+    args = _parse_args(argv)
+    json_out = Path(args.json_out)
+    md_out = Path(args.md_out)
+    json_out.parent.mkdir(parents=True, exist_ok=True)
     if not has_jax():
         payload = _blocked_payload("JAX is required for coupled differentiable scenario gradient evidence")
-        JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        _write_markdown(payload)
-        return
+        json_out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_markdown(payload, md_out)
+        return 0
 
     params, profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge = _scenario_fixture()
     tolerance = 5.0e-4
@@ -212,7 +247,7 @@ def main() -> None:
         "gradient_audit": asdict(audit),
         "readiness": asdict(readiness),
         "benchmark_context": {
-            "command": "python validation/benchmark_differentiable_scenario.py",
+            "command": _producer_command(json_out, md_out),
             "isolation": "local_non_isolated_admission_smoke",
             "warmup_runs": 1,
             "timed_runs": len(durations_ms),
@@ -221,8 +256,9 @@ def main() -> None:
             "loadavg_after": load_after,
         },
     }
-    JSON_REPORT.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    _write_markdown(payload)
+    json_out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    _write_markdown(payload, md_out)
+    return 0
 
 
 if __name__ == "__main__":
