@@ -19,6 +19,10 @@ import sys
 import time
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def install_jax():
     """Install JAX with CUDA support."""
@@ -222,6 +226,8 @@ def run_tglf_native():
 
 def main():
     out_dir = Path("gpu_results")
+    out_path = out_dir / "gk_nonlinear_cbc_gpu.json"
+    require_recorded_campaign(out_path, repository_root=REPO_ROOT)
     out_dir.mkdir(exist_ok=True)
 
     report = {"timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())}
@@ -245,7 +251,6 @@ def main():
     report["nonlinear_jax_2000"] = run_nonlinear_jax(2000, "jax_2000")
 
     # Save
-    out_path = out_dir / "gk_nonlinear_cbc_gpu.json"
     out_path.write_text(json.dumps(report, indent=2))
     print(f"\n=== Report saved to {out_path} ===")
     print(json.dumps({k: v.get("elapsed_s", "?") if isinstance(v, dict) else v for k, v in report.items()}, indent=2))

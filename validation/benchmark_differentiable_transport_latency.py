@@ -21,6 +21,7 @@ import numpy.typing as npt
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.differentiable_transport import (
     benchmark_transport_parameter_gradient_latency,
     benchmark_transport_rollout_source_gradient_latency,
@@ -70,6 +71,15 @@ def _controller_formal_digest(report_path: Path = FORMAL_REPORT) -> str | None:
 
 
 def main() -> None:
+    require_recorded_campaign(
+        JSON_REPORT,
+        MD_REPORT,
+        ROLLOUT_JSON_REPORT,
+        ROLLOUT_MD_REPORT,
+        READINESS_JSON_REPORT,
+        READINESS_MD_REPORT,
+        repository_root=REPORT_DIR.parents[1],
+    )
     """Run local audited transport-gradient latency benchmark and write reports."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     if not has_jax():

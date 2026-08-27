@@ -25,6 +25,7 @@ if str(ROOT / "src") not in sys.path:
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.jax_gk_solver import JAX_GK_PARITY_CASES, has_jax, write_jax_gk_parity_artifact
 from validation.validate_jax_gk_parity import validate_jax_gk_parity
 
@@ -177,6 +178,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     artifact_root = Path(args.artifact_root)
+    benchmark_json = Path(args.benchmark_json_out)
+    benchmark_markdown = Path(args.benchmark_report_out)
+    require_recorded_campaign(artifact_root, benchmark_json, benchmark_markdown, repository_root=ROOT)
     if not has_jax():
         report = {
             "status": "blocked",
@@ -228,7 +232,7 @@ def main(argv: list[str] | None = None) -> int:
         total_elapsed_s=time.perf_counter() - total_start,
         cases=cases,
     )
-    write_benchmark_report(benchmark_report, Path(args.benchmark_json_out), Path(args.benchmark_report_out))
+    write_benchmark_report(benchmark_report, benchmark_json, benchmark_markdown)
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

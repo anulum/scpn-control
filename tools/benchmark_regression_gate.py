@@ -36,6 +36,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
 try:
     import tomllib
 except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
@@ -332,6 +334,8 @@ def main(argv: list[str] | None = None) -> int:
         "runners whose CPU differs from the declared-hardware baseline).",
     )
     args = parser.parse_args(argv)
+    if args.json_out is not None:
+        require_recorded_campaign(args.json_out, repository_root=REPO_ROOT)
 
     # Missing-evidence fail-closed: an absent report or baseline is a failure,
     # not a skip.

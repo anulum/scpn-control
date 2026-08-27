@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.mu_synthesis import (
     MuSynthesisController,
     StructuredUncertainty,
@@ -28,6 +29,7 @@ MARKDOWN_REPORT = REPORT_DIR / "mu_synthesis_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     plant = (
         np.array([[-1.4, 0.2], [-0.1, -0.9]], dtype=float),
         np.eye(2),

@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.rwm_feedback import (
     RWMFeedbackController,
     RWMPhysics,
@@ -25,6 +26,7 @@ MD_REPORT = REPORT_DIR / "rwm_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded RWM claim-admission benchmark and write reports."""
 
     rwm = RWMPhysics(

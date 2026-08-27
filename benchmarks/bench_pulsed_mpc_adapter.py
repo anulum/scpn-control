@@ -22,6 +22,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec
 from scpn_control.control.fusion_neural_mpc import ModelPredictiveController, NeuralSurrogate, PulsedShotMPCAdapter
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
@@ -298,6 +299,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
 
     payload: dict[str, Any] = {
         "schema_version": "scpn-control.pulsed-mpc-adapter-benchmark.v1.1",
+        "campaign_id": os.environ.get("SCPN_BENCHMARK_CAMPAIGN_ID"),
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "command": " ".join(sys.argv),
         "evidence_class": args.evidence_class,
@@ -327,6 +329,10 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
+    require_recorded_campaign(
+        *(path for path in (args.json_out, args.md_out) if path is not None),
+        repository_root=Path(__file__).resolve().parents[1],
+    )
 
     payload = run(args)
     if args.json_out is not None:

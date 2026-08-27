@@ -162,7 +162,11 @@ speedup against the Python reference, and the cross-language ledger parity
 (maximum relative difference between the two implementations):
 
 ```bash
-PYTHONPATH=src python benchmarks/bench_capacitor_bank_energy.py \
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family capacitor-bank-python \
+  --artifact report=benchmarks/results/capacitor_bank_energy.json \
+  --artifact markdown=benchmarks/results/capacitor_bank_energy.md \
+  -- python benchmarks/bench_capacitor_bank_energy.py \
   --steps 500 --warmup 50 --discharge-steps 200 --dt-s 1.0e-7 \
   --json-out benchmarks/results/capacitor_bank_energy.json \
   --markdown-out benchmarks/results/capacitor_bank_energy.md

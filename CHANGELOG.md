@@ -7,6 +7,10 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Added append-only benchmark custody across the Python, Rust, and polyglot
+  producer inventory: persistent runs are sealed before `latest` selection,
+  failed and legacy artifacts remain retained, and baseline changes require a
+  separate digest-verified promotion command.
 - Reframed the mixed repository validator as a bounded reference-evidence
   campaign with side-effect-free CLI help, per-lane evidence classes, and
   independent provenance, computational, physics, real-shot, facility, public,

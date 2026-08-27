@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.halo_re_physics import (
     disruption_mitigation_claim_evidence,
     run_disruption_ensemble,
@@ -32,6 +33,7 @@ def _json_default(value: object) -> object:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded disruption-mitigation claim benchmark."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     seed = 20240531

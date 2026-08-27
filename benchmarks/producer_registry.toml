@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Benchmark producer custody registry
+
+schema_version = "scpn-control.benchmark-producer-registry.v1"
+
+# Persistent outputs fail closed unless the immutable recorded runner owns the
+# shared campaign. Fixed filenames are compatibility materialisations, not the
+# sole evidence copy.
+recorded_guard = [
+  "benchmarks/bench_aer_observation.py",
+  "benchmarks/bench_capacitor_bank_energy.py",
+  "benchmarks/bench_multi_shot_campaign.py",
+  "benchmarks/bench_pulsed_mpc_adapter.py",
+  "benchmarks/bench_pulsed_scenario_scheduler.py",
+  "benchmarks/bench_runtime_admission.py",
+  "benchmarks/controller_latency.py",
+  "benchmarks/e2e_control_latency.py",
+  "benchmarks/rl_vs_classical.py",
+  "scripts/benchmark_native_formal_modes.py",
+  "scripts/benchmark_native_handoff.py",
+  "tools/benchmark_regression_gate.py",
+  "tools/gpu_cbc_benchmark.py",
+  "tools/run_benchmark_suite.py",
+  "validation/benchmark_burn_control_claims.py",
+  "validation/benchmark_capacitor_bank_state.py",
+  "validation/benchmark_current_drive_claims.py",
+  "validation/benchmark_density_control_claims.py",
+  "validation/benchmark_differentiable_scenario.py",
+  "validation/benchmark_differentiable_transport_latency.py",
+  "validation/benchmark_digital_twin_online_update.py",
+  "validation/benchmark_disruption_mitigation_claims.py",
+  "validation/benchmark_disturbance_rejection.py",
+  "validation/benchmark_efit_lite_claims.py",
+  "validation/benchmark_federated_disruption.py",
+  "validation/benchmark_free_boundary.py",
+  "validation/benchmark_free_boundary_tracking_claims.py",
+  "validation/benchmark_gk_linear.py",
+  "validation/benchmark_gk_online_learner.py",
+  "validation/benchmark_hybrid_accuracy.py",
+  "validation/benchmark_integrated_scenario_coupling.py",
+  "validation/benchmark_jax_gk_parity.py",
+  "validation/benchmark_kinetic_efit_claims.py",
+  "validation/benchmark_kuramoto_runtime_evidence.py",
+  "validation/benchmark_marfe_onset_claims.py",
+  "validation/benchmark_mu_synthesis_claims.py",
+  "validation/benchmark_neural_equilibrium_pretraining.py",
+  "validation/benchmark_neural_transport_claims.py",
+  "validation/benchmark_neural_turbulence_claims.py",
+  "validation/benchmark_orbit_following_claims.py",
+  "validation/benchmark_rwm_claims.py",
+  "validation/benchmark_rzip_calibration.py",
+  "validation/benchmark_transport.py",
+  "validation/benchmark_uq_claims.py",
+  "validation/benchmark_vmec_lite_claims.py",
+  "validation/benchmark_volt_second_claims.py",
+  "validation/code_to_code_benchmark.py",
+  "validation/control_benchmark_suite.py",
+  "validation/scpn_pid_mpc_benchmark.py",
+  "scpn-control-rs/crates/control-control/examples/bench_capacitor_bank_energy.rs",
+  "scpn-control-rs/crates/control-control/examples/bench_multi_shot_campaign.rs",
+  "scpn-control-rs/crates/control-control/examples/bench_pulsed_mpc_adapter.rs",
+]
+
+# Each line is already one self-contained append-only observation.
+append_stream = ["scripts/udp_fault_tolerance_benchmark.py"]
+
+# These tools deliberately write disposable local scratch, never canonical
+# validation evidence.
+temporary_scratch = ["tools/gk_convergence_benchmark.py"]
+
+# Criterion state and stdout-only measurements are reproducible build/runtime
+# products. They become durable evidence only when an outer recorded campaign
+# declares an artifact.
+stdout_or_build_product = [
+  "scpn-control-rs/benches/bench_boris.rs",
+  "scpn-control-rs/benches/bench_kuramoto.rs",
+  "scpn-control-rs/benches/bench_lif.rs",
+  "scpn-control-rs/benches/bench_transport.rs",
+  "scpn-control-rs/crates/control-control/examples/bench_pulsed_scenario_scheduler.rs",
+  "scpn-control-rs/crates/control-python/src/bin/transport_bench.rs",
+  "tools/benchmark_full_stack.py",
+]
+
+# Infrastructure owns custody or baseline state rather than producing a timed
+# measurement itself.
+custody_infrastructure = [
+  "tools/promote_benchmark_baseline.py",
+  "tools/run_recorded_benchmark.py",
+]

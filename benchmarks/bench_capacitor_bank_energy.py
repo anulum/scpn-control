@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec
 
 
@@ -256,11 +257,16 @@ def main() -> int:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--markdown-out", type=Path)
     args = parser.parse_args()
+    require_recorded_campaign(
+        *(path for path in (args.json_out, args.markdown_out) if path is not None),
+        repository_root=Path(__file__).resolve().parents[1],
+    )
 
     load_start = _loadavg()
     result = _measure(steps=args.steps, warmup=args.warmup, discharge_steps=args.discharge_steps, dt_s=args.dt_s)
     payload: dict[str, Any] = {
         "schema_version": "scpn-control.capacitor-bank-energy-benchmark.v1",
+        "campaign_id": os.environ.get("SCPN_BENCHMARK_CAMPAIGN_ID"),
         "generated_utc": datetime.now(timezone.utc).isoformat(),
         "evidence_class": args.evidence_class,
         "production_claim_allowed": False,

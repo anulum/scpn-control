@@ -16,6 +16,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
 from scpn_control.control.free_boundary_tracking_claims import (
     free_boundary_tracking_claim_evidence,
@@ -130,6 +131,7 @@ class _BenchmarkFreeBoundaryKernel:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     summary = run_free_boundary_tracking(
         "validation/free_boundary_tracking_claims_fixture.json",
         kernel_factory=_BenchmarkFreeBoundaryKernel,

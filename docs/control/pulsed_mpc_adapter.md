@@ -190,7 +190,13 @@ admitted pulsed-MPC action.
 Use local regression benchmarks to catch Python/Rust adapter drift:
 
 ```bash
-taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_pulsed_mpc_adapter.py \
+campaign="$(date -u +%Y%m%dT%H%M%S.%NZ)-pulsed-mpc"
+taskset -c 4,5 env PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family pulsed-mpc-python \
+  --campaign-id "$campaign" \
+  --artifact report=validation/reports/pulsed_mpc_adapter_soft_isolated.json \
+  --artifact markdown=validation/reports/pulsed_mpc_adapter_soft_isolated.md \
+  -- python benchmarks/bench_pulsed_mpc_adapter.py \
   --steps 2000 \
   --warmup 200 \
   --evidence-class local_regression \
@@ -205,7 +211,12 @@ load, explicit core isolation metadata, and target-hardware evidence.
 When PyO3 is unavailable, run the native Rust benchmark directly:
 
 ```bash
-cargo run --manifest-path scpn-control-rs/Cargo.toml \
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family pulsed-mpc-rust \
+  --campaign-id "$campaign" \
+  --artifact report=validation/reports/pulsed_mpc_adapter_rust_local_regression.json \
+  --artifact markdown=validation/reports/pulsed_mpc_adapter_rust_local_regression.md \
+  -- cargo run --manifest-path scpn-control-rs/Cargo.toml \
   -p control-control \
   --example bench_pulsed_mpc_adapter \
   --release \

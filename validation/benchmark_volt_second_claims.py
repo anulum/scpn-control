@@ -12,6 +12,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.volt_second_manager import (
     FluxBudget,
     ScenarioFluxAnalysis,
@@ -25,6 +26,7 @@ MARKDOWN_REPORT = REPORT_DIR / "volt_second_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(
         ramp_dur=80.0,

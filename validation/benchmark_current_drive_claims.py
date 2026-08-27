@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.current_drive import (
     CurrentDriveMix,
     ECCDSource,
@@ -29,6 +30,7 @@ MARKDOWN_REPORT = REPORT_DIR / "current_drive_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     rho = np.linspace(0.0, 1.0, 80)
     ne = 7.0 - 2.0 * rho**2
     te = 12.0 - 6.0 * rho**1.5

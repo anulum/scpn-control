@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.realtime_efit import MagneticDiagnostics
 from scpn_control.core.kinetic_efit import (
     FastIonPressure,
@@ -43,6 +44,7 @@ def build_reference_case() -> tuple[KineticEFIT, KineticConstraints, FastIonPres
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     kefit, kinetic, fast_ions = build_reference_case()
     result = kefit.reconstruct({})
     evidence = kinetic_efit_claim_evidence(

@@ -20,11 +20,14 @@ threshold models, and empirical scaling laws.
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.integrated_transport_solver import TransportSolver
 from scpn_control.core.neural_transport import NeuralTransportModel, TransportInputs
 from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
@@ -43,7 +46,9 @@ def run_pure_diffusion_benchmark(nr: int = 200) -> dict[str, Any]:
         "coils": [],
         "solver": {"max_iterations": 1, "convergence_threshold": 1.0, "max_iterations_outer": 1},
     }
-    cfg_path = Path("tmp_bench_cfg.json")
+    descriptor, raw_path = tempfile.mkstemp(prefix="scpn-control-transport-", suffix=".json")
+    os.close(descriptor)
+    cfg_path = Path(raw_path)
     cfg_path.write_text(json.dumps(cfg))
 
     try:
@@ -122,6 +127,10 @@ def run_iter_scaling_benchmark() -> dict[str, Any]:
 
 
 def main() -> None:
+    report_dir = Path("validation/reports")
+    json_path = report_dir / "transport_benchmark.json"
+    markdown_path = report_dir / "transport_benchmark.md"
+    require_recorded_campaign(json_path, markdown_path, repository_root=Path(__file__).resolve().parents[1])
     results = {
         "pure_diffusion": run_pure_diffusion_benchmark(),
         "threshold": run_threshold_benchmark(),
@@ -133,13 +142,12 @@ def main() -> None:
         f"DEBUG Core: actual={pd['core_actual']:.4f}, analytic={pd['core_analytic']:.4f}, err={pd['max_relative_error']:.2%}"
     )
 
-    report_dir = Path("validation/reports")
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(report_dir / "transport_benchmark.json", "w") as f:
+    with json_path.open("w") as f:
         json.dump(results, f, indent=2)
 
-    with open(report_dir / "transport_benchmark.md", "w") as f:
+    with markdown_path.open("w") as f:
         f.write("# Transport Validation Benchmark\n\n")
         f.write("| Test | Metric | Result | Pass |\n")
         f.write("|------|--------|--------|------|\n")

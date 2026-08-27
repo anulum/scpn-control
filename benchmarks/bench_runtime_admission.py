@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.runtime_admission import RuntimeAdmissionRequest, collect_runtime_admission
 
 
@@ -113,6 +114,10 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
+    require_recorded_campaign(
+        *(path for path in (args.json_out, args.md_out) if path is not None),
+        repository_root=Path(__file__).resolve().parents[1],
+    )
 
     loadavg_start = _loadavg()
     request = RuntimeAdmissionRequest(

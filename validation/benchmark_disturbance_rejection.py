@@ -80,6 +80,8 @@ from scipy.integrate import trapezoid
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
 # ---------------------------------------------------------------------------
 # Defensive imports for controller modules
 # ---------------------------------------------------------------------------
@@ -1073,6 +1075,9 @@ def main(output_dir: Optional[str] = None) -> None:
         out_path = REPO_ROOT / "artifacts"
     else:
         out_path = Path(output_dir)
+    json_path = out_path / "benchmark_disturbance_rejection.json"
+    md_path = out_path / "benchmark_disturbance_rejection.md"
+    require_recorded_campaign(json_path, md_path, repository_root=REPO_ROOT)
     out_path.mkdir(parents=True, exist_ok=True)
 
     print("=" * 72)
@@ -1126,14 +1131,12 @@ def main(output_dir: Optional[str] = None) -> None:
     # --- Write artifacts ---
 
     # JSON
-    json_path = out_path / "benchmark_disturbance_rejection.json"
     json_data = generate_json_results(all_metrics)
     with open(json_path, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=2, default=str)
     print(f"JSON results written to: {json_path}")
 
     # Markdown
-    md_path = out_path / "benchmark_disturbance_rejection.md"
     md_content = generate_markdown_report(all_metrics)
     with open(md_path, "w", encoding="utf-8") as f:
         f.write(md_content)

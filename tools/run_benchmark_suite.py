@@ -5,7 +5,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — polyglot benchmark suite runner and baseline writer.
+# SCPN Control — polyglot benchmark suite runner.
 """Run the registered Python/Rust comparison benchmarks and emit a gate report.
 
 This produces the canonical `scpn-control.benchmark-regression.v1` document that
@@ -17,8 +17,8 @@ peak RSS, and whether the Rust backend was available).
 Measurement is delegated to the existing, validated benchmark harnesses under
 `benchmarks/` so the suite does not re-implement timing; the runner only
 normalises their per-language statistics into the gate schema and stamps
-provenance. With `--write-baseline` the same metrics are written as a baseline
-document (`scpn-control.benchmark-baseline.v1`) with a tamper-detection digest.
+provenance. Baseline updates are deliberately outside this command; only the
+digest-verifying explicit promotion tool may change a regression baseline.
 """
 
 from __future__ import annotations
@@ -36,14 +36,16 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
 
+from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign
+
 try:
     import resource
 except ModuleNotFoundError:  # pragma: no cover - resource is Unix-only (absent on Windows).
     resource = None  # type: ignore[assignment]
 
-try:
+if sys.version_info >= (3, 11):
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
+else:  # pragma: no cover - exercised on Python 3.10 CI.
     import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -65,7 +67,6 @@ def _ensure_repo_on_path(search_path: list[str] | None = None) -> None:
 _ensure_repo_on_path()
 
 REPORT_SCHEMA = "scpn-control.benchmark-regression.v1"
-BASELINE_SCHEMA = "scpn-control.benchmark-baseline.v1"
 
 
 def _cpu_model() -> str:
@@ -181,12 +182,8 @@ def _payload_digest(payload: dict[str, Any]) -> str:
     return hashlib.sha256(serialised).hexdigest()
 
 
-def _canonical_metrics_digest(benchmarks: dict[str, Any]) -> str:
-    serialised = json.dumps(benchmarks, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(serialised).hexdigest()
-
-
 def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str, generated_utc: str) -> dict[str, Any]:
+    """Run selected benchmark adapters and assemble a digest-bound report."""
     load_start = _loadavg()
     benchmarks: dict[str, Any] = {}
     rust_seen = False
@@ -199,6 +196,7 @@ def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str,
         }
     report = {
         "schema_version": REPORT_SCHEMA,
+        "campaign_id": os.environ.get(CAMPAIGN_ENV),
         "generated_utc": generated_utc,
         "evidence_class": evidence_class,
         "production_claim_allowed": False,
@@ -222,41 +220,21 @@ def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str,
     return report
 
 
-def report_to_baseline(report: dict[str, Any], *, suite: str) -> dict[str, Any]:
-    """Convert a fresh report into an admitted baseline with a tamper digest."""
-    benchmarks = report["benchmarks"]
-    baseline = {
-        "schema_version": BASELINE_SCHEMA,
-        "suite": suite,
-        "baseline_commit": report["provenance"]["commit"],
-        "measured_utc": report["generated_utc"],
-        "evidence_class": report["evidence_class"],
-        "production_claim_allowed": False,
-        "provenance": report["provenance"],
-        "benchmarks": benchmarks,
-    }
-    baseline["baseline_sha256"] = _canonical_metrics_digest(benchmarks)
-    return baseline
-
-
 def main(argv: list[str] | None = None) -> int:
+    """Run the command-line benchmark suite and optionally write its report."""
     parser = argparse.ArgumentParser(description="Run the polyglot benchmark suite.")
     parser.add_argument("--benchmarks", nargs="*", default=list(BENCHMARKS))
     parser.add_argument("--steps", type=int, default=400)
     parser.add_argument("--warmup", type=int, default=40)
     parser.add_argument("--evidence-class", default="local_regression")
     parser.add_argument("--json-out", type=Path)
-    parser.add_argument(
-        "--write-baseline",
-        type=Path,
-        help="Also write the metrics as a baseline document to this path.",
-    )
-    parser.add_argument("--suite", default="capacitor_bank")
     args = parser.parse_args(argv)
 
     unknown = [b for b in args.benchmarks if b not in BENCHMARKS]
     if unknown:
         parser.error(f"unknown benchmark(s): {', '.join(unknown)}")
+    if args.json_out is not None:
+        require_recorded_campaign(args.json_out, repository_root=REPO_ROOT)
 
     report = run_suite(
         names=args.benchmarks,
@@ -269,11 +247,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json_out is not None:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)
         args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if args.write_baseline is not None:
-        baseline = report_to_baseline(report, suite=args.suite)
-        args.write_baseline.parent.mkdir(parents=True, exist_ok=True)
-        args.write_baseline.write_text(json.dumps(baseline, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if args.json_out is None and args.write_baseline is None:
+    if args.json_out is None:
         print(json.dumps(report, indent=2, sort_keys=True))
     return 0
 

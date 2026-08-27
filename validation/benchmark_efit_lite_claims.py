@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.realtime_efit import (
     MagneticDiagnostics,
     RealtimeEFIT,
@@ -27,6 +28,7 @@ MD_REPORT = REPORT_DIR / "efit_lite_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded EFIT-lite claim benchmark and write reports."""
 
     diagnostics = MagneticDiagnostics(

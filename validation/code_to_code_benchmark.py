@@ -57,6 +57,8 @@ def _ensure_repo_src_on_path() -> None:
 
 _ensure_repo_src_on_path()
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
 
 # ── Scenario Definition ──────────────────────────────────────────────
 
@@ -535,6 +537,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    require_recorded_campaign(args.json_out, args.markdown_out, repository_root=Path(__file__).resolve().parents[1])
     with_torax = bool(args.with_torax)
 
     print(f"Running code-to-code benchmark: {ITER_SCENARIO['name']}")

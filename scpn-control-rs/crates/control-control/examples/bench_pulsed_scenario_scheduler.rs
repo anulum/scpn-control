@@ -155,6 +155,10 @@ fn stats(samples_ns: &[u128]) -> Value {
 
 fn main() {
     let args = env::args().collect::<Vec<_>>();
+    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        println!("Usage: bench_pulsed_scenario_scheduler [--iterations N] [--warmup N]");
+        return;
+    }
     let iterations = arg_usize(&args, "--iterations", 50_000);
     let warmup = arg_usize(&args, "--warmup", 2_000);
     assert!(iterations > 0, "--iterations must be >= 1");
@@ -171,6 +175,7 @@ fn main() {
     }
     let payload = json!({
         "schema_version": "scpn-control.rust-pulsed-scenario-scheduler-benchmark.v1",
+        "campaign_id": env::var("SCPN_BENCHMARK_CAMPAIGN_ID").ok(),
         "evidence_class": "local_proxy",
         "production_claim_allowed": false,
         "public_claim_allowed": false,

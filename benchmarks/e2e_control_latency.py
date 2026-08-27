@@ -44,6 +44,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from validation.validate_e2e_latency_evidence import build_e2e_latency_evidence_payload
 
 
@@ -210,6 +211,8 @@ def main() -> None:
     )
     parser.add_argument("--rt-kernel", default="unknown", help="Real-time kernel or scheduler evidence label")
     args = parser.parse_args()
+    if args.output_json is not None:
+        require_recorded_campaign(args.output_json, repository_root=Path(__file__).resolve().parents[1])
     command = shlex.join([Path(sys.executable).name, *sys.argv])
     loadavg_start = _loadavg()
 

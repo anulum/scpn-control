@@ -13,6 +13,7 @@ lint:
 	ruff check src/ tests/
 	ruff format --check src/ tests/
 	python tools/check_changelog_sync.py
+	python tools/check_benchmark_producers.py
 	python tools/run_docstring_gate.py
 
 fmt:
@@ -50,7 +51,7 @@ bench-rust:
 	cd scpn-control-rs && cargo bench --workspace
 
 bench-native-handoff:
-	PYTHONPATH=src .venv/bin/python scripts/benchmark_native_handoff.py --steps 5000 --tick-interval-s 0.0001 --transport-backend std
+	PYTHONPATH=src .venv/bin/python tools/run_recorded_benchmark.py --family native-handoff --artifact report=artifacts/benchmarks/native_handoff_comparison.json --artifact markdown=artifacts/benchmarks/native_handoff_comparison.md -- .venv/bin/python scripts/benchmark_native_handoff.py --steps 5000 --tick-interval-s 0.0001 --transport-backend std --json-out artifacts/benchmarks/native_handoff_comparison.json --markdown-out artifacts/benchmarks/native_handoff_comparison.md
 
 bridge:
 	cd scpn-control-rs/crates/control-python && maturin develop --release

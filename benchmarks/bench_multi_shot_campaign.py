@@ -23,6 +23,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.capacitor_bank_state import CapacitorBankSpec
 from scpn_control.control.multi_shot_campaign import CampaignShotPlan, CampaignShotSample, MultiShotCampaignOrchestrator
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
@@ -309,6 +310,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
     pyo3_result, pyo3_status = _pyo3_measurement(shots, steps=args.steps, warmup=args.warmup)
     payload: dict[str, Any] = {
         "schema_version": "scpn-control.multi-shot-campaign-benchmark.v1.1",
+        "campaign_id": os.environ.get("SCPN_BENCHMARK_CAMPAIGN_ID"),
         "generated_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "command": " ".join(sys.argv),
         "evidence_class": args.evidence_class,
@@ -342,6 +344,10 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
+    require_recorded_campaign(
+        *(path for path in (args.json_out, args.md_out) if path is not None),
+        repository_root=Path(__file__).resolve().parents[1],
+    )
 
     payload = run(args)
     if args.json_out is not None:

@@ -47,6 +47,8 @@ jobs:
           . .venv/bin/activate
           cd scpn-control-rs/crates/control-python
           python -m maturin develop --release
+      - name: Bind one campaign across Python and Rust evidence
+        run: echo "SCPN_BENCHMARK_CAMPAIGN_ID=$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
       - name: Build acados + install casadi (optional MPC backends)
         continue-on-error: true
         run: |
@@ -64,32 +66,46 @@ jobs:
       - name: Run benchmark suite
         run: |
           . .venv/bin/activate
-          PYTHONPATH=$PWD/src python tools/run_benchmark_suite.py \
-            --steps 400 --warmup 40 \
-            --json-out artifacts/benchmarks/suite_report.json
+          PYTHONPATH=$PWD/src python tools/run_recorded_benchmark.py \
+            --family polyglot-suite \
+            --artifact report=artifacts/benchmarks/suite_report.json \
+            -- python tools/run_benchmark_suite.py \
+              --steps 400 --warmup 40 \
+              --json-out artifacts/benchmarks/suite_report.json
       - name: Native-handoff control-loop latency (P50/P95/P99, canonical)
         run: |
           . .venv/bin/activate
-          PYTHONPATH=$PWD/src python scripts/benchmark_native_handoff.py \
-            --steps 5000 --repeats 7 --warmup 2 \
-            --json-out artifacts/benchmarks/native_handoff_comparison.json \
-            --markdown-out artifacts/benchmarks/native_handoff_comparison.md
+          PYTHONPATH=$PWD/src python tools/run_recorded_benchmark.py \
+            --family native-handoff \
+            --artifact report=artifacts/benchmarks/native_handoff_comparison.json \
+            --artifact markdown=artifacts/benchmarks/native_handoff_comparison.md \
+            -- python scripts/benchmark_native_handoff.py \
+              --steps 5000 --repeats 7 --warmup 2 \
+              --json-out artifacts/benchmarks/native_handoff_comparison.json \
+              --markdown-out artifacts/benchmarks/native_handoff_comparison.md
       - name: Per-controller step latency (P50/P95/P99, canonical)
         run: |
           . .venv/bin/activate
-          PYTHONPATH=$PWD/src python benchmarks/controller_latency.py \
-            --iterations 2000 --warmup 200 \
-            --json-out artifacts/benchmarks/controller_latency.json \
-            --markdown-out artifacts/benchmarks/controller_latency.md
+          PYTHONPATH=$PWD/src python tools/run_recorded_benchmark.py \
+            --family controller-latency \
+            --artifact report=artifacts/benchmarks/controller_latency.json \
+            --artifact markdown=artifacts/benchmarks/controller_latency.md \
+            -- python benchmarks/controller_latency.py \
+              --iterations 2000 --warmup 200 \
+              --json-out artifacts/benchmarks/controller_latency.json \
+              --markdown-out artifacts/benchmarks/controller_latency.md
       - name: Regression gate (evidence-only on hosted runner)
         run: |
           . .venv/bin/activate
-          python tools/benchmark_regression_gate.py \
-            --report artifacts/benchmarks/suite_report.json \
-            --baseline benchmarks/baselines/capacitor_bank.json \
-            --thresholds benchmarks/regression_thresholds.toml \
-            --json-out artifacts/benchmarks/gate_verdict.json \
-            --evidence-only
+          PYTHONPATH=$PWD/src python tools/run_recorded_benchmark.py \
+            --family benchmark-regression-gate \
+            --artifact verdict=artifacts/benchmarks/gate_verdict.json \
+            -- python tools/benchmark_regression_gate.py \
+              --report artifacts/benchmarks/suite_report.json \
+              --baseline benchmarks/baselines/capacitor_bank.json \
+              --thresholds benchmarks/regression_thresholds.toml \
+              --json-out artifacts/benchmarks/gate_verdict.json \
+              --evidence-only
       - name: Upload benchmark evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7

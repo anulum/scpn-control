@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.integrated_scenario import (
     IntegratedScenarioSimulator,
     ScenarioConfig,
@@ -53,6 +54,7 @@ def benchmark_config() -> ScenarioConfig:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic scenario replay audit and write reports."""
 
     cfg = benchmark_config()

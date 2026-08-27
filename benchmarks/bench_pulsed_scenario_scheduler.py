@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     CapacitorBankTelemetry,
     PulsedPlasmaTelemetry,
@@ -186,6 +187,7 @@ def run(*, iterations: int, warmup: int, include_rust: bool = True) -> dict[str,
     parity_passed = rust_result is not None and rust_result["last_states"] == python_result["last_states"]
     payload: dict[str, Any] = {
         "schema_version": "scpn-control.pulsed-scenario-scheduler-benchmark.v1",
+        "campaign_id": os.environ.get("SCPN_BENCHMARK_CAMPAIGN_ID"),
         "generated_utc": _utc_now(),
         "command": " ".join(sys.argv),
         "evidence_class": "local_proxy",
@@ -289,6 +291,10 @@ def main() -> None:
     parser.add_argument("--json-out", type=Path)
     parser.add_argument("--md-out", type=Path)
     args = parser.parse_args()
+    require_recorded_campaign(
+        *(path for path in (args.json_out, args.md_out) if path is not None),
+        repository_root=Path(__file__).resolve().parents[1],
+    )
     payload = run(iterations=args.iterations, warmup=args.warmup, include_rust=not args.skip_rust)
     if args.json_out is not None:
         args.json_out.parent.mkdir(parents=True, exist_ok=True)

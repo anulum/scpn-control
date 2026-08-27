@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.phase.kuramoto import kuramoto_runtime_evidence, save_kuramoto_runtime_evidence
 
 
@@ -44,6 +45,8 @@ def main() -> None:
     parser.add_argument("--timestep-refinement-tolerance", type=float, default=5.0e-3)
     parser.add_argument("--deployment-claim", action="store_true")
     args = parser.parse_args()
+    output_path = Path(args.output_json)
+    require_recorded_campaign(output_path, repository_root=Path(__file__).resolve().parents[1])
 
     theta, omega = _deterministic_case(args.oscillators, args.seed)
     evidence = kuramoto_runtime_evidence(
@@ -61,7 +64,7 @@ def main() -> None:
         timestep_refinement_tolerance=args.timestep_refinement_tolerance,
         deployment_claim_allowed=args.deployment_claim,
     )
-    save_kuramoto_runtime_evidence(evidence, Path(args.output_json))
+    save_kuramoto_runtime_evidence(evidence, output_path)
 
 
 if __name__ == "__main__":

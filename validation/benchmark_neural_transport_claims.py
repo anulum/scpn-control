@@ -13,6 +13,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.neural_transport import (
     NeuralTransportModel,
     cross_validate_neural_transport,
@@ -25,6 +26,7 @@ MD_REPORT = REPORT_DIR / "neural_transport_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded neural-transport claim benchmark."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     model = NeuralTransportModel(auto_discover=False)

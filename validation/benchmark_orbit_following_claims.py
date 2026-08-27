@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.orbit_following import EnsembleResult, first_orbit_loss, orbit_following_claim_evidence
 
 
@@ -23,6 +24,7 @@ MARKDOWN_REPORT = REPORT_DIR / "orbit_following_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     loss = first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
     ensemble = EnsembleResult(
         loss_fraction=0.2,

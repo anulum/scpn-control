@@ -28,6 +28,7 @@ import argparse
 import importlib.util
 import json
 import math
+import os
 import platform
 import sys
 import time
@@ -43,6 +44,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign  # noqa: E402
 from scpn_control.control.h_infinity_controller import HInfinityController  # noqa: E402
 from scpn_control.control.neuro_cybernetic_controller import SpikingControllerPool  # noqa: E402
 from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC  # noqa: E402
@@ -333,6 +335,9 @@ def main() -> int:
         raise SystemExit("--iterations must be positive")
     if args.warmup < 0:
         raise SystemExit("--warmup must be >= 0")
+    json_path = Path(args.json_out)
+    markdown_path = Path(args.markdown_out)
+    require_recorded_campaign(json_path, markdown_path, repository_root=REPO_ROOT)
 
     controllers: list[dict[str, Any]] = [
         *_pid_entries(args.iterations, args.warmup),
@@ -343,6 +348,7 @@ def main() -> int:
 
     payload = {
         "schema": "scpn-control.controller_latency.v1",
+        "campaign_id": os.environ.get(CAMPAIGN_ENV),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "platform": {
             "python": sys.version,
@@ -354,10 +360,9 @@ def main() -> int:
         "controllers": controllers,
     }
 
-    json_path = Path(args.json_out)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    _write_markdown(Path(args.markdown_out), payload)
+    _write_markdown(markdown_path, payload)
     for entry in controllers:
         stats = entry["stats"]
         if stats is None:

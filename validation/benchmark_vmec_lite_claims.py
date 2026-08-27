@@ -22,6 +22,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.vmec_lite import StellaratorBoundary, VMECLiteSolver, vmec_lite_claim_evidence
 from validation.validate_vmec_lite_geometry import build_evidence, validate_evidence_payload, validate_vmec_lite_geometry
 
@@ -52,6 +53,7 @@ def _load_or_build_geometry_validation() -> dict[str, object]:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     solver = build_reference_case()
     result = solver.solve(max_iter=100, tol=1e-3)
     geometry_validation = _load_or_build_geometry_validation()

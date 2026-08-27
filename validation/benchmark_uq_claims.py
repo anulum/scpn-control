@@ -12,6 +12,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.uncertainty import PlasmaScenario, quantify_full_chain, uq_claim_evidence
 
 
@@ -25,6 +26,7 @@ def build_reference_scenario() -> PlasmaScenario:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     scenario = build_reference_scenario()
     seed = 31
     result = quantify_full_chain(scenario, n_samples=256, seed=seed)

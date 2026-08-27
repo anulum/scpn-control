@@ -28,6 +28,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign  # noqa: E402
 from scpn_control.core.rust_engine import NeuroCyberneticEngine  # noqa: E402
 
 
@@ -331,6 +332,9 @@ def main() -> int:
         raise SystemExit("--steps must be positive")
     if args.tick_interval_s < 0.0:
         raise SystemExit("--tick-interval-s must be >= 0")
+    json_path = Path(args.json_out)
+    markdown_path = Path(args.markdown_out)
+    require_recorded_campaign(json_path, markdown_path, repository_root=REPO_ROOT)
 
     python_summary, python_stats = _run_backend_repeated(args, backend="python", port_base=args.transport_port_base)
     native_summary, native_stats = _run_backend_repeated(args, backend="native", port_base=args.transport_port_base + 1)
@@ -342,6 +346,7 @@ def main() -> int:
     )
     payload = {
         "schema": "scpn-control.native_handoff_comparison.v3",
+        "campaign_id": os.environ.get(CAMPAIGN_ENV),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "platform": {
             "python": sys.version,
@@ -384,10 +389,9 @@ def main() -> int:
         **claim_contract,
     }
 
-    json_path = Path(args.json_out)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    _write_markdown(Path(args.markdown_out), payload)
+    _write_markdown(markdown_path, payload)
     print(json.dumps(payload["comparison"], indent=2, sort_keys=True))
 
     acceptable_status = {"completed", "normal"}

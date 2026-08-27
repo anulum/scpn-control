@@ -28,6 +28,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.gk_corrector import CorrectionRecord, CorrectorConfig, GKCorrector
 from scpn_control.core.gk_eigenvalue import solve_linear_gk
 from scpn_control.core.gk_quasilinear import quasilinear_fluxes_from_spectrum
@@ -65,6 +66,8 @@ def _gk_chi(R_L_Ti: float) -> tuple[float, float, float]:
 
 def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict[str, Any]:
     """Simulate n_steps of hybrid transport with correction."""
+    out = _REPORT_DIR / "hybrid_accuracy_benchmark.json"
+    require_recorded_campaign(out, repository_root=_REPORT_DIR.parents[1])
     nr = 20
     rho = np.linspace(0.05, 0.95, nr).astype(np.float64)
     R_L_Ti_profile = 3.0 + 6.0 * rho  # gradient increases toward edge
@@ -129,7 +132,6 @@ def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict[str, Any]:
     }
 
     _REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    out = _REPORT_DIR / "hybrid_accuracy_benchmark.json"
     out.write_text(json.dumps(result, indent=2))
     return result
 

@@ -191,7 +191,11 @@ control evidence.
 Run:
 
 ```bash
-python validation/benchmark_federated_disruption.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family federated-disruption \
+  --artifact report=validation/reports/federated_disruption_benchmark.json \
+  --artifact markdown=validation/reports/federated_disruption_benchmark.md \
+  -- python validation/benchmark_federated_disruption.py
 ```
 
 Outputs:
@@ -471,8 +475,11 @@ verify the local artefact checksum.
 Kuramoto phase-runtime evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_kuramoto_runtime_evidence.py \
-  --output-json artifacts/kuramoto_runtime_evidence.json
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family kuramoto-runtime \
+  --artifact report=artifacts/kuramoto_runtime_evidence.json \
+  -- python validation/benchmark_kuramoto_runtime_evidence.py \
+    --output-json artifacts/kuramoto_runtime_evidence.json
 ```
 
 The produced JSON uses `scpn-control.kuramoto-runtime-evidence.v1` and binds
@@ -1372,7 +1379,12 @@ admission gated by training, holdout, and strict-reference evidence.
 Synthetic neural-equilibrium pretraining evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_neural_equilibrium_pretraining.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family neural-equilibrium-pretraining \
+  --artifact weights=validation/reports/neural_equilibrium_synthetic_pretrain.npz \
+  --artifact report=validation/reports/neural_equilibrium_pretraining.json \
+  --artifact markdown=validation/reports/neural_equilibrium_pretraining.md \
+  -- python validation/benchmark_neural_equilibrium_pretraining.py
 ```
 
 This writes `validation/reports/neural_equilibrium_pretraining.json`,
@@ -1409,7 +1421,11 @@ and trained weights:
 Bounded local neural-transport claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_neural_transport_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family neural-transport-claims \
+  --artifact report=validation/reports/neural_transport_claims.json \
+  --artifact markdown=validation/reports/neural_transport_claims.md \
+  -- python validation/benchmark_neural_transport_claims.py
 ```
 
 This writes `validation/reports/neural_transport_claims.json` and
@@ -1440,7 +1456,11 @@ feature schema and trained weights:
 Bounded local neural-turbulence claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_neural_turbulence_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family neural-turbulence-claims \
+  --artifact report=validation/reports/neural_turbulence_claims.json \
+  --artifact markdown=validation/reports/neural_turbulence_claims.md \
+  -- python validation/benchmark_neural_turbulence_claims.py
 ```
 
 This writes `validation/reports/neural_turbulence_claims.json` and
@@ -1542,7 +1562,11 @@ exact closed forms:
 
 ```bash
 python validation/validate_marfe_onset.py --report validation/reports/marfe_onset.json
-python validation/benchmark_marfe_onset_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family marfe-onset-claims \
+  --artifact report=validation/reports/marfe_onset_claims.json \
+  --artifact markdown=validation/reports/marfe_onset_claims.md \
+  -- python validation/benchmark_marfe_onset_claims.py
 ```
 
 The local validator covers the Greenwald limit, Greenwald scaling, bounded
@@ -1621,7 +1645,11 @@ separately against exact local forms:
 
 ```bash
 python validation/validate_vmec_lite_geometry.py --report validation/reports/vmec_lite_geometry.json
-python validation/benchmark_vmec_lite_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family vmec-lite-claims \
+  --artifact report=validation/reports/vmec_lite_claims.json \
+  --artifact markdown=validation/reports/vmec_lite_claims.md \
+  -- python validation/benchmark_vmec_lite_claims.py
 ```
 
 The local validator covers spectral mode count, direct Fourier-basis
@@ -1670,7 +1698,11 @@ power, Q, Lawson margin, burn fraction, and reactivity-exponent checks:
 Bounded local burn-control claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_burn_control_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family burn-control-claims \
+  --artifact report=validation/reports/burn_control_claims.json \
+  --artifact markdown=validation/reports/burn_control_claims.md \
+  -- python validation/benchmark_burn_control_claims.py
 ```
 
 This writes `validation/reports/burn_control_claims.json` and
@@ -1696,7 +1728,11 @@ checks:
 Bounded local volt-second claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_volt_second_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family volt-second-claims \
+  --artifact report=validation/reports/volt_second_claims.json \
+  --artifact markdown=validation/reports/volt_second_claims.md \
+  -- python validation/benchmark_volt_second_claims.py
 ```
 
 This writes `validation/reports/volt_second_claims.json` and
@@ -1723,7 +1759,11 @@ checks:
 Bounded local current-drive claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_current_drive_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family current-drive-claims \
+  --artifact report=validation/reports/current_drive_claims.json \
+  --artifact markdown=validation/reports/current_drive_claims.md \
+  -- python validation/benchmark_current_drive_claims.py
 ```
 
 This writes `validation/reports/current_drive_claims.json` and
@@ -1750,7 +1790,11 @@ abscissa checks:
 Bounded local mu-synthesis claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_mu_synthesis_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family mu-synthesis-claims \
+  --artifact report=validation/reports/mu_synthesis_claims.json \
+  --artifact markdown=validation/reports/mu_synthesis_claims.md \
+  -- python validation/benchmark_mu_synthesis_claims.py
 ```
 
 This writes `validation/reports/mu_synthesis_claims.json` and
@@ -1780,7 +1824,11 @@ equivalence checks:
 Bounded local disruption-mitigation claim evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_disruption_mitigation_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family disruption-mitigation-claims \
+  --artifact report=validation/reports/disruption_mitigation_claims.json \
+  --artifact markdown=validation/reports/disruption_mitigation_claims.md \
+  -- python validation/benchmark_disruption_mitigation_claims.py
 ```
 
 This writes `validation/reports/disruption_mitigation_claims.json` and
@@ -1803,7 +1851,15 @@ Bounded local differentiable-transport gradient evidence can be regenerated
 with:
 
 ```bash
-python validation/benchmark_differentiable_transport_latency.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family differentiable-transport-latency \
+  --artifact parameter-report=validation/reports/differentiable_transport_latency.json \
+  --artifact parameter-markdown=validation/reports/differentiable_transport_latency.md \
+  --artifact rollout-report=validation/reports/differentiable_transport_rollout_latency.json \
+  --artifact rollout-markdown=validation/reports/differentiable_transport_rollout_latency.md \
+  --artifact readiness-report=validation/reports/differentiable_transport_full_fidelity_readiness.json \
+  --artifact readiness-markdown=validation/reports/differentiable_transport_full_fidelity_readiness.md \
+  -- python validation/benchmark_differentiable_transport_latency.py
 python validation/validate_differentiable_transport_latency.py --require-admitted --json-out
 ```
 
@@ -1839,7 +1895,11 @@ evidence.
 Bounded coupled differentiable-scenario evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_differentiable_scenario.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family differentiable-scenario \
+  --artifact report=validation/reports/differentiable_scenario_readiness.json \
+  --artifact markdown=validation/reports/differentiable_scenario_readiness.md \
+  -- python validation/benchmark_differentiable_scenario.py
 python validation/validate_differentiable_scenario.py --json-out
 ```
 
@@ -1856,8 +1916,17 @@ The TORAX code-to-code transport benchmark publishes its own strict
 external-reference evidence boundary:
 
 ```bash
-python validation/code_to_code_benchmark.py --with-torax
-python validation/code_to_code_benchmark.py --with-torax --require-external
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family torax-code-to-code \
+  --artifact report=validation/reports/code_to_code_benchmark.json \
+  --artifact markdown=validation/reports/code_to_code_benchmark.md \
+  -- python validation/code_to_code_benchmark.py --with-torax
+
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family torax-code-to-code-required \
+  --artifact report=validation/reports/code_to_code_benchmark.json \
+  --artifact markdown=validation/reports/code_to_code_benchmark.md \
+  -- python validation/code_to_code_benchmark.py --with-torax --require-external
 ```
 
 The generated `validation/reports/code_to_code_benchmark.json` and Markdown
@@ -1876,7 +1945,11 @@ checks:
 Bounded synthetic online model-update evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_digital_twin_online_update.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family digital-twin-online-update \
+  --artifact report=validation/reports/digital_twin_online_update.json \
+  --artifact markdown=validation/reports/digital_twin_online_update.md \
+  -- python validation/benchmark_digital_twin_online_update.py
 ```
 
 This writes `validation/reports/digital_twin_online_update.json` and
@@ -1939,7 +2012,11 @@ This writes:
 Bounded free-boundary claim-admission evidence can be regenerated with:
 
 ```bash
-python validation/benchmark_free_boundary_tracking_claims.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family free-boundary-tracking-claims \
+  --artifact report=validation/reports/free_boundary_tracking_claims.json \
+  --artifact markdown=validation/reports/free_boundary_tracking_claims.md \
+  -- python validation/benchmark_free_boundary_tracking_claims.py
 ```
 
 This writes `validation/reports/free_boundary_tracking_claims.json` and
@@ -2032,7 +2109,11 @@ PCS.
 Run:
 
 ```bash
-python validation/benchmark_federated_disruption.py
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family federated-disruption \
+  --artifact report=validation/reports/federated_disruption_benchmark.json \
+  --artifact markdown=validation/reports/federated_disruption_benchmark.md \
+  -- python validation/benchmark_federated_disruption.py
 ```
 
 Outputs:

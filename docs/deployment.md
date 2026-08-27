@@ -36,7 +36,10 @@ RUN pip install --no-cache-dir "jax[cuda12_pip]" -f https://storage.googleapis.c
 RUN pip install --no-cache-dir .
 
 ENV JAX_PLATFORM_NAME=gpu
-CMD ["python", "validation/benchmark_transport.py"]
+CMD ["python", "tools/run_recorded_benchmark.py", "--family", "transport", \
+     "--artifact", "report=validation/reports/transport_benchmark.json", \
+     "--artifact", "markdown=validation/reports/transport_benchmark.md", \
+     "--", "python", "validation/benchmark_transport.py"]
 ```
 
 ## 3. HPC / SLURM
@@ -78,7 +81,11 @@ Then compare Python and native execution at the same campaign boundary:
 
 ```bash
 cd ../../..
-PYTHONPATH=src python scripts/benchmark_native_handoff.py \
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family native-handoff \
+  --artifact report=validation/reports/native_handoff_comparison.json \
+  --artifact markdown=validation/reports/native_handoff_comparison.md \
+  -- python scripts/benchmark_native_handoff.py \
   --steps 5000 \
   --tick-interval-s 0.0001 \
   --transport-backend std \

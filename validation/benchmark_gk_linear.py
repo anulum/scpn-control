@@ -29,6 +29,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.gk_eigenvalue import solve_linear_gk
 from scpn_control.core.gk_quasilinear import (
     critical_gradient_scan,
@@ -156,6 +157,8 @@ def run_sparc_iter_scans() -> dict[str, Any]:
 
 def run_all() -> dict[str, Any]:
     """Run full benchmark suite and save report."""
+    out = _REPORT_DIR / "gk_linear_benchmark.json"
+    require_recorded_campaign(out, repository_root=_REPORT_DIR.parents[1])
     report = {
         "cyclone_base": run_cyclone_base_case(),
         "critical_gradient": run_critical_gradient_scan(),
@@ -163,7 +166,6 @@ def run_all() -> dict[str, Any]:
         "sparc_iter": run_sparc_iter_scans(),
     }
     _REPORT_DIR.mkdir(parents=True, exist_ok=True)
-    out = _REPORT_DIR / "gk_linear_benchmark.json"
     out.write_text(json.dumps(report, indent=2))
     return report
 

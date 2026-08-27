@@ -20,12 +20,15 @@ Validates vacuum flux and field calculations against analytic solutions
 from __future__ import annotations
 
 import json
+import os
+import tempfile
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from scipy.special import ellipe, ellipk
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.fusion_kernel import FusionKernel
 
 
@@ -57,7 +60,9 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
         "coils": [{"name": "Coil1", "r": 1.0, "z": 0.0, "current": 1e6, "turns": 1}],
         "solver": {"max_iterations": 1, "convergence_threshold": 1.0},
     }
-    cfg_path = Path("tmp_fb_cfg.json")
+    descriptor, raw_path = tempfile.mkstemp(prefix="scpn-control-free-boundary-", suffix=".json")
+    os.close(descriptor)
+    cfg_path = Path(raw_path)
     cfg_path.write_text(json.dumps(cfg))
 
     try:
@@ -148,15 +153,18 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
 
 
 def main() -> None:
+    report_dir = Path("validation/reports")
+    json_path = report_dir / "free_boundary_benchmark.json"
+    markdown_path = report_dir / "free_boundary_benchmark.md"
+    require_recorded_campaign(json_path, markdown_path, repository_root=Path(__file__).resolve().parents[1])
     res = run_free_boundary_benchmark()
 
-    report_dir = Path("validation/reports")
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    with open(report_dir / "free_boundary_benchmark.json", "w") as f:
+    with json_path.open("w") as f:
         json.dump(res, f, indent=2)
 
-    with open(report_dir / "free_boundary_benchmark.md", "w") as f:
+    with markdown_path.open("w") as f:
         f.write("# Free-Boundary Validation Benchmark\n\n")
         f.write("| Test | Metric | Result | Pass |\n")
         f.write("|------|--------|--------|------|\n")

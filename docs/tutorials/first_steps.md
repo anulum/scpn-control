@@ -252,7 +252,11 @@ After the introductory examples, generate one small evidence artefact so the
 validation workflow is concrete:
 
 ```bash
-PYTHONPATH=src python scripts/benchmark_native_handoff.py \
+PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family native-handoff-smoke \
+  --artifact report=validation/reports/native_handoff_smoke.json \
+  --artifact markdown=validation/reports/native_handoff_smoke.md \
+  -- python scripts/benchmark_native_handoff.py \
   --steps 500 \
   --tick-interval-s 0 \
   --transport-backend std \

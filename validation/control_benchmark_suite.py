@@ -21,6 +21,10 @@ from typing import Any, Callable, Protocol
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 @dataclass
 class BenchmarkScenario:
@@ -189,11 +193,13 @@ class BenchmarkRunner:
         )
 
     def save_json(self, path: Path) -> None:
+        require_recorded_campaign(path, repository_root=REPO_ROOT)
         data = [dataclasses.asdict(r) for r in self.results]
         with open(path, "w") as f:
             json.dump(data, f, indent=2)
 
     def save_markdown(self, path: Path) -> None:
+        require_recorded_campaign(path, repository_root=REPO_ROOT)
         with open(path, "w") as f:
             f.write("| Controller | Scenario | IAE | Settling [s] | Overshoot [%] | Violations | Time [µs] |\n")
             f.write("|------------|----------|-----|-------------|---------------|------------|-----------|\n")

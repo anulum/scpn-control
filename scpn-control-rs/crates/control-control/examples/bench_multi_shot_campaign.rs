@@ -222,6 +222,20 @@ Payload SHA-256: `{}`\n",
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        println!(
+            "Usage: bench_multi_shot_campaign [--steps N] [--warmup N] \
+             [--json-out PATH] [--md-out PATH]"
+        );
+        return;
+    }
+    let campaign_id = env::var("SCPN_BENCHMARK_CAMPAIGN_ID").ok();
+    if parse_path(&args, "--json-out").is_some() || parse_path(&args, "--md-out").is_some() {
+        assert!(
+            campaign_id.is_some(),
+            "persistent output requires tools/run_recorded_benchmark.py"
+        );
+    }
     let steps = parse_usize(&args, "--steps", 2_000);
     let warmup = parse_usize(&args, "--warmup", 200);
     assert!(steps > 0, "--steps must be >= 1");
@@ -246,6 +260,7 @@ fn main() {
     let loadavg_end = loadavg();
     let mut payload = json!({
         "schema_version": "scpn-control.rust-multi-shot-campaign-benchmark.v1.1",
+        "campaign_id": campaign_id,
         "generated_unix_s": SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
         "command": args.join(" "),
         "evidence_class": "local_regression",

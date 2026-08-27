@@ -30,6 +30,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
+from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign  # noqa: E402
 from scpn_control.core.rust_engine import NeuroCyberneticEngine  # noqa: E402
 
 LOOP_DEADLINE_US = 100.0
@@ -478,6 +479,9 @@ def main() -> int:
         raise SystemExit("--repeats must be positive")
     if args.tick_interval_s < 0.0:
         raise SystemExit("--tick-interval-s must be >= 0")
+    json_path = Path(args.json_out)
+    markdown_path = Path(args.markdown_out)
+    require_recorded_campaign(json_path, markdown_path, repository_root=REPO_ROOT)
 
     transports = [item.strip() for item in args.transports.split(",") if item.strip()]
     formal_modes = [item.strip().lower().replace("-", "_") for item in args.formal_modes]
@@ -522,6 +526,7 @@ def main() -> int:
     }
     payload = {
         "schema": "scpn-control.native_formal_modes.v1",
+        "campaign_id": os.environ.get(CAMPAIGN_ENV),
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "classification": (
             "native formal mode benchmark; benchmark_context defines whether timing evidence is local regression "
@@ -566,8 +571,6 @@ def main() -> int:
         "runs": runs,
     }
 
-    json_path = Path(args.json_out)
-    markdown_path = Path(args.markdown_out)
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     _write_markdown(markdown_path, payload)

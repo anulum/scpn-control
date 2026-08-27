@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.burn_controller import (
     AlphaHeating,
     BurnController,
@@ -27,6 +28,7 @@ MARKDOWN_REPORT = REPORT_DIR / "burn_control_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     rho = np.linspace(0.0, 1.0, 48)
     ne = 0.85 + 0.25 * (1.0 - rho**2)
     temperature = 14.0 + 8.0 * (1.0 - rho**1.7)

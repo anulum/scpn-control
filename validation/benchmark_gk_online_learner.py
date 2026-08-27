@@ -15,6 +15,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
@@ -31,6 +32,7 @@ def _sample_target(x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded online-retraining campaign."""
     rng = np.random.default_rng(20240531)
     learner = OnlineLearner(

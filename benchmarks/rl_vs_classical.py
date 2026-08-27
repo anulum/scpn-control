@@ -38,6 +38,9 @@ logger = logging.getLogger(__name__)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT))
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from scpn_control.benchmark_records import require_recorded_campaign
 
 
 class SimpleMPC:
@@ -121,6 +124,7 @@ def main() -> None:
         )
 
     out_path = Path(__file__).parent / "rl_vs_classical.json"
+    require_recorded_campaign(out_path, repository_root=REPO_ROOT)
     with open(out_path, "w") as f:
         json.dump(results, f, indent=2)
     logger.info("Saved to %s", out_path)

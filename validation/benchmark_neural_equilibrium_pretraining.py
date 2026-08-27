@@ -14,6 +14,7 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.neural_equilibrium import (
     neural_equilibrium_claim_evidence,
     pretrain_neural_equilibrium_synthetic,
@@ -34,6 +35,7 @@ def _sha256(path: Path) -> str:
 
 
 def main() -> None:
+    require_recorded_campaign(WEIGHTS_PATH, JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic synthetic pretraining and write benchmark reports."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     result = pretrain_neural_equilibrium_synthetic(

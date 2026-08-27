@@ -2469,6 +2469,15 @@ commissioning, or facility qualification.
 
 ::: scpn_control.control.volt_second_manager
 
+### Benchmark Record Custody
+
+`scpn_control.benchmark_records` provides the public immutable-run contract used
+by benchmark producers. It reserves a campaign before execution, retains legacy
+fixed-name artifacts, seals complete or failed runs, and exposes a digest-bound
+`latest` index without treating that index as evidence custody.
+
+::: scpn_control.benchmark_records
+
 ### Core Support and Physics Modules
 
 #### Rust Compatibility

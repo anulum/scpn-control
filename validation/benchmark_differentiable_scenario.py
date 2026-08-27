@@ -25,6 +25,8 @@ import numpy.typing as npt
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from scpn_control.benchmark_records import require_recorded_campaign
+
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 JSON_REPORT = REPORT_DIR / "differentiable_scenario_readiness.json"
 MD_REPORT = REPORT_DIR / "differentiable_scenario_readiness.md"
@@ -176,6 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     json_out = Path(args.json_out)
     md_out = Path(args.md_out)
+    require_recorded_campaign(json_out, md_out, repository_root=REPO_ROOT)
     json_out.parent.mkdir(parents=True, exist_ok=True)
     if not has_jax():
         payload = _blocked_payload("JAX is required for coupled differentiable scenario gradient evidence")

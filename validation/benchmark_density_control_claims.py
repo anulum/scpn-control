@@ -14,6 +14,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.density_controller import (
     DensityController,
     ParticleTransportModel,
@@ -27,6 +28,7 @@ MARKDOWN_REPORT = REPORT_DIR / "density_control_claims.md"
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
     controller = DensityController(model, dt_control=0.01)
     controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)

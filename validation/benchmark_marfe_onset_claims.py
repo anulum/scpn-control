@@ -29,6 +29,7 @@ SRC = ROOT / "src"
 if str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from validation.validate_marfe_onset import build_evidence, validate_marfe_onset
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
@@ -46,6 +47,7 @@ def _percentile(values: list[float], percentile: float) -> float:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=ROOT)
     timings_us: list[float] = []
     for _ in range(40):
         started = time.perf_counter_ns()

@@ -157,6 +157,21 @@ fn write_markdown(path: PathBuf, payload: &Value) {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+    if args.iter().any(|arg| arg == "--help" || arg == "-h") {
+        println!(
+            "Usage: bench_capacitor_bank_energy [--steps N] [--warmup N] \
+             [--discharge-steps N] [--dt-s SECONDS] [--json-out PATH] \
+             [--markdown-out PATH] [--evidence-class CLASS]"
+        );
+        return;
+    }
+    let campaign_id = env::var("SCPN_BENCHMARK_CAMPAIGN_ID").ok();
+    if parse_path(&args, "--json-out").is_some() || parse_path(&args, "--markdown-out").is_some() {
+        assert!(
+            campaign_id.is_some(),
+            "persistent output requires tools/run_recorded_benchmark.py"
+        );
+    }
     let steps = parse_usize(&args, "--steps", 500);
     let warmup = parse_usize(&args, "--warmup", 50);
     let discharge_steps = parse_usize(&args, "--discharge-steps", 200);
@@ -183,6 +198,7 @@ fn main() {
         .as_secs();
     let mut payload = json!({
         "schema_version": "scpn-control.rust-capacitor-bank-energy-benchmark.v1",
+        "campaign_id": campaign_id,
         "generated_unix_seconds": generated_unix_seconds,
         "evidence_class": evidence_class,
         "production_claim_allowed": false,

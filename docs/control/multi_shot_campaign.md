@@ -82,7 +82,13 @@ array shapes, and evidence handoff.
 Run Python local-regression evidence:
 
 ```bash
-taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_multi_shot_campaign.py \
+campaign="$(date -u +%Y%m%dT%H%M%S.%NZ)-multi-shot"
+taskset -c 4,5 env PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family multi-shot-python \
+  --campaign-id "$campaign" \
+  --artifact report=validation/reports/multi_shot_campaign_soft_isolated.json \
+  --artifact markdown=validation/reports/multi_shot_campaign_soft_isolated.md \
+  -- python benchmarks/bench_multi_shot_campaign.py \
   --steps 2000 \
   --warmup 200 \
   --json-out validation/reports/multi_shot_campaign_soft_isolated.json \
@@ -92,7 +98,12 @@ taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_multi_shot_campaign.py
 Run native Rust local-regression evidence:
 
 ```bash
-taskset -c 4,5 cargo run --manifest-path scpn-control-rs/Cargo.toml \
+taskset -c 4,5 env PYTHONPATH=src python tools/run_recorded_benchmark.py \
+  --family multi-shot-rust \
+  --campaign-id "$campaign" \
+  --artifact report=validation/reports/multi_shot_campaign_rust_soft_isolated.json \
+  --artifact markdown=validation/reports/multi_shot_campaign_rust_soft_isolated.md \
+  -- cargo run --manifest-path scpn-control-rs/Cargo.toml \
   -p control-control \
   --example bench_multi_shot_campaign \
   --release \

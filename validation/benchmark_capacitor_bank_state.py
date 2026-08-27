@@ -22,6 +22,7 @@ import time
 from collections.abc import Callable
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec, free_response
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -38,6 +39,8 @@ def main() -> None:
     parser.add_argument("--discharge-iterations", type=int, default=500)
     parser.add_argument("--warmup", type=int, default=2_000)
     args = parser.parse_args()
+    md_out = args.md_out or args.json_out.with_suffix(".md")
+    require_recorded_campaign(args.json_out, md_out, repository_root=Path(__file__).resolve().parents[1])
 
     if args.step_iterations <= 0 or args.free_response_iterations <= 0 or args.discharge_iterations <= 0:
         raise SystemExit("benchmark iterations must be positive")
@@ -84,7 +87,6 @@ def main() -> None:
     }
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    md_out = args.md_out or args.json_out.with_suffix(".md")
     md_out.write_text(_markdown_report(report, args.json_out), encoding="utf-8")
 
 

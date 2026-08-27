@@ -31,6 +31,7 @@ from numpy.typing import NDArray
 
 ROOT = Path(__file__).resolve().parents[1]
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController
@@ -475,6 +476,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     out_json = Path(args.output_json)
     out_md = Path(args.output_md)
+    require_recorded_campaign(out_json, out_md, repository_root=ROOT)
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
     out_json.write_text(json.dumps(report, indent=2), encoding="utf-8")

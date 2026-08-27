@@ -12,6 +12,7 @@ from __future__ import annotations
 from dataclasses import asdict
 from pathlib import Path
 
+from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.rzip_model import RZIPModel, rzip_calibration_evidence, save_rzip_calibration_evidence
 from scpn_control.core.vessel_model import VesselElement, VesselModel
 
@@ -40,6 +41,7 @@ def _benchmark_model() -> RZIPModel:
 
 
 def main() -> None:
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded RZIP calibration benchmark and write reports."""
 
     model = _benchmark_model()
