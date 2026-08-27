@@ -1,0 +1,130 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://www.anulum.li/scpn-control/schemas/report-lifecycle-v1.json",
+  "title": "SCPN Control validation report lifecycle registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inventory_as_of_utc",
+    "freshness_max_age_days",
+    "reports_root",
+    "registry_source_commit",
+    "expected_bucket_counts",
+    "reports"
+  ],
+  "properties": {
+    "schema_version": {"const": "scpn-control.validation-report-lifecycle.v1"},
+    "inventory_as_of_utc": {"type": "string", "format": "date-time"},
+    "freshness_max_age_days": {"type": "integer", "minimum": 0},
+    "reports_root": {"const": "validation/reports"},
+    "registry_source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "expected_bucket_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rerunnable_local", "external_artifact_blocked", "historical_only"],
+      "properties": {
+        "rerunnable_local": {"type": "integer", "minimum": 0},
+        "external_artifact_blocked": {"type": "integer", "minimum": 0},
+        "historical_only": {"type": "integer", "minimum": 0}
+      }
+    },
+    "reports": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/report"}
+    }
+  },
+  "$defs": {
+    "report": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "storage_class",
+        "report_sha256",
+        "report_commit",
+        "evidence_time_utc",
+        "evidence_time_source",
+        "lifecycle_bucket",
+        "evidence_class",
+        "source_claim_boundary_present",
+        "claim_boundary",
+        "refresh",
+        "provenance"
+      ],
+      "properties": {
+        "path": {"type": "string", "pattern": "^validation/reports/.+\\.json$"},
+        "storage_class": {"enum": ["git_tracked", "owner_local_untracked"]},
+        "report_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "report_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+        "evidence_time_utc": {"type": "string", "format": "date-time"},
+        "evidence_time_source": {"type": "string", "minLength": 1},
+        "lifecycle_bucket": {
+          "enum": ["rerunnable_local", "external_artifact_blocked", "historical_only"]
+        },
+        "evidence_class": {
+          "enum": ["local_proxy", "external_required", "historical_unreviewed"]
+        },
+        "source_claim_boundary_present": {"type": "boolean"},
+        "claim_boundary": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "current_evidence",
+            "scientific_admission",
+            "production_admission",
+            "public_claim_allowed",
+            "rationale"
+          ],
+          "properties": {
+            "current_evidence": {"type": "boolean"},
+            "scientific_admission": {"type": "boolean"},
+            "production_admission": {"type": "boolean"},
+            "public_claim_allowed": {"type": "boolean"},
+            "rationale": {"type": "string", "minLength": 1}
+          }
+        },
+        "refresh": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["locally_rerunnable", "status", "commands"],
+          "properties": {
+            "locally_rerunnable": {"type": "boolean"},
+            "status": {
+              "enum": ["pending_refresh", "refreshed", "external_artifact_blocked", "historical_indexed"]
+            },
+            "commands": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          }
+        },
+        "provenance": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "source_commit",
+            "dependency_lock_sha256",
+            "host_id",
+            "host_class",
+            "host_load",
+            "samples",
+            "repeats",
+            "warmup",
+            "artifacts",
+            "failures"
+          ],
+          "properties": {
+            "source_commit": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"},
+            "dependency_lock_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+            "host_id": {"type": ["string", "null"]},
+            "host_class": {"type": ["string", "null"]},
+            "host_load": {"type": ["object", "null"]},
+            "samples": {"type": ["integer", "null"], "minimum": 1},
+            "repeats": {"type": ["integer", "null"], "minimum": 1},
+            "warmup": {"type": ["integer", "null"], "minimum": 0},
+            "artifacts": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "failures": {"type": "array", "items": {"type": "string", "minLength": 1}}
+          }
+        }
+      }
+    }
+  }
+}

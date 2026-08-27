@@ -937,20 +937,33 @@ clear the tracker work package with real external-code, facility, benchmark, or
 hardware evidence, then update `validation/physics_traceability.json` and
 regenerate `docs/physics_traceability.md`.
 
-The validation report freshness inventory uses schema
-`scpn-control.validation-report-freshness.v1` and scans JSON artifacts under
-`validation/reports/` for explicit report timestamps, filename timestamps, or
-file timestamps. It reports stale benchmark and validation artifacts without
-changing claim status by default. Stale reports are classified into advisory
-`rerunnable_local`, `external_artifact_blocked`, and `historical_only` buckets
-so rerun campaigns can start from the local evidence that can actually be
-refreshed. Rerunnable local reports also include a refresh plan with a status
-and command list: `ready_exact_command` when the report preserved the command,
-`ready_reconstructed_command` when a schema-owned benchmark CLI can be rebuilt
-from persisted parameters, and `manual_reconstruction_required` when only
-partial or no command metadata exists. Use `--fail-on-stale` only in release or
-promotion campaigns after the affected reports have been rerun or deliberately
-accepted as historical evidence.
+The validation report freshness inventory uses
+`scpn-control.validation-report-freshness.v2` and consumes the versioned
+`scpn-control.validation-report-lifecycle.v1` registry in
+`validation/report_lifecycle_registry.json`. The registry binds every audited
+JSON report to its SHA-256 digest, Git-storage class, evidence timestamp,
+lifecycle bucket, evidence class, refresh state, provenance fields, and an
+explicit fail-closed claim boundary. The immutable source payload can therefore
+remain historical even when it predates embedded claim metadata; the registry
+records that source limitation separately instead of rewriting the artifact.
+
+Classification is declarative, not inferred from filenames or report prose.
+The three lifecycle buckets are `rerunnable_local`,
+`external_artifact_blocked`, and `historical_only`. An owner-local ignored
+artifact can be represented by its frozen digest without being presented as a
+tracked file on a clean clone. Missing tracked reports, extra reports, digest
+drift, unknown evidence classes, future timestamps, ambiguous refreshed-host
+metadata, stale current evidence, and unsupported admission promotion all fail
+closed.
+
+Rerunnable local reports also include a refresh plan with a status and command
+list: `ready_exact_command` when the registry preserves the complete command,
+and `manual_reconstruction_required` when only partial or no command metadata
+exists. Public consumers must select only the
+matrix's fresh `current_admitted_reports`; historical and external-blocked
+entries are never eligible. Use `--fail-on-stale` only in release or promotion
+campaigns after the affected reports have been refreshed or deliberately kept
+as historical evidence.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v2`, binds the proof

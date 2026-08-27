@@ -1,0 +1,4905 @@
+{
+  "expected_bucket_counts": {
+    "external_artifact_blocked": 75,
+    "historical_only": 41,
+    "rerunnable_local": 9
+  },
+  "freshness_max_age_days": 21,
+  "inventory_as_of_utc": "2026-08-27T00:00:00Z",
+  "registry_source_commit": "b6760f43016701a7b21189f87fcf02f4b53cac56",
+  "reports": [
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T16:29:53Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/aer_observation_admission_20260604T162953Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/aer_observation_admission_20260604T162953Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "taskset -c 4,5 env PYTHONPATH=src .venv/bin/python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out validation/reports/aer_observation_admission_20260604T162953Z.json --md-out validation/reports/aer_observation_admission_20260604T162953Z.md",
+          "python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out validation/reports/aer_observation_admission_20260604T162953Z.json --md-out validation/reports/aer_observation_admission_20260604T162953Z.md"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "c03bc49dd0bca2f17e5ef609d5184b2eee174f8f",
+      "report_sha256": "3936ad32d08788f66c53f44b5768d55b824cfadb26b956ca2f2bc1a2b5e30473",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T12:15:29Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "python benchmarks/bench_aer_observation.py --json-out validation/reports/aer_observation_soft_isolated_20260604T121529Z.json --md-out validation/reports/aer_observation_soft_isolated_20260604T121529Z.md"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "eed9c3b71b8393936a88075d24a25e5da6b16bf8",
+      "report_sha256": "00df120052a937d92624366fbb996fc10c89962fdbce43f6d35a1f1b3498ae61",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-02T00:00:00Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/benchmark_regression_gates.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/benchmark_regression_gates.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "10bd25cc2412defe0bae8fd6878f5b760c0703bc",
+      "report_sha256": "35b234aa599984a64dac9994a3a1029f59e08935142e128a70659a106b34be38",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T19:27:45Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/burn_control.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/burn_control.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "8035e2d6be91a4d43c34de8dc646409db863a97e",
+      "report_sha256": "8db0626894b342bf9ffc2118288aba9de1404ab4445238446d08ab8ca1792bed",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.403741Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/burn_control_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/burn_control_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "ba59441bef36f15426ae0fd326da812cf52aa785",
+      "report_sha256": "77aa461f174bf0d1694bd3970fc8bda1fe597434fbdccadf9df07cb03430a0d4",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-13T23:37:44.282340Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/capacitor_bank_energy_python_20260604T140034Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/capacitor_bank_energy_python_20260604T140034Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "afd239ca70bb5462c2c967d5c9cb9cffc823b31c84a1470afed41aa08bb0e1fe",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T14:00:46Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/capacitor_bank_energy_rust_20260604T140046Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/capacitor_bank_energy_rust_20260604T140046Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "3c3efeaf5f94e3d9e1e8e0d201d10ba43993ffa35dc5e5b65b4775e220ed3615",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T11:58:49Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/capacitor_bank_state_soft_isolated_20260604T115849Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/capacitor_bank_state_soft_isolated_20260604T115849Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "045d935c7afbd2ab39feaca0b0d885e9811fa4aae055d46204792700a4b6288e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.557163Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/code_to_code_benchmark.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/code_to_code_benchmark.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "8788ec95f4a98a2d0b495c91e5e51574e72d3ae4",
+      "report_sha256": "91e982fe1f31cf8982be47578712c69b0483fd98c275de18e8352fcbef6578b7",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-21T21:18:45.911811Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/controller_latency.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/controller_latency.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "e85b5fe356f7f3ccfe9356118f88fdb1f4e8269b",
+      "report_sha256": "88da313cbfc316934235627c6305ecd7dd7091fbb9513d9d5fcfa455f8c49a9a",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-21T21:11:34.295126Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/controller_latency.local.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/controller_latency.local.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "a2a7570a24a8a2cb3acbf03bbb586eb524414173",
+      "report_sha256": "a2240b01a31b017ec13991213f044966740bc6ab460b6df6e2f623773b757217",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T15:11:20Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/current_drive.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/current_drive.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "86ddfddfb1ad6ab3290e51eaab0eafc49a772c0e",
+      "report_sha256": "9ffb82e8a6abdb6672f9cae92cc3187db473adc07fd7f7017f7e33bc615a700c",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.685551Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/current_drive_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/current_drive_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "835ffbf49b1797491354156b7971fe50d449d1a1",
+      "report_sha256": "4742b6feb9bff8dd5f1441b5043382c2c9632ec2160b1a507ced98fedb605fca",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T19:22:38Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/density_control.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/density_control.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "a0c700efacbdd0c56f8fd9df3ba5acac93347e3b",
+      "report_sha256": "6199b147e2a41dba934f9732ceba264df56f6b3dab8ed438b321b912065a1a72",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:18.889066Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/density_control_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/density_control_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "d3cceba95237089f2bda6202eee19b4d5b820b31",
+      "report_sha256": "d072eea5f5af0523d672cc3101d979de2445a5d7b0be35deaa1c66b9b7be0bb6",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-18T20:50:20.138206Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/differentiable_scenario_readiness.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/differentiable_scenario_readiness.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "2203670db90b65f4005933fb7432e22157d0bce3",
+      "report_sha256": "e1dee290a81c69de709e97a08249de56344ed514933f7ce0572ea016835de1dd",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:18.945676Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/differentiable_transport_full_fidelity_readiness.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/differentiable_transport_full_fidelity_readiness.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "55809e3f5a11756481b4a885b473dd739bacc301",
+      "report_sha256": "b6cb79c5159b010bb47390545e6fae914ae688044ac1c295f1b8c6c6978fd33c",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:18.969610Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/differentiable_transport_latency.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/differentiable_transport_latency.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "55809e3f5a11756481b4a885b473dd739bacc301",
+      "report_sha256": "a3b801455fe7206eaaef9922454598cdd3c216aaf31b3207d93ac16c64e5dff8",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:18.991477Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/differentiable_transport_rollout_latency.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/differentiable_transport_rollout_latency.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "55809e3f5a11756481b4a885b473dd739bacc301",
+      "report_sha256": "0474caa0185b4abc8dc094c4e4e0ddfae15f63f7d654293b756cc59fd64da1be",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:19.028771Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/digital_twin_online_update.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/digital_twin_online_update.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "716bb7fdfea2eed39be5f1e494ad67cd829db9f5",
+      "report_sha256": "843e3b1ff365829313abbca93a62eb2cc835705af2d078c45ce0fe313cdfa831",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.754718Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/disruption_mitigation_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/disruption_mitigation_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "b9870bf2bd9f10c0cc79e0504f54ab4b2102937d",
+      "report_sha256": "1f0eef1c5f3748ab1bcd00deb48673344700e3e4989f559e98226488838f4765",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-16T10:07:16Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/disruption_sequence.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/disruption_sequence.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "c5481c0f75d227004d7cea128be5557bc4e7f676",
+      "report_sha256": "f2d89bac2b7aa51d5f6e69f77de8453c0a0e8a67bdadf9171c803055b96089bf",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-07-09T13:45:58Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/e2e_control_latency.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/e2e_control_latency.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json validation/reports/e2e_control_latency.json"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "10bd25cc2412defe0bae8fd6878f5b760c0703bc",
+      "report_sha256": "8fa677c6f1a866e864cade67b5c94b216ba350a14cac48713824a82f621f8b18",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T02:38:22Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/e2e_control_latency_hardening_20260603T0010.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json validation/reports/e2e_control_latency_hardening_20260603T0010.json --target-hardware-id ws-nmpc-hardening-host --target-hardware-class workstation-x86_64 --rt-kernel local-unqualified"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "abe31f2fe0bc77f74d08689ccc59676af892eabe",
+      "report_sha256": "ef368645c986c2d41de12ea38aeb0eabb17d815c72e6ece43a0b512dbcf029f5",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-22T21:56:20.463686Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/efit_lite_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/efit_lite_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "907b1a0df42f99ede0a281a41dcb101a172780bb",
+      "report_sha256": "dc717bbe76998ade18578bc0d58b31efd40ab7c61cc14a89af5152e49c68be56",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T15:57:47Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/elm_peeling_ballooning.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/elm_peeling_ballooning.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9545eefff70e5792d4e796e065a05c829466f64d",
+      "report_sha256": "f6c4978e9577197d2c3e329d562da7ba9a55b8caff3e068ad09caf865729a43b",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T15:46:09Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/eped_pedestal.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/eped_pedestal.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "1d9216fad9520b3b91e33ab9eeee9f7cac569e6b",
+      "report_sha256": "fd93e1e18c51f85c76e5032708fe7db9a47abb6229d33fe7c1c67eada71d4534",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-27T23:34:24.829562Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/federated_disruption_benchmark.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/federated_disruption_benchmark.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "b2dfee82d8627a2ff19150d3e7efd1089a0dd9d5",
+      "report_sha256": "634201ffc3f53f32f2f4bad5d55567f5387023c5d70bcf74d80362469d1e8aca",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-03-12T06:04:55.320376Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/free_boundary_tracking_acceptance.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/free_boundary_tracking_acceptance.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "314c352a90a2704d5b3c98312fde8853c4c6d933",
+      "report_sha256": "3ebbcc0254f28f56ba00d8d800f88b90b6d376c12fc09263d37f544c5d03c458",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-13T18:20:21.437207Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/free_boundary_tracking_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/free_boundary_tracking_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "4312052dfb6ab4015ffa12fafe4ee58795c5fd9b",
+      "report_sha256": "d7136000114adc49c233b88e9d3d1296783be7b773ce28a7da92210e960e1536",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T16:41:14Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/geometry_neutral_replay_aer_admission_20260604T164114Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/geometry_neutral_replay_aer_admission_20260604T164114Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "29562b7fab21f886de7f7d9ec6bca95542b14e5a",
+      "report_sha256": "ade2bf111f70551275ecbcc6431469498f23a0f94f64d65d4d2753a761303472",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-21T01:39:28.868527Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_geometry/independent_crosscheck.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_geometry/independent_crosscheck.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "8d81a9bac590e308c28bc764508d0452da3499d4",
+      "report_sha256": "c5a1bed75dd41248d09e4310a4b038ee547a7ddcd3db15405848d462ce732a49",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.176602Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_geometry_reference.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_geometry_reference.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "0ea202dbde68418be3f9f12baebce4dec4ca5455",
+      "report_sha256": "f36c0227a4ec715f67e13f1639940602e92ada8ec40613a5a821f1a822f044aa",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-06-01T16:11:48Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_interface_artifacts.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_interface_artifacts.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "a57968d43ff65c7b3d824b920f80402c9ab59d96",
+      "report_sha256": "1a1c941a0b0a8759818914cbaed2c2ddd570c95afa03b1aef497c52a3b5c7f6b",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.278661Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_nonlinear_cyclone.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_nonlinear_cyclone.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "79f68c88cdc73cbe94afa8eb1986b701043f529b",
+      "report_sha256": "abcbb28e3bf6a8d2479d2660927169126b7641ca08d9f38bd5d7e2d5d2d3981a",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.352346Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_online_learner.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_online_learner.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "a04c0cd4a7fdb93fee4821f3f7a089c30879b1c8",
+      "report_sha256": "4b187f29c01c02653fae2a880b1d4c57bd73cbf076f60cbea5b1b09170639e54",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.797258Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/gk_online_learner_decisions.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_online_learner_decisions.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "a04c0cd4a7fdb93fee4821f3f7a089c30879b1c8",
+      "report_sha256": "96da61d6cc14bf34cc2f5f892200b83fadd1040c713468afed84e207363e78af",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.602128Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_ood_calibration.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_ood_calibration.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "79ef2e80fc2c7c93f2c3b1581e51449f59ca73ab",
+      "report_sha256": "50f7dabd1b6c86d1e19eceaff6744e611d1704693421898b2a739c483cadbfc9",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-21T06:14:17.465929Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_species/collision_independent_crosscheck.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_species/collision_independent_crosscheck.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "22d4a39c9a4e74a35a9aacd581e524abb8889378",
+      "report_sha256": "6a7082c37af9bd024cedcc0726905b644896d4220935add5d22151a9de89f378",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-16T23:29:14.742157Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/gk_species_reference.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/gk_species_reference.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "5fce0d59a6d1ec32a178d98a9022c6a2b1c0f214",
+      "report_sha256": "abc02cc54ad1b2810dcb2b8ad0f7e06db14c2bbb1e959a948d9ef007088516f2",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-07-08T19:14:13Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/grad_shafranov_solovev.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/grad_shafranov_solovev.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "c9c16fd06d2a2e81e10596476852086b24c98fa4",
+      "report_sha256": "ad33d2224995f54f6b99330be77601614ce6b06161469a65b0f5c1e5a25081c0",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T09:49:47Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/guiding_centre_conservation.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/guiding_centre_conservation.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "0593c70f1750c4515e0dd9926e14bca94490dc8b",
+      "report_sha256": "e5ee5e3a126c2df45031db3bbfb905862127649175b1b21e30c1b7c10edc88f7",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T19:10:38Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/halo_current.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/halo_current.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "6883383760e0d87a5343072fa769f5761375b6b1",
+      "report_sha256": "1a51b4304c99f4eb3fed2eb3ccc9debb787e877004004169aea4a76e83c6c569",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.679899Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/integrated_scenario_coupling.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/integrated_scenario_coupling.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "f8083852bcfbf4cc9f7e31a65c55143c47640c8f",
+      "report_sha256": "53ffccb5e3cecc3980eeaf23a39290ddef809419dbcaba19b0e96add64e10963",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T21:47:57.778796Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/cyclone_base_case_cpu_cpu.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/cyclone_base_case_cpu_cpu.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9496fcb881a2be3c150b919a42d98a9f952ededd",
+      "report_sha256": "3fa098425683b342d5b3835ee4313d4eb69a4735f068a0a37261dd86031a67bd",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T08:55:43.005088Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/cyclone_base_case_gpu_nvidia_geforce_gtx_1060_6gb.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "7713de8c04109b030406cae1757acc0fca342c22",
+      "report_sha256": "efa552edf39fb4147fb2bb1a961e6b8db42600c2b037d1d3a1d83d9f54f14131",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T21:47:58.015253Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/stable_mode_cpu_cpu.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/stable_mode_cpu_cpu.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9496fcb881a2be3c150b919a42d98a9f952ededd",
+      "report_sha256": "834052530634663839098ad2f11ebffd1c8accf296e223161662d728d7f3cc9d",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T08:55:43.238835Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/stable_mode_gpu_nvidia_geforce_gtx_1060_6gb.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/stable_mode_gpu_nvidia_geforce_gtx_1060_6gb.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "7713de8c04109b030406cae1757acc0fca342c22",
+      "report_sha256": "1488674af0618d5cce4065a61f082d5d8ff2319a7ef4de9c8912bcba2488af83",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T21:47:57.927928Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/tem_kinetic_electron_cpu_cpu.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/tem_kinetic_electron_cpu_cpu.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9496fcb881a2be3c150b919a42d98a9f952ededd",
+      "report_sha256": "56b68db06f2291813c784927e512dab9c27028b25ce5c939257c0ec218f613ee",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-01T08:55:43.142989Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity/tem_kinetic_electron_gpu_nvidia_geforce_gtx_1060_6gb.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity/tem_kinetic_electron_gpu_nvidia_geforce_gtx_1060_6gb.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "7713de8c04109b030406cae1757acc0fca342c22",
+      "report_sha256": "9930ca1d2d5c52bfa48a8d60956c6fd8fae1f421491d8a67fe990f561349d0ba",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.722536Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/jax_gk_parity_benchmark.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/jax_gk_parity_benchmark.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9496fcb881a2be3c150b919a42d98a9f952ededd",
+      "report_sha256": "6c1ac20a9ab9adc47e90260a2d56a2584d26a0f3bd87ffc24f371a3a8a2f7612",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.754013Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/kinetic_efit_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/kinetic_efit_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "7fa5988c247a878f58c63071ddb50c8adab994f2",
+      "report_sha256": "0bd4e835e6c9ea0064041abf73a1e3fbd89a9415d16a02ad26b5589cd80c539e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-15T10:11:57Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/marfe_onset.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/marfe_onset.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "4250d1ddae2efd01342a8cb6073d60c5cbeb0732",
+      "report_sha256": "ccac2e98a840c7032ca77f27c73b678e050903c4213ebf52a69e6bb5e8109b59",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-16T21:28:42.102921Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/marfe_onset_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/marfe_onset_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "b13a12b2f1afbd15af31287dfb144883618630468807599108ad0b2410b1c245",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-07-10T04:18:20.816351Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mast_disruption/auc_campaign01.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_disruption/auc_campaign01.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9abeda4eab71ef8e267d3611500c99bf3268fd50",
+      "report_sha256": "015bbc820bdc0790e06b5f6ec60b68ef1a3f18b9851cc790dc57cd2a2d314830",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-07-10T03:30:00Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/mast_disruption/dataset_campaign01.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_disruption/dataset_campaign01.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "9abeda4eab71ef8e267d3611500c99bf3268fd50",
+      "report_sha256": "84e434c72af42aef2be8477289586e4205768fcb7ba3e4d91e282607812651be",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.809577Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mast_efm_feature_provenance_audit.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_feature_provenance_audit.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "38f18d35a0d1bcf9041d53edd6ab50d615ff909d045c2e3d7299e2787f52b853",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.834974Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mast_efm_neural_equilibrium_campaign.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_neural_equilibrium_campaign.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "ff00dfed6a0fafde2a5e1a7fc89d4e5f40c7d45345259dba747d0ca7ce881f95",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-06-05T20:32:49Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/mast_efm_neural_equilibrium_dataset.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_neural_equilibrium_dataset.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "d88c203b62f48306433fbb1e2680e6ccf11951b9",
+      "report_sha256": "e58b3e709489a6d540f91c9d58a9526b0428950d0125bae0ff8b8e0bf4a52108",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:15.914010Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mast_efm_neural_equilibrium_result_templates.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_neural_equilibrium_result_templates.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "2f76eeb9852086b6a07667f980c04662d2b695273e6324552fdc253a5715782e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.844786Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mast_efm_neural_equilibrium_training_launch.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_neural_equilibrium_training_launch.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "a7c98450c573aceb72156c884a6fcff39d8cd985db688b0097e105b11846d8f4",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.022803Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/mast_efm_original_feature_source_audit.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mast_efm_original_feature_source_audit.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "54463f4ce49478ae6076488c978cfc3df689ec096470dd6658701ae13da7477c",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T15:21:10Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mhd_stability.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mhd_stability.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "163ee02f3100f36715fb0fef255ee5b17dbdf474",
+      "report_sha256": "41e86666cb46a033037c0d650002ed466d902d1cf3a20737ad817d21b55a621b",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.075167Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/micro_benchmark_cli_nmpc_ws_harden_20260603.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/micro_benchmark_cli_nmpc_ws_harden_20260603.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fd9726a3ec12837ffe7bd3061e45fcf245935422",
+      "report_sha256": "533cfdededfa8304924bc9efd2ebd232194201a145a6daaea2b2e290a740ff26",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.116707Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/micro_benchmark_cli_nmpc_ws_harden_20260603_fix100.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/micro_benchmark_cli_nmpc_ws_harden_20260603_fix100.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fd9726a3ec12837ffe7bd3061e45fcf245935422",
+      "report_sha256": "a635ddf81b2d942611fcc663cb04573bd2a7032e1d410fa3e21c2ffdb9ba22f8",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.151316Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/micro_benchmark_cli_nmpc_ws_warmup5000.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/micro_benchmark_cli_nmpc_ws_warmup5000.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fd9726a3ec12837ffe7bd3061e45fcf245935422",
+      "report_sha256": "fc93d5a62f9fa30e6ec671d69070e57b681345d77ae6f6846960be929bfdc7b9",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T18:44:25Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/momentum_transport.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/momentum_transport.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "0214bbfbcd2cf69cc0bbb194d4a9630d4c9432ae",
+      "report_sha256": "3d514eaf076c0767a5f05e846f7bdf0e9fe3bfc37c98fe051cb54c7fed10b1f9",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T09:37:23Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/mu_structured_singular_value.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mu_structured_singular_value.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "3aa02e6f8109d74e7103fb3faf5a41eead255b5a",
+      "report_sha256": "38fe8e030e4460660f7b2a39a44d9cf5bb19d84e8fc7b51dd111a9743e414b14",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.440817Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/mu_synthesis_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/mu_synthesis_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "8b1157f7b0c92688bc89f2e74684c72585d66f61",
+      "report_sha256": "779b400c9c6c633f30a0a670d0a2b9a66850e665a743f1046623277331f60f77",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T17:25:43Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_python_pyo3_20260604T172543Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "122f278ac6234ca46bacd116960d157e9fcde80f3efff8645495e492b86d6535",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T17:26:04Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T172604Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "741083a1849476533250882c349c1f5aa6926063075da199c132086a3005f62e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T17:33:22Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T173322Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/multi_shot_campaign_pulsed_mpc_evidence_rust_20260604T173322Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "c354f481ab6661926533b880c9a625d056ae97cdf76bc61558eb7279da96dc2c",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T13:11:12Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/multi_shot_campaign_rust_soft_isolated_20260604T131112Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/multi_shot_campaign_rust_soft_isolated_20260604T131112Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "8696989f97124be0dea90ee1bb7003798ac92a65aee7af9eed8d57e2fe5d7e15",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T13:11:05Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/multi_shot_campaign_soft_isolated_20260604T131105Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/multi_shot_campaign_soft_isolated_20260604T131105Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "fe08cad5fecaf6b46b7189a679c0cf73fb571ad7807092ab9c1c045fc1a1464e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T09:25:47.897916Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_control_spin_pacing_20260604T092520Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_control_spin_pacing_20260604T092520Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "bd9646e9702ff0eefa5995f7cb6bf9a22a6446c87e62200f534ad11353d2825c",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T10:13:21.484985Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_control_spin_pacing_terminals_preserved_20260604T101307Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_control_spin_pacing_terminals_preserved_20260604T101307Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "6c775a300e04dba635f6ebae934dd2c1309180b794952c7b6bb04f8a007abf7d",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T09:56:19.288288Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_control_spin_pacing_with_bc_20260604T095605Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_control_spin_pacing_with_bc_20260604T095605Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "7adb3bf00fc6cf9addaa99b47712aef70e6c925583f39689f3e891e350d40ce9",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T10:02:34.542512Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_control_spin_pacing_with_bc_after_stale_cleanup_20260604T100220Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_control_spin_pacing_with_bc_after_stale_cleanup_20260604T100220Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "a6a5c8088bf54ec0cb9a84cef5a1f9f9f8792a0526af7242aaab3cdc182903da",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T10:57:30.673627Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_aot_certificate_admission_20260604T103219Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "92f95b9ffbfccfdc9ac3949d17b5f86bb34d872376adb9e98f3e74214dc5f21a",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T07:58:00.098680Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_10khz_20260604T073650Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_10khz_20260604T073650Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "a584fc8c6084573b66afa44bd00e7a71bfda7cc376d2127766d81c20d391e733",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:12:27.621537Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_aot_10khz_20260604T081147Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_aot_10khz_20260604T081147Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "85b435df885df7e208c936149ea4e1b1517235ed3e1db02272c8d4d619c76c3e",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:15:05.378487Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_aot_10khz_20260604T081423Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_aot_10khz_20260604T081423Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "6ea48b9cc36da9f352c0b588b91a5036eb04ce9da29c64e27da1c6ffd93d8174",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:11:35.567338Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_aot_tick0_20260604T081056Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_aot_tick0_20260604T081056Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "4f2a62287bde2313a112aaabb3f7e4ebc30fd302ceb8e603a40651a1986dcfc1",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:14:22.772937Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_aot_tick0_20260604T081343Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_aot_tick0_20260604T081343Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "8030e9851b79fbf2cb83870a4f64d32eb3df01879ce5a9c96f7d4dcb3835e368",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T07:47:06.917115Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_modes_tick0_20260604T073650Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_modes_tick0_20260604T073650Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "5e4144714b59ecbc3ed73cac4848e6c5c23c85bbaf36cfb0a3183dbc0f612839",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T07:13:05.596607Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_soft_isolated_20260604T071255Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_soft_isolated_20260604T071255Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "258af49bea85e9037f4b10c6904074c91e7e5ef8e0ffc88e610f72e0bd697ffd",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:39:35.529793Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_spin_pacing_20260604T083924Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_spin_pacing_20260604T083924Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "a357e47047e7ce8b7df3fe84e17326fde4f55ac113e47e3117b51ff533f01ec8",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T08:40:39.277448Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_spin_pacing_20260604T084029Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_spin_pacing_20260604T084029Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "8b4704b191963c9b02134e806621fa4f6fd63702263a2601af2e9a6050cff6a7",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-04T07:20:33.004337Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/native_formal_stride_workstation_20260604T071930Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_formal_stride_workstation_20260604T071930Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fff4aeb7a9da336bf5f3c172c76ee2b2bece2f27",
+      "report_sha256": "685c49df8079c7f7026841a0a9915a4b7a447ca71c674f3023a790fbd911ef5c",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-21T21:17:20.833247Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/native_handoff_comparison.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_handoff_comparison.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "90416f31bc5765fa04b37818457695d0ccd2de4f",
+      "report_sha256": "74c512cad445e11e5e115e27306d49dd3b7ad0c81a9187b17541511c8bcb5c24",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-06-21T20:05:51.078325Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/native_handoff_comparison.local.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/native_handoff_comparison.local.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "52bb83c1b7b78863a09ffb6da5d96f0fac1bf569",
+      "report_sha256": "b5a8368bfebafc341a1db4006ce6254c7a6f8f93044135cda88a45984b832713",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.652092Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/neural_equilibrium_pretraining.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/neural_equilibrium_pretraining.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "068b4f62faa2ee5ab0b7bc70d84a62d39195b138f62eae430dd04adfebf2034e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.697488Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/neural_equilibrium_reference.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/neural_equilibrium_reference.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "859e667895f7763d8725d13468615eb7bc4f5fb0",
+      "report_sha256": "910a6f6c13928604895cfe72e46928406a00f6ed4e7fe883eb3f8af129106475",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.745635Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/neural_equilibrium_training_campaign_plan.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/neural_equilibrium_training_campaign_plan.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "ef531f0b9a588dd8c8b720d6ccc10e5af4d74cf32f3b943c9e5a95f961570d9e",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.815948Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/neural_transport_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/neural_transport_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "1bb99117d74798f095999818ea44e9ba731c1d58",
+      "report_sha256": "b11a2e1cac723e656cb844304e2ab8c08b0bee8a15f95c8f4791de1600ffca20",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:17.884952Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/neural_turbulence_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/neural_turbulence_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "cca502cb3d9d264675c4faa0527c460200ec5b37",
+      "report_sha256": "779951a11d655a8ac837b3c57870503b18047faf7172ddb542c7fba45ae833fb",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T13:55:25Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/ntm_island_dynamics.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/ntm_island_dynamics.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "4fb55615dea9ca9659a7f9c8149fd59eba51e8e7",
+      "report_sha256": "cf2996ccfb2743b9727099ba33b8fb14cc4ce5c6afbca28bc5ebd29824f3001f",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:16.416211Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/orbit_following_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/orbit_following_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "ad693c29940618805895c81bfe3348be489e00b4",
+      "report_sha256": "1a6d9a9260f91ef2f87a75547126f568341d0fa8b8616ae6d23bd1e965bc0c25",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T16:56:59Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_decision_evidence_python_20260604T165651Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_decision_evidence_python_20260604T165651Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "4bf5e20f5cd0d2bafb0bd64464d26206b432c2194ff9877a8f21336d595c8113",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T16:56:51Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_decision_evidence_rust_20260604T165651Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "b157a0bfb4f98b89a316bc1a0edb6c971e0cfdaafa0337cc3a0fb08fa12d4a5d",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T17:10:22Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "1734c3e5fe76f2b27f444e05243e00fffe59a6ed6736df973a8ebf5c69bd544f",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T17:10:15Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "4994e3f2bd2c9b1f95b95f0ce9d7075338cd4c7a4dc82d938445fd41106a8da9",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "filename",
+      "evidence_time_utc": "2026-06-04T12:54:05Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_rust_soft_isolated_20260604T125405Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_rust_soft_isolated_20260604T125405Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "3ee4963bccda71b48454a75fd4871c179fe82724f85e36f9088422c0f9a937cf",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T12:51:45Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/pulsed_mpc_adapter_soft_isolated_20260604T125137Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_mpc_adapter_soft_isolated_20260604T125137Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "99262513e479573696cd52fde6cb105afdef2ba2b247709811b28b41df11a8e3",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-06-04T11:36:18Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "taskset -c 0 env PYTHONPATH=src python - <<'PY' ... focused in-process benchmark ... PY",
+          "cargo build --release --manifest-path /tmp/scpn-control-pulsed-bench/Cargo.toml && taskset -c 0 /tmp/scpn-control-pulsed-bench/target/release/bench_control_pulsed"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
+      "report_sha256": "b0c46894f56c1ba80db4aaa3194b6368cbc01ba091e51c86c07793cb0166771b",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T18:59:14Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/runaway_electron.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/runaway_electron.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "e12dbfd61b8a0cc718cef36e545e729ce8785fc5",
+      "report_sha256": "6381a2a708f9999508d5ded0c72e65cf10c2f42db469bf395edd79a5a8a936dd",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-05T00:33:21Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/runtime_admission_release_20260605T000000Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/runtime_admission_release_20260605T000000Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out validation/reports/runtime_admission_release_20260605T000000Z.json --md-out validation/reports/runtime_admission_release_20260605T000000Z.md"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "a0f668bc27bc6148ded6af5d66d1d8b22c5bf89cf200f51c2d92fddb12e80a2b",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-04T13:22:41Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "stale_report_pending_refresh"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [
+          "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --json-out validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json --md-out validation/reports/runtime_admission_soft_isolated_20260604T132240Z.md"
+        ],
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "c10e5c90eed8e4c6d85fe28e978b0e475f6935df538b619ffa20df0e98631e81",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:19.742094Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/rwm_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/rwm_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "3c10d260514931e240f7cd4d951c992e5e1666a7",
+      "report_sha256": "ee25982a5405fdd52a19579446dd5ae8ca9e98226bf29da4edac14b9f4754da6",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T14:33:26Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/rwm_feedback.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/rwm_feedback.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "1820fa13dd16f5292bf7161a96dfef6b5486d1f2",
+      "report_sha256": "89af55154b70fc83308d8700b6cb4e646b79fd4fdf4e51829f87c21591c95412",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:19.804589Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/rzip_calibration.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/rzip_calibration.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "16ed2e04910a9709f864dde4b0b0198b9a9fce05",
+      "report_sha256": "4f83e3d0ecf2ec95d6fa54af4b0c69552a11b4da6962462dac944901f965b7e7",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T14:24:29Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/rzip_vertical_stability.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/rzip_vertical_stability.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "d70244ce6f9d9c5eeb2d395bbb979c00509b29a0",
+      "report_sha256": "ff975adc33294cc11889eaa254fe98b0f279f9de599a7a782b5ae545eacf9353",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T14:46:56Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/sawtooth_kadomtsev.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/sawtooth_kadomtsev.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "fbdee72651f091bf2425d4939e7bfafd5e16f88f",
+      "report_sha256": "3c91e6a00f56fdbb16913687c2d61b2b2e8d0590117ff88f2433c72f6c4fdef2",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_at_utc",
+      "evidence_time_utc": "2026-07-21T21:22:39.625449Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/scpn_pid_mpc_benchmark.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/scpn_pid_mpc_benchmark.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": null,
+      "report_sha256": "f5e24b5e5bc7d5fb8e3c00594865970745164053109ff65247e34549c7273cc2",
+      "source_claim_boundary_present": false,
+      "storage_class": "owner_local_untracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-21T22:06:42.278024Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/scpn_symbolic_lane_evidence.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/scpn_symbolic_lane_evidence.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "cdc7f63896ca613f07d0036616113e3bd8bc5e1f",
+      "report_sha256": "65ad277bad1e2f86b6ffefe8dc2721e113681af5ea39693e589ea6c6468354f8",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-23T00:50:01.242352Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/scpn_z3_formal.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/scpn_z3_formal.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "cdc8087ca78b4c0002469304b48cf69cdb0c8745",
+      "report_sha256": "afcfc0e537eb183d550117be5f5972c66f569ad6103aecd89b1caa853495500a",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T15:02:31Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/sol_two_point.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/sol_two_point.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "3904ea1fbde94ece2a5451ca9ff4b7c8e4b6ab53",
+      "report_sha256": "5312dd4c796cd6bb48515b0f6379faff3f7200f4b420760345839d478658c908",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-07-21T08:17:36.262520Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/stability_mhd/ballooning_independent_crosscheck.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/stability_mhd/ballooning_independent_crosscheck.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "b14fae949b067bd7be3b6eb8af1545c8d1cd5cfb",
+      "report_sha256": "b8c675db60e3e7b6b907201ee294ce0f49d0b1afaf90be64f23e9376ac8e5797",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-16T21:28:42.106539Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/tracker53_evidence_gate.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/tracker53_evidence_gate.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "59ab094f37955da8b18ce13dd07d53cf3801e0ba6de5412d197d64bbc1d2c31f",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T13:43:34Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/transport_diffusion.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/transport_diffusion.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "ed6a43dc201d94b3cbe4a9fd961250a1c680be35",
+      "report_sha256": "e86590e709e1c7fb0f42af309f4321cb48bda18609ef11ffba9af5c4f2e9931f",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:19.168302Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/uq_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/uq_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "84ec2d1d1767874160abf4a9f5585063ae373245",
+      "report_sha256": "12c14ba81d3d8c2eb715e207f4d27e4312f483a535b76f0fd8d9dbd1a5fb4142",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-16T21:28:42.106675Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/vmec_lite_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/vmec_lite_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
+      "report_sha256": "ea577fbf7641bfefd6cc97f9af15e5079ad92cc98af8c66860fc4708a08acec6",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-15T10:40:02Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/vmec_lite_geometry.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/vmec_lite_geometry.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "3e0641be166602e6ede598a1fbee6b9eafc63bdc",
+      "report_sha256": "b9ced293f094bbcdfc0cba1261cb229fedf08a86eade69529b41775443882c13",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Indexed historical evidence; never selectable as current evidence.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "generated_utc",
+      "evidence_time_utc": "2026-06-14T19:17:06Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/volt_second.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/volt_second.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_only_not_current"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "e26b8402534197c20fd24087734ae6a69ba643df",
+      "report_sha256": "0675a7c563a5fae82b0bd72aadd443c6e11497f8875cd66948a76c39067d0fb0",
+      "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Stale report remains blocked until its declared external artifacts and provenance are available.",
+        "scientific_admission": false
+      },
+      "evidence_class": "external_required",
+      "evidence_time_source": "file_mtime",
+      "evidence_time_utc": "2026-06-05T18:24:19.344503Z",
+      "lifecycle_bucket": "external_artifact_blocked",
+      "path": "validation/reports/volt_second_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/volt_second_claims.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "required_external_artifact_unavailable"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": null,
+        "warmup": null
+      },
+      "refresh": {
+        "commands": [],
+        "locally_rerunnable": false,
+        "status": "external_artifact_blocked"
+      },
+      "report_commit": "327daf0b6fb03ca4c7ca532783cdaff22d13b9ef",
+      "report_sha256": "4286838c412ab93c24029a9000beb39ec35c863eaa26f5fb5c1fe63a5e406f89",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    }
+  ],
+  "reports_root": "validation/reports",
+  "schema_version": "scpn-control.validation-report-lifecycle.v1"
+}
