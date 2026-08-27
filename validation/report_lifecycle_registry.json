@@ -10,10 +10,10 @@
   "reports": [
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -23,27 +23,52 @@
       "path": "validation/reports/aer_observation_admission_20260604T162953Z.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/aer_observation_admission_20260604T162953Z.json"
+          "validation/reports/aer_observation_admission_20260604T162953Z.json",
+          "validation/report_refreshes/2026-08-27/aer_admission.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "affinity": [
+            4,
+            5
+          ],
+          "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+          "cpu_count": 12,
+          "governor": "powersave",
+          "loadavg_after": [
+            17.365234375,
+            18.201171875,
+            15.42822265625
+          ],
+          "loadavg_before": [
+            8.65869140625,
+            19.0068359375,
+            15.4072265625
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+        },
+        "repeats": 1,
+        "samples": 20000,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 1000
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/aer_admission.json",
+        "artifact_sha256": "c243d0bbff633fc24dd76573098fdc1f837365da6fdb972e29394f35325044b4",
         "commands": [
-          "taskset -c 4,5 env PYTHONPATH=src .venv/bin/python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out validation/reports/aer_observation_admission_20260604T162953Z.json --md-out validation/reports/aer_observation_admission_20260604T162953Z.md",
-          "python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out validation/reports/aer_observation_admission_20260604T162953Z.json --md-out validation/reports/aer_observation_admission_20260604T162953Z.md"
+          "taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out artifacts/validation_refreshes/2026-08-27/aer_admission.json --md-out artifacts/validation_refreshes/2026-08-27/aer_admission.md"
         ],
+        "evidence_time_utc": "2026-08-27T21:15:34Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "c03bc49dd0bca2f17e5ef609d5184b2eee174f8f",
       "report_sha256": "3936ad32d08788f66c53f44b5768d55b824cfadb26b956ca2f2bc1a2b5e30473",
@@ -52,10 +77,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -65,26 +90,62 @@
       "path": "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json"
+          "validation/reports/aer_observation_soft_isolated_20260604T121529Z.json",
+          "validation/report_refreshes/2026-08-27/aer_soft.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+          "cpu_count": 12,
+          "governor": "powersave",
+          "loadavg_after": [
+            30.818359375,
+            22.22705078125,
+            17.10888671875
+          ],
+          "loadavg_before": [
+            18.29931640625,
+            18.3759765625,
+            15.51513671875
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3",
+          "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+        },
+        "repeats": 1,
+        "samples": 50000,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 2000
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/aer_soft.json",
+        "artifact_sha256": "0abf9be22370be13911510850082b9fb50e6896a937d103b50b53ab32275f06e",
         "commands": [
-          "python benchmarks/bench_aer_observation.py --json-out validation/reports/aer_observation_soft_isolated_20260604T121529Z.json --md-out validation/reports/aer_observation_soft_isolated_20260604T121529Z.md"
+          "env PYTHONPATH=src python benchmarks/bench_aer_observation.py --iterations 50000 --warmup 2000 --json-out artifacts/validation_refreshes/2026-08-27/aer_soft.json --md-out artifacts/validation_refreshes/2026-08-27/aer_soft.md"
         ],
+        "evidence_time_utc": "2026-08-27T21:17:09Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "eed9c3b71b8393936a88075d24a25e5da6b16bf8",
       "report_sha256": "00df120052a937d92624366fbb996fc10c89962fdbce43f6d35a1f1b3498ae61",
@@ -121,7 +182,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -160,7 +224,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -199,7 +266,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -238,7 +308,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -277,7 +350,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -316,7 +392,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -355,7 +434,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -394,7 +476,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -433,7 +518,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -472,7 +560,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -511,7 +602,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -550,7 +644,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -589,7 +686,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -600,10 +700,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -613,24 +713,54 @@
       "path": "validation/reports/differentiable_scenario_readiness.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/differentiable_scenario_readiness.json"
+          "validation/reports/differentiable_scenario_readiness.json",
+          "validation/report_refreshes/2026-08-27/differentiable.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted",
+          "physics_traceability"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "command": "python validation/benchmark_differentiable_scenario.py --json-out artifacts/validation_refreshes/2026-08-27/differentiable/raw.json --md-out artifacts/validation_refreshes/2026-08-27/differentiable/raw.md",
+          "durations_ms": [
+            367.51548503525555,
+            346.1022019619122,
+            390.23526199162006,
+            356.8805590039119,
+            325.99966903217137
+          ],
+          "isolation": "local_non_isolated_admission_smoke",
+          "loadavg_after": [
+            22.80126953125,
+            16.380859375,
+            15.64404296875
+          ],
+          "loadavg_before": [
+            22.609375,
+            16.23486328125,
+            15.59326171875
+          ],
+          "timed_runs": 5,
+          "warmup_runs": 1
+        },
+        "repeats": 5,
+        "samples": 5,
+        "source_commit": "61653714a4fa2cc5c90ed59672a6dd3a80d0d967",
+        "warmup": 1
       },
       "refresh": {
-        "commands": [],
+        "artifact_path": "validation/report_refreshes/2026-08-27/differentiable.json",
+        "artifact_sha256": "14782bcc0ad1edb99c93332938f796829a39573b379953cfd51425268eef41b4",
+        "commands": [
+          "env PYTHONPATH=src .venv/bin/python validation/benchmark_differentiable_scenario.py --json-out artifacts/validation_refreshes/2026-08-27/differentiable/raw.json --md-out artifacts/validation_refreshes/2026-08-27/differentiable/raw.md"
+        ],
+        "evidence_time_utc": "2026-08-27T21:35:01Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "2203670db90b65f4005933fb7432e22157d0bce3",
       "report_sha256": "e1dee290a81c69de709e97a08249de56344ed514933f7ce0572ea016835de1dd",
@@ -667,7 +797,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -706,7 +839,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -745,7 +881,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -784,7 +923,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -823,7 +965,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -862,7 +1007,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -873,10 +1021,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -886,26 +1034,59 @@
       "path": "validation/reports/e2e_control_latency.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/e2e_control_latency.json"
+          "validation/reports/e2e_control_latency.json",
+          "validation/report_refreshes/2026-08-27/e2e_default.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "governor": "powersave",
+          "heavy_jobs_running": "not-recorded",
+          "isolation_method": "process-affinity-inherited-or-taskset",
+          "loadavg_end": [
+            31.38671875,
+            22.75927734375,
+            17.36474609375
+          ],
+          "loadavg_start": [
+            31.38671875,
+            22.75927734375,
+            17.36474609375
+          ]
+        },
+        "repeats": 1,
+        "samples": 200,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 20
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/e2e_default.json",
+        "artifact_sha256": "08b097a2665dc8938fb474118888ff047601e534fd97c0d4afc36d9c57ea4455",
         "commands": [
-          "python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json validation/reports/e2e_control_latency.json"
+          "env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_default.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt"
         ],
+        "evidence_time_utc": "2026-08-27T21:17:24Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "10bd25cc2412defe0bae8fd6878f5b760c0703bc",
       "report_sha256": "8fa677c6f1a866e864cade67b5c94b216ba350a14cac48713824a82f621f8b18",
@@ -914,10 +1095,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -927,26 +1108,49 @@
       "path": "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/e2e_control_latency_hardening_20260603T0010.json"
+          "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
+          "validation/report_refreshes/2026-08-27/e2e_hardening.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_affinity": [
+            4,
+            5
+          ],
+          "governor": "powersave",
+          "heavy_jobs_running": "not-recorded",
+          "isolation_method": "process-affinity-inherited-or-taskset",
+          "loadavg_end": [
+            29.75390625,
+            22.56396484375,
+            17.330078125
+          ],
+          "loadavg_start": [
+            31.38671875,
+            22.75927734375,
+            17.36474609375
+          ]
+        },
+        "repeats": 1,
+        "samples": 200,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 20
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/e2e_hardening.json",
+        "artifact_sha256": "5d900158db617210be14d4ff0c4e3f2a626200a7a85d4a021b58b8ddd02c3359",
         "commands": [
-          "env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json validation/reports/e2e_control_latency_hardening_20260603T0010.json --target-hardware-id ws-nmpc-hardening-host --target-hardware-class workstation-x86_64 --rt-kernel local-unqualified"
+          "taskset -c 4,5 env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_hardening.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt"
         ],
+        "evidence_time_utc": "2026-08-27T21:17:25Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "abe31f2fe0bc77f74d08689ccc59676af892eabe",
       "report_sha256": "ef368645c986c2d41de12ea38aeb0eabb17d815c72e6ece43a0b512dbcf029f5",
@@ -983,7 +1187,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1022,7 +1229,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1061,7 +1271,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -1100,7 +1313,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1139,7 +1355,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1178,7 +1397,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1217,7 +1439,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -1256,7 +1481,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1295,7 +1523,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1334,7 +1565,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1373,7 +1607,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1412,7 +1649,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1451,7 +1691,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -1490,7 +1733,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1529,7 +1775,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1568,7 +1817,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1579,10 +1831,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -1592,24 +1844,33 @@
       "path": "validation/reports/grad_shafranov_solovev.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/grad_shafranov_solovev.json"
+          "validation/reports/grad_shafranov_solovev.json",
+          "validation/report_refreshes/2026-08-27/grad_shafranov.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "producer_host_context": "not_emitted"
+        },
+        "repeats": 1,
+        "samples": 3,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 0
       },
       "refresh": {
-        "commands": [],
+        "artifact_path": "validation/report_refreshes/2026-08-27/grad_shafranov.json",
+        "artifact_sha256": "59b598cbc8bdca20b61d027f9888e4afae3f5108323f2ad5c7c83091bdf6f094",
+        "commands": [
+          "env PYTHONPATH=src python -m validation.validate_grad_shafranov_solovev --target-id aaarthuus-loaded-20260827 --report artifacts/validation_refreshes/2026-08-27/grad_shafranov.json"
+        ],
+        "evidence_time_utc": "2026-08-27T21:18:06Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "c9c16fd06d2a2e81e10596476852086b24c98fa4",
       "report_sha256": "ad33d2224995f54f6b99330be77601614ce6b06161469a65b0f5c1e5a25081c0",
@@ -1646,7 +1907,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -1685,7 +1949,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -1724,7 +1991,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1763,7 +2033,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1802,7 +2075,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1841,7 +2117,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1880,7 +2159,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1919,7 +2201,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1958,7 +2243,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -1997,7 +2285,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2036,7 +2327,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2075,7 +2369,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2114,7 +2411,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2153,7 +2453,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2192,7 +2495,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2231,7 +2537,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2270,7 +2579,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2309,7 +2621,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2348,7 +2663,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2387,7 +2705,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2426,7 +2747,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2465,7 +2789,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2504,7 +2831,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2543,7 +2873,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2582,7 +2915,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2621,7 +2957,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2660,7 +2999,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2699,7 +3041,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2738,7 +3083,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2777,7 +3125,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2816,7 +3167,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2855,7 +3209,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2894,7 +3251,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -2933,7 +3293,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -2972,7 +3335,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3011,7 +3377,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3050,7 +3419,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3089,7 +3461,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3128,7 +3503,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3167,7 +3545,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3206,7 +3587,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3245,7 +3629,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3284,7 +3671,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3323,7 +3713,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3362,7 +3755,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3401,7 +3797,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3440,7 +3839,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3479,7 +3881,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3518,7 +3923,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3557,7 +3965,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3596,7 +4007,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3635,7 +4049,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3674,7 +4091,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3713,7 +4133,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3752,7 +4175,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3791,7 +4217,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -3830,7 +4259,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3869,7 +4301,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3908,7 +4343,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3947,7 +4385,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -3986,7 +4427,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4025,7 +4469,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4064,7 +4511,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4075,10 +4525,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4088,27 +4538,50 @@
       "path": "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"
+          "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
+          "validation/report_refreshes/2026-08-27/pulsed_scheduler.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_affinity": [
+            4,
+            5
+          ],
+          "cpu_count": 12,
+          "isolation": "loaded_workstation_process_affinity_only",
+          "loadavg_end": [
+            8.99072265625,
+            13.4345703125,
+            15.779296875
+          ],
+          "loadavg_start": [
+            8.99072265625,
+            13.4345703125,
+            15.779296875
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3"
+        },
+        "repeats": 1,
+        "samples": 50000,
+        "source_commit": "2ba3845481153be4c3b21221b156f7cc458a881b",
+        "warmup": 2000
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/pulsed_scheduler.json",
+        "artifact_sha256": "125e4f8d552f4cbf2c26148f2aa036c37c3855adf521bc2979ca7af0034c5f1b",
         "commands": [
-          "taskset -c 0 env PYTHONPATH=src python - <<'PY' ... focused in-process benchmark ... PY",
-          "cargo build --release --manifest-path /tmp/scpn-control-pulsed-bench/Cargo.toml && taskset -c 0 /tmp/scpn-control-pulsed-bench/target/release/bench_control_pulsed"
+          "taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_pulsed_scenario_scheduler.py --iterations 50000 --warmup 2000 --json-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler.json --md-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler.md"
         ],
+        "evidence_time_utc": "2026-08-27T21:28:04Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
       "report_sha256": "b0c46894f56c1ba80db4aaa3194b6368cbc01ba091e51c86c07793cb0166771b",
@@ -4145,7 +4618,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4156,10 +4632,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4169,26 +4645,62 @@
       "path": "validation/reports/runtime_admission_release_20260605T000000Z.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/runtime_admission_release_20260605T000000Z.json"
+          "validation/reports/runtime_admission_release_20260605T000000Z.json",
+          "validation/report_refreshes/2026-08-27/runtime_release.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted",
+          "PREEMPT_RT kernel evidence is required but was not detected",
+          "real-time scheduler policy required, observed SCHED_OTHER",
+          "performance CPU governor required on cores [4, 5, 6, 7]"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "isolation_method": "process-affinity-inherited-or-taskset",
+          "loadavg_end": [
+            29.75390625,
+            22.56396484375,
+            17.330078125
+          ],
+          "loadavg_start": [
+            29.75390625,
+            22.56396484375,
+            17.330078125
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3"
+        },
+        "repeats": 1,
+        "samples": 500,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 50
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/runtime_release.json",
+        "artifact_sha256": "b509b8e8ddb8c6ae035f1c5de41cb683ec57ab35f71ad1637d72b22eb9ba2147",
         "commands": [
-          "benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out validation/reports/runtime_admission_release_20260605T000000Z.json --md-out validation/reports/runtime_admission_release_20260605T000000Z.md"
+          "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out artifacts/validation_refreshes/2026-08-27/runtime_release.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_release.md"
         ],
+        "evidence_time_utc": "2026-08-27T21:17:27Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
       "report_sha256": "a0f668bc27bc6148ded6af5d66d1d8b22c5bf89cf200f51c2d92fddb12e80a2b",
@@ -4197,10 +4709,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": false,
+        "current_evidence": true,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Stale local-proxy report pending a controlled orientation-only refresh.",
+        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4210,26 +4722,62 @@
       "path": "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
       "provenance": {
         "artifacts": [
-          "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json"
+          "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
+          "validation/report_refreshes/2026-08-27/runtime_soft.json"
         ],
-        "dependency_lock_sha256": null,
+        "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
         "failures": [
-          "stale_report_pending_refresh"
+          "loaded_workstation_orientation_only",
+          "public_claim_not_admitted",
+          "PREEMPT_RT kernel evidence is required but was not detected",
+          "real-time scheduler policy required, observed SCHED_OTHER",
+          "performance CPU governor required on cores [1, 2, 3, 4]"
         ],
-        "host_class": null,
-        "host_id": null,
-        "host_load": null,
-        "repeats": null,
-        "samples": null,
-        "source_commit": null,
-        "warmup": null
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_affinity": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11
+          ],
+          "isolation_method": "process-affinity-inherited-or-taskset",
+          "loadavg_end": [
+            29.85400390625,
+            22.7041015625,
+            17.40380859375
+          ],
+          "loadavg_start": [
+            29.85400390625,
+            22.7041015625,
+            17.40380859375
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3"
+        },
+        "repeats": 1,
+        "samples": 500,
+        "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+        "warmup": 50
       },
       "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-27/runtime_soft.json",
+        "artifact_sha256": "378bb9b3392547c36861c015a85e087388913936403690fbc4186966eeb52954",
         "commands": [
-          "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --json-out validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json --md-out validation/reports/runtime_admission_soft_isolated_20260604T132240Z.md"
+          "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --json-out artifacts/validation_refreshes/2026-08-27/runtime_soft.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_soft.md"
         ],
+        "evidence_time_utc": "2026-08-27T21:17:30Z",
         "locally_rerunnable": true,
-        "status": "pending_refresh"
+        "status": "refreshed"
       },
       "report_commit": "feb5d9209a5243f1b278f7a0f996d91de77c4fb6",
       "report_sha256": "c10e5c90eed8e4c6d85fe28e978b0e475f6935df538b619ffa20df0e98631e81",
@@ -4266,7 +4814,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4305,7 +4856,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4344,7 +4898,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4383,7 +4940,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4422,7 +4982,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4461,7 +5024,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4500,7 +5066,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4539,7 +5108,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4578,7 +5150,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4617,7 +5192,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4656,7 +5234,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4695,7 +5276,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4734,7 +5318,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4773,7 +5360,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4812,7 +5402,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
@@ -4851,7 +5444,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
@@ -4890,7 +5486,10 @@
         "warmup": null
       },
       "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
         "commands": [],
+        "evidence_time_utc": null,
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },

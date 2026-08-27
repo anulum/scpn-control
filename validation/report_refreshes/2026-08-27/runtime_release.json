@@ -1,0 +1,130 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted",
+    "PREEMPT_RT kernel evidence is required but was not detected",
+    "real-time scheduler policy required, observed SCHED_OTHER",
+    "performance CPU governor required on cores [4, 5, 6, 7]"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "loadavg_start": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    }
+  },
+  "lineage_id": "runtime_release",
+  "orientation_only": true,
+  "payload_sha256": "7741f4b223a85b8d2ec97d7b041eebf785ff7d9671f96143411d95fd114d0f41",
+  "producer_command": "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out artifacts/validation_refreshes/2026-08-27/runtime_release.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_release.md",
+  "producer_payload": {
+    "command": "benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --core-snn 4 --core-z3 5 --core-net 6 --core-hb 7 --json-out artifacts/validation_refreshes/2026-08-27/runtime_release/raw.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_release/raw.md",
+    "context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "loadavg_start": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    },
+    "evidence_class": "local_regression",
+    "generated_utc": "2026-08-27T21:17:27Z",
+    "last_admission_errors": [
+      "PREEMPT_RT kernel evidence is required but was not detected",
+      "real-time scheduler policy required, observed SCHED_OTHER",
+      "performance CPU governor required on cores [4, 5, 6, 7]"
+    ],
+    "last_admission_status": "fail",
+    "last_admission_warnings": [],
+    "payload_sha256": "9cf0b833cae55e801d490c1975e90c1b434b31e3d3b3035b698241e682452795",
+    "production_claim_allowed": false,
+    "schema_version": "scpn-control.runtime-admission-benchmark.v1",
+    "stats": {
+      "max_us": 12439.257,
+      "mean_us": 1060.320256,
+      "median_us": 551.597,
+      "min_us": 366.428,
+      "p95_us": 4145.444,
+      "p99_us": 6162.934,
+      "samples": 500
+    }
+  },
+  "producers": [
+    {
+      "path": "benchmarks/bench_runtime_admission.py",
+      "sha256": "3a11407955f0c1b828d271a34b82a618bdd6f075ef72acae780792ba45c5f395"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "d4d9775068d6f36eb3dc44a37930335f1a5cb5c0c595f3693011970e92a6c81b",
+  "refresh_evidence_time_utc": "2026-08-27T21:17:27Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 500,
+    "warmup": 50
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+  "source_report": {
+    "path": "validation/reports/runtime_admission_release_20260605T000000Z.json",
+    "sha256": "a0f668bc27bc6148ded6af5d66d1d8b22c5bf89cf200f51c2d92fddb12e80a2b"
+  }
+}

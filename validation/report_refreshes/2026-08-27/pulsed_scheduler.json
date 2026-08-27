@@ -1,0 +1,182 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "cpu_affinity": [
+        4,
+        5
+      ],
+      "cpu_count": 12,
+      "isolation": "loaded_workstation_process_affinity_only",
+      "loadavg_end": [
+        8.99072265625,
+        13.4345703125,
+        15.779296875
+      ],
+      "loadavg_start": [
+        8.99072265625,
+        13.4345703125,
+        15.779296875
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    }
+  },
+  "lineage_id": "pulsed_scheduler",
+  "orientation_only": true,
+  "payload_sha256": "b2f2510150343525a4a23805b7019383e15e50cfbbc20a1cd4065d080c6bbc56",
+  "producer_command": "taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_pulsed_scenario_scheduler.py --iterations 50000 --warmup 2000 --json-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler.json --md-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler.md",
+  "producer_payload": {
+    "campaign_steps": 8,
+    "claim_boundary": "Loaded-workstation orientation only; not PREEMPT_RT, HIL, target-hardware, facility, plant-cycle, or production timing evidence.",
+    "command": "benchmarks/bench_pulsed_scenario_scheduler.py --iterations 50000 --warmup 2000 --json-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler/raw.json --md-out artifacts/validation_refreshes/2026-08-27/pulsed_scheduler/raw.md",
+    "context": {
+      "cpu_affinity": [
+        4,
+        5
+      ],
+      "cpu_count": 12,
+      "isolation": "loaded_workstation_process_affinity_only",
+      "loadavg_end": [
+        8.99072265625,
+        13.4345703125,
+        15.779296875
+      ],
+      "loadavg_start": [
+        8.99072265625,
+        13.4345703125,
+        15.779296875
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    },
+    "evidence_class": "local_proxy",
+    "generated_utc": "2026-08-27T21:28:04Z",
+    "iterations": 50000,
+    "orientation_only": true,
+    "parity_passed": true,
+    "payload_sha256": "8783440ff6708ad82155749a606dda9b114ff144b657bf85bd88da0d439f7625",
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "python_result": {
+      "last_states": [
+        "ramp_up",
+        "flat_top",
+        "burn",
+        "expansion",
+        "dump",
+        "recharge",
+        "cool_down",
+        "idle"
+      ],
+      "stats": {
+        "max_us": 4216.435,
+        "mean_us": 77.04125304,
+        "median_us": 63.541,
+        "min_us": 55.808,
+        "p95_us": 127.429,
+        "p99_us": 140.997,
+        "samples": 50000
+      }
+    },
+    "rust_command": [
+      "cargo",
+      "run",
+      "--release",
+      "--quiet",
+      "--manifest-path",
+      "./scpn-control-rs/Cargo.toml",
+      "-p",
+      "control-control",
+      "--example",
+      "bench_pulsed_scenario_scheduler",
+      "--",
+      "--iterations",
+      "50000",
+      "--warmup",
+      "2000"
+    ],
+    "rust_result": {
+      "campaign_steps": 8,
+      "claim_boundary": "Loaded-workstation orientation only; not PREEMPT_RT, HIL, target-hardware, or facility timing evidence.",
+      "command": "scpn-control-rs/target/release/examples/bench_pulsed_scenario_scheduler --iterations 50000 --warmup 2000",
+      "context": {
+        "arch": "x86_64",
+        "cpu_affinity": "4-5",
+        "kernel_release": "7.0.0-28-generic",
+        "loadavg_end": "8.99 13.43 15.78 4/4746 1045471",
+        "loadavg_start": "8.99 13.43 15.78 5/4746 1045471",
+        "os": "linux",
+        "rust_crate_version": "0.1.0"
+      },
+      "evidence_class": "local_proxy",
+      "iterations": 50000,
+      "last_states": [
+        "ramp_up",
+        "flat_top",
+        "burn",
+        "expansion",
+        "dump",
+        "recharge",
+        "cool_down",
+        "idle"
+      ],
+      "production_claim_allowed": false,
+      "public_claim_allowed": false,
+      "schema_version": "scpn-control.rust-pulsed-scenario-scheduler-benchmark.v1",
+      "stats": {
+        "max_us": 23.279,
+        "mean_us": 0.25874958,
+        "median_us": 0.24,
+        "min_us": 0.232,
+        "p95_us": 0.366,
+        "p99_us": 0.481,
+        "samples": 50000
+      },
+      "warmup": 2000
+    },
+    "schema_version": "scpn-control.pulsed-scenario-scheduler-benchmark.v1",
+    "scientific_admission": false,
+    "warmup": 2000
+  },
+  "producers": [
+    {
+      "path": "benchmarks/bench_pulsed_scenario_scheduler.py",
+      "sha256": "e8a9b0f493ff3f440cf3d314d5bd8e4f7380e016e22a0ad6f6f7e977068bc423"
+    },
+    {
+      "path": "scpn-control-rs/crates/control-control/examples/bench_pulsed_scenario_scheduler.rs",
+      "sha256": "c5c11113e00b9f992fcdc50cf75069f2ea4c64e0a4c594d4a7f4fbee89c76975"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "faf299d4e321e0822d6300b76b5cb56e855eeb386cf70a40cead9f5689a8cfe4",
+  "refresh_evidence_time_utc": "2026-08-27T21:28:04Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 50000,
+    "warmup": 2000
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "2ba3845481153be4c3b21221b156f7cc458a881b",
+  "source_report": {
+    "path": "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
+    "sha256": "b0c46894f56c1ba80db4aaa3194b6368cbc01ba091e51c86c07793cb0166771b"
+  }
+}

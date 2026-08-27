@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from copy import deepcopy
 from datetime import datetime, timezone
@@ -27,7 +28,7 @@ from tools.validation_report_freshness import (
     parse_datetime,
 )
 
-AUDIT_AS_OF = datetime(2026, 8, 27, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 8, 27, 22, tzinfo=timezone.utc)
 
 
 def test_validation_report_freshness_inventory_finds_live_stale_reports() -> None:
@@ -40,7 +41,9 @@ def test_validation_report_freshness_inventory_finds_live_stale_reports() -> Non
 
     stale_paths = {report.path.relative_to(ROOT).as_posix() for report in matrix.stale_reports}
     assert len(matrix.reports) == 125
-    assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" in stale_paths
+    assert len(matrix.stale_reports) == 116
+    assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" not in stale_paths
+    assert matrix.source_counts["lifecycle_refresh"] == 9
     assert matrix.source_counts["generated_at_utc"] >= 1
     assert matrix.bucket_counts == {
         "external_artifact_blocked": 75,
@@ -69,6 +72,20 @@ def test_validation_report_freshness_can_render_markdown_summary() -> None:
     assert "rerunnable_local" in rendered
 
 
+def test_markdown_reports_absent_local_lineages(tmp_path: Path) -> None:
+    """An external-only registry renders the empty local-lineage state."""
+    reports_root, registry_path, _ = _write_single_report_registry(tmp_path)
+
+    rendered = build_validation_report_freshness_matrix(
+        reports_root,
+        as_of=AUDIT_AS_OF,
+        max_age_days=21,
+        registry_path=registry_path,
+    ).to_markdown()
+
+    assert "No rerunnable-local validation report lineages were found." in rendered
+
+
 def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """The CLI writes both supported deterministic output forms."""
     output_json = tmp_path / "freshness.json"
@@ -78,7 +95,7 @@ def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path
         main(
             [
                 "--as-of",
-                "2026-08-27T00:00:00Z",
+                "2026-08-27T22:00:00Z",
                 "--max-age-days",
                 "21",
                 "--output-json",
@@ -110,7 +127,7 @@ def test_validation_report_freshness_classifies_known_live_reports() -> None:
         as_of=AUDIT_AS_OF,
         max_age_days=21,
     )
-    reports = {report.path.relative_to(ROOT).as_posix(): report for report in matrix.stale_reports}
+    reports = {report.path.relative_to(ROOT).as_posix(): report for report in matrix.reports}
 
     assert (
         reports[
@@ -167,19 +184,19 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
     )
     assert (
         refresh_plans["validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json"].status
-        == "manual_reconstruction_required"
+        == "ready_exact_command"
     )
 
 
 def test_validation_report_freshness_cli_can_fail_on_stale_reports(capsys: CaptureFixture[str]) -> None:
     """Strict freshness mode rejects the stale audited corpus."""
-    assert main(["--as-of", "2026-08-27T00:00:00Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
+    assert main(["--as-of", "2026-08-27T22:00:00Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
     assert "Stale validation reports detected:" in capsys.readouterr().err
 
 
 def test_validation_report_freshness_cli_accepts_current_window(capsys: CaptureFixture[str]) -> None:
     """A caller-selected broad window can make freshness advisory-only."""
-    assert main(["--as-of", "2026-08-27T00:00:00Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
+    assert main(["--as-of", "2026-08-27T22:00:00Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out
 
 
@@ -192,6 +209,7 @@ def test_validation_report_freshness_docs_include_entrypoint() -> None:
     )
     assert "scpn-control.validation-report-freshness.v2" in validation_docs
     assert "Rerunnable local reports also include a refresh plan" in validation_docs
+    assert "scpn-control.validation-report-refresh.v1" in validation_docs
 
 
 def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
@@ -210,7 +228,11 @@ def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
         "git_tracked",
         "owner_local_untracked",
     }
-    assert all(not report["claim_boundary"]["current_evidence"] for report in registry["reports"])
+    assert sum(report["claim_boundary"]["current_evidence"] for report in registry["reports"]) == 9
+    assert all(
+        report["claim_boundary"]["current_evidence"] == (report["refresh"]["status"] == "refreshed")
+        for report in registry["reports"]
+    )
     assert all(not report["claim_boundary"]["public_claim_allowed"] for report in registry["reports"])
 
 
@@ -221,9 +243,9 @@ def _write_single_report_registry(tmp_path: Path) -> tuple[Path, Path, dict[str,
         for report in source_registry["reports"]
         if report["path"] == "validation/reports/gk_interface_artifacts.json"
     )
-    reports_root = tmp_path / "reports"
+    reports_root = tmp_path / "validation" / "reports"
     report_path = reports_root / "gk_interface_artifacts.json"
-    reports_root.mkdir()
+    reports_root.mkdir(parents=True)
     report_path.write_bytes((ROOT / source_record["path"]).read_bytes())
     registry = deepcopy(source_registry)
     registry["expected_bucket_counts"] = {
@@ -418,7 +440,10 @@ def test_lifecycle_registry_rejects_duplicate_extra_missing_and_count_drift(tmp_
         _build_fixture(reports_root, registry_path)
 
 
-def _make_refreshed_local(record: dict[str, Any]) -> None:
+def _make_refreshed_local(record: dict[str, Any], tmp_path: Path) -> None:
+    artifact_path = tmp_path / "validation" / "report_refreshes" / "test.json"
+    artifact_path.parent.mkdir(parents=True)
+    artifact_path.write_text('{"schema_version": "test"}\n', encoding="utf-8")
     record["lifecycle_bucket"] = "rerunnable_local"
     record["evidence_class"] = "local_proxy"
     record["evidence_time_utc"] = "2026-08-26T00:00:00Z"
@@ -426,6 +451,9 @@ def _make_refreshed_local(record: dict[str, Any]) -> None:
         "locally_rerunnable": True,
         "status": "refreshed",
         "commands": ["python benchmark.py --json-out report.json"],
+        "artifact_path": "validation/report_refreshes/test.json",
+        "artifact_sha256": hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+        "evidence_time_utc": "2026-08-26T00:00:00Z",
     }
     record["claim_boundary"] = {
         "current_evidence": True,
@@ -448,11 +476,118 @@ def _make_refreshed_local(record: dict[str, Any]) -> None:
     }
 
 
+def _make_pending_local(record: dict[str, Any], commands: list[str]) -> None:
+    record["lifecycle_bucket"] = "rerunnable_local"
+    record["evidence_class"] = "local_proxy"
+    record["refresh"] = {
+        "locally_rerunnable": True,
+        "status": "pending_refresh",
+        "commands": commands,
+        "artifact_path": None,
+        "artifact_sha256": None,
+        "evidence_time_utc": None,
+    }
+    record["claim_boundary"] = {
+        "current_evidence": False,
+        "scientific_admission": False,
+        "production_admission": False,
+        "public_claim_allowed": False,
+        "rationale": "Pending local refresh fixture.",
+    }
+
+
+@pytest.mark.parametrize(
+    ("commands", "expected_rationale"),
+    [
+        (["python benchmark.py ..."], "abbreviated or partial"),
+        ([], "No exact command metadata"),
+    ],
+)
+def test_pending_local_refresh_plan_requires_reconstruction(
+    tmp_path: Path,
+    commands: list[str],
+    expected_rationale: str,
+) -> None:
+    """Partial and absent legacy commands remain explicit reconstruction blockers."""
+    reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
+    record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
+    _make_pending_local(record, commands)
+    registry["expected_bucket_counts"] = {
+        "external_artifact_blocked": 0,
+        "historical_only": 0,
+        "rerunnable_local": 1,
+    }
+    _persist_registry(registry_path, registry)
+
+    plan = build_validation_report_freshness_matrix(
+        reports_root,
+        as_of=AUDIT_AS_OF,
+        max_age_days=21,
+        registry_path=registry_path,
+    ).rerunnable_local_reports[0].refresh_plan
+
+    assert plan.status == "manual_reconstruction_required"
+    assert expected_rationale in plan.rationale
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda report: report["refresh"].__setitem__("artifact_path", "validation/report_refreshes/x.json"),
+            "cannot bind a refresh artifact",
+        ),
+        (
+            lambda report: report["refresh"].__setitem__("artifact_path", "validation/reports/x.json"),
+            "must be below validation/report_refreshes",
+        ),
+        (
+            lambda report: report["refresh"].__setitem__(
+                "artifact_path", "validation/report_refreshes/../escape.json"
+            ),
+            "escapes the repository",
+        ),
+        (
+            lambda report: report["refresh"].__setitem__(
+                "artifact_path", "validation/report_refreshes/missing.json"
+            ),
+            "refresh artifact does not exist",
+        ),
+        (lambda report: report["refresh"].__setitem__("artifact_sha256", "bad"), "lowercase SHA-256"),
+        (lambda report: report["refresh"].__setitem__("artifact_sha256", "0" * 64), "artifact digest drift"),
+        (
+            lambda report: report["refresh"].__setitem__("evidence_time_utc", "2027-01-01T00:00:00Z"),
+            "future refresh evidence timestamp",
+        ),
+    ],
+)
+def test_refresh_artifact_binding_fails_closed(
+    tmp_path: Path,
+    mutate: Callable[[dict[str, Any]], None],
+    message: str,
+) -> None:
+    """Refresh state, location, digest, existence, and time are independently bound."""
+    reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
+    record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
+    if "cannot bind" not in message:
+        _make_refreshed_local(record, tmp_path)
+        registry["expected_bucket_counts"] = {
+            "external_artifact_blocked": 0,
+            "historical_only": 0,
+            "rerunnable_local": 1,
+        }
+    mutate(record)
+    _persist_registry(registry_path, registry)
+
+    with pytest.raises(LifecycleRegistryError, match=message):
+        _build_fixture(reports_root, registry_path)
+
+
 def test_fresh_admitted_local_report_is_selectable(tmp_path: Path) -> None:
     """Only a fresh, fully provenanced, explicitly admitted report is selected."""
     reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
     record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
-    _make_refreshed_local(record)
+    _make_refreshed_local(record, tmp_path)
     registry["expected_bucket_counts"] = {
         "external_artifact_blocked": 0,
         "historical_only": 0,
@@ -471,7 +606,7 @@ def test_fresh_admitted_local_report_is_selectable(tmp_path: Path) -> None:
     assert matrix.current_admitted_reports[0].lifecycle.production_admission is False
     rendered = matrix.to_markdown()
     assert "No stale validation report JSON artifacts were found." in rendered
-    assert "No stale rerunnable-local validation report JSON artifacts were found." in rendered
+    assert "validation/report_refreshes/test.json" in json.dumps(matrix.to_dict())
 
 
 @pytest.mark.parametrize(
@@ -498,7 +633,7 @@ def test_fresh_admitted_local_report_is_selectable(tmp_path: Path) -> None:
             "public claim permission requires scientific admission",
         ),
         (
-            lambda report: report.__setitem__("evidence_time_utc", "2026-06-01T00:00:00Z"),
+            lambda report: report["refresh"].__setitem__("evidence_time_utc", "2026-06-01T00:00:00Z"),
             "stale report marked as current evidence",
         ),
     ],
@@ -511,7 +646,7 @@ def test_lifecycle_registry_rejects_invalid_local_admission(
     """Local refresh cannot bypass freshness or hierarchical admissions."""
     reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
     record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
-    _make_refreshed_local(record)
+    _make_refreshed_local(record, tmp_path)
     mutate(record)
     registry["expected_bucket_counts"] = {
         "external_artifact_blocked": 0,
@@ -543,7 +678,7 @@ def test_refreshed_report_requires_complete_provenance(
     """Each mandatory refreshed-report provenance field fails independently."""
     reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
     record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
-    _make_refreshed_local(record)
+    _make_refreshed_local(record, tmp_path)
     provenance = cast(dict[str, Any], record["provenance"])
     provenance[missing_key] = None
     registry["expected_bucket_counts"] = {
@@ -567,7 +702,7 @@ def test_refreshed_report_rejects_ambiguous_host(
     """Refreshed evidence requires concrete host identity and class."""
     reports_root, registry_path, registry = _write_single_report_registry(tmp_path)
     record = cast(dict[str, Any], cast(list[object], registry["reports"])[0])
-    _make_refreshed_local(record)
+    _make_refreshed_local(record, tmp_path)
     cast(dict[str, Any], record["provenance"])[host_key] = host_value
     registry["expected_bucket_counts"] = {
         "external_artifact_blocked": 0,
@@ -632,9 +767,9 @@ def test_datetime_and_build_input_validation(tmp_path: Path) -> None:
 
 def test_cli_stdout_modes_default_clock_and_error_path(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """JSON, Markdown, default-clock, and malformed-registry CLI paths are observable."""
-    assert main(["--as-of", "2026-08-27T00:00:00Z", "--json-out"]) == 0
+    assert main(["--as-of", "2026-08-27T22:00:00Z", "--json-out"]) == 0
     assert '"schema_version": "scpn-control.validation-report-freshness.v2"' in capsys.readouterr().out
-    assert main(["--as-of", "2026-08-27T00:00:00Z", "--markdown-out"]) == 0
+    assert main(["--as-of", "2026-08-27T22:00:00Z", "--markdown-out"]) == 0
     assert "# SCPN Control Validation Report Freshness" in capsys.readouterr().out
     assert main(["--max-age-days", "10000"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out

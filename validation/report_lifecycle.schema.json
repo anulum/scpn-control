@@ -87,13 +87,26 @@
         "refresh": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["locally_rerunnable", "status", "commands"],
+          "required": [
+            "locally_rerunnable",
+            "status",
+            "commands",
+            "artifact_path",
+            "artifact_sha256",
+            "evidence_time_utc"
+          ],
           "properties": {
             "locally_rerunnable": {"type": "boolean"},
             "status": {
               "enum": ["pending_refresh", "refreshed", "external_artifact_blocked", "historical_indexed"]
             },
-            "commands": {"type": "array", "items": {"type": "string", "minLength": 1}}
+            "commands": {"type": "array", "items": {"type": "string", "minLength": 1}},
+            "artifact_path": {
+              "type": ["string", "null"],
+              "pattern": "^validation/report_refreshes/.+\\.json$"
+            },
+            "artifact_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+            "evidence_time_utc": {"type": ["string", "null"], "format": "date-time"}
           }
         },
         "provenance": {

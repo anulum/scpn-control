@@ -1,0 +1,137 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "governor": "powersave",
+      "heavy_jobs_running": "not-recorded",
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ],
+      "loadavg_start": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ]
+    }
+  },
+  "lineage_id": "e2e_default",
+  "orientation_only": true,
+  "payload_sha256": "fdc4f668f843a7ae0a4d621c4eced6d4364d40d8fc9d7ff9732e5fe49099a057",
+  "producer_command": "env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_default.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt",
+  "producer_payload": {
+    "claim_boundary": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+    "claim_status": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+    "command": "python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_default/raw.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt",
+    "context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "governor": "powersave",
+      "heavy_jobs_running": "not-recorded",
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ],
+      "loadavg_start": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ]
+    },
+    "e2e_overhead_factor": 17.9,
+    "e2e_us": {
+      "p50": 2748.2,
+      "p95": 5844.9,
+      "p99": 10106.3
+    },
+    "evidence_class": "local_regression",
+    "generated_utc": "2026-08-27T21:17:24Z",
+    "grid": "16x16",
+    "iterations": 200,
+    "kernel_only_us": {
+      "p50": 153.5,
+      "p95": 1331.5,
+      "p99": 2614.1
+    },
+    "payload_sha256": "019d6c35e0c72851efcc949d477bdbb9bdf44c0282547e9d54c1f85acc94ad37",
+    "production_claim_allowed": false,
+    "schema_version": "scpn-control.e2e-latency.v1",
+    "target_hardware": {
+      "class": "workstation-x86_64",
+      "id": "aaarthuus-loaded-20260827",
+      "machine": "x86_64",
+      "numpy": "2.2.6",
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "processor": "x86_64",
+      "python": "3.12.3",
+      "rt_kernel": "7.0.0-28-generic-non-rt"
+    },
+    "warmup": 20
+  },
+  "producers": [
+    {
+      "path": "benchmarks/e2e_control_latency.py",
+      "sha256": "00e99f320bddaa2dd8d1aa612506e87cfc593f528399a285ff50b1791aabd56c"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "9180ca50f694f28665deba51d8d0de66726b5d6b1327343846d06128330fbb43",
+  "refresh_evidence_time_utc": "2026-08-27T21:17:24Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 200,
+    "warmup": 20
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+  "source_report": {
+    "path": "validation/reports/e2e_control_latency.json",
+    "sha256": "8fa677c6f1a866e864cade67b5c94b216ba350a14cac48713824a82f621f8b18"
+  }
+}

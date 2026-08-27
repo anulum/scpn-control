@@ -1,0 +1,198 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "affinity": [
+        4,
+        5
+      ],
+      "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+      "cpu_count": 12,
+      "governor": "powersave",
+      "loadavg_after": [
+        17.365234375,
+        18.201171875,
+        15.42822265625
+      ],
+      "loadavg_before": [
+        8.65869140625,
+        19.0068359375,
+        15.4072265625
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3",
+      "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+    }
+  },
+  "lineage_id": "aer_admission",
+  "orientation_only": true,
+  "payload_sha256": "8783bd1e987f11a53c650b1f55a77bf7b66d6810895ddd2e0e2d3b6548d0b776",
+  "producer_command": "taskset -c 4,5 env PYTHONPATH=src python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out artifacts/validation_refreshes/2026-08-27/aer_admission.json --md-out artifacts/validation_refreshes/2026-08-27/aer_admission.md",
+  "producer_payload": {
+    "benchmarks": {
+      "python": {
+        "admission_push_report_ns": {
+          "max": 215195.0,
+          "mean": 24499.82095,
+          "median": 22728.0,
+          "min": 21792.0,
+          "n": 20000.0,
+          "p95": 37609.0,
+          "p99": 47565.0
+        },
+        "admission_report_ns": {
+          "max": 5009.0,
+          "mean": 224.7605,
+          "median": 220.0,
+          "min": 204.0,
+          "n": 20000.0,
+          "p95": 236.0,
+          "p99": 347.0
+        },
+        "isi_ns": {
+          "max": 413495.0,
+          "mean": 71827.98435,
+          "median": 64051.0,
+          "min": 58736.0,
+          "n": 20000.0,
+          "p95": 121237.0,
+          "p99": 138383.0
+        },
+        "rate_ns": {
+          "max": 353769.0,
+          "mean": 49672.6797,
+          "median": 43912.0,
+          "min": 40610.0,
+          "n": 20000.0,
+          "p95": 86503.0,
+          "p99": 97982.0
+        },
+        "temporal_ns": {
+          "max": 292517.0,
+          "mean": 30115.56505,
+          "median": 27649.0,
+          "min": 25605.0,
+          "n": 20000.0,
+          "p95": 45839.0,
+          "p99": 53518.0
+        }
+      },
+      "rust": {
+        "admission_push_report_ns": {
+          "max": 35025,
+          "mean": 1328.10835,
+          "median": 1125,
+          "min": 901,
+          "n": 20000,
+          "p95": 2237,
+          "p99": 2590
+        },
+        "admission_report_ns": {
+          "max": 592,
+          "mean": 25.6484,
+          "median": 25,
+          "min": 16,
+          "n": 20000,
+          "p95": 39,
+          "p99": 42
+        },
+        "isi_ns": {
+          "max": 726565,
+          "mean": 5256.2706,
+          "median": 4832,
+          "min": 3508,
+          "n": 20000,
+          "p95": 6865,
+          "p99": 7786
+        },
+        "rate_ns": {
+          "max": 51772,
+          "mean": 406.4537,
+          "median": 384,
+          "min": 236,
+          "n": 20000,
+          "p95": 605,
+          "p99": 698
+        },
+        "temporal_ns": {
+          "max": 121732,
+          "mean": 884.5483,
+          "median": 866,
+          "min": 567,
+          "n": 20000,
+          "p95": 1100,
+          "p99": 1276
+        }
+      }
+    },
+    "claim_boundary": "soft-isolated local decoder benchmark evidence only; not target-hardware, neuromorphic-device, FPGA, HIL, or plant PCS timing evidence",
+    "command": "python benchmarks/bench_aer_observation.py --iterations 20000 --warmup 1000 --json-out artifacts/validation_refreshes/2026-08-27/aer_admission/raw.json --md-out artifacts/validation_refreshes/2026-08-27/aer_admission/raw.md",
+    "duration_s": 101.306043488,
+    "evidence_class": "local_regression",
+    "host": {
+      "affinity": [
+        4,
+        5
+      ],
+      "cargo": "cargo 1.98.0 (797e8a9bc 2026-08-05)",
+      "cpu_count": 12,
+      "governor": "powersave",
+      "loadavg_after": [
+        17.365234375,
+        18.201171875,
+        15.42822265625
+      ],
+      "loadavg_before": [
+        8.65869140625,
+        19.0068359375,
+        15.4072265625
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3",
+      "rustc": "rustc 1.98.0 (88d9e12ae 2026-08-18)"
+    },
+    "outer_command": null,
+    "parameters": {
+      "iterations": 20000,
+      "warmup": 1000
+    },
+    "production_claim_allowed": false,
+    "schema_version": "scpn-control.aer-observation-benchmark.v1"
+  },
+  "producers": [
+    {
+      "path": "benchmarks/bench_aer_observation.py",
+      "sha256": "7ca4e9ff89b08e42af70a29daf0ffc98083fef7838f2a49b5fdf538cc628cf7b"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "ebee3d7d5b0768a0ebbbba35e6b607d02fb97dcc951952ceb2a9cefa66fe6e66",
+  "refresh_evidence_time_utc": "2026-08-27T21:15:34Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 20000,
+    "warmup": 1000
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+  "source_report": {
+    "path": "validation/reports/aer_observation_admission_20260604T162953Z.json",
+    "sha256": "3936ad32d08788f66c53f44b5768d55b824cfadb26b956ca2f2bc1a2b5e30473"
+  }
+}

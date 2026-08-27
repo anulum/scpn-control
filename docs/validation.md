@@ -956,6 +956,17 @@ drift, unknown evidence classes, future timestamps, ambiguous refreshed-host
 metadata, stale current evidence, and unsupported admission promotion all fail
 closed.
 
+Rebenchmarking is append-only. Existing files below `validation/reports/`
+remain byte-for-byte source evidence; a later run is written below
+`validation/report_refreshes/<UTC-date>/` using schema
+`scpn-control.validation-report-refresh.v1`. Each refresh names and hashes its
+source report, records the exact source commit, producer command and digests,
+dependency lock, host and load context, sample design, raw-capture custody,
+claim boundary, failures, and a canonical payload seal. The lifecycle registry
+then binds the refresh artifact by path, SHA-256, and evidence timestamp. This
+preserves side-by-side historical comparison and prevents a new workstation
+run from silently replacing or promoting an older result.
+
 Rerunnable local reports also include a refresh plan with a status and command
 list: `ready_exact_command` when the registry preserves the complete command,
 and `manual_reconstruction_required` when only partial or no command metadata

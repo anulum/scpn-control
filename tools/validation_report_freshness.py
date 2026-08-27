@@ -76,6 +76,9 @@ class ValidationReportLifecycle:
     locally_rerunnable: bool
     refresh_status: LifecycleRefreshStatus
     refresh_commands: tuple[str, ...]
+    refresh_artifact_path: str | None
+    refresh_artifact_sha256: str | None
+    refresh_evidence_time: datetime | None
     provenance: dict[str, object]
 
 
@@ -128,6 +131,8 @@ class ValidationReportFreshness:
             "path": _repo_relative(self.path),
             "evidence_time_utc": self.evidence_time.isoformat().replace("+00:00", "Z"),
             "evidence_time_source": self.evidence_time_source,
+            "source_evidence_time_utc": self.lifecycle.evidence_time.isoformat().replace("+00:00", "Z"),
+            "source_evidence_time_source": self.lifecycle.evidence_time_source,
             "age_days": self.age_days,
             "stale": self.stale,
             "claim_boundary_present": self.claim_boundary_present,
@@ -143,6 +148,8 @@ class ValidationReportFreshness:
                 "rationale": self.lifecycle.claim_rationale,
             },
             "lifecycle_refresh_status": self.lifecycle.refresh_status,
+            "refresh_artifact_path": self.lifecycle.refresh_artifact_path,
+            "refresh_artifact_sha256": self.lifecycle.refresh_artifact_sha256,
             "provenance": self.lifecycle.provenance,
             "classification": self.classification.to_dict(),
             "refresh_plan": self.refresh_plan.to_dict(),
@@ -165,8 +172,8 @@ class ValidationReportFreshnessMatrix:
 
     @property
     def rerunnable_local_reports(self) -> tuple[ValidationReportFreshness, ...]:
-        """Return stale reports that can start from local rerun planning."""
-        return tuple(report for report in self.stale_reports if report.classification.bucket == "rerunnable_local")
+        """Return all report lineages classified as locally rerunnable."""
+        return tuple(report for report in self.reports if report.classification.bucket == "rerunnable_local")
 
     @property
     def current_admitted_reports(self) -> tuple[ValidationReportFreshness, ...]:
@@ -197,7 +204,12 @@ class ValidationReportFreshnessMatrix:
 
     @property
     def bucket_counts(self) -> dict[str, int]:
-        """Return stale-report counts by advisory action bucket."""
+        """Return all report counts by audited lifecycle bucket."""
+        return dict(sorted(Counter(report.classification.bucket for report in self.reports).items()))
+
+    @property
+    def stale_bucket_counts(self) -> dict[str, int]:
+        """Return stale report counts by audited lifecycle bucket."""
         return dict(sorted(Counter(report.classification.bucket for report in self.stale_reports).items()))
 
     def to_dict(self) -> dict[str, object]:
@@ -216,6 +228,7 @@ class ValidationReportFreshnessMatrix:
                 "current_admitted_report_count": len(self.current_admitted_reports),
                 "evidence_time_sources": self.source_counts,
                 "bucket_counts": self.bucket_counts,
+                "stale_bucket_counts": self.stale_bucket_counts,
             },
             "stale_reports": [report.to_dict() for report in self.stale_reports],
             "reports": [report.to_dict() for report in self.reports],
@@ -237,11 +250,11 @@ class ValidationReportFreshnessMatrix:
             "",
             "## Classification Buckets",
             "",
-            "| Bucket | Stale reports |",
-            "| --- | ---: |",
+            "| Bucket | All reports | Stale reports |",
+            "| --- | ---: | ---: |",
         ]
         for bucket, count in self.bucket_counts.items():
-            lines.append(f"| `{bucket}` | {count} |")
+            lines.append(f"| `{bucket}` | {count} | {self.stale_bucket_counts.get(bucket, 0)} |")
         lines.extend(
             [
                 "",
@@ -269,7 +282,7 @@ class ValidationReportFreshnessMatrix:
             ]
         )
         if not self.rerunnable_local_reports:
-            lines.append("No stale rerunnable-local validation report JSON artifacts were found.")
+            lines.append("No rerunnable-local validation report lineages were found.")
         else:
             lines.append("| Report | Status | Command source |")
             lines.append("| --- | --- | --- |")
@@ -504,7 +517,18 @@ def _parse_lifecycle_record(
     claim_rationale = _require_string(claim["rationale"], f"{context}.claim_boundary.rationale")
 
     refresh = _require_object(record["refresh"], f"{context}.refresh")
-    _require_exact_keys(refresh, {"locally_rerunnable", "status", "commands"}, context=f"{context}.refresh")
+    _require_exact_keys(
+        refresh,
+        {
+            "locally_rerunnable",
+            "status",
+            "commands",
+            "artifact_path",
+            "artifact_sha256",
+            "evidence_time_utc",
+        },
+        context=f"{context}.refresh",
+    )
     locally_rerunnable = _require_boolean(refresh["locally_rerunnable"], f"{context}.refresh.locally_rerunnable")
     refresh_status_raw = _require_string(refresh["status"], f"{context}.refresh.status")
     if refresh_status_raw not in _BUCKET_REFRESH_STATUS[bucket]:
@@ -514,11 +538,18 @@ def _parse_lifecycle_record(
         _require_string(command, f"{context}.refresh.commands[{command_index}]")
         for command_index, command in enumerate(_require_list(refresh["commands"], f"{context}.refresh.commands"))
     )
+    refresh_artifact_path, refresh_artifact_sha256, refresh_evidence_time = _parse_refresh_artifact(
+        refresh,
+        refresh_status=refresh_status,
+        repository_root=reports_root.parents[1],
+        as_of=as_of,
+        context=context,
+    )
 
     provenance = _parse_provenance(record["provenance"], context=context, report_path=report_path)
     _validate_lifecycle_admission(
         report_path=report_path,
-        evidence_time=evidence_time,
+        evidence_time=refresh_evidence_time or evidence_time,
         as_of=as_of,
         max_age_days=max_age_days,
         bucket=bucket,
@@ -548,8 +579,50 @@ def _parse_lifecycle_record(
         locally_rerunnable=locally_rerunnable,
         refresh_status=refresh_status,
         refresh_commands=refresh_commands,
+        refresh_artifact_path=refresh_artifact_path,
+        refresh_artifact_sha256=refresh_artifact_sha256,
+        refresh_evidence_time=refresh_evidence_time,
         provenance=provenance,
     )
+
+
+def _parse_refresh_artifact(
+    refresh: dict[str, object],
+    *,
+    refresh_status: LifecycleRefreshStatus,
+    repository_root: Path,
+    as_of: datetime,
+    context: str,
+) -> tuple[str | None, str | None, datetime | None]:
+    path_value = refresh["artifact_path"]
+    digest_value = refresh["artifact_sha256"]
+    time_value = refresh["evidence_time_utc"]
+    if refresh_status != "refreshed":
+        if any(value is not None for value in (path_value, digest_value, time_value)):
+            raise LifecycleRegistryError(f"{context}.refresh pending or blocked state cannot bind a refresh artifact")
+        return None, None, None
+    artifact_path = _require_string(path_value, f"{context}.refresh.artifact_path")
+    prefix = "validation/report_refreshes/"
+    if not artifact_path.startswith(prefix) or not artifact_path.endswith(".json"):
+        raise LifecycleRegistryError(f"{context}.refresh.artifact_path must be below validation/report_refreshes")
+    relative = Path(artifact_path)
+    if relative.is_absolute() or ".." in relative.parts:
+        raise LifecycleRegistryError(f"{context}.refresh.artifact_path escapes the repository")
+    absolute_artifact = repository_root / relative
+    if not absolute_artifact.is_file():
+        raise LifecycleRegistryError(f"refresh artifact does not exist: {artifact_path}")
+    artifact_sha256 = _require_string(digest_value, f"{context}.refresh.artifact_sha256")
+    if _SHA256_RE.fullmatch(artifact_sha256) is None:
+        raise LifecycleRegistryError(f"{context}.refresh.artifact_sha256 must be lowercase SHA-256")
+    actual_digest = hashlib.sha256(absolute_artifact.read_bytes()).hexdigest()
+    if actual_digest != artifact_sha256:
+        raise LifecycleRegistryError(
+            f"refresh artifact digest drift for {artifact_path}: expected={artifact_sha256} actual={actual_digest}"
+        )
+    evidence_time = parse_datetime(_require_string(time_value, f"{context}.refresh.evidence_time_utc"))
+    if evidence_time > as_of:
+        raise LifecycleRegistryError(f"future refresh evidence timestamp for {artifact_path}")
+    return artifact_path, artifact_sha256, evidence_time
 
 
 def _parse_provenance(value: object, *, context: str, report_path: str) -> dict[str, object]:
@@ -712,15 +785,16 @@ def _report_freshness(
         source_claim_boundary_present = _contains_claim_boundary(_read_json_object(path))
         if source_claim_boundary_present != lifecycle.source_claim_boundary_present:
             raise LifecycleRegistryError(f"source claim-boundary drift for {lifecycle.path}")
-    age_days = max((as_of - lifecycle.evidence_time).days, 0)
+    effective_time = lifecycle.refresh_evidence_time or lifecycle.evidence_time
+    age_days = max((as_of - effective_time).days, 0)
     classification = ValidationReportClassification(
         bucket=lifecycle.bucket,
         rationale=lifecycle.claim_rationale,
     )
     return ValidationReportFreshness(
         path=path,
-        evidence_time=lifecycle.evidence_time,
-        evidence_time_source=lifecycle.evidence_time_source,
+        evidence_time=effective_time,
+        evidence_time_source="lifecycle_refresh" if lifecycle.refresh_evidence_time is not None else lifecycle.evidence_time_source,
         age_days=age_days,
         stale=age_days > max_age_days,
         claim_boundary_present=True,

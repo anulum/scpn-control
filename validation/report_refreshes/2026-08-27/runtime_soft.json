@@ -1,0 +1,130 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted",
+    "PREEMPT_RT kernel evidence is required but was not detected",
+    "real-time scheduler policy required, observed SCHED_OTHER",
+    "performance CPU governor required on cores [1, 2, 3, 4]"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.85400390625,
+        22.7041015625,
+        17.40380859375
+      ],
+      "loadavg_start": [
+        29.85400390625,
+        22.7041015625,
+        17.40380859375
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    }
+  },
+  "lineage_id": "runtime_soft",
+  "orientation_only": true,
+  "payload_sha256": "34acd1fc16e89550fb487c61509ce36cb6dc210e7532283c0210eb76b9030e7b",
+  "producer_command": "env PYTHONPATH=src python benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --json-out artifacts/validation_refreshes/2026-08-27/runtime_soft.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_soft.md",
+  "producer_payload": {
+    "command": "benchmarks/bench_runtime_admission.py --iterations 500 --warmup 50 --json-out artifacts/validation_refreshes/2026-08-27/runtime_soft/raw.json --md-out artifacts/validation_refreshes/2026-08-27/runtime_soft/raw.md",
+    "context": {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11
+      ],
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.85400390625,
+        22.7041015625,
+        17.40380859375
+      ],
+      "loadavg_start": [
+        29.85400390625,
+        22.7041015625,
+        17.40380859375
+      ],
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "python": "3.12.3"
+    },
+    "evidence_class": "local_regression",
+    "generated_utc": "2026-08-27T21:17:30Z",
+    "last_admission_errors": [
+      "PREEMPT_RT kernel evidence is required but was not detected",
+      "real-time scheduler policy required, observed SCHED_OTHER",
+      "performance CPU governor required on cores [1, 2, 3, 4]"
+    ],
+    "last_admission_status": "fail",
+    "last_admission_warnings": [],
+    "payload_sha256": "22cde80095d9d23cd40be485837fce99035ad5880541b03beff034b41fd78b59",
+    "production_claim_allowed": false,
+    "schema_version": "scpn-control.runtime-admission-benchmark.v1",
+    "stats": {
+      "max_us": 38638.269,
+      "mean_us": 840.175478,
+      "median_us": 483.433,
+      "min_us": 359.037,
+      "p95_us": 3644.359,
+      "p99_us": 5066.715,
+      "samples": 500
+    }
+  },
+  "producers": [
+    {
+      "path": "benchmarks/bench_runtime_admission.py",
+      "sha256": "3a11407955f0c1b828d271a34b82a618bdd6f075ef72acae780792ba45c5f395"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "5a588ce92e341fe3d8147d934a4c95536046a8b7a46e9e1fb7e6319abfc0e35b",
+  "refresh_evidence_time_utc": "2026-08-27T21:17:30Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 500,
+    "warmup": 50
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+  "source_report": {
+    "path": "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
+    "sha256": "c10e5c90eed8e4c6d85fe28e978b0e475f6935df538b619ffa20df0e98631e81"
+  }
+}

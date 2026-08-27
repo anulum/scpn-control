@@ -1,0 +1,117 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "aaeb571d21524326c91fd6aef53e17bc57778a0803371a29cd41373b09120fef",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "loaded_workstation_orientation_only",
+    "public_claim_not_admitted"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "cpu_affinity": [
+        4,
+        5
+      ],
+      "governor": "powersave",
+      "heavy_jobs_running": "not-recorded",
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "loadavg_start": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ]
+    }
+  },
+  "lineage_id": "e2e_hardening",
+  "orientation_only": true,
+  "payload_sha256": "1fbd67e8b25b29c1f43185510f1afcc6e48c54eb8030360dff0a6e0c8ff05677",
+  "producer_command": "taskset -c 4,5 env PYTHONPATH=src python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_hardening.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt",
+  "producer_payload": {
+    "claim_boundary": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+    "claim_status": "local latency evidence only; not a hardware-in-the-loop real-time guarantee unless target_hardware.id, class, and rt_kernel are operator-qualified",
+    "command": "python benchmarks/e2e_control_latency.py --iterations 200 --warmup 20 --output-json artifacts/validation_refreshes/2026-08-27/e2e_hardening/raw.json --target-hardware-id aaarthuus-loaded-20260827 --target-hardware-class workstation-x86_64 --rt-kernel 7.0.0-28-generic-non-rt",
+    "context": {
+      "cpu_affinity": [
+        4,
+        5
+      ],
+      "governor": "powersave",
+      "heavy_jobs_running": "not-recorded",
+      "isolation_method": "process-affinity-inherited-or-taskset",
+      "loadavg_end": [
+        29.75390625,
+        22.56396484375,
+        17.330078125
+      ],
+      "loadavg_start": [
+        31.38671875,
+        22.75927734375,
+        17.36474609375
+      ]
+    },
+    "e2e_overhead_factor": 16.7,
+    "e2e_us": {
+      "p50": 2345.4,
+      "p95": 3518.3,
+      "p99": 4672.1
+    },
+    "evidence_class": "local_regression",
+    "generated_utc": "2026-08-27T21:17:25Z",
+    "grid": "16x16",
+    "iterations": 200,
+    "kernel_only_us": {
+      "p50": 140.1,
+      "p95": 161.4,
+      "p99": 180.3
+    },
+    "payload_sha256": "87891691c8e45571489fb288d690058e882afa002c2440e358e094cce17fdc18",
+    "production_claim_allowed": false,
+    "schema_version": "scpn-control.e2e-latency.v1",
+    "target_hardware": {
+      "class": "workstation-x86_64",
+      "id": "aaarthuus-loaded-20260827",
+      "machine": "x86_64",
+      "numpy": "2.2.6",
+      "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+      "processor": "x86_64",
+      "python": "3.12.3",
+      "rt_kernel": "7.0.0-28-generic-non-rt"
+    },
+    "warmup": 20
+  },
+  "producers": [
+    {
+      "path": "benchmarks/e2e_control_latency.py",
+      "sha256": "00e99f320bddaa2dd8d1aa612506e87cfc593f528399a285ff50b1791aabd56c"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "ba33bdfbfe24ae0466416e37beed07379ff39c2506c5c1b73794f884bbea2d21",
+  "refresh_evidence_time_utc": "2026-08-27T21:17:25Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 200,
+    "warmup": 20
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "1cc751776762c5b4b5e2f7836210d52ca4e8b53d",
+  "source_report": {
+    "path": "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
+    "sha256": "ef368645c986c2d41de12ea38aeb0eabb17d815c72e6ece43a0b512dbcf029f5"
+  }
+}
