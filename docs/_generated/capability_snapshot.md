@@ -12,9 +12,9 @@
 | Rust PyO3 exports | 39 |
 | Validation scripts | 155 |
 | Optional extras | 20 |
-| Python test files | 546 |
+| Python test files | 547 |
 | Public documentation pages | 68 |
-| GitHub Actions workflows | 10 |
+| GitHub Actions workflows | 11 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
 
