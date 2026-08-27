@@ -146,14 +146,23 @@ def test_main_passes_for_current_repo(capsys: CaptureFixture[str]) -> None:
     assert "PASS: Studio evidence sealing remains offline" in capsys.readouterr().out
 
 
-def test_main_reports_violations(monkeypatch: pytest.MonkeyPatch, capsys: CaptureFixture[str]) -> None:
-    """The command-line guard reports violations with a failing exit code."""
-    monkeypatch.setattr(guard, "tracked_files", lambda: ["ops/studio-signing.key"])
+def test_main_reports_violation_count_without_secret_adjacent_details(
+    monkeypatch: pytest.MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    """The CLI fails without copying secret-adjacent diagnostics into logs."""
+    secret_name = "STUDIO_" + "SIGNING_KEY"
+    monkeypatch.setattr(guard, "tracked_files", lambda: [".github/workflows/ci.yml"])
+    monkeypatch.setattr(
+        guard,
+        "validate_policy_files",
+        lambda paths: [f".github/workflows/ci.yml: forbidden secret reference: {secret_name}"],
+    )
 
     assert guard.main() == 1
     output = capsys.readouterr().out
     assert "FAIL: Studio evidence sealing must remain keeper-offline" in output
-    assert "ops/studio-signing.key" in output
+    assert "1 policy violation(s) detected" in output
+    assert secret_name not in output
 
 
 def test_main_reports_git_failures(monkeypatch: pytest.MonkeyPatch, capsys: CaptureFixture[str]) -> None:

@@ -185,8 +185,9 @@ def main() -> int:
         return 1
     if violations:
         print("FAIL: Studio evidence sealing must remain keeper-offline")
-        for violation in violations:
-            print(f"  - {violation}")
+        print(
+            f"FAIL: {len(violations)} policy violation(s) detected; secret-adjacent details are intentionally withheld"
+        )
         return 1
     print("PASS: Studio evidence sealing remains offline; no signing key material is wired")
     return 0
