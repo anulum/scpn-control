@@ -89,7 +89,9 @@ PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "public operational heading",
         re.compile(
             r"^\s*#{1,6}\s+.*(?:roadmap|backlog|next\s+steps?|future\s+work|"
-            r"implementation\s+plan|action\s+items?|gap\s+resolution|priorit|"
+            r"implementation\s+plan|action\s+items?|gap\s+resolution|"
+            r"priority|priorities|prioritize|prioritized|prioritizes|prioritizing|"
+            r"prioritise|prioritised|prioritises|prioritising|prioritization|prioritisation|"
             r"remaining\s+.*work|current\s+support\s+request|active\s+public-data\s+acquisition|"
             r"campaign\s+budget|what\s+support\s+pays\s+for|drive\s+remediation|funding-to|"
             r"release\s+checklist)",

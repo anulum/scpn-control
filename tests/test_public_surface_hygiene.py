@@ -60,6 +60,8 @@ def test_rejects_public_operational_task_list() -> None:
 def test_rejects_public_operational_headings_and_internal_ids() -> None:
     """Public prose must not expose prioritisation or internal task identity."""
     assert "public operational heading" in _categories("## Current priority order\n")
+    assert "public operational heading" in _categories("## Current priorities\n")
+    assert "public operational heading" in _categories("## Prioritisation\n")
     assert "internal task identifier" in _categories("Execute CONTROL-AUD-001 next.\n")
     assert "internal task identifier" in _categories("Closed CTL-G07 in this release.\n")
 
