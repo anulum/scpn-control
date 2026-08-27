@@ -12,14 +12,16 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import platform
 import socket
+import subprocess
 import sys
 import threading
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SRC_ROOT = REPO_ROOT / "src"
@@ -149,14 +151,11 @@ def _run_campaign(args: argparse.Namespace, *, backend: str, port: int) -> dict[
 
     started = time.perf_counter()
     with _UdpSink(args.transport_endpoint, port) as sink:
-        summary = cast(
-            "dict[str, Any]",
-            engine.execute_hardware_loop(
-                steps=args.steps,
-                tick_interval_s=args.tick_interval_s,
-                max_publish_failures=args.transport_max_queue,
-                execution_backend=backend,
-            ),
+        summary = engine.execute_hardware_loop(
+            steps=args.steps,
+            tick_interval_s=args.tick_interval_s,
+            max_publish_failures=args.transport_max_queue,
+            execution_backend=backend,
         )
     wall_s = time.perf_counter() - started
     summary["wall_s"] = wall_s
@@ -253,6 +252,11 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
         "# Native handoff comparison",
         "",
         f"Generated: {payload['generated_at']}",
+        f"Source commit: `{payload['source_commit']}`",
+        f"Evidence class: `{payload['evidence_class']}`",
+        f"Runtime admission: `{payload['runtime_admission']['status']}`",
+        f"Production claim allowed: `{str(payload['production_claim_allowed']).lower()}`",
+        f"Claim boundary: {payload['claim_boundary']}",
         "",
         "| Backend | Status | Mode | Steps | Effective step us | Avg cycle us | Drops | Publish failures |",
         "| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |",
@@ -283,6 +287,44 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
+def _source_commit() -> str:
+    """Return the exact source revision when Git or CI supplies it."""
+    ci_sha = os.environ.get("GITHUB_SHA", "").strip()
+    if ci_sha:
+        return ci_sha
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "rev-parse", "HEAD"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return "unrecorded"
+    return completed.stdout.strip() or "unrecorded"
+
+
+def _claim_contract(*, source_commit: str, workflow_run_id: int | None) -> dict[str, Any]:
+    """Return the fail-closed claim boundary for a loopback campaign."""
+    return {
+        "evidence_class": "local_proxy",
+        "source_commit": source_commit,
+        "workflow_run_id": workflow_run_id,
+        "runtime_admission": {
+            "status": "fail",
+            "reason": (
+                "The campaign does not supply qualified PREEMPT_RT, scheduler, "
+                "governor, isolated-core, IRQ, host-load, HIL, or plant evidence."
+            ),
+        },
+        "production_claim_allowed": False,
+        "claim_boundary": (
+            "Dated standard loopback-UDP local/CI observation only; not fielded "
+            "plant, PCS-cycle, HIL, deterministic real-time, or production evidence."
+        ),
+    }
+
+
 def main() -> int:
     args = _parse_args()
     if args.steps <= 0:
@@ -293,8 +335,13 @@ def main() -> int:
     python_summary, python_stats = _run_backend_repeated(args, backend="python", port_base=args.transport_port_base)
     native_summary, native_stats = _run_backend_repeated(args, backend="native", port_base=args.transport_port_base + 1)
 
+    workflow_run = os.environ.get("GITHUB_RUN_ID", "").strip()
+    claim_contract = _claim_contract(
+        source_commit=_source_commit(),
+        workflow_run_id=int(workflow_run) if workflow_run.isdigit() else None,
+    )
     payload = {
-        "schema": "scpn-control.native_handoff_comparison.v2",
+        "schema": "scpn-control.native_handoff_comparison.v3",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "platform": {
             "python": sys.version,
@@ -334,6 +381,7 @@ def main() -> int:
             "python_udp_sink_packets": int(python_summary.get("udp_sink_packets", 0)),
             "native_udp_sink_packets": int(native_summary.get("udp_sink_packets", 0)),
         },
+        **claim_contract,
     }
 
     json_path = Path(args.json_out)

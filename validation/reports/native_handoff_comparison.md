@@ -1,6 +1,11 @@
 # Native handoff comparison
 
 Generated: 2026-06-21T21:17:20.833247+00:00
+Source commit: `5997eed1c135608dcd04720a8287ee9c10067265`
+Evidence class: `local_proxy`
+Runtime admission: `fail`
+Production claim allowed: `false`
+Claim boundary: Dated standard loopback-UDP local/CI observation only; not fielded plant, PCS-cycle, HIL, deterministic real-time, or production evidence.
 
 | Backend | Status | Mode | Steps | Effective step us | Avg cycle us | Drops | Publish failures |
 | --- | --- | --- | ---: | ---: | ---: | ---: | ---: |

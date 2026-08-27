@@ -44,18 +44,9 @@ external-code equivalence, P-EFIT predictive validity, TORAX parity, or plant
 PCS readiness. The release evidence remains a bounded software, CI, dependency,
 and local validation checkpoint.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.22.1` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- CI, CodeQL, Pre-commit, OpenSSF Scorecard, benchmark, and release workflows
-  are green for the `v0.22.1` commit/tag.
-- Pull requests and security alerts remain clear.
-- Failed or cancelled Actions records are absent from the last 1000 runs after
-  replacement evidence is green.
-- The GitHub release is created from the `v0.22.1` tag.
-- PyPI shows `scpn-control==0.22.1` with both wheel and source distribution.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

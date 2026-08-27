@@ -40,21 +40,12 @@ strict validators admit the required external artefacts.
 4. [Production Readiness](production_readiness.md) for the allowed claim levels.
 5. [Validation and QA](validation.md) and [Benchmarks](benchmarks.md) for the
    current evidence reports.
-6. [Compute Validation Funding](compute_validation_financing.md) for the active
-   data, GPU, external-code, and hardware support request.
+6. [Compute and Validation Collaboration](compute_validation_financing.md) for
+   public evidence interfaces and claim boundaries.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.1` as published until all items are true:
-
-- Version metadata and generated capability files are committed.
-- Documentation builds with MkDocs strict mode.
-- Local release-evidence and policy gates pass.
-- The branch is pushed and GitHub Actions for `main` are green.
-- Open pull requests and security alerts are triaged.
-- Historical failed or cancelled Actions/deployment records are deleted only
-  when safe and only after replacement evidence is green.
-- The GitHub release is created from the `v0.20.1` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

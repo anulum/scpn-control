@@ -60,11 +60,11 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 | `src/scpn_control/control/digital_twin_online_update.py` | Online model-update claims must declare tunable bounded parameters, external TRANSP/TSC simulator artifact provenance, target summary metrics, tolerances, deterministic random seed, Gaussian-process acquisition settings, finite non-negative loss history, source-bound Bayesian results, parameter-domain admission, observation-unit coverage, and fail-closed behavior when external artifacts are absent or malformed. | TRANSP integrated modelling evidence contract; TSC time-dependent simulation evidence contract; Bayesian optimisation for bounded model calibration; Repository digital-twin runtime contract | Tunable density in m^-3, effective charge dimensionless, actuator lag in steps, actuator rate limit dimensionless per step, target metrics in declared digital-twin summary units, non-negative loss values, and simulator time base in seconds. | tests/test_digital_twin_online_update.py external artifact, loss, Bayesian-update, and deterministic benchmark checks; tests/test_digital_twin_reference_validation.py strict digital-twin artifact gate including TRANSP and TSC; validation/benchmark_digital_twin_online_update.py deterministic bounded online-update benchmark | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/control/free_boundary_tracking.py` | Free-boundary tracking claims must declare direct kernel-in-the-loop coil-response identification, bounded least-squares correction, actuator lag, slew limits, supervisor rejection, measurement bias, drift, latency, and observer compensation assumptions. | Grad-Shafranov free-boundary control references; Repository FusionKernel free-boundary objective contract; Repository deterministic free-boundary acceptance campaign; Repository fail-closed free-boundary claim-admission contract | SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains. | tests/test_free_boundary_tracking.py controller, disturbance-observer, and controller-to-claim pipeline checks; tests/test_free_boundary_tracking_claims.py fail-closed claim-evidence validation, reference-artifact admission, and persistence checks; tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks; tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign; validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate; validation/benchmark_free_boundary_tracking_claims.py bounded claim-admission benchmark | bounded_model | [#51](https://github.com/anulum/scpn-control/issues/51) |
 | `src/scpn_control/control/disruption_roc.py` | Disruption ROC-core claims must declare the per-window risk-scoring convention (the dBdt signal window plus n=1/n=2 toroidal observables with the n=3 amplitude as a bounded 0.4*n=2 approximation and a toroidal-amplitude clip), the endpoint-forced FPR-sorted trapezoidal AUC assembly, and the warning-time convention that an alarm on a disruptive shot is a true positive only if it fires strictly before the labelled disruption sample. | Repository per-window disruption risk-scoring convention shared with disruption_contracts.run_real_shot_replay; n=3 toroidal amplitude bounded approximation 0.4 * n=2 (no dedicated n=3 diagnostic channel); DisruptionBench-style warning-time convention: true positive only when the alarm precedes the labelled disruption sample | dBdt in gauss per second, dimensionless toroidal mode amplitudes clipped to [0, 10], dimensionless risk in [0, 1], false-positive and true-positive rates in [0, 1], and warning lead time in seconds on the shot timebase. | tests/test_disruption_roc.py ROC, scoring, and warning-time unit checks | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
-| `src/scpn_control/control/disruption_checkpoint.py` | Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch (CTL-G07 R7-S4). Synthetic training and pinned-weight load path. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
-| `src/scpn_control/control/disruption_fault_campaigns.py` | Deterministic fault-injection and hybrid anomaly-alarm campaign helpers (CTL-G07 R7-S3). Synthetic campaigns only. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_checkpoint.py` | Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch. Synthetic training and pinned-weight load path. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_fault_campaigns.py` | Deterministic fault-injection and hybrid anomaly-alarm campaign helpers. Synthetic campaigns only. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/control/disruption_contracts.py` | Disruption-contract claims must declare synthetic disruption signal generation, toroidal-mode amplitudes, mitigation-cocktail coupling, impurity transport response, halo/runaway post-disruption response, TBR equivalence scaling, and RL action bias assumptions. | Pautasso et al. 2017 disruption current-quench constraints; Riccardo et al. 2010 halo-current rise-time references; Abdou et al. 2015 blanket neutronics calibration references | SI seconds, milliseconds, mega-amperes, megajoules, moles, megawatts, dimensionless risk, toroidal mode amplitudes, and tritium breeding ratio. | tests/test_disruption_contracts.py contract smoke checks; tests/test_disruption_contracts_pure.py pure physics-path checks; tests/test_disruption_edge_cases.py edge-case disruption checks; validation/validate_disruption_reference.py strict disruption reference artifact gate | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
-| `src/scpn_control/control/disruption_physics_proxies.py` | Synthetic tearing-mode trajectories, fixed-weight logistic heuristic risk score, and warning-time evaluation (CTL-G07 R7-S2). Synthetic-only domain. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
-| `src/scpn_control/control/disruption_risk_claims.py` | Public disruption-risk claim boundary, heuristic provenance constants, and metadata attachment (CTL-G07 R7-S1). No facility ROC training claim. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_physics_proxies.py` | Synthetic tearing-mode trajectories, fixed-weight logistic heuristic risk score, and warning-time evaluation. Synthetic-only domain. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
+| `src/scpn_control/control/disruption_risk_claims.py` | Public disruption-risk claim boundary, heuristic provenance constants, and metadata attachment. No facility ROC training claim. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | Real-surface tests under tests/test_disruption_*.py for leaf contracts; Owner re-export facade remains scpn_control.control.disruption_predictor | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/core/disruption_sequence.py` | Disruption-sequence claims must declare phase ordering, finite positive configuration domains, Rechester-Rosenbluth thermal-quench transport, post-quench radiative-cooling exposure, current-quench timing, mitigation action coupling, runaway-electron beam phase, stochastic event boundaries, halo-force convention, and replay provenance. | ITER disruption mitigation sequence references; repository disruption phase-state contract | Time in seconds or milliseconds with explicit convention, current in amperes or mega-amperes, energy in joules or megajoules, magnetic field in tesla, geometry in metres, density in 10^20 m^-3, and dimensionless phase labels. | tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks; tests/test_disruption_safe_api.py; validation/validate_disruption_sequence.py validates the bounded phase-ordering, total-duration, wall-heat-load, current-trace, halo-force, post-TQ temperature, and SPI mitigation-branch contracts against exact repository-owned identities, with tamper-evident sealed evidence; tests/test_disruption_sequence_validation.py exact phase-order, current-trace, mitigation-branch, CLI, and evidence-seal checks | bounded_model | [#52](https://github.com/anulum/scpn-control/issues/52) |
 | `src/scpn_control/control/disruption_predictor.py` | predict_disruption_risk claims must declare that the score is a deterministic fixed-weight logistic combination of thermal-quench and toroidal-asymmetry features (n=1,2,3 mode amplitudes) with a hand-chosen logit bias, not a model trained or fitted on a real disruption database, and must declare the feature vector contract and the synthetic sanity-check provenance. | Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables; Not trained on a real disruption database (e.g. DIII-D/JET disruption warning DBs) | Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless. | tests/test_disruption_predictor.py heuristic feature-vector and bounded-output checks; tests/test_disruption_predictor_claim_boundary.py machine-readable claim-boundary and public-surface checks; validation/reports/disruption_replay_pipeline_benchmark.md synthetic sanity-check provenance | bounded_model | [#48](https://github.com/anulum/scpn-control/issues/48) |
 | `src/scpn_control/core/gk_interface.py` | Generated input decks and parsed outputs must round-trip through real TGLF, GENE, GS2, CGYRO, or QuaLiKiz executables. | TGLF Staebler et al. 2007; GENE Jenko et al. 2000; GS2 Kotschenreuther et al. 1995; CGYRO Candy et al. 2016; QuaLiKiz Bourdelle et al. 2007 | Code-specific flux, growth-rate, frequency, and geometry units converted into repository normalisation with explicit metadata. | papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md external GK limitation; validation/validate_gk_interface_artifacts.py strict digest-bound external interface artefact gate with report schema, payload digest, artefact file digest, portable paths, duplicate code/run rejection, and blocked public-claim state | external_dependency_blocked | [#47](https://github.com/anulum/scpn-control/issues/47) |
@@ -107,7 +107,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 0
-- Required actions:
+- Claim admission requirements:
   - Keep synthetic GEQDSK and disruption-shot fixture manifests covered by checksum verification
   - Acquire measured DIII-D artefacts through the MDSplus acquisition spec path before restoring any real replay claim
 
@@ -118,7 +118,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach strict documented public, integrated-transport benchmark, or measured burn replay artifacts before reactor-control claims
   - Replace the burn-fraction approximation with a calibrated slowing-down and ash-removal model before facility extrapolation
 
@@ -129,7 +129,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate ELM frequency, crash depth, pedestal profile drops, RMP suppression windows, and peak heat flux against measured H-mode campaign or published ELM cases
   - Persist schema-versioned pre-crash, post-crash, event-catalog, and RMP artifact URIs with SHA-256 digests, pedestal rho grids, event windows, Type-I energy-fraction bounds, metrics, tolerances, and canonical payload digests with every ELM validation artefact
   - Keep full-fidelity ELM/RMP claims blocked until measured or documented public reference artifacts pass the strict admission gate
@@ -141,7 +141,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate pedestal height and width against published EPED benchmark points or measured pedestal databases
   - Record bootstrap-current, beta-limit, and shaping inputs for every pedestal validation artefact
   - Keep full-fidelity EPED pedestal claims blocked until measured pedestal-database or documented public reference artifacts pass the strict admission gate
@@ -153,7 +153,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Keep FusionKernel thin wrappers as the product surface under dual-home C
   - Validate reduced-order phase-sync helpers against mean-field Kuramoto benchmarks before plasma-phase control claims
   - Do not claim a full plasma-phase control law from this leaf alone
@@ -165,7 +165,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate reconstructed equilibria against EFIT, GEQDSK, or published fixed-boundary benchmark cases
   - Preserve residual norms, convergence metadata, and Rust/Python parity evidence for every validation artefact
   - Replace analytic Solov'ev backend evidence with matched EFIT, GEQDSK, or published fixed-boundary benchmark evidence before any facility reconstruction claim
@@ -177,7 +177,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Run backend parity over CBC, kinetic-electron TEM, and stable-mode cases with pinned tolerances
   - Keep CPU/GPU backend parity evidence current for every release and continue blocking quantitative GK claims until external-code validation artefacts are supplied
 
@@ -188,7 +188,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate crash timing, mixing radius, and post-crash profiles against measured or published sawtooth-crash cases before facility claims
   - Persist pre-crash q-profile, q=1 radius, mixing radius, and redistribution metadata with each validation case
 
@@ -199,7 +199,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Synchronisation onset and order-parameter metrics are validated against the exact mean-field Lorentzian Kuramoto results in validation/validate_kuramoto_synchronisation.py; remaining work is plasma-phase control-law validation before broader phase-control claims
   - Generate current deployment-target Rust/Python parity and timestep-convergence evidence with validation/benchmark_kuramoto_runtime_evidence.py before deployment-target phase claims
 
@@ -210,7 +210,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate onset temperatures and density limits against measured or published MARFE cases
   - Add impurity-specific radiation tables or documented provenance for each supported impurity species
   - Keep full-fidelity MARFE density-limit claims blocked until measured MARFE campaign or documented public reference artifacts pass the strict admission gate
@@ -222,7 +222,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Compare metric coefficients and field-pitch factors against an independent Miller-geometry reference implementation or external equilibrium-code evidence
   - Keep immutable schema-versioned evidence covering circular, shaped, and high-shear local equilibria
 
@@ -233,7 +233,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate island growth and suppression against measured or published NTM benchmark cases
   - Persist q-profile, rational-surface, seed-island, and ECCD alignment metadata with each validation case
   - Keep full-fidelity NTM forecasting and suppression claims blocked until measured NTM campaign or documented public reference artifacts pass the strict admission gate
@@ -245,7 +245,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Capture production timing evidence only on a PREEMPT_RT or otherwise qualified realtime kernel with SCHED_FIFO or SCHED_RR execution, performance governors, hard-isolated cores, IRQ shielding, and documented host load
   - Keep local workstation reports in fail-closed local-regression mode with production_claim_allowed false until qualified runtime evidence is present
   - Keep Python, PyO3, Rust, CLI, release-evidence, and benchmark report admission semantics in parity whenever runtime-admission policy changes
@@ -257,7 +257,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Calibrate vertical_inertia_kg against a documented plasma inertia or facility parameter source before facility claims
   - Validate vertical growth rates against a reference RZIP, CREATE-L/NL, TSC, or measured vertical-displacement benchmark
 
@@ -268,7 +268,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Run generated HDL through real Vivado, Quartus, or Yosys synthesis before hardware readiness claims
   - Persist resource utilisation, timing closure, and bit-accurate simulator evidence for every supported target family
 
@@ -279,7 +279,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Persist formal verification reports with every safety-critical compiled controller artifact
   - Validate certification packages with an external safety-case review before hardware-control claims
   - Promote optional SMT-backed proof obligations only after solver-specific proof artifacts are persisted
@@ -319,7 +319,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate surface geometry and rotational-transform outputs against VMEC or published stellarator benchmark equilibria before full VMEC claims
   - Persist Fourier truncation, field periods, pressure profile, iota profile, current assumption, sampled major-radius bounds, residual tolerance, reference errors, and admission status for every promoted VMEC-lite claim
 
@@ -330,7 +330,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace sandpile turbulence proxy with gyrokinetic or measured turbulence evidence before transport-control claims
   - Validate Q-learning policy behaviour against replayed plasma-control objectives before control-readiness claims
 
@@ -341,7 +341,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach strict ray-tracing, Fokker-Planck, measured deposition, or documented public artifacts before external current-drive claims
   - Persist source power, deposition kernel, rho grid, density and temperature profiles, launch geometry, and efficiency coefficients for every promoted current-drive claim
 
@@ -352,7 +352,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate blob velocity and spreading against measured probe-campaign or published SOL filament cases
   - Persist schema-versioned reference, profile, and detector artifact URIs with SHA-256 digests, SOL unit contracts, separatrix-to-wall coordinates, detector event domains, blob-size domains, magnetic-geometry metadata, metrics, tolerances, and canonical payload digests with each validation artefact
   - Keep full-fidelity SOL blob-transport claims blocked until measured or documented public reference artifacts pass the strict admission gate
@@ -364,7 +364,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 0
-- Required actions:
+- Claim admission requirements:
   - Keep this parent entry as a non-source guardrail for future core approximation markers
   - Require every new core approximation marker to land with a source-specific traceability entry and validation evidence
 
@@ -375,7 +375,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 0
-- Required actions:
+- Claim admission requirements:
   - Keep this parent entry as a non-source guardrail for future reduced-order control plant markers
   - Require every new control plant marker to land with a controller-specific traceability entry and replay or higher-fidelity evidence
 
@@ -386,7 +386,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 0
-- Required actions:
+- Claim admission requirements:
   - Keep this parent entry as a non-source guardrail for future phase, spiking, and replay runtime markers
   - Require every new runtime marker to land with a source-specific traceability entry plus hardware-target or replay-fixture evidence
 
@@ -397,7 +397,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach strict documented public, external mu-toolbox, or measured control replay artifacts before validated robust-control claims
   - Wire a validated frequency-dependent H-infinity synthesis backend before making full D-K synthesis claims
   - Persist benchmark plants, frequency grids, D-scale fits, mu upper/lower bounds, and canonical evidence payload digests for every promoted controller claim
@@ -410,7 +410,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#53](https://github.com/anulum/scpn-control/issues/53) — Hardware, HDL, CODAC/EPICS, and runtime deployment evidence
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Version checkpoint schemas before long-running production campaigns depend on replay compatibility
   - Add migration fixtures for every future checkpoint schema change
 
@@ -421,7 +421,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace the bounded analytic Solov'ev-form surface with matched EFIT, P-EFIT, or documented public-reference equilibrium evidence before facility-facing scenario-gradient claims
   - Validate coupled source-schedule gradients against measured discharges or published integrated-modelling benchmarks before predictive controller-tuning claims
   - Promote timing evidence only after isolated hardware runs record affinity, host load, governor context, backend, dtype, and repeated latency distributions
@@ -434,7 +434,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate Greenwald fraction and particle inventory changes against measured discharge, external particle-balance, or facility replay references before facility-calibrated claims
   - Persist geometry, transport profiles, actuator limits, diagnostic source, timestep/CFL state, source integrals, particle inventory deltas, reference tolerances, and claim-admission status with every promoted density-control claim
 
@@ -445,7 +445,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Wire each remaining legacy transport surface through an equivalent differentiable path before claiming end-to-end transport autodiff
   - Validate differentiable transport profiles and equilibrium-weighted gradients against measured discharges or published integrated-modelling benchmarks
   - Persist backend, dtype, runtime-provenance, radial-grid, boundary-condition, rollout-length, equilibrium-grid, flux-weighting, gradient-tolerance, gradient-audit digest, and replay-drift metadata for controller-tuning campaigns
@@ -459,7 +459,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims
   - Validate online update trajectories against replayed or measured discharge histories before deployment use
   - Persist simulator artifact hashes, units, case ids, strictly increasing time bases, observation digests, prior digests, result digests, finite loss-history minima, parameter-domain admission, and baseline-improvement evidence for every promoted update campaign
@@ -472,7 +472,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach strict documented public, measured-replay, or external equilibrium benchmark artifacts before facility-control claims
   - Attach actuator, latency, and sensor-calibration evidence for the target device before deployment claims
 
@@ -483,7 +483,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace the n=3-from-n=2 bounded approximation with a measured n=3 toroidal diagnostic channel when available
   - Validate the scoring convention and ROC/warning-time metrics against measured labelled disruption windows before any predictive claim
 
@@ -494,7 +494,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Supply measured disruption databases with immutable provenance before any facility predictive claim
   - Keep public_claim_allowed false until facility ROC is proven on measured data
 
@@ -505,7 +505,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Supply measured disruption databases with immutable provenance before any facility predictive claim
   - Keep public_claim_allowed false until facility ROC is proven on measured data
 
@@ -516,7 +516,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace synthetic disruption signals with measured labelled disruption windows before predictive claims
   - Validate mitigation-cocktail, halo, runaway, and TBR couplings against experimental or benchmark artefacts
 
@@ -527,7 +527,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Supply measured disruption databases with immutable provenance before any facility predictive claim
   - Keep public_claim_allowed false until facility ROC is proven on measured data
 
@@ -538,7 +538,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Supply measured disruption databases with immutable provenance before any facility predictive claim
   - Keep public_claim_allowed false until facility ROC is proven on measured data
 
@@ -549,7 +549,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate phase timing, post-quench temperature, and mitigation branches against labelled measured disruption windows
   - Persist shot identifiers, phase labels, thermal-quench duration, radiation-time assumption, timing tolerances, and mitigation metadata for sequence validation
 
@@ -560,7 +560,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Train or fit on a real disruption database before any disruption-prediction facility claim
   - Until then keep the docstring and docs labelling it a heuristic baseline, not a trained model
 
@@ -571,7 +571,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Run each interface against a real executable or documented public reference output
   - Persist schema-versioned artifacts with safe deck/raw-output/parsed-output URIs and SHA-256 digests
   - Promote parser fixtures from mock subprocesses to immutable external-code artefacts sealed by canonical payload digests
@@ -583,7 +583,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Supply measured multi-facility disruption shot databases with immutable provenance manifests before claiming cross-facility predictive validation
   - Run the same federation and differential-privacy contracts against those measured facility datasets before deployment claims
 
@@ -594,7 +594,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Calibrate uncertainty priors against measured or published scenario ensembles before predictive facility-UQ claims
   - Persist random seeds, distribution parameters, sample counts, percentile ordering, finite-output checks, convergence diagnostics, sensitivity metrics, reference tolerances, and claim-admission status with every UQ artefact
 
@@ -605,7 +605,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace synthetic W7-X-like replay inputs with measured or benchmark stellarator field-line artefacts before device-control claims
   - Generate schema-versioned replay evidence for every promoted replay and keep measured or benchmark device claims blocked until external artefact digests and non-synthetic magnetic provenance are supplied
 
@@ -616,7 +616,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Replace bounded scalar design proxies with a systems-code design scan before device-design optimisation claims
   - Validate Q, confinement, beta, wall loading, and cost metrics against matched reference designs before facility or economics claims
   - Keep disruption episodes labelled as bounded contract exercises until measured disruption and design evidence pass strict admission
@@ -628,7 +628,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Calibrate thresholds against real or published GK campaign ensembles
   - Keep strict schema-versioned calibration evidence with Mahalanobis-metric provenance, false-positive, false-negative, and OOD-recall acceptance criteria for deployment gating
 
@@ -639,7 +639,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate learner updates on immutable gyrokinetic campaign artefacts with held-out distribution-shift cases
   - Persist model weights, rollback decisions, validation metrics, OOD thresholds, and source provenance for every online update
 
@@ -650,7 +650,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate bounded test-particle collision coefficients against a published gyrokinetic or Fokker-Planck reference case before facility claims
   - Add field-particle momentum-conservation and full multispecies collision-operator evidence before claiming quantitative collisional damping
 
@@ -661,7 +661,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#52](https://github.com/anulum/scpn-control/issues/52) — Disruption, halo-current, and mitigation benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate halo current and runaway-current envelopes against measured disruption databases before mitigation claims
   - Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain
   - Persist ensemble seed, run count, halo/runaway P95 metrics, toroidal-peaking-factor summary, reference source, tolerances, errors, and admission status before promoted mitigation claims
@@ -673,7 +673,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Compare stability metrics against an independent MHD stability code or published benchmark profiles
   - Store profile grids, interpolation choices, and unstable-region metadata with each stability validation artefact
 
@@ -684,7 +684,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate coupled scenario trajectories against measured discharges or published integrated-modelling benchmarks
   - Persist module-by-module state exchange, timestep, and convergence metadata with every scenario artefact
 
@@ -695,7 +695,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate kinetic pressure, q-profile, and anisotropy residuals against matched EFIT or P-EFIT reference equilibria before facility claims
   - Persist diagnostic source, interpolation geometry, fast-ion model provenance, MSE calibration, uncertainty, reference tolerances, and claim-admission status for every promoted kinetic-equilibrium claim
 
@@ -706,7 +706,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Install or provide real external GK binaries
   - Run native-vs-external benchmark cases and store parser artefact evidence
   - Persist SHA-256 digests for external input decks, external outputs, native inputs, and canonical comparison reports before full-fidelity GK claims
@@ -718,7 +718,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate torque deposition and rotation evolution against measured or published NBI momentum cases
   - Add acceptance artefacts for low-torque, high-torque, and sign-changing rotation profiles
 
@@ -729,7 +729,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach measured scheduler telemetry, facility interlock evidence, and target-hardware actuator path evidence before PCS or facility-control claims
   - Keep Python, Rust, PyO3, and benchmark campaign evidence fields in parity whenever multi-shot replay metadata changes
 
@@ -740,7 +740,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#50](https://github.com/anulum/scpn-control/issues/50) — Neural surrogate validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Acquire matched P-EFIT reference equilibria or an openly redistributable equivalent
   - Persist schema-versioned reference and prediction artefact URIs with SHA-256 digests, exact weight checksum, grid shape, target schema, unit contracts, and declared psi/pressure/q-profile/boundary/axis tolerances
   - Keep predictive equilibrium claims blocked until immutable reference artefacts are sealed by canonical payload digests and validate the exact surrogate weight checksum
@@ -752,7 +752,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#50](https://github.com/anulum/scpn-control/issues/50) — Neural surrogate validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Acquire or generate immutable reference QLKNN or transport benchmark cases for cross-validation
   - Persist schema-versioned reference and prediction artifact URIs with SHA-256 digests, exact weight checksum, QLKNN-10D feature schema, target schema, uncertainty metadata, OOD decisions, reference metrics, tolerances, and admission status with every surrogate evaluation
   - Gate quantitative QuaLiKiz, QLKNN, or documented-reference transport claims on strict reference artifacts sealed by canonical payload digests and matched to the exact neural weight checksum
@@ -764,7 +764,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#50](https://github.com/anulum/scpn-control/issues/50) — Neural surrogate validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate surrogate outputs against immutable gyrokinetic or QuaLiKiz turbulence benchmark cases
   - Persist feature schema, weight checksum, local Q_i/Q_e/Gamma_e errors, critical-gradient accuracy, reference source, tolerances, and claim-admission status before quantitative turbulence claims
   - Gate quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims on strict reference artifacts that match the exact neural weight checksum
@@ -776,7 +776,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Run a long enough nonlinear CBC campaign to saturated chi_i
   - Compare saturated heat flux against published or real cross-code reference data
 
@@ -787,7 +787,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate orbit widths and loss fractions against an independent orbit-following code or published benchmark cases before external orbit-code claims
   - Persist particle species, pitch, energy, geometry, ensemble seed or counts, collision model, wall/loss boundary, reference tolerances, and claim-admission status with each validation artefact
 
@@ -798,7 +798,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach measured scheduler telemetry, capacitor-bank interlock evidence, and facility pulse-response artefacts before PCS or facility-control claims
   - Keep Python, Rust, PyO3, and benchmark decision-evidence fields in parity whenever pulsed-MPC admission changes
 
@@ -809,7 +809,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#48](https://github.com/anulum/scpn-control/issues/48) — Equilibrium and reconstruction reference artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate reconstructed psi, Ip, q95, beta_pol, and li against matched EFIT or P-EFIT equilibria before facility claims
   - Replace synthetic diagnostic-response evidence with measured flux-loop, B-probe, and Rogowski artefacts when facility data are available
 
@@ -820,7 +820,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#47](https://github.com/anulum/scpn-control/issues/47) — External gyrokinetic validation artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Compare predicted growth rates and transport coefficients with external GK or published quasilinear benchmark cases
   - Store branch classification and saturation metadata for every transport-closure validation case
 
@@ -831,7 +831,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Separate reduced-order training claims from facility-control claims in generated reports
   - Add plant-model validity bounds and cross-checks against higher-fidelity replay cases
 
@@ -842,7 +842,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate beta-window, rotation, and feedback-gain predictions against measured RWM shots or external MHD stability references before facility-control claims
   - Persist wall geometry, rotation profile, coil coupling, sensor geometry, controller latency, and beta-limit provenance for every promoted RWM claim
 
@@ -853,7 +853,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate seed-island amplitudes and NTM triggering windows against measured or published sawtooth-triggered NTM cases
   - Persist pre-crash q-profile, crash amplitude, rational-surface, and coupling metadata with each validation case
 
@@ -864,7 +864,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Provide validated TRANSP, TSC, measured-discharge, or documented public-reference artifacts before measured replay claims
   - Replace normalised 2D diffusion dynamics with equilibrium and transport-calibrated state evolution before facility twin claims
   - Validate online update trajectories against replayed or measured discharge histories before deployment use
@@ -876,7 +876,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate radial transport profiles against a measured discharge or published integrated-modelling benchmark
   - Persist source deposition, boundary condition, and convergence metadata with every transport validation artefact
 
@@ -887,7 +887,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#49](https://github.com/anulum/scpn-control/issues/49) — Transport, edge, MHD, and scenario benchmark artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Validate upstream and target conditions against measured divertor probe or published edge-transport benchmark cases before facility claims
   - Persist geometry, power, density, radiated fraction, and detachment metadata with each validation case
 
@@ -898,6 +898,6 @@ It blocks full-fidelity public claims for entries whose evidence status is still
 - Full-fidelity public claim: blocked
 - External validation tracker: [#51](https://github.com/anulum/scpn-control/issues/51) — Plasma-control and facility replay artefacts
 - Covered source paths: 1
-- Required actions:
+- Claim admission requirements:
   - Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims
   - Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation

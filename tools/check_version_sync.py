@@ -49,7 +49,7 @@ def _release_notes_path(version: str) -> Path:
 
 
 def _metadata_badge_errors(version: str) -> list[str]:
-    """Validate README badges and release-note metadata tied to public releases."""
+    """Validate README badges and declarative public-release metadata."""
 
     readme = ROOT / "README.md"
     release_notes = _release_notes_path(version)
@@ -61,8 +61,9 @@ def _metadata_badge_errors(version: str) -> list[str]:
         (readme, f"| Package version | {version} |", "README package-version table"),
         (readme, f"git tag v{version}", "README release tag example"),
         (release_notes, f"# SCPN Control v{version} Release Notes", "release-note heading"),
-        (release_notes, f"`v{version}` commit/tag", "release-note CI checklist"),
-        (release_notes, f"`scpn-control=={version}`", "release-note PyPI checklist"),
+        (release_notes, "## Publication boundary", "release-note publication boundary"),
+        (release_notes, "external mutable state", "release-note external-state boundary"),
+        (release_notes, "source-level release history", "release-note source-history boundary"),
     ]
     return [error for path, substring, label in checks if (error := _require_contains(path, substring, label))]
 

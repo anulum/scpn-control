@@ -1,38 +1,42 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Validate Real Shots
+# SCPN Control — Validate Reference Evidence
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # ──────────────────────────────────────────────────────────────────────
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Capstone Real-Shot Validation (Phase 2.1)
-# Validates equilibrium, transport, and disruption against real data.
+# SCPN Control — Bounded reference-evidence validation
 # ──────────────────────────────────────────────────────────────────────
-"""End-to-end validation pipeline for v2.0.0 release gate.
+"""Validate bounded equilibrium, transport, and disruption references.
 
 Runs three validation lanes:
-1. Equilibrium — Psi NRMSE and q95 error against GEQDSK references
+1. Equilibrium — source residuals over declared GEQDSK evidence classes
 2. Transport   — tau_E vs IPB98(y,2) with uncertainty bands
 3. Disruption  — predictor recall within 50ms of thermal quench
 
-Exit code 0 if all thresholds met, 1 otherwise.
+Computational success is reported independently from data provenance, physics
+validation, real-shot validation, facility validation, and public-claim
+admission. Repository synthetic or public-reference fixtures cannot admit any
+of those higher claim levels.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 import time
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Final, Literal, Mapping, Sequence, cast
 
 import numpy as np
 import numpy.typing as npt
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT: Final = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from scpn_control.core.eqdsk import read_geqdsk
@@ -43,6 +47,9 @@ from scpn_control.core.scaling_laws import (
 )
 
 # ── Thresholds ────────────────────────────────────────────────────────
+
+EvidenceClass = Literal["real", "public_reference", "synthetic", "local_proxy"]
+EVIDENCE_CLASSES: Final[frozenset[str]] = frozenset({"real", "public_reference", "synthetic", "local_proxy"})
 
 MU0 = 4.0e-7 * np.pi
 
@@ -132,7 +139,7 @@ def _geqdsk_source_residual(eq: Any) -> tuple[float, float, float, float]:
     return residual_norm, source_norm, psi_norm, psi_range
 
 
-def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
+def validate_equilibrium(ref_dirs: list[Path], *, evidence_class: EvidenceClass) -> dict[str, Any]:
     """Validate equilibrium against GEQDSK reference files.
 
     For each GEQDSK:
@@ -192,13 +199,16 @@ def validate_equilibrium(ref_dirs: list[Path]) -> dict[str, Any]:
     psi_pass_frac = n_psi_pass / max(n_total, 1)
     q95_pass_frac = n_q95_pass / max(n_total, 1)
 
+    data_provenance_pass = n_total > 0 and all("error" not in result for result in results)
     return {
+        "evidence_class": evidence_class,
+        "data_provenance_pass": data_provenance_pass,
         "n_files": n_total,
         "n_psi_pass": n_psi_pass,
         "n_q95_pass": n_q95_pass,
         "psi_pass_fraction": round(psi_pass_frac, 2),
         "q95_pass_fraction": round(q95_pass_frac, 2),
-        "passes": bool(
+        "computational_pass": bool(
             psi_pass_frac >= THRESHOLDS["psi_pass_fraction"] and q95_pass_frac >= THRESHOLDS["q95_pass_fraction"]
         ),
         "results": results,
@@ -219,7 +229,11 @@ def _guess_machine(path: Path) -> str:
 # ── Lane 2: Transport Validation ─────────────────────────────────────
 
 
-def validate_transport(itpa_csv: Path) -> dict[str, Any]:
+def validate_transport(
+    itpa_csv: Path,
+    *,
+    evidence_class: EvidenceClass = "public_reference",
+) -> dict[str, Any]:
     """Validate IPB98(y,2) predictions against ITPA H-mode database."""
     import csv
 
@@ -287,7 +301,13 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
 
     n = len(tau_measured)
     if n == 0:
-        return {"n_shots": 0, "passes": False, "error": "No ITPA data"}
+        return {
+            "evidence_class": evidence_class,
+            "data_provenance_pass": False,
+            "n_shots": 0,
+            "computational_pass": False,
+            "error": "No ITPA data",
+        }
 
     import math
 
@@ -297,11 +317,13 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
     w2s_frac = within_2sigma / n
 
     return {
+        "evidence_class": evidence_class,
+        "data_provenance_pass": True,
         "n_shots": n,
         "rmse_s": round(rmse_val, 4),
         "rmse_relative": round(rmse_rel, 4),
         "within_2sigma_fraction": round(w2s_frac, 2),
-        "passes": bool(w2s_frac >= THRESHOLDS["tau_e_2sigma_fraction"]),
+        "computational_pass": bool(w2s_frac >= THRESHOLDS["tau_e_2sigma_fraction"]),
         "shots": results,
     }
 
@@ -309,15 +331,21 @@ def validate_transport(itpa_csv: Path) -> dict[str, Any]:
 # ── Lane 3: Disruption Validation ────────────────────────────────────
 
 
-def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
+def validate_disruption(
+    disruption_dir: Path,
+    *,
+    evidence_class: EvidenceClass = "synthetic",
+) -> dict[str, Any]:
     """Validate disruption predictor on reference disruption shots."""
     from scpn_control.control.disruption_predictor import predict_disruption_risk
 
     npz_files = sorted(disruption_dir.glob("*.npz"))
     if not npz_files:
         return {
+            "evidence_class": evidence_class,
+            "data_provenance_pass": False,
             "n_shots": 0,
-            "passes": False,
+            "computational_pass": False,
             "error": f"No disruption NPZ files in {disruption_dir}",
         }
 
@@ -419,7 +447,10 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
     n_safe = true_negatives + false_positives
     fpr = false_positives / max(n_safe, 1)
 
+    data_provenance_pass = bool(results) and all("error" not in result for result in results)
     return {
+        "evidence_class": evidence_class,
+        "data_provenance_pass": data_provenance_pass,
         "n_shots": len(results),
         "n_disruptions": n_disruptions,
         "n_safe": n_safe,
@@ -431,11 +462,13 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
         "false_positive_rate": round(fpr, 2),
         "recall_ok": bool(recall >= THRESHOLDS["disruption_recall_min"]),
         "fpr_ok": bool(fpr <= THRESHOLDS["disruption_fpr_max"]),
-        "passes": bool(recall >= THRESHOLDS["disruption_recall_min"] and fpr <= THRESHOLDS["disruption_fpr_max"]),
+        "computational_pass": bool(
+            recall >= THRESHOLDS["disruption_recall_min"] and fpr <= THRESHOLDS["disruption_fpr_max"]
+        ),
         "partial_pass": bool(recall >= THRESHOLDS["disruption_recall_min"] and fpr > THRESHOLDS["disruption_fpr_max"]),
         "fpr_note": (
             f"FPR {fpr:.0%} exceeds operational threshold "
-            f"({THRESHOLDS['disruption_fpr_max']:.0%}); tuning planned for v2.1"
+            f"({THRESHOLDS['disruption_fpr_max']:.0%}); this lane is not computationally admitted"
             if fpr > THRESHOLDS["disruption_fpr_max"]
             else None
         ),
@@ -446,86 +479,112 @@ def validate_disruption(disruption_dir: Path) -> dict[str, Any]:
 # ── Output ────────────────────────────────────────────────────────────
 
 
+def build_campaign_report(
+    lanes: Mapping[str, Mapping[str, object]],
+    *,
+    generated_at: str,
+    runtime_s: float,
+) -> dict[str, Any]:
+    """Build a fail-closed reference-evidence campaign report.
+
+    A lane is computationally successful only when it declares one supported
+    evidence class, passes its provenance check, and passes its numerical gate.
+    Higher claim levels require explicit per-lane admission and exclusively
+    measured ``real`` evidence; the repository campaign does not set those
+    admissions.
+    """
+    normalized_lanes: dict[str, dict[str, object]] = {}
+    errors: list[str] = []
+    for lane_name, lane in lanes.items():
+        normalized = dict(lane)
+        evidence_class = normalized.get("evidence_class")
+        if evidence_class not in EVIDENCE_CLASSES:
+            errors.append(f"{lane_name}: unsupported evidence_class {evidence_class!r}")
+        normalized_lanes[lane_name] = normalized
+
+    provenance_pass = (
+        not errors
+        and bool(normalized_lanes)
+        and all(lane.get("data_provenance_pass") is True for lane in normalized_lanes.values())
+    )
+    computational_success = provenance_pass and all(
+        lane.get("computational_pass") is True for lane in normalized_lanes.values()
+    )
+    evidence_classes = sorted(
+        cast(str, lane["evidence_class"])
+        for lane in normalized_lanes.values()
+        if lane.get("evidence_class") in EVIDENCE_CLASSES
+    )
+    unique_evidence_classes = sorted(set(evidence_classes))
+    exclusively_real = bool(evidence_classes) and set(evidence_classes) == {"real"}
+    physics_validation_admitted = (
+        computational_success
+        and exclusively_real
+        and all(lane.get("physics_validation_admitted") is True for lane in normalized_lanes.values())
+    )
+    real_shot_validation_admitted = physics_validation_admitted and all(
+        lane.get("real_shot_validation_admitted") is True for lane in normalized_lanes.values()
+    )
+    facility_validation_admitted = real_shot_validation_admitted and all(
+        lane.get("facility_validation_admitted") is True for lane in normalized_lanes.values()
+    )
+    public_claim_allowed = facility_validation_admitted and all(
+        lane.get("public_claim_allowed") is True for lane in normalized_lanes.values()
+    )
+    production_claim_allowed = public_claim_allowed and all(
+        lane.get("production_claim_allowed") is True for lane in normalized_lanes.values()
+    )
+
+    return {
+        "schema": "scpn-control.reference-evidence-validation.v1",
+        "campaign": "reference_evidence_validation",
+        "generated_at": generated_at,
+        "runtime_s": round(float(runtime_s), 2),
+        "evidence_classes": unique_evidence_classes,
+        "data_provenance_pass": provenance_pass,
+        "computational_success": computational_success,
+        "physics_validation_admitted": physics_validation_admitted,
+        "real_shot_validation_admitted": real_shot_validation_admitted,
+        "facility_validation_admitted": facility_validation_admitted,
+        "public_claim_allowed": public_claim_allowed,
+        "production_claim_allowed": production_claim_allowed,
+        "claim_admission_errors": errors,
+        "claim_boundary": (
+            "Computational results are bounded to each lane's declared evidence class. "
+            "Public-reference, synthetic, and local-proxy evidence does not admit "
+            "measured-shot, physics-validation, facility, or production claims."
+        ),
+        "thresholds": THRESHOLDS,
+        "lanes": normalized_lanes,
+    }
+
+
 def render_markdown(report: dict[str, Any]) -> str:
-    """Render validation report as markdown."""
-    lines = ["# SCPN Control — Real-Shot Validation Report\n"]
+    """Render a bounded reference-evidence report as Markdown."""
+    lines = ["# SCPN Control — Reference-Evidence Validation Report\n"]
     lines.append(f"- **Generated**: `{report['generated_at']}`")
     lines.append(f"- **Runtime**: `{report['runtime_s']:.2f}s`")
-    lines.append(f"- **Overall**: {'PASS' if report['overall_pass'] else 'FAIL'}")
-    lines.append("")
-
-    # Equilibrium
-    eq = report["equilibrium"]
-    lines.append("## 1. Equilibrium Validation")
-    lines.append(f"- Files tested: {eq['n_files']}")
-    lines.append(f"- Psi NRMSE pass: {eq['n_psi_pass']}/{eq['n_files']} ({eq['psi_pass_fraction']:.0%})")
-    lines.append(f"- q95 pass: {eq['n_q95_pass']}/{eq['n_files']} ({eq['q95_pass_fraction']:.0%})")
-    lines.append(f"- **Status**: {'PASS' if eq['passes'] else 'FAIL'}")
-    lines.append("")
-    if eq.get("results"):
-        lines.append("| File | Machine | q95 | Psi NRMSE | GS Residual |")
-        lines.append("|------|---------|-----|-----------|-------------|")
-        for r in eq["results"]:
-            if "error" in r:
-                lines.append(f"| {r['file']} | - | ERROR | {r['error']} | - |")
-            else:
-                lines.append(
-                    f"| {r['file']} | {r.get('machine', '?')} | {r['q95']} | "
-                    f"{r['psi_nrmse']:.4f} | {r['gs_residual_norm']:.4f} |"
-                )
-        lines.append("")
-
-    # Transport
-    tr = report["transport"]
-    lines.append("## 2. Transport Validation (ITPA)")
-    lines.append(f"- Shots: {tr['n_shots']}")
+    lines.append(f"- **Data provenance pass**: **{'YES' if report['data_provenance_pass'] else 'NO'}**")
+    lines.append(f"- **Computational success**: **{'PASS' if report['computational_success'] else 'FAIL'}**")
+    lines.append(f"- **Physics validation admitted**: **{'YES' if report['physics_validation_admitted'] else 'NO'}**")
     lines.append(
-        f"- RMSE: {tr.get('rmse_s', 'N/A')} s ({tr.get('rmse_relative', 'N/A'):.1%} relative)"
-        if isinstance(tr.get("rmse_relative"), float)
-        else "- RMSE: N/A"
+        f"- **Real-shot validation admitted**: **{'YES' if report['real_shot_validation_admitted'] else 'NO'}**"
     )
-    lines.append(
-        f"- Within 2-sigma: {tr.get('within_2sigma_fraction', 'N/A'):.0%}"
-        if isinstance(tr.get("within_2sigma_fraction"), float)
-        else "- Within 2-sigma: N/A"
-    )
-    lines.append(f"- **Status**: {'PASS' if tr['passes'] else 'FAIL'}")
+    lines.append(f"- **Facility validation admitted**: **{'YES' if report['facility_validation_admitted'] else 'NO'}**")
+    lines.append(f"- **Public claim allowed**: **{'YES' if report['public_claim_allowed'] else 'NO'}**")
+    lines.append(f"- **Production claim allowed**: **{'YES' if report['production_claim_allowed'] else 'NO'}**")
+    lines.append(f"- **Claim boundary**: {report['claim_boundary']}")
     lines.append("")
-
-    # Disruption
-    dis = report["disruption"]
-    if dis.get("partial_pass"):
-        dis_status = "PARTIAL_PASS"
-    elif dis["passes"]:
-        dis_status = "PASS"
-    else:
-        dis_status = "FAIL"
-    lines.append("## 3. Disruption Prediction")
-    lines.append(f"- Shots: {dis['n_shots']} ({dis.get('n_disruptions', 0)} disruptions, {dis.get('n_safe', 0)} safe)")
-    lines.append(f"- Recall: {dis.get('recall', 0):.0%}")
-    lines.append(f"- FPR: {dis.get('false_positive_rate', 0):.0%}")
-    lines.append(f"- **Status**: {dis_status}")
-    if dis.get("fpr_note"):
-        lines.append(f"- **Note**: {dis['fpr_note']}")
+    lines.append("## Lane outcomes")
     lines.append("")
-
-    # Summary
-    lines.append("## Summary")
-    lines.append("")
-    lines.append("| Lane | Status | Key Metric |")
-    lines.append("|------|--------|------------|")
-    lines.append(
-        f"| Equilibrium | {'PASS' if eq['passes'] else 'FAIL'} | Psi NRMSE pass {eq['psi_pass_fraction']:.0%} |"
-    )
-    tr_metric = (
-        f"2-sigma {tr.get('within_2sigma_fraction', 0):.0%}"
-        if isinstance(tr.get("within_2sigma_fraction"), float)
-        else "N/A"
-    )
-    lines.append(f"| Transport | {'PASS' if tr['passes'] else 'FAIL'} | {tr_metric} |")
-    lines.append(
-        f"| Disruption | {dis_status} | Recall {dis.get('recall', 0):.0%}, FPR {dis.get('false_positive_rate', 0):.0%} |"
-    )
+    lines.append("| Lane | Evidence class | Provenance | Computational status |")
+    lines.append("| --- | --- | --- | --- |")
+    for lane_name, lane in cast(dict[str, dict[str, object]], report["lanes"]).items():
+        lines.append(
+            f"| {lane_name} | `{lane.get('evidence_class', 'invalid')}` | "
+            f"{'PASS' if lane.get('data_provenance_pass') is True else 'FAIL'} | "
+            f"{'PASS' if lane.get('computational_pass') is True else 'FAIL'} |"
+        )
     lines.append("")
 
     return "\n".join(lines)
@@ -534,101 +593,96 @@ def render_markdown(report: dict[str, Any]) -> str:
 # ── Main ──────────────────────────────────────────────────────────────
 
 
-def main(
-    output_json: Path | None = None,
-    output_md: Path | None = None,
-) -> int:
-    """Run all validation lanes. Returns 0 if pass, 1 if fail."""
-    from datetime import datetime, timezone
-
+def run_campaign(reference_root: Path) -> dict[str, Any]:
+    """Execute the bounded repository reference campaign."""
     t0 = time.perf_counter()
-    artifacts = ROOT / "artifacts"
-    artifacts.mkdir(parents=True, exist_ok=True)
-
-    if output_json is None:
-        output_json = artifacts / "real_shot_validation.json"
-    if output_md is None:
-        output_md = artifacts / "real_shot_validation.md"
-
-    ref_dir = ROOT / "validation" / "reference_data"
-    itpa_csv = ref_dir / "itpa" / "hmode_confinement.csv"
-    disruption_dir = ref_dir / "diiid" / "disruption_shots"
-
-    # Collect equilibrium reference dirs
-    eq_dirs = []
-    for machine_dir in ["sparc", "diiid", "jet"]:
-        d = ref_dir / machine_dir
-        if d.is_dir():
-            eq_dirs.append(d)
+    itpa_csv = reference_root / "itpa" / "hmode_confinement.csv"
+    disruption_dir = reference_root / "diiid" / "disruption_shots"
 
     print("=" * 60)
-    print("SCPN Control — Real-Shot Validation")
+    print("SCPN Control — Reference-Evidence Validation")
     print("=" * 60)
 
-    # Lane 1: Equilibrium
-    print("\n[Lane 1] Equilibrium validation...")
-    eq_result = validate_equilibrium(eq_dirs)
-    status = "PASS" if eq_result["passes"] else "FAIL"
-    print(f"  {status}: {eq_result['n_psi_pass']}/{eq_result['n_files']} Psi NRMSE pass")
+    lanes: dict[str, dict[str, Any]] = {}
+    sparc_dir = reference_root / "sparc"
+    if sparc_dir.is_dir():
+        lanes["equilibrium_public_reference"] = validate_equilibrium([sparc_dir], evidence_class="public_reference")
+    diiid_dir = reference_root / "diiid"
+    if diiid_dir.is_dir():
+        lanes["equilibrium_synthetic"] = validate_equilibrium([diiid_dir], evidence_class="synthetic")
 
-    # Lane 2: Transport
-    print("\n[Lane 2] Transport validation (ITPA)...")
     if itpa_csv.exists():
-        tr_result = validate_transport(itpa_csv)
-        status = "PASS" if tr_result["passes"] else "FAIL"
-        print(f"  {status}: {tr_result.get('within_2sigma_fraction', 0):.0%} within 2-sigma")
+        lanes["transport_public_reference"] = validate_transport(itpa_csv)
     else:
-        tr_result = {"n_shots": 0, "passes": False, "error": "ITPA CSV not found"}
-        print("  SKIP: ITPA CSV not found")
+        lanes["transport_public_reference"] = {
+            "evidence_class": "public_reference",
+            "data_provenance_pass": False,
+            "computational_pass": False,
+            "error": "ITPA CSV not found",
+        }
 
-    # Lane 3: Disruption
-    print("\n[Lane 3] Disruption prediction...")
     if disruption_dir.exists() and any(disruption_dir.glob("*.npz")):
-        dis_result = validate_disruption(disruption_dir)
-        if dis_result.get("partial_pass"):
-            status = "PARTIAL_PASS"
-        elif dis_result["passes"]:
-            status = "PASS"
-        else:
-            status = "FAIL"
-        print(
-            f"  {status}: Recall={dis_result.get('recall', 0):.0%}, FPR={dis_result.get('false_positive_rate', 0):.0%}"
-        )
-        if dis_result.get("fpr_note"):
-            print(f"  NOTE: {dis_result['fpr_note']}")
+        lanes["disruption_synthetic"] = validate_disruption(disruption_dir)
     else:
-        dis_result = {"n_shots": 0, "passes": False, "partial_pass": False, "error": "No disruption data"}
-        print("  SKIP: No disruption NPZ files")
+        lanes["disruption_synthetic"] = {
+            "evidence_class": "synthetic",
+            "data_provenance_pass": False,
+            "computational_pass": False,
+            "error": "No disruption NPZ files",
+        }
 
-    # PARTIAL_PASS on disruption does NOT block the release — it's a known limitation
-    dis_acceptable = dis_result["passes"] or dis_result.get("partial_pass", False)
-    overall = eq_result["passes"] and tr_result["passes"] and dis_acceptable
-    runtime = time.perf_counter() - t0
+    return build_campaign_report(
+        lanes,
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        runtime_s=time.perf_counter() - t0,
+    )
 
-    report = {
-        "generated_at": datetime.now(timezone.utc).isoformat(),
-        "runtime_s": round(runtime, 2),
-        "overall_pass": overall,
-        "thresholds": THRESHOLDS,
-        "equilibrium": eq_result,
-        "transport": tr_result,
-        "disruption": dis_result,
-    }
 
-    # Write outputs
-    output_json.parent.mkdir(parents=True, exist_ok=True)
-    output_json.write_text(json.dumps(report, indent=2, default=str), encoding="utf-8")
-    print(f"\nJSON: {output_json}")
+def _build_parser() -> argparse.ArgumentParser:
+    """Return the side-effect-free command-line parser."""
+    artifacts = ROOT / "artifacts"
+    parser = argparse.ArgumentParser(
+        description="Run bounded reference-evidence validation without implying measured-shot admission."
+    )
+    parser.add_argument(
+        "--reference-root",
+        type=Path,
+        default=ROOT / "validation" / "reference_data",
+        help="Root containing the declared public-reference and synthetic fixtures.",
+    )
+    parser.add_argument(
+        "--output-json",
+        type=Path,
+        default=artifacts / "reference_evidence_validation.json",
+    )
+    parser.add_argument(
+        "--output-markdown",
+        type=Path,
+        default=artifacts / "reference_evidence_validation.md",
+    )
+    return parser
 
-    output_md.parent.mkdir(parents=True, exist_ok=True)
-    output_md.write_text(render_markdown(report), encoding="utf-8")
-    print(f"MD:   {output_md}")
+
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run the bounded campaign and write JSON and Markdown reports."""
+    args = _build_parser().parse_args(argv)
+    report = run_campaign(args.reference_root.resolve())
+
+    args.output_json.parent.mkdir(parents=True, exist_ok=True)
+    args.output_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(f"\nJSON: {args.output_json}")
+
+    args.output_markdown.parent.mkdir(parents=True, exist_ok=True)
+    args.output_markdown.write_text(render_markdown(report), encoding="utf-8")
+    print(f"MD:   {args.output_markdown}")
 
     print(f"\n{'=' * 60}")
-    print(f"OVERALL: {'PASS' if overall else 'FAIL'}")
+    print(f"COMPUTATIONAL: {'PASS' if report['computational_success'] else 'FAIL'}")
+    print(f"REAL-SHOT VALIDATION ADMITTED: {'YES' if report['real_shot_validation_admitted'] else 'NO'}")
+    print(f"FACILITY VALIDATION ADMITTED: {'YES' if report['facility_validation_admitted'] else 'NO'}")
     print(f"{'=' * 60}")
 
-    return 0 if overall else 1
+    return 0 if report["computational_success"] else 1
 
 
 if __name__ == "__main__":

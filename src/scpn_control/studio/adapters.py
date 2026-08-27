@@ -275,14 +275,14 @@ def physics_validation_evidences_from_registry(
     ``studio.physics-validation.v1`` bundle carrying its fidelity status on the
     claim lattice, its admission, and its qualitative ``validity_domain`` as a prose
     note. For an ``external_dependency_blocked`` entry the blocking dependency is
-    taken from the first ``required_actions`` item (the lattice requires one).
+    taken from the first ``claim_admission_requirements`` item (the lattice requires one).
 
     Parameters
     ----------
     entries
         The registry entries (each a mapping with ``component``, ``module_path``,
         ``fidelity_status``, ``public_claim_allowed``, ``validity_domain`` and, for
-        blocked entries, ``required_actions``).
+        blocked entries, ``claim_admission_requirements``).
     operator
         Opaque identity of the operator/tenant.
     studio_version
@@ -302,8 +302,8 @@ def physics_validation_evidences_from_registry(
     """
     bundles: list[EvidenceBundle] = []
     for entry in entries:
-        required_actions = list(entry.get("required_actions") or [])
-        blocking = required_actions[0] if required_actions else None
+        claim_admission_requirements = list(entry.get("claim_admission_requirements") or [])
+        blocking = claim_admission_requirements[0] if claim_admission_requirements else None
         claim = TraceabilityClaim(
             component=str(entry["component"]),
             module_path=str(entry["module_path"]),

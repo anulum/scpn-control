@@ -9,11 +9,26 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pytest
 
 from scpn_control.core.eqdsk import GEqdsk
-from validation.validate_real_shots import MU0, _geqdsk_source_residual, _gs_operator, validate_equilibrium
+from validation.validate_real_shots import (
+    MU0,
+    _geqdsk_source_residual,
+    _gs_operator,
+    _guess_machine,
+    nrmse,
+    validate_equilibrium,
+)
+
+
+def test_nrmse_uses_range_and_zero_range_floor() -> None:
+    """NRMSE is range-normalised and finite for a constant reference."""
+    assert nrmse(np.array([0.0, 2.0]), np.array([0.0, 0.0])) == pytest.approx(np.sqrt(2.0) / 2.0)
+    assert nrmse(np.ones(2), np.zeros(2)) == pytest.approx(1.0e12)
 
 
 def _constant_source_equilibrium(nw: int = 17, nh: int = 17) -> GEqdsk:
@@ -47,6 +62,7 @@ def _constant_source_equilibrium(nw: int = 17, nh: int = 17) -> GEqdsk:
 
 
 def test_gs_operator_includes_toroidal_r_term() -> None:
+    """The discrete operator includes the cylindrical first-derivative term."""
     r = np.linspace(1.0, 3.0, 9)
     z = np.linspace(-1.0, 1.0, 9)
     rr, _ = np.meshgrid(r, z)
@@ -56,7 +72,18 @@ def test_gs_operator_includes_toroidal_r_term() -> None:
     np.testing.assert_allclose(lpsi, 0.0, atol=1e-12)
 
 
+def test_gs_operator_rejects_invalid_grid_contracts() -> None:
+    """Shape, minimum-size, and monotonic-grid violations fail closed."""
+    with pytest.raises(ValueError, match="shape must match"):
+        _gs_operator(np.zeros((3, 4)), np.arange(3.0), np.arange(3.0))
+    with pytest.raises(ValueError, match="at least 3x3"):
+        _gs_operator(np.zeros((2, 2)), np.arange(2.0), np.arange(2.0))
+    with pytest.raises(ValueError, match="strictly increasing"):
+        _gs_operator(np.zeros((3, 3)), np.array([0.0, 0.0, 1.0]), np.arange(3.0))
+
+
 def test_geqdsk_source_residual_cancels_manufactured_ffprime() -> None:
+    """A manufactured FF-prime source cancels the GS operator."""
     eq = _constant_source_equilibrium()
 
     residual_norm, source_norm, psi_norm, psi_range = _geqdsk_source_residual(eq)
@@ -68,6 +95,7 @@ def test_geqdsk_source_residual_cancels_manufactured_ffprime() -> None:
 
 
 def test_geqdsk_source_residual_rejects_profile_length_mismatch() -> None:
+    """Profile arrays must match the declared equilibrium grid width."""
     eq = _constant_source_equilibrium()
     eq.pprime = eq.pprime[:-1]
 
@@ -75,7 +103,21 @@ def test_geqdsk_source_residual_rejects_profile_length_mismatch() -> None:
         _geqdsk_source_residual(eq)
 
 
+def test_geqdsk_source_residual_rejects_ffprime_and_flux_span_mismatch() -> None:
+    """FF-prime length and degenerate flux spans are rejected independently."""
+    eq = _constant_source_equilibrium()
+    eq.ffprime = eq.ffprime[:-1]
+    with pytest.raises(ValueError, match="ffprime length"):
+        _geqdsk_source_residual(eq)
+
+    eq = _constant_source_equilibrium()
+    eq.sibry = eq.simag
+    with pytest.raises(ValueError, match="degenerate psi range"):
+        _geqdsk_source_residual(eq)
+
+
 def test_geqdsk_source_residual_reconstructs_j_phi_scaling() -> None:
+    """The reconstructed toroidal-current source keeps the expected scaling."""
     eq = _constant_source_equilibrium()
     r_inner = eq.r[1:-1]
     expected_j_phi = -2.0 / (MU0 * r_inner)
@@ -87,6 +129,8 @@ def test_geqdsk_source_residual_reconstructs_j_phi_scaling() -> None:
 
 
 def test_equilibrium_lane_accepts_one_documented_low_current_outlier(tmp_path, monkeypatch) -> None:
+    """The computational threshold permits one outlier in four local proxies."""
+
     def fake_read_geqdsk(path: str) -> GEqdsk:
         name = str(path)
         eq = _constant_source_equilibrium()
@@ -99,9 +143,43 @@ def test_equilibrium_lane_accepts_one_documented_low_current_outlier(tmp_path, m
 
     monkeypatch.setattr("validation.validate_real_shots.read_geqdsk", fake_read_geqdsk)
 
-    result = validate_equilibrium([tmp_path])
+    result = validate_equilibrium([tmp_path], evidence_class="local_proxy")
 
     assert result["n_files"] == 4
     assert result["n_psi_pass"] == 3
     assert result["psi_pass_fraction"] == pytest.approx(0.75)
-    assert result["passes"] is True
+    assert result["evidence_class"] == "local_proxy"
+    assert result["data_provenance_pass"] is True
+    assert result["computational_pass"] is True
+
+
+def test_equilibrium_lane_records_reader_errors_and_empty_q_profile(tmp_path, monkeypatch) -> None:
+    """Per-file reader failures are reported and empty q profiles remain bounded."""
+    (tmp_path / "jet_empty_q.geqdsk").write_text("placeholder", encoding="utf-8")
+    (tmp_path / "unknown_broken.geqdsk").write_text("placeholder", encoding="utf-8")
+
+    def fake_read_geqdsk(path: str) -> GEqdsk:
+        if "broken" in path:
+            raise ValueError("malformed fixture")
+        eq = _constant_source_equilibrium()
+        eq.qpsi = np.array([], dtype=np.float64)
+        return eq
+
+    monkeypatch.setattr("validation.validate_real_shots.read_geqdsk", fake_read_geqdsk)
+    result = validate_equilibrium([tmp_path], evidence_class="local_proxy")
+
+    assert result["data_provenance_pass"] is False
+    assert result["computational_pass"] is False
+    assert np.isnan(result["results"][0]["q95"])
+    assert result["results"][1]["error"] == "malformed fixture"
+    assert _guess_machine(Path("jet/case.geqdsk")) == "JET"
+    assert _guess_machine(Path("other/case.geqdsk")) == "unknown"
+
+
+def test_equilibrium_lane_fails_closed_without_files(tmp_path) -> None:
+    """An empty equilibrium source cannot pass provenance or computation."""
+    result = validate_equilibrium([tmp_path], evidence_class="local_proxy")
+
+    assert result["n_files"] == 0
+    assert result["data_provenance_pass"] is False
+    assert result["computational_pass"] is False

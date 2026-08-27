@@ -67,7 +67,7 @@ to move from notebook experiments toward a facility control-system review.
 | If you are... | Start with | Why |
 | --- | --- | --- |
 | New to the package | [Quick Start](#quick-start), then [Onboarding](docs/onboarding.md) | Confirms installation and explains the three-layer mental model. |
-| Evaluating market or collaboration value | [Why it matters](#why-it-matters), [Use Cases](docs/use_cases.md), [Compute Validation Funding](docs/compute_validation_financing.md) | Shows the practical control-evidence workflow and the open support needs. |
+| Evaluating market or collaboration value | [Why it matters](#why-it-matters), [Use Cases](docs/use_cases.md), [Compute and Validation Collaboration](docs/compute_validation_financing.md) | Shows the practical control-evidence workflow and reviewable contribution interfaces. |
 | Reviewing claims | [Limitations & Honest Scope](#limitations--honest-scope), [Production Readiness](docs/production_readiness.md), [Validation](docs/validation.md) | Separates bounded repository evidence from facility, external-code, and deployment claims. |
 | Building a controller | [Python in 30 Seconds](#python-in-30-seconds), [Tutorials](docs/tutorials.md), [API Reference](docs/api.md) | Moves from SPN/SNN basics to control and validation surfaces. |
 | Preparing a release or audit | [Benchmarks](docs/benchmarks.md), [Validation Summary](docs/validation_summary.md), [Changelog](docs/changelog.md) | Shows persisted evidence, benchmark boundaries, and release history. |
@@ -203,7 +203,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 155 |
 | Optional extras | 20 |
-| Python test files | 547 |
+| Python test files | 549 |
 | Public documentation pages | 68 |
 | GitHub Actions workflows | 11 |
 
@@ -391,7 +391,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 547 Python test files (generated inventory)
+tests/                 # 549 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
@@ -641,7 +641,10 @@ git push --tags
 ## Support the Project
 
 **scpn-control** is open-source (AGPL-3.0-or-later | commercial license available).
-Funding goes to compute, validation data, and development time. See the GitHub Pages [compute validation funding plan](https://anulum.github.io/scpn-control/compute_validation_financing/) for GPU-hour, storage, public-data, and external-code validation needs.
+Compute, validation data, and technical review support are welcome. See the
+GitHub Pages [compute and validation collaboration guide](https://anulum.github.io/scpn-control/compute_validation_financing/)
+for reviewable dataset, external-code, training, hardware, and facility-replay
+evidence interfaces.
 
 | | | |
 |---|---|---|

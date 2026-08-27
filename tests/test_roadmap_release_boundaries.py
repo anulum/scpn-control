@@ -14,23 +14,19 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_v1_roadmap_target_is_not_listed_as_shipped() -> None:
-    """The untagged v1.0.0 target must stay outside shipped history."""
-
+def test_v1_release_boundary_is_historical_not_operational() -> None:
+    """The public release record must not turn an untagged version into a plan."""
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    shipped, next_targets = roadmap.split("## Next / Future Release Targets", maxsplit=1)
+    assert "No `v1.0.0` tag exists" in roadmap
+    assert "future release date" in roadmap
+    assert "## Next" not in roadmap
+    assert "- [ ]" not in roadmap
 
-    assert "### v1.0.0" not in shipped
-    assert "### v1.0.0 — Production readiness target (not tagged)" in next_targets
-    assert "No `v1.0.0` tag exists yet; latest released tag is `v0.23.0`." in next_targets
 
-
-def test_v1_target_has_no_completed_release_checkmarks() -> None:
-    """The future v1.0.0 release target must not mark gates complete."""
-
+def test_public_release_record_links_claim_authorities() -> None:
+    """Current boundaries point to generated public evidence authorities."""
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    v1_block = roadmap.split("### v1.0.0 — Production readiness target (not tagged)", maxsplit=1)[1]
-    v1_block = v1_block.split("### Remaining production work", maxsplit=1)[0]
-
-    assert "- [x]" not in v1_block
-    assert "- [ ] Confirm JOSS paper citation count" in v1_block
+    assert "docs/_generated/capability_manifest.json" in roadmap
+    assert "docs/physics_traceability.md" in roadmap
+    assert "validation/physics_traceability.json" in roadmap
+    assert "contribution interfaces, not an internal execution order" in roadmap

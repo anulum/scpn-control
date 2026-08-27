@@ -1,80 +1,72 @@
-# Validation Deficiencies — scpn-control
+# Validation boundaries
 
-This document records physics and model-data alignment deficiencies revealed by
-tightened validation thresholds in v0.15.0. These thresholds were tightened to
-meet publication standards (e.g., JOSS, Nuclear Fusion).
+This page records current numerical and evidence limitations. It is a public
+description of observed behavior, not an operational backlog or work order.
 
-## 1. Equilibrium Self-Consistency (Lane 1)
+## Equilibrium source consistency
 
-**Threshold:** `psi_nrmse < 2.5%` (Tightened from 5.0%)
-**Current result:** 12/13 pass (92%) — **PASS**
-**Remaining outlier:** `sparc_1300.eqdsk` remains outside the tightened
-threshold because it is a low-current start-up equilibrium with anomalous
-q-profile normalisation.
+The bounded equilibrium lane computes the source-balanced Grad-Shafranov
+residual
 
-**Former result:** 7/13 pass (54%) — **FAIL**
+$$
+\frac{\lVert\Delta^*\psi + \mu_0 R J_\phi\rVert}
+{\max(\lVert\mu_0 R J_\phi\rVert,\Delta\psi)}.
+$$
 
-### Identified Deficiencies
+The earlier source-free proxy misclassified shaped and high-beta equilibria by
+omitting the reconstructed $R p' + FF'/(\mu_0 R)$ source. The current validator
+reconstructs $J_\phi$ from GEQDSK $p'$ and $FF'$ profiles.
 
-1. **DIII-D High-Beta and Shaped Shots:**
-   - `diiid_hmode_1p5MA.geqdsk` (6.98%)
-   - `diiid_hmode_2MA.geqdsk` (6.81%)
-   - `diiid_negdelta.geqdsk` (8.82%)
-   - **Root Cause:** The validation proxy for NRMSE computes the $\Delta^* \psi$
-     operator without subtracting the plasma source term ($R p' + FF'/\mu_0 R$).
-     In highly shaped or high-beta DIII-D shots, the neglected source term
-     leads to a large residual, which the proxy misinterprets as non-consistency.
-   - **Impact:** Tightened thresholds reveal that the current validation script
-     is inadequate for highly active plasma regions.
+The available repository inputs have distinct evidence classes:
 
-2. **SPARC Start-up Phase (`sparc_1300.eqdsk`):**
-   - NRMSE: 7.84%
-   - q95: -36.67 (Anomalous)
-   - **Root Cause:** This equilibrium represents a start-up or transition phase
-     where the magnetic axis is poorly defined or the plasma current is
-     extremely low. The $q$-profile in the reference GEQDSK is likely
-     unphysical or uses a different normalization convention.
+- SPARC GEQDSK inputs are `public_reference` design equilibria, not measured
+  facility shots.
+- DIII-D-like GEQDSK fixtures are `synthetic` and exercise numerical plumbing.
+- A q95 value read from the same GEQDSK is a self-consistency observation, not
+  an independent reconstruction comparison.
 
-### Mitigation Implemented (v2.1)
-- `validate_real_shots.py` reconstructs the toroidal current density
-  $J_\phi$ from GEQDSK $p'$ and $FF'$ profiles.
-- The validation lane now uses a true, source-balanced GS residual check:
-  $|| \Delta^* \psi + \mu_0 R J_\phi || / \max(||\mu_0 R J_\phi||, ||\psi||_\mathrm{range})$.
+These inputs can pass a computational threshold without admitting physics,
+measured-shot, facility, public, or production claims.
 
-## 2. Disruption Prediction (Lane 3)
+## Disruption-prediction replay
 
-**Threshold:** `recall > 80%`, `FPR < 25%`
-**Result:** Recall 100%, FPR 0% — **PASS**
+The repository replay data are synthetic. Recall and false-positive-rate
+results therefore describe the fixed-weight heuristic on those fixtures only.
+They are not a facility-database ROC, prospective warning-time study, or
+commissioned disruption-mitigation result.
 
-*Note:* Synthetic-only heuristic replay passes this local gate, but it is not a
-real disruption-database ROC. The predictor remains a fixed-weight baseline
-until an admitted facility dataset trains or fits the score and reruns the
-validation gate.
+Malformed or unsafe NPZ payloads fail closed per file and are never loaded with
+pickle enabled.
 
-## 3. Transport Scaling (Lane 2)
+## Transport scaling
 
-**Threshold:** `80% within 2-sigma`
-**Result:** 95% within 2-sigma — **PASS**
+The transport lane compares the implemented IPB98(y,2) calculation with curated
+published-reference rows. Its evidence class is `public_reference`. Agreement
+within the declared uncertainty band is a computational comparison against
+those rows; it does not establish a new multi-machine experimental validation.
 
-The IPB98(y,2) scaling remains robust across the ITPA database for the
-current parameter range.
+## Campaign-level interpretation
 
-## How this page should drive remediation
+`validation/validate_real_shots.py` now emits the schema
+`scpn-control.reference-evidence-validation.v1`. Every lane declares exactly
+one of `real`, `public_reference`, `synthetic`, or `local_proxy` and reports
+data provenance separately from computational success.
 
-Each listed deficiency includes both a symptom and a root cause. Remediation should close the script, the threshold, or the applicability condition, not just the metric.
+The repository campaign mixes public-reference and synthetic evidence. Its
+real-shot, facility, public-claim, and production admissions are therefore
+fail-closed even when every numerical lane passes. The JSON and Markdown
+reports display those fields independently so a green calculation cannot be
+read as a green facility claim.
 
-For practical triage:
+## Reproduction
 
-- keep the existing pass/fail status unchanged until the matching gate is rerun,
-- run the referenced script with the same version context before declaring any blocker resolved,
-- keep mitigation notes linked to evidence, not internal assumptions.
+```bash
+python validation/validate_real_shots.py --help
+python validation/validate_real_shots.py \
+  --output-json artifacts/reference_evidence_validation.json \
+  --output-markdown artifacts/reference_evidence_validation.md
+```
 
-This keeps this page aligned with reviewable engineering decisions.
-
-## Practical use and scope
-
-Use this document as the backlog for unresolved evidence and model-data mismatch work.
-
-- Treat each active deficiency as a candidate for the next milestone task order.
-- Link every mitigation to a specific benchmark, validator, or script-based check.
-- Close entries only when reproducer and evidence outputs are committed and rerun.
+The [validation guide](validation.md) explains the wider evidence taxonomy and
+the generated [physics traceability report](physics_traceability.md) identifies
+component-level claim status.

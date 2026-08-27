@@ -39,11 +39,6 @@ THRESHOLDS: dict[str, float] = {
     "beta_iter_sparc_beta_n_rmse": 0.10,
     # Disruption false-positive rate — hard fail (promoted from soft warn in v3.1)
     "disruption_fpr": 0.15,
-    # TBR realistic range [1.0, 1.4] — corrected with port-coverage + streaming
-    "tbr_min": 1.00,
-    "tbr_max": 1.40,
-    # Q peak — 0-D model artifact ceiling
-    "q_max": 15.0,
 }
 
 
@@ -87,39 +82,16 @@ def main() -> int:
             print(f"PASS  beta_iter_sparc: beta_N RMSE {beta_rmse:.4f} <= {thresh:.4f}")
 
     # ── disruption FPR (hard gate since v3.1) ──────────────────────────
-    real_shot_artifact = Path("artifacts/real_shot_validation.json")
-    if real_shot_artifact.exists():
-        rs_data = json.loads(real_shot_artifact.read_text(encoding="utf-8"))
-        dis = rs_data.get("disruption", {})
+    reference_artifact = Path("artifacts/reference_evidence_validation.json")
+    if reference_artifact.exists():
+        reference_data = json.loads(reference_artifact.read_text(encoding="utf-8"))
+        dis = reference_data.get("lanes", {}).get("disruption_synthetic", {})
         fpr = dis.get("false_positive_rate", 0.0)
         fpr_thresh = THRESHOLDS["disruption_fpr"]
         if fpr > fpr_thresh:
             failures.append(f"disruption FPR: {fpr:.2f} > {fpr_thresh:.2f} (hard gate since v3.1 — FPR must be <= 15%)")
         else:
             print(f"PASS  disruption FPR: {fpr:.2f} <= {fpr_thresh:.2f}")
-
-        # ── TBR gate (corrected range [1.0, 1.4]) ──────────────────
-        tbr = rs_data.get("blanket", {}).get("tbr_corrected", None)
-        if tbr is not None:
-            tbr_lo = THRESHOLDS["tbr_min"]
-            tbr_hi = THRESHOLDS["tbr_max"]
-            if tbr < tbr_lo:
-                failures.append(f"TBR: {tbr:.3f} < {tbr_lo:.2f} (below tritium self-sufficiency)")
-            elif tbr > tbr_hi:
-                failures.append(f"TBR: {tbr:.3f} > {tbr_hi:.2f} (unrealistically high — missing correction factors?)")
-            else:
-                print(f"PASS  TBR: {tbr:.3f} in [{tbr_lo:.2f}, {tbr_hi:.2f}]")
-
-        # ── Q peak gate (0-D artifact ceiling) ──────────────────────
-        q_peak = rs_data.get("burn", {}).get("Q_peak", None)
-        if q_peak is not None:
-            q_thresh = THRESHOLDS["q_max"]
-            if q_peak > q_thresh:
-                failures.append(
-                    f"Q_peak: {q_peak:.1f} > {q_thresh:.1f} (0-D model artifact — check temperature/density caps)"
-                )
-            else:
-                print(f"PASS  Q_peak: {q_peak:.1f} <= {q_thresh:.1f}")
 
     if failures:
         print("\nFAILED RMSE regression gate:")

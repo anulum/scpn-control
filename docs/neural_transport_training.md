@@ -75,9 +75,9 @@ We use a three-layer MLP: **10 → 128 → 64 → 3**.
 - **Hidden Layers**: 128 and 64 neurons with **ReLU** activation.
 - **Output Layer**: 3 neurons (`chi_e`, `chi_i`, `D_e`) with **Softplus**
   activation to ensure positive diffusivities.
-- **Design Goal**: Compactness. This architecture achieves < 25 µs
-  inference time on a single CPU thread, enabling integration into
-  10kHz control loops.
+- **Design property**: Compactness. No quantitative inference-time claim is
+  admitted until a current benchmark report binds weights, preprocessing,
+  hardware, samples, and the public claim boundary.
 
 ## 5. Training Loop
 

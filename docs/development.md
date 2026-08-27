@@ -148,10 +148,11 @@ self-applied promotion terms. It also blocks path-specific leaks where a public
 surface would expose internal implementation names, local-host details, or
 operational gateway wording, and it rejects public bank or wallet coordinates
 on payment surfaces. It also blocks stale public tutorial paths that point
-outside the repository's `artifacts/` directory. Internal planning surfaces
-under `docs/internal/` and `.coordination/` are excluded; bounded negative
-language and candidate labels remain allowed because they do not assert an
-achieved public claim.
+outside the repository's `artifacts/` directory. Private operational records
+are excluded; bounded negative language and candidate labels remain allowed
+because they do not assert an achieved public claim. Public Markdown and JSON
+are also rejected when they expose task lists, prioritisation, internal task
+identifiers, or private paths.
 
 ## Changelog Mirror
 

@@ -1,6 +1,6 @@
 # Competitive Analysis — scpn-control
 
-> **Last updated:** 2026-06-02 (v0.20.3).
+> **Last updated:** 2026-08-27 (v0.23.0).
 > Community code timings are from published literature (references at end).
 > SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
 
@@ -8,7 +8,7 @@
 
 | Code | Control Freq | Step Latency | Language | Source |
 |------|-------------|-------------|----------|--------|
-| **scpn-control (Rust)** | **10--30 kHz** | **~5 us P50** (native control cycle) | Rust + Python | CI native_handoff (EPYC 7763) |
+| **scpn-control (Rust)** | local loopback observation only | **5.619 µs P50** local-proxy active cycle | Rust + Python | `validation/reports/native_handoff_comparison.json` |
 | DIII-D PCS (production) | 4--10 kHz (physics loops) | 100--250 us per physics cycle | C / Fortran | Penaflor 2024; Barr 2024 |
 | P-EFIT (GPU) | N/A (reconstruction) | 300--375 us per iter (129x129) | Fortran + CUDA | Sabbagh 2023 |
 | RT-GSFit | ~5 kHz | ~200 us | C++ | Tokamak Energy 2025 |
@@ -19,9 +19,13 @@
 
 > **Note on DIII-D:** The raw data-acquisition cycle runs at ~16.7 kHz (60 us),
 > but physics-level control algorithms include IO, diagnostics, state
-> estimation, and actuator paths. scpn-control's ~5 us P50 is the integrated
-> control cycle on a loopback-UDP campaign. It is not an end-to-end PCS-cycle
-> comparison on fielded plant hardware.
+> estimation, and actuator paths. SCPN Control's retained observation was
+> generated on 2026-06-21 at source commit
+> `5997eed1c135608dcd04720a8287ee9c10067265`: seven repeats of 5,000 steps on
+> an AMD EPYC 7763 with standard `127.0.0.1` loopback UDP. Runtime admission is
+> `fail` because qualified real-time host evidence was not supplied, and the
+> report declares `production_claim_allowed=false`. It is not an end-to-end
+> PCS-cycle comparison on fielded plant hardware.
 
 ## 2. Transport Simulation Speed
 
@@ -33,12 +37,12 @@
 | TORAX | 1D JAX | Faster than real-time (~seconds) | QLKNN10D | Citrin 2024 |
 | FUSE | 1D Julia | ~25 ms per step (TJLF) | TJLF surrogate | Meneghini 2024 |
 | **scpn-control (Rust)** | 1.5D step | **1.5--5.5 us per step** | Crit-gradient + neoclassical | CI Criterion |
-| **scpn-control (MLP)** | Neural surrogate | **24 ns single-point** | Trained surrogate | CI Criterion |
+| **scpn-control (MLP)** | Neural surrogate facade | No admitted current timing | Analytic fallback unless admitted weights are supplied | Neural-transport claim report |
 | QLKNN (TensorFlow) | NN inference | ~100 us (25 outputs) | Surrogate | van de Plassche 2020 |
 
 > **Fidelity note (v0.17.0+):** scpn-control now offers five transport tiers:
-> (1) critical-gradient model (fastest, ~µs), (2) QLKNN-10D MLP surrogate
-> (~24 ns single-point), (3) native linear GK eigenvalue solver (~0.3s per
+> (1) critical-gradient model, (2) QLKNN-10D MLP surrogate facade without an
+> admitted current timing, (3) native linear GK eigenvalue solver (~0.3s per
 > flux surface), **(4) native TGLF-like approximation** (SAT0/SAT1/SAT2 with
 > E×B shear quench, ~0.5s per surface, no external binary), **(5) nonlinear
 > δf gyrokinetic solver** (5D Vlasov, JAX-accelerable, ~15s/surface on GPU).
@@ -58,11 +62,11 @@
 | FreeGS | Variable | Picard + multigrid | ~seconds | FreeGS GitHub |
 | FreeGSNKE | Variable | Newton-Krylov | Faster than FreeGS | FreeGSNKE 2024 |
 | **scpn-control (Rust)** | 65x65 | Picard + SOR | **~100 ms** | Measured |
-| **scpn-control (Neural)** | 129x129 | PCA + MLP surrogate | **0.39 ms mean** | CI verified |
+| **scpn-control (Neural)** | 129x129 | PCA + MLP surrogate | No admitted current timing | Pretraining claim report is fail-closed |
 | **scpn-control (Multigrid)** | 65x65 | V-cycle | **~12 ms** | Measured v0.15.0 |
 
-> The Neural Equilibrium Kernel achieves P-EFIT-class speed (0.39 ms) on
-> **CPU only**, without requiring CUDA or GPU hardware.
+> The neural-equilibrium facade supports CPU execution, but no current committed
+> report admits a quantitative latency or P-EFIT comparison.
 
 ## 4. Feature Breadth
 
@@ -119,7 +123,7 @@ mirror that manifest; curated domain rows follow.
 | Rust crates | 5 |
 | Rust source files | 64 |
 | Rust LOC (all .rs) | ~61,900 |
-| Python test files | 547 |
+| Python test files | 549 |
 | Python public classes | 551 |
 | Test coverage gate | 100% |
 | GitHub Actions workflows | 11 |
@@ -164,29 +168,23 @@ mirror that manifest; curated domain rows follow.
    connects first-principles gyrokinetic transport to multi-timescale
    phase dynamics.
 
-5. **Neural equilibrium at 0.39 ms without GPU** — not cross-validated
-   against P-EFIT on identical equilibria, but demonstrates CPU-only
-   sub-ms reconstruction is achievable.
+5. **CPU-capable neural-equilibrium facade** — implemented, but quantitative
+   latency and identical-input P-EFIT comparison remain unadmitted.
 
 6. **Full-stack breadth** — equilibrium, transport (5 tiers), gyrokinetic
    (3 paths + nonlinear δf), control (7 controllers), disruption mitigation,
    digital twin in one focused 125-module package.
 
-## 8. Gap Resolution Status
+## 8. Current evidence limitations
 
-| Gap | Resolution | Status |
-|-----|-----------|--------|
-| Transport-only autodiff | JAX neural equilibrium MLP (v0.11.0) | **RESOLVED** |
-| No GPU equilibrium | JAX neural eq with GPU dispatch (v0.11.0) | **RESOLVED** |
-| Simpler turbulence | QLKNN-10D trained MLP (v0.12.0) | **RESOLVED** |
-| No RL validation | PPO + PID + MPC benchmark (v0.12.0) | **RESOLVED** |
-| Equilibrium autodiff depth | JAX Picard GS solver, `jax.grad` through full solve (v0.13.0) | **RESOLVED** |
-| No first-principles GK | Native linear eigenvalue + nonlinear δf + TGLF-native + 5 external codes + hybrid (v0.17.0+) | **RESOLVED** |
-| No GK-surrogate hybrid | OOD detection + spot-check + correction + online learning (v0.17.0) | **RESOLVED** |
-| Linear GK quantitative accuracy | Local dispersion + Newton root-finding implemented; current audited path overpredicts GENE CBC growth and needs native cross-code revalidation | OPEN |
-| Dimits shift | Subcritical/supercritical scan machinery implemented; full Dimits-gap result needs revalidation after kinetic-electron and velocity-grid changes | OPEN |
-| No peer-reviewed pub | JOSS paper fact-checked, ready for submission | v0.13.0 |
-| Smaller community | External action: talks, workshops, issue triage | Ongoing |
+| Surface | Current evidence boundary |
+|---|---|
+| Linear GK quantitative accuracy | The local-dispersion path overpredicts the published GENE CBC reference; matched external-code admission is absent. |
+| Nonlinear GK saturation | Long, converged saturation and cross-code heat-flux evidence are absent. |
+| Neural transport | The public claim report records analytic fallback; quantitative QLKNN/QuaLiKiz admission is false. |
+| Neural equilibrium | Synthetic pretraining exists; identical-input EFIT/P-EFIT holdout and admitted latency evidence are absent. |
+| Facility control | Repository simulation, loopback, and replay evidence does not establish commissioned PCS or CODAC operation. |
+| Publication | Manuscripts are available in the repository; peer-review acceptance is not claimed. |
 
 ## References
 
@@ -220,7 +218,7 @@ When comparing entries:
 - keep cross-code and facility claims outside this table unless strict, matched
   external artifacts are attached.
 
-The practical use is to decide integration priority, not to conclude market-wide
+The practical use is to compare evidence scope, not to conclude market-wide
 dominance from a single number.
 
 ## How to consume this comparison in decision-making
@@ -249,4 +247,4 @@ Use this document to benchmark positioning decisions between SCPN Control and ad
 
 - Use local measurements for engineering direction, not direct facility readiness claims.
 - Use literature values for comparison context and methodology interpretation.
-- Use this page before prioritizing roadmap items that depend on speed, robustness, or deployment maturity.
+- Use this page to distinguish measured local behavior from robustness or deployment maturity.

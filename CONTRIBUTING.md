@@ -27,14 +27,13 @@ cd scpn-control-rs/crates/control-python
 maturin develop --release
 ```
 
-## Private internal docs (never public)
+## Private operational records
 
-`docs/internal/` is a **forever-private** operational surface (TODO, audits,
-handovers, strategy plans). It is gitignored, excluded from MkDocs, rejected by the
-public markdown inventory, and gated by `tools/check_docs_internal_private.py`
-in preflight + CI. **Never** `git add -f docs/internal/…`, never re-include it
-with a `.gitignore` negation, and never paste its content into public docs
-(`README`, `ROADMAP`, `docs/*` outside `docs/internal/`).
+TODOs, audits, handovers, strategy, and workflow-control records are private
+operational material. They are ignored, excluded from MkDocs and distribution
+artifacts, and checked by `tools/check_docs_internal_private.py` in preflight
+and CI. Do not force-add, re-include, or paste private operational material into
+tracked public documents.
 
 ## Preflight (blocks push)
 

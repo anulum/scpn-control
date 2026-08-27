@@ -122,8 +122,8 @@ target hardware timing where relevant, and human review.
 
 The project needs collaborators and financing for target-hardware benchmarks,
 external-code validation, public-data curation, cloud GPU campaigns, safety-case
-review, and facility replay access. See [Compute Validation Funding](compute_validation_financing.md)
-for concrete budget categories and why each category matters.
+review, and facility replay access. See [Compute and Validation Collaboration](compute_validation_financing.md)
+for reviewable evidence formats and claim boundaries.
 
 ## How this entry page is best consumed
 

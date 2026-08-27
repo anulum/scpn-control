@@ -100,10 +100,10 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
                 f"- Full-fidelity public claim: {claim_status}",
                 f"- External validation tracker: {_tracker_line(entry, report)}",
                 f"- Covered source paths: {entry.get('covered_source_count', 0)}",
-                "- Required actions:",
+                "- Claim admission requirements:",
             ]
         )
-        for action in entry["required_actions"]:
+        for action in entry["claim_admission_requirements"]:
             lines.append(f"  - {action}")
         lines.append("")
     if report["errors"]:

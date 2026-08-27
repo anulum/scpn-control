@@ -13,8 +13,8 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections.abc import Iterable
 from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, cast
@@ -60,7 +60,7 @@ class TraceabilityEntry:
     module_path: str
     fidelity_status: str
     public_claim_allowed: bool
-    required_actions: tuple[str, ...]
+    claim_admission_requirements: tuple[str, ...]
     external_validation_tracker_issue: int | None
 
     @property
@@ -111,7 +111,9 @@ class EvidenceWorkPackage:
             "status_counts": self.status_counts,
             "components": [entry.component for entry in self.entries],
             "module_paths": _unique(entry.module_path for entry in self.entries),
-            "required_actions": _unique(action for entry in self.entries for action in entry.required_actions),
+            "claim_admission_requirements": _unique(
+                action for entry in self.entries for action in entry.claim_admission_requirements
+            ),
         }
 
 
@@ -200,9 +202,11 @@ class EvidenceGapMatrix:
                 ]
             )
             lines.extend(f"  - `{entry.component}` (`{entry.module_path}`)" for entry in package.entries)
-            required_actions = _unique(action for entry in package.entries for action in entry.required_actions)
-            lines.append("- Required actions:")
-            lines.extend(f"  - {action}" for action in required_actions)
+            claim_admission_requirements = _unique(
+                action for entry in package.entries for action in entry.claim_admission_requirements
+            )
+            lines.append("- Claim admission requirements:")
+            lines.extend(f"  - {action}" for action in claim_admission_requirements)
             lines.append("")
         return "\n".join(lines).rstrip() + "\n"
 
@@ -275,7 +279,7 @@ def _parse_entries(raw_entries: list[dict[str, object]]) -> list[TraceabilityEnt
                 module_path=_required_string(raw, "module_path"),
                 fidelity_status=_required_string(raw, "fidelity_status"),
                 public_claim_allowed=_required_bool(raw, "public_claim_allowed"),
-                required_actions=tuple(_required_string_list(raw, "required_actions")),
+                claim_admission_requirements=tuple(_required_string_list(raw, "claim_admission_requirements")),
                 external_validation_tracker_issue=_optional_int(raw, "external_validation_tracker_issue"),
             )
         )

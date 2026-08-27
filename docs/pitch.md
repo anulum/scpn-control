@@ -131,7 +131,7 @@ The architecture *could* support future integration, but:
 
 ```
 196 Python control/physics modules | 5 Rust crates / 64 Rust source files
-547 Python test files | 11 GitHub Actions workflows
+549 Python test files | 11 GitHub Actions workflows
 ```
 
 ```
@@ -228,7 +228,7 @@ cd crates/control-python && maturin develop --release
 
 ---
 
-## Next Steps
+## Evaluation entry points
 
 1. **Try it:** `pip install scpn-control`
 2. **See benchmarks:** [Competitive Analysis](competitive_analysis.md)
@@ -249,13 +249,13 @@ A practical investor-facing summary should pair this page with:
 - `docs/validation.md` (validator outputs and claim boundaries),
 - `docs/benchmarks.md` (timing context and evidence classes).
 
-If a claim depends on external-code or facility validation, indicate that this is
-an explicit next-work item, not a completed fact.
+If a claim depends on external-code or facility validation, state that the
+corresponding evidence is absent rather than presenting it as completed work.
 
 ## Practical use and scope
 
-Use this page as the investor-facing positioning artifact.
+Use this page as an investor-facing description of the current product surface.
 
-- Align each claim with corresponding evidence artifacts before external circulation.
-- Keep this pitch synchronized with funding and readiness checkpoints.
-- Route any measurable claim changes through benchmark and validation updates.
+- Verify measurable statements against the linked evidence artifacts.
+- Read local timing separately from hardware and facility admission.
+- Use the contact link for technical review or collaboration enquiries.

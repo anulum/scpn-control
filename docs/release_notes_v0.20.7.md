@@ -31,17 +31,9 @@ upgrade workstation timing, public-data validation, target-hardware evidence,
 PREEMPT_RT timing, external-code comparison, or facility PCS claims. Benchmark
 reports remain governed by their recorded host-load and isolation metadata.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.7` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- CI, CodeQL, Pre-commit, OpenSSF Scorecard, Docs Pages, release, and publish
-  workflows are green for the `v0.20.7` commit/tag.
-- Pull requests and security alerts remain clear.
-- Failed or cancelled Actions/deployment records are deleted only when safe and
-  only after replacement evidence is green.
-- The GitHub release is created from the `v0.20.7` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

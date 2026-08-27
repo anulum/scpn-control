@@ -73,16 +73,9 @@ and local validation checkpoint, and the strict admission gates keep facility,
 measured-shot, target-hardware, and external-code claims blocked until matching
 evidence exists.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.23.0` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- CI, CodeQL, Pre-commit, OpenSSF Scorecard, benchmark, and release workflows
-  are green for the `v0.23.0` commit/tag.
-- Pull requests and security alerts remain clear.
-- The GitHub release is created from the `v0.23.0` tag.
-- PyPI shows `scpn-control==0.23.0` with both wheel and source distribution.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

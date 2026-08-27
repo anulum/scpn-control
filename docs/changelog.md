@@ -4,9 +4,23 @@
 
 ### Fixed
 - Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
-  weights fail closed or fall back when opted in (CTL-G07 R7-S4 fidelity).
+  weights fail closed or fall back when opted in.
 ### Changed
 
+- Reframed the mixed repository validator as a bounded reference-evidence
+  campaign with side-effect-free CLI help, per-lane evidence classes, and
+  independent provenance, computational, physics, real-shot, facility, public,
+  and production admission fields.
+- Added deterministic public-surface hygiene for operational task lists,
+  prioritisation, private paths, internal task identifiers, and unresolved-plan
+  JSON fields, while preserving reviewed tutorial and contribution contexts.
+- Removed unsupported current neural-transport and neural-equilibrium timing
+  claims; bound the retained native-handoff observation to its dated report,
+  exact source revision, CI run, host, sample definition, failed runtime
+  admission, and non-production claim state.
+- Published the physics traceability schema `1.1`, replacing action-oriented
+  fields with declarative claim-admission requirements, and regenerated the
+  public traceability report.
 - Began strict native Rust API-documentation enforcement with the PyO3/transport
   package, including crate-level missing-doc and broken-link denial for its library
   and benchmark binary.
@@ -56,160 +70,153 @@
   train→pin→load→predict paths; remove FakeTorch and patched train/load
   surfaces (real-surface E2E policy).
 - Extract disruption checkpoint integrity and train/load orchestration into
-  `control/disruption_checkpoint.py` (CTL-G07 R7-S4). The disruption predictor
+  `control/disruption_checkpoint.py`. The disruption predictor
   re-exports the checkpoint leaf; the optional torch model class remains on the
   owner. Inventory cascade: 196 modules / 546 test files.
 - Extract disruption fault/noise and anomaly-alarm campaigns into
-  `control/disruption_fault_campaigns.py` (CTL-G07 R7-S3). The disruption
+  `control/disruption_fault_campaigns.py`. The disruption
   predictor re-exports the campaigns leaf; checkpointed torch training remains
   on the owner. Inventory cascade: 195 modules / 545 test files.
 - Extract disruption physics proxies (tearing, features, risk, warning time)
-  into `control/disruption_physics_proxies.py` (CTL-G07 R7-S2). The disruption
+  into `control/disruption_physics_proxies.py`. The disruption
   predictor re-exports the proxies leaf; fault campaigns and checkpointed torch
   training remain on the owner. Inventory cascade: 194 modules / 544 test files.
 - Extract disruption-risk claim boundary and heuristic provenance into
-  `control/disruption_risk_claims.py` (CTL-G07 R7-S1). The disruption
+  `control/disruption_risk_claims.py`. The disruption
   predictor product surface re-exports the claim leaf; physics proxies and
   training remain on the owner. Inventory cascade: 193 modules / 543 test files.
 - Extract integrated-scenario Spitzer, gyro-Bohm, and diffusion-step helpers
-  into `core/integrated_scenario_micro_physics.py` (CTL-G07 R5-S3). The
+  into `core/integrated_scenario_micro_physics.py`. The
   `IntegratedScenarioSimulator` product surface re-exports the helpers;
   **R5 ladder complete**. Inventory cascade: 192 modules / 542 test files.
 - Extract integrated-scenario coupling audit, module-exchange records, and
-  report I/O into `core/integrated_scenario_coupling_audit.py` (CTL-G07 R5-S2).
+  report I/O into `core/integrated_scenario_coupling_audit.py`.
   The `IntegratedScenarioSimulator` product surface re-exports the audit leaf;
   transport micro-physics remains on the owner. Inventory cascade: 191 modules /
   541 test files.
 - Extract integrated-scenario configuration presets and ScenarioConfig into
-  `core/integrated_scenario_presets.py` (CTL-G07 R5-S1). The
+  `core/integrated_scenario_presets.py`. The
   `IntegratedScenarioSimulator` product surface re-exports presets; coupling
   audit and micro-physics remain on the owner. Inventory cascade: 190 modules /
   540 test files.
-- Extract SCPN artifact JSON schema emission into `scpn/artifact_schema.py`
-  (CTL-G07 R4-S5). The `Artifact` product surface is a re-export facade over
+- Extract SCPN artifact JSON schema emission into `scpn/artifact_schema.py`. The `Artifact` product surface is a re-export facade over
   model, validate, codec, IO, and schema leaves. Inventory cascade: 189
   modules / 539 test files.
 - Extract SCPN artifact load/save and payload hashing into
-  `scpn/artifact_io.py` (CTL-G07 R4-S4). The `Artifact` product surface
+  `scpn/artifact_io.py`. The `Artifact` product surface
   re-exports `load_artifact` / `save_artifact` /
   `compute_artifact_payload_sha256`; JSON schema remains on
   `scpn/artifact.py`. Inventory cascade: 188 modules / 538 test files.
 - Extract SCPN artifact compact packed-weight codec into
-  `scpn/artifact_codec.py` (CTL-G07 R4-S3). The `Artifact` product surface
+  `scpn/artifact_codec.py`. The `Artifact` product surface
   re-exports `encode_u64_compact` / `decode_u64_compact`; load/save and JSON
   schema remain on `scpn/artifact.py`. Inventory cascade: 187 modules / 537
   test files.
 - Extract SCPN artifact structural validation and safety-critical admit into
-  `scpn/artifact_validate.py` (CTL-G07 R4-S2). The `Artifact` product surface
+  `scpn/artifact_validate.py`. The `Artifact` product surface
   re-exports `validate_artifact` / `validate_safety_critical_artifact`;
   load/save/schema/codec remain on `scpn/artifact.py`. Inventory cascade:
   186 modules / 536 test files.
 - Extract SCPN artifact topology/payload model dataclasses into
-  `scpn/artifact_model.py` (CTL-G07 R4-S1). The `Artifact` product surface and
+  `scpn/artifact_model.py`. The `Artifact` product surface and
   validate/load/save/schema/codec remain on `scpn/artifact.py` with re-exports.
   Inventory cascade: 185 modules / 535 test files.
-- Harden permanent privacy for `docs/internal/` (gitignored forever, MkDocs
+- Harden permanent privacy for non-public operational records (gitignored, MkDocs
   exclude, preflight + CI gate `tools/check_docs_internal_private.py`). Internal
   TODO/audits/handovers must never be tracked or published.
 - Decompose free-boundary `run_tracking_shot` into cohesive private stage methods
-  on `FreeBoundaryTrackingController` (CTL-G07 R3-S4): validate args, initialise
+  on `FreeBoundaryTrackingController`: validate args, initialise
   shot, observe/plan correction, gain-search or recover, record history, summarise.
   Public shot entry and summary keys are unchanged; claims stay separate; dual-home
   C held. Inventory cascade: 184 modules / 533 test files (in-module only).
 - Extract free-boundary tracking response diagnostics, activation mask, coil
   headroom penalties, and Tikhonov coil correction into
-  `control/free_boundary_tracking_control_law.py` (CTL-G07 R3-S3). The
+  `control/free_boundary_tracking_control_law.py`. The
   `FreeBoundaryTrackingController` product surface remains first-class with thin
   wrappers; kernel-coupled `identify_response_matrix` and actuator application
   stay on the owner; claims stay separate; shot orchestration remains for R3-S4.
   Inventory cascade: 184 modules / 533 test files.
 - Extract free-boundary tracking target/measurement vector builders into
-  `control/free_boundary_tracking_observation.py` (CTL-G07 R3-S2). The
+  `control/free_boundary_tracking_observation.py`. The
   `FreeBoundaryTrackingController` product surface remains first-class with thin
   wrappers; claims stay separate; shot orchestration remains on the controller.
   Inventory cascade: 183 modules / 532 test files.
 - Extract free-boundary tracking objective/supervisor limit resolvers into
-  `control/free_boundary_tracking_limits.py` (CTL-G07 R3-S1). The
+  `control/free_boundary_tracking_limits.py`. The
   `FreeBoundaryTrackingController` product surface remains first-class with thin
   wrappers; claims stay in `free_boundary_tracking_claims` (not re-merged).
   Inventory cascade: 182 modules / 531 test files.
 - Extract the Rust multigrid equilibrium bridge into
-  `core/gs_rust_multigrid_bridge.py` (CTL-G07 R0-S9 under dual-home C). The
+  `core/gs_rust_multigrid_bridge.py`. The
   CONTROL `FusionKernel` product surface remains first-class with a thin
   wrapper; Python SOR fallback paths for missing Rust and boundary-constrained
   solves are preserved. Rust algorithm semantics are unchanged. FUSION is not
   edited. Inventory cascade: 181 modules / 530 test files.
 - Extract reduced-order phase-sync step and multi-step Lyapunov helpers into
-  `core/gs_phase_sync.py` (CTL-G07 R0-S8 under dual-home C). The CONTROL
+  `core/gs_phase_sync.py`. The CONTROL
   `FusionKernel` product surface remains first-class with thin wrappers that
   supply `phase_sync` config; Kuramoto numerics remain in
   `scpn_control.phase.kuramoto`. FUSION is not edited. Inventory cascade: 180
   modules / 529 test files.
 - Extract free-boundary solve orchestration into
-  `core/gs_free_boundary_solve.py` (CTL-G07 R0-S7 under dual-home C). The
+  `core/gs_free_boundary_solve.py`. The
   CONTROL `FusionKernel` product surface remains first-class with a thin
   wrapper over the outer coil/equilibrium loop; phase-sync and Rust multigrid
   stay on the owner. FUSION is not edited. Inventory cascade: 179 modules /
   528 test files.
 - Extract free-boundary coil optimisation, objective tolerances/status,
   divertor configuration labels, and `CoilSet` into
-  `core/gs_free_boundary_control.py` (CTL-G07 R0-S6 under dual-home C). The
+  `core/gs_free_boundary_control.py`. The
   CONTROL `FusionKernel` product surface remains first-class with thin wrappers
   and re-exports `CoilSet`; full free-boundary solve orchestration stays on the
   owner (R0-S7). FUSION is not edited. Inventory cascade: 178 modules / 527
   test files.
 - Extract mTanh pedestal profiles, normalised-flux guard, nonlinear plasma
-  source, and profile Jacobian helpers into `core/gs_profile_source.py`
-  (CTL-G07 R0-S5 under dual-home C). The CONTROL `FusionKernel` product surface
+  source, and profile Jacobian helpers into `core/gs_profile_source.py`. The CONTROL `FusionKernel` product surface
   remains first-class with thin wrappers; FUSION is not edited. Inventory
   cascade: 177 modules / 526 test files.
 - Extract linear elliptic iterators (Jacobi, Red-Black SOR, Anderson mixing,
-  Python elliptic solve) into `core/gs_elliptic_iterators.py` (CTL-G07 R0-S4
-  under dual-home C). The CONTROL `FusionKernel` product surface remains
+  Python elliptic solve) into `core/gs_elliptic_iterators.py`. The CONTROL `FusionKernel` product surface remains
   first-class with thin wrappers including the HPC offload branch; FUSION is
   not edited. Inventory cascade: 176 modules / 525 test files.
 - Extract geometric multigrid primitives (restrict, prolongate, smooth,
-  residual, V-cycle) into `core/gs_multigrid.py` (CTL-G07 R0-S3 under dual-home
-  C). The CONTROL `FusionKernel` product surface remains first-class with thin
+  residual, V-cycle) into `core/gs_multigrid.py`. The CONTROL `FusionKernel` product surface remains first-class with thin
   wrappers; FUSION is not edited. Inventory cascade: 175 modules / 524 test
   files.
 - Extract toroidal Green's function, vacuum poloidal flux, and mutual-inductance
-  helpers into `core/gs_green_vacuum.py` (CTL-G07 R0-S2 under dual-home C). The
+  helpers into `core/gs_green_vacuum.py`. The
   CONTROL `FusionKernel` product surface remains first-class with thin wrappers;
   FUSION is not edited. Inventory cascade: 174 modules / 523 test files.
 - Extract fusion-kernel configuration models and parse/dump helpers into
-  `core/fusion_kernel_config.py` (CTL-G07 R0-S1 under dual-home C). The CONTROL
+  `core/fusion_kernel_config.py`. The CONTROL
   `FusionKernel` product surface remains first-class and re-exports the public
   config contracts; FUSION is not edited. Inventory cascade: 173 modules /
   522 test files.
 - Extract core Crank-Nicolson step and multi-step rollout numerics into
-  `core/differentiable_transport_core.py` (CTL-G07 R1-S3). The facade remains
+  `core/differentiable_transport_core.py`. The facade remains
   an orchestration surface for validators and campaign metadata and re-exports
   the public step/rollout symbols; the leaf lazy-imports facade validators and
   the facade JAX gate. Inventory cascade: 172 modules / 521 test files.
 - Extract equilibrium-weighted transport losses, gradients, and radial weight
-  helpers into `core/differentiable_transport_equilibrium_weight.py` (CTL-G07
-  R1-S6). The facade re-exports public symbols; the leaf lazy-imports step and
+  helpers into `core/differentiable_transport_equilibrium_weight.py`. The facade re-exports public symbols; the leaf lazy-imports step and
   rollout primitives plus the facade JAX gate so admission monkeypatches stay
   on the production path. Inventory cascade: 171 modules / 520 test files.
 - Extract multi-step rollout source gradients and finite-difference audit
-  contracts into `core/differentiable_transport_rollout_ad.py` (CTL-G07
-  R1-S5). The facade re-exports public symbols; the leaf lazy-imports rollout
+  contracts into `core/differentiable_transport_rollout_ad.py`. The facade re-exports public symbols; the leaf lazy-imports rollout
   primitives and the facade JAX gate so admission monkeypatches stay on the
   production path. Inventory cascade: 170 modules / 519 test files.
 - Extract one-step parameter / loss gradients and finite-difference audit
-  contracts into `core/differentiable_transport_parameter_ad.py` (CTL-G07
-  R1-S4). The facade re-exports public symbols; the leaf lazy-imports step
+  contracts into `core/differentiable_transport_parameter_ad.py`. The facade re-exports public symbols; the leaf lazy-imports step
   validators and the facade JAX gate so admission monkeypatches stay on the
   production path. Inventory cascade: 169 modules / 518 test files.
 - Extract local JAX gradient-admission latency benchmarks into
-  `core/differentiable_transport_latency.py` (CTL-G07 R1-S7). The facade
+  `core/differentiable_transport_latency.py`. The facade
   re-exports the public symbols; benchmarks lazy-import AD asserts so the
   measured path remains the production admission contract.
 
 ### Changed
 - Extract neural and reduced gyrokinetic transport-closure adapters into
-  `core/differentiable_transport_closures.py` (CTL-G07 R1-S2). The numerical
+  `core/differentiable_transport_closures.py`. The numerical
   facade re-exports the same public symbols so controller tuning imports stay
   stable while the facade owns only step/rollout/AD orchestration.
 

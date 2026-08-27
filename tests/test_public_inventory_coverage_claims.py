@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import re
+import subprocess
 from pathlib import Path
 from typing import Any, Final, cast
 
@@ -23,7 +24,6 @@ JOSS_MANUSCRIPT: Final = (
 
 def _manifest_counts() -> dict[str, int]:
     """Return generated capability inventory counts."""
-
     raw: Any = json.loads(MANIFEST.read_text(encoding="utf-8"))
     manifest = cast(dict[str, Any], raw)
     return cast(dict[str, int], manifest["counts"])
@@ -31,7 +31,6 @@ def _manifest_counts() -> dict[str, int]:
 
 def _coverage_gate() -> int:
     """Return the configured package coverage gate from ``pyproject.toml``."""
-
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     match = re.search(r"(?m)^fail_under = (?P<gate>\d+)$", pyproject)
     assert match is not None
@@ -40,7 +39,6 @@ def _coverage_gate() -> int:
 
 def _rust_snn_ci_latency() -> tuple[float, float]:
     """Return Rust SNN CI P50 and P95 latencies from the committed report."""
-
     raw: Any = json.loads((ROOT / "validation" / "reports" / "controller_latency.json").read_text(encoding="utf-8"))
     report = cast(dict[str, Any], raw)
     controllers = cast(list[dict[str, Any]], report["controllers"])
@@ -53,7 +51,6 @@ def _rust_snn_ci_latency() -> tuple[float, float]:
 
 def _native_handoff_report() -> dict[str, Any]:
     """Return the committed native handoff comparison report."""
-
     raw: Any = json.loads(
         (ROOT / "validation" / "reports" / "native_handoff_comparison.json").read_text(encoding="utf-8")
     )
@@ -62,13 +59,11 @@ def _native_handoff_report() -> dict[str, Any]:
 
 def _normalized_prose(path: Path) -> str:
     """Return Markdown prose with line wrapping collapsed for claim checks."""
-
     return " ".join(path.read_text(encoding="utf-8").split())
 
 
 def test_pitch_inventory_claim_matches_generated_manifest() -> None:
     """The pitch inventory summary must match generated capability counts."""
-
     counts = _manifest_counts()
     pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
 
@@ -80,7 +75,6 @@ def test_pitch_inventory_claim_matches_generated_manifest() -> None:
 
 def test_readme_tree_test_count_matches_generated_manifest() -> None:
     """The README tree summary must match generated test-file inventory."""
-
     counts = _manifest_counts()
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
@@ -89,7 +83,6 @@ def test_readme_tree_test_count_matches_generated_manifest() -> None:
 
 def test_architecture_maps_are_bound_to_generated_inventory() -> None:
     """Architecture maps must identify the generated manifest as authoritative."""
-
     counts = _manifest_counts()
     checked_paths = (
         ROOT / "ARCHITECTURE.md",
@@ -123,7 +116,6 @@ def test_architecture_maps_are_bound_to_generated_inventory() -> None:
 
 def test_architecture_native_latency_claim_cites_loopback_report() -> None:
     """Architecture native-latency wording must cite the loopback report."""
-
     report = _native_handoff_report()
     native_stats = cast(dict[str, float], cast(dict[str, Any], report["latency_stats"])["native"])
     parameters = cast(dict[str, Any], report["parameters"])
@@ -133,6 +125,11 @@ def test_architecture_native_latency_claim_cites_loopback_report() -> None:
     assert comparison["native_udp_sink_packets"] == parameters["steps"]
     assert parameters["transport_backend"] == "std"
     assert parameters["transport_endpoint"] == "127.0.0.1"
+    assert report["evidence_class"] == "local_proxy"
+    assert report["source_commit"] == "5997eed1c135608dcd04720a8287ee9c10067265"
+    assert report["workflow_run_id"] == 27917648522
+    assert report["runtime_admission"]["status"] == "fail"
+    assert report["production_claim_allowed"] is False
 
     required_fragments = (
         "validation/reports/native_handoff_comparison.json",
@@ -144,6 +141,9 @@ def test_architecture_native_latency_claim_cites_loopback_report() -> None:
         "`127.0.0.1`",
         f"port base `{parameters['transport_port_base']}`",
         "not fielded plant or PCS-cycle latency",
+        "AMD EPYC 7763",
+        "runtime admission `fail`",
+        "`production_claim_allowed=false`",
     )
 
     for fragment in required_fragments:
@@ -154,7 +154,6 @@ def test_architecture_native_latency_claim_cites_loopback_report() -> None:
 
 def test_architecture_framing_uses_evidence_bound_language() -> None:
     """Architecture framing must describe evidence boundaries, not guarantees."""
-
     architecture = _normalized_prose(ROOT / "docs" / "architecture.md")
     required_fragments = (
         "separates Python orchestration from Rust/PyO3 hot paths",
@@ -183,7 +182,6 @@ def test_architecture_framing_uses_evidence_bound_language() -> None:
 
 def test_public_coverage_gate_claims_match_configuration() -> None:
     """Current public coverage-gate claims must match ``pyproject.toml``."""
-
     gate = _coverage_gate()
     pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
     paper = JOSS_MANUSCRIPT.read_text(encoding="utf-8")
@@ -194,7 +192,6 @@ def test_public_coverage_gate_claims_match_configuration() -> None:
 
 def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
     """Live public inventory summaries must not repeat stale current counts."""
-
     checked_paths = (
         ROOT / "README.md",
         ROOT / "docs" / "pitch.md",
@@ -218,7 +215,6 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
 
 def test_competitive_analysis_metrics_bound_to_generated_inventory() -> None:
     """The competitive-analysis metrics table must mirror generated counts, not drift."""
-
     counts = _manifest_counts()
     gate = _coverage_gate()
     text = (ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8")
@@ -247,7 +243,6 @@ def test_competitive_analysis_metrics_bound_to_generated_inventory() -> None:
 
 def test_joss_paper_coverage_gate_claim_matches_configuration() -> None:
     """The canonical JOSS manuscript must state the configured coverage gate."""
-
     gate = _coverage_gate()
     prose = _normalized_prose(JOSS_MANUSCRIPT)
 
@@ -259,7 +254,6 @@ def test_joss_paper_coverage_gate_claim_matches_configuration() -> None:
 
 def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
     """Paper safe-RL wording must match the implemented controller surface."""
-
     expected = "safe RL (CPO-formulated Lagrangian constraints with control barrier functions, Ames 2017)"
     stale = "safe RL (PPO with MHD constraint veto)"
     checked_paths = (JOSS_MANUSCRIPT,)
@@ -271,17 +265,22 @@ def test_safe_rl_paper_claim_matches_implementation_surface() -> None:
 
 
 def test_neural_equilibrium_latency_claim_is_not_uncited() -> None:
-    """Public neural-equilibrium docs must not repeat the uncited 0.39 ms claim."""
-
-    checked_paths = (
-        ROOT / "docs" / "architecture.md",
-        ROOT / "docs" / "pitch.md",
+    """Every tracked public prose/metadata surface excludes unsupported timing."""
+    listing = subprocess.run(
+        ["git", "ls-files", "*.md", "*.json"],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
     )
-
-    for path in checked_paths:
-        text = path.read_text(encoding="utf-8")
-        assert "0.39 ms" not in text
-        assert "0.39ms" not in text
+    excluded_prefixes = ("docs/internal/", ".coordination/", "04_ARCANE_SAPIENCE/")
+    stale_patterns = ("0.39 ms", "0.39ms", "24 ns", "< 25 µs", "<25 µs", "< 25 us", "<25 us")
+    for relative in listing.stdout.splitlines():
+        if relative.startswith(excluded_prefixes):
+            continue
+        text = (ROOT / relative).read_text(encoding="utf-8")
+        for pattern in stale_patterns:
+            assert pattern not in text, f"{relative} contains unsupported timing {pattern!r}"
 
     pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
     assert "validation/reports/neural_equilibrium_pretraining.json" in pitch
@@ -291,7 +290,6 @@ def test_neural_equilibrium_latency_claim_is_not_uncited() -> None:
 
 def test_faq_rust_snn_latency_claim_matches_report() -> None:
     """The FAQ Rust SNN latency claim must match the committed CI report."""
-
     p50_us, p95_us = _rust_snn_ci_latency()
     faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
 
@@ -302,7 +300,6 @@ def test_faq_rust_snn_latency_claim_matches_report() -> None:
 
 def test_faq_controller_registry_guidance_matches_code() -> None:
     """The FAQ controller-extension guidance must name the real registry."""
-
     faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
     comparison = (ROOT / "validation" / "controller_comparison.py").read_text(encoding="utf-8")
     flight_sim = (ROOT / "src" / "scpn_control" / "control" / "tokamak_flight_sim.py").read_text(encoding="utf-8")
@@ -316,7 +313,6 @@ def test_faq_controller_registry_guidance_matches_code() -> None:
 
 def test_public_physics_monitor_claims_keep_open_issue_caveats() -> None:
     """EM and Lyapunov public claims must carry the live research boundary."""
-
     checked_paths = (
         ROOT / "ROADMAP.md",
         JOSS_MANUSCRIPT,
@@ -336,7 +332,6 @@ def test_public_physics_monitor_claims_keep_open_issue_caveats() -> None:
 
 def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
     """JOSS neural-transport wording must match the public claim report."""
-
     raw: Any = json.loads(
         (ROOT / "validation" / "reports" / "neural_transport_claims.json").read_text(encoding="utf-8")
     )
@@ -372,7 +367,6 @@ def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
 
 def test_joss_mu_synthesis_claim_matches_static_bound_report() -> None:
     """JOSS mu-synthesis wording must match the bounded static report."""
-
     raw: Any = json.loads((ROOT / "validation" / "reports" / "mu_synthesis_claims.json").read_text(encoding="utf-8"))
     report = cast(dict[str, Any], raw)
 

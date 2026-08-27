@@ -38,8 +38,7 @@ Use package boundaries for responsibility boundaries:
   mapping for the Hub.
 - `validation/` owns executable validation and benchmark admission scripts.
 - `docs/` owns public user, architecture, validation, and release
-  documentation. Internal planning stays in ignored `docs/internal/` or
-  monorepo `.coordination/`.
+  documentation. Operational planning remains outside the tracked public tree.
 
 Cross-repository work crosses boundaries by contract: units, shapes, digests,
 version metadata, admission status, and failure modes must travel with the

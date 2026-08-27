@@ -12,7 +12,6 @@ import importlib.util
 from pathlib import Path
 from types import ModuleType
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -40,6 +39,20 @@ def test_udp_sink_binding_keeps_multicast_consumers_on_loopback() -> None:
     assert handoff._loopback_sink_host("239.0.0.1") == "127.0.0.1"
     assert formal._loopback_sink_host("127.0.0.1") == "127.0.0.1"
     assert handoff._loopback_sink_host("127.0.0.1") == "127.0.0.1"
+
+
+def test_native_handoff_payload_is_fail_closed_for_production_claims() -> None:
+    """Loopback timing metadata must never imply admitted plant timing."""
+    handoff = _load_script_module("benchmark_native_handoff_claims", "benchmark_native_handoff.py")
+
+    contract = handoff._claim_contract(source_commit="a" * 40, workflow_run_id=123)
+
+    assert contract["evidence_class"] == "local_proxy"
+    assert contract["source_commit"] == "a" * 40
+    assert contract["workflow_run_id"] == 123
+    assert contract["runtime_admission"]["status"] == "fail"
+    assert contract["production_claim_allowed"] is False
+    assert "loopback" in contract["claim_boundary"]
 
 
 def test_summary_preserves_aot_certificate_admission_fields() -> None:

@@ -13,6 +13,5 @@ public claims.
 | [ADR-0004](0004-validation-data-and-evidence-strategy.md) | Treat validation artefacts as claim-admission inputs, not supporting prose. | `validation/`, `docs/physics_traceability.md`, generated reports. |
 | [ADR-0005](0005-public-and-internal-api-boundaries.md) | Separate public user APIs from internal planning, coordination, and claim-governance surfaces. | Package exports, CLI, docs, Studio surfaces, internal TODOs. |
 
-The ADRs are public documentation. Internal roadmap targets, coordination notes,
-and unresolved TODO detail remain in ignored `docs/internal/` and monorepo
-`.coordination/` surfaces.
+The ADRs are public documentation. Operational targets, coordination notes, and
+unresolved TODO detail remain in non-public records.

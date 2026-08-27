@@ -45,21 +45,12 @@ Those claims require strict artefact admission before public promotion.
 4. [Production Readiness](production_readiness.md) for claim levels.
 5. [Validation and QA](validation.md), [Benchmarks](benchmarks.md), and
    [Validation Summary](validation_summary.md) for current evidence.
-6. [Compute Validation Funding](compute_validation_financing.md) for the open
-   support and financing needs.
+6. [Compute and Validation Collaboration](compute_validation_financing.md) for
+   public evidence interfaces and claim boundaries.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.2` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- Documentation builds successfully.
-- Release-evidence and version-sync gates pass.
-- The branch is pushed and GitHub Actions for `main` are green.
-- Pull requests and security alerts are triaged.
-- Failed or cancelled Actions/deployment records are deleted only when safe and
-  only after replacement evidence is green.
-- The GitHub release is created from the `v0.20.2` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

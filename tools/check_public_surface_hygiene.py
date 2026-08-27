@@ -5,12 +5,17 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Public-surface claim hygiene guard.
-"""Guard public repository surfaces against self-applied promotion terms.
+"""Guard public repository surfaces against promotion and operational plans.
 
 The guard scans tracked outward-facing text files and rejects bare promotional
 superlatives. Internal planning surfaces may keep aspirational target language,
 and bounded negative or candidate terminology remains allowed because it does not
 claim achieved superiority.
+
+Tracked public Markdown and JSON are also rejected when they expose unchecked
+work lists, prioritisation headings, internal task identifiers, or private
+operational paths. Narrow path-and-line allowlists preserve benign tutorial and
+contribution-template navigation.
 """
 
 from __future__ import annotations
@@ -77,6 +82,49 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("unsupported uniqueness", re.compile(r"\bdoes not exist elsewhere\b", re.IGNORECASE)),
     ("stale notebook output path", re.compile(r"\bartefacts/notebook-exec\b")),
 )
+
+PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    ("public operational task", re.compile(r"^\s*[-*+]\s+\[\s\]")),
+    (
+        "public operational heading",
+        re.compile(
+            r"^\s*#{1,6}\s+.*(?:roadmap|backlog|next\s+steps?|future\s+work|"
+            r"implementation\s+plan|action\s+items?|gap\s+resolution|priorit|"
+            r"remaining\s+.*work|current\s+support\s+request|active\s+public-data\s+acquisition|"
+            r"campaign\s+budget|what\s+support\s+pays\s+for|drive\s+remediation|funding-to|"
+            r"release\s+checklist)",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "public unresolved execution plan",
+        re.compile(
+            r'^\s*"(?:required_actions|action_items|next_steps|remediation_plan|task_priority)"\s*:', re.IGNORECASE
+        ),
+    ),
+    (
+        "internal task identifier",
+        re.compile(r"\b(?:(?:CONTROL|CTRL)-AUD-\d+|CTL-G\d+)\b", re.IGNORECASE),
+    ),
+    ("private operational path", re.compile(r"(?:^|[^\w])(?:docs/internal/|\.coordination/)", re.IGNORECASE)),
+)
+
+PLANNING_CONTEXT_ALLOWLIST: Final[dict[str, tuple[re.Pattern[str], ...]]] = {
+    "docs/tutorials/first_steps.md": (re.compile(r"^\s*##\s+Next Steps\s*$", re.IGNORECASE),),
+    "docs/benchmarks.md": (re.compile(r"^\s*##\s+Evidence-first execution checklist\s*$", re.IGNORECASE),),
+    "docs/onboarding.md": (
+        re.compile(r"^\s*##\s+Roles and expected next evidence\s*$", re.IGNORECASE),
+        re.compile(r"^\s*##\s+First hour checklist\s*$", re.IGNORECASE),
+    ),
+    "docs/pricing.md": (
+        re.compile(r"^\s*##\s+Practical funding policy\s*$", re.IGNORECASE),
+        re.compile(r"^\s*##\s+How to use this page for planning\s*$", re.IGNORECASE),
+    ),
+    "docs/production_readiness.md": (
+        re.compile(r"^\s*##\s+How to use this boundary in release planning\s*$", re.IGNORECASE),
+    ),
+    "docs/use_cases.md": (re.compile(r"^\s*##\s+How to apply this page to planning\s*$", re.IGNORECASE),),
+}
 
 CHANGELOG_INTERNAL_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     (
@@ -161,7 +209,6 @@ class Finding:
 
 def _git_ls_files(repo: Path) -> list[str]:
     """Return tracked paths in ``repo`` from Git's index."""
-
     completed = subprocess.run(
         ["git", "-C", str(repo), "ls-files"],
         check=True,
@@ -173,7 +220,6 @@ def _git_ls_files(repo: Path) -> list[str]:
 
 def _is_scanned_path(path: str) -> bool:
     """Return whether ``path`` is an outward-facing text file for this guard."""
-
     if path in SKIPPED_PATHS or any(path.startswith(prefix) for prefix in SKIPPED_PREFIXES):
         return False
     return Path(path).suffix in TEXT_SUFFIXES or path.startswith(".github/workflows/")
@@ -192,7 +238,6 @@ def iter_scanned_files(repo: Path) -> Iterable[Path]:
     Path
         Absolute paths for tracked text files outside private/internal surfaces.
     """
-
     for tracked_path in _git_ls_files(repo):
         if _is_scanned_path(tracked_path):
             yield repo / tracked_path
@@ -200,13 +245,23 @@ def iter_scanned_files(repo: Path) -> Iterable[Path]:
 
 def _is_allowed_context(line: str) -> bool:
     """Return whether ``line`` uses a bounded allowed context."""
-
     return any(pattern.search(line) is not None for pattern in ALLOWED_CONTEXTS)
+
+
+def _is_public_planning_surface(path: str) -> bool:
+    """Return whether ``path`` is public prose or serialized public metadata."""
+    return Path(path).suffix in {".md", ".json"}
+
+
+def _is_allowed_planning_context(path: str, line: str, category: str) -> bool:
+    """Return whether one planning-like line is a reviewed benign context."""
+    if category == "public operational task" and path.startswith(".github/"):
+        return True
+    return any(pattern.search(line) is not None for pattern in PLANNING_CONTEXT_ALLOWLIST.get(path, ()))
 
 
 def _rendered_markdown_header_finding(path: str, text: str) -> Finding | None:
     """Return a finding when rendered Markdown opens with legal metadata."""
-
     if not path.endswith(".md"):
         return None
     for line_number, line in enumerate(text.splitlines()[:8], start=1):
@@ -239,12 +294,15 @@ def scan_text(path: str, text: str) -> list[Finding]:
         Promotion-term and path-specific internal-token findings, excluding
         explicitly bounded contexts.
     """
-
     findings: list[Finding] = []
     rendered_header_finding = _rendered_markdown_header_finding(path, text)
     if rendered_header_finding is not None:
         findings.append(rendered_header_finding)
+    in_fenced_code = False
     for line_number, line in enumerate(text.splitlines(), start=1):
+        if path.endswith(".md") and re.match(r"^\s*(```|~~~)", line):
+            in_fenced_code = not in_fenced_code
+            continue
         if _is_allowed_context(line):
             continue
         for category, pattern in BANNED_PATTERNS:
@@ -255,6 +313,11 @@ def scan_text(path: str, text: str) -> list[Finding]:
             if pattern.search(line) is not None:
                 findings.append(Finding(path, line_number, category, line.strip()))
                 break
+        if _is_public_planning_surface(path) and not in_fenced_code:
+            for category, pattern in PUBLIC_PLANNING_PATTERNS:
+                if pattern.search(line) is not None and not _is_allowed_planning_context(path, line, category):
+                    findings.append(Finding(path, line_number, category, line.strip()))
+                    break
     return findings
 
 
@@ -264,7 +327,6 @@ def scan_repository(repo: Path) -> list[Finding]:
     Undecodable tracked files are skipped so binary artifacts do not fail the
     claim-hygiene gate for unrelated encoding reasons.
     """
-
     findings: list[Finding] = []
     for path in iter_scanned_files(repo):
         try:
@@ -277,17 +339,16 @@ def scan_repository(repo: Path) -> list[Finding]:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the command-line public-surface hygiene guard."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)
 
     findings = scan_repository(args.repo.resolve())
     if not findings:
-        print("PASS: public surfaces contain no bare self-applied promotion terms")
+        print("PASS: public surfaces contain no bare promotion terms or operational planning")
         return 0
 
-    print("FAIL: outward-facing promotion terms found")
+    print("FAIL: outward-facing claim or operational-planning findings found")
     for finding in findings:
         print(f"  - {finding.path}:{finding.line}: {finding.category}: {finding.detail}")
     return 1

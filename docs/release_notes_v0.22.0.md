@@ -70,18 +70,9 @@ local timing, studio feeds, and analytic differentiable-scenario reports are
 review artefacts until their strict admission gates accept matching external or
 target-hardware evidence.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.22.0` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- CI, CodeQL, Pre-commit, OpenSSF Scorecard, Docs Pages, release, and publish
-  workflows are green for the `v0.22.0` commit/tag.
-- Pull requests and security alerts remain clear.
-- Failed or cancelled Actions/deployment records are deleted only when safe and
-  only after replacement evidence is green.
-- The GitHub release is created from the `v0.22.0` tag.
-- PyPI shows `scpn-control==0.22.0` with both wheel and source distribution.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

@@ -24,19 +24,9 @@ Cyclone Base Case agreement, target-hardware/HIL real-time PCS-cycle operation,
 commissioned plant deployment, and independent security-audit completion remain
 blocked until their strict admission artefacts exist.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.3` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- Documentation builds successfully.
-- Release-evidence and version-sync gates pass.
-- The branch is pushed and GitHub Actions for `main` are green.
-- CodeQL no longer reports the Lean identifier ReDoS alert on the release tag.
-- Pull requests and security alerts are triaged.
-- Failed or cancelled Actions/deployment records are deleted only when safe and
-  only after replacement evidence is green.
-- The GitHub release is created from the `v0.20.3` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

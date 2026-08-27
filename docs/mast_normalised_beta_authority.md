@@ -68,9 +68,8 @@ reconstruction-quality authority, and absent one-standard-deviation
 uncertainty. Canonical binding, training, scientific validation, facility
 prediction, and control admission all remain false.
 
-The self-digested report is
-`.coordination/evidence/SCPN-CONTROL/l2f12b_mast_normalised_beta_authority_2026-07-22T225703Z.json`.
-Its payload digest is `6c8e8b4e...c9706a1`; its file SHA-256 is
+The self-digested report is retained as non-public operational evidence. Its
+payload digest is `6c8e8b4e...c9706a1`; its file SHA-256 is
 `5dc6c759...a425e`.
 
 ## Reproduction

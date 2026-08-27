@@ -31,17 +31,9 @@ are admissible.
 4. [Production Readiness](production_readiness.md) for claim boundaries.
 5. [Validation and QA](validation.md) for strict admission gates.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.0` as published until all items are true:
-
-- Version metadata and generated capability files are committed.
-- Documentation builds with MkDocs strict mode.
-- GitHub Actions for `main` pass after push.
-- Security alerts and open pull requests are triaged.
-- Safe failed or cancelled historical Actions/deployment records are deleted
-  only after the current replacement evidence is green.
-- The GitHub release is created from the `v0.20.0` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

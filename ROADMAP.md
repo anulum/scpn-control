@@ -1,379 +1,97 @@
-# Roadmap
+# Release history and evidence boundaries
 
-## Shipped
+This public record summarizes shipped SCPN Control capabilities and the claim
+boundaries that apply to the current package. Operational sequencing, internal
+priorities, and release-control notes are intentionally not published here.
+Live capability counts come from
+`docs/_generated/capability_manifest.json`; bounded physics status comes from
+`docs/physics_traceability.md`, generated from
+`validation/physics_traceability.json`.
 
-### v0.19.2 hardening release candidate - 2026-05-24
-- [x] Fail-closed physics and mathematics boundary hardening across MHD,
-  pedestal, edge, transport, scenario, orbit-following, and uncertainty
-  surfaces.
-- [x] Module-specific regression and contract coverage only; no coverage-bucket,
-  batch, round, remaining, final, push, miscellaneous, or new-module test files.
-- [x] Release documentation, changelog, API version note, and generated
-  capability snapshot prepared for `0.19.2`.
-- [x] MAST EFM neural-equilibrium compute execution package prepared with
-  storage-host storage-only enforcement, explicit workstation/cloud host admission,
-  source-provenance gates, non-storage-host weight-output policy, and result-schema
-  templates for later holdout, latency, GPU-cost, and admission-certificate
-  evidence.
-- [ ] Create the `v0.19.2` tag only after current `main` CI is green for the
-  release-preparation commit.
-- [ ] Keep the full-fidelity public-claim block in force until traceability
-  strict validation has external artefacts for the open gaps.
+## Published release history
 
-### v0.1.0 — 2026-02-19
-- [x] Extract 41 modules + 5 Rust crates from scpn-fusion-core
-- [x] Click CLI (demo, benchmark, validate, hil-test)
-- [x] Streamlit dashboard
-- [x] CI: 6 jobs, 482 tests
+### v0.1.0 to v0.9.0 — package and control foundations
 
-### v0.2.0 — 2026-02-26
-- [x] Paper 27 phase dynamics engine (Kuramoto, Knm, UPDE, Lyapunov guard)
-  - Public-claim boundary: the Lyapunov guard is a research-prototype advisory
-    sliding-window monitor with warm-up and consecutive-window fail-open
-    intervals; it is not a standalone fail-closed safety interlock.
-- [x] WebSocket live phase stream
-- [x] Streamlit Cloud deployment
-- [x] CI: 12 jobs, 680 tests
+- Extracted the controller-facing Python modules and five Rust crates from the
+  broader fusion stack.
+- Added the CLI, Streamlit dashboard, WebSocket phase stream, Gymnasium
+  environment, IMAS/OMAS adapter, JAX and Loihi optional paths, packaging,
+  strict typing, cross-platform CI, supply-chain checks, and API documentation.
+- Added Paper 27 Kuramoto-Sakaguchi phase dynamics. The Lyapunov monitor remains
+  a research-prototype advisory surface with warm-up and consecutive-window
+  fail-open behaviour; it is not a standalone fail-closed safety interlock.
 
-### v0.3.x — 2026-02-27
-- [x] Ruff linter + CI job
-- [x] Property-based tests (Hypothesis)
-- [x] Gymnasium TokamakEnv
-- [x] IMAS/OMAS adapter
-- [x] VectorizedSCLayer + Rust SNN path
-- [x] AGPL-3.0-or-later dual license
-- [x] Pre-commit hooks, Docker, devcontainer
-- [x] MkDocs site (theory, architecture, mkdocstrings)
-- [x] CI: 13 jobs, 701 tests
+### v0.10.0 to v0.15.0 — differentiable physics and controller evidence
 
-### v0.4.0 — 2026-03-01
-- [x] Real-time adaptive Knm engine (beta, MHD, coherence PI, rate limit, Lyapunov veto)
-  - Public-claim boundary: the Lyapunov veto inherits the advisory monitor
-    boundary above and must not be described as facility safety approval.
-- [x] Zenodo metadata (.zenodo.json, CITATION.cff)
-- [x] CI: 15 jobs, 1888 tests
+- Added differentiable transport and equilibrium paths, a JAX
+  Grad-Shafranov solver, neural-equilibrium and neural-transport facades, PPO
+  training support, and reproducible controller comparisons.
+- The committed RL benchmark records PPO reward=121.1 vs MPC=59.4 vs PID=-911.2 over
+  50 episodes. This is repository simulation evidence, not a facility-control
+  result.
+- Corrected the cylindrical Grad-Shafranov stencil and added analytic Solov'ev
+  regression checks.
 
-### v0.5.x — 2026-03-02
-- [x] PEP 621 `__version__`, cargo-deny supply-chain policy
-- [x] UNDERDEVELOPED_REGISTER tracking gaps
-- [x] SECURITY.md, CODE_OF_CONDUCT.md
-- [x] Shared validators (core/_validators.py)
-- [x] Coverage gate: 62% (actual: 100%; gate now 99%)
-- [x] Python 3.13 in CI matrix
-- [x] CI: 15 jobs, ~1900 tests
+### v0.16.0 to v0.17.0 — physics and control breadth
 
-### v0.6.0 — 2026-03-02
-- [x] .editorconfig, CODEOWNERS, copyright headers on CI workflows
-- [x] Typing modernization (`from __future__ import annotations`, `Optional[X]` → `X | None`)
-- [x] Shared test fixtures (conftest.py deduplication)
-- [x] 63 new tests (validators + Hypothesis property tests)
-- [x] Paper 27 citations on OMEGA_N_16 and build_knm_paper27
-- [x] Anti-slop cleanup (dead constants, narration comments, print→logging)
-- [x] Rust Cargo.toml `repository` fields
-- [x] CI: 15 jobs, 1969 tests
+- Added gyrokinetic, ballooning, current-diffusion, current-drive, NTM, RWM,
+  sawtooth, SOL, integrated-scenario, NMPC, mu-synthesis, real-time EFIT,
+  gain-scheduled, shape, safe-RL, sliding-mode, scheduler, and fault-tolerant
+  modules.
+- Added external interfaces for TGLF, GENE, GS2, CGYRO, and QuaLiKiz, plus
+  native linear, TGLF-like, nonlinear delta-f, hybrid/OOD, and JAX gyrokinetic
+  paths.
+- Electromagnetic and nonlinear gyrokinetic surfaces remain
+  research-prototype evidence. Their A-parallel, KBM, MTM, saturation, and
+  cross-code results require external-code revalidation before quantitative
+  promotion.
 
-### v0.7.0 — 2026-03-02
-- [x] Coverage gate ratcheted 62% → 85%
-- [x] Nengo SNN wrapper tests (14 mocked)
-- [x] E2E compile-to-control integration tests
-- [x] `require_range` validator, doc comments on 11 Rust functions
-- [x] `print()` → `logging` in 13 control modules (58 sites)
-- [x] TokamakTopology rename, stale doc sweep
+### v0.18.0 to v0.23.0 — admission contracts and runtime integration
 
-### v0.7.1 — 2026-03-09
-- [x] Enterprise repo hardening (18 new files, 5 new workflows)
-- [x] SHA-pinned GitHub Actions across all workflows
-- [x] Top-level `permissions: {}`, concurrency groups, SPDX headers
-- [x] Typos checker with domain-specific allowlist (46 terms)
-- [x] OpenSSF Scorecard, CodeQL, pre-commit, release, stale workflows
-- [x] 17 GitHub labels, squash-only merge, discussions enabled
-- [x] Dependabot PR triage (1 merged, 4 closed as incompatible)
+- Added kinetic electrons, collision operators, deeper control-facing physics,
+  native formal and runtime evidence contracts, geometry-neutral replay,
+  CODAC/EPICS and WebSocket runtime evidence, FPGA HDL export, and strict
+  external-artifact admission schemas.
+- Added digest-bound claim reports for mu-synthesis, EFIT-lite, native runtime,
+  HIL replay, controller safety cases, and generated capability/traceability
+  inventories.
+- The current Python package declares version `0.23.0`. No `v1.0.0` tag exists;
+  this file does not imply a future release date or production-readiness state.
 
-### v0.8.0 — 2026-03-09
-- [x] Python fallback for `RustSPIMitigation` ([gh-13](https://github.com/anulum/scpn-control/issues/13), U-003)
-- [x] Python fallback for `rust_multigrid_vcycle` ([gh-14](https://github.com/anulum/scpn-control/issues/14), U-004)
-- [x] Python fallback for `rust_svd_optimal_correction` ([gh-15](https://github.com/anulum/scpn-control/issues/15), U-005)
-- [x] Factor `np.isfinite` validation boilerplate ([gh-17](https://github.com/anulum/scpn-control/issues/17), U-007)
-- [x] `require_bounded_float`, `require_finite_array` validators
-- [x] 16 new fallback tests
+## Current evidence boundaries
 
-### v0.8.1 — 2026-03-10
-- [x] Rust H-inf: Euler → Padé(6,6) matrix exponential ZOH + DARE ([gh-10](https://github.com/anulum/scpn-control/issues/10), U-001)
-- [x] E2E control latency benchmark (`benchmarks/e2e_control_latency.py`)
-- [x] Honesty sweep: fix overstated claims in README, pitch, use_cases, VALIDATION, competitive_analysis
-- [x] Stale doc counts updated
+- Repository synthetic fixtures validate parsers, numerical contracts, and
+  deterministic replay plumbing; they do not constitute measured-shot evidence.
+- SPARC public GEQDSK files are design references, not facility measurements.
+- ITPA data on this surface support published-reference scaling comparisons,
+  not new facility validation.
+- Neural transport currently falls back to an analytic critical-gradient path
+  unless admitted trained weights are supplied. Quantitative QLKNN/QuaLiKiz
+  claims remain blocked by the public claim report.
+- Neural-equilibrium pretraining has no admitted EFIT/P-EFIT holdout result;
+  latency and accuracy promotion remain blocked.
+- The phase Lyapunov monitor retains its research-prototype,
+  warm-up and consecutive-window fail-open boundary and is not a standalone
+  fail-closed safety interlock.
+- Native gyrokinetic results require external-code revalidation before being
+  treated as quantitative TGLF, GENE, GS2, CGYRO, or QuaLiKiz agreement.
+- Loopback native-handoff timing is local-proxy evidence and is not a fielded
+  PCS-cycle, HIL, or production-runtime admission.
 
-### v0.9.0 — 2026-03-10
-- [x] mypy `disallow_untyped_defs`, `warn_return_any` across all 54 modules
-- [x] Nengo Loihi CI job (Job 17, [gh-11](https://github.com/anulum/scpn-control/issues/11), U-002)
-- [x] JAX parity CI job (Job 16, [gh-12](https://github.com/anulum/scpn-control/issues/12), U-006)
-- [x] Cross-platform CI: Windows + macOS runners
-- [x] Codecov `fail_ci_if_error: true`
-- [x] PEP 561 `py.typed` marker
-- [x] Complete API docs (16 modules added)
-- [x] RMSE threshold documentation
-- [x] `[jax]` and `[loihi]` optional dependency groups
-- [x] All 7 UNDERDEVELOPED_REGISTER items RESOLVED
+## Public collaboration interfaces
 
-### v0.10.0 — 2026-03-10
-- [x] JAX-accelerated transport primitives (Thomas solver, Crank-Nicolson, vmap batching)
-- [x] Autodifferentiation through transport solver (`jax.grad`)
-- [x] Synthetic DIII-D-like reference fixture validation (manifest checksums,
-  parser contract, phase-monitor ingestion, CI job; measured DIII-D replay
-  remains a validation gap)
-- [x] JOSS review draft (`papers/submissions/001_neuro_symbolic_tokamak_control_software/`)
-- [x] 25 CI jobs, 2024+ tests
+The following GitHub issues describe external evidence that maintainers can
+review. They are contribution interfaces, not an internal execution order.
 
-### v0.11.0 — 2026-03-10
-- [x] JAX neural equilibrium MLP (`jax_neural_equilibrium.py`)
-- [x] GPU-accelerated equilibrium inference via jaxlib
-- [x] `jax.grad` through equilibrium predict (adjoint-based shape optimization)
-- [x] `jax.vmap` batch equilibrium (100+ simultaneous)
-- [x] NumPy fallback when JAX unavailable
+- [#46](https://github.com/anulum/scpn-control/issues/46): umbrella external-validation evidence intake.
+- [#47](https://github.com/anulum/scpn-control/issues/47): gyrokinetic and external-code evidence.
+- [#48](https://github.com/anulum/scpn-control/issues/48): equilibrium and reconstruction references.
+- [#49](https://github.com/anulum/scpn-control/issues/49): transport, edge, MHD, and scenario benchmarks.
+- [#50](https://github.com/anulum/scpn-control/issues/50): neural-surrogate datasets and provenance.
+- [#51](https://github.com/anulum/scpn-control/issues/51): plasma-control and facility-replay evidence.
+- [#52](https://github.com/anulum/scpn-control/issues/52): disruption and mitigation benchmarks.
+- [#53](https://github.com/anulum/scpn-control/issues/53): hardware, HDL, CODAC/EPICS, and runtime evidence.
 
-### v0.12.0 — 2026-03-10
-- [x] QLKNN-10D trained transport model (synthetic critical-gradient, Zenodo-ready)
-- [x] Training script `tools/train_neural_transport_qlknn.py` + `--synthetic` CI mode
-- [x] Auto-discovery: `NeuralTransportModel()` loads weights from `weights/`
-- [x] 20 QLKNN tests (weight validation, inference, profile, training E2E)
-- [x] PPO agent on TokamakEnv (stable-baselines3 PPO, 50K timesteps)
-- [x] Gymnasium wrapper (`GymTokamakEnv`) with proper `spaces.Box`
-- [x] RL vs PID vs MPC benchmark (`benchmarks/rl_vs_classical.py`)
-- [x] 14 RL tests (wrapper, PID, agent loading, training E2E)
-- [x] `[rl]` optional dependency group
-- [x] TokamakEnv q95 physics fix (elongation factor)
-
-### v0.13.0 — 2026-03-10
-- [x] JAX-differentiable Grad-Shafranov solver (Picard + Jacobi via `lax.fori_loop`)
-- [x] `jax.grad` through full equilibrium solve (closes autodiff depth gap)
-- [x] Reward shaping for PPO training (survival bonus, progress, Ng et al. 1999)
-- [x] `examples/quickstart.py` — 30-second Python demo
-- [x] README quickstart block
-- [x] JOSS paper updated to v0.13.0 metrics (57 modules, 2,201 tests)
-- [x] 20 new JAX GS solver tests
-
-### v0.14.0 — 2026-03-10
-- [x] PPO 500K training on JarvisLabs RTX5000 (3 seeds, best-seed selection)
-- [x] PPO benchmark artifact: reward=121.1 vs MPC=59.4 vs PID=-911.2 over
-  50 episodes
-- [x] 0% disruption rate across all controllers
-- [x] Benchmark artifact records PPO standard deviation 31.5 over 50 episodes
-- [x] Cloud training script (`tools/train_rl_upcloud.sh`)
-- [x] JarvisLabs automation script (`tools/jarvislabs_train.py`)
-- [x] Historical v0.14 coverage snapshot: 2,417 tests, 9,672 statements,
-  1 missed (99.99%)
-- [x] Historical coverage gate ratcheted: 85% -> 99%
-- [x] Historical v0.14 CI snapshot: 25 jobs green
-
-### v0.15.0 — 2026-03-11
-- [x] GS* stencil sign bug fix (cylindrical Laplacian → GS* operator)
-- [x] Solov'ev analytic equilibrium test
-- [x] 16 analytic regression tests
-- [x] Physics citations on all hardcoded constants
-- [x] H-infinity Y Riccati tolerance tightened (1.0 → 0.01)
-- [x] `validate-rmse` CLI command
-- [x] 2,420 tests
-
-### v0.16.0 — 2026-03-13
-- [x] **Phase 3 — Frontier physics** (10 new modules in `core/`):
-  gyrokinetic_transport, ballooning_solver, current_diffusion, current_drive,
-  ntm_dynamics, rwm_feedback, sawtooth, sol_model, rzip_model, integrated_scenario
-- [x] **Phase 4 — Absolute control** (10 new modules in `control/`):
-  nmpc_controller, mu_synthesis, realtime_efit, gain_scheduled_controller,
-  shape_controller, safe_rl_controller, sliding_mode_vertical, scenario_scheduler,
-  fault_tolerant_control, control_benchmark_suite
-- [x] numpy 2.x compatibility (np.trapz → scipy.integrate.trapezoid)
-- [x] 46 mypy errors fixed across 17 files
-- [x] 2,786 tests (178 files), 100% coverage
-
-### v0.17.0 — 2026-03-14
-- [x] **Gyrokinetic Three-Path Transport System** (16 new modules, 163 tests)
-  - Path A: 5 external GK code interfaces (TGLF, GENE, GS2, CGYRO, QuaLiKiz)
-  - Path B: Native linear GK eigenvalue solver (Miller geometry, Sugama collision, ballooning-space response-matrix, mixing-length quasilinear)
-  - Path C: Hybrid surrogate+GK validation (OOD detection, spot-check scheduling, correction layer, online retraining, verification reports)
-  - SCPN phase bridge: GK fluxes → adaptive K_nm modulation
-  - Cyclone Base Case validation (Dimits et al. 2000)
-- [x] License change: AGPL-3.0-or-later (commercial licensing available)
-- [x] CII Best Practices badge earned
-- [x] 3,015 tests, 100% coverage, 20 CI jobs
-- [x] **Electromagnetic GK extension** — KBM (Tang 1980) + MTM (Drake & Lee 1977),
-  mode classification extended, beta_e=0 reproduces ES exactly. 19 tests.
-  Public-claim boundary: this is repository research-prototype evidence; the
-  nonlinear electromagnetic extension, A_parallel path, external-code
-  revalidation, and facility validation remain open revalidation items.
-- [x] **JAX GK backend** (`jax_gk_solver.py`) — `jax.vmap` over k_y,
-  `jax.grad` transport stiffness, JIT hot path, NumPy fallback. 10 tests.
-- [x] **IMAS round-trip tests** — real `omas` ODS for equilibrium + core_profiles,
-  solver interop, edge cases. 17 tests.
-- [x] 3,061+ tests total
-
-### v0.17.0+ — Nonlinear GK + Native TGLF (2026-03-15)
-- [x] **Nonlinear δf gyrokinetic solver** (`gk_nonlinear.py`):
-  5D Vlasov in flux-tube, dealiased E×B bracket (Orszag 2/3 rule),
-  4th-order parallel streaming, curvature/grad-B drift, RK4 + CFL.
-  Energy conservation V2: 0.024% over 50 steps.
-- [x] **JAX-accelerated variant** (`jax_gk_nonlinear.py`):
-  `jax.checkpoint` RK4, NumPy fallback when JAX absent.
-- [x] **Native TGLF-equivalent model** (`gk_tglf_native.py`):
-  SAT0/SAT1/SAT2 (Staebler 2007/2017), E×B shear quench (Waltz 1997),
-  trapped-particle damping (Connor 1974), multi-scale ITG-ETG (Maeyama 2015).
-- [x] `"tglf_native"` transport mode wired into `integrated_transport_solver.py`
-- [x] CBC validation benchmark (`validation/gk_nonlinear_cyclone.py`, 4/4 pass)
-- [x] 53 new tests (27 TGLF native + 26 nonlinear), 3,300 total
-- [x] Stellarator geometry (W7-X) — Boozer coordinates, ISS04 scaling
-- [x] Federated disruption prediction — FedAvg/FedProx + differential privacy
-- [x] FPGA bitstream export from SNN compiler — Verilog/VHDL generation
-- [x] ITER CODAC/EPICS interface — PV channels, safety interlocks, cycle timer
-- [x] CODAC/EPICS runtime evidence admission — digest-bound EPICS/OPC-UA
-  exports, deadline-clean cycle evidence, interlock-block evidence, and
-  local-only versus qualified facility claim separation
-- [x] Kuramoto phase-runtime evidence admission — deterministic input digests,
-  Python reference digests, optional Rust parity metrics, deployment-target
-  oscillator coverage, and timestep-refinement convergence now gate
-  deployment-target phase-runtime claims.
-- [x] Geometry-neutral replay evidence admission — scenario, trace, metric,
-  threshold, magnetic-provenance, actuator-calibration, latency-model, and
-  fault-model digests now keep synthetic stellarator replay separate from
-  measured or benchmark device-control claims.
-- [x] Mu-synthesis claim evidence hardening — bounded static robust-control
-  evidence now persists a canonical payload digest and load admission rejects
-  duplicate-key, schema-drift, metric-tamper, and bounded-as-validated claim
-  attempts.
-
-## Next
-
-### v0.18.0 — GK quantitative accuracy (2026-03-15/16)
-- [x] Fix linear GK eigenvalue solver: local dispersion + Newton root-finding.
-  Post-audit status: local-dispersion path overpredicts the GENE CBC reference
-  and must not be presented as quantitative cross-code agreement.
-- [x] GPU nonlinear CBC benchmark (JarvisLabs RTX 5000, JAX 0.6.2):
-  62× JAX speedup, 9 GPU runs, systematic convergence n_kx=8→128.
-- [x] **Ballooning connection BC** — kx shift at θ=±π via FFT phase multiply.
-- [x] **Rosenbluth-Hinton zonal Krook damping** — dynamic relaxation on bounce time.
-- [ ] **Turbulent saturation revalidation** after the v0.19.0 physics audit:
-  latest 2000-step adiabatic run did not reach saturated chi_i; longer
-  convergence and native GK cross-code comparison remain required.
-- [x] **Nengo replaced** with pure LIF+NEF engine (numpy 2.x compatible).
-- [x] **All mypy errors fixed** across 10 source files.
-- [ ] **chi_i normalisation revalidation**: keep the Q_i / R_L_Ti path, but
-  do not publish a saturated CBC chi_i value until the longer campaign passes.
-- [x] **Dimits shift scan**: 7-point R/L_Ti={3..6.9}, transport stiffness confirmed
-  (chi_gB rises 1.15→1.95). Subcritical decay visible at 20K steps (phi -10%)
-  but the full Dimits-gap claim requires revalidation after kinetic-electron
-  and velocity-grid changes.
-- [ ] Cross-code benchmark: native GK vs real TGLF (requires GACODE on Linux)
-- [x] TORAX coupling via code-to-code transport benchmark
-
-### v0.19.0 — Kinetic electrons (Phase 2) — DONE
-- [x] Add kinetic electron species to field solve (remove adiabatic approximation)
-- [x] Full quasineutrality: n_e(kinetic) + n_i(kinetic) = 0
-- [x] Electron parallel streaming, magnetic drift, FLR (mass ratio m_e/m_i)
-- [x] TEM modes from first principles
-- [x] Proper linear critical gradient → clean Dimits shift
-
-### v0.20.0 — Sugama collision operator (Phase 3) — DONE
-- [x] Pitch-angle scattering with energy-dependent ν(v) ∝ v⁻³
-- [x] Conservation: particles <3e-8, momentum <1e-23, energy <2e-8
-- [x] GPU verified: Sugama = Krook at ν=0.01 (low collisionality)
-
-### v0.18.0+ — Physics deepening sprint (2026-03-17)
-- [x] **18 modules deepened** with ~50 paper citations and 118 new tests:
-  neoclassical (Sauter L31/L32/L34, PS regime), EPED (Snyder 2011 width),
-  sawtooth (Porcelli 1996 trigger), RWM (Fitzpatrick rotation), NTM (GGJ Δ'),
-  Alfvén (electron Landau damping), integrated scenario (transport wired),
-  current drive (Stix slowing-down), L-H (Martin 2008), momentum (Prandtl),
-  orbit (Boozer/Goldston), locked mode (EM torque), tearing (Chirikov),
-  MARFE (Drake instability), impurity (H&S pinch), runaway electrons
-  (R&P full avalanche), plasma startup (Janev ionization), current diffusion
-  (temperature-dependent Coulomb log)
-- [x] Python 3.14 added to CI matrix (continue-on-error until scipy wheels ship)
-- [x] 3,300+ tests, 0 failures
-
-## Next / Future Release Targets
-
-### v1.0.0 — Production readiness target (not tagged)
-
-No `v1.0.0` tag exists yet; latest released tag is `v0.23.0`. Keep this block
-as a future readiness target until the external validation and release gates
-below are closed and a real tag is cut.
-
-- [ ] Confirm JOSS paper citation count and test metrics against the final
-      release commit.
-- [ ] Reconfirm electromagnetic nonlinear extension evidence (A_∥, KBM, MTM)
-      including the A_parallel nonlinear branch and public fail-open caveats
-      before describing the EM surface beyond repository research evidence.
-      against the final release commit.
-- [ ] Reconfirm physics invariant and physics-deepening test counts against the
-      final release commit.
-- [ ] Prepare the v1.0.0 release backup tag and bundle.
-- [ ] Complete JOSS submission review + editorial workflow guard for the final
-      release commit.
-- [ ] External JOSS submission and reviewer/editorial issue lifecycle
-- [ ] Streamlit dashboard v2
-- [ ] Neural equilibrium pre-trained weights (SPARC, ITER)
-- [ ] Resolve the public bounded-claim queue tracked in
-  `docs/physics_traceability.md` (generated from
-  `validation/physics_traceability.json`). Production work must close open
-  fidelity gaps with real evidence or keep claims explicitly bounded.
-  **Live inventory counts are tracked only in internal
-  `docs/internal/TODO_CONSOLIDATED.md` (Current Canonical Status) and the
-  generated report — not here.**
-
-### Remaining production work before broader production focus
-- [ ] Acquire facility-approved DIII-D MDSplus or equivalent shot artefacts and
-  validate them through immutable real-data manifests with source URI, policy,
-  signal units, checksums, shot identifiers, and retrieval timestamps.
-- [ ] Produce long nonlinear gyrokinetic CBC saturation campaigns with solver
-  convergence, flat late-time heat-flux traces, and gyro-Bohm ion heat-flux
-  agreement before publishing saturated chi_i claims.
-- [ ] Run real external-code linear gyrokinetic comparisons against TGLF, GENE,
-  GS2, CGYRO, or QuaLiKiz artefacts and validate them with the strict
-  cross-code evidence gate.
-- [x] Persist CPU/GPU JAX gyrokinetic parity artefacts with backend, platform,
-  dtype, X64, tolerance, growth-rate, and real-frequency metadata. The
-  repository now preserves current CPU and GPU parity artefacts for CBC,
-  kinetic-electron TEM, and low-drive stable-mode cases with a strict admission
-  gate. This remains backend-parity evidence only; external-code validation is
-  still required before quantitative GK claims.
-- [ ] Cross-validate neural equilibrium weights against identical EFIT or
-  P-EFIT equilibria before treating SPARC or ITER weights as production
-  pre-trained assets.
-- [ ] Replace or externally validate bounded physics models flagged in the
-  traceability registry, including RZIP, ELM, EPED, MARFE, VMEC-lite, digital
-  twin, Gymnasium plant, density control, and integrated transport surfaces.
-- [ ] Promote deterministic real-time loops, parsers, high-volume ingestion,
-  vector kernels, and safety-critical guards to Rust only with Python/Rust
-  parity tests and latency benchmarks.
-- [ ] Add production hardware evidence for generated HDL, CODAC/EPICS timing,
-  WebSocket control-stream runtime, interlock behaviour, backpressure, and HIL
-  replay before making deployment readiness claims. CONTROL now emits
-  tamper-evident HIL replay, FPGA HDL export, CODAC/EPICS runtime, and
-  WebSocket runtime evidence, fail-closed target-hardware, HDL, CODAC, and
-  WebSocket admission checks, and controller safety-case promotion now requires
-  all four artifacts. Deployment readiness remains blocked until facility
-  target runs provide qualified hardware artefacts.
-
-### External validation collaboration trackers
-- [ ] Parent tracker: [external validation artefacts needed for full-fidelity
-  SCPN-CONTROL claims](https://github.com/anulum/scpn-control/issues/46).
-- [ ] External gyrokinetic validation artefacts:
-  [#47](https://github.com/anulum/scpn-control/issues/47).
-- [ ] Equilibrium and reconstruction reference artefacts:
-  [#48](https://github.com/anulum/scpn-control/issues/48).
-- [ ] Transport, edge, MHD, and scenario benchmark artefacts:
-  [#49](https://github.com/anulum/scpn-control/issues/49).
-- [ ] Neural surrogate validation artefacts:
-  [#50](https://github.com/anulum/scpn-control/issues/50).
-- [ ] Plasma-control and facility replay artefacts:
-  [#51](https://github.com/anulum/scpn-control/issues/51).
-- [ ] Disruption, halo-current, and mitigation benchmark artefacts:
-  [#52](https://github.com/anulum/scpn-control/issues/52).
-- [ ] Hardware, HDL, CODAC/EPICS, and runtime deployment evidence:
-  [#53](https://github.com/anulum/scpn-control/issues/53).
-
-## Future (requires external resources)
-- [ ] Cross-code benchmark: native GK vs real TGLF/CGYRO (requires Linux + GACODE)
-- [x] TORAX coupling via code-to-code transport benchmark
-- [ ] Experimental tokamak validation (requires MDSplus + real shot data)
-- [ ] Neural eq cross-validation vs P-EFIT (requires proprietary data)
-- [ ] Production hardware deployment (CODAC/EPICS integration)
+Any contribution is evaluated against the public validation schemas and claim
+boundaries. A failed comparison remains useful evidence; it does not become a
+positive scientific, facility, or production claim.

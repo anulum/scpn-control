@@ -34,19 +34,9 @@ release evidence validator. The AOT certificate lane is an admitted hot-path
 monitor for the declared Petri-net certificate assumptions; it is not a live SMT
 solver in the control loop.
 
-## Release checklist
+## Publication boundary
 
-Do not treat `v0.20.4` as published until all items are true:
-
-- Version metadata and documentation updates are committed.
-- Documentation builds successfully.
-- Generated capability manifest and traceability checks pass.
-- Release-evidence and benchmark-context gates pass for the committed reports.
-- The branch is pushed and GitHub Actions for `main` are green.
-- Pull requests and security alerts are triaged.
-- Failed or cancelled Actions/deployment records are deleted only when safe and
-  only after replacement evidence is green.
-- The GitHub release is created from the `v0.20.4` tag.
+This page records source-level release history only. Tag, package-index, hosted-CI, security, and deployment status are external mutable state and must be verified at the corresponding service; this document does not expose or prescribe release operations.
 
 ## Practical use and scope
 

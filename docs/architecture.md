@@ -154,9 +154,13 @@ NeuralEquilibrium   IntegratedTransportSolver
 The native timing label is backed by
 `validation/reports/native_handoff_comparison.json`: the committed report records
 5.619 µs P50 and 6.112 µs P95 native active-cycle latency over 7 repeats of
-5,000 steps on CI, using the standard loopback-UDP transport at `127.0.0.1`
-with port base `55900`. Treat this as a loopback handoff campaign, not
-fielded plant or PCS-cycle latency.
+5,000 steps on an AMD EPYC 7763, using standard loopback-UDP transport at `127.0.0.1`
+with port base `55900`. The report was generated on 2026-06-21 from source
+commit `5997eed1c135608dcd04720a8287ee9c10067265` in workflow run
+`27917648522`. It records evidence class `local_proxy`, runtime admission
+`fail`, and `production_claim_allowed=false`. Treat this as a dated loopback
+handoff observation, not fielded plant or PCS-cycle latency, HIL evidence, or
+deterministic real-time admission.
 
 The diagram is a module map and claim-boundary guide, not a statement that every
 listed controller is exercised in one runtime path. The currently wired bounded

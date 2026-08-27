@@ -64,8 +64,8 @@ def _write_release_metadata(root: Path, version: str) -> None:
         "\n".join(
             [
                 f"# SCPN Control v{version} Release Notes",
-                f"`v{version}` commit/tag",
-                f"`scpn-control=={version}`",
+                "## Publication boundary",
+                "This source-level release history treats hosted status as external mutable state.",
             ]
         ),
         encoding="utf-8",

@@ -66,9 +66,8 @@ degrees.
 The result is therefore `blocked`. No modal amplitude is calculated by the
 gate, and the signal-binding and replay reports keep both canonical channels
 inadmissible. Training, scientific validation, facility prediction, and
-control admission remain false. The byte-reproduced internal report is
-`.coordination/evidence/SCPN-CONTROL/l2f12c_mast_saddle_modal_authority_2026-07-22T234159Z.json`;
-its file SHA-256 is `b321b337...b2919` and its payload digest is
+control admission remain false. The byte-reproduced report is retained as
+non-public operational evidence; its file SHA-256 is `b321b337...b2919` and its payload digest is
 `0785c0e3...88177`.
 
 ## Reproduction

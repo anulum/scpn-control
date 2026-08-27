@@ -61,8 +61,9 @@ The current result remains `blocked`: the public array metadata does not supply
 an authoritative physical positive direction or one-standard-deviation
 uncertainty, and the gate does not invent them. Canonical binding, training,
 scientific validation, facility prediction, and control admission remain
-false. The internal digest-bound report is
-`.coordination/evidence/SCPN-CONTROL/l2f12a_mast_toroidal_field_authority_2026-07-22T224000Z.json`.
+false. The digest-bound report is retained as non-public operational evidence;
+the reproduction command below emits a reviewable report at a caller-selected
+external path.
 
 ## Reproduction
 

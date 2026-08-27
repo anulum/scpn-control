@@ -64,9 +64,8 @@ therefore `blocked`; `locked_mode_amp` remains a compatibility candidate and all
 training, scientific-validation, facility-prediction, and control-admission
 claims remain false.
 
-The byte-reproduced internal report is
-`.coordination/evidence/SCPN-CONTROL/l2f12d_mast_locked_mode_authority_2026-07-23T000114Z.json`;
-its file SHA-256 is `1ddc292e...9cac2e` and its payload digest is
+The byte-reproduced report is retained as non-public operational evidence; its
+file SHA-256 is `1ddc292e...9cac2e` and its payload digest is
 `54c9fccb...e31f70`.
 
 ## Reproduction

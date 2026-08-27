@@ -290,7 +290,7 @@ def test_registry_adapter_maps_a_list() -> None:
             "fidelity_status": "external_dependency_blocked",
             "public_claim_allowed": False,
             "validity_domain": "blocked scope",
-            "required_actions": ["Acquire external reference"],
+            "claim_admission_requirements": ["Acquire external reference"],
         },
     ]
     bundles = physics_validation_evidences_from_registry(entries, **_WHO, **_TS)

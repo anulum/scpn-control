@@ -132,7 +132,7 @@ before any stronger language is used.
 | Evaluate safety certificates | `scpn_control.scpn.formal_verification` in [API Reference](api.md) |
 | Build a replay or validation report | [Validation and QA](validation.md) |
 | Understand deployment limits | [Production Readiness](production_readiness.md) |
-| Discuss funding or collaboration | [Compute Validation Funding](compute_validation_financing.md) |
+| Discuss compute or validation collaboration | [Compute and Validation Collaboration](compute_validation_financing.md) |
 
 ## Smallest Evidence Workflows
 

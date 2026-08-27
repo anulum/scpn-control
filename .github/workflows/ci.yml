@@ -329,8 +329,21 @@ jobs:
           pip install --require-hashes -r requirements/ci-viz.txt
       - name: RMSE Dashboard
         run: python validation/rmse_dashboard.py --output-json artifacts/rmse_dashboard_ci.json --output-md artifacts/rmse_dashboard_ci.md
+      - name: Bounded reference-evidence validation
+        run: >-
+          python validation/validate_real_shots.py
+          --output-json artifacts/reference_evidence_validation.json
+          --output-markdown artifacts/reference_evidence_validation.md
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: bounded-reference-evidence
+          path: |
+            artifacts/rmse_dashboard_ci.json
+            artifacts/rmse_dashboard_ci.md
+            artifacts/reference_evidence_validation.json
+            artifacts/reference_evidence_validation.md
 
   # ─── Job 6: Rust tests ───
   rust-tests:

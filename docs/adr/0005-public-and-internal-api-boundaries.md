@@ -20,8 +20,8 @@ Keep public and internal surfaces separate:
   generated manifests, and public docs.
 - Public APIs require strict typing, public API docstrings, module-specific
   tests, and documentation coverage.
-- Internal planning, audits, TODOs, handovers, incident reports, and workflow
-  control stay in ignored `docs/internal/` or monorepo `.coordination/`.
+- Planning, audits, TODOs, handovers, incident reports, and workflow control
+  remain in non-public operational records.
 - Public docs describe current evidence, bounded claim status, setup, usage,
   architecture, and validation. They do not carry internal work-control detail.
 - Studio UI and manifest surfaces expose verbs, evidence schemas, and claim

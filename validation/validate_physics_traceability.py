@@ -37,7 +37,7 @@ _REQUIRED_HEADER_FIELDS = (
     "file",
 )
 _REQUIRED_STR_FIELDS = ("component", "module_path", "equation_contract", "unit_contract", "validity_domain")
-_REQUIRED_LIST_FIELDS = ("model_references", "validation_evidence", "required_actions")
+_REQUIRED_LIST_FIELDS = ("model_references", "validation_evidence", "claim_admission_requirements")
 _SOURCE_MARKER_RE = re.compile(
     r"\b(simplification|simplified|approximation|approximate|heuristic|bounded model|reduced-order)\b",
     re.IGNORECASE,
@@ -80,8 +80,8 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         errors.append(
             {"path": str(path), "field": "spdx_license_id", "error": "spdx_license_id must be AGPL-3.0-or-later"}
         )
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
+    if payload.get("schema_version") != "1.1":
+        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.1'"})
     report["external_validation_trackers"] = _validate_external_validation_trackers(path, payload, errors)
     report["external_validation_tracker_count"] = len(report["external_validation_trackers"])
     entries = payload.get("entries")
@@ -125,7 +125,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
                 "public_claim_allowed": entry.get("public_claim_allowed"),
                 "unit_contract": entry.get("unit_contract", ""),
                 "validation_evidence": entry.get("validation_evidence", []),
-                "required_actions": entry.get("required_actions", []),
+                "claim_admission_requirements": entry.get("claim_admission_requirements", []),
                 "external_validation_tracker_issue": entry.get("external_validation_tracker_issue"),
                 "covered_source_paths": sorted(covered_paths),
                 "covered_source_count": len(covered_paths),
@@ -224,9 +224,7 @@ def _validate_external_validation_trackers(
                 }
             )
         elif expected_url is not None and url != expected_url:
-            errors.append(
-                {"path": str(path), "index": index, "field": "url", "error": "URL must match issue number"}
-            )
+            errors.append({"path": str(path), "index": index, "field": "url", "error": "URL must match issue number"})
         if (
             isinstance(title, str)
             and title.strip()

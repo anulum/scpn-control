@@ -155,7 +155,7 @@ def test_generate_markdown_handles_missing_optional_report_shapes(monkeypatch: p
                 "validation_evidence": ["evidence"],
                 "fidelity_status": "validation_gap",
                 "public_claim_allowed": False,
-                "required_actions": ["add evidence"],
+                "claim_admission_requirements": ["add evidence"],
             }
         ],
         "errors": [{"field": "entries[0]", "error": "synthetic failure"}],
@@ -216,7 +216,7 @@ def test_generate_markdown_skips_invalid_tracker_status(monkeypatch: pytest.Monk
                 "fidelity_status": 7,
                 "external_validation_tracker_issue": 1,
                 "public_claim_allowed": True,
-                "required_actions": [],
+                "claim_admission_requirements": [],
             }
         ],
         "errors": [],

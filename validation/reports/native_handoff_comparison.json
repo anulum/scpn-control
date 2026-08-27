@@ -1,4 +1,5 @@
 {
+  "claim_boundary": "Dated standard loopback-UDP local/CI observation only; not fielded plant, PCS-cycle, HIL, deterministic real-time, or production evidence.",
   "comparison": {
     "active_cycle_speedup_p50": 1.6658559612547168,
     "native_drops_zero": true,
@@ -7,6 +8,7 @@
     "python_udp_sink_packets": 5000,
     "wall_time_speedup": 1.0241734957602167
   },
+  "evidence_class": "local_proxy",
   "generated_at": "2026-06-21T21:17:20.833247+00:00",
   "latency_stats": {
     "native": {
@@ -96,7 +98,13 @@
       "wall_s": 0.8984367099999986
     }
   ],
-  "schema": "scpn-control.native_handoff_comparison.v2",
+  "production_claim_allowed": false,
+  "runtime_admission": {
+    "reason": "The campaign does not supply qualified PREEMPT_RT, scheduler, governor, isolated-core, IRQ, host-load, HIL, or plant evidence.",
+    "status": "fail"
+  },
+  "schema": "scpn-control.native_handoff_comparison.v3",
+  "source_commit": "5997eed1c135608dcd04720a8287ee9c10067265",
   "summaries": {
     "native": {
       "avg_cycle_us": 4.9879576,
@@ -380,5 +388,6 @@
       "udp_sink_packets": 5000,
       "wall_s": 0.9201550660000066
     }
-  }
+  },
+  "workflow_run_id": 27917648522
 }

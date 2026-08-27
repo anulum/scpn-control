@@ -81,11 +81,7 @@ geometry creator commit, and absent dB/dt authority contract. Canonical binding,
 training, scientific validation, facility prediction, and control admission all
 remain false.
 
-The deterministic reports are:
-
-- `.coordination/evidence/SCPN-CONTROL/l2f12d_mast_dbdt_authority_2026-07-23T002907Z.json`
-- `.coordination/evidence/SCPN-CONTROL/l2f12d_mast_dbdt_authority_2026-07-23T002907Z_repeat.json`
-
+The two deterministic reports are retained as non-public operational evidence.
 They are byte-identical with file SHA-256
 `8ae8c8e5c43b621995727f562d8097673910f3c9c8cc44bae720b6f790617a84`
 and payload digest

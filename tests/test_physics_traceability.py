@@ -13,7 +13,6 @@ from pathlib import Path
 
 from validation.validate_physics_traceability import main, validate_physics_traceability
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -27,7 +26,7 @@ def _registry_with_header(entries: list[dict[str, object]]) -> dict[str, object]
         "contact": "www.anulum.li | protoscience@anulum.li",
         "file": "SCPN Control - Physics Traceability Test Registry",
         "enforce_source_marker_coverage": False,
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "entries": entries,
     }
 
@@ -222,10 +221,10 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         if entry["component"] not in aggregate_parent_components:
             continue
         assert entry["covered_source_paths"] == []
-        required_actions = " ".join(entry["required_actions"])
-        assert "Split " not in required_actions
-        assert "Replace aggregate" not in required_actions
-        assert "per-module traceability entries" not in required_actions
+        claim_admission_requirements = " ".join(entry["claim_admission_requirements"])
+        assert "Split " not in claim_admission_requirements
+        assert "Replace aggregate" not in claim_admission_requirements
+        assert "per-module traceability entries" not in claim_admission_requirements
 
 
 def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:
@@ -242,7 +241,7 @@ def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:
                 "validity_domain": "unit test",
                 "validation_evidence": ["tests/test_bad.py"],
                 "evidence_paths": ["tests/test_physics_traceability.py"],
-                "required_actions": ["replace claim with evidence"],
+                "claim_admission_requirements": ["replace claim with evidence"],
             }
         ]
     )
@@ -270,7 +269,7 @@ def test_traceability_rejects_synthetic_only_fidelity_status(tmp_path: Path) -> 
                 "validity_domain": "synthetic fixture only",
                 "validation_evidence": ["unit test evidence"],
                 "evidence_paths": ["tests/test_physics_traceability.py"],
-                "required_actions": ["replace synthetic evidence with reference artefacts"],
+                "claim_admission_requirements": ["replace synthetic evidence with reference artefacts"],
             }
         ]
     )
@@ -298,7 +297,7 @@ def test_traceability_rejects_missing_contract_fields(tmp_path: Path) -> None:
                 "validity_domain": "",
                 "validation_evidence": [],
                 "evidence_paths": [],
-                "required_actions": [],
+                "claim_admission_requirements": [],
             }
         ]
     )
@@ -314,7 +313,7 @@ def test_traceability_rejects_missing_contract_fields(tmp_path: Path) -> None:
 
 def test_traceability_rejects_missing_json_header_metadata(tmp_path: Path) -> None:
     registry = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "entries": [
             {
                 "component": "otherwise valid",
@@ -327,7 +326,7 @@ def test_traceability_rejects_missing_json_header_metadata(tmp_path: Path) -> No
                 "validity_domain": "unit test",
                 "validation_evidence": ["tests/test_example.py"],
                 "evidence_paths": ["tests/test_physics_traceability.py"],
-                "required_actions": ["keep evidence current"],
+                "claim_admission_requirements": ["keep evidence current"],
             }
         ],
     }
@@ -357,7 +356,7 @@ def test_traceability_rejects_unresolved_module_or_evidence_paths(tmp_path: Path
                 "validation_evidence": ["unit test evidence"],
                 "evidence_paths": ["validation/not_a_real_evidence_file.json"],
                 "covered_source_paths": [],
-                "required_actions": ["keep evidence current"],
+                "claim_admission_requirements": ["keep evidence current"],
             }
         ]
     )
@@ -387,7 +386,7 @@ def test_traceability_rejects_missing_source_marker_coverage(tmp_path: Path) -> 
                 "validation_evidence": ["unit test evidence"],
                 "evidence_paths": ["tests/test_physics_traceability.py"],
                 "covered_source_paths": ["src/scpn_control/core/orbit_following.py"],
-                "required_actions": ["cover every approximation marker"],
+                "claim_admission_requirements": ["cover every approximation marker"],
             }
         ]
     )
@@ -417,7 +416,7 @@ def test_traceability_rejects_source_coverage_outside_module_scope(tmp_path: Pat
                 "validation_evidence": ["unit test evidence"],
                 "evidence_paths": ["tests/test_physics_traceability.py"],
                 "covered_source_paths": ["src/scpn_control/control/gym_tokamak_env.py"],
-                "required_actions": ["keep source coverage inside module scope"],
+                "claim_admission_requirements": ["keep source coverage inside module scope"],
             }
         ]
     )
@@ -451,7 +450,7 @@ def test_traceability_main_writes_json_report(tmp_path: Path) -> None:
 
 def _minimal_tracker_registry() -> dict[str, object]:
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "spdx_license_id": "AGPL-3.0-or-later",
         "commercial_license": "available",
         "concepts_copyright": "Concepts 1996-2026 Miroslav Sotek. All rights reserved.",
@@ -467,7 +466,7 @@ def _minimal_tracker_registry() -> dict[str, object]:
                 "fidelity_status": "reference_validated",
                 "model_references": ["test reference"],
                 "public_claim_allowed": True,
-                "required_actions": ["keep the reference current"],
+                "claim_admission_requirements": ["keep the reference current"],
                 "unit_contract": "dimensionless test units",
                 "validation_evidence": ["ROADMAP.md"],
                 "evidence_paths": ["ROADMAP.md"],
@@ -563,7 +562,7 @@ def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path
                 "validity_domain": "test-only bounded validation fixture",
                 "validation_evidence": ["ROADMAP.md"],
                 "evidence_paths": ["ROADMAP.md"],
-                "required_actions": ["link collaboration tracker before promotion"],
+                "claim_admission_requirements": ["link collaboration tracker before promotion"],
             }
         ]
     )
