@@ -225,7 +225,9 @@ def test_public_surfaces_keep_disruption_predictor_boundary() -> None:
     assert "Disruption prediction (heuristic)" in competitive
     assert "Disruption prediction (ML)" not in competitive
     assert "not a model trained or fitted on a real disruption database" in traceability
-    assert "Synthetic-only heuristic replay" in deficiencies
+    assert "repository replay data are synthetic" in deficiencies
+    assert "fixed-weight heuristic on those fixtures only" in deficiencies
+    assert "not a facility-database ROC" in deficiencies
     assert "fixed-weight baseline" in studio_evidence
     assert "ROC-validated" in studio_evidence
     assert "real disruption database" in studio_evidence
