@@ -139,7 +139,7 @@ def test_passing_run_writes_only_requested_outputs(tmp_path: Path, monkeypatch: 
     payload = json.loads(json_out.read_text(encoding="utf-8"))
     assert payload["status"] == "pass"
     assert payload["benchmark_context"]["timed_runs"] == 5
-    assert str(json_out) in payload["benchmark_context"]["command"]
+    assert json_out.as_posix() in payload["benchmark_context"]["command"]
     markdown = md_out.read_text(encoding="utf-8")
     assert "Status: `pass`" in markdown
     assert "Claim admissible: `False`" in markdown
