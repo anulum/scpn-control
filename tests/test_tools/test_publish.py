@@ -221,7 +221,10 @@ def test_main_dry_run_and_upload_routes(
     monkeypatch.setattr(sys, "argv", ["publish.py", "--skip-tests"])
     publish.main()
     assert calls == ["clean", "build", "check", "upload:testpypi"]
-    assert "test.pypi.org" in capsys.readouterr().out
+    assert (
+        "  Install: pip install -i https://test.pypi.org/simple/ scpn-control==1.2.3"
+        in capsys.readouterr().out.splitlines()
+    )
 
     calls.clear()
     monkeypatch.setattr(sys, "argv", ["publish.py", "--target", "pypi", "--confirm", "--bump", "major"])
