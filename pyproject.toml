@@ -66,7 +66,8 @@ rl = ["stable-baselines3>=2.0", "gymnasium>=0.29"]
 tuning = ["optuna>=3.0"]  # Bayesian gain tuning (scpn_control.control.controller_tuning)
 benchmark = ["freegs>=0.6"]
 docs = [
-    "mkdocs-material>=9.5",
+    "mkdocs>=1.6.1,<2",
+    "mkdocs-material>=9.7.7,<10",
     "mkdocstrings[python]>=0.27",
     "pymdown-extensions>=10.0",
 ]

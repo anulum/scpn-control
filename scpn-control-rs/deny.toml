@@ -7,7 +7,7 @@
 # SCPN Control — Deny.
 
 [advisories]
-unmaintained = "workspace"
+unmaintained = "all"
 yanked = "warn"
 
 [licenses]

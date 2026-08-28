@@ -46,6 +46,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: check-python-lint-contract
+        name: Python lint scope contract
+        entry: python tools/check_python_lint_contract.py
+        language: system
+        pass_filenames: false
+        files: ^(Makefile|pyproject\.toml|\.pre-commit-config\.yaml|\.github/workflows/ci\.yml|tools/(preflight|check_python_lint_contract)\.py|tests/test_python_lint_contract\.py)$
+
       - id: cargo-fmt
         name: cargo fmt
         entry: bash -c 'cd scpn-control-rs && cargo fmt --check'

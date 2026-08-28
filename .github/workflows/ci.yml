@@ -598,6 +598,8 @@ jobs:
         run: ruff check src/scpn_control/
       - name: Ruff format check
         run: ruff format --check src/scpn_control/ tests/
+      - name: Python lint scope contract
+        run: python tools/check_python_lint_contract.py
       - name: Changelog mirror sync
         run: python tools/check_changelog_sync.py
       - name: Tracked source-header policy

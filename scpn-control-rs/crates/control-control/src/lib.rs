@@ -20,6 +20,7 @@ pub mod mpc;
 pub mod multi_shot_campaign;
 pub mod optimal;
 pub mod pid;
+/// Deterministic pulsed-shot lifecycle scheduler and admission guards.
 pub mod pulsed_scenario;
 pub mod snn;
 pub mod soc_learning;

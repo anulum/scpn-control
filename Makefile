@@ -17,8 +17,9 @@ test-rust:
 test-all: test test-rust
 
 lint:
-	ruff check src/ tests/
+	ruff check src/scpn_control/
 	ruff format --check src/ tests/
+	python tools/check_python_lint_contract.py
 	python tools/check_changelog_sync.py
 	python tools/check_source_headers.py
 	python tools/check_competitive_evidence.py

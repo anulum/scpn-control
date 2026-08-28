@@ -7,6 +7,12 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Removed the transitive `proc-macro-error2` unmaintained advisory through the
+  compatible `getset` lock update without changing MKL/linalg features, made
+  transitive unmaintained advisories fail closed, restored strict Rust module
+  documentation, aligned Python lint scopes across local and hosted gates, and
+  retained the supported MkDocs 1/Material 9 boundary while taking the Material
+  9.7.7 search-security fix.
 - Rebuilt the competitive comparison from exact current releases and primary
   papers, replaced unmatched latency/feature rankings with an evidence-scope
   matrix, and added a fail-closed machine-readable source and fairness gate.

@@ -239,6 +239,25 @@ language and private planning markers. Any quantitative row must declare the
 same problem, inputs, precision, tolerances, convergence, warm-up, samples,
 hardware/load, isolation, failures, and result artifact.
 
+## Python lint scope
+
+```bash
+ruff check src/scpn_control/
+ruff format --check src/scpn_control/ tests/
+python tools/check_python_lint_contract.py
+```
+
+Ruff lint rules apply to the production package. Tests remain under the same
+formatter, but test-function docstrings are not treated as public API. The
+contract checker keeps Make, hosted CI, pre-commit, and local preflight aligned
+on those scopes. The separate public-API docstring gate below remains a hard
+zero-debt check over `src/scpn_control/`.
+
+Documentation builds intentionally constrain MkDocs to `>=1.6.1,<2` and
+Material for MkDocs to `>=9.7.7,<10`. Material 9.x does not support MkDocs 2;
+the upper bound prevents an unsupported resolver combination until the theme,
+plugins, navigation, search, and rendered output have a supported parity path.
+
 ## Public API Docstrings
 
 ```bash

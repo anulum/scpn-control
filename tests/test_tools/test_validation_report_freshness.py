@@ -519,12 +519,16 @@ def test_pending_local_refresh_plan_requires_reconstruction(
     }
     _persist_registry(registry_path, registry)
 
-    plan = build_validation_report_freshness_matrix(
-        reports_root,
-        as_of=AUDIT_AS_OF,
-        max_age_days=21,
-        registry_path=registry_path,
-    ).rerunnable_local_reports[0].refresh_plan
+    plan = (
+        build_validation_report_freshness_matrix(
+            reports_root,
+            as_of=AUDIT_AS_OF,
+            max_age_days=21,
+            registry_path=registry_path,
+        )
+        .rerunnable_local_reports[0]
+        .refresh_plan
+    )
 
     assert plan.status == "manual_reconstruction_required"
     assert expected_rationale in plan.rationale
@@ -542,15 +546,11 @@ def test_pending_local_refresh_plan_requires_reconstruction(
             "must be below validation/report_refreshes",
         ),
         (
-            lambda report: report["refresh"].__setitem__(
-                "artifact_path", "validation/report_refreshes/../escape.json"
-            ),
+            lambda report: report["refresh"].__setitem__("artifact_path", "validation/report_refreshes/../escape.json"),
             "escapes the repository",
         ),
         (
-            lambda report: report["refresh"].__setitem__(
-                "artifact_path", "validation/report_refreshes/missing.json"
-            ),
+            lambda report: report["refresh"].__setitem__("artifact_path", "validation/report_refreshes/missing.json"),
             "refresh artifact does not exist",
         ),
         (lambda report: report["refresh"].__setitem__("artifact_sha256", "bad"), "lowercase SHA-256"),

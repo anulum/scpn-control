@@ -6,6 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci docs.
 
-mkdocs-material>=9.5
+mkdocs>=1.6.1,<2
+mkdocs-material>=9.7.7,<10
 mkdocstrings[python]>=0.27
 pymdown-extensions>=10.0

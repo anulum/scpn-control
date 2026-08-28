@@ -6,6 +6,11 @@
 // Contact: www.anulum.li | protoscience@anulum.li
 // SCPN Control — Transport benchmark.
 
+//! Orientation-only UDP transport benchmark for standard and io_uring paths.
+//!
+//! The executable emits local timing observations; it does not establish a
+//! hardware-neutral or production real-time admission claim.
+
 use std::io;
 #[cfg(all(feature = "io-uring", target_os = "linux"))]
 use std::net::SocketAddr;
