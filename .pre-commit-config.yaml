@@ -33,6 +33,7 @@ repos:
     rev: v1.29.5
     hooks:
       - id: typos
+        exclude: ^tools/coverage_exception_ledger\.json$
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v2.2.0

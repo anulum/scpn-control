@@ -60,6 +60,15 @@ def test_forbidden_broad_scope_is_rejected(tmp_path: Path, contract: gate.Surfac
     assert any("forbidden broad lint scope" in error for error in gate.lint_contract_errors(tmp_path))
 
 
+def test_generated_ledger_spellcheck_exclusion_is_required(tmp_path: Path) -> None:
+    """Reject a spellcheck hook that can rewrite deterministic ledger IDs."""
+    _write_contract_surfaces(tmp_path)
+    path = tmp_path / ".pre-commit-config.yaml"
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace(gate.TYPO_LEDGER_EXCLUSION, ""), encoding="utf-8")
+    assert any("coverage_exception_ledger" in error for error in gate.lint_contract_errors(tmp_path))
+
+
 def test_cli_reports_success_and_failure(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Expose deterministic CLI status and diagnostics for automation."""
     _write_contract_surfaces(tmp_path)

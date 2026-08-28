@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Python lint-scope consistency gate.
-"""Keep the production-lint and test-format scopes consistent across gates."""
+"""Keep repository lint and generated-artifact scopes consistent across gates."""
 
 from __future__ import annotations
 
@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Final
 
 ROOT: Final = Path(__file__).resolve().parents[1]
+TYPO_LEDGER_EXCLUSION: Final = "        exclude: ^tools/coverage_exception_ledger\\.json$\n"
 
 
 @dataclass(frozen=True)
@@ -50,6 +51,7 @@ CONTRACTS: Final = (
         (
             "      - id: ruff\n        args: [--fix, --exit-non-zero-on-fix]\n        files: ^src/\n",
             "      - id: ruff-format\n        files: ^(src/|tests/)\n",
+            "      - id: typos\n" + TYPO_LEDGER_EXCLUSION,
         ),
     ),
 )
