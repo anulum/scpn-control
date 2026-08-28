@@ -55,7 +55,7 @@ def validate_deployed_contract(payload: dict[str, Any]) -> None:
         raise ValueError(msg)
     expected = {
         "studio": "scpn-control",
-        "remote_entry": "https://www.anulum.org/studios/scpn-control/remoteEntry.js",
+        "remote_entry": "https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js",
         "exposes": ["./Panel"],
         "federation": "module-federation-2",
     }

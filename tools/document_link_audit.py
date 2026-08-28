@@ -204,6 +204,15 @@ def _append_matches(
             refs.add(LinkRef(source, _line(text, match.start(group)), target, kind))
 
 
+def _mask_matches(text: str, pattern: re.Pattern[str]) -> str:
+    """Blank structured matches without changing offsets or line numbers."""
+
+    def blank(match: re.Match[str]) -> str:
+        return re.sub(r"[^\n]", " ", match.group(0))
+
+    return pattern.sub(blank, text)
+
+
 def _mkdocs_nav_text(text: str) -> str:
     """Keep only the top-level ``nav`` block while preserving line numbers."""
     lines = text.splitlines(keepends=True)
@@ -225,6 +234,7 @@ def extract_links(path: Path, root: Path) -> tuple[LinkRef, ...]:
     relative = path.relative_to(root).as_posix()
     original = path.read_text(encoding="utf-8", errors="strict")
     text = _prose(original)
+    external_text = text
     refs: set[LinkRef] = set()
     suffix = path.suffix.lower()
     if suffix in {".md", ".markdown"}:
@@ -235,11 +245,12 @@ def extract_links(path: Path, root: Path) -> tuple[LinkRef, ...]:
     if suffix == ".tex":
         _append_matches(refs, relative, text, _TEX_LINK_RE, "tex-url", 1)
         _append_matches(refs, relative, text, _TEX_FILE_RE, "tex-file", 1)
+        external_text = _mask_matches(text, _TEX_LINK_RE)
     if relative == "mkdocs.yml":
         _append_matches(refs, relative, _mkdocs_nav_text(text), _MKDOCS_NAV_RE, "mkdocs-nav", 1)
     if relative.startswith("papers/submissions/") and suffix in {".json", ".toml", ".yaml", ".yml", ".cff"}:
         _append_matches(refs, relative, text, _METADATA_FILE_RE, "metadata-file", "target")
-    _append_matches(refs, relative, text, _URL_RE, "external", 0)
+    _append_matches(refs, relative, external_text, _URL_RE, "external", 0)
     return tuple(sorted(refs))
 
 

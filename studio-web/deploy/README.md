@@ -28,3 +28,8 @@ rsync -az --delete dist/ deploy@www.anulum.org:
 
 The SCPN-STUDIO jailed key pins that destination to
 `/srv/scpn-studio/studios/scpn-control`.
+
+This credential-gated sovereign deployment is optional. The public manifest
+uses the independently reproducible GitHub Pages deployment built by
+`docs-pages.yml`, so absence of these SSH secrets cannot leave a declared
+remote URL pointing at a missing object.

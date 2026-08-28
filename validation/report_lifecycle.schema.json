@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://www.anulum.li/scpn-control/schemas/report-lifecycle-v1.json",
+  "$id": "https://raw.githubusercontent.com/anulum/scpn-control/main/validation/report_lifecycle.schema.json",
   "title": "SCPN Control validation report lifecycle registry",
   "type": "object",
   "additionalProperties": false,

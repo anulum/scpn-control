@@ -22,7 +22,7 @@ def _manifest() -> dict[str, object]:
     return {
         "studio": "scpn-control",
         "ui_module": {
-            "remote_entry": "https://www.anulum.org/studios/scpn-control/remoteEntry.js",
+            "remote_entry": "https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js",
             "exposes": ["./Panel"],
             "federation": "module-federation-2",
         },

@@ -55,7 +55,7 @@ PLATFORM_SDK_RANGE = ">=0.1,<0.9"
 PROTOCOL_VERSION = "1"
 """The SYNAPSE wire protocol version the studio pins."""
 
-UI_REMOTE_ENTRY = "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+UI_REMOTE_ENTRY = "https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js"
 """The deployed Module Federation remote-entry URL for the CONTROL panel."""
 
 UI_PANEL_EXPOSE = "./Panel"

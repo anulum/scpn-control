@@ -19,14 +19,14 @@
   "platform_sdk": ">=0.1,<0.9",
   "protocol_version": "1",
   "studio": "scpn-control",
-  "studio_version": "0.22.1",
+  "studio_version": "0.23.0",
   "transport_profile": "local-first",
   "ui_module": {
     "exposes": [
       "./Panel"
     ],
     "federation": "module-federation-2",
-    "remote_entry": "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+    "remote_entry": "https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js"
   },
   "verbs": [
     {

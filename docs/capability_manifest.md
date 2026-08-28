@@ -77,7 +77,7 @@ It declares the CONTROL studio id, verbs, evidence schemas, platform SDK range,
 content digest, and federated UI module. The UI module is published for the
 Studio Hub as:
 
-- remote entry: `https://www.anulum.org/studios/scpn-control/remoteEntry.js`
+- remote entry: `https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js`
 - exposure: `./Panel`
 - runtime: `module-federation-2`
 
@@ -89,6 +89,10 @@ python tools/emit_studio_manifest.py --check
 ```
 
 The `--check` mode ignores only the environment-specific `studio_version` stamp.
+
+The Docs Pages workflow builds the same reviewed Studio source and publishes
+the remote beside the documentation artifact. Its Pages-specific Vite base is
+explicit, so `remoteEntry.js` and its chunks resolve beneath the project path.
 
 The deployed Studio Web public manifest is a byte-for-byte copy of the generated
 schema-A manifest:

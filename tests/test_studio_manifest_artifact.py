@@ -61,7 +61,7 @@ def test_artifact_is_schema_a_well_formed() -> None:
     assert all(schema.endswith(".v1") for schema in evidence_types)
     assert len(evidence_types) == len(set(evidence_types)) == 12
     ui_module = payload["ui_module"]
-    assert ui_module["remote_entry"] == "https://www.anulum.org/studios/scpn-control/remoteEntry.js"
+    assert ui_module["remote_entry"] == "https://anulum.github.io/scpn-control/studios/scpn-control/remoteEntry.js"
     assert ui_module["exposes"] == ["./Panel"]
     assert ui_module["federation"] == "module-federation-2"
 

@@ -8,9 +8,12 @@
 
 import { federation } from '@module-federation/vite';
 import react from '@vitejs/plugin-react';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 
 import { FEDERATION_BASE_PATH, FEDERATION_OPTIONS } from './src/federationContract.js';
+
+const configuredBasePath =
+  loadEnv('production', '.', 'SCPN_STUDIO_').SCPN_STUDIO_BASE_PATH ?? FEDERATION_BASE_PATH;
 
 // This studio is a Module Federation REMOTE. Its federation name is the Hub's
 // derived remote name for this studio (studioRemoteName('scpn-control') →
@@ -19,7 +22,7 @@ import { FEDERATION_BASE_PATH, FEDERATION_OPTIONS } from './src/federationContra
 // remoteEntry.js the Hub loads at runtime. react/react-dom are shared so the panel
 // renders against the host's single React instance.
 export default defineConfig({
-  base: FEDERATION_BASE_PATH,
+  base: configuredBasePath,
   plugins: [react(), federation(FEDERATION_OPTIONS)],
   build: {
     target: 'esnext',

@@ -1,7 +1,8 @@
 # Control Studio — UI remote
 
-The SCPN-CONTROL Control Studio's **Module Federation 2.x remote**. It builds
-under `/studios/scpn-control/`, exposes `./Panel` under the remote name
+The SCPN-CONTROL Control Studio's **Module Federation 2.x remote**. Its default
+sovereign-host build uses `/studios/scpn-control/`; the Pages workflow supplies
+`/scpn-control/studios/scpn-control/` explicitly. It exposes `./Panel` under the remote name
 `scpn_control` (`studioRemoteName('scpn-control')`), and emits a `remoteEntry.js`
 that the SCPN Studio Hub loads at runtime (the Hub's `loadStudioPanel` consumes
 exactly this). It also runs standalone, matching the federation model where each
@@ -35,7 +36,7 @@ pnpm typecheck   # tsc --noEmit, strict
 pnpm lint        # eslint, type-checked + react-hooks
 pnpm format:check
 pnpm test        # vitest, 100% coverage gate
-pnpm build       # vite build — emits dist/remoteEntry.js under /studios/scpn-control/
+pnpm build       # vite build — emits dist/remoteEntry.js under the selected base
 pnpm dev         # standalone preview
 ```
 
@@ -49,7 +50,7 @@ python tools/sync_studio_web_manifest.py --check
 
 ## Next
 
-The CI `studio-web` job deploys `dist/` to the provisioned SCPN Studio space on
-pushes to `main`. Keep `public/manifest.json` and `public/studio-feed.json`
-current before merge so the deployed bundle contains the remote entry, manifest,
-and feed the Hub reads.
+The Docs Pages workflow always publishes the reviewed bundle at the public
+manifest URL. The CI `studio-web` job can additionally deploy `dist/` to the
+provisioned sovereign SCPN Studio space when its SSH credentials are present.
+Keep `public/manifest.json` and `public/studio-feed.json` current before merge.

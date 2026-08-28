@@ -60,6 +60,22 @@ def test_markdown_extraction_ignores_code_and_preserves_source_lines(tmp_path: P
     assert [(ref.line, ref.target, ref.kind) for ref in refs] == [(7, "target.md#result", "markdown")]
 
 
+def test_tex_extraction_does_not_recrawl_structured_url_labels(tmp_path: Path) -> None:
+    """Structured LaTeX links produce only their URL, never ``}{label}`` debris."""
+    source = tmp_path / "paper.tex"
+    source.write_text(
+        "\\href{https://example.test/paper}{Paper label}\n\\url{https://example.test/source}\n",
+        encoding="utf-8",
+    )
+
+    refs = extract_links(source, tmp_path)
+
+    assert [(ref.line, ref.target, ref.kind) for ref in refs] == [
+        (1, "https://example.test/paper", "tex-url"),
+        (2, "https://example.test/source", "tex-url"),
+    ]
+
+
 def test_local_audit_rejects_missing_target_anchor_and_secret_query(tmp_path: Path) -> None:
     """Broken files, stale anchors, and credential-shaped URLs all fail closed."""
     readme = tmp_path / "README.md"

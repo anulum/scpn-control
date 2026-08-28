@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://www.anulum.li/scpn-control/schemas/report-refresh-v1.json",
+  "$id": "https://raw.githubusercontent.com/anulum/scpn-control/main/validation/report_refresh.schema.json",
   "title": "SCPN Control append-only validation report refresh",
   "type": "object",
   "additionalProperties": false,

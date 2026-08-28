@@ -21,6 +21,7 @@ on:
       - "tools/document_link_policy.toml"
       - ".github/workflows/docs-pages.yml"
       - "examples/*.ipynb"
+      - "studio-web/**"
   workflow_dispatch:
 
 permissions: {}
@@ -43,6 +44,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.1
+        with:
+          node-version: "22"
+
+      - name: Build Studio remote for Pages
+        working-directory: studio-web
+        env:
+          SCPN_STUDIO_BASE_PATH: /scpn-control/studios/scpn-control/
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.2.2 --activate
+          pnpm install --frozen-lockfile
+          pnpm build
+
       - name: Install docs dependencies
         run: pip install --require-hashes -r requirements/ci-docs.txt
 
@@ -58,6 +74,14 @@ jobs:
         env:
           PYTHONPATH: ${{ github.workspace }}/src
         run: mkdocs build --strict
+
+      - name: Install Studio remote in Pages artifact
+        run: |
+          test -f studio-web/dist/remoteEntry.js
+          test -f studio-web/dist/manifest.json
+          test -f studio-web/dist/studio-feed.json
+          install -d site/studios/scpn-control
+          cp -a studio-web/dist/. site/studios/scpn-control/
 
       - name: Check rendered site links
         run: python tools/document_link_audit.py --site-dir site
