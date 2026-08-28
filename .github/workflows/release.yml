@@ -35,7 +35,7 @@ jobs:
       - name: Build sdist and SBOM
         run: |
           pip install --require-hashes -r requirements/ci-release.txt
-          python -m build --sdist
+          python tools/build_release_artifacts.py --sdist-only
           cyclonedx-py environment -o sbom.json --output-format json
 
       - name: Extract changelog for this tag

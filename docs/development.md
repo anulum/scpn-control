@@ -163,9 +163,17 @@ coverage combine --keep artifacts/coverage/python artifacts/coverage/rust
 coverage report --fail-under=100
 ```
 
-`scpn-native-coverage-matrix` checks that the workflow, threshold, and public
+`python tools/native_coverage_matrix.py` checks that the workflow, threshold, and public
 docs still describe the `scpn-control.native-coverage-matrix.v1` contract. The
 same guard runs through `tools/preflight.py`.
+
+Repository audit and generation helpers under `tools/` are source-tree
+commands, not installed package entry points. Release artifacts expose only the
+shipped `scpn-control` CLI. Build wheel and sdist through
+`python tools/build_release_artifacts.py`; it fixes archive metadata to the
+source commit epoch, rejects private/build-only members, verifies that every
+console-script target exists in the wheel, and validates the SPDX license
+expression.
 
 ## GitHub Token Format Guard
 

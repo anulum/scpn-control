@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Python project metadata.
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools==84.0.0", "wheel==0.48.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -17,7 +17,7 @@ authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
 ]
 keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto", "MHD", "gyrokinetic", "H-infinity", "mu-synthesis", "NMPC"]
-license = {text = "AGPL-3.0-or-later"}
+license = "AGPL-3.0-or-later"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Science/Research",
@@ -107,13 +107,6 @@ dev = [
 
 [project.scripts]
 scpn-control = "scpn_control.cli:main"
-scpn-check-generated-traceability = "tools.check_generated_traceability:main"
-scpn-evidence-gap-matrix = "tools.evidence_gap_matrix:main"
-scpn-native-coverage-matrix = "tools.native_coverage_matrix:main"
-scpn-coverage-exception-ledger = "tools.coverage_exception_ledger:main"
-scpn-document-link-audit = "tools.document_link_audit:main"
-scpn-native-api-reference = "tools.generate_native_api_reference:main"
-scpn-validation-report-freshness = "tools.validation_report_freshness:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

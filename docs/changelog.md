@@ -5,6 +5,11 @@
 ### Fixed
 - Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
   weights fail closed or fall back when opted in.
+- Removed seven source-tree-only console scripts that were declared in wheel
+  metadata but could not resolve after installation, fixed local publication
+  commands to pass exact artifact paths, and made wheel/sdist builds
+  byte-reproducible with pinned build backends, private-path validation, and
+  installed-target validation.
 ### Changed
 
 - Removed the transitive `proc-macro-error2` unmaintained advisory through the

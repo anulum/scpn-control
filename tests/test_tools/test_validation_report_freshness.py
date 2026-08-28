@@ -205,7 +205,8 @@ def test_validation_report_freshness_docs_include_entrypoint() -> None:
     validation_docs = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
 
     assert (
-        "scpn-validation-report-freshness --output-json artifacts/validation_report_freshness.json" in validation_docs
+        "python tools/validation_report_freshness.py "
+        "--output-json artifacts/validation_report_freshness.json" in validation_docs
     )
     assert "scpn-control.validation-report-freshness.v2" in validation_docs
     assert "Rerunnable local reports also include a refresh plan" in validation_docs

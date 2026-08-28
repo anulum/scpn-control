@@ -95,4 +95,4 @@ def test_validation_docs_include_generated_traceability_check_entrypoint() -> No
         "python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md"
         in validation_docs
     )
-    assert "scpn-check-generated-traceability" in validation_docs
+    assert "python tools/check_generated_traceability.py" in validation_docs

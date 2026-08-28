@@ -7,11 +7,6 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Publish.
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — PyPI Publish Script
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
 """
 Build, verify, and publish scpn-control to PyPI or TestPyPI.
 
@@ -44,7 +39,7 @@ from __future__ import annotations
 import argparse
 import re
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 from pathlib import Path
 
@@ -55,10 +50,11 @@ DIST = ROOT / "dist"
 
 def _run(cmd: list[str], check: bool = True) -> subprocess.CompletedProcess:
     print(f"  $ {' '.join(cmd)}")
-    return subprocess.run(cmd, cwd=ROOT, check=check)
+    return subprocess.run(cmd, cwd=ROOT, check=check)  # nosec B603
 
 
 def read_version() -> str:
+    """Read the canonical package version from project metadata."""
     text = PYPROJECT.read_text(encoding="utf-8")
     match = re.search(r'^version\s*=\s*"([^"]+)"', text, re.MULTILINE)
     if not match:
@@ -91,30 +87,42 @@ def bump_version(part: str) -> str:
     return new
 
 
-def clean_dist():
+def clean_dist() -> None:
+    """Replace the exact repository distribution directory."""
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir()
 
 
-def build():
-    _run([sys.executable, "-m", "build"])
+def build() -> None:
+    """Build deterministic, validated wheel and sdist artifacts."""
+    _run([sys.executable, "tools/build_release_artifacts.py"])
 
 
-def check():
-    _run([sys.executable, "-m", "twine", "check", "dist/*"])
+def check() -> None:
+    """Validate all exact distribution paths with Twine."""
+    _run([sys.executable, "-m", "twine", "check", *distribution_paths()])
 
 
-def upload(target: str):
+def distribution_paths() -> list[str]:
+    """Return the exact built distributions without relying on shell globbing."""
+    artifacts = [str(path) for path in sorted(DIST.iterdir()) if path.suffix == ".whl" or path.name.endswith(".tar.gz")]
+    if not artifacts:
+        raise SystemExit("No distribution artifacts found")
+    return artifacts
+
+
+def upload(target: str) -> None:
+    """Upload exact artifacts to the selected package index."""
     cmd = [sys.executable, "-m", "twine", "upload"]
     if target == "testpypi":
         cmd += ["--repository", "testpypi"]
-    cmd.append("dist/*")
+    cmd.extend(distribution_paths())
     _run(cmd)
 
 
-def run_tests():
-    env_flag = "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1"
+def run_tests() -> None:
+    """Run the publish-time repository test gate."""
     _run(
         [
             sys.executable,
@@ -130,7 +138,8 @@ def run_tests():
     )
 
 
-def main():
+def main() -> None:
+    """Execute the guarded local publication workflow."""
     parser = argparse.ArgumentParser(
         description="Build and publish scpn-control to PyPI",
         formatter_class=argparse.RawDescriptionHelpFormatter,

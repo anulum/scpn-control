@@ -962,9 +962,9 @@ are made:
 scpn-control validate-physics-traceability --json-out
 python validation/validate_physics_traceability.py --output-json artifacts/physics_traceability_report.json
 python validation/generate_physics_traceability_report.py --output-md docs/physics_traceability.md
-scpn-check-generated-traceability
-scpn-evidence-gap-matrix --output-json artifacts/evidence_gap_matrix.json --output-md artifacts/evidence_gap_matrix.md
-scpn-validation-report-freshness --output-json artifacts/validation_report_freshness.json --output-md artifacts/validation_report_freshness.md
+python tools/check_generated_traceability.py
+python tools/evidence_gap_matrix.py --output-json artifacts/evidence_gap_matrix.json --output-md artifacts/evidence_gap_matrix.md
+python tools/validation_report_freshness.py --output-json artifacts/validation_report_freshness.json --output-md artifacts/validation_report_freshness.md
 ```
 
 The evidence gap matrix uses schema `scpn-control.evidence-gap-matrix.v1` and

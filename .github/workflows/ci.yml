@@ -244,7 +244,12 @@ jobs:
       - name: Install packaging tools
         run: pip install --require-hashes -r requirements/ci-build.txt
       - name: Build package
-        run: python -m build
+        run: |
+          python tools/build_release_artifacts.py --outdir dist-a
+          python tools/build_release_artifacts.py --outdir dist-b
+          cmp dist-a/scpn_control-*.whl dist-b/scpn_control-*.whl
+          cmp dist-a/scpn_control-*.tar.gz dist-b/scpn_control-*.tar.gz
+          mv dist-a dist
       - name: Validate package metadata
         run: python -m twine check dist/*
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7

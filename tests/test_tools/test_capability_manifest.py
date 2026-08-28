@@ -117,13 +117,7 @@ def test_manifest_scans_control_specific_surfaces(capability_tool: Any) -> None:
     assert "dashboard" in manifest["project"]["optional_extras"]
     assert "facility" in manifest["project"]["optional_extras"]
     assert manifest["project"]["scripts"]["scpn-control"] == "scpn_control.cli:main"
-    assert (
-        manifest["project"]["scripts"]["scpn-check-generated-traceability"] == "tools.check_generated_traceability:main"
-    )
-    assert manifest["project"]["scripts"]["scpn-evidence-gap-matrix"] == "tools.evidence_gap_matrix:main"
-    assert (
-        manifest["project"]["scripts"]["scpn-validation-report-freshness"] == "tools.validation_report_freshness:main"
-    )
+    assert manifest["project"]["scripts"] == {"scpn-control": "scpn_control.cli:main"}
 
     assert "FusionKernel" in manifest["python"]["public_api_exports"]
     assert "NeuroSymbolicController" in manifest["python"]["public_api_exports"]

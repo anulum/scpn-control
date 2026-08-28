@@ -74,7 +74,7 @@ bridge-io-uring:
 	cd scpn-control-rs/crates/control-python && maturin develop --release --features io-uring
 
 build:
-	python -m build
+	python tools/build_release_artifacts.py
 
 install-hooks:
 	git config core.hooksPath .githooks

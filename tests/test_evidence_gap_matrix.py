@@ -74,5 +74,5 @@ def test_evidence_gap_matrix_cli_reports_missing_registry(tmp_path: Path, capsys
 def test_evidence_gap_matrix_docs_include_entrypoint() -> None:
     validation_docs = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
 
-    assert "scpn-evidence-gap-matrix --output-json artifacts/evidence_gap_matrix.json" in validation_docs
+    assert "python tools/evidence_gap_matrix.py --output-json artifacts/evidence_gap_matrix.json" in validation_docs
     assert "scpn-control.evidence-gap-matrix.v1" in validation_docs

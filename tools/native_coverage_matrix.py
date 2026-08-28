@@ -171,7 +171,7 @@ def validate_native_coverage_matrix(
         ok=_contains_all(
             docs,
             (
-                "scpn-native-coverage-matrix",
+                "python tools/native_coverage_matrix.py",
                 "coverage-data-python",
                 "coverage-data-rust",
                 "coverage combine --keep artifacts/coverage/python artifacts/coverage/rust",

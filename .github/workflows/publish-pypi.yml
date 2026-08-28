@@ -40,7 +40,7 @@ jobs:
       - name: Build distributions
         run: |
           pip install --require-hashes -r requirements/ci-build.txt
-          python -m build
+          python tools/build_release_artifacts.py
           python -m twine check dist/*
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:
