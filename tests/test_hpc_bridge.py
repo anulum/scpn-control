@@ -172,6 +172,15 @@ def test_as_contiguous_f64_converts_dtype_and_layout() -> None:
     assert out.flags.c_contiguous
 
 
+def test_unknown_native_status_fails_closed_as_internal_error() -> None:
+    """An undocumented ABI status never becomes an implicit success."""
+    with pytest.raises(NativeSolverError) as exc_info:
+        hpc_mod._raise_for_native_status("run_steps", 999)
+
+    assert exc_info.value.operation == "run_steps"
+    assert exc_info.value.status is NativeSolverStatus.INTERNAL_ERROR
+
+
 def test_solve_returns_none_when_solver_not_initialized() -> None:
     bridge = _make_bridge()
     bridge.solver_ptr = None
@@ -295,6 +304,15 @@ def test_solve_until_converged_into_reuses_output_buffer() -> None:
     assert _dummy_lib(bridge).last_max_iterations == 33
 
 
+def test_solve_until_converged_into_rejects_overlapping_source_and_output() -> None:
+    """The convergence ABI rejects aliased caller-owned arrays."""
+    bridge = _make_bridge(nr=2, nz=3)
+    shared = np.arange(6, dtype=np.float64).reshape(3, 2)
+
+    with pytest.raises(ValueError, match="must not overlap"):
+        bridge.solve_until_converged_into(shared, shared)
+
+
 @pytest.mark.parametrize(
     ("kwargs", "match"),
     [
@@ -380,6 +398,21 @@ def test_initialize_rejects_replacing_live_state() -> None:
     bridge = _make_bridge(nr=2, nz=3)
     with pytest.raises(RuntimeError, match="already initialized"):
         bridge.initialize(3, 3, (1.0, 2.0), (-1.0, 1.0))
+
+
+def test_initialize_arms_cleanup_when_finalizer_is_absent() -> None:
+    """A manually prepared bridge still acquires deterministic native cleanup."""
+    bridge = _make_bridge(nr=2, nz=3)
+    bridge.solver_ptr = None
+    lib = _dummy_lib(bridge)
+    cast(Any, lib).create_solver = lambda *_args: 54321
+
+    bridge.initialize(2, 3, (1.0, 2.0), (-1.0, 1.0))
+
+    assert bridge.solver_ptr == 54321
+    assert bridge._finalizer.alive
+    bridge.close()
+    assert lib.destroyed == 54321
 
 
 def test_close_releases_solver_pointer() -> None:
