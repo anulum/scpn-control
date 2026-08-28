@@ -57,6 +57,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
     ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
     ("python-lint-contract", [_PY, "tools/check_python_lint_contract.py"], None),
+    ("rust-toolchain-contract", [_PY, "tools/check_rust_toolchain_contract.py"], None),
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("changelog-sync", [_PY, "tools/check_changelog_sync.py"], None),
     ("source-header-policy", [_PY, "tools/check_source_headers.py"], None),

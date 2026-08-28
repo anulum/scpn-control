@@ -75,6 +75,17 @@ def test_preflight_runs_changelog_sync_gate() -> None:
     assert "changelog-sync" not in preflight.RUST_GATES
 
 
+def test_preflight_runs_rust_toolchain_contract_gate() -> None:
+    """Local preflight must reject floating or divergent Rust toolchains."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["rust-toolchain-contract"] == [preflight._PY, "tools/check_rust_toolchain_contract.py"]
+    assert "rust-toolchain-contract" not in preflight.TEST_GATES
+    assert "rust-toolchain-contract" not in preflight.RUST_GATES
+
+
 def test_preflight_runs_runtime_wiring_gate() -> None:
     """Local preflight must fail closed on source modules with no repository wiring."""
     preflight = _load_preflight_module()

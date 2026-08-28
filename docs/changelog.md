@@ -12,6 +12,9 @@
   installed-target validation.
 ### Changed
 
+- Pinned the repository and hosted Rust builds to 1.98.0, pinned fuzzing to the
+  dated `nightly-2026-08-18` toolchain, and added a deterministic drift gate so
+  local, preflight, and workflow selectors remain aligned.
 - Added a deterministic, registry-bound public-claim ledger that admits only
   fresh validation reports with explicit scientific and public-claim approval;
   the current empty ledger prevents historical or local-proxy evidence from

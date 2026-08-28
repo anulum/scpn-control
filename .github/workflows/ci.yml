@@ -302,6 +302,7 @@ jobs:
           python tools/check_studio_offline_sealing.py
           python tools/sync_studio_web_manifest.py --check
           python tools/public_claim_ledger.py --check
+          python tools/check_rust_toolchain_contract.py
 
   # ─── Job 4d: Release evidence gate ───
   release-evidence-gate:
@@ -364,8 +365,9 @@ jobs:
         working-directory: scpn-control-rs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
+          toolchain: 1.98.0
           components: rustfmt, clippy
       - name: Format check
         run: cargo fmt --check
@@ -384,7 +386,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
@@ -488,7 +492,9 @@ jobs:
         working-directory: scpn-control-rs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
       - name: Bench
         run: cargo bench --workspace --exclude scpn-control-rs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
@@ -655,8 +661,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
+          toolchain: 1.98.0
           components: rustfmt, clippy
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
@@ -674,7 +681,9 @@ jobs:
         working-directory: scpn-control-rs
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
-      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # stable
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Audit

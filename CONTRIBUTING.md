@@ -11,7 +11,16 @@ pip install -e ".[dev]"
 pre-commit install
 ```
 
-Rust toolchain (stable) is required for the PyO3 crates:
+The repository pins Rust `1.98.0` with `rustfmt` and `clippy` in
+`rust-toolchain.toml`; Rustup selects it automatically for the PyO3 crates.
+Hosted fuzzing separately uses the dated `nightly-2026-08-18` toolchain. Check
+the complete local/hosted pin contract before changing either toolchain:
+
+```bash
+python tools/check_rust_toolchain_contract.py
+```
+
+Then run the applicable Rust gates:
 
 ```bash
 cd scpn-control-rs

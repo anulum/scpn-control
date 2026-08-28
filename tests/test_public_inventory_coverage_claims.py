@@ -186,7 +186,7 @@ def test_public_coverage_gate_claims_match_configuration() -> None:
     pitch = (ROOT / "docs" / "pitch.md").read_text(encoding="utf-8")
     paper = JOSS_MANUSCRIPT.read_text(encoding="utf-8")
 
-    assert f"{gate}% configured coverage gate" in pitch
+    assert f"{gate}% configured package coverage gate" in pitch
     assert f"{gate}% package-coverage gate" in paper
 
 
@@ -213,26 +213,26 @@ def test_current_surfaces_do_not_use_stale_live_inventory_counts() -> None:
             assert fragment not in text, f"{path.relative_to(ROOT)} contains {fragment}"
 
 
-def test_competitive_analysis_metrics_bound_to_generated_inventory() -> None:
-    """The competitive-analysis metrics table must mirror generated counts, not drift."""
+def test_competitive_analysis_delegates_counts_to_generated_inventory() -> None:
+    """Competitive prose must link generated counts instead of duplicating them."""
     counts = _manifest_counts()
-    gate = _coverage_gate()
     text = (ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8")
 
     required_fragments = (
         "docs/_generated/capability_manifest.json",
-        f"| Python control/physics modules | {counts['source_module_count']} |",
-        f"| Python test files | {counts['python_test_file_count']} |",
-        f"| Python public classes | {counts['public_class_count']} |",
-        f"| Rust source files | {counts['rust_source_file_count']} |",
-        f"| GitHub Actions workflows | {counts['workflow_count']} |",
-        f"| Test coverage gate | {gate}% |",
+        "Current package counts are generated rather than duplicated here.",
+        "[capability manifest](_generated/capability_snapshot.md)",
     )
     stale_fragments = (
         "153 total / 148 non-init",
         "| 264 |",
         "99% gate",
         "| CI jobs | 20 |",
+        f"| Python control/physics modules | {counts['source_module_count']} |",
+        f"| Python test files | {counts['python_test_file_count']} |",
+        f"| Python public classes | {counts['public_class_count']} |",
+        f"| Rust source files | {counts['rust_source_file_count']} |",
+        f"| GitHub Actions workflows | {counts['workflow_count']} |",
     )
 
     for fragment in required_fragments:
