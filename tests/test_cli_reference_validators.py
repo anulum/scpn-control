@@ -48,7 +48,7 @@ def test_split_csv_option_trims_and_drops_empty(value: str | None, expected: tup
 def test_reference_validator_commands_are_click_commands() -> None:
     """Keep the registration surface immutable and Click-native."""
     assert isinstance(REFERENCE_VALIDATOR_COMMANDS, tuple)
-    assert len(REFERENCE_VALIDATOR_COMMANDS) == 28
+    assert len(REFERENCE_VALIDATOR_COMMANDS) == 29
     assert all(isinstance(command, click.Command) for command in REFERENCE_VALIDATOR_COMMANDS)
 
 

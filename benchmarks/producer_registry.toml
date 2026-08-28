@@ -48,6 +48,7 @@ recorded_guard = [
   "validation/benchmark_kuramoto_runtime_evidence.py",
   "validation/benchmark_marfe_onset_claims.py",
   "validation/benchmark_mu_synthesis_claims.py",
+  "validation/benchmark_static_mu_analysis_claims.py",
   "validation/benchmark_neural_equilibrium_pretraining.py",
   "validation/benchmark_neural_transport_claims.py",
   "validation/benchmark_neural_turbulence_claims.py",

@@ -365,9 +365,11 @@ def test_joss_qlknn_claim_matches_neural_transport_admission_report() -> None:
     assert "reproduces gyrokinetic-level predictions" not in source
 
 
-def test_joss_mu_synthesis_claim_matches_static_bound_report() -> None:
-    """JOSS mu-synthesis wording must match the bounded static report."""
-    raw: Any = json.loads((ROOT / "validation" / "reports" / "mu_synthesis_claims.json").read_text(encoding="utf-8"))
+def test_joss_static_mu_analysis_claim_matches_static_bound_report() -> None:
+    """JOSS static mu-analysis wording must match the bounded static report."""
+    raw: Any = json.loads(
+        (ROOT / "validation" / "reports" / "static_mu_analysis_claims.json").read_text(encoding="utf-8")
+    )
     report = cast(dict[str, Any], raw)
 
     assert report["claim_status"] == "bounded_static_mu_evidence"

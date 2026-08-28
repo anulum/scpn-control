@@ -42,7 +42,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **DARE (Discrete Algebraic Riccati Equation)** — The matrix equation X = A^T X A - A^T X B (R + B^T X B)^{-1} B^T X A + Q, solved to obtain LQR/H-infinity gains for a sampled-data plant. `control.h_infinity_controller`
 
-**D-K iteration** — Iterative mu-synthesis algorithm alternating between D-scale fitting and H-infinity controller synthesis to achieve robust performance against structured uncertainty. The repository implementation is currently bounded to static D-scaled mu-analysis unless a validated frequency-dependent backend is wired. `control.mu_synthesis`
+**D-K iteration** — Iterative mu-synthesis algorithm alternating between D-scale fitting and H-infinity controller synthesis to achieve robust performance against structured uncertainty. SCPN Control does not currently implement this algorithm; its separate `control.static_mu_analysis` module provides Riccati state feedback with a one-point static D-scaled upper bound.
 
 **Detachment** — Divertor operating regime where the plasma cools and recombines before reaching the target plates, reducing peak heat flux. `core.sol_model`
 
@@ -122,7 +122,9 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **Modified Rutherford Equation (MRE)** — ODE governing NTM island width evolution: dw/dt = eta/(mu_0 r_s) [Delta'(w) + Delta_bs(w) + Delta_ECCD(w)]. Predicts when islands grow or shrink. `core.ntm_dynamics`
 
-**Mu-synthesis (mu-synthesis)** — Robust control framework that accounts for structured (parametric) uncertainty. The repository exposes static D-scaled structured-singular-value bounds and does not claim full frequency-dependent D-K synthesis without an external validated backend. `control.mu_synthesis`
+**Mu-synthesis (mu-synthesis)** — Robust control framework that accounts for structured uncertainty through alternating frequency-dependent D-scale fitting and H-infinity controller synthesis. SCPN Control documents the concept but does not currently expose a canonical mu-synthesis implementation. `control.static_mu_analysis` is a bounded analysis surface, not mu-synthesis.
+
+**Static structured-mu analysis** — One-frequency D-scaled upper-bound evaluation attached to a separately designed Riccati state-feedback controller. It is neither a frequency peak nor D-K controller synthesis. `control.static_mu_analysis`
 
 ## N
 

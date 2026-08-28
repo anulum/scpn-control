@@ -451,7 +451,7 @@ Finite-time convergence follows from $\dot{V} \leq -\mu V^{1/2}$ for some $\mu >
 **scpn-control**: `SuperTwistingSMC`, `VerticalStabilizer` in
 `scpn_control.control.sliding_mode_vertical`.
 
-### Mu-Synthesis (D-K Iteration)
+### Static Structured-Mu Analysis and D-K Synthesis
 
 H-infinity treats uncertainty as a single unstructured norm-bounded block.
 Mu-synthesis handles **structured** uncertainty: each uncertain parameter (growth rate,
@@ -479,11 +479,13 @@ where $D$ commutes with the uncertainty structure. The D-K iteration alternates:
 
 Robust stability holds if and only if $\mu(M(j\omega)) < 1$ for all $\omega$.
 
-**scpn-control**: `MuSynthesisController`, `StructuredUncertainty`, `UncertaintyBlock`
-in `scpn_control.control.mu_synthesis`. The current implementation is explicitly
-bounded to a continuous-time Riccati K-step plus static closed-loop D-scaling
-upper-bound evaluation. It does not claim full frequency-dependent H-infinity
-D-K synthesis without an external validated backend.
+**scpn-control**: `RiccatiStateFeedbackController`, `StructuredUncertainty`, and
+`UncertaintyBlock` in `scpn_control.control.static_mu_analysis`. The implemented
+path designs one continuous-time Riccati state-feedback gain and evaluates one
+static closed-loop D-scaling upper bound at zero frequency. The uncertainty does
+not participate in controller synthesis. This is static analysis, not the D-K
+algorithm described above; full frequency-dependent H-infinity D-K synthesis
+requires a separate validated generalized-plant backend.
 
 ### Fault-Tolerant Control
 

@@ -663,22 +663,24 @@ def validate_current_drive_reference_command(
         raise click.exceptions.Exit(1)
 
 
-@click.command("validate-mu-synthesis-reference")
-@click.option("--artifact-root", help="Directory or JSON artifact containing persisted mu-synthesis reference evidence")
-@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
-@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
-@click.option("--json-out", is_flag=True, help="Emit JSON")
-def validate_mu_synthesis_reference_command(
+def _run_static_mu_analysis_reference(
     artifact_root: str | None,
     require_reference_artifacts: bool,
     output_json: str | None,
     json_out: bool,
+    *,
+    default_directory: str,
 ) -> None:
-    """Validate persisted mu-synthesis reference artifacts."""
-    from validation.validate_mu_synthesis_reference import ROOT, validate_mu_synthesis_reference
+    from validation.validate_static_mu_analysis_reference import (
+        ROOT,
+        validate_static_mu_analysis_reference,
+    )
 
-    path = artifact_root or str(ROOT / "validation" / "reports" / "mu_synthesis_reference")
-    report = validate_mu_synthesis_reference(path, require_reference_artifacts=require_reference_artifacts)
+    path = artifact_root or str(ROOT / "validation" / "reports" / default_directory)
+    report = validate_static_mu_analysis_reference(
+        path,
+        require_reference_artifacts=require_reference_artifacts,
+    )
     if output_json is not None:
         from pathlib import Path as _P
 
@@ -688,11 +690,63 @@ def validate_mu_synthesis_reference_command(
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
-        click.echo(f"Mu-synthesis reference: {report['status']} reference_artifacts={report['reference_artifacts']}")
+        click.echo(
+            f"Static mu-analysis reference: {report['status']} reference_artifacts={report['reference_artifacts']}"
+        )
         for error in report["errors"]:
             click.echo(f"ERROR {error['path']}: {error['error']}", err=True)
     if report["status"] != "pass":
         raise click.exceptions.Exit(1)
+
+
+@click.command("validate-static-mu-analysis-reference")
+@click.option(
+    "--artifact-root",
+    help="Directory or JSON artifact containing persisted static mu-analysis reference evidence",
+)
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_static_mu_analysis_reference_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Validate persisted static structured-mu reference artifacts."""
+    _run_static_mu_analysis_reference(
+        artifact_root,
+        require_reference_artifacts,
+        output_json,
+        json_out,
+        default_directory="static_mu_analysis_reference",
+    )
+
+
+@click.command("validate-mu-synthesis-reference", hidden=True)
+@click.option("--artifact-root", help="Directory or JSON artifact containing persisted legacy reference evidence")
+@click.option("--require-reference-artifacts", is_flag=True, help="Fail if no reference artifacts are present")
+@click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
+@click.option("--json-out", is_flag=True, help="Emit JSON")
+def validate_mu_synthesis_reference_compatibility_command(
+    artifact_root: str | None,
+    require_reference_artifacts: bool,
+    output_json: str | None,
+    json_out: bool,
+) -> None:
+    """Forward the deprecated validator command to static mu analysis."""
+    click.echo(
+        "DEPRECATED: validate-mu-synthesis-reference will be removed in 0.25.0; "
+        "use validate-static-mu-analysis-reference.",
+        err=True,
+    )
+    _run_static_mu_analysis_reference(
+        artifact_root,
+        require_reference_artifacts,
+        output_json,
+        json_out,
+        default_directory="mu_synthesis_reference",
+    )
 
 
 @click.command("validate-volt-second-reference")
@@ -981,7 +1035,8 @@ REFERENCE_VALIDATOR_COMMANDS: tuple[click.Command, ...] = (
     validate_vmec_reference_command,
     validate_rzip_reference_command,
     validate_current_drive_reference_command,
-    validate_mu_synthesis_reference_command,
+    validate_static_mu_analysis_reference_command,
+    validate_mu_synthesis_reference_compatibility_command,
     validate_volt_second_reference_command,
     validate_burn_reference_command,
     validate_density_reference_command,

@@ -14,7 +14,7 @@ import json
 import numpy as np
 import pytest
 
-from scpn_control.control.mu_synthesis import compute_mu_upper_bound
+from scpn_control.control.static_mu_analysis import compute_static_mu_upper_bound
 from validation.validate_mu_structured_singular_value import (
     MU_STRUCTURED_SINGULAR_VALUE_SCHEMA_VERSION,
     MuValidationResult,
@@ -44,7 +44,7 @@ def test_full_block_bound_equals_sigma_max() -> None:
     """For a single full block the bound must equal sigma_max to machine precision."""
     rng = np.random.default_rng(1)
     matrix = rng.standard_normal((4, 4)) + 1j * rng.standard_normal((4, 4))
-    bound = compute_mu_upper_bound(matrix, [(4, "full")])
+    bound = compute_static_mu_upper_bound(matrix, [(4, "full")])
     sigma_max = float(np.linalg.svd(matrix, compute_uv=False)[0])
     assert bound == pytest.approx(sigma_max, abs=1e-9)
 
@@ -53,7 +53,7 @@ def test_diagonal_bound_equals_max_abs_entry() -> None:
     """For diagonal M with diagonal Delta the bound must equal max|M_ii|."""
     rng = np.random.default_rng(2)
     diag = rng.standard_normal(4) + 1j * rng.standard_normal(4)
-    bound = compute_mu_upper_bound(np.diag(diag), [(1, "complex_scalar")] * 4)
+    bound = compute_static_mu_upper_bound(np.diag(diag), [(1, "complex_scalar")] * 4)
     assert bound == pytest.approx(float(np.max(np.abs(diag))), abs=1e-9)
 
 
@@ -63,7 +63,7 @@ def test_rank_one_bound_equals_sum_abs_products() -> None:
     u = rng.standard_normal(3) + 1j * rng.standard_normal(3)
     v = rng.standard_normal(3) + 1j * rng.standard_normal(3)
     matrix = np.outer(u, np.conjugate(v))
-    bound = compute_mu_upper_bound(matrix, [(1, "complex_scalar")] * 3)
+    bound = compute_static_mu_upper_bound(matrix, [(1, "complex_scalar")] * 3)
     exact = float(np.sum(np.abs(u) * np.abs(v)))
     assert bound == pytest.approx(exact, rel=1e-3)
 

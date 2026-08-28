@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Mu-synthesis tests
+# SCPN Control — Static structured-mu analysis tests
 """Module-specific tests for bounded static mu-analysis contracts."""
 
 from __future__ import annotations
@@ -15,17 +15,18 @@ from dataclasses import asdict, replace
 import numpy as np
 import pytest
 
-import scpn_control.control.mu_synthesis as mu
-from scpn_control.control.mu_synthesis import (
-    MuSynthesisController,
+import scpn_control.control.static_mu_analysis as mu
+from scpn_control.control.static_mu_analysis import (
+    RiccatiStateFeedbackController,
+    StaticMuAnalysisResult,
     StructuredUncertainty,
     UncertaintyBlock,
-    assert_mu_synthesis_validated_claim_admissible,
-    compute_mu_upper_bound,
-    dk_iteration,
-    load_mu_synthesis_claim_evidence,
-    mu_synthesis_claim_evidence,
-    save_mu_synthesis_claim_evidence,
+    assert_static_mu_analysis_validated_claim_admissible,
+    compute_static_mu_upper_bound,
+    design_riccati_state_feedback_with_static_mu_analysis,
+    load_static_mu_analysis_claim_evidence,
+    static_mu_analysis_claim_evidence,
+    save_static_mu_analysis_claim_evidence,
 )
 
 
@@ -46,32 +47,31 @@ def _uncertainty() -> StructuredUncertainty:
     )
 
 
-def test_mu_upper_bound_respects_block_scaling_and_domains() -> None:
+def test_static_mu_upper_bound_respects_block_scaling_and_domains() -> None:
     M = np.array([[0.2, 0.05], [0.02, 0.15]], dtype=float)
     structure = [(1, "real_scalar"), (1, "real_scalar")]
-    mu = compute_mu_upper_bound(M, structure)
+    mu = compute_static_mu_upper_bound(M, structure)
     assert 0.0 < mu <= np.linalg.svd(M, compute_uv=False)[0] + 1.0e-12
 
     with pytest.raises(ValueError, match="M must be a square"):
-        compute_mu_upper_bound(np.ones((2, 3)), structure)
+        compute_static_mu_upper_bound(np.ones((2, 3)), structure)
     with pytest.raises(ValueError, match="Delta block sizes must sum"):
-        compute_mu_upper_bound(M, [(1, "real_scalar")])
+        compute_static_mu_upper_bound(M, [(1, "real_scalar")])
     with pytest.raises(ValueError, match="Delta structure"):
-        compute_mu_upper_bound(np.zeros((0, 0)), [])
+        compute_static_mu_upper_bound(np.zeros((0, 0)), [])
     with pytest.raises(ValueError, match="finite values"):
-        compute_mu_upper_bound(np.array([[np.nan]]), [(1, "real_scalar")])
+        compute_static_mu_upper_bound(np.array([[np.nan]]), [(1, "real_scalar")])
     with pytest.raises(ValueError, match="Delta block_type"):
-        compute_mu_upper_bound(np.eye(1), [(1, "bad")])
+        compute_static_mu_upper_bound(np.eye(1), [(1, "bad")])
     with pytest.raises(ValueError, match="Delta block size"):
-        compute_mu_upper_bound(np.eye(1), [(0, "real_scalar")])
+        compute_static_mu_upper_bound(np.eye(1), [(0, "real_scalar")])
 
 
-def test_mu_synthesis_controller_synthesizes_stable_static_controller() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=3)
-    assert controller.K is not None
-    assert controller.mu_peak > 0.0
-    assert controller.robustness_margin() > 0.0
+def test_static_mu_analysis_controller_designs_stable_static_controller() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    result = controller.design()
+    assert result.mu_upper_bound > 0.0
+    assert controller.inverse_static_mu_upper_bound() > 0.0
     action = controller.step(np.array([0.1, -0.2]), dt=0.01)
     assert action.shape == (2,)
 
@@ -83,15 +83,13 @@ def test_mu_synthesis_controller_synthesizes_stable_static_controller() -> None:
         controller.step(np.array([np.nan, -0.2]), dt=0.01)
 
 
-def test_mu_synthesis_controller_fails_closed_before_synthesis_and_invalid_iterations() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
+def test_static_mu_analysis_controller_fails_closed_before_design() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
 
-    with pytest.raises(RuntimeError, match="not synthesized"):
+    with pytest.raises(RuntimeError, match="not designed"):
         controller.step(np.array([0.1, -0.2]), dt=0.01)
-    with pytest.raises(ValueError, match="n_iter must be positive"):
-        dk_iteration(_plant(), _uncertainty(), n_iter=0)
-    with pytest.raises(ValueError, match="gamma_bisect_tol must be positive"):
-        dk_iteration(_plant(), _uncertainty(), gamma_bisect_tol=0.0)
+    with pytest.raises(RuntimeError, match="not designed"):
+        controller.inverse_static_mu_upper_bound()
 
 
 def test_uncertainty_blocks_reject_invalid_contracts() -> None:
@@ -108,7 +106,7 @@ def test_uncertainty_blocks_reject_invalid_contracts() -> None:
 def test_structured_uncertainty_exposes_physical_bound_matrix_contract() -> None:
     uncertainty = _uncertainty()
 
-    assert uncertainty.build_Delta_structure() == [(1, "real_scalar"), (1, "real_scalar")]
+    assert uncertainty.build_delta_structure() == [(1, "real_scalar"), (1, "real_scalar")]
     assert uncertainty.total_size() == 2
     assert np.allclose(uncertainty.bound_matrix(), np.diag([0.02, 0.03]))
     with pytest.raises(ValueError, match="at least one"):
@@ -144,15 +142,15 @@ def test_structured_uncertainty_exposes_physical_bound_matrix_contract() -> None
         ),
     ],
 )
-def test_dk_iteration_rejects_invalid_state_space_contracts(plant, message) -> None:
+def test_static_design_rejects_invalid_state_space_contracts(plant, message) -> None:
     with pytest.raises(ValueError, match=message):
-        dk_iteration(plant, _uncertainty(), n_iter=1)
+        design_riccati_state_feedback_with_static_mu_analysis(plant, _uncertainty())
 
 
-def test_mu_claim_evidence_records_bounded_boundary(tmp_path) -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=3)
-    evidence = mu_synthesis_claim_evidence(
+def test_static_mu_claim_evidence_records_bounded_boundary(tmp_path) -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
+    evidence = static_mu_analysis_claim_evidence(
         controller,
         source="repository_static_mu_regression",
         source_id="mu-static-regression-v1",
@@ -161,69 +159,69 @@ def test_mu_claim_evidence_records_bounded_boundary(tmp_path) -> None:
     assert evidence.validated_claim_allowed is False
     assert evidence.static_dc_analysis_only is True
     assert evidence.closed_loop_spectral_abscissa < 0.0
-    with pytest.raises(ValueError, match="validated mu-synthesis claim requires matched"):
-        assert_mu_synthesis_validated_claim_admissible(evidence)
+    with pytest.raises(ValueError, match="validated static mu-analysis claim requires matched"):
+        assert_static_mu_analysis_validated_claim_admissible(evidence)
 
     output = tmp_path / "mu_claim.json"
-    save_mu_synthesis_claim_evidence(evidence, output)
+    save_static_mu_analysis_claim_evidence(evidence, output)
     persisted = json.loads(output.read_text(encoding="utf-8"))
     assert persisted["schema_version"] == 1
     assert persisted["claim_status"] == "bounded_static_mu_evidence"
     assert persisted["payload_sha256"]
-    assert load_mu_synthesis_claim_evidence(output) == evidence
-    with pytest.raises(ValueError, match="validated mu-synthesis claim requires matched"):
-        load_mu_synthesis_claim_evidence(output, require_validated_claim=True)
+    assert load_static_mu_analysis_claim_evidence(output) == evidence
+    with pytest.raises(ValueError, match="validated static mu-analysis claim requires matched"):
+        load_static_mu_analysis_claim_evidence(output, require_validated_claim=True)
 
     with pytest.raises(ValueError, match="evidence must"):
-        save_mu_synthesis_claim_evidence(object(), tmp_path / "bad.json")
+        save_static_mu_analysis_claim_evidence(object(), tmp_path / "bad.json")
 
 
-def test_mu_claim_evidence_loader_rejects_tampering_and_duplicate_keys(tmp_path) -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=3)
-    evidence = mu_synthesis_claim_evidence(
+def test_static_mu_claim_evidence_loader_rejects_tampering_and_duplicate_keys(tmp_path) -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
+    evidence = static_mu_analysis_claim_evidence(
         controller,
         source="repository_static_mu_regression",
         source_id="mu-static-regression-v1",
     )
     output = tmp_path / "mu_claim.json"
-    save_mu_synthesis_claim_evidence(evidence, output)
+    save_static_mu_analysis_claim_evidence(evidence, output)
 
     payload = json.loads(output.read_text(encoding="utf-8"))
     payload["mu_peak_upper_bound"] = payload["mu_peak_upper_bound"] * 2.0
     output.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     with pytest.raises(ValueError, match="payload_sha256"):
-        load_mu_synthesis_claim_evidence(output)
+        load_static_mu_analysis_claim_evidence(output)
 
     duplicate = tmp_path / "duplicate_mu_claim.json"
     duplicate.write_text('{"schema_version":1,"schema_version":1}', encoding="utf-8")
     with pytest.raises(ValueError, match="duplicate JSON key"):
-        load_mu_synthesis_claim_evidence(duplicate)
+        load_static_mu_analysis_claim_evidence(duplicate)
 
 
-def test_mu_claim_evidence_rejects_unsynthesized_controller_and_bad_claim_domains() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    with pytest.raises(ValueError, match="synthesized"):
-        mu_synthesis_claim_evidence(
+def test_static_mu_claim_evidence_rejects_undesignated_controller_and_bad_claim_domains() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    with pytest.raises(ValueError, match="designed"):
+        static_mu_analysis_claim_evidence(
             controller,
             source="repository_static_mu_regression",
             source_id="mu-static-regression-v1",
         )
 
-    controller.synthesize(n_dk_iter=1)
+    controller.design()
     with pytest.raises(ValueError, match="source must be one"):
-        mu_synthesis_claim_evidence(controller, source="internal_claim", source_id="mu-static-regression-v1")
+        static_mu_analysis_claim_evidence(controller, source="internal_claim", source_id="mu-static-regression-v1")
     with pytest.raises(ValueError, match="source_id"):
-        mu_synthesis_claim_evidence(controller, source="repository_static_mu_regression", source_id=" ")
+        static_mu_analysis_claim_evidence(controller, source="repository_static_mu_regression", source_id=" ")
     with pytest.raises(ValueError, match="model_id"):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="repository_static_mu_regression",
             source_id="mu-static-regression-v1",
             model_id=" ",
         )
     with pytest.raises(ValueError, match="mu_upper_bound_relative_tolerance"):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="repository_static_mu_regression",
             source_id="mu-static-regression-v1",
@@ -231,9 +229,9 @@ def test_mu_claim_evidence_rejects_unsynthesized_controller_and_bad_claim_domain
         )
 
 
-def test_mu_validated_claim_requires_reference_artifact() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=3)
+def test_static_mu_validated_claim_requires_reference_artifact() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
     artifact = {
         "source": "external_mu_toolbox_benchmark",
         "reference_dataset_id": "mu-toolbox-static-fixture-v1",
@@ -261,20 +259,20 @@ def test_mu_validated_claim_requires_reference_artifact() -> None:
             "closed_loop_spectral_abscissa_abs_error": 0.05,
         },
     }
-    evidence = mu_synthesis_claim_evidence(
+    evidence = static_mu_analysis_claim_evidence(
         controller,
         source="external_mu_toolbox_benchmark",
         source_id="mu-toolbox-static-fixture-v1",
         reference_artifact=artifact,
     )
     assert evidence.validated_claim_allowed is True
-    assert assert_mu_synthesis_validated_claim_admissible(evidence) is evidence
+    assert assert_static_mu_analysis_validated_claim_admissible(evidence) is evidence
 
     bad_artifact = dict(artifact)
     bad_artifact["metrics"] = dict(artifact["metrics"])
     bad_artifact["metrics"]["mu_upper_bound_relative_error"] = 0.5
     with pytest.raises(ValueError, match="mu_upper_bound_relative_error exceeds declared tolerance"):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="external_mu_toolbox_benchmark",
             source_id="mu-toolbox-static-fixture-v1",
@@ -323,14 +321,14 @@ def _valid_reference_artifact() -> dict[str, object]:
         (lambda artifact: artifact["tolerances"].update(mu_upper_bound_relative_error=0.0), "positive"),
     ],
 )
-def test_mu_reference_artifact_rejects_invalid_validation_payloads(mutation, message) -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=1)
+def test_static_mu_reference_artifact_rejects_invalid_validation_payloads(mutation, message) -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
     artifact = _valid_reference_artifact()
     mutation(artifact)
 
     with pytest.raises(ValueError, match=message):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="external_mu_toolbox_benchmark",
             source_id="static-two-state-reference",
@@ -338,12 +336,12 @@ def test_mu_reference_artifact_rejects_invalid_validation_payloads(mutation, mes
         )
 
 
-def test_mu_reference_artifact_rejects_non_mapping_reference_payload() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=1)
+def test_static_mu_reference_artifact_rejects_non_mapping_reference_payload() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
 
     with pytest.raises(ValueError, match="reference_artifact must be a dictionary"):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="external_mu_toolbox_benchmark",
             source_id="static-two-state-reference",
@@ -351,9 +349,9 @@ def test_mu_reference_artifact_rejects_non_mapping_reference_payload() -> None:
         )
 
 
-def test_mu_reference_artifact_rejects_unit_mismatches() -> None:
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.synthesize(n_dk_iter=1)
+def test_static_mu_reference_artifact_rejects_unit_mismatches() -> None:
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.design()
     artifact = {
         "source": "external_mu_toolbox_benchmark",
         "reference_dataset_id": "mu-toolbox-static-fixture-v1",
@@ -377,7 +375,7 @@ def test_mu_reference_artifact_rejects_unit_mismatches() -> None:
     }
 
     with pytest.raises(ValueError, match="unit contracts"):
-        mu_synthesis_claim_evidence(
+        static_mu_analysis_claim_evidence(
             controller,
             source="external_mu_toolbox_benchmark",
             source_id="static-two-state-reference",
@@ -389,7 +387,7 @@ def test_mu_reference_artifact_rejects_unit_mismatches() -> None:
 
 
 def _bounded_evidence():
-    evidence = mu.MuSynthesisClaimEvidence(
+    evidence = mu.StaticMuAnalysisClaimEvidence(
         schema_version=1,
         source="repository_static_mu_regression",
         source_id="sid",
@@ -495,14 +493,14 @@ def test_validate_payload_rejects_missing_field():
     payload = asdict(_bounded_evidence())
     del payload["source"]
     with pytest.raises(ValueError, match="missing fields"):
-        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+        mu._validate_static_mu_analysis_claim_payload(payload, require_validated_claim=False)
 
 
 def test_validate_payload_rejects_unsupported_field():
     payload = asdict(_bounded_evidence())
     payload["bogus_field"] = 1
     with pytest.raises(ValueError, match="unsupported fields"):
-        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+        mu._validate_static_mu_analysis_claim_payload(payload, require_validated_claim=False)
 
 
 @pytest.mark.parametrize(
@@ -522,21 +520,21 @@ def test_validate_bounded_payload_rejects(overrides, match):
     payload = asdict(replace(_bounded_evidence(), **overrides))
     _reseal(payload)
     with pytest.raises(ValueError, match=match):
-        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=False)
+        mu._validate_static_mu_analysis_claim_payload(payload, require_validated_claim=False)
 
 
 def test_validate_validated_payload_rejects_non_validated_source():
     payload = asdict(replace(_validated_evidence(), source="repository_static_mu_regression"))
     _reseal(payload)
     with pytest.raises(ValueError, match="require a validated source"):
-        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=True)
+        mu._validate_static_mu_analysis_claim_payload(payload, require_validated_claim=True)
 
 
 def test_validate_validated_payload_rejects_metric_over_tolerance():
     payload = asdict(replace(_validated_evidence(), mu_upper_bound_relative_error=0.5))
     _reseal(payload)
     with pytest.raises(ValueError, match="exceeds declared tolerance"):
-        mu._validate_mu_synthesis_claim_payload(payload, require_validated_claim=True)
+        mu._validate_static_mu_analysis_claim_payload(payload, require_validated_claim=True)
 
 
 def test_riccati_state_feedback_rejects_unstabilisable_plant():
@@ -609,19 +607,25 @@ def test_closed_loop_dc_map_rejects_singular_system():
         mu._closed_loop_dc_uncertainty_map(identity, identity, identity, np.zeros((2, 2)), identity)
 
 
-def test_robustness_margin_infinite_for_nonpositive_mu_peak():
-    controller = MuSynthesisController(_plant(), _uncertainty())
-    controller.mu_peak = 0.0
-    assert controller.robustness_margin() == float("inf")
+def test_inverse_static_bound_is_infinite_for_nonpositive_bound():
+    controller = RiccatiStateFeedbackController(_plant(), _uncertainty())
+    controller.analysis_result = StaticMuAnalysisResult(
+        controller_gain=np.eye(2),
+        mu_upper_bound=0.0,
+        d_scalings=np.ones(2),
+        analysis_frequency_rad_s=0.0,
+        closed_loop_spectral_abscissa=-1.0,
+    )
+    assert controller.inverse_static_mu_upper_bound() == float("inf")
 
 
 def test_assert_validated_claim_rejects_non_evidence():
-    with pytest.raises(ValueError, match="must be MuSynthesisClaimEvidence"):
-        assert_mu_synthesis_validated_claim_admissible(object())  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="must be StaticMuAnalysisClaimEvidence"):
+        assert_static_mu_analysis_validated_claim_admissible(object())  # type: ignore[arg-type]
 
 
 def test_load_claim_evidence_rejects_non_object(tmp_path):
     path = tmp_path / "claim.json"
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="must be a JSON object"):
-        load_mu_synthesis_claim_evidence(path)
+        load_static_mu_analysis_claim_evidence(path)

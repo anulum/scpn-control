@@ -1,0 +1,65 @@
+{
+  "claim_boundary": {
+    "current_evidence": true,
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "rationale": "Fresh loaded-workstation local evidence for the declared zero-frequency static analysis only; no full-frequency D-K, scientific-validation, facility, production, or hardware-neutral claim.",
+    "scientific_admission": false
+  },
+  "dependency_lock_sha256": "312f683407f2dee5ad12995692f691dfd6728b4be796c8025f6cfdc58b654b61",
+  "evidence_class": "local_proxy",
+  "failures": [
+    "static_zero_frequency_analysis_only",
+    "full_frequency_dk_synthesis_not_implemented",
+    "external_reference_artifact_unavailable",
+    "public_claim_not_admitted"
+  ],
+  "host": {
+    "class": "workstation-x86_64-intel-i5-11600K",
+    "id": "aaarthuus",
+    "kernel": "7.0.0-28-generic",
+    "loaded": true,
+    "producer_context": {
+      "campaign_id": "20260828T164000.340548Z-9aa4bc6cc19c",
+      "concurrent_heavy_jobs": "unspecified",
+      "cpu_affinity": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+      "isolation": "unspecified",
+      "load_average": [7.43212890625, 6.28564453125, 7.0947265625],
+      "python": "3.12.3"
+    }
+  },
+  "lineage_id": "static_mu_analysis",
+  "orientation_only": true,
+  "payload_sha256": "f98146ad8ed41d8f7929c6015bd1622c51eaa02c414b58ec09dc19fd8fa18174",
+  "producer_command": "PYTHONPATH=src python tools/run_recorded_benchmark.py --family static-mu-analysis-claims --artifact report=validation/reports/static_mu_analysis_claims.json --artifact markdown=validation/reports/static_mu_analysis_claims.md -- python validation/benchmark_static_mu_analysis_claims.py",
+  "producer_payload": {
+    "block_structure": [[1, "real_scalar"], [1, "real_scalar"]],
+    "claim_status": "bounded_static_mu_evidence",
+    "closed_loop_spectral_abscissa": -1.4134407528325377,
+    "model_id": "bounded_static_mu_analysis",
+    "mu_upper_bound_at_zero_rad_s": 0.022230186986222526,
+    "reciprocal_static_upper_bound": 44.983877131567276,
+    "source_id": "static-mu-analysis-claim-benchmark-v1",
+    "validated_claim_allowed": false
+  },
+  "producers": [
+    {
+      "path": "validation/benchmark_static_mu_analysis_claims.py",
+      "sha256": "076813d9d5820cbcb6e7ceef5f61e09cd30a2abbc8c9e28214f25b3bf07a6035"
+    }
+  ],
+  "raw_capture_preserved_in_internal_custody": true,
+  "raw_capture_sha256": "e99be8c07a4f1858854b0af2df43fc304ee0b5cf89c87c91e3251c5bad6bde67",
+  "refresh_evidence_time_utc": "2026-08-28T16:40:00.845162Z",
+  "sampling": {
+    "repeats": 1,
+    "samples": 1,
+    "warmup": 0
+  },
+  "schema_version": "scpn-control.validation-report-refresh.v1",
+  "source_commit": "6e325d50a8b11436e34399c0a0dac15defcdbfe8",
+  "source_report": {
+    "path": "validation/reports/static_mu_analysis_claims.json",
+    "sha256": "b0970cd3d34701d74d738b11d0009f680325bb4353e3d251b1d190f3a27d00f2"
+  }
+}

@@ -12,6 +12,11 @@
   installed-target validation.
 ### Changed
 
+- Reclassified the former mu-synthesis surface as Riccati state feedback with
+  bounded static structured-mu analysis: the canonical API now exposes only
+  controls the algorithm actually uses, while the historical module and CLI
+  names are deprecated compatibility facades and full frequency-dependent D-K
+  synthesis remains an explicit external-backend gap.
 - Upgraded the state estimator from a fixed affine Kalman implementation to a
   genuine n-dimensional extended Kalman filter with caller-supplied nonlinear
   models and analytic Jacobians, explicit process-noise/residual/retraction
@@ -1716,8 +1721,8 @@
 - **Phase 4 — Absolute control** (10 modules in `control/`):
   - `nmpc_controller.py` — nonlinear MPC with SQP over 20-step horizon; state/input
     box constraints and slew-rate limits on Ip, beta_N, q95, li, Te, nbar
-  - `mu_synthesis.py` — D-K iteration for structured robust control; D-scaling
-    optimization minimising structured singular value mu; MuSynthesisController
+  - `mu_synthesis.py` — historical name for the original Riccati state-feedback
+    plus static D-scaled structured-mu analysis surface; reclassified in v0.23.0
   - `realtime_efit.py` — streaming equilibrium reconstruction from partial
     measurements; coil-current-to-psi mapping; sub-10ms latency target
   - `gain_scheduled_controller.py` — PID gains scheduled on operating regime

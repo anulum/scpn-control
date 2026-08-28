@@ -72,7 +72,7 @@ def test_cli_reports_the_live_inventory_count() -> None:
 def test_imported_cli_reports_live_inventory_count(capsys: pytest.CaptureFixture[str]) -> None:
     """The imported command surface returns a successful live verdict."""
     assert producer_audit.main([]) == 0
-    assert "63 producers classified" in capsys.readouterr().out
+    assert "64 producers classified" in capsys.readouterr().out
 
 
 def test_registry_fails_when_one_real_producer_is_unclassified(tmp_path: Path) -> None:

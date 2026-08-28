@@ -44,9 +44,9 @@ def test_refresh_records_are_schema_valid_self_sealed_and_lineage_bound() -> Non
     }
     refresh_paths = sorted(REFRESH_ROOT.glob("*/*.json"))
 
-    assert len(refresh_paths) == 9
-    assert len(records) == 9
-    assert len({_json(path)["lineage_id"] for path in refresh_paths}) == 9
+    assert len(refresh_paths) == 10
+    assert len(records) == 10
+    assert len({_json(path)["lineage_id"] for path in refresh_paths}) == 10
 
     for path in refresh_paths:
         payload = _json(path)

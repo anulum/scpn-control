@@ -8,7 +8,7 @@
 # SCPN Control — Structured singular value (mu) closed-form validation
 """Validate the structured-singular-value upper bound against exact mu identities.
 
-The robust-control surface (``src/scpn_control/control/mu_synthesis.py``)
+The robust-control surface (``src/scpn_control/control/static_mu_analysis.py``)
 computes the D-scaled upper bound
 
     mu_bar(M) = min_D  sigma_max(D M D^{-1})
@@ -16,7 +16,7 @@ computes the D-scaled upper bound
 on the complex structured singular value mu(M) for a block-diagonal uncertainty
 set. While mu itself is NP-hard in general, several block structures admit an
 *exact* closed-form value that the D-scaled bound must reproduce. This module
-checks the production ``compute_mu_upper_bound`` against those analytic cases —
+checks the production ``compute_static_mu_upper_bound`` against those analytic cases —
 no external toolbox, plant, or measured artefact is required, so the validation
 is fully self-contained.
 
@@ -38,7 +38,8 @@ Exact identities checked (deterministic seeded complex-matrix ensembles):
 5. **D-scaling invariance.** ``mu`` is invariant under block-diagonal D-scaling
    of ``M``; the numeric bound must reproduce this up to the descent tolerance.
 
-References:
+References
+----------
   Doyle J. C. (1982) "Analysis of feedback systems with structured
   uncertainties", *IEE Proc. D* 129, 242.
   Packard A., Doyle J. (1993) "The complex structured singular value",
@@ -61,7 +62,7 @@ from typing import Any, Callable, Mapping, Sequence
 import numpy as np
 from numpy.typing import NDArray
 
-from scpn_control.control.mu_synthesis import compute_mu_upper_bound
+from scpn_control.control.static_mu_analysis import compute_static_mu_upper_bound
 
 ComplexArray = NDArray[np.complex128]
 
@@ -93,7 +94,7 @@ def _spectral_radius(matrix: ComplexArray) -> float:
 def full_block_error(rng: np.random.Generator, n: int) -> float:
     """Absolute error of the bound against ``sigma_max(M)`` for one full block."""
     matrix = _complex_matrix(rng, n)
-    bound = compute_mu_upper_bound(matrix, [(n, "full")])
+    bound = compute_static_mu_upper_bound(matrix, [(n, "full")])
     return abs(bound - _sigma_max(matrix))
 
 
@@ -102,7 +103,7 @@ def diagonal_error(rng: np.random.Generator, n: int) -> float:
     diagonal = _complex_vector(rng, n)
     matrix = np.diag(diagonal)
     structure = [(1, "complex_scalar")] * n
-    bound = compute_mu_upper_bound(matrix, structure)
+    bound = compute_static_mu_upper_bound(matrix, structure)
     return abs(bound - float(np.max(np.abs(diagonal))))
 
 
@@ -112,7 +113,7 @@ def rank_one_relative_error(rng: np.random.Generator, n: int) -> float:
     v = _complex_vector(rng, n)
     matrix = np.outer(u, np.conjugate(v))
     structure = [(1, "complex_scalar")] * n
-    bound = compute_mu_upper_bound(matrix, structure)
+    bound = compute_static_mu_upper_bound(matrix, structure)
     exact = float(np.sum(np.abs(u) * np.abs(v)))
     return abs(bound - exact) / max(exact, 1e-15)
 
@@ -131,7 +132,7 @@ def sandwich_sample(rng: np.random.Generator, n: int, *, tolerance: float) -> Sa
     """Check the returned bound lies in ``[rho(M), sigma_max(M)]`` for diagonal ``Delta``."""
     matrix = _complex_matrix(rng, n)
     structure = [(1, "complex_scalar")] * n
-    bound = compute_mu_upper_bound(matrix, structure)
+    bound = compute_static_mu_upper_bound(matrix, structure)
     rho = _spectral_radius(matrix)
     sigma = _sigma_max(matrix)
     within = rho <= bound * (1.0 + tolerance) and bound <= sigma * (1.0 + tolerance)
@@ -145,8 +146,8 @@ def scaling_invariance_relative_error(rng: np.random.Generator, n: int) -> float
     scales = np.exp(rng.uniform(-1.0, 1.0, n)).astype(np.complex128)
     scaling = np.diag(scales)
     scaled = scaling @ matrix @ np.linalg.inv(scaling)
-    base = compute_mu_upper_bound(matrix, structure)
-    rescaled = compute_mu_upper_bound(scaled, structure)
+    base = compute_static_mu_upper_bound(matrix, structure)
+    rescaled = compute_static_mu_upper_bound(scaled, structure)
     return abs(base - rescaled) / max(base, 1e-15)
 
 
@@ -209,7 +210,7 @@ def validate_mu(
     sandwich_tol: float = 1e-6,
     scaling_invariance_tol: float = 2e-1,
 ) -> MuValidationResult:
-    """Validate ``compute_mu_upper_bound`` against exact structured-mu identities.
+    """Validate ``compute_static_mu_upper_bound`` against exact structured-mu identities.
 
     Four *gated* cases are exercised over deterministic seeded ensembles: the
     single full-block identity ``mu = sigma_max``, the diagonal-plant identity
@@ -389,7 +390,7 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
         "## Diagnostics (recorded, not gated)",
         "",
         "The D-scaling invariance probe exercises the 50-step finite-difference "
-        "descent in `compute_mu_upper_bound`. The bound is invariant in exact "
+        "descent in `compute_static_mu_upper_bound`. The bound is invariant in exact "
         "arithmetic, but the descent reaches slightly different local minima per "
         "orientation, so the spread below is reported but does not affect the "
         "pass/fail outcome.",

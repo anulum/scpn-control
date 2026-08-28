@@ -2315,21 +2315,33 @@ analysis and preserves the failed audit evidence in the returned result.
 
 ::: scpn_control.control.nmpc_transport_tuning.tune_neural_transport_closure_for_tracking
 
-### Mu-Synthesis (v0.16.0)
+### Riccati State Feedback with Static Mu Analysis
 
-::: scpn_control.control.mu_synthesis.MuSynthesisController
+::: scpn_control.control.static_mu_analysis.RiccatiStateFeedbackController
 
-::: scpn_control.control.mu_synthesis.compute_mu_upper_bound
+::: scpn_control.control.static_mu_analysis.StaticMuAnalysisResult
 
-::: scpn_control.control.mu_synthesis.MuSynthesisClaimEvidence
+::: scpn_control.control.static_mu_analysis.StructuredUncertainty
 
-::: scpn_control.control.mu_synthesis.mu_synthesis_claim_evidence
+::: scpn_control.control.static_mu_analysis.UncertaintyBlock
 
-::: scpn_control.control.mu_synthesis.assert_mu_synthesis_validated_claim_admissible
+::: scpn_control.control.static_mu_analysis.compute_static_mu_upper_bound
 
-::: scpn_control.control.mu_synthesis.save_mu_synthesis_claim_evidence
+::: scpn_control.control.static_mu_analysis.design_riccati_state_feedback_with_static_mu_analysis
 
-::: scpn_control.control.mu_synthesis.load_mu_synthesis_claim_evidence
+::: scpn_control.control.static_mu_analysis.StaticMuAnalysisClaimEvidence
+
+::: scpn_control.control.static_mu_analysis.static_mu_analysis_claim_evidence
+
+::: scpn_control.control.static_mu_analysis.assert_static_mu_analysis_validated_claim_admissible
+
+::: scpn_control.control.static_mu_analysis.save_static_mu_analysis_claim_evidence
+
+::: scpn_control.control.static_mu_analysis.load_static_mu_analysis_claim_evidence
+
+The historical `scpn_control.control.mu_synthesis` names are deprecated
+compatibility aliases scheduled for removal in version 0.25.0. They do not
+perform frequency-dependent D-K synthesis.
 
 ### Real-Time EFIT (v0.16.0)
 

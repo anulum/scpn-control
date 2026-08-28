@@ -2,11 +2,11 @@
   "expected_bucket_counts": {
     "external_artifact_blocked": 75,
     "historical_only": 41,
-    "rerunnable_local": 9
+    "rerunnable_local": 10
   },
   "freshness_max_age_days": 21,
-  "inventory_as_of_utc": "2026-08-27T00:00:00Z",
-  "registry_source_commit": "b6760f43016701a7b21189f87fcf02f4b53cac56",
+  "inventory_as_of_utc": "2026-08-28T16:40:25Z",
+  "registry_source_commit": "6e325d50a8b11436e34399c0a0dac15defcdbfe8",
   "reports": [
     {
       "claim_boundary": {
@@ -72,6 +72,61 @@
       },
       "report_commit": "c03bc49dd0bca2f17e5ef609d5184b2eee174f8f",
       "report_sha256": "3936ad32d08788f66c53f44b5768d55b824cfadb26b956ca2f2bc1a2b5e30473",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": true,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Fresh loaded-workstation local evidence for the declared zero-frequency static analysis only; no full-frequency D-K, scientific-validation, facility, production, or hardware-neutral claim.",
+        "scientific_admission": false
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "recorded_benchmark_finished_utc",
+      "evidence_time_utc": "2026-08-28T16:40:00.845162Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/static_mu_analysis_claims.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/static_mu_analysis_claims.json",
+          "validation/report_refreshes/2026-08-28/static_mu_analysis.json"
+        ],
+        "dependency_lock_sha256": "312f683407f2dee5ad12995692f691dfd6728b4be796c8025f6cfdc58b654b61",
+        "failures": [
+          "static_zero_frequency_analysis_only",
+          "full_frequency_dk_synthesis_not_implemented",
+          "external_reference_artifact_unavailable",
+          "public_claim_not_admitted"
+        ],
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "concurrent_heavy_jobs": "unspecified",
+          "cpu_affinity": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+          "isolation": "unspecified",
+          "load_average": [7.43212890625, 6.28564453125, 7.0947265625],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3"
+        },
+        "repeats": 1,
+        "samples": 1,
+        "source_commit": "6e325d50a8b11436e34399c0a0dac15defcdbfe8",
+        "warmup": 0
+      },
+      "refresh": {
+        "artifact_path": "validation/report_refreshes/2026-08-28/static_mu_analysis.json",
+        "artifact_sha256": "8c877459e7b5946ea66a5f0c4543a9ecb4292154d1745b6dfdafb8892b85b5cd",
+        "commands": [
+          "PYTHONPATH=src python tools/run_recorded_benchmark.py --family static-mu-analysis-claims --artifact report=validation/reports/static_mu_analysis_claims.json --artifact markdown=validation/reports/static_mu_analysis_claims.md -- python validation/benchmark_static_mu_analysis_claims.py"
+        ],
+        "evidence_time_utc": "2026-08-28T16:40:00.845162Z",
+        "locally_rerunnable": true,
+        "status": "refreshed"
+      },
+      "report_commit": "6e325d50a8b11436e34399c0a0dac15defcdbfe8",
+      "report_sha256": "b0970cd3d34701d74d738b11d0009f680325bb4353e3d251b1d190f3a27d00f2",
       "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
     },

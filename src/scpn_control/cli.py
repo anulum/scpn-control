@@ -39,7 +39,7 @@ Usage::
     scpn-control validate-burn-reference --require-reference-artifacts --json-out
     scpn-control validate-volt-second-reference --require-reference-artifacts --json-out
     scpn-control validate-current-drive-reference --require-reference-artifacts --json-out
-    scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
+    scpn-control validate-static-mu-analysis-reference --require-reference-artifacts --json-out
     scpn-control validate-free-boundary-reference --require-reference-artifacts --json-out
     scpn-control validate-disruption-reference --require-reference-artifacts --json-out
     scpn-control validate-digital-twin-reference --require-reference-artifacts --json-out

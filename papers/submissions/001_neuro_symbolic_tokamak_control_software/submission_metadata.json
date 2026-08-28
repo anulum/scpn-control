@@ -13,7 +13,7 @@
     "../../../validation/reports/controller_latency.json",
     "../../../validation/reports/native_handoff_comparison.json",
     "../../../validation/reports/neural_transport_claims.json",
-    "../../../validation/reports/mu_synthesis_claims.json"
+    "../../../validation/reports/static_mu_analysis_claims.json"
   ],
   "doi": null,
   "manuscript_content_license": null

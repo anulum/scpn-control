@@ -56,7 +56,7 @@ only after the matching validator admits it.
 | Neural transport/equilibrium | How surrogate evidence is separated from full reference admission |
 | Phase dynamics | How SCPN phase contracts, Lyapunov guards, and WebSocket runtime boundaries interact |
 | Frontier physics | Which physics modules are local bounded models and which require external validation |
-| Advanced controllers | How robust/NMPC/mu-synthesis surfaces expose lifecycle and admission constraints |
+| Advanced controllers | How robust, static-mu-analysis, and NMPC surfaces expose lifecycle and admission constraints |
 
 ## Controller walkthrough
 

@@ -15,7 +15,7 @@
 
 ## Diagnostics (recorded, not gated)
 
-The D-scaling invariance probe exercises the 50-step finite-difference descent in `compute_mu_upper_bound`. The bound is invariant in exact arithmetic, but the descent reaches slightly different local minima per orientation, so the spread below is reported but does not affect the pass/fail outcome.
+The D-scaling invariance probe exercises the 50-step finite-difference descent now exposed as `compute_static_mu_upper_bound`. The bound is invariant in exact arithmetic, but the descent reaches slightly different local minima per orientation, so the spread below is reported but does not affect the pass/fail outcome. The numerical record and timestamp are retained from the original run; only this historical symbol note was clarified.
 
 | diagnostic | samples | max relative spread | soft tolerance | within |
 | --- | --- | --- | --- | --- |

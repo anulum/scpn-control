@@ -48,8 +48,9 @@ solver in flux-tube geometry with a JAX GPU path, interfaces to five
 external GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) whose quantitative
 external-code claims remain blocked until real artefacts are admitted, a
 hybrid surrogate+GK validation layer with out-of-distribution detection
-and online retraining, ten controllers (PID, MPC, $H_\infty$, $\mu$-synthesis,
-NMPC, SNN, safe RL, sliding-mode, gain-scheduled, fault-tolerant),
+and online retraining, ten controllers (PID, MPC, $H_\infty$, Riccati state
+feedback with static $\mu$ analysis, NMPC, SNN, safe RL, sliding-mode,
+gain-scheduled, fault-tolerant),
 disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) with a reproducible
 benchmark reporting a ~5 µs P50 native integrated control cycle on the CI
@@ -159,8 +160,8 @@ The Python package is organised into four layers:
 - **SCPN** (`scpn_control.scpn`): SPN structure, compiler, contract system,
   artifact serialisation, FPGA HDL project export evidence.
 - **Control** (`scpn_control.control`): $H_\infty$ (Riccati DARE),
-  $\mu$-synthesis (D-scaling upper bound; bounded static $\mu$-analysis,
-  not validated full DK synthesis), NMPC (SQP), gain-scheduled PID,
+  Riccati state feedback with a D-scaling upper bound (bounded static
+  $\mu$-analysis, not validated full DK synthesis), NMPC (SQP), gain-scheduled PID,
   shape controller, safe RL (CPO-formulated Lagrangian constraints with
   control barrier functions, Ames 2017), sliding-mode vertical stability,
   scenario scheduler, fault-tolerant control, digital

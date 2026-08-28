@@ -198,13 +198,13 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.10 |
 | Project scripts | 1 |
 | Public API exports | 44 |
-| Python control/physics modules | 196 |
-| Python public classes | 553 |
+| Python control/physics modules | 197 |
+| Python public classes | 555 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 155 |
+| Validation scripts | 157 |
 | Optional extras | 20 |
-| Python test files | 567 |
+| Python test files | 568 |
 | Public documentation pages | 69 |
 | GitHub Actions workflows | 12 |
 
@@ -296,7 +296,7 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
   pre/post-condition assertions on every action, and fail-closed proof-manifest
   validation. This is bounded software evidence, not verification of the controller
   code or the physics.
-- **Controller families** -- PID, MPC, NMPC, H-infinity, mu-synthesis,
+- **Controller families** -- PID, MPC, NMPC, H-infinity, Riccati state feedback,
   gain-scheduled, sliding-mode, fault-tolerant, SNN, and reinforcement-learning
   research controllers.
 - **Robust control** -- H-infinity DARE synthesis, bounded static mu-analysis,
@@ -360,9 +360,9 @@ src/scpn_control/
 |   +-- neural_transport.py        # QLKNN-10D trained surrogate
 |   +-- neural_equilibrium.py      # PCA+MLP GS surrogate (research-path speedup, not P-EFIT validated)
 |   +-- ...                        # 14 more (eqdsk, uncertainty, pedestal, ...)
-+-- control/           # Controllers (51 modules, optional deps guarded)
++-- control/           # Controllers (optional deps guarded)
 |   +-- h_infinity_controller.py   # H-inf robust control (DARE)
-|   +-- mu_synthesis.py            # Static D-scaled structured singular value bound
+|   +-- static_mu_analysis.py      # Riccati feedback + static D-scaled mu bound
 |   +-- nmpc_controller.py         # Nonlinear MPC (SQP, 20-step horizon)
 |   +-- gain_scheduled_controller.py  # PID scheduled on operating regime
 |   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
@@ -392,7 +392,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 567 Python test files (generated inventory)
+tests/                 # 568 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests

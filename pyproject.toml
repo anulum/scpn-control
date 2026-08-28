@@ -16,7 +16,7 @@ description = "SCPN Control — Neuro-symbolic Stochastic Petri Net controller f
 authors = [
     {name = "Miroslav Sotek", email = "protoscience@anulum.li"},
 ]
-keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto", "MHD", "gyrokinetic", "H-infinity", "mu-synthesis", "NMPC"]
+keywords = ["tokamak", "plasma-control", "petri-net", "snn", "Kuramoto", "MHD", "gyrokinetic", "H-infinity", "structured-mu-analysis", "NMPC"]
 license = "AGPL-3.0-or-later"
 classifiers = [
     "Development Status :: 3 - Alpha",

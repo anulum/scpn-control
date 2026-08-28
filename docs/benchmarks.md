@@ -1092,23 +1092,26 @@ Ray-traced, Fokker-Planck, or measured-deposition current-drive claims still
 require strict reference artifacts for total power, driven current, deposition
 centroid, peak current density, and NBI slowing-down agreement.
 
-## Mu-synthesis Claim-Admission Benchmark
+## Static Structured-Mu Claim-Admission Benchmark
 
-`validation/benchmark_mu_synthesis_claims.py` publishes bounded repository
+`validation/benchmark_static_mu_analysis_claims.py` publishes bounded repository
 regression evidence for the static D-scaled structured-singular-value analysis
 claim boundary. The generated report records plant dimensions, uncertainty
-blocks, mu upper bound, robustness margin, controller gain norm, D-scalings,
-closed-loop spectral abscissa, and the explicit validated-claim boundary.
+blocks, the zero-frequency mu upper bound, its reciprocal, controller gain norm,
+D-scalings, closed-loop spectral abscissa, and the explicit validated-claim
+boundary. Legacy schema-v1 field names remain in the JSON for compatibility.
 
 Report artefacts:
 
-- `validation/reports/mu_synthesis_claims.json`
-- `validation/reports/mu_synthesis_claims.md`
+- `validation/reports/static_mu_analysis_claims.json`
+- `validation/reports/static_mu_analysis_claims.md`
+
+The previous `mu_synthesis_claims` pair remains retained as historical evidence;
+new runs do not overwrite it.
 
 Full frequency-dependent D-K synthesis claims still require documented public,
-external mu-toolbox, or measured control replay references for mu upper bound,
-robustness margin, controller gain, D-scaling, and closed-loop spectral-abscissa
-agreement.
+external mu-toolbox, or measured control replay references for frequency-wise mu
+bounds, controller synthesis, D-scale fitting, and closed-loop agreement.
 
 ## Disruption-mitigation Claim-Admission Benchmark
 

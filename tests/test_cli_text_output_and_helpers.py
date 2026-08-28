@@ -32,7 +32,7 @@ def runner() -> CliRunner:
 
 _REFERENCE_COMMANDS = [
     ("validate-current-drive-reference", "Current-drive reference: fail"),
-    ("validate-mu-synthesis-reference", "Mu-synthesis reference: fail"),
+    ("validate-static-mu-analysis-reference", "Static mu-analysis reference: fail"),
     ("validate-volt-second-reference", "Volt-second reference: fail"),
     ("validate-burn-reference", "Burn reference: fail"),
     ("validate-free-boundary-reference", "Free-boundary reference: fail"),
@@ -66,6 +66,24 @@ def test_reference_command_json_out_and_report_file(runner, tmp_path, command, _
     assert out.is_file()
     assert '"status"' in out.read_text(encoding="utf-8")
     assert '"status"' in result.output  # --json-out echoes the report to stdout
+
+
+def test_deprecated_mu_synthesis_validator_command_forwards_with_notice(runner, tmp_path):
+    """The old hidden command must remain callable and disclose its migration."""
+    result = runner.invoke(
+        main,
+        [
+            "validate-mu-synthesis-reference",
+            "--artifact-root",
+            str(tmp_path),
+            "--json-out",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert "DEPRECATED" in result.output
+    assert "validate-static-mu-analysis-reference" in result.output
+    assert '"status": "pass"' in result.output
 
 
 # ── _coerce_float ─────────────────────────────────────────────────────

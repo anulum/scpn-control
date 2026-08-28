@@ -96,7 +96,7 @@ graph TD
 
     subgraph "control/ — Controllers"
         HINF2[h_infinity_controller.py]
-        MU2[mu_synthesis.py]
+        MU2[static_mu_analysis.py]
         NMPC2[nmpc_controller.py]
         GS_C[gain_scheduled_controller.py]
         CLS[closed_loop_scenario.py]
@@ -134,7 +134,7 @@ NeuralEquilibrium   IntegratedTransportSolver
     Controller Selection
     ├── PID / Gain-Scheduled (GainScheduledController)
     ├── H-infinity (HInfinityController)
-    ├── Mu-Synthesis (MuSynthesisController)
+    ├── Riccati + static μ analysis (RiccatiStateFeedbackController)
     ├── NMPC (NMPCController, SQP 20-step)
     ├── MPC (ModelPredictiveController)
     ├── Sliding-Mode (SlidingModeVerticalController)
@@ -218,7 +218,7 @@ graph LR
     subgraph "Controllers"
         MPC[fusion_neural_mpc]
         HINF[h_infinity_controller]
-        MU[mu_synthesis]
+        MU[static_mu_analysis]
         NMPC[nmpc_controller]
         GS_CTRL[gain_scheduled]
         SM[sliding_mode_vertical]

@@ -1827,37 +1827,42 @@ tolerances.
 
 Static mu-analysis validation claims require persisted documented public,
 external mu-toolbox, or measured control replay artifacts for mu upper bound,
-robustness margin, controller gain, D-scaling, and closed-loop spectral
+reciprocal static upper bound, controller gain, D-scaling, and closed-loop spectral
 abscissa checks:
 
-Bounded local mu-synthesis claim evidence can be regenerated with:
+Bounded local static mu-analysis evidence can be regenerated with:
 
 ```bash
 PYTHONPATH=src python tools/run_recorded_benchmark.py \
-  --family mu-synthesis-claims \
-  --artifact report=validation/reports/mu_synthesis_claims.json \
-  --artifact markdown=validation/reports/mu_synthesis_claims.md \
-  -- python validation/benchmark_mu_synthesis_claims.py
+  --family static-mu-analysis-claims \
+  --artifact report=validation/reports/static_mu_analysis_claims.json \
+  --artifact markdown=validation/reports/static_mu_analysis_claims.md \
+  -- python validation/benchmark_static_mu_analysis_claims.py
 ```
 
-This writes `validation/reports/mu_synthesis_claims.json` and
-`validation/reports/mu_synthesis_claims.md`. These artefacts demonstrate
+This writes `validation/reports/static_mu_analysis_claims.json` and
+`validation/reports/static_mu_analysis_claims.md`. These artefacts demonstrate
 deterministic static mu-analysis claim-admission plumbing only. The persisted
-JSON carries a canonical payload SHA-256 digest and `load_mu_synthesis_claim_evidence()`
+JSON carries a canonical payload SHA-256 digest and
+`load_static_mu_analysis_claim_evidence()`
 rejects duplicate keys, schema drift, edited metric fields, and bounded
 evidence presented as a validated robust-control claim. Full frequency-dependent
 D-K synthesis claims remain gated by the strict reference-artefact validator
 below.
 
 ```bash
-scpn-control validate-mu-synthesis-reference --require-reference-artifacts --json-out
-python validation/validate_mu_synthesis_reference.py --require-reference-artifacts --output-json artifacts/mu_synthesis_reference_report.json
+scpn-control validate-static-mu-analysis-reference --require-reference-artifacts --json-out
+python validation/validate_static_mu_analysis_reference.py --require-reference-artifacts --output-json artifacts/static_mu_analysis_reference_report.json
 ```
 
-Strict mode fails until `validation/reports/mu_synthesis_reference/` contains
+Strict mode fails until `validation/reports/static_mu_analysis_reference/` contains
 artifacts with source provenance, model identity, SHA-256 reference hash, plant
 metadata, unit contracts, case count, and mu-analysis metrics inside declared
 tolerances.
+
+The former command, validator script, and Python module remain deprecated
+compatibility entrypoints through version 0.24.x; they forward to this static
+analysis contract and do not execute D-K iteration.
 
 Disruption-mitigation contract validation claims require persisted
 public-reference, measured-disruption, or external benchmark artifacts for
