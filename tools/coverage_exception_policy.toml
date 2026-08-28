@@ -1,0 +1,193 @@
+schema = "scpn-control.coverage-exception-policy.v1"
+last_review = "2026-08-28"
+expected_total = 363
+expected_sha256 = "0befe87a9bde723a65b21d1cc0390b280313c8a8217cd0b8c15415e043b0aee4"
+
+[[rules]]
+id = "python-version"
+pattern = "python_version|sys\\.version|python [0-9]"
+external_dependency = "supported Python interpreter matrix"
+execution_lane = "python-tests: Python 3.10-3.13"
+status = "variant-ci-lane"
+removal_condition = "Remove when the guarded interpreter is no longer supported or the branch executes in the baseline lane."
+workflow_evidence = "python-version: [\"3.10\", \"3.11\", \"3.12\", \"3.13\"]"
+
+[[rules]]
+id = "windows"
+pattern = "windows|win32|nt platform"
+external_dependency = "Windows runtime"
+execution_lane = "python-tests: windows-2025 / Python 3.12"
+status = "variant-ci-lane"
+removal_condition = "Remove when Windows support is retired or the branch no longer differs by operating system."
+workflow_evidence = "os: windows-2025"
+
+[[rules]]
+id = "macos"
+pattern = "darwin|macos|mac os"
+external_dependency = "macOS runtime"
+execution_lane = "python-tests: macos-latest / Python 3.12"
+status = "variant-ci-lane"
+removal_condition = "Remove when macOS support is retired or the branch no longer differs by operating system."
+workflow_evidence = "os: macos-latest"
+
+[[rules]]
+id = "rust"
+pattern = "(^|[^a-z])rust([^a-z]|$)|pyo3|maturin|scpn_control_rs|native extension"
+external_dependency = "compiled Rust/PyO3 extension"
+execution_lane = "rust-python-interop"
+status = "variant-ci-lane"
+removal_condition = "Remove when the Rust extension becomes mandatory in the baseline wheel or the guarded compatibility path is retired."
+workflow_evidence = "rust-python-interop:"
+
+[[rules]]
+id = "jax"
+pattern = "(^|[^a-z])jax([^a-z]|$)|has_jax|xla"
+external_dependency = "JAX runtime"
+execution_lane = "jax-parity plus Python coverage lane"
+status = "variant-ci-lane"
+removal_condition = "Remove when JAX is mandatory in the baseline environment or the optional backend is retired."
+workflow_evidence = "jax-parity:"
+
+[[rules]]
+id = "torch"
+pattern = "(^|[^a-z])torch([^a-z]|$)|has_torch|pytorch"
+external_dependency = "PyTorch CPU runtime"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when PyTorch is mandatory for all supported environments or the optional path is retired."
+workflow_evidence = "requirements/ci-torch.txt"
+
+[[rules]]
+id = "nengo"
+pattern = "(^|[^a-z])nengo([^a-z]|$)|has_nengo|loihi"
+external_dependency = "Nengo Loihi emulator"
+execution_lane = "nengo-loihi"
+status = "variant-ci-lane"
+removal_condition = "Remove when the emulator is mandatory in baseline CI or the backend is retired."
+workflow_evidence = "nengo-loihi:"
+
+[[rules]]
+id = "studio-sdk"
+pattern = "studio platform|scpn_studio|studio sdk"
+external_dependency = "published Studio platform SDK"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when the SDK is a mandatory package dependency or the Studio vertical is retired."
+workflow_evidence = "requirements/ci-studio.txt"
+
+[[rules]]
+id = "visualisation"
+pattern = "matplotlib|has_mpl|(^|[^a-z])mpl([^a-z]|$)|plotly|visuali[sz]ation"
+external_dependency = "visualisation dependencies"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when visualisation dependencies become baseline requirements or the guarded feature is retired."
+workflow_evidence = "requirements/ci-viz.txt"
+
+[[rules]]
+id = "optuna"
+pattern = "(^|[^a-z])optuna([^a-z]|$)|has_optuna"
+external_dependency = "Optuna tuning dependency"
+execution_lane = "none: optional tuning environment"
+status = "explicit-environment-blocker"
+removal_condition = "Remove when Optuna is installed in a named executing CI lane or the tuning feature is retired."
+workflow_evidence = ""
+
+[[rules]]
+id = "hdf5"
+pattern = "h5py|hdf5"
+external_dependency = "HDF5 runtime"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when HDF5 becomes a baseline dependency or the guarded storage feature is retired."
+workflow_evidence = "requirements/ci-hdf5.txt"
+
+[[rules]]
+id = "compiler"
+pattern = "g\\+\\+|compiler|toolchain|cargo|rustc|nvcc"
+external_dependency = "external compiler/toolchain executable"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when the native C build feature is retired or the toolchain becomes a mandatory package build dependency rather than a test variant."
+workflow_evidence = "Verify native C++ toolchain (ubuntu 3.12 only)"
+
+[[rules]]
+id = "sc-neurocore"
+pattern = "sc_neurocore|sc-neurocore|neurocore[_ ]v3"
+external_dependency = "sibling SC-NEUROCORE package and compatible native surface"
+execution_lane = "none in this repository"
+status = "external-blocked"
+removal_condition = "Remove after a pinned sibling package is installed and the exact integration owner executes in CI, or retire the integration."
+workflow_evidence = ""
+
+[[rules]]
+id = "lean"
+pattern = "lean_ci|lean proof|lake build|lean4"
+external_dependency = "Lean toolchain"
+execution_lane = "lean-proofs"
+status = "variant-ci-lane"
+removal_condition = "Remove when the Lean toolchain is installed in baseline Python CI or the proof integration is retired."
+workflow_evidence = "lean-proofs:"
+
+[[rules]]
+id = "gpu-hardware"
+pattern = "cuda|gpu|rocm|accelerator"
+external_dependency = "compatible physical accelerator and driver"
+execution_lane = "none: hardware evidence required"
+status = "external-blocked"
+removal_condition = "Remove after a maintained hardware CI lane executes this exact owner with recorded device and driver provenance."
+workflow_evidence = "CUDA_VISIBLE_DEVICES: \"\""
+
+[[rules]]
+id = "facility-data"
+pattern = "mdsplus|mast|diii-d|diiid|facility|real shot|dataset|omas|imas"
+external_dependency = "licensed or facility-hosted data/service"
+execution_lane = "none: external data authority required"
+status = "external-blocked"
+removal_condition = "Remove after redistributable data or an authenticated facility lane exercises the exact path with provenance."
+workflow_evidence = "data-manifest-gate:"
+
+[[rules]]
+id = "reference-artifact"
+pattern = "geqdsk|sparc|itpa|weights not|fixture directory|reference data"
+external_dependency = "reference data or trained weight artifact"
+execution_lane = "none unless an admitted manifest supplies the artifact"
+status = "external-blocked"
+removal_condition = "Remove after a provenance-checked redistributable artifact is installed in a named executing lane or the test is retired."
+workflow_evidence = "data-manifest-gate:"
+
+[[rules]]
+id = "network-service"
+pattern = "(^|[^a-z])(network|internet|socket|port|remote|service|endpoint)([^a-z]|$)"
+external_dependency = "network service or available local port"
+execution_lane = "none: environment-dependent service"
+status = "explicit-environment-blocker"
+removal_condition = "Remove after a hermetic service fixture or governed integration lane owns the exact interaction."
+workflow_evidence = "e2e-diiid:"
+
+[[rules]]
+id = "filesystem-capability"
+pattern = "symlink|file permission|filesystem|path too long|sun_path"
+external_dependency = "operating-system filesystem capability"
+execution_lane = "python-tests: Ubuntu, Windows, and macOS"
+status = "variant-ci-lane"
+removal_condition = "Remove when the capability is guaranteed on every supported filesystem or the guarded feature is retired."
+workflow_evidence = "os: [ubuntu-latest]"
+
+[[rules]]
+id = "optional-package"
+pattern = "importerror|not installed|not available|unavailable|optional|dependency|package|module"
+external_dependency = "optional Python package not admitted to every CI context"
+execution_lane = "baseline or named optional-owner lane"
+status = "explicit-environment-blocker"
+removal_condition = "Remove when the package is installed in a named executing lane or the optional feature is retired."
+workflow_evidence = "python-tests:"
+
+[[rules]]
+id = "intrinsic-control-flow"
+pattern = ".*"
+external_dependency = "none; defensive, protocol, or interpreter-only control flow"
+execution_lane = "python-tests: Ubuntu 3.12 coverage"
+status = "reasoned-control-flow"
+removal_condition = "Remove when the defensive branch becomes reachable through an admitted public/runtime input or the branch is deleted."
+workflow_evidence = "Coverage (ubuntu 3.12 only)"

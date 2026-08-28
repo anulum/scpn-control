@@ -255,7 +255,7 @@ class TestSimulateTearingModeExtended:
                 assert ttd >= 0
                 assert len(sig) <= 2000
                 return
-        pytest.skip("no disruption found in 200 seeds")
+        pytest.fail("synthetic tearing generator produced no disruptive trajectory in 200 fixed seeds")
 
     def test_safe_returns_label_0(self):
         for seed in range(100):
@@ -266,7 +266,7 @@ class TestSimulateTearingModeExtended:
                 assert len(sig) == 1000
                 break
         else:
-            pytest.skip("no safe shot found in 100 seeds")
+            pytest.fail("synthetic tearing generator produced no safe trajectory in 100 fixed seeds")
 
 
 # ── evaluate_predictor ───────────────────────────────────────────────

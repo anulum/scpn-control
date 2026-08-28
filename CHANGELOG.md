@@ -7,6 +7,12 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Added a digest-sealed ownership ledger for every configured coverage
+  exclusion, source pragma, skip/skipif, and strict xfail, separating executing
+  CI variants from explicit environment and external-data blockers.
+- Replaced three conditional test skips with deterministic runtime assertions
+  so absent packed-weight fixtures or unexpected synthetic trajectory classes
+  fail rather than disappearing from the test result.
 - Added a versioned native solver C ABI with typed status codes, retained the
   five historical symbols as a compatibility surface, and made the Python
   bridge prefer the new real library contract.

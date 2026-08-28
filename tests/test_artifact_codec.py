@@ -1160,12 +1160,9 @@ class TestArtifactValidationContract:
 
     def test_artifact_serialises_notes_and_noncompact_packed_weights(
         self,
-        artifact_path: Path,
         tmp_path: Path,
     ) -> None:
-        artifact = load_artifact(str(artifact_path))
-        if artifact.weights.packed is None:
-            pytest.skip("No packed weights in test artifact")
+        artifact = _manual_artifact()
         artifact.meta.notes = "validation memo"
         out = tmp_path / "noted.scpnctl.json"
 

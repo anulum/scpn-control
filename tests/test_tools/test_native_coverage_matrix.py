@@ -59,6 +59,20 @@ def test_native_coverage_matrix_rejects_missing_rust_present_artifact(tmp_path: 
     assert [finding.check for finding in matrix.findings] == ["rust-present coverage data artifact"]
 
 
+def test_native_coverage_matrix_rejects_missing_rust_variant_owner(tmp_path: Path) -> None:
+    """Every Rust/PyO3 conditional test owner must execute in the native lane."""
+    workflow, pyproject, docs = _copy_matrix_inputs(tmp_path)
+    workflow.write_text(
+        workflow.read_text(encoding="utf-8").replace("tests/test_boris_pyo3_bridge.py", "removed.py"),
+        encoding="utf-8",
+    )
+
+    matrix = validate_native_coverage_matrix(workflow, pyproject, docs)
+
+    assert matrix.passed is False
+    assert [finding.check for finding in matrix.findings] == ["rust-present coverage data artifact"]
+
+
 def test_native_coverage_matrix_rejects_missing_combine_gate(tmp_path: Path) -> None:
     """The guard fails when the merged report is no longer gated at 100 percent."""
     workflow, pyproject, docs = _copy_matrix_inputs(tmp_path)

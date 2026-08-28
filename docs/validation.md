@@ -222,7 +222,11 @@ Coverage gate (matches CI threshold):
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=term --cov-fail-under=100
 ```
 
-The line-coverage gate is `100` in `pyproject.toml` and CI. New recovery work
+The **100% configured package coverage gate for admitted CI contexts** keeps
+statement and branch `fail_under = 100` in `pyproject.toml` and CI. It applies
+to the merged baseline and Rust-present contexts, not to unavailable hardware,
+facility data, external services, or optional packages without an executing
+lane. New recovery work
 must add module-specific behavioural tests for concrete production surfaces
 rather than synthetic line-hit tests.
 
@@ -246,15 +250,23 @@ python -m maturin develop --release
 cd ../../..
 python -m pip install -e .
 python -c "import importlib.util; from scpn_control.core._rust_compat import _rust_available; assert importlib.util.find_spec('scpn_control_rs') and _rust_available()"
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin tests/test_rust_python_parity.py tests/test_rust_compat_wrapper.py tests/test_snn_pyo3_bridge.py tests/test_rust_realtime_parity.py -v
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest -p hypothesis.extra.pytestplugin \
+  tests/test_aer_observation_rust_parity.py tests/test_boris_pyo3_bridge.py \
+  tests/test_capacitor_bank_state_pyo3.py tests/test_controller_advanced_paths.py \
+  tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py \
+  tests/test_multi_shot_campaign.py tests/test_multi_shot_campaign_pyo3.py \
+  tests/test_pyo3_control_bridge.py tests/test_rust_compat_wrapper.py \
+  tests/test_rust_python_parity.py tests/test_rust_realtime_parity.py \
+  tests/test_snn_pyo3_bridge.py -v
 ```
 
 Native-dependent coverage uses two CI data files and a merged report:
 
 1. `python-tests` writes `coverage-data-python` from the rust-absent Python
    coverage job.
-2. `rust-python-interop` builds `scpn_control_rs`, runs the PyO3 parity tests
-   with `COVERAGE_FILE=.coverage.rust`, and writes `coverage-data-rust`.
+2. `rust-python-interop` builds `scpn_control_rs`, runs every ledger-recorded
+   Rust/PyO3 conditional test-file owner with `COVERAGE_FILE=.coverage.rust`,
+   and writes `coverage-data-rust`.
 3. `native-coverage-combine` downloads both artifacts, runs
    `coverage combine --keep artifacts/coverage/python artifacts/coverage/rust`,
    emits the merged `coverage-report-combined`, and gates it with
@@ -262,6 +274,13 @@ Native-dependent coverage uses two CI data files and a merged report:
 
 Run `scpn-native-coverage-matrix --json` to verify the workflow and public docs
 still expose the `scpn-control.native-coverage-matrix.v1` contract.
+
+`python tools/coverage_exception_ledger.py --check` independently seals every
+current pragma, configured exclusion pattern, skip/skipif, and strict xfail.
+Its generated JSON records owner, reason, dependency, real CI lane or explicit
+blocker, last review, and removal condition. The ledger therefore reports
+variant breadth separately from the configured coverage percentage instead of
+silently treating skipped variants as covered.
 
 ## Local acceptance campaigns
 

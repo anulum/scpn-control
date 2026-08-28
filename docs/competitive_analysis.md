@@ -125,7 +125,7 @@ mirror that manifest; curated domain rows follow.
 | Rust LOC (all .rs) | ~61,900 |
 | Python test files | 549 |
 | Python public classes | 551 |
-| Test coverage gate | 100% |
+| Test coverage gate | 100% configured package coverage gate for admitted CI contexts |
 | GitHub Actions workflows | 11 |
 | Real DIII-D shots | 17 disruption + 1 safe baseline |
 | SPARC GEQDSK files | 3 |

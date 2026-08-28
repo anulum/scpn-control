@@ -97,7 +97,7 @@ admitted.
 You need real-time control prototyping **now**, not after a 3-year bespoke
 development cycle. scpn-control gives you:
 
-- A tested controller stack with module-specific tests, a 100% configured coverage gate, and
+- A tested controller stack with module-specific tests, a 100% configured package coverage gate for admitted CI contexts, and
   CI-gated bounded validation
 - Five-tier gyrokinetic transport research surfaces with strict boundaries for
   external-code agreement

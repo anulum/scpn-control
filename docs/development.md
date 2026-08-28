@@ -58,9 +58,13 @@ pytest -m "not slow"                     # skip slow markers
 pytest --cov=scpn_control --cov-report=term --cov-fail-under=100
 ```
 
-Coverage gate: 100% (configured in `pyproject.toml`). Coverage claims should
-come from the latest local coverage run or the GitHub coverage lane, not from
-static documentation text.
+The project enforces a **100% configured package coverage gate for admitted CI contexts**
+(configured in `pyproject.toml`). This is a statement/branch gate for
+the dependencies and variants actually admitted to the merged coverage jobs;
+it is not a claim that unavailable hardware, private datasets, facility
+services, or every optional package executed. Coverage claims should come from
+the latest local coverage run or the GitHub coverage lane, not from static
+documentation text.
 
 ---
 
@@ -109,9 +113,25 @@ Use a one-line reason such as an optional dependency path, native backend path,
 or defensive invariant branch. The gate runs through `tools/preflight.py` and
 fails on bare exclusions.
 
+The broader exception ledger covers source pragmas, coverage.py exclusion
+patterns, `skipif`, runtime skips, and strict xfails. Every entry records its
+owner, reason/condition, external dependency, executing CI lane or explicit
+blocker, review date, and removal condition:
+
+```bash
+python tools/coverage_exception_ledger.py --check
+```
+
+The committed machine-readable output is
+`tools/coverage_exception_ledger.json`. Source locations and conditions are
+digest-sealed, so a new or moved exception fails CI until its ownership and
+variant classification are reviewed. Runtime skips are not accepted as
+coverage success merely because the configured context excludes them.
+
 Native-dependent modules use a two-environment coverage matrix because the
 authoritative Python job runs without the optional `scpn_control_rs` extension
-while the interop job builds it. CI uploads `coverage-data-python` and
+while the interop job builds it and executes every test-file owner with a
+Rust/PyO3 conditional entry in the exception ledger. CI uploads `coverage-data-python` and
 `coverage-data-rust`, then `native-coverage-combine` runs:
 
 ```bash
