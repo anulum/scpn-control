@@ -27,7 +27,12 @@ import numpy as np
 import pytest
 
 from scpn_control.core import hpc_bridge as hpc_mod
-from scpn_control.core.hpc_bridge import HPCBridge, _as_contiguous_f64
+from scpn_control.core.hpc_bridge import (
+    HPCBridge,
+    NativeSolverError,
+    NativeSolverStatus,
+    _as_contiguous_f64,
+)
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -111,6 +116,7 @@ def _make_bridge(nr: int = 2, nz: int = 3) -> HPCBridge:
     bridge._destroy_symbol = "destroy_solver"
     bridge._has_converged_api = True
     bridge._has_boundary_api = True
+    bridge._has_v1_api = False
     bridge.nr = nr
     bridge.nz = nz
     return bridge
@@ -133,9 +139,15 @@ def _write_solver_source(
     module_file.write_text("# test module path\n", encoding="utf-8")
     source_path = tmp_path / "solver.cpp"
     source_path.write_bytes(source)
-    digest = hashlib.sha256(source).hexdigest()
+    header_path = tmp_path / "solver.h"
+    header_path.write_bytes(b"/* native ABI contract */\n")
     (tmp_path / "solver_manifest.json").write_text(
-        json.dumps({"solver.cpp": {"sha256": digest}}),
+        json.dumps(
+            {
+                "solver.cpp": {"sha256": hashlib.sha256(source).hexdigest()},
+                "solver.h": {"sha256": hashlib.sha256(header_path.read_bytes()).hexdigest()},
+            }
+        ),
         encoding="utf-8",
     )
     monkeypatch.setattr(hpc_mod, "__file__", str(module_file))
@@ -226,6 +238,14 @@ def test_solve_into_rejects_wrong_shape_output() -> None:
     out_buf = np.empty((2, 2), dtype=np.float64)
     with pytest.raises(ValueError, match="shape mismatch"):
         bridge.solve_into(j_phi, out_buf, iterations=3)
+
+
+def test_solve_into_rejects_overlapping_source_and_output() -> None:
+    """The Python bridge rejects aliasing before entering the native ABI."""
+    bridge = _make_bridge(nr=2, nz=3)
+    shared = np.arange(6, dtype=np.float64).reshape(3, 2)
+    with pytest.raises(ValueError, match="must not overlap"):
+        bridge.solve_into(shared, shared, iterations=3)
 
 
 def test_solve_into_rejects_non_ndarray_output() -> None:
@@ -345,6 +365,20 @@ def test_set_boundary_dirichlet_noop_without_support() -> None:
     bridge._has_boundary_api = False
     bridge.set_boundary_dirichlet(0.5)
     assert _dummy_lib(bridge).boundary_value is None
+
+
+def test_set_boundary_dirichlet_rejects_nonfinite_value() -> None:
+    """Boundary validation is consistent for versioned and legacy libraries."""
+    bridge = _make_bridge(nr=2, nz=3)
+    with pytest.raises(ValueError, match="must be finite"):
+        bridge.set_boundary_dirichlet(float("nan"))
+
+
+def test_initialize_rejects_replacing_live_state() -> None:
+    """Reinitialisation cannot silently leak an already-owned native handle."""
+    bridge = _make_bridge(nr=2, nz=3)
+    with pytest.raises(RuntimeError, match="already initialized"):
+        bridge.initialize(3, 3, (1.0, 2.0), (-1.0, 1.0))
 
 
 def test_close_releases_solver_pointer() -> None:
@@ -548,10 +582,10 @@ def test_packaged_solver_manifest_matches_source() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert source_path.is_file()
+    header_path = source_path.with_name("solver.h")
     assert manifest == {
-        "solver.cpp": {
-            "sha256": hashlib.sha256(source_path.read_bytes()).hexdigest(),
-        }
+        "solver.cpp": {"sha256": hashlib.sha256(source_path.read_bytes()).hexdigest()},
+        "solver.h": {"sha256": hashlib.sha256(header_path.read_bytes()).hexdigest()},
     }
     assert hpc_mod._verify_solver_source(source_path, manifest_path)
 
@@ -562,7 +596,18 @@ def test_packaged_solver_artifacts_are_declared_in_package_data() -> None:
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     package_data = cast(list[str], pyproject["tool"]["setuptools"]["package-data"]["scpn_control.core"])
 
-    assert {"solver.cpp", "solver_manifest.json"} <= set(package_data)
+    assert {"solver.cpp", "solver.h", "solver_manifest.json"} <= set(package_data)
+
+
+def test_verify_solver_source_rejects_tampered_abi_header(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """Native compilation fails closed when the normative ABI header drifts."""
+    source_path = _write_solver_source(tmp_path, monkeypatch)
+    source_path.with_name("solver.h").write_text("/* tampered */\n", encoding="utf-8")
+
+    assert not hpc_mod._verify_solver_source(source_path, source_path.with_name("solver_manifest.json"))
 
 
 def _release_library_handle(handle: int) -> None:
@@ -596,8 +641,35 @@ def test_compile_cpp_builds_and_loads_packaged_solver(monkeypatch: pytest.Monkey
     try:
         with HPCBridge(out) as bridge:
             assert bridge.is_available()
+            assert bridge._has_v1_api
+            with pytest.raises(NativeSolverError) as invalid_grid:
+                bridge.initialize(2, 5, (1.0, 5.0), (-2.0, 2.0))
+            assert invalid_grid.value.status is NativeSolverStatus.INVALID_DIMENSIONS
+
             bridge.initialize(5, 5, (1.0, 5.0), (-2.0, 2.0))
             source = -np.ones((5, 5), dtype=np.float64)
+            native_out = np.empty_like(source)
+            assert bridge.lib is not None
+            assert (
+                bridge.lib.scpn_solver_run_steps_v1(None, source, native_out, source.size, 1)
+                == NativeSolverStatus.INVALID_HANDLE
+            )
+            assert (
+                bridge.lib.scpn_solver_run_steps_v1(bridge.solver_ptr, source, native_out, source.size - 1, 1)
+                == NativeSolverStatus.SIZE_MISMATCH
+            )
+            nonfinite_source = source.copy()
+            nonfinite_source[2, 2] = np.nan
+            assert (
+                bridge.lib.scpn_solver_run_steps_v1(
+                    bridge.solver_ptr,
+                    nonfinite_source,
+                    native_out,
+                    source.size,
+                    1,
+                )
+                == NativeSolverStatus.NONFINITE_INPUT
+            )
 
             psi = bridge.solve(source, iterations=20)
             assert psi is not None
@@ -654,6 +726,7 @@ def test_compile_cpp_windows_path(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     # The Windows DLL must statically link the MinGW runtime so ``ctypes.CDLL``
     # can load it without the MinGW ``bin`` directory on the DLL search path.
     assert "-static" in calls["cmd"]
+    assert "-DSCPN_SOLVER_BUILD=1" in calls["cmd"]
 
 
 def test_compile_cpp_refuses_missing_compiler(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -1108,6 +1181,7 @@ def _bridge_with_lib(lib: object) -> HPCBridge:
     bridge._destroy_symbol = None
     bridge._has_converged_api = False
     bridge._has_boundary_api = False
+    bridge._has_v1_api = False
     return bridge
 
 

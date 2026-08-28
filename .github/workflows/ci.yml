@@ -587,6 +587,10 @@ jobs:
         run: python tools/check_docs_coverage.py
       - name: Public-API docstring coverage
         run: python tools/run_docstring_gate.py
+      - name: Cross-language API contract inventory
+        run: python tools/check_api_contracts.py
+      - name: Native C and Lean API reference freshness
+        run: python tools/generate_native_api_reference.py --check
       - name: JOSS submission guard
         run: python tools/check_joss_submission.py
       - name: Public surface hygiene

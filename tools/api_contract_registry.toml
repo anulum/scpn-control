@@ -1,0 +1,57 @@
+schema = "scpn-control.api-contract-registry.v1"
+
+[policy]
+stable_python_surface = "Only names in scpn_control.__all__ are package-stable; module reference visibility alone is not a compatibility promise."
+python_semantics = "NumPy docstrings plus strict type signatures define parameters, returns, raises, state mutation, units/shapes, safety boundaries, compatibility, evidence and examples when applicable. Empty headings are forbidden by the documentation quality gate."
+rust_semantics = "Public crate owners require rustdoc under -D warnings -D missing_docs; Rust types and Result values carry parameter, return and error contracts."
+typescript_semantics = "Studio exports require TypeDoc with requiredToBeDocumented and TypeScript strict mode."
+operator_semantics = "Shell entrypoints and GitHub workflows are operator contracts, not library APIs; ShellCheck/actionlint and pinned-action gates own them."
+
+[inventory]
+python_candidate_count = 1299
+python_candidate_sha256 = "3b36dd6b34025147d71354d7c232b4eb703d2936144ae352510d4241ef642a1f"
+python_stable_export_count = 44
+python_stable_export_sha256 = "c6aee4506a2c1b58132fcc70a684ab05a8dd1ea5ae05be366c1260b3bfca3cb2"
+rust_export_count = 419
+rust_export_sha256 = "3e910ec8548d7f68dbd60cef72e41e7f6377faac7899f4daba1b5ab7b7af4100"
+typescript_export_count = 40
+typescript_export_sha256 = "11fd3f8aecf0fac25b3dea33f87fce15a3e720b3ff3fe8b2839f04579314ead4"
+c_symbols = [
+  "scpn_solver_create_v1",
+  "scpn_solver_set_boundary_dirichlet_v1",
+  "scpn_solver_run_steps_v1",
+  "scpn_solver_run_until_converged_v1",
+  "scpn_solver_destroy_v1",
+  "create_solver",
+  "set_boundary_dirichlet",
+  "run_step",
+  "run_step_converged",
+  "destroy_solver",
+]
+lean_symbols = [
+  "State",
+  "next",
+  "actionRank",
+  "stepN",
+  "legalTransition",
+  "adjacent_transition_deterministic",
+  "pulsed_fsm_eventually_returns_to_idle",
+  "idle_returns_to_idle_after_full_cycle",
+  "manual_transition_cannot_skip_burn_from_idle",
+]
+
+[inventory.python_classifications]
+stable-root-owner = 42
+documented-module-reference = 507
+nonstable-module-surface = 750
+
+[inventory.python_classification_sha256]
+stable-root-owner = "d5bb9640c7d90fbbd463cb133193edaa709a29abe2f2e20b558d23db5b8caac6"
+documented-module-reference = "45f711a0078c91166e1f3a43ccbaf48a79f192d33c08ebda47dc24e7b504f3bb"
+nonstable-module-surface = "06e14b4318a19b292e6c9a39aba1ed628f88fc75bd6e5c539750a7d545c68439"
+
+[renderer_contracts]
+"pyproject.toml" = ["strict = true", "convention = \"numpy\""]
+"Makefile" = ["-D warnings -D missing_docs", "pnpm docs:api", "generate_native_api_reference.py --check"]
+"studio-web/typedoc.json" = ["requiredToBeDocumented"]
+"mkdocs.yml" = ["Native C and Lean API: _generated/native_api_reference.md"]

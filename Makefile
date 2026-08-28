@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-.PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build docs-api-rust docs-api-studio bench bench-rust bench-native-handoff bridge build install-hooks docker-build docker-run clean
+.PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build docs-api-native docs-api-rust docs-api-studio bench bench-rust bench-native-handoff bridge build install-hooks docker-build docker-run clean
 
 test:
 	pytest tests/ -v --cov=scpn_control --cov-report=term --cov-fail-under=100
@@ -15,6 +15,7 @@ lint:
 	python tools/check_changelog_sync.py
 	python tools/check_benchmark_producers.py
 	python tools/run_docstring_gate.py
+	python tools/check_api_contracts.py
 
 fmt:
 	ruff check --fix src/ tests/
@@ -35,8 +36,11 @@ preflight-fast:
 docs:
 	mkdocs serve
 
-docs-build: docs-api-rust docs-api-studio
+docs-build: docs-api-native docs-api-rust docs-api-studio
 	mkdocs build --strict
+
+docs-api-native:
+	python tools/generate_native_api_reference.py --check
 
 docs-api-rust:
 	cd scpn-control-rs && RUSTDOCFLAGS="-D warnings -D missing_docs" cargo doc --workspace --all-features --no-deps

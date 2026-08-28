@@ -9,3 +9,10 @@ SCPN Control — Formal proof library root.
 -/
 
 import SCPNControl.PulsedFSM
+
+/-!
+# SCPN Control proof library
+
+The root module currently exposes the checked pulsed-scheduler state machine.
+It contains no runtime FFI and makes no claim about continuous plant dynamics.
+-/

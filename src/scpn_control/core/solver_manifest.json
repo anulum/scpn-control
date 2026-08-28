@@ -1,5 +1,8 @@
 {
   "solver.cpp": {
-    "sha256": "7fba0953ca76c7af33c5c65091c2424aa1ffb33fcbb888b723ea11f71c12b1d7"
+    "sha256": "86421fb5c7023ab180b7fdb013f55b172397d48e0db25f017804dfbec23d066f"
+  },
+  "solver.h": {
+    "sha256": "f644ab6baac6b524db6d3422c4fe8cdd42c9447a6fe81f124371fa9044b7854f"
   }
 }

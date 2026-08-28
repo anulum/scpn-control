@@ -7,6 +7,12 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Added a versioned native solver C ABI with typed status codes, retained the
+  five historical symbols as a compatibility surface, and made the Python
+  bridge prefer the new real library contract.
+- Added generated C/Lean API reference documentation and a deterministic
+  cross-language ownership registry covering Python, C, Lean, Rust, and
+  TypeScript exports.
 - Added append-only benchmark custody across the Python, Rust, and polyglot
   producer inventory: persistent runs are sealed before `latest` selection,
   failed and legacy artifacts remain retained, and baseline changes require a

@@ -72,6 +72,7 @@ nav:
     - Glossary: learning/glossary.md
   - Reference:
     - API Reference: api.md
+    - Native C and Lean API: _generated/native_api_reference.md
     - Theory: theory.md
     - Gyrokinetic Transport: gyrokinetic_transport.md
     - Paper 27 Phase Dynamics: paper27_phase_dynamics.md

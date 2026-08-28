@@ -109,6 +109,7 @@ scpn-control = "scpn_control.cli:main"
 scpn-check-generated-traceability = "tools.check_generated_traceability:main"
 scpn-evidence-gap-matrix = "tools.evidence_gap_matrix:main"
 scpn-native-coverage-matrix = "tools.native_coverage_matrix:main"
+scpn-native-api-reference = "tools.generate_native_api_reference:main"
 scpn-validation-report-freshness = "tools.validation_report_freshness:main"
 
 [tool.setuptools.packages.find]
@@ -116,7 +117,7 @@ where = ["src"]
 
 [tool.setuptools.package-data]
 "scpn_control.scpn" = ["replay_schemas/*.json"]
-"scpn_control.core" = ["solver.cpp", "solver_manifest.json"]
+"scpn_control.core" = ["solver.cpp", "solver.h", "solver_manifest.json"]
 
 [tool.mypy]
 strict = true

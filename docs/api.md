@@ -338,6 +338,26 @@ specific benchmark artefacts are generated and admitted separately.
 
 ## Core — Native C++ Solver Bridge
 
+### Stability and ownership boundary
+
+The names exported by `scpn_control.__all__` are the admitted stable Python
+package surface. Symbols shown in module-level reference pages remain directly
+usable and documented, but visibility there alone is not a compatibility
+promise. Protocol methods, generated helpers, CLI callbacks, shell entrypoints,
+and GitHub workflow inputs are classified under their native owners rather than
+being counted as Python library APIs.
+
+The committed cross-language registry classifies every current top-level
+non-private Python class/function, every C and Lean declaration, and the Rust
+and TypeScript export inventories. Its hashes make additions, removals, or
+ownership changes an explicit review event. Python contracts use NumPy
+docstrings and strict typing; Rust uses strict rustdoc and typed `Result`
+values; TypeScript uses strict TypeDoc; operator scripts/workflows use their
+native lint and policy gates. Parameters, returns/yields, errors, mutation and
+state, units and shapes, safety boundaries, compatibility, evidence links, and
+examples are required where they apply—empty headings are not accepted as
+documentation.
+
 `scpn_control.core.hpc_bridge` exposes the optional native Grad-Shafranov
 solver bridge. Native compilation is disabled unless
 `SCPN_ALLOW_NATIVE_BUILD=1` is set. When enabled, the bridge admits only the
@@ -348,9 +368,21 @@ environment, rejects symlinked solver inputs and output targets, compiles to a
 temporary package-local file, and publishes the shared library atomically after
 the compiler produced a regular file.
 
-The source and checksum manifest are shipped as `scpn_control.core` package
-data. Compiled `bin/libscpn_solver.so` or `bin/scpn_solver.dll` outputs are
-operator-local build products and are not committed.
+The source, normative `solver.h` ABI contract, and checksum manifest are shipped
+as `scpn_control.core` package data. The bridge prefers the typed version 1 ABI
+and retains the five historical symbols as a compatibility fallback. In the
+versioned API, call validity and scientific convergence are separate values;
+invalid dimensions, non-finite data, size mismatch, allocation failure, and
+internal failure cannot be confused with non-convergence. The historical
+Python argument name `j_phi` is retained for compatibility, but this kernel
+accepts a pre-scaled elliptic right-hand side—not raw toroidal current density.
+
+The complete generated [C ABI and Lean proof reference](./_generated/native_api_reference.md)
+records layout, shape, units, ownership, lifetime, mutation, convergence,
+errors, thread safety, determinism, compatibility, and the exact scope of the
+checked finite-state theorems. Compiled `bin/libscpn_solver.so` or
+`bin/scpn_solver.dll` outputs are operator-local build products and are not
+committed.
 
 External runtime solver libraries remain blocked unless
 `SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1` is set for a vetted absolute path. The
@@ -1191,6 +1223,10 @@ operator gate `SCPN_ALLOW_EXTERNAL_SOLVER_LIB=1`; without that gate the bridge
 fails closed before calling the dynamic loader.
 
 ::: scpn_control.core.hpc_bridge.HPCBridge
+
+::: scpn_control.core.hpc_bridge.NativeSolverStatus
+
+::: scpn_control.core.hpc_bridge.NativeSolverError
 
 ### Gyrokinetic Transport (v0.16.0)
 

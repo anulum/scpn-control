@@ -10,6 +10,15 @@ SCPN Control — Pulsed scheduler liveness proof.
 
 namespace SCPNControl.PulsedFSM
 
+/-!
+# Pulsed scheduler finite-state model
+
+This module proves local transition and eight-step-cycle properties for the
+declared scheduler. The proofs cover only this finite-state abstraction; they
+do not establish actuator timing, plant safety, or plasma stability.
+-/
+
+/-- The eight ordered phases in one abstract pulsed-control cycle. -/
 inductive State where
   | idle
   | rampUp
@@ -21,6 +30,7 @@ inductive State where
   | coolDown
   deriving DecidableEq, Repr
 
+/-- Return the sole admitted successor of a scheduler state. -/
 def next : State -> State
   | State.idle => State.rampUp
   | State.rampUp => State.flatTop
@@ -31,6 +41,7 @@ def next : State -> State
   | State.recharge => State.coolDown
   | State.coolDown => State.idle
 
+/-- Map each phase to its zero-based position in the abstract cycle. -/
 def actionRank : State -> Nat
   | State.idle => 0
   | State.rampUp => 1
@@ -41,13 +52,16 @@ def actionRank : State -> Nat
   | State.recharge => 6
   | State.coolDown => 7
 
+/-- Apply `next` exactly `n` times to `state`. -/
 def stepN : Nat -> State -> State
   | 0, state => state
   | Nat.succ n, state => stepN n (next state)
 
+/-- State that `toState` is exactly the declared successor of `fromState`. -/
 def legalTransition (fromState toState : State) : Prop :=
   next fromState = toState
 
+/-- Two legal successors of the same state are equal. -/
 theorem adjacent_transition_deterministic
     (fromState toState candidateState : State)
     (h₁ : legalTransition fromState toState)
@@ -56,6 +70,7 @@ theorem adjacent_transition_deterministic
   unfold legalTransition at h₁ h₂
   rw [← h₁, h₂]
 
+/-- Every declared state reaches `idle` in at most eight abstract steps. -/
 theorem pulsed_fsm_eventually_returns_to_idle (state : State) :
     ∃ n : Nat, n ≤ 8 ∧ stepN n state = State.idle := by
   cases state with
@@ -76,10 +91,12 @@ theorem pulsed_fsm_eventually_returns_to_idle (state : State) :
   | coolDown =>
       exact ⟨1, by decide, by rfl⟩
 
+/-- Starting at `idle`, eight abstract steps complete one full cycle. -/
 theorem idle_returns_to_idle_after_full_cycle :
     stepN 8 State.idle = State.idle := by
   rfl
 
+/-- The declared transition relation forbids a direct `idle` to `burn` jump. -/
 theorem manual_transition_cannot_skip_burn_from_idle :
     ¬ legalTransition State.idle State.burn := by
   intro h

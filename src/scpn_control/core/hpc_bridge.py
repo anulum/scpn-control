@@ -20,6 +20,7 @@ import platform
 import shutil
 import subprocess
 import weakref
+from enum import IntEnum
 from pathlib import Path
 from typing import Any, cast
 
@@ -31,9 +32,57 @@ logger = logging.getLogger(__name__)
 _SOLVER_LIBRARY_SUFFIXES = {".so", ".dylib", ".dll"}
 _ALLOW_EXTERNAL_SOLVER_LIB = "SCPN_ALLOW_EXTERNAL_SOLVER_LIB"
 _SOLVER_SOURCE = "solver.cpp"
+_SOLVER_HEADER = "solver.h"
 _SOLVER_MANIFEST = "solver_manifest.json"
 _NATIVE_BUILD_TIMEOUT_S = 120
 _NATIVE_BUILD_COMPILER = "g++"
+
+
+class NativeSolverStatus(IntEnum):
+    """Version 1 C ABI status values returned by the native solver."""
+
+    OK = 0
+    INVALID_ARGUMENT = 1
+    INVALID_HANDLE = 2
+    INVALID_DIMENSIONS = 3
+    NONFINITE_INPUT = 4
+    SIZE_MISMATCH = 5
+    ALLOCATION_FAILED = 6
+    INTERNAL_ERROR = 7
+
+
+class NativeSolverError(RuntimeError):
+    """A typed failure reported by the version 1 native solver ABI.
+
+    Parameters
+    ----------
+    operation : str
+        Native operation that rejected the call.
+    status : NativeSolverStatus
+        Stable machine-readable ABI status.
+
+    Attributes
+    ----------
+    operation : str
+        Native operation that failed.
+    status : NativeSolverStatus
+        Stable status suitable for programmatic handling.
+    """
+
+    def __init__(self, operation: str, status: NativeSolverStatus) -> None:
+        self.operation = operation
+        self.status = status
+        super().__init__(f"native solver {operation} failed: {status.name} ({int(status)})")
+
+
+def _raise_for_native_status(operation: str, raw_status: int) -> None:
+    """Raise :class:`NativeSolverError` when a version 1 call did not succeed."""
+    try:
+        status = NativeSolverStatus(raw_status)
+    except ValueError:
+        status = NativeSolverStatus.INTERNAL_ERROR
+    if status is not NativeSolverStatus.OK:
+        raise NativeSolverError(operation, status)
 
 
 def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
@@ -118,10 +167,7 @@ def _validate_solver_library_path(raw_path: str, *, source: str) -> str:
 
 
 def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
-    """Return ``True`` only when ``solver.cpp`` matches its SHA-256 manifest."""
-    if src.is_symlink() or not src.is_file():
-        logger.error("Native solver source missing: %s", src)
-        return False
+    """Return ``True`` only when all native sources match the SHA-256 manifest."""
     if manifest_path.is_symlink() or not manifest_path.is_file():
         logger.error("Native solver checksum manifest missing: %s", manifest_path)
         return False
@@ -132,21 +178,23 @@ def _verify_solver_source(src: Path, manifest_path: Path) -> bool:
         logger.error("Native solver checksum manifest is unreadable: %s", exc)
         return False
 
-    entry = manifest.get(_SOLVER_SOURCE)
-    expected = entry.get("sha256") if isinstance(entry, dict) else entry
-    if not isinstance(expected, str) or len(expected) != 64:
-        logger.error("Native solver checksum manifest lacks a valid SHA-256 for %s", _SOLVER_SOURCE)
-        return False
-
-    try:
-        digest = hashlib.sha256(src.read_bytes()).hexdigest()
-    except OSError as exc:
-        logger.error("Native solver source could not be hashed: %s", exc)
-        return False
-
-    if not hmac.compare_digest(digest, expected.lower()):
-        logger.error("Native solver source checksum mismatch: %s", src)
-        return False
+    for path in (src, src.with_name(_SOLVER_HEADER)):
+        if path.is_symlink() or not path.is_file():
+            logger.error("Native solver source missing: %s", path)
+            return False
+        entry = manifest.get(path.name)
+        expected = entry.get("sha256") if isinstance(entry, dict) else entry
+        if not isinstance(expected, str) or len(expected) != 64:
+            logger.error("Native solver checksum manifest lacks a valid SHA-256 for %s", path.name)
+            return False
+        try:
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        except OSError as exc:
+            logger.error("Native solver source could not be hashed: %s", exc)
+            return False
+        if not hmac.compare_digest(digest, expected.lower()):
+            logger.error("Native solver source checksum mismatch: %s", path)
+            return False
     return True
 
 
@@ -243,11 +291,12 @@ class HPCBridge:
 
     def __init__(self, lib_path: str | None = None) -> None:
         self.lib: ctypes.CDLL | None = None
-        self.solver_ptr = None
+        self.solver_ptr: int | None = None
         self.loaded: bool = False
         self._destroy_symbol: str | None = None
         self._has_converged_api: bool = False
         self._has_boundary_api: bool = False
+        self._has_v1_api: bool = False
 
         lib_name = "scpn_solver.dll" if platform.system() == "Windows" else "libscpn_solver.so"
         env_path = os.environ.get("SCPN_SOLVER_LIB")
@@ -332,6 +381,51 @@ class HPCBridge:
 
     def _setup_signatures(self) -> None:
         assert self.lib is not None
+        v1_symbols = (
+            "scpn_solver_create_v1",
+            "scpn_solver_set_boundary_dirichlet_v1",
+            "scpn_solver_run_steps_v1",
+            "scpn_solver_run_until_converged_v1",
+            "scpn_solver_destroy_v1",
+        )
+        self._has_v1_api = all(hasattr(self.lib, name) for name in v1_symbols)
+        if self._has_v1_api:
+            self.lib.scpn_solver_create_v1.argtypes = [
+                ctypes.c_int,
+                ctypes.c_int,
+                ctypes.c_double,
+                ctypes.c_double,
+                ctypes.c_double,
+                ctypes.c_double,
+                ctypes.POINTER(ctypes.c_void_p),
+            ]
+            self.lib.scpn_solver_create_v1.restype = ctypes.c_int
+            self.lib.scpn_solver_set_boundary_dirichlet_v1.argtypes = [ctypes.c_void_p, ctypes.c_double]
+            self.lib.scpn_solver_set_boundary_dirichlet_v1.restype = ctypes.c_int
+            self.lib.scpn_solver_run_steps_v1.argtypes = [
+                ctypes.c_void_p,
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+                ctypes.c_int,
+                ctypes.c_int,
+            ]
+            self.lib.scpn_solver_run_steps_v1.restype = ctypes.c_int
+            self.lib.scpn_solver_run_until_converged_v1.argtypes = [
+                ctypes.c_void_p,
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+                np.ctypeslib.ndpointer(dtype=np.float64, flags="C_CONTIGUOUS"),
+                ctypes.c_int,
+                ctypes.c_int,
+                ctypes.c_double,
+                ctypes.c_double,
+                ctypes.POINTER(ctypes.c_int),
+                ctypes.POINTER(ctypes.c_double),
+                ctypes.POINTER(ctypes.c_int),
+            ]
+            self.lib.scpn_solver_run_until_converged_v1.restype = ctypes.c_int
+            self.lib.scpn_solver_destroy_v1.argtypes = [ctypes.c_void_p]
+            self.lib.scpn_solver_destroy_v1.restype = ctypes.c_int
+
         self.lib.create_solver.argtypes = [
             ctypes.c_int,
             ctypes.c_int,
@@ -379,7 +473,9 @@ class HPCBridge:
             self._has_boundary_api = False
 
         # void destroy_solver(void* solver) or void delete_solver(void* solver)
-        if hasattr(self.lib, "destroy_solver"):
+        if self._has_v1_api:
+            self._destroy_symbol = "scpn_solver_destroy_v1"
+        elif hasattr(self.lib, "destroy_solver"):
             self.lib.destroy_solver.argtypes = [ctypes.c_void_p]
             self.lib.destroy_solver.restype = None
             self._destroy_symbol = "destroy_solver"
@@ -398,30 +494,122 @@ class HPCBridge:
         z_range: tuple[float, float],
         boundary_value: float = 0.0,
     ) -> None:
-        """Create the C++ solver instance for the given grid dimensions."""
+        """Create a native solver state for one rectangular grid.
+
+        Parameters
+        ----------
+        nr, nz : int
+            Radial and vertical point counts. Both must be at least three.
+        r_range, z_range : tuple[float, float]
+            Strictly increasing finite coordinate bounds in metres.
+        boundary_value : float, default=0.0
+            Finite edge poloidal flux in Wb/rad.
+
+        Raises
+        ------
+        RuntimeError
+            This bridge already owns a live solver state; close it before
+            reinitialising.
+        NativeSolverError
+            The version 1 ABI rejected the dimensions or could not allocate
+            the state. Legacy libraries retain their historical null result.
+
+        Notes
+        -----
+        The bridge owns the created state until :meth:`close` is called. Calls
+        on one instance are not thread-safe; use separate bridge instances for
+        independent concurrent solves.
+        """
         if not self.loaded or self.lib is None:
             return
+        if self.solver_ptr is not None:
+            raise RuntimeError("native solver is already initialized; call close() before reinitializing")
+        if self._has_v1_api:
+            solver_out = ctypes.c_void_p()
+            status = self.lib.scpn_solver_create_v1(
+                nr,
+                nz,
+                r_range[0],
+                r_range[1],
+                z_range[0],
+                z_range[1],
+                ctypes.byref(solver_out),
+            )
+            _raise_for_native_status("create", int(status))
+            self.solver_ptr = solver_out.value
+        else:
+            self.solver_ptr = self.lib.create_solver(nr, nz, r_range[0], r_range[1], z_range[0], z_range[1])
         self.nr = nr
         self.nz = nz
-        self.solver_ptr = self.lib.create_solver(nr, nz, r_range[0], r_range[1], z_range[0], z_range[1])
-        self._sync_cleanup_state()
+        if getattr(self, "_finalizer", None) is None or not self._finalizer.alive:
+            self._arm_cleanup_finalizer()
+        else:
+            self._sync_cleanup_state()
         self.set_boundary_dirichlet(boundary_value)
 
     def set_boundary_dirichlet(self, boundary_value: float = 0.0) -> None:
-        """Set a fixed Dirichlet boundary value for psi edges, if supported."""
-        if not self.loaded or self.solver_ptr is None or self.lib is None or not self._has_boundary_api:
+        """Set every grid edge to one fixed poloidal-flux value.
+
+        Parameters
+        ----------
+        boundary_value : float, default=0.0
+            Finite edge value in Wb/rad, matching the solver output convention.
+
+        Raises
+        ------
+        ValueError
+            ``boundary_value`` is not finite.
+        NativeSolverError
+            The version 1 ABI rejects a non-finite value or invalid handle.
+
+        Notes
+        -----
+        This mutates the retained solver state. It is a no-op when the library,
+        state, or legacy boundary symbol is unavailable.
+        """
+        if (
+            not self.loaded
+            or self.solver_ptr is None
+            or self.lib is None
+            or not (self._has_boundary_api or self._has_v1_api)
+        ):
             return
-        self.lib.set_boundary_dirichlet(self.solver_ptr, float(boundary_value))
+        if not math.isfinite(boundary_value):
+            raise ValueError("boundary_value must be finite")
+        if self._has_v1_api:
+            status = self.lib.scpn_solver_set_boundary_dirichlet_v1(self.solver_ptr, float(boundary_value))
+            _raise_for_native_status("set_boundary_dirichlet", int(status))
+        else:
+            self.lib.set_boundary_dirichlet(self.solver_ptr, float(boundary_value))
 
     def solve(
         self,
         j_phi: NDArray[np.float64],
         iterations: int = 100,
     ) -> NDArray[np.float64] | None:
-        """Run the C++ solver for *iterations* sweeps.
+        """Run a fixed number of native red-black SOR sweeps.
 
-        Returns *None* if the library is not loaded (caller should
-        fall back to a Python solver).
+        Parameters
+        ----------
+        j_phi : numpy.ndarray
+            Finite two-dimensional C-compatible input. Despite the historical
+            name, the native kernel consumes a pre-scaled elliptic right-hand
+            side in solution-units per square metre, not raw current density.
+        iterations : int, default=100
+            Number of state-mutating SOR sweeps.
+
+        Returns
+        -------
+        numpy.ndarray or None
+            A new C-contiguous ``float64`` poloidal-flux array in Wb/rad, or
+            ``None`` when the library/state is unavailable.
+
+        Raises
+        ------
+        ValueError
+            Input shape or values violate the Python bridge contract.
+        NativeSolverError
+            The version 1 native ABI rejects the admitted call.
         """
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
@@ -440,21 +628,57 @@ class HPCBridge:
         psi_out: NDArray[np.float64],
         iterations: int = 100,
     ) -> NDArray[np.float64] | None:
-        """Run the C++ solver and write results into ``psi_out`` in-place."""
+        """Run fixed-count SOR and overwrite a caller-owned output array.
+
+        Parameters
+        ----------
+        j_phi : numpy.ndarray
+            Pre-scaled finite elliptic source in C row-major ``[nz][nr]``
+            order and solution-units per square metre.
+        psi_out : numpy.ndarray
+            Writable C-contiguous ``float64`` array with the same shape. It is
+            mutated in place and must not alias ``j_phi``.
+        iterations : int, default=100
+            Number of SOR sweeps.
+
+        Returns
+        -------
+        numpy.ndarray or None
+            The same ``psi_out`` object, or ``None`` when unavailable.
+
+        Raises
+        ------
+        ValueError
+            An array has invalid dimensionality, shape, dtype, layout, or data.
+        NativeSolverError
+            The version 1 native ABI rejects the call.
+        """
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
             return None
         j_input, expected_shape = prepared
         psi_target = _require_c_contiguous_f64(psi_out, expected_shape, "psi_out")
+        if np.shares_memory(j_input, psi_target):
+            raise ValueError("j_phi and psi_out must not overlap")
         assert self.lib is not None
 
-        self.lib.run_step(
-            self.solver_ptr,
-            j_input,
-            psi_target,
-            int(j_input.size),
-            int(iterations),
-        )
+        if self._has_v1_api:
+            status = self.lib.scpn_solver_run_steps_v1(
+                self.solver_ptr,
+                j_input,
+                psi_target,
+                int(j_input.size),
+                int(iterations),
+            )
+            _raise_for_native_status("run_steps", int(status))
+        else:
+            self.lib.run_step(
+                self.solver_ptr,
+                j_input,
+                psi_target,
+                int(j_input.size),
+                int(iterations),
+            )
         return psi_target
 
     def solve_until_converged(
@@ -464,10 +688,32 @@ class HPCBridge:
         tolerance: float = 1e-6,
         omega: float = 1.8,
     ) -> tuple[NDArray[np.float64], int, float] | None:
-        """Run solver until convergence, if native API is available.
+        """Run SOR until the update tolerance or iteration cap is reached.
 
-        Returns ``(psi, iterations_used, final_delta)``. If the library is
-        unavailable or uninitialized, returns ``None``.
+        Parameters
+        ----------
+        j_phi : numpy.ndarray
+            Pre-scaled finite elliptic source in C row-major ``[nz][nr]`` order.
+        max_iterations : int, default=1000
+            Positive upper bound on state-mutating sweeps.
+        tolerance : float, default=1e-6
+            Non-negative convergence threshold in solution units.
+        omega : float, default=1.8
+            Finite SOR relaxation factor strictly between zero and two.
+
+        Returns
+        -------
+        tuple[numpy.ndarray, int, float] or None
+            Solution in Wb/rad, sweeps used, and final maximum absolute update;
+            or ``None`` when unavailable. For a legacy fixed-step fallback,
+            ``final_delta`` is NaN.
+
+        Raises
+        ------
+        ValueError
+            Inputs or convergence parameters violate the Python contract.
+        NativeSolverError
+            The version 1 native ABI rejects the call.
         """
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
@@ -495,15 +741,61 @@ class HPCBridge:
         tolerance: float = 1e-6,
         omega: float = 1.8,
     ) -> tuple[int, float] | None:
-        """Run convergence API and write results into ``psi_out`` in-place."""
+        """Run convergence-controlled SOR into a caller-owned output array.
+
+        Parameters
+        ----------
+        j_phi, psi_out : numpy.ndarray
+            Non-overlapping source and output arrays in C row-major
+            ``[nz][nr]`` order. ``psi_out`` is overwritten in place.
+        max_iterations : int, default=1000
+            Positive sweep cap.
+        tolerance : float, default=1e-6
+            Non-negative maximum-update threshold in solution units.
+        omega : float, default=1.8
+            Relaxation factor in the open interval ``(0, 2)``.
+
+        Returns
+        -------
+        tuple[int, float] or None
+            Sweeps used and final maximum update, or ``None`` when unavailable.
+
+        Raises
+        ------
+        ValueError
+            Array or convergence inputs violate the Python contract.
+        NativeSolverError
+            The version 1 native ABI rejects the call.
+        """
         prepared = self._prepare_inputs(j_phi)
         if prepared is None:
             return None
         j_input, expected_shape = prepared
         psi_target = _require_c_contiguous_f64(psi_out, expected_shape, "psi_out")
+        if np.shares_memory(j_input, psi_target):
+            raise ValueError("j_phi and psi_out must not overlap")
         max_iters, tol_safe, omega_safe = _sanitize_convergence_params(max_iterations, tolerance, omega)
 
         assert self.lib is not None
+        if self._has_v1_api:
+            iterations_used = ctypes.c_int(0)
+            final_delta = ctypes.c_double(0.0)
+            converged = ctypes.c_int(0)
+            status = self.lib.scpn_solver_run_until_converged_v1(
+                self.solver_ptr,
+                j_input,
+                psi_target,
+                int(j_input.size),
+                int(max_iters),
+                float(omega_safe),
+                float(tol_safe),
+                ctypes.byref(iterations_used),
+                ctypes.byref(final_delta),
+                ctypes.byref(converged),
+            )
+            _raise_for_native_status("run_until_converged", int(status))
+            return int(iterations_used.value), float(final_delta.value)
+
         if not self._has_converged_api:
             self.lib.run_step(
                 self.solver_ptr,
@@ -515,7 +807,7 @@ class HPCBridge:
             return int(max_iters), float("nan")
 
         final_delta = ctypes.c_double(0.0)
-        iterations_used = int(
+        legacy_iterations_used = int(
             self.lib.run_step_converged(
                 self.solver_ptr,
                 j_input,
@@ -527,7 +819,7 @@ class HPCBridge:
                 ctypes.byref(final_delta),
             )
         )
-        return iterations_used, float(final_delta.value)
+        return legacy_iterations_used, float(final_delta.value)
 
     def _prepare_inputs(self, j_phi: NDArray[np.float64]) -> tuple[NDArray[np.float64], tuple[int, int]] | None:
         if not self.loaded or self.solver_ptr is None:
@@ -593,6 +885,7 @@ def compile_cpp() -> str | None:
             compiler,
             "-shared",
             "-static",
+            "-DSCPN_SOLVER_BUILD=1",
             "-o",
             str(temp_out),
             str(src),
@@ -608,6 +901,7 @@ def compile_cpp() -> str | None:
             compiler,
             "-shared",
             "-fPIC",
+            "-DSCPN_SOLVER_BUILD=1",
             "-o",
             str(temp_out),
             str(src),

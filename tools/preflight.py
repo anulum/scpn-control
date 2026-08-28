@@ -60,6 +60,8 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
     ("docstring-quality", [_PY, "tools/run_docstring_gate.py"], None),
+    ("api-contracts", [_PY, "tools/check_api_contracts.py"], None),
+    ("native-api-reference", [_PY, "tools/generate_native_api_reference.py", "--check"], None),
     ("public-surface-hygiene", [_PY, "tools/check_public_surface_hygiene.py"], None),
     ("docs-internal-private", [_PY, "tools/check_docs_internal_private.py"], None),
     ("studio-deploy-key", [_PY, "tools/check_studio_deploy_key.py"], None),
