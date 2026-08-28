@@ -301,6 +301,7 @@ jobs:
           python tools/check_studio_deploy_key.py
           python tools/check_studio_offline_sealing.py
           python tools/sync_studio_web_manifest.py --check
+          python tools/public_claim_ledger.py --check
 
   # ─── Job 4d: Release evidence gate ───
   release-evidence-gate:

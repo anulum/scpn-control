@@ -1013,6 +1013,19 @@ entries are never eligible. Use `--fail-on-stale` only in release or promotion
 campaigns after the affected reports have been refreshed or deliberately kept
 as historical evidence.
 
+The canonical `scpn-control.public-claim-ledger.v1` ledger makes that selection
+machine-readable. It contains only fresh reports whose lifecycle boundary
+explicitly enables current evidence, scientific admission, and public claims;
+every entry is bound to the report digest and commit, registry digest, source
+commit, dependency lock, and any refresh artifact. An empty ledger means no
+scientific claim is currently admitted for public use and must not be promoted
+through documentation or release prose.
+
+```bash
+python tools/public_claim_ledger.py
+python tools/public_claim_ledger.py --check
+```
+
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v2`, binds the proof
 payload with `payload_sha256`, and records pass, fail, or blocked status. A

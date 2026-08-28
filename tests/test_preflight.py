@@ -17,7 +17,6 @@ from typing import Any, Literal
 
 import pytest
 
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PREFLIGHT_PATH = REPO_ROOT / "tools" / "preflight.py"
 
@@ -107,6 +106,17 @@ def test_preflight_runs_docstring_quality_gate() -> None:
     assert gates["docstring-quality"] == [preflight._PY, "tools/run_docstring_gate.py"]
     assert "docstring-quality" not in preflight.TEST_GATES
     assert "docstring-quality" not in preflight.RUST_GATES
+
+
+def test_preflight_runs_public_claim_ledger_gate() -> None:
+    """Local preflight must reject public-claim admission drift."""
+    preflight = _load_preflight_module()
+
+    gates = {name: command for name, command, _cwd in preflight.GATES}
+
+    assert gates["public-claim-ledger"] == [preflight._PY, "tools/public_claim_ledger.py", "--check"]
+    assert "public-claim-ledger" not in preflight.TEST_GATES
+    assert "public-claim-ledger" not in preflight.RUST_GATES
 
 
 def test_preflight_runs_studio_offline_sealing_gate() -> None:

@@ -12,6 +12,10 @@
   installed-target validation.
 ### Changed
 
+- Added a deterministic, registry-bound public-claim ledger that admits only
+  fresh validation reports with explicit scientific and public-claim approval;
+  the current empty ledger prevents historical or local-proxy evidence from
+  being promoted through release prose.
 - Removed the transitive `proc-macro-error2` unmaintained advisory through the
   compatible `getset` lock update without changing MKL/linalg features, made
   transitive unmaintained advisories fail closed, restored strict Rust module
