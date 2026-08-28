@@ -350,7 +350,8 @@ def test_git_commit_rejects_malformed_or_missing_refs(
     tmp_path: Path, git_marker: str | None, head: str, packed: str, expected: str
 ) -> None:
     """Malformed Git metadata never becomes a fabricated source commit."""
-    repository = tmp_path / (git_marker or head.replace("/", "-").replace(" ", "-") or "case")
+    case_name = git_marker or head.replace("/", "-").replace(" ", "-").replace(":", "-") or "case"
+    repository = tmp_path / case_name
     repository.mkdir()
     if git_marker is not None:
         (repository / ".git").write_text(git_marker, encoding="utf-8")
