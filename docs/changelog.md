@@ -7,6 +7,9 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Rebuilt the competitive comparison from exact current releases and primary
+  papers, replaced unmatched latency/feature rankings with an evidence-scope
+  matrix, and added a fail-closed machine-readable source and fairness gate.
 - Normalised owned source, test, workflow, build, and commentable configuration
   headers to one format-native seven-line identity contract, with a deterministic
   gate and reviewed exemptions for formats that cannot safely carry comments.

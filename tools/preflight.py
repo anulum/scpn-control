@@ -59,6 +59,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("changelog-sync", [_PY, "tools/check_changelog_sync.py"], None),
     ("source-header-policy", [_PY, "tools/check_source_headers.py"], None),
+    ("competitive-evidence", [_PY, "tools/check_competitive_evidence.py"], None),
     ("joss-submission", [_PY, "tools/check_joss_submission.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),

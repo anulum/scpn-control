@@ -1,250 +1,101 @@
-# Competitive Analysis — scpn-control
+# Competitive Evidence — SCPN Control and Adjacent Fusion Systems
 
-> **Last updated:** 2026-08-27 (v0.23.0).
-> Community code timings are from published literature (references at end).
-> SCPN timings are CI-verified on GitHub Actions ubuntu-latest unless noted.
+> **Evidence date:** 2026-08-28. **SCPN Control version:** v0.23.0.
+> The machine-readable source registry is
+> [`docs/_data/competitive_evidence.json`](_data/competitive_evidence.json).
 
-## 1. Real-Time Control Loop
+This page compares documented scope and evidence. It is not a product ranking
+or a claim that every relevant system has been surveyed. A blank or undocumented
+capability is reported as **not assessed**, never converted into “does not
+exist.”
 
-| Code | Control Freq | Step Latency | Language | Source |
-|------|-------------|-------------|----------|--------|
-| **scpn-control (Rust)** | local loopback observation only | **5.619 µs P50** local-proxy active cycle | Rust + Python | `validation/reports/native_handoff_comparison.json` |
-| DIII-D PCS (production) | 4--10 kHz (physics loops) | 100--250 us per physics cycle | C / Fortran | Penaflor 2024; Barr 2024 |
-| P-EFIT (GPU) | N/A (reconstruction) | 300--375 us per iter (129x129) | Fortran + CUDA | Sabbagh 2023 |
-| RT-GSFit | ~5 kHz | ~200 us | C++ | Tokamak Energy 2025 |
-| TORAX | N/A (offline sim) | ~ms per timestep | Python / JAX | Citrin 2024 |
-| Gym-TORAX | 10--100 Hz | ~10 ms (RL env step) | Python / JAX | DeepMind 2025 |
-| ITER PCS (spec) | ~100 Hz diagnostics | 5--10 ms processing | TBD | ITER RTF docs |
-| FUSE | N/A (design code) | N/A | Julia | Meneghini 2024 |
+## Reading the comparison
 
-> **Note on DIII-D:** The raw data-acquisition cycle runs at ~16.7 kHz (60 us),
-> but physics-level control algorithms include IO, diagnostics, state
-> estimation, and actuator paths. SCPN Control's retained observation was
-> generated on 2026-06-21 at source commit
-> `5997eed1c135608dcd04720a8287ee9c10067265`: seven repeats of 5,000 steps on
-> an AMD EPYC 7763 with standard `127.0.0.1` loopback UDP. Runtime admission is
-> `fail` because qualified real-time host evidence was not supplied, and the
-> report declares `production_claim_allowed=false`. It is not an end-to-end
-> PCS-cycle comparison on fielded plant hardware.
+Each external row is bound to an exact public release or a primary paper.
+Project documentation supports capability statements; it does not by itself
+establish accuracy, deployment readiness, or equivalence to another code.
 
-## 2. Transport Simulation Speed
+No cross-project numeric result is admitted in this revision. A quantitative
+comparison requires the same problem, inputs, precision, tolerances, convergence
+criteria, warm-up and compilation treatment, sample definition, isolated
+hardware, and failure accounting. The previous page mixed local loopback,
+bare-kernel, solver-step, reconstruction-iteration, and full control-cycle
+timings; those values answer different questions and are not retained as a
+ranking.
 
-| Code | Type | Runtime | Physics | Source |
-|------|------|---------|---------|--------|
-| GENE / CGYRO | Gyrokinetic | 10^5--10^6 CPU-hours | Nonlinear 5D Vlasov | Jenko 2000; Belli 2008 |
-| JINTRAC + QuaLiKiz | Full integrated | ~217 hours (16 cores) | First-principles turbulence | TU/e 2021 |
-| JINTRAC + QLKNN | NN surrogate | ~2 hours (1 core) | ML surrogate | van de Plassche 2020 |
-| TORAX | 1D JAX | Faster than real-time (~seconds) | QLKNN10D | Citrin 2024 |
-| FUSE | 1D Julia | ~25 ms per step (TJLF) | TJLF surrogate | Meneghini 2024 |
-| **scpn-control (Rust)** | 1.5D step | **1.5--5.5 us per step** | Crit-gradient + neoclassical | CI Criterion |
-| **scpn-control (MLP)** | Neural surrogate facade | No admitted current timing | Analytic fallback unless admitted weights are supplied | Neural-transport claim report |
-| QLKNN (TensorFlow) | NN inference | ~100 us (25 outputs) | Surrogate | van de Plassche 2020 |
+## Assessed systems and strongest documented evidence
 
-> **Fidelity note (v0.17.0+):** scpn-control now offers five transport tiers:
-> (1) critical-gradient model, (2) QLKNN-10D MLP surrogate facade without an
-> admitted current timing, (3) native linear GK eigenvalue solver (~0.3s per
-> flux surface), **(4) native TGLF-like approximation** (SAT0/SAT1/SAT2 with
-> E×B shear quench, ~0.5s per surface, no external binary), **(5) nonlinear
-> δf gyrokinetic solver** (5D Vlasov, JAX-accelerable, ~15s/surface on GPU).
-> External GK codes (TGLF, GENE, GS2, CGYRO, QuaLiKiz) can be represented via
-> strict interface contracts. Quantitative agreement still requires real
-> external runs on identical inputs and digest-bound artefacts.
+| System and assessed artifact | Primary role | Strongest evidence relevant to this comparison | SCPN Control boundary |
+|---|---|---|---|
+| **SCPN Control v0.23.0 snapshot f1f6e36d** | Neuro-symbolic plasma-control research toolkit and evidence-admission layer | Executable classical, robust, predictive and neuro-symbolic control surfaces; formal/admission contracts; Python, Rust, TypeScript, Lean and C++ interfaces | Research software: not a commissioned PCS; external-code parity, target-hardware timing and facility validation are separate fail-closed claims |
+| **TORAX v1.4.3** | Differentiable JAX core-transport simulator | Coupled heat, particle and current-diffusion PDEs; differentiable nonlinear solves; QLKNN, direct TGLF and IMAS core-source integration | Reduced transport and TORAX-shaped interfaces are not an identical-input TORAX result |
+| **FUSE v1.2.0** | Integrated fusion-device simulation and design | Plasma physics, engineering, control, balance-of-plant and costing actors; constrained multi-objective optimisation; IMAS/OMAS interoperability | SCPN Control supplies control and evidence components, not an equivalent whole-device design environment |
+| **FreeGS v0.8.2** | Static free-boundary Grad–Shafranov equilibrium | Coils, plasma profiles, machine circuits, inverse constraints and G-EQDSK in a transparent Python reference | Code-to-code agreement is useful verification, not experimental truth |
+| **FreeGSNKE v3.0.1** | Static and evolutive free-boundary equilibrium and circuits | Fourth-order Newton–Krylov solves; active/passive structures and magnetic diagnostics; MAST-U/EFIT++ validation literature | Equivalent evolutive and shot-matched validation is not currently admitted in SCPN Control |
+| **DREAM v26.5** | Fluid-kinetic disruption and runaway-electron simulation | Coupled nonlinear fluid/kinetic equations with specialised runaway and shattered-pellet-injection physics | SCPN Control's disruption and mitigation models are control-grade models, not a DREAM-equivalent kinetic solver |
+| **PROCESS v3.4.2** | Reactor systems design | Integrated reactor physics, engineering, costing and optimisation with versioned/Zenodo release lineage | SCPN Control is not a reactor design or costing system |
+| **OMAS v0.97.3** | ITER IMAS data-model interoperability | Multiple file/database formats mapped to the IMAS model and used as an OMFIT integration substrate | IMAS-facing contracts do not yet demonstrate comparable ecosystem breadth |
+| **TCV deep-RL magnetic control, doi:10.1038/s41586-021-04301-9** | Learned magnetic control demonstrated on a tokamak | Peer-reviewed 10 kHz closed-loop TCV experiments, zero-shot simulation-to-hardware transfer and 19-coil actuation across several plasma configurations | SCPN Control has no commissioned tokamak actuation result; simulation and offline replay are different evidence classes |
+| **EFIT-AI GPU reconstruction, doi:10.1145/3624062.3624607** | Performance-portable inverse equilibrium reconstruction | Named NVIDIA, AMD and Intel accelerator evaluation of GPU-offloaded EFIT reconstruction kernels | No admitted identical-input, full-output, named-GPU comparison exists in SCPN Control |
 
-## 3. Equilibrium Reconstruction
+## Where external evidence is currently stronger
 
-| Code | Grid | Method | Runtime | Source |
-|------|------|--------|---------|--------|
-| EFIT (Fortran) | 65x65 | Current-filament Picard | ~2 s full recon | Lao 1985 |
-| P-EFIT (GPU) | 65x65 | GPU-accelerated Picard | <1 ms per iter | Sabbagh 2023 |
-| RT-GSFit | 65x65 | Real-time reconstruction | ~200 us | Tokamak Energy 2025 |
-| CHEASE (Fortran) | 257x257 | Fixed-boundary cubic Hermite | ~5 s | Lutjens 1996 |
-| HELENA | 201 flux | Isoparametric | ~10 s | Huysmans 1991 |
-| FreeGS | Variable | Picard + multigrid | ~seconds | FreeGS GitHub |
-| FreeGSNKE | Variable | Newton-Krylov | Faster than FreeGS | FreeGSNKE 2024 |
-| **scpn-control (Rust)** | 65x65 | Picard + SOR | **~100 ms** | Measured |
-| **scpn-control (Neural)** | 129x129 | PCA + MLP surrogate | No admitted current timing | Pretraining claim report is fail-closed |
-| **scpn-control (Multigrid)** | 65x65 | V-cycle | **~12 ms** | Measured v0.15.0 |
+These are evidence differences, not statements about the worth of either
+project.
 
-> The neural-equilibrium facade supports CPU execution, but no current committed
-> report admits a quantitative latency or P-EFIT comparison.
+- **Facility operation:** the TCV deep-RL work reports actual tokamak actuation;
+  SCPN Control reports simulation, local runtime and offline evidence only.
+- **Evolutive free-boundary validation:** FreeGSNKE documents self-consistent
+  circuit/plasma evolution and peer-reviewed MAST-U/EFIT++ validation. SCPN
+  Control does not currently admit equivalent evidence.
+- **Core-transport depth and integration:** TORAX documents a dedicated,
+  differentiable transport stack with direct TGLF and expanding IMAS support.
+- **Integrated design breadth:** FUSE and PROCESS cover whole-device engineering,
+  costing and optimisation scopes outside SCPN Control's role.
+- **Disruption/runaway fidelity:** DREAM is purpose-built around fluid-kinetic
+  runaway-electron physics and has a dedicated validation/publication lineage.
+- **Data and workflow adoption:** OMAS/OMFIT expose a broader public
+  interoperability and module ecosystem than SCPN Control currently
+  demonstrates.
+- **Accelerator reconstruction evidence:** the EFIT-AI study reports named
+  multi-vendor GPU measurements. SCPN Control's equilibrium timing evidence
+  does not satisfy that matched boundary.
 
-## 4. Feature Breadth
+## What SCPN Control demonstrates today
 
-| Feature | scpn-control | TORAX | PROCESS | FREEGS | FUSE | DREAM |
-|---------|-------------|-------|---------|--------|------|-------|
-| GS Equilibrium | Yes (multigrid) | Yes (spectral) | No | Yes (Picard) | Yes | No |
-| Free-boundary solve | **Yes (v0.15.0)** | Partial | No | Yes | Yes | No |
-| Transport solver | 1.5D coupled | 1D flux-driven | 0D | No | 1D | 0--1D |
-| **External GK coupling** | **5 codes (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | TGLF only | No | No | TGLF only | No |
-| **Native linear GK solver** | **Yes (ballooning eigenvalue)** | No | No | No | No | No |
-| **Native TGLF-like approximation** | **Yes (SAT0/SAT1/SAT2, no binary)** | No | No | No | No | No |
-| **Nonlinear δf GK solver** | **Yes (5D Vlasov, JAX-accelerable)** | No | No | No | No | No |
-| **GK-surrogate hybrid** | **Yes + OOD + online learning** | No | No | No | No | No |
-| **SCPN phase coupling** | **Yes (8-layer UPDE bridge)** | No | No | No | No | No |
-| Neural surrogate (QLKNN) | Yes | External | No | No | No | No |
-| **Neuro-symbolic SNN** | **Yes** | No | No | No | No | No |
-| **Disruption prediction (heuristic)** | **Yes (fixed-weight baseline; optional synthetic training)** | No | No | No | No | N/A |
-| **SPI mitigation** | **Yes** | No | No | No | No | Yes |
-| Neutronics / TBR | Yes (1-D slab) | No | Yes | No | Yes | No |
-| **Digital twin (real-time)** | **Yes** | No | No | No | No | No |
-| **Rust native backend** | **Yes (5 crates)** | No | No | No | No | No |
-| IMAS Integration | **Yes (Dec 2025)** | Yes | No | No | No | No |
-| GPU acceleration | **Yes (JAX)** | Yes (JAX) | No | No | JAX | No |
-| Autodifferentiation | **Yes (JAX, full GS)** | **Yes (JAX)** | No | No | **Yes (Julia)** | No |
+Within this assessed set, the sources document a different emphasis for SCPN
+Control: neuro-symbolic controller construction, executable safety/admission
+contracts, formal traceability, polyglot runtime surfaces, and evidence objects
+that keep simulation, external-code, hardware and facility claims separate.
+That observation is limited to the sources below and is not a market-wide
+novelty claim.
 
-## 5. Where Competitors Lead
+Current package counts are generated rather than duplicated here. See the
+[capability manifest](_generated/capability_snapshot.md). Scientific and
+deployment limits are maintained in [production readiness](production_readiness.md)
+and [validation deficiencies](validation_deficiencies.md).
 
-| Weakness | Detail | Who Does It Better |
-|----------|--------|-------------------|
-| ~~Equilibrium autodiff depth~~ | **RESOLVED** v0.13.0: JAX Picard GS solver with `jax.grad` through full solve | — |
-| No peer-reviewed publication | JOSS paper drafted but not yet submitted | TORAX (NF 2024), FUSE (FED 2024) |
-| Smaller community | Single-team vs DeepMind / General Atomics resources | TORAX, FUSE |
-| ~~RL agent maturity~~ | **RESOLVED** v0.15.0: PPO 500K benchmark artifact records PPO 121.1 vs MPC 59.4 over 50 episodes, 0% disruption | — |
+## Quantitative comparison status
 
-### Resolved since v0.10.0
-- GPU equilibrium: JAX neural eq with GPU dispatch (v0.11.0)
-- Transport autodiff: JAX-traced Thomas + CN + neural eq (v0.10.0–v0.11.0)
-- Trained transport model: QLKNN-10D MLP with auto-discovery (v0.12.0)
-- RL agent: PPO on TokamakEnv with PID/MPC benchmark (v0.12.0)
-- Equilibrium autodiff depth: JAX Picard GS solver with `jax.grad` through full solve (v0.13.0)
-- RL agent maturity: PPO 500K on JarvisLabs, beats MPC and PID, 3-seed reproducible (v0.14.0)
+The admitted cross-project quantitative comparison set is currently empty.
+Repository-local Python/Rust or controller-baseline comparisons remain useful
+for implementation decisions when their own provenance is complete, but they do
+not rank SCPN Control against TORAX, FUSE, FreeGSNKE, DREAM, TCV control or
+EFIT-AI.
 
-## 6. Codebase Metrics (v0.23.0+)
+When a matched external case becomes available, the public result must preserve
+all runs, including failures, and report the exact code versions, inputs,
+hardware/load, warm-up, precision, tolerances, samples and admission decision.
 
-Live inventory counts are generated from source — see
-`docs/_generated/capability_manifest.json` (authoritative; refresh with
-`python tools/capability_manifest.py`, enforce with `--check`). The rows below
-mirror that manifest; curated domain rows follow.
+## Primary sources
 
-| Metric | Value |
-|--------|-------|
-| Python control/physics modules | 196 |
-| Python source LOC | ~30,700 |
-| Rust crates | 5 |
-| Rust source files | 64 |
-| Rust LOC (all .rs) | ~61,900 |
-| Python test files | 549 |
-| Python public classes | 551 |
-| Test coverage gate | 100% configured package coverage gate for admitted CI contexts |
-| GitHub Actions workflows | 11 |
-| Real DIII-D shots | 17 disruption + 1 safe baseline |
-| SPARC GEQDSK files | 3 |
-| External GK code interfaces | 5 (TGLF, GENE, GS2, CGYRO, QuaLiKiz) |
-| Native GK transport tiers | 5 (crit-grad, surrogate, linear, TGLF-native, nonlinear δf) |
-| Pretrained weight files | 5 (MLP, FNO, neural eq, QLKNN, PPO) |
-
-## 7. scpn-control Unique Position
-
-1. **Neuro-symbolic control with formal contracts** — Petri Net → SNN compilation
-   plus pre/post-condition safety contracts checked on every action, across a
-   runtime-selectable PID/MPC/H∞/SNN stack on one interface. No competing
-   open-source fusion code has this path. The symbolic-transition lane is
-   **demonstrated and load-bearing, not merely present**: in the SCPN-vs-PID/MPC
-   benchmark the control is routed through the timed Petri-net transitions (the
-   readout reads their output places), and the closed-loop tracking is at
-   **parity** with the direct neuromorphic readout (ratio ~1.0 across unseen
-   seeds, margin ~0 — parity, not superiority) while both are ~2.4× better than
-   PID; removing the transitions' drain makes the controller diverge, confirming
-   they carry the signal. Reproducible evidence:
-   `validation/scpn_symbolic_lane_evidence.py`. Control compute is comfortably
-   within the 1–10 kHz real-time budget (native cycle ~5 µs P50 CI), but that is a
-   necessary-not-sufficient property — the fielded bottleneck is diagnostics,
-   reconstruction, and actuation, not the controller.
-
-2. **Nonlinear delta-f GK + native TGLF-like approximation + 5 external GK interfaces +
-   hybrid surrogate validation** — no competing code (TORAX, FUSE, DREAM,
-   FreeGS) has the same bundled research breadth.
-   TORAX and FUSE interface external TGLF only (Fortran binary dependency);
-   scpn-control has 5 transport tiers from critical-gradient to nonlinear δf,
-   all pip-installable, no Fortran. Quantitative external-code agreement remains
-   blocked until matched artefacts pass admission.
-
-3. **Neuro-symbolic SNN + contract checking + digital twin** — the Petri
-   Net to SNN compiler with runtime contract assertions is architecturally
-   unique in the fusion simulation space.
-
-4. **GK → SCPN phase bridge** — GK growth rates and fluxes modulate the
-   8-layer UPDE Kuramoto coupling matrix in real time. No other code
-   connects first-principles gyrokinetic transport to multi-timescale
-   phase dynamics.
-
-5. **CPU-capable neural-equilibrium facade** — implemented, but quantitative
-   latency and identical-input P-EFIT comparison remain unadmitted.
-
-6. **Full-stack breadth** — equilibrium, transport (5 tiers), gyrokinetic
-   (3 paths + nonlinear δf), control (7 controllers), disruption mitigation,
-   digital twin in one focused 125-module package.
-
-## 8. Current evidence limitations
-
-| Surface | Current evidence boundary |
-|---|---|
-| Linear GK quantitative accuracy | The local-dispersion path overpredicts the published GENE CBC reference; matched external-code admission is absent. |
-| Nonlinear GK saturation | Long, converged saturation and cross-code heat-flux evidence are absent. |
-| Neural transport | The public claim report records analytic fallback; quantitative QLKNN/QuaLiKiz admission is false. |
-| Neural equilibrium | Synthetic pretraining exists; identical-input EFIT/P-EFIT holdout and admitted latency evidence are absent. |
-| Facility control | Repository simulation, loopback, and replay evidence does not establish commissioned PCS or CODAC operation. |
-| Publication | Manuscripts are available in the repository; peer-review acceptance is not claimed. |
-
-## References
-
-- Lao, L.L. et al. (1985). *Nucl. Fusion* 25, 1611 (EFIT).
-- Sabbagh, S.A. et al. (2023). GPU-accelerated EFIT (P-EFIT). ACM SC23.
-- Lutjens, H. et al. (1996). *Comput. Phys. Commun.* 97, 219 (CHEASE).
-- Huysmans, G.T.A. et al. (1991). *Proc. CP90* (HELENA).
-- Romanelli, M. et al. (2014). *Plasma Fusion Res.* 9, 3403023 (JINTRAC).
-- Citrin, J. et al. (2024). *arXiv:2406.06718* (TORAX).
-- Meneghini, O. et al. (2024). *arXiv:2409.05894* (FUSE).
-- Jenko, F. et al. (2000). *Phys. Plasmas* 7, 1904 (GENE).
-- Belli, E.A. & Candy, J. (2008). *Phys. Plasmas* 15, 092510 (CGYRO).
-- Hoppe, M. et al. (2021). *Comput. Phys. Commun.* 268, 108098 (DREAM).
-- van de Plassche, K.L. et al. (2020). *Phys. Plasmas* 27, 022310 (QLKNN).
-- Penaflor, B.G. et al. (2024). DIII-D PCS. *Fus. Eng. Des.*
-- Barr, J.L. et al. (2024). *arXiv:2511.11964* (Parallelised RT physics on DIII-D).
-- FreeGS: https://github.com/freegs-plasma/freegs
-- FreeGSNKE: https://docs.freegsnke.com/
-- Gym-TORAX: *arXiv:2510.11283*
-
-## How to interpret this comparison
-
-This document mixes measured local benchmarking, repository-reported metrics,
-and external literature references. The goal is not to claim equal deployment
-readiness across systems, but to identify where engineering scope differs.
-
-When comparing entries:
-
-- treat bare-kernel timing as a local runtime indicator,
-- treat published literature values as method-level baselines,
-- keep cross-code and facility claims outside this table unless strict, matched
-  external artifacts are attached.
-
-The practical use is to compare evidence scope, not to conclude market-wide
-dominance from a single number.
-
-## How to consume this comparison in decision-making
-
-The values in this file combine three evidence types:
-
-- repository-reported measurements,
-- local CI or benchmark evidence, and
-- external literature values.
-
-Treat each row as follows:
-
-- **Use local repository timings for engineering direction and implementation
-  comparison,** not as full production-cycle claims.
-- **Use literature values to understand methodological scope,** not to infer deployment
-  equivalence.
-- **Use admission gates in `docs/validation.md` and `docs/production_readiness.md`
-  before any market-facing statement about facility-grade performance.
-
-The practical effect is to preserve the difference between a fast inner-kernel
-path and a PCS-ready closed-loop system.
-
-## Practical use and scope
-
-Use this document to benchmark positioning decisions between SCPN Control and adjacent approaches.
-
-- Use local measurements for engineering direction, not direct facility readiness claims.
-- Use literature values for comparison context and methodology interpretation.
-- Use this page to distinguish measured local behavior from robustness or deployment maturity.
+- SCPN Control v0.23.0 snapshot `f1f6e36d05f259f81c7b6c33d0d1d0089c921635`: [production-readiness contract](https://github.com/anulum/scpn-control/blob/f1f6e36d05f259f81c7b6c33d0d1d0089c921635/docs/production_readiness.md) and [generated capability manifest](https://github.com/anulum/scpn-control/blob/f1f6e36d05f259f81c7b6c33d0d1d0089c921635/docs/_generated/capability_manifest.json).
+- TORAX v1.4.3 (`4aea2377385ba4dfe37b0ef4396374162af1314b`): [release](https://github.com/google-deepmind/torax/releases/tag/v1.4.3) and [tagged overview](https://github.com/google-deepmind/torax/blob/v1.4.3/README.md).
+- FUSE v1.2.0 (`9ef2f99af73497706a097d99a2aaac2f08405370`): [release](https://github.com/ProjectTorreyPines/FUSE.jl/releases/tag/v1.2.0) and [tagged overview](https://github.com/ProjectTorreyPines/FUSE.jl/blob/v1.2.0/README.md).
+- FreeGS v0.8.2 (`8b838c1df162ca770a6937ac79d8c73e8f10a53b`): [release](https://github.com/freegs-plasma/freegs/releases/tag/v0.8.2) and [tagged overview](https://github.com/freegs-plasma/freegs/blob/v0.8.2/README.md).
+- FreeGSNKE v3.0.1 (`f776e908c8c333411f9824cbcfed674fafff8dfd`): [release](https://github.com/FusionComputingLab/freegsnke/releases/tag/v3.0.1), [tagged overview](https://github.com/FusionComputingLab/freegsnke/blob/v3.0.1/README.md), and [MAST-U/EFIT++ validation paper](https://doi.org/10.1088/1402-4896/ada192).
+- DREAM v26.5 (`ecdd5e146537c77602c9d7cc76b36100200e4b9a`): [release](https://github.com/chalmersplasmatheory/DREAM/releases/tag/v26.5), [tagged overview](https://github.com/chalmersplasmatheory/DREAM/blob/v26.5/README.md), and [framework paper](https://doi.org/10.1016/j.cpc.2021.108098).
+- PROCESS v3.4.2 (`c0ae5b28649f2b20fb7efc7904628b6defe4151c`): [release](https://github.com/ukaea/PROCESS/releases/tag/v3.4.2) and [tagged overview](https://github.com/ukaea/PROCESS/blob/v3.4.2/README.md).
+- OMAS v0.97.3 (`e95c785e8c4c461adb66cc130e16b8950139b103`): [release](https://github.com/gafusion/omas/releases/tag/v0.97.3), [tagged overview](https://github.com/gafusion/omas/blob/v0.97.3/README.md), and [OMFIT public module catalogue](https://www.omfit.io/modules.html).
+- TCV deep-RL magnetic control: [Nature article and source data](https://doi.org/10.1038/s41586-021-04301-9).
+- EFIT-AI GPU reconstruction: [SC-W 2023 paper](https://doi.org/10.1145/3624062.3624607).

@@ -602,6 +602,8 @@ jobs:
         run: python tools/check_changelog_sync.py
       - name: Tracked source-header policy
         run: python tools/check_source_headers.py
+      - name: Competitive evidence contract
+        run: python tools/check_competitive_evidence.py
       - name: Documentation coverage
         run: python tools/check_docs_coverage.py
       - name: Public-API docstring coverage

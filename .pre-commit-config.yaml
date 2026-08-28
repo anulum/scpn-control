@@ -72,6 +72,13 @@ repos:
         language: system
         pass_filenames: false
 
+      - id: check-competitive-evidence
+        name: competitive evidence contract
+        entry: python tools/check_competitive_evidence.py
+        language: system
+        pass_filenames: false
+        files: ^(docs/_data/competitive_evidence\.json|docs/competitive_analysis\.md|tools/check_competitive_evidence\.py|tests/test_competitive_evidence\.py)$
+
       - id: check-docs-coverage
         name: documentation coverage
         entry: python tools/check_docs_coverage.py

@@ -1,7 +1,9 @@
 # Gyrokinetic Transport — Three-Path Architecture
 
 scpn-control implements all three gyrokinetic transport paths in a single
-codebase. No competing code (TORAX, FUSE, DREAM, FreeGS) has this combination.
+codebase. The assessed public sources for TORAX, FUSE, DREAM, and FreeGS do not
+document the same bundled research path; that bounded source observation is not
+a market-wide novelty or fidelity claim.
 
 ## Architecture Overview
 

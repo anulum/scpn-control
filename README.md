@@ -172,10 +172,11 @@ blocked until the required external artefacts exist.
 > Stochastic Petri Nets into spiking neural network controllers and runs them
 > behind pre/post-condition contracts checked on every control action, in a
 > runtime-selectable stack alongside PID, nonlinear MPC, and H∞ — no GPU required.
-> The control compute meets the 1–10 kHz real-time budget with margin (native
-> integrated control cycle ~5 µs P50 on CI / ~3 µs local, reproducible via
-> `scripts/benchmark_native_handoff.py`); in a fielded loop the bottleneck is
-> diagnostics, equilibrium reconstruction, and actuation, not the controller.
+> The retained native-handoff report records a 5.619 µs P50 local-proxy cycle
+> on its named GitHub Actions host and explicitly denies runtime/production
+> admission. It demonstrates bounded controller-compute headroom, not an
+> end-to-end plant loop; diagnostics, reconstruction, transport, scheduling,
+> I/O and actuation remain outside that measurement.
 > Benchmark methodology and per-backend tables: [benchmarks](docs/benchmarks.md).
 > See [competitive analysis](docs/competitive_analysis.md) for methodology and
 > [production readiness](docs/production_readiness.md) for deployment limits.
@@ -203,7 +204,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 155 |
 | Optional extras | 20 |
-| Python test files | 561 |
+| Python test files | 562 |
 | Public documentation pages | 69 |
 | GitHub Actions workflows | 12 |
 
@@ -630,13 +631,14 @@ git push --tags
   [dB/dt source-authority gate](docs/mast_dbdt_authority.md), so the unresolved
   `T` versus `Tesla/sec` source cannot be differentiated zero or two times by
   assumption.
-- **No GPU equilibrium**: P-EFIT is faster on GPU hardware. JAX neural equilibrium
-  runs on GPU if available. Public MAST EFM prediction evidence is available as
-  fail-closed flux and derived-geometry evaluation with exact public EFM
-  coordinate grids, but it is not cross-validated against matched P-EFIT
-  pressure, q-profile, and exact-input artefacts.
-- **Rust acceleration**: Optional. Pure-Python fallback is complete but 5-10x
-  slower for GS solve and Kuramoto steps at N > 1000.
+- **GPU equilibrium evidence is not matched**: EFIT-AI/P-EFIT literature reports
+  named accelerator reconstruction work. SCPN's JAX equilibrium paths can
+  dispatch to a GPU when available, but there is no admitted identical-input,
+  full-output, named-hardware comparison against that lineage. Public MAST EFM
+  evidence therefore remains fail closed for predictive EFIT/P-EFIT claims.
+- **Rust acceleration is optional**: Pure-Python fallbacks remain available.
+  Side-by-side repository reports are backend-specific engineering evidence;
+  they do not establish a hardware-neutral speed ratio.
 
 ## Support the Project
 

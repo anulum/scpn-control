@@ -21,6 +21,7 @@ lint:
 	ruff format --check src/ tests/
 	python tools/check_changelog_sync.py
 	python tools/check_source_headers.py
+	python tools/check_competitive_evidence.py
 	python tools/check_benchmark_producers.py
 	python tools/run_docstring_gate.py
 	python tools/check_api_contracts.py

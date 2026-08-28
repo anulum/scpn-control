@@ -1,0 +1,200 @@
+{
+  "schema": "scpn-control.competitive-evidence.v1",
+  "as_of": "2026-08-28",
+  "project_version": "0.23.0",
+  "comparison_policy": {
+    "absence_state": "not assessed",
+    "numeric_admission": "Identical problem, inputs, precision, tolerances, convergence criteria, warm-up and compilation treatment, samples, isolated hardware, and failure accounting are required.",
+    "scope": "Evidence scope and documented capabilities; not a product ranking or market-wide survey."
+  },
+  "systems": [
+    {
+      "id": "scpn-control",
+      "name": "SCPN Control",
+      "artifact_kind": "repository-snapshot",
+      "assessed_version": "v0.23.0 snapshot f1f6e36d",
+      "artifact_date": "2026-08-28",
+      "commit_sha": "f1f6e36d05f259f81c7b6c33d0d1d0089c921635",
+      "primary_role": "Neuro-symbolic plasma-control research toolkit and evidence-admission layer.",
+      "documented_strengths": [
+        "Runtime-selectable classical, robust, predictive, and neuro-symbolic control surfaces.",
+        "Executable safety and evidence-admission contracts with Python, Rust, TypeScript, Lean, and C++ surfaces.",
+        "Offline simulation, replay, and target-hardware evidence interfaces with facility claims blocked by default."
+      ],
+      "evidence_boundary": "Not commissioned on a plasma-control system; external-code parity, target-hardware timing, and facility validation remain separately admitted claims.",
+      "source_urls": [
+        "https://github.com/anulum/scpn-control/blob/f1f6e36d05f259f81c7b6c33d0d1d0089c921635/docs/production_readiness.md",
+        "https://github.com/anulum/scpn-control/blob/f1f6e36d05f259f81c7b6c33d0d1d0089c921635/docs/_generated/capability_manifest.json"
+      ]
+    },
+    {
+      "id": "torax",
+      "name": "TORAX",
+      "artifact_kind": "release",
+      "assessed_version": "v1.4.3",
+      "artifact_date": "2026-07-03",
+      "commit_sha": "4aea2377385ba4dfe37b0ef4396374162af1314b",
+      "primary_role": "Differentiable JAX tokamak core-transport simulator.",
+      "documented_strengths": [
+        "Coupled ion/electron heat, particle, and current-diffusion PDEs.",
+        "Differentiable nonlinear solves and optimisation-oriented JAX execution.",
+        "QLKNN and direct TGLF coupling plus IMAS core-source integration."
+      ],
+      "evidence_boundary": "SCPN Control has reduced transport and TORAX-shaped integration surfaces, but no admitted identical-input TORAX comparison.",
+      "source_urls": [
+        "https://github.com/google-deepmind/torax/releases/tag/v1.4.3",
+        "https://github.com/google-deepmind/torax/blob/v1.4.3/README.md"
+      ]
+    },
+    {
+      "id": "fuse",
+      "name": "FUSE",
+      "artifact_kind": "release",
+      "assessed_version": "v1.2.0",
+      "artifact_date": "2026-08-10",
+      "commit_sha": "9ef2f99af73497706a097d99a2aaac2f08405370",
+      "primary_role": "Integrated fusion-device simulation and design framework.",
+      "documented_strengths": [
+        "Coupled plasma physics, engineering, control, balance-of-plant, and costing actors.",
+        "Multi-objective constrained design optimisation.",
+        "ITER IMAS ontology with OMAS and OMFIT interoperability."
+      ],
+      "evidence_boundary": "SCPN Control provides control and admission components, not an equivalent whole-device design and costing environment.",
+      "source_urls": [
+        "https://github.com/ProjectTorreyPines/FUSE.jl/releases/tag/v1.2.0",
+        "https://github.com/ProjectTorreyPines/FUSE.jl/blob/v1.2.0/README.md"
+      ]
+    },
+    {
+      "id": "freegs",
+      "name": "FreeGS",
+      "artifact_kind": "release",
+      "assessed_version": "v0.8.2",
+      "artifact_date": "2024-09-25",
+      "commit_sha": "8b838c1df162ca770a6937ac79d8c73e8f10a53b",
+      "primary_role": "Static free-boundary Grad-Shafranov equilibrium solver.",
+      "documented_strengths": [
+        "Free-boundary equilibrium with plasma profiles, coils, machine circuits, and inverse constraints.",
+        "G-EQDSK input/output and established transparent Python reference implementation."
+      ],
+      "evidence_boundary": "FreeGS is an external code-to-code reference; agreement with it is not experimental truth.",
+      "source_urls": [
+        "https://github.com/freegs-plasma/freegs/releases/tag/v0.8.2",
+        "https://github.com/freegs-plasma/freegs/blob/v0.8.2/README.md"
+      ]
+    },
+    {
+      "id": "freegsnke",
+      "name": "FreeGSNKE",
+      "artifact_kind": "release",
+      "assessed_version": "v3.0.1",
+      "artifact_date": "2026-04-12",
+      "commit_sha": "f776e908c8c333411f9824cbcfed674fafff8dfd",
+      "primary_role": "Static and evolutive free-boundary equilibrium and circuit simulator.",
+      "documented_strengths": [
+        "Fourth-order Newton-Krylov static and implicit evolutive solves.",
+        "Self-consistent active-coil, passive-structure, plasma-current, and magnetic-diagnostic modeling.",
+        "Peer-reviewed MAST-U/EFIT++ validation and pulse/control-design literature."
+      ],
+      "evidence_boundary": "SCPN Control does not currently have equivalent admitted evolutive free-boundary or MAST-U/EFIT++ validation evidence.",
+      "source_urls": [
+        "https://github.com/FusionComputingLab/freegsnke/releases/tag/v3.0.1",
+        "https://github.com/FusionComputingLab/freegsnke/blob/v3.0.1/README.md",
+        "https://doi.org/10.1088/1402-4896/ada192"
+      ]
+    },
+    {
+      "id": "dream",
+      "name": "DREAM",
+      "artifact_kind": "release",
+      "assessed_version": "v26.5",
+      "artifact_date": "2026-05-26",
+      "commit_sha": "ecdd5e146537c77602c9d7cc76b36100200e4b9a",
+      "primary_role": "Fluid-kinetic tokamak disruption and runaway-electron simulator.",
+      "documented_strengths": [
+        "Nonlinear fluid equations coupled to kinetic electron equations.",
+        "Specialised runaway generation, dynamics, losses, and shattered-pellet-injection models.",
+        "Dedicated peer-reviewed physics and software lineage."
+      ],
+      "evidence_boundary": "SCPN Control contains control-grade disruption and mitigation models, not an equivalent DREAM fluid-kinetic solver.",
+      "source_urls": [
+        "https://github.com/chalmersplasmatheory/DREAM/releases/tag/v26.5",
+        "https://github.com/chalmersplasmatheory/DREAM/blob/v26.5/README.md",
+        "https://doi.org/10.1016/j.cpc.2021.108098"
+      ]
+    },
+    {
+      "id": "process",
+      "name": "PROCESS",
+      "artifact_kind": "release",
+      "assessed_version": "v3.4.2",
+      "artifact_date": "2026-08-14",
+      "commit_sha": "c0ae5b28649f2b20fb7efc7904628b6defe4151c",
+      "primary_role": "UKAEA reactor systems design code.",
+      "documented_strengths": [
+        "Integrated reactor physics, engineering, costing, and design optimisation.",
+        "Versioned releases, Zenodo lineage, tests, and variable tracking."
+      ],
+      "evidence_boundary": "SCPN Control is not a reactor systems-design or costing code; PROCESS v3 also declares its API unstable pending v4.",
+      "source_urls": [
+        "https://github.com/ukaea/PROCESS/releases/tag/v3.4.2",
+        "https://github.com/ukaea/PROCESS/blob/v3.4.2/README.md"
+      ]
+    },
+    {
+      "id": "omas",
+      "name": "OMAS",
+      "artifact_kind": "release",
+      "assessed_version": "v0.97.3",
+      "artifact_date": "2026-05-28",
+      "commit_sha": "e95c785e8c4c461adb66cc130e16b8950139b103",
+      "primary_role": "Python interoperability layer for the ITER IMAS data model.",
+      "documented_strengths": [
+        "IMAS-compatible data representation across multiple file and database formats.",
+        "Integration substrate for OMFIT and third-party fusion codes."
+      ],
+      "evidence_boundary": "SCPN Control exposes IMAS-facing contracts, but its current public evidence does not establish the breadth of the OMAS/OMFIT data and workflow ecosystem.",
+      "source_urls": [
+        "https://github.com/gafusion/omas/releases/tag/v0.97.3",
+        "https://github.com/gafusion/omas/blob/v0.97.3/README.md",
+        "https://www.omfit.io/modules.html"
+      ]
+    },
+    {
+      "id": "tcv-drl-control",
+      "name": "TCV deep-RL magnetic control",
+      "artifact_kind": "paper",
+      "assessed_version": "doi:10.1038/s41586-021-04301-9",
+      "artifact_date": "2022-02-16",
+      "commit_sha": null,
+      "primary_role": "Learned magnetic controller demonstrated on the TCV tokamak.",
+      "documented_strengths": [
+        "10 kHz closed-loop control using real TCV magnetic and coil-current measurements.",
+        "Zero-shot simulation-to-hardware transfer and actuation of 19 control coils.",
+        "Peer-reviewed demonstrations across multiple plasma shapes, including two sustained plasma droplets."
+      ],
+      "evidence_boundary": "SCPN Control has no commissioned tokamak actuation result; simulation or offline replay is not equivalent evidence.",
+      "source_urls": [
+        "https://doi.org/10.1038/s41586-021-04301-9"
+      ]
+    },
+    {
+      "id": "efit-ai-gpu",
+      "name": "EFIT-AI GPU reconstruction",
+      "artifact_kind": "paper",
+      "assessed_version": "doi:10.1145/3624062.3624607",
+      "artifact_date": "2023-11-12",
+      "commit_sha": null,
+      "primary_role": "Performance-portable GPU acceleration of the EFIT inverse equilibrium solver.",
+      "documented_strengths": [
+        "GPU-offloaded equilibrium-reconstruction kernels evaluated on NVIDIA, AMD, and Intel accelerators.",
+        "Named-grid and named-hardware performance-portability study within the EFIT reconstruction lineage."
+      ],
+      "evidence_boundary": "SCPN Control has no admitted identical-input, full-output, named-GPU EFIT-AI comparison.",
+      "source_urls": [
+        "https://doi.org/10.1145/3624062.3624607"
+      ]
+    }
+  ],
+  "quantitative_comparisons": []
+}

@@ -337,7 +337,7 @@ where $C_i$ is the cumulative constraint cost over an episode and $d_i$ is the
 constraint limit. This drives $\lambda_i$ up when constraints are violated, increasing
 the penalty, and back toward zero when constraints are satisfied.
 
-### Why RL Can Beat MPC
+### Conditions Where RL May Outperform MPC
 
 MPC requires a differentiable model of the plant. If that model is wrong, MPC performs
 poorly. RL learns a policy directly from interaction (or simulated interaction),

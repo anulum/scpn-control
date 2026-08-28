@@ -223,6 +223,22 @@ tracked format must be classified explicitly; it cannot silently bypass the
 gate. The same command runs in CI, local preflight, pre-commit, and
 `make lint`.
 
+## Competitive Evidence
+
+```bash
+python tools/check_competitive_evidence.py
+```
+
+The competitive-evidence gate treats
+`docs/_data/competitive_evidence.json` as the dated source registry for
+`docs/competitive_analysis.md`. Release-backed entries require exact tags and
+commit SHAs; papers require stable DOI sources. The public page must carry every
+source, state the empty numeric-comparison set when no matched protocol is
+admitted, use `not assessed` instead of inferred absence, and exclude ranking
+language and private planning markers. Any quantitative row must declare the
+same problem, inputs, precision, tolerances, convergence, warm-up, samples,
+hardware/load, isolation, failures, and result artifact.
+
 ## Public API Docstrings
 
 ```bash
