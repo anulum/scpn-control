@@ -218,7 +218,7 @@ def _pyo3_measurement(shots: list[CampaignShotPlan], *, steps: int, warmup: int)
 def _loadavg() -> tuple[float, float, float] | None:
     try:
         return os.getloadavg()
-    except OSError:
+    except (AttributeError, OSError):
         return None
 
 

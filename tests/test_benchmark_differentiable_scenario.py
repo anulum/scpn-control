@@ -72,13 +72,16 @@ def test_profiles_and_fixture_have_consistent_shapes() -> None:
 
 def test_loadavg_is_explicit_when_supported_or_unavailable(monkeypatch: pytest.MonkeyPatch) -> None:
     """Host-load capture has observable success and unavailable branches."""
-    monkeypatch.setattr(os, "getloadavg", lambda: (1, 2, 3))
+    monkeypatch.setattr(os, "getloadavg", lambda: (1, 2, 3), raising=False)
     assert benchmark._loadavg() == (1.0, 2.0, 3.0)
 
     def unavailable() -> tuple[float, float, float]:
         raise OSError("load average unavailable")
 
     monkeypatch.setattr(os, "getloadavg", unavailable)
+    assert benchmark._loadavg() is None
+
+    monkeypatch.delattr(os, "getloadavg", raising=False)
     assert benchmark._loadavg() is None
 
 

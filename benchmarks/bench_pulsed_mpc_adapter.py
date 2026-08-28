@@ -55,7 +55,7 @@ def _affinity() -> list[int] | None:
 def _loadavg() -> tuple[float, float, float] | None:
     try:
         return os.getloadavg()
-    except OSError:
+    except (AttributeError, OSError):
         return None
 
 

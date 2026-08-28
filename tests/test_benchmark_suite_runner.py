@@ -20,6 +20,7 @@ from typing import Any
 import pytest
 
 import tools.run_benchmark_suite as rbs
+import validation.benchmark_capacitor_bank_state as capacitor_bank_state_benchmark
 from tools.run_benchmark_suite import (
     BENCHMARKS,
     REPORT_SCHEMA,
@@ -135,6 +136,22 @@ def test_loadavg_returns_none_on_oserror(monkeypatch: pytest.MonkeyPatch) -> Non
     # getloadavg is absent on Windows, so allow creating the attribute there.
     monkeypatch.setattr(os, "getloadavg", _raise, raising=False)
     assert _loadavg() is None
+
+
+@pytest.mark.parametrize(
+    "benchmark_module",
+    [
+        rbs._load_control_benchmark_module("bench_aer_observation.py"),
+        rbs._load_control_benchmark_module("bench_capacitor_bank_energy.py"),
+        rbs._load_control_benchmark_module("bench_multi_shot_campaign.py"),
+        rbs._load_control_benchmark_module("bench_pulsed_mpc_adapter.py"),
+        capacitor_bank_state_benchmark,
+    ],
+)
+def test_benchmark_loadavg_handles_windows_absence(monkeypatch: pytest.MonkeyPatch, benchmark_module: Any) -> None:
+    """Represent the Windows absence of ``os.getloadavg`` explicitly."""
+    monkeypatch.delattr(os, "getloadavg", raising=False)
+    assert benchmark_module._loadavg() is None
 
 
 def test_git_commit_falls_back_on_oserror(monkeypatch: pytest.MonkeyPatch) -> None:

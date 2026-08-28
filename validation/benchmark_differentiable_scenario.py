@@ -71,8 +71,11 @@ def _scenario_fixture() -> tuple[npt.NDArray[np.floating[Any]], ...]:
 
 
 def _loadavg() -> tuple[float, float, float] | None:
+    getloadavg = getattr(os, "getloadavg", None)
+    if getloadavg is None:
+        return None
     try:
-        load1, load5, load15 = os.getloadavg()
+        load1, load5, load15 = getloadavg()
         return (float(load1), float(load5), float(load15))
     except OSError:
         return None
@@ -159,9 +162,9 @@ def _producer_command(json_out: Path, md_out: Path) -> str:
             "python",
             "validation/benchmark_differentiable_scenario.py",
             "--json-out",
-            str(json_out),
+            json_out.as_posix(),
             "--md-out",
-            str(md_out),
+            md_out.as_posix(),
         ]
     )
 

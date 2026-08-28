@@ -178,7 +178,7 @@ def _host(
 def _loadavg() -> tuple[float, float, float] | None:
     try:
         return os.getloadavg()
-    except OSError:
+    except (AttributeError, OSError):
         return None
 
 
