@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Local CI preflight gates.
 
+"""Run the repository's ordered local verification gates."""
+
 from __future__ import annotations
 
 import json
@@ -56,6 +58,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
     ("version-sync", [_PY, "tools/check_version_sync.py"], None),
     ("changelog-sync", [_PY, "tools/check_changelog_sync.py"], None),
+    ("source-header-policy", [_PY, "tools/check_source_headers.py"], None),
     ("joss-submission", [_PY, "tools/check_joss_submission.py"], None),
     ("mypy", [_PY, "-m", "mypy"], None),
     ("test-quality-policy", [_PY, "tools/check_test_quality_policy.py"], None),
@@ -118,6 +121,22 @@ def _subprocess_env() -> dict[str, str]:
 
 
 def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
+    """Run one named gate and report its bounded output.
+
+    Parameters
+    ----------
+    name:
+        Human-readable gate identifier.
+    cmd:
+        Argument vector executed without a shell.
+    cwd:
+        Working directory override, or the repository root when ``None``.
+
+    Returns
+    -------
+    bool
+        ``True`` when the process exits successfully.
+    """
     if name == "release-evidence":
         return run_release_evidence_gate()
 
@@ -164,7 +183,6 @@ def _print_command_failure(result: subprocess.CompletedProcess[str]) -> None:
 
 def run_release_evidence_gate() -> bool:
     """Generate and admit the top-level release evidence report."""
-
     t0 = time.monotonic()
     with tempfile.TemporaryDirectory(prefix="scpn-control-release-evidence-") as tmp:
         tmp_path = Path(tmp)
@@ -212,7 +230,7 @@ def run_release_evidence_gate() -> bool:
 
 
 def _requirements_changed() -> bool:
-    """True if any requirements/ file is in the staged or unstaged diff."""
+    """Return whether a requirements file is staged or modified."""
     result = subprocess.run(  # noqa: S603
         ["git", "diff", "--name-only", "HEAD"],
         cwd=ROOT,
@@ -312,6 +330,7 @@ def run_hash_pin_check() -> bool:
 
 
 def main() -> int:
+    """Run selected preflight gates and return zero only when all pass."""
     coverage = "--coverage" in sys.argv
     skip_tests = "--no-tests" in sys.argv
     skip_rust = "--no-rust" in sys.argv

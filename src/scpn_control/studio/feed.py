@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio panel feed
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio panel feed.
+
 """Serialise the CONTROL studio surface into a wire feed the panel reads live.
 
 The federated panel must not hard-code CONTROL's verbs and claims — a second copy

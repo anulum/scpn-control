@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio evidence bundles
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio evidence bundles.
+
 """Emit ``studio.*.v1`` evidence bundles for CONTROL results (schema B).
 
 This module is the crux of CONTROL's vertical: it maps CONTROL's existing,

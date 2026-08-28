@@ -7,6 +7,9 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Normalised owned source, test, workflow, build, and commentable configuration
+  headers to one format-native seven-line identity contract, with a deterministic
+  gate and reviewed exemptions for formats that cannot safely carry comments.
 - Added intentional MkDocs navigation and a sanitised digest manifest for all
   six public MAST evidence pages, plus deterministic source/rendered link gates
   and a bounded scheduled external-link audit with cache provenance.

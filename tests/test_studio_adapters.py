@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio live-emitter adapter tests
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio live-emitter adapter tests.
+
 """Tests for the studio adapters that wire live CONTROL emitters to EvidenceBundles.
 
 Each adapter is fed a faithful slice of its real emitter's output — a

@@ -4,7 +4,7 @@
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Control Studio UI remote — the live studio feed loader
+// SCPN Control — Feed.
 
 /**
  * Load the CONTROL studio feed the Python vertical emits, so the panel renders live

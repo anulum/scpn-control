@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio verbs
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio verbs.
+
 """The SCPN-CONTROL studio's verbs, expressed on the locked platform contract.
 
 CONTROL is the control-grade integration laboratory of the SCPN ecosystem, so its

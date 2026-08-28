@@ -4,7 +4,7 @@
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Control Studio UI remote — tests for the domain data and honesty rules
+// SCPN Control — Domain.test.
 
 import { describe, expect, it } from 'vitest';
 

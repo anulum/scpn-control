@@ -1,11 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Studio vertical tests
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# ──────────────────────────────────────────────────────────────────────
+# SCPN Control — Studio vertical tests.
+
 """Tests for CONTROL's studio vertical built on the platform SDK.
 
 The suite checks three things: the verb taxonomy maps onto the platform core spine

@@ -1,10 +1,11 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# Project: SCPN Control
-# Description: Tests for native C++ solver bridge safety and low-copy behaviour.
+# SCPN Control — Tests for native C++ solver bridge safety and low-copy behaviour.
+
 """Unit tests for HPC bridge safety and low-copy behaviour."""
 
 from __future__ import annotations

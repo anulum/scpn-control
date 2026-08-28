@@ -1,3 +1,11 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Ci torch.
+
 # CPU-only wheel for GHA coverage (disruption_checkpoint real torch E2E).
 # PyPI default resolves to CUDA; force the CPU build from the pytorch index.
 --extra-index-url https://download.pytorch.org/whl/cpu

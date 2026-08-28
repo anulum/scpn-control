@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 # Commercial license available
-# © Concepts 1996-2026 Miroslav Sotek. All rights reserved.
-# © Code 2020-2026 Miroslav Sotek. All rights reserved.
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Formal verification validator and fail-closed paths
+# SCPN Control — Formal verification validator and fail-closed paths.
+
 """Validator and fail-closed branches of the formal Petri-net verifier.
 
 Exercises the formula dataclass guards, the backend resolver, the verifier

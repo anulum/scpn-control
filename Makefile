@@ -1,4 +1,11 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Build and verification commands.
+
 .PHONY: test test-rust test-all lint fmt bandit sast preflight preflight-fast docs docs-build docs-api-native docs-api-rust docs-api-studio bench bench-rust bench-native-handoff bridge build install-hooks docker-build docker-run clean
 
 test:
@@ -13,6 +20,7 @@ lint:
 	ruff check src/ tests/
 	ruff format --check src/ tests/
 	python tools/check_changelog_sync.py
+	python tools/check_source_headers.py
 	python tools/check_benchmark_producers.py
 	python tools/run_docstring_gate.py
 	python tools/check_api_contracts.py

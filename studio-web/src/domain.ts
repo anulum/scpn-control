@@ -4,7 +4,7 @@
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Control Studio UI remote — the studio's domain data and honesty rendering rules
+// SCPN Control — Domain.
 
 /**
  * The CONTROL studio's domain data for the panel.

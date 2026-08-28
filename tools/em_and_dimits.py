@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-# SPDX-License-Identifier: AGPL-3.0-or-later | Commercial license available
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
 # © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — EM GPU Test + Long Dimits Shift
+# SCPN Control — EM GPU Test + Long Dimits Shift.
+
 """Two tests: (1) EM vs ES at CBC, (2) Dimits R/L_Ti=3 vs 6.9 at 20K steps with n_kx=256."""
 
 from __future__ import annotations

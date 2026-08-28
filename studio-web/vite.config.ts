@@ -4,7 +4,7 @@
 // © Code 2020–2026 Miroslav Šotek. All rights reserved.
 // ORCID: 0009-0009-3560-0851
 // Contact: www.anulum.li | protoscience@anulum.li
-// Control Studio UI remote — Vite + Module Federation 2.x remote build
+// SCPN Control — Vite.config.
 
 import { federation } from '@module-federation/vite';
 import react from '@vitejs/plugin-react';

@@ -208,6 +208,21 @@ python tools/check_changelog_sync.py
 rendered MkDocs mirror and must stay byte-identical to the root file. The guard
 runs in CI, local preflight, pre-commit, and `make lint`.
 
+## Tracked Source Headers
+
+```bash
+python tools/check_source_headers.py
+```
+
+The source-header gate enforces the repository's seven-line semantic identity
+block across owned source, tests, workflows, build files, and commentable
+configuration. `tools/source_header_policy.toml` records the reviewed format
+families that cannot carry this header without changing legal text, generated
+integrity data, serialisation, manuscript rendering, or binary content. A new
+tracked format must be classified explicitly; it cannot silently bypass the
+gate. The same command runs in CI, local preflight, pre-commit, and
+`make lint`.
+
 ## Public API Docstrings
 
 ```bash

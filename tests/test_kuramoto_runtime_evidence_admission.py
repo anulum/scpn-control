@@ -4,6 +4,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Kuramoto runtime evidence admission tests.
+
 """Admission and validator behaviour for Kuramoto runtime evidence.
 
 Exercises the field-by-field validation in

@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Tracked source-header scope and reviewed exemptions.
+
+schema = "scpn-control.source-header-policy.v1"
+
+[enforced]
+suffixes = [
+  ".cff",
+  ".cpp",
+  ".h",
+  ".html",
+  ".in",
+  ".js",
+  ".lean",
+  ".mjs",
+  ".py",
+  ".rs",
+  ".sh",
+  ".toml",
+  ".ts",
+  ".tsx",
+  ".yaml",
+  ".yml",
+]
+names = [
+  ".dockerignore",
+  ".editorconfig",
+  ".gitattributes",
+  ".gitignore",
+  ".npmrc",
+  "CODEOWNERS",
+  "Dockerfile",
+  "Makefile",
+  "pre-push",
+]
+
+[[exemptions]]
+category = "prose-or-venue-source"
+suffixes = [".bib", ".md", ".tex"]
+reason = "Prose and venue-native manuscripts use document-level attribution and REUSE metadata; forced code headers would alter rendered or submitted content."
+
+[[exemptions]]
+category = "comment-incompatible-structured-data"
+suffixes = [".csv", ".ipynb", ".json", ".jsonl"]
+reason = "These serialisations do not admit comments without changing their data contract."
+
+[[exemptions]]
+category = "generated-package-metadata"
+suffixes = [".lock"]
+reason = "Package-manager lockfiles are generated integrity inputs and must remain byte-stable."
+
+[[exemptions]]
+category = "binary-media-or-archive"
+suffixes = [".bin", ".gif", ".mp4", ".npz", ".pdf", ".png", ".pub", ".svg", ".typed", ".zip"]
+reason = "Binary, media, archive, marker, and public-key formats cannot carry the text header safely."
+
+[[exemptions]]
+category = "scientific-reference-data"
+suffixes = [".eqdsk", ".geqdsk"]
+reason = "Fixed-format reference data is integrity-bound and comments would change the scientific input."
+
+[[exemptions]]
+category = "legal-or-generated-text"
+suffixes = [".txt"]
+names = ["LICENSE", "SHA256SUMS"]
+reason = "Licence texts and generated checksum manifests retain their normative native format."
+
+[[exemptions]]
+category = "exact-toolchain-selector"
+names = ["lean-toolchain"]
+reason = "The Lean toolchain selector is a single exact token and does not support comments."
