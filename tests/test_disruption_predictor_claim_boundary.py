@@ -222,8 +222,7 @@ def test_public_surfaces_keep_disruption_predictor_boundary() -> None:
 
     assert "Default score is a deterministic fixed-weight heuristic" in readme
     assert "Not validated on experimental disruption databases" in readme
-    assert "Disruption prediction (heuristic)" in competitive
-    assert "Disruption prediction (ML)" not in competitive
+    assert "control-grade models, not a DREAM-equivalent kinetic solver" in competitive
     assert "not a model trained or fitted on a real disruption database" in traceability
     assert "repository replay data are synthetic" in deficiencies
     assert "fixed-weight heuristic on those fixtures only" in deficiencies

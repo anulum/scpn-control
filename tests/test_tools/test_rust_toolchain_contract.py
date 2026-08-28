@@ -32,11 +32,13 @@ def _write_contract(root: Path) -> None:
         '[toolchain]\nchannel = "1.98.0"\ncomponents = ["clippy", "rustfmt"]\nprofile = "minimal"\n',
         encoding="utf-8",
     )
-    for relative_path, (toolchain, count) in EXPECTED_WORKFLOWS.items():
+    for relative_path, (toolchain, count, components) in EXPECTED_WORKFLOWS.items():
         path = root / relative_path
         path.parent.mkdir(parents=True, exist_ok=True)
+        components_line = f"\n          components: {components}" if components is not None else ""
         steps = "\n".join(
-            f"      - uses: dtolnay/rust-toolchain@{ACTION_SHA}\n        with:\n          toolchain: {toolchain}"
+            f"      - uses: dtolnay/rust-toolchain@{ACTION_SHA}\n        with:\n"
+            f"          toolchain: {toolchain}{components_line}"
             for _ in range(count)
         )
         path.write_text(f"jobs:\n  check:\n    steps:\n{steps}\n", encoding="utf-8")
@@ -54,10 +56,10 @@ def test_toolchain_step_parser_stops_at_next_step(tmp_path: Path) -> None:
         f"steps:\n  - uses: dtolnay/rust-toolchain@{ACTION_SHA}\n  - run: echo next\n    toolchain: fake\n",
         encoding="utf-8",
     )
-    assert _toolchain_steps(workflow) == [(ACTION_SHA, None)]
+    assert _toolchain_steps(workflow) == [(ACTION_SHA, None, None)]
 
     workflow.write_text(f"steps:\n  - uses: dtolnay/rust-toolchain@{ACTION_SHA}\n", encoding="utf-8")
-    assert _toolchain_steps(workflow) == [(ACTION_SHA, None)]
+    assert _toolchain_steps(workflow) == [(ACTION_SHA, None, None)]
 
 
 @pytest.mark.parametrize(
@@ -112,6 +114,17 @@ def test_contract_rejects_workflow_count_pin_and_version_drift(tmp_path: Path) -
     assert any("not pinned to a full SHA" in error for error in errors)
     assert any("expected toolchain 1.98.0, got stable" in error for error in errors)
     assert any("expected 2 Rust toolchain steps, found 0" in error for error in errors)
+
+
+def test_contract_rejects_stable_component_drift(tmp_path: Path) -> None:
+    """Stable hosted jobs must install the canonical components up front."""
+    _write_contract(tmp_path)
+    path = tmp_path / ".github/workflows/ci.yml"
+    text = path.read_text(encoding="utf-8")
+    path.write_text(text.replace("components: rustfmt, clippy", "components: rustfmt", 1), encoding="utf-8")
+    assert any(
+        "expected components rustfmt, clippy, got rustfmt" in error for error in check_rust_toolchain_contract(tmp_path)
+    )
 
 
 def test_contract_reports_missing_workflow(tmp_path: Path) -> None:

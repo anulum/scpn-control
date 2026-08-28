@@ -21,34 +21,38 @@ ROOT: Final = Path(__file__).resolve().parents[1]
 STABLE_TOOLCHAIN: Final = "1.98.0"
 NIGHTLY_TOOLCHAIN: Final = "nightly-2026-08-18"
 EXPECTED_WORKFLOWS: Final = {
-    ".github/workflows/ci.yml": (STABLE_TOOLCHAIN, 5),
-    ".github/workflows/pre-commit.yml": (STABLE_TOOLCHAIN, 1),
-    ".github/workflows/benchmark-nightly.yml": (STABLE_TOOLCHAIN, 1),
-    ".github/workflows/fuzz-nightly.yml": (NIGHTLY_TOOLCHAIN, 2),
+    ".github/workflows/ci.yml": (STABLE_TOOLCHAIN, 5, "rustfmt, clippy"),
+    ".github/workflows/pre-commit.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
+    ".github/workflows/benchmark-nightly.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
+    ".github/workflows/fuzz-nightly.yml": (NIGHTLY_TOOLCHAIN, 2, None),
 }
 _ACTION_RE: Final = re.compile(r"^(?P<indent>\s*)-\s+uses:\s+dtolnay/rust-toolchain@(?P<ref>\S+?)(?:\s+#.*)?$")
 _TOOLCHAIN_RE: Final = re.compile(r"^\s+toolchain:\s*[\"']?(?P<toolchain>[^\s\"']+)[\"']?(?:\s+#.*)?$")
+_COMPONENTS_RE: Final = re.compile(r"^\s+components:\s*[\"']?(?P<components>[^\"']+?)[\"']?\s*(?:#.*)?$")
 _FULL_SHA_RE: Final = re.compile(r"[0-9a-f]{40}")
 
 
-def _toolchain_steps(path: Path) -> list[tuple[str, str | None]]:
-    """Return action refs and explicit toolchains from one workflow."""
+def _toolchain_steps(path: Path) -> list[tuple[str, str | None, str | None]]:
+    """Return action refs, toolchains, and components from one workflow."""
     lines = path.read_text(encoding="utf-8").splitlines()
-    steps: list[tuple[str, str | None]] = []
+    steps: list[tuple[str, str | None, str | None]] = []
     for index, line in enumerate(lines):
         match = _ACTION_RE.match(line)
         if match is None:
             continue
         indent = match.group("indent")
         toolchain: str | None = None
+        components: str | None = None
         for candidate in lines[index + 1 :]:
             if candidate.startswith(f"{indent}- "):
                 break
             toolchain_match = _TOOLCHAIN_RE.match(candidate)
             if toolchain_match is not None:
                 toolchain = toolchain_match.group("toolchain")
-                break
-        steps.append((match.group("ref"), toolchain))
+            components_match = _COMPONENTS_RE.match(candidate)
+            if components_match is not None:
+                components = components_match.group("components")
+        steps.append((match.group("ref"), toolchain, components))
     return steps
 
 
@@ -74,7 +78,7 @@ def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
     if set(payload) != {"toolchain"}:
         errors.append("rust-toolchain.toml may contain only the [toolchain] table")
 
-    for relative_path, (expected_toolchain, expected_count) in EXPECTED_WORKFLOWS.items():
+    for relative_path, (expected_toolchain, expected_count, expected_components) in EXPECTED_WORKFLOWS.items():
         path = root / relative_path
         try:
             steps = _toolchain_steps(path)
@@ -83,12 +87,17 @@ def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
             continue
         if len(steps) != expected_count:
             errors.append(f"{relative_path}: expected {expected_count} Rust toolchain steps, found {len(steps)}")
-        for ref, actual_toolchain in steps:
+        for ref, actual_toolchain, actual_components in steps:
             if _FULL_SHA_RE.fullmatch(ref) is None:
                 errors.append(f"{relative_path}: rust-toolchain action is not pinned to a full SHA: {ref}")
             if actual_toolchain != expected_toolchain:
                 errors.append(
                     f"{relative_path}: expected toolchain {expected_toolchain}, got {actual_toolchain or 'implicit'}"
+                )
+            if actual_components != expected_components:
+                errors.append(
+                    f"{relative_path}: expected components {expected_components or 'none'}, "
+                    f"got {actual_components or 'none'}"
                 )
     return errors
 

@@ -389,6 +389,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
           toolchain: 1.98.0
+          components: rustfmt, clippy
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
@@ -495,6 +496,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
           toolchain: 1.98.0
+          components: rustfmt, clippy
       - name: Bench
         run: cargo bench --workspace --exclude scpn-control-rs
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
@@ -684,6 +686,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
           toolchain: 1.98.0
+          components: rustfmt, clippy
       - name: Install cargo-audit
         run: cargo install cargo-audit
       - name: Audit
