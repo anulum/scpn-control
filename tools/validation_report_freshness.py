@@ -443,8 +443,10 @@ def _parse_lifecycle_record(
     prefix = "validation/reports/"
     if not report_path.startswith(prefix) or not report_path.endswith(".json"):
         raise LifecycleRegistryError(f"{context}.path must be a JSON path below validation/reports")
-    relative = Path(report_path.removeprefix(prefix))
-    if relative.is_absolute() or ".." in relative.parts:
+    relative_text = report_path.removeprefix(prefix)
+    relative_parts = relative_text.split("/")
+    relative = Path(*relative_parts)
+    if relative.is_absolute() or "\\" in relative_text or any(part in {"", ".", ".."} for part in relative_parts):
         raise LifecycleRegistryError(f"{context}.path escapes validation/reports")
     absolute_report = reports_root / relative
     storage_class_raw = _require_string(record["storage_class"], f"{context}.storage_class")

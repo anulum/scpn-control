@@ -363,6 +363,8 @@ def test_lifecycle_registry_rejects_header_drift(
         (("path",), "validation/reports/report.txt", "JSON path below"),
         (("path",), "validation/reports/../escape.json", "escapes"),
         (("path",), "validation/reports//absolute.json", "escapes"),
+        (("path",), "validation/reports/./ambiguous.json", "escapes"),
+        (("path",), "validation/reports/directory\\escape.json", "escapes"),
         (("storage_class",), "network", "unknown storage class"),
         (("report_sha256",), "bad", "lowercase SHA-256"),
         (("report_commit",), "bad", "lowercase full Git SHA"),
