@@ -12,6 +12,8 @@ on:
       - "mkdocs.yml"
       - "README.md"
       - "tools/check_docs_coverage.py"
+      - "tools/document_link_audit.py"
+      - "tools/document_link_policy.toml"
       - ".github/workflows/docs-pages.yml"
       - "examples/*.ipynb"
   workflow_dispatch:
@@ -44,10 +46,16 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/src
         run: python tools/check_docs_coverage.py
 
+      - name: Check deterministic source links
+        run: python tools/document_link_audit.py
+
       - name: Build docs
         env:
           PYTHONPATH: ${{ github.workspace }}/src
         run: mkdocs build --strict
+
+      - name: Check rendered site links
+        run: python tools/document_link_audit.py --site-dir site
 
       - name: Configure Pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d  # v7

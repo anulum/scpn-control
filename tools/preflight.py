@@ -64,6 +64,7 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("native-api-reference", [_PY, "tools/generate_native_api_reference.py", "--check"], None),
     ("public-surface-hygiene", [_PY, "tools/check_public_surface_hygiene.py"], None),
     ("docs-internal-private", [_PY, "tools/check_docs_internal_private.py"], None),
+    ("document-links", [_PY, "tools/document_link_audit.py"], None),
     ("studio-deploy-key", [_PY, "tools/check_studio_deploy_key.py"], None),
     ("studio-offline-sealing", [_PY, "tools/check_studio_offline_sealing.py"], None),
     ("studio-web-manifest", [_PY, "tools/sync_studio_web_manifest.py", "--check"], None),

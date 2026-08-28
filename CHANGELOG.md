@@ -7,6 +7,9 @@
   weights fail closed or fall back when opted in.
 ### Changed
 
+- Added intentional MkDocs navigation and a sanitised digest manifest for all
+  six public MAST evidence pages, plus deterministic source/rendered link gates
+  and a bounded scheduled external-link audit with cache provenance.
 - Added a digest-sealed ownership ledger for every configured coverage
   exclusion, source pragma, skip/skipif, and strict xfail, separating executing
   CI variants from explicit environment and external-data blockers.

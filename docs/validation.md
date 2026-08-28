@@ -17,6 +17,17 @@ The practical review workflow is:
 2. inspect the report for required digests, context, and boundaries,
 3. only then promote the result into planning or investor-facing material.
 
+The [public MAST evidence manifest](mast_evidence_manifest.md) binds the six
+MAST method pages to exact report schemas and digests without exposing raw
+traces, private storage, or operational coordination paths.
+
+Public documentation links are admitted in two stages. The deterministic local
+gate resolves source files, anchors, MkDocs navigation, manuscript references,
+public metadata, and rendered HTML without network access. The scheduled
+external gate then records bounded HTTP checks with cache and policy provenance;
+transient or access-restricted responses remain distinct from confirmed
+permanent failures.
+
 ## MAST toroidal-field authority
 
 The L2F-12a gate is documented in

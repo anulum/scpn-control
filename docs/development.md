@@ -100,6 +100,30 @@ across `src`, `tests`, `benchmarks`, `examples`, `tools`, and `validation`; it
 fails if a source module is referenced by no package API, test, tool, or
 pipeline file. Both gates run through `tools/preflight.py`.
 
+## Documentation links
+
+Run the deterministic public-document graph audit before changing docs,
+manuscripts, generated navigation, or submission metadata:
+
+```bash
+python tools/document_link_audit.py
+mkdocs build --strict
+python tools/document_link_audit.py --site-dir site
+```
+
+The local gate checks tracked Markdown, HTML, TeX, BibTeX, MkDocs navigation,
+and public metadata. It resolves relative files and Markdown anchors, validates
+the rendered site tree when supplied, and rejects credential-shaped public
+URLs. It never crawls the network.
+
+External availability runs only in the scheduled `Docs Link Audit` workflow or
+through an explicit `--external` invocation. That mode limits retries and URL
+count, paces each host, reuses a TTL cache, records tool/policy/source/URL-set
+provenance, and separates reachable, restricted, transient, and permanent
+results. Restricted or transient responses remain visible without being
+misreported as permanent breakage; confirmed permanent failures fail the job.
+Authenticated or secret-bearing URLs are outside this public audit by policy.
+
 ## Coverage Exclusions
 
 Every source `# pragma: no cover` exclusion must explain why the line is not

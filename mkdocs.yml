@@ -100,6 +100,14 @@ nav:
     - Fuzzing and Robustness: validation/fuzzing.md
     - Validation and QA: validation.md
     - Physics Traceability: physics_traceability.md
+    - MAST Evidence:
+      - Public Evidence Manifest: mast_evidence_manifest.md
+      - Campaign Reconciliation: mast_campaign_reconciliation.md
+      - Toroidal-Field Authority: mast_toroidal_field_authority.md
+      - Normalised-Beta Authority: mast_normalised_beta_authority.md
+      - Saddle-Modal Authority: mast_saddle_modal_authority.md
+      - Locked-Mode Authority: mast_locked_mode_authority.md
+      - dB/dt Source Authority: mast_dbdt_authority.md
     - Production Readiness: production_readiness.md
     - Validation Summary: validation_summary.md
     - Validation Deficiencies: validation_deficiencies.md

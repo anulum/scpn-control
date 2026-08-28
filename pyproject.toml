@@ -110,6 +110,7 @@ scpn-check-generated-traceability = "tools.check_generated_traceability:main"
 scpn-evidence-gap-matrix = "tools.evidence_gap_matrix:main"
 scpn-native-coverage-matrix = "tools.native_coverage_matrix:main"
 scpn-coverage-exception-ledger = "tools.coverage_exception_ledger:main"
+scpn-document-link-audit = "tools.document_link_audit:main"
 scpn-native-api-reference = "tools.generate_native_api_reference:main"
 scpn-validation-report-freshness = "tools.validation_report_freshness:main"
 
