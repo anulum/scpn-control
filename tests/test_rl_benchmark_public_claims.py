@@ -57,8 +57,8 @@ def test_public_surfaces_do_not_repeat_stale_rl_reward_values() -> None:
             assert stale_value not in text, f"{path.relative_to(ROOT)} contains {stale_value}"
 
 
-def test_public_rl_claims_match_committed_benchmark_artifact() -> None:
-    """Public benchmark claims must match ``rl_vs_classical.json``."""
+def test_retained_public_rl_claims_match_committed_benchmark_artifact() -> None:
+    """Retained benchmark claims match the artifact and stay out of the evidence matrix."""
 
     report = _benchmark()
     ppo = _mean_reward(report, "PPO")
@@ -75,7 +75,9 @@ def test_public_rl_claims_match_committed_benchmark_artifact() -> None:
     assert changelog_claim in (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     assert changelog_claim in (ROOT / "docs" / "changelog.md").read_text(encoding="utf-8")
     assert roadmap_claim in (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
-    assert competitive_claim in (ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8")
+    competitive_analysis = (ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8")
+    assert competitive_claim not in competitive_analysis
+    assert "This page compares documented scope and evidence" in competitive_analysis
 
     tutorial = (ROOT / "examples" / "tutorial_03_ppo_rl_agent.py").read_text(encoding="utf-8")
     assert f"{{'PPO':>12s}}  {{'{ppo}':>8s}}  {{'0%':>10s}}" in tutorial
