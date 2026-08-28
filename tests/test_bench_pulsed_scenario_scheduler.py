@@ -167,8 +167,10 @@ def test_cli_can_emit_stdout_only(monkeypatch: MonkeyPatch, capsys: CaptureFixtu
 def test_host_helpers_fail_soft(monkeypatch: MonkeyPatch) -> None:
     """Unavailable load and affinity metadata remain explicit nulls."""
     monkeypatch.setattr(os, "getloadavg", lambda: (_ for _ in ()).throw(OSError("missing")))
-    monkeypatch.delattr(os, "sched_getaffinity")
+    assert bench._loadavg() is None
 
+    monkeypatch.delattr(os, "getloadavg", raising=False)
+    monkeypatch.delattr(os, "sched_getaffinity", raising=False)
     assert bench._loadavg() is None
     assert bench._affinity() is None
 

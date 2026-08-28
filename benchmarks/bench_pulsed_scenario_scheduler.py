@@ -158,8 +158,11 @@ def _run_rust(iterations: int, warmup: int) -> dict[str, object]:
 
 
 def _loadavg() -> tuple[float, float, float] | None:
+    getloadavg = getattr(os, "getloadavg", None)
+    if getloadavg is None:
+        return None
     try:
-        return os.getloadavg()
+        return getloadavg()
     except OSError:
         return None
 

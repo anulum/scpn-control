@@ -19,7 +19,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, TypedDict
 
-import tomllib
+if sys.version_info >= (3, 11):
+    import tomllib
+else:  # pragma: no cover - exercised on Python 3.10 CI.
+    import tomli as tomllib
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 DEFAULT_POLICY: Final = ROOT / "tools/source_header_policy.toml"
