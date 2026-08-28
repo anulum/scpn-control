@@ -12,6 +12,12 @@
   installed-target validation.
 ### Changed
 
+- Upgraded the state estimator from a fixed affine Kalman implementation to a
+  genuine n-dimensional extended Kalman filter with caller-supplied nonlinear
+  models and analytic Jacobians, explicit process-noise/residual/retraction
+  contracts, fail-closed covariance validation, Cholesky gain solves, and the
+  Joseph covariance update while preserving the existing plasma-observer
+  defaults.
 - Pinned the repository and hosted Rust builds to 1.98.0, pinned fuzzing to the
   dated `nightly-2026-08-18` toolchain, and added a deterministic drift gate so
   local, preflight, and workflow selectors remain aligned.

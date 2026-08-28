@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Evidence gap matrix tests
 
+"""Tests for the repository-wide external-evidence gap inventory."""
+
 from __future__ import annotations
 
 import json
@@ -17,15 +19,16 @@ from tools.evidence_gap_matrix import ROOT, build_evidence_gap_matrix, main
 
 
 def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None:
+    """The matrix summary must match the canonical traceability registry."""
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
 
-    assert len(matrix.entries) == 68
-    assert matrix.public_claim_blocked == 68
-    assert matrix.open_fidelity_gaps == 68
+    assert len(matrix.entries) == 69
+    assert matrix.public_claim_blocked == 69
+    assert matrix.open_fidelity_gaps == 69
     assert len(matrix.trackers) == 8
     assert matrix.untracked_open_entries == 0
     assert matrix.status_counts == {
-        "bounded_model": 40,
+        "bounded_model": 41,
         "external_dependency_blocked": 4,
         "validation_gap": 24,
     }
@@ -33,16 +36,18 @@ def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None
 
 
 def test_evidence_gap_matrix_renders_tracker_work_package_details() -> None:
+    """Rendered work packages must retain tracker and source-path detail."""
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
     rendered = matrix.to_markdown()
 
     assert "# SCPN Control Evidence Gap Matrix" in rendered
-    assert "Public full-fidelity claims blocked: `68`" in rendered
+    assert "Public full-fidelity claims blocked: `69`" in rendered
     assert "### Tracker #47: External gyrokinetic validation artefacts" in rendered
     assert "`src/scpn_control/core/gk_interface.py`" in rendered
 
 
 def test_evidence_gap_matrix_cli_writes_json_and_markdown(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """The CLI must write equivalent machine- and human-readable matrices."""
     output_json = tmp_path / "matrix.json"
     output_md = tmp_path / "matrix.md"
 
@@ -52,19 +57,21 @@ def test_evidence_gap_matrix_cli_writes_json_and_markdown(tmp_path: Path, capsys
 
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "scpn-control.evidence-gap-matrix.v1"
-    assert payload["summary"]["public_claim_blocked"] == 68
+    assert payload["summary"]["public_claim_blocked"] == 69
     assert "Tracker #47" in output_md.read_text(encoding="utf-8")
 
 
 def test_evidence_gap_matrix_cli_emits_json_stdout(capsys: CaptureFixture[str]) -> None:
+    """The stdout mode must expose the same canonical matrix summary."""
     assert main(["--json-out"]) == 0
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload["summary"]["open_fidelity_gaps"] == 68
+    assert payload["summary"]["open_fidelity_gaps"] == 69
     assert payload["summary"]["untracked_open_entries"] == 0
 
 
 def test_evidence_gap_matrix_cli_reports_missing_registry(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """A missing canonical registry must fail with an actionable message."""
     missing_registry = tmp_path / "missing.json"
 
     assert main(["--registry", str(missing_registry)]) == 1
@@ -72,6 +79,7 @@ def test_evidence_gap_matrix_cli_reports_missing_registry(tmp_path: Path, capsys
 
 
 def test_evidence_gap_matrix_docs_include_entrypoint() -> None:
+    """Validation documentation must retain the reproducible CLI entrypoint."""
     validation_docs = (ROOT / "docs" / "validation.md").read_text(encoding="utf-8")
 
     assert "python tools/evidence_gap_matrix.py --output-json artifacts/evidence_gap_matrix.json" in validation_docs

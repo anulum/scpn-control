@@ -762,6 +762,40 @@
       "external_validation_tracker_issue": 51
     },
     {
+      "component": "nonlinear extended Kalman state estimator",
+      "equation_contract": "Nonlinear state-estimation claims must declare the process and measurement functions, analytic Jacobians, state and measurement ordering, control-input convention, process-noise discretisation, measurement residual, state-addition or retraction operation, covariance assumptions, timestep domain, and innovation-conditioning failure boundary.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Simon 2006 Optimal State Estimation Chapter 13 extended Kalman filter",
+        "Lister et al. 1997 real-time magnetic equilibrium reconstruction",
+        "Moreau et al. 2008 observer-based tokamak profile estimation",
+        "Repository nonlinear estimator numerical contract"
+      ],
+      "module_path": "src/scpn_control/control/state_estimator.py",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Bind every promoted result to an exact nonlinear plant and diagnostic model, analytic Jacobian implementation, state and measurement convention, covariance model, sampled input, tolerance, failure count, and source digest",
+        "Validate estimation error and uncertainty calibration against authorised measured diagnostic replay or an independently maintained reference estimator before facility-accuracy claims"
+      ],
+      "unit_contract": "The compatible default state is R and Z in metres, vR and vZ in metres per second, plasma current Ip in mega-amperes, and core electron temperature in kiloelectronvolts; custom model units, control ordering, residual conventions, and covariance units are caller-declared and must remain internally consistent.",
+      "validation_evidence": [
+        "tests/test_state_estimator.py independently calculated nonlinear prediction, analytic-Jacobian covariance propagation, Cholesky gain, Joseph correction, wrapped residual and state retraction, fail-closed callback contracts, and 100 percent changed-owner statement and branch coverage",
+        "tests/test_free_boundary_tracking.py and tests/test_free_boundary_tracking_variants.py compatible production consumer checks for the default six-state/four-diagnostic model"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/state_estimator.py",
+        "tests/test_state_estimator.py",
+        "tests/test_free_boundary_tracking.py",
+        "tests/test_free_boundary_tracking_variants.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/state_estimator.py"
+      ],
+      "validity_domain": "Generic finite-dimensional differentiable process and measurement models with caller-supplied analytic Jacobians, covariance and manifold operations, plus the compatible affine six-state plasma default; deterministic local numerical-contract evidence only, not measured diagnostic accuracy, uncertainty calibration, external-estimator parity, or commissioned facility validation.",
+      "external_validation_tracker_issue": 51
+    },
+    {
       "component": "density control and particle-source model",
       "equation_contract": "Density-control claims must declare the Greenwald limit, ITER operating margin, radial particle transport grid, gas-puff source, pellet source, NBI source, cryopump sink, recycling source, controller gains, CFL-limited explicit transport step, geometry/transport/actuator/diagnostic provenance, source integral, particle-inventory change, and matched Greenwald-fraction and inventory reference tolerances before facility-calibrated density-control claims.",
       "fidelity_status": "bounded_model",
