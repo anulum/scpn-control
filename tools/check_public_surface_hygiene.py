@@ -103,6 +103,16 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "internal coverage campaign identifier",
         re.compile(r"(?<![A-Za-z0-9])COV-?1(?![A-Za-z0-9])", re.IGNORECASE),
     ),
+    (
+        "internal safety campaign identifier",
+        re.compile(
+            r"(?<![A-Za-z0-9_])(?:"
+            r"SS-[0-9]+(?:\s*[ab])?(?:/F[0-9]+)?|"
+            r"CF-5|SP-4|LOCK-4"
+            r")(?![A-Za-z0-9_])",
+            re.IGNORECASE,
+        ),
+    ),
 )
 
 PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (

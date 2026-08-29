@@ -544,7 +544,7 @@ def test_controller_safety_case_readiness_blocks_without_external_evidence():
 
 
 def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissible():
-    # SS-12/F13: complete digest-only evidence reaches promotion_ready, but because the
+    # Complete digest-only evidence reaches promotion_ready, but because the
     # digests are attested-not-verified (any valid hex, "0"*64 included, passes), it must
     # NOT be admissible for promotion — only the artifact-verified path is.
     artifact = _controller_artifact()
@@ -575,7 +575,7 @@ def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissibl
 
 
 def test_controller_safety_case_readiness_rejects_fabricated_zero_digests():
-    # The concrete SS-12/F13 attack: seven fabricated "0"*64 digests reach promotion_ready
+    # Seven fabricated "0"*64 digests reach promotion_ready
     # (valid hex) but are refused at the promotion gate because they are unverified.
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -1067,7 +1067,7 @@ def test_controller_safety_case_readiness_artifact_admissible_in_process_but_dig
     # by evaluate_..._from_artifacts). But once serialised and loaded it is digest-only by
     # construction: the load cannot re-hash the artifacts, so promotion_admissible is forced False
     # and the loaded readiness is NOT admissible. Admissibility is only ever earned in-process; it
-    # is never trusted from a serialised flag (SS-12/F13 fix-forward — closes the deserialise-trust
+    # is never trusted from a serialised flag (closing the deserialise-trust
     # bypass where a forged True + valid-hex digests + a self-computed integrity hash would pass).
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
@@ -1093,7 +1093,7 @@ def test_controller_safety_case_readiness_artifact_admissible_in_process_but_dig
 
 
 def test_controller_safety_case_readiness_forged_admissible_flag_is_refused(tmp_path):
-    # SS-12/F13 fix-forward: a crafted manifest with promotion_admissible=True + valid-hex
+    # A crafted manifest with promotion_admissible=True + valid-hex
     # ("0"*64) fabricated digests must NOT pass the admissibility gate. Because a deserialised
     # readiness is digest-only by construction, the forged flag is forced False on load, so the
     # gate refuses it even though the (self-referential) integrity digest still matches — the flip

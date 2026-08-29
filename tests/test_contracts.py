@@ -355,7 +355,7 @@ def test_should_trigger_mitigation_empty() -> None:
     assert should_trigger_mitigation([]) is False
 
 
-# ── Fail-closed safety monitor (CF-5/SP-4) ──────────────────────────────────
+# ── Fail-closed safety monitor ──────────────────────────────────────────────
 # evaluate_safety_invariants treats every invariant channel as mandatory: a
 # sensor dropout must surface as a critical violation, never a silent pass.
 

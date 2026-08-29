@@ -98,6 +98,13 @@ def test_rejects_internal_coverage_campaign_identifier_in_content_and_path() -> 
     ]
 
 
+def test_rejects_internal_safety_campaign_identifiers() -> None:
+    """Safety behaviour must be described without internal campaign labels."""
+    for identifier in ("SS-14", "SS-14 b", "SS-12/F13", "CF-5", "SP-4", "LOCK-4"):
+        findings = scan_text("tests/test_safety_edges.py", f"Legacy {identifier} boundary.\n")
+        assert {finding.category for finding in findings} == {"internal safety campaign identifier"}
+
+
 def test_rejects_private_operational_path_reference() -> None:
     """Outward surfaces must not link into ignored planning trees."""
     assert "private operational path" in _categories("See docs/internal/TODO.md for status.\n")

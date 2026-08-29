@@ -8,8 +8,8 @@
 """Tests for the ``hil-test`` CLI command (reference-shot HIL campaign).
 
 Covers the happy path, empty/nonexistent shot directories, and the size-audited
-NPZ load that fails each hostile/corrupt archive closed rather than crashing the
-campaign (SS-5/F5 decompression-bomb defence).
+NPZ loader. Each hostile or corrupt archive fails closed without aborting the
+campaign.
 """
 
 from __future__ import annotations
@@ -67,8 +67,8 @@ def test_hil_test_empty_dir(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_hil_test_rejects_a_corrupt_npz_without_crashing(runner: CliRunner, tmp_path: Path) -> None:
-    # A hostile/corrupt .npz must be recorded per file, not crash the whole campaign
-    # (SS-5/F5: the load is size-audited and each file fails closed).
+    # A hostile/corrupt .npz must be recorded per file, not crash the whole
+    # campaign; the load is size-audited and each file fails closed.
     np.savez(tmp_path / "good.npz", ip=np.array([15e6]))
     (tmp_path / "hostile.npz").write_bytes(b"PK\x03\x04 not a valid zip archive")
 

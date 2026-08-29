@@ -1091,7 +1091,7 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_embedded_loopback_demo_config_serves_without_api_key(self, monkeypatch):
-        """SS-8 regression: the loopback embedded-demo config must be serveable.
+        """The loopback embedded-demo configuration must be serveable.
 
         The default ``require_client_auth=True`` + no api_key makes ``serve`` raise
         (tested above) — that default is exactly what left the Streamlit embedded

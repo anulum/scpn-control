@@ -81,7 +81,7 @@ class SafetyCaseReadinessEvidence:
     # False for the digest-only evaluator (digests are attested, not verified against
     # real artifacts, so "0"*64 or any valid-hex string passes) — such a readiness is
     # NOT admissible for promotion. True only via the artifact-based path, which resolves
-    # and re-hashes each evidence file before delegating here (SS-12/F13).
+    # and re-hashes each evidence file before delegating here.
     promotion_admissible: bool
 
 
@@ -427,7 +427,7 @@ def evaluate_controller_safety_case_readiness(
             "and facility authority approval remain separate"
         ),
         # Digest-only: the evidence is attested by digest, not verified against artifacts,
-        # so this path is never admissible for promotion (SS-12/F13). The artifact-based
+        # so this path is never admissible for promotion. The artifact-based
         # path re-hashes each file and upgrades this to True.
         promotion_admissible=False,
     )
@@ -543,7 +543,7 @@ def assert_controller_safety_case_readiness_admissible(
         raise ValueError("controller safety-case readiness status is unsupported")
     if readiness.status == "blocked" or readiness.blocking_reasons:
         raise ValueError("controller safety-case readiness is blocked: " + ", ".join(readiness.blocking_reasons))
-    # SS-12/F13: a digest-only readiness attests evidence by SHA-256 string only — any
+    # A digest-only readiness attests evidence by SHA-256 string only — any
     # valid hex ("0"*64 included) passes — so a complete-but-unverified readiness is NOT
     # admissible for promotion. Only the artifact-based path, which re-hashes each evidence
     # file, sets promotion_admissible. (Checked after the blocked gate so a blocked readiness

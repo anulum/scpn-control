@@ -68,7 +68,7 @@ class TelemetryPacket:
     def __post_init__(self) -> None:
         # A non-finite field (NaN/inf) would poison the risk signal — max(nan, 0) is nan
         # and nan comparisons fail OPEN in the mitigation gate — so reject it at
-        # construction rather than let it reach risk scoring (SS-11/F11).
+        # construction rather than let it reach risk scoring.
         for value, name in (
             (self.ip_ma, "ip_ma"),
             (self.beta_n, "beta_n"),

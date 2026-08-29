@@ -341,7 +341,7 @@ def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
     assert bundle.evidence_kind is EvidenceKind.FALSIFIED
     assert bundle.claim_boundary.status is ClaimStatus.REFUTED
     assert bundle.claim_boundary.admission is AdmissionDecision.REJECTED
-    # A refuted parity can NEVER render as a validated parity claim (LOCK-4).
+    # A refuted parity can never render as a validated parity claim.
     assert bundle.renders_as_validated is False
     # The raw counts travel with the refutation so a consumer sees HOW it failed.
     parity = bundle.numeric_provenance.parity[0]

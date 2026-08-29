@@ -252,7 +252,7 @@ def test_step_traceable_rejects_passthrough_injections(tmp_path: Path) -> None:
 
 
 def test_admitted_controller_wires_and_logs_deadline_monitor(tmp_path: Path) -> None:
-    """A controller with an admitted certificate monitors each cycle deadline (SS-14)."""
+    """A controller with an admitted certificate monitors each cycle deadline."""
     net = _certified_net()
     artifact = _artifact_from_net(net)
     certificate, binding = _issued_certificate(net, tmp_path)
@@ -279,7 +279,7 @@ def test_admitted_controller_wires_and_logs_deadline_monitor(tmp_path: Path) -> 
 
 
 def test_strict_deadline_overrun_discards_the_action_and_raises(tmp_path: Path) -> None:
-    """In strict mode an overrun raises before return, so the cycle's action is dropped (SS-14)."""
+    """In strict mode an overrun raises before return, so the cycle's action is dropped."""
     from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
 
     net = _certified_net()
@@ -302,7 +302,7 @@ def test_strict_deadline_overrun_discards_the_action_and_raises(tmp_path: Path) 
 
 
 def test_strict_deadline_overrun_rolls_back_controller_state(tmp_path: Path) -> None:
-    """A rejected strict cycle commits no control-relevant state (SS-14 a).
+    """A rejected strict cycle commits no control-relevant state.
 
     The real delayed-transition and slew-limited paths mutate queues, cursors, and
     previous actions while calculating a candidate. The strict transaction must
@@ -337,7 +337,7 @@ def test_strict_deadline_overrun_rolls_back_controller_state(tmp_path: Path) -> 
 
 
 def test_strict_traceable_overrun_rolls_back_controller_state(tmp_path: Path) -> None:
-    """The fixed-order traceable path uses the same strict transaction (SS-14 a)."""
+    """The fixed-order traceable path uses the same strict transaction."""
     from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunError
 
     net = _certified_net(delay_ticks=2)
@@ -363,7 +363,7 @@ def test_strict_traceable_overrun_rolls_back_controller_state(tmp_path: Path) ->
 
 
 def test_strict_deadline_monitor_forbids_synchronous_logging(tmp_path: Path) -> None:
-    """Strict mode rejects synchronous JSONL logging in the real-time path (SS-14 b).
+    """Strict mode rejects synchronous JSONL logging in the real-time path.
 
     Unbounded disk I/O cannot coexist with a hard-real-time deadline, so a
     ``log_path`` write under a strict monitor fails closed before any work and
@@ -389,7 +389,7 @@ def test_strict_deadline_monitor_forbids_synchronous_logging(tmp_path: Path) -> 
 
 
 def test_failsoft_logging_exposes_trace_write_cost(tmp_path: Path) -> None:
-    """Fail-soft logging exposes the synchronous trace-write latency (SS-14 b).
+    """Fail-soft logging exposes the synchronous trace-write latency.
 
     The write happens outside the measured interval; ``last_trace_write_us`` makes
     that otherwise-hidden cost observable so the cycle's true wall-clock is not
@@ -413,7 +413,7 @@ def test_failsoft_logging_exposes_trace_write_cost(tmp_path: Path) -> None:
 
 
 def test_failsoft_logging_measures_through_the_trace_write(tmp_path: Path) -> None:
-    """A fail-soft logging cycle folds the trace write into the monitor (SS-14 b).
+    """A fail-soft logging cycle folds the trace write into the monitor.
 
     The compute deadline is recorded on ``t0..t1`` (excluding the write); the
     controller additionally measures THROUGH the write into the monitor's
@@ -444,7 +444,7 @@ def test_failsoft_logging_measures_through_the_trace_write(tmp_path: Path) -> No
 
 
 def test_nonlogging_cycle_does_not_record_measure_through(tmp_path: Path) -> None:
-    """A cycle without logging performs no measure-through accounting (SS-14 b)."""
+    """A cycle without logging performs no measure-through accounting."""
     net = _certified_net()
     artifact = _artifact_from_net(net)
     certificate, binding = _issued_certificate(net, tmp_path)

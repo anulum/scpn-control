@@ -127,7 +127,7 @@ class TestReadinessMappingValidator:
 
     def test_deserialised_promotion_admissible_is_forced_false(self) -> None:
         # A deserialised readiness is digest-only by construction: a serialised True is never
-        # trusted (SS-12/F13 fix-forward), so the parsed flag is always False.
+        # trusted, so the parsed flag is always False.
         payload = _readiness_payload()
         payload["promotion_admissible"] = True
         readiness = _safety_case_readiness_from_mapping(payload)

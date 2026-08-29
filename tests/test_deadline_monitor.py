@@ -85,7 +85,7 @@ def test_as_dict_snapshots_state() -> None:
 
 
 def test_observe_trace_write_folds_full_cost_without_counting_a_cycle() -> None:
-    """Measure-through folds compute + trace-write cost without a new cycle (SS-14 b)."""
+    """Measure-through folds compute and trace-write cost without a new cycle."""
     monitor = DeadlineMonitor(deadline_us=100.0)
     monitor.record(50.0)
     assert monitor.cycles == 1

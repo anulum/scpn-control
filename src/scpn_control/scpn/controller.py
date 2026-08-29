@@ -245,7 +245,7 @@ class NeuroSymbolicController:
             self.runtime_safety_certificate_sha256 = cast(str, admitted["payload_sha256"])
             # Wire a runtime deadline monitor to the admitted timing envelope so a
             # cycle that overruns the declared deadline is detected, not just
-            # assumed schedulable at admission (SS-14).
+            # assumed schedulable at admission.
             self.deadline_monitor = DeadlineMonitor(
                 deadline_us=runtime_safety_binding.timing_envelope.deadline_us,
                 strict=deadline_monitor_strict,
@@ -550,7 +550,7 @@ class NeuroSymbolicController:
 
         Control-relevant state is committed only after the deadline decision. A
         strict-mode overrun restores the transition queues, cursors, previous
-        actuator values, marking, and diagnostics before it propagates (SS-14).
+        actuator values, marking, and diagnostics before it propagates.
         """
         self._guard_strict_synchronous_logging(log_path)
         t0 = time.perf_counter()
@@ -592,7 +592,7 @@ class NeuroSymbolicController:
         # Admitted cycle: commit diagnostics + SC marking into persistent state.
         self._commit_cycle_state(f_oracle, f_sc, m_oracle, m_sc)
 
-        # 6. Optional JSONL logging (fail-soft only; strict forbade it above, SS-14 b)
+        # 6. Optional JSONL logging (fail-soft only; strict forbade it above)
         if log_path is not None:
             safe_log_path = _resolve_jsonl_log_path(log_path, log_root)
             rec = {
@@ -614,7 +614,7 @@ class NeuroSymbolicController:
         return cast(ControlAction, dict(actions_dict))
 
     def _guard_strict_synchronous_logging(self, log_path: str | None) -> None:
-        """Forbid synchronous JSONL logging under a strict deadline monitor (SS-14 b).
+        """Forbid synchronous JSONL logging under a strict deadline monitor.
 
         A ``log_path`` write is a synchronous, unbounded disk I/O side effect. It
         cannot coexist with a hard-real-time deadline (it would inflate the true
@@ -644,7 +644,7 @@ class NeuroSymbolicController:
         Called only after the deadline decision (:meth:`_monitor_deadline`). A
         strict overrun raises before this commit and the transaction restores the
         timing queues, cursors, and slew history that were used during computation,
-        so the discarded action advances no control-relevant state (SS-14 a).
+        so the discarded action advances no control-relevant state.
         """
         self.last_oracle_firing = f_oracle.tolist()
         self.last_sc_firing = f_sc.tolist()
@@ -688,8 +688,8 @@ class NeuroSymbolicController:
         The write happens after the measured control interval, so its cost is not
         part of the deadline verdict (strict mode forbids this path entirely). Timing
         it into :attr:`last_trace_write_us` keeps the otherwise-hidden fail-soft I/O
-        cost observable, so a cycle's true wall-clock is not silently under-reported
-        (SS-14 b).
+        cost observable and prevents silent under-reporting of a cycle's true
+        wall-clock under measure-through accounting.
         """
         w0 = time.perf_counter()
         _append_jsonl_record(safe_log_path, record)
@@ -703,7 +703,7 @@ class NeuroSymbolicController:
         THROUGH that write — from ``t0`` to now — and hands the total to the monitor's
         measure-through accounting, so a fail-soft cycle whose true wall-clock exceeds
         the deadline because of the synchronous I/O is visible via the monitor's
-        ``trace_overruns``/``max_total_us`` (SS-14 b). No-op when no monitor is admitted;
+        ``trace_overruns``/``max_total_us``. No-op when no monitor is admitted;
         strict mode never reaches here (it forbids the synchronous write).
         """
         if self.deadline_monitor is None:
