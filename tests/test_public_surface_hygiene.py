@@ -105,6 +105,13 @@ def test_rejects_internal_safety_campaign_identifiers() -> None:
         assert {finding.category for finding in findings} == {"internal safety campaign identifier"}
 
 
+def test_rejects_internal_pulsed_control_campaign_identifiers() -> None:
+    """Pulsed-control surfaces must describe responsibility, not campaign stage."""
+    for identifier in ("CON-C", "CON-C.1", "CON-C.7"):
+        findings = scan_text("docs/control/runtime_admission.md", f"Legacy {identifier} stage.\n")
+        assert {finding.category for finding in findings} == {"internal pulsed-control campaign identifier"}
+
+
 def test_rejects_private_operational_path_reference() -> None:
     """Outward surfaces must not link into ignored planning trees."""
     assert "private operational path" in _categories("See docs/internal/TODO.md for status.\n")

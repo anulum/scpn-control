@@ -1182,7 +1182,10 @@ Gates:
 
 ## Multi-Shot Campaign Local Regression Evidence (2026-06-04)
 
-The CON-C.6 multi-shot campaign orchestrator was measured on the local workstation with soft CPU affinity on cores 4 and 5. These runs are regression evidence only; they are not production hard-real-time claims because the workstation was not booted with hard core isolation, IRQ shielding, or a PREEMPT_RT kernel.
+The multi-shot campaign orchestrator was measured on the local workstation with
+soft CPU affinity on cores 4 and 5. These runs are regression evidence only;
+they are not production hard-real-time claims because the workstation was not
+booted with hard core isolation, IRQ shielding, or a PREEMPT_RT kernel.
 
 | Surface | Evidence | Samples | Warmup | Median | p95 | p99 | Max | Evidence class |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |

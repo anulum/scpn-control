@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Pulsed scheduler formal artefact tests.
-"""Formal artefact checks for the CON-C.1 pulsed scheduler."""
+"""Formal artefact checks for the pulsed-scenario scheduler."""
 
 from __future__ import annotations
 
@@ -16,12 +16,12 @@ from pathlib import Path
 
 import pytest
 
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LEAN_PROOF = PROJECT_ROOT / "lean" / "SCPNControl" / "PulsedFSM.lean"
 
 
 def test_pulsed_fsm_lean_proof_declares_required_theorems() -> None:
+    """Require the scheduler proof to retain every public safety theorem."""
     proof = LEAN_PROOF.read_text(encoding="utf-8")
 
     assert "theorem pulsed_fsm_eventually_returns_to_idle" in proof
@@ -31,6 +31,7 @@ def test_pulsed_fsm_lean_proof_declares_required_theorems() -> None:
 
 
 def test_pulsed_fsm_lean_builds_when_enabled() -> None:
+    """Build the Lean project when the explicit formal-runtime gate is enabled."""
     if os.environ.get("MIF_LEAN_CI") != "1":
         pytest.skip("set MIF_LEAN_CI=1 to require lake build for pulsed FSM proof")
     if shutil.which("lake") is None:

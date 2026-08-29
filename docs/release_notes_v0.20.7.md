@@ -1,6 +1,6 @@
 # SCPN Control v0.20.7 Release Notes
 
-v0.20.7 is a CON-C pulsed-control acceptance release on top of v0.20.6. It
+v0.20.7 is a pulsed-control acceptance release on top of v0.20.6. It
 packages the scheduler, capacitor-bank import, AER observation, replay v1.1, and
 pulsed-MPC hardening needed by the sibling MIF workflow while keeping all
 facility and production-timing claims fail-closed.

@@ -1,8 +1,9 @@
 # PREEMPT_RT Runtime Admission
 
-`CON-C.7` separates a fast native control loop from a production-admissible
-runtime claim. The native hot path may run in microseconds, but SCPN Control only
-admits production timing evidence when the host runtime contract is explicit.
+Pulsed-control runtime admission separates a fast native control loop from a
+production-admissible runtime claim. The native hot path may run in
+microseconds, but SCPN Control only admits production timing evidence when the
+host runtime contract is explicit.
 
 The admission report records:
 
