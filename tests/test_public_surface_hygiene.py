@@ -68,6 +68,7 @@ def test_rejects_public_operational_headings_and_internal_ids() -> None:
     assert "internal task identifier" in _categories("Closed SYS-AUDIT-02-MYPY1.\n")
     assert "internal task identifier" in _categories("Waiver WCG-5e is active.\n")
     assert "internal task identifier" in _categories("Continue with R3-S4.\n")
+    assert "internal task identifier" in _categories("Resolve U-015 next.\n")
 
 
 def test_rejects_internal_ids_on_source_config_and_workflow_surfaces() -> None:
@@ -277,6 +278,14 @@ def test_iter_scanned_files_skips_internal_and_guard_fixture_paths(tmp_path: Pat
     assert "docs/internal/plan.md" not in scanned
     assert "tools/check_public_surface_hygiene.py" not in scanned
     assert "tests/test_public_surface_hygiene.py" not in scanned
+
+
+def test_iter_scanned_files_skips_tracked_worktree_deletions(tmp_path: Path) -> None:
+    """A not-yet-staged file removal does not make the worktree scan crash."""
+    repo = _tracked_repo(tmp_path)
+    (repo / "README.md").unlink()
+
+    assert list(iter_scanned_files(repo)) == []
 
 
 def test_scan_repository_reports_relative_paths(tmp_path: Path) -> None:

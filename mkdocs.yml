@@ -117,6 +117,7 @@ nav:
       - Locked-Mode Authority: mast_locked_mode_authority.md
       - dB/dt Source Authority: mast_dbdt_authority.md
     - Production Readiness: production_readiness.md
+    - Known Limitations: known_limitations.md
     - Validation Summary: validation_summary.md
     - Validation Deficiencies: validation_deficiencies.md
     - Competitive Analysis: competitive_analysis.md

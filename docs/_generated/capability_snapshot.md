@@ -13,7 +13,7 @@
 | Validation scripts | 157 |
 | Optional extras | 23 |
 | Python test files | 569 |
-| Public documentation pages | 69 |
+| Public documentation pages | 70 |
 | GitHub Actions workflows | 12 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

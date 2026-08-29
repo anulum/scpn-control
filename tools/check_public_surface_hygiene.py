@@ -91,6 +91,7 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
             r"L2F-[A-Za-z0-9]+(?:\([A-Za-z0-9]+\))?|"
             r"CTL-G[A-Za-z0-9-]+|"
             r"R[0-9]+-S[0-9]+|"
+            r"U-[0-9]{3}|"
             r"SYS-AUDIT-[A-Za-z0-9-]+|"
             r"WCG-[A-Za-z0-9-]+|"
             r"(?:CONTROL|CTRL)-AUD-[A-Za-z0-9-]+"
@@ -254,8 +255,9 @@ def iter_scanned_files(repo: Path) -> Iterable[Path]:
         Absolute paths for tracked text files outside private/internal surfaces.
     """
     for tracked_path in _git_ls_files(repo):
-        if _is_scanned_path(tracked_path):
-            yield repo / tracked_path
+        candidate = repo / tracked_path
+        if _is_scanned_path(tracked_path) and candidate.is_file():
+            yield candidate
 
 
 def _is_allowed_context(line: str) -> bool:

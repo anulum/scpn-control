@@ -873,8 +873,8 @@ class DisruptionPrediction:
     """Path-free disruption-risk prediction.
 
     Mirrors ``predict_disruption_risk`` output: a risk in ``[0, 1]`` from a
-    hand-tuned fixed-weight baseline (U-015), not a model trained on a
-    real disruption database — so its claim is a validation gap.
+    hand-tuned fixed-weight baseline, not a model trained on a real disruption
+    database — so its claim remains bounded to a validation-gap baseline.
 
     Parameters
     ----------

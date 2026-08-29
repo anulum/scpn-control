@@ -1915,9 +1915,9 @@
 - Codecov: `fail_ci_if_error: true` (was false with TODO)
 - Removed `black` from dev extras (redundant with ruff-format)
 - Cleaned 49 unused imports across 30+ test files (ruff auto-fix)
-- U-002 (Nengo Loihi) marked RESOLVED
-- U-006 (JAX CI) marked RESOLVED
-- All 7 UNDERDEVELOPED_REGISTER items now RESOLVED
+- Nengo Loihi CI coverage limitation resolved
+- JAX CI coverage limitation resolved
+- All seven limitations recorded for v0.9.0 were resolved
 
 ## [0.8.1] — 2026-03-10
 
@@ -1934,7 +1934,7 @@
   - Comparison table: kernel step ≠ full control cycle caveat
   - VALIDATION.md: Scope & Limitations table, "What does NOT exist" list
   - use_cases.md: added "Real tokamak data" and "Peer-reviewed papers" rows (both No)
-- U-001 marked RESOLVED in UNDERDEVELOPED_REGISTER
+- Rust H-infinity discretisation limitation resolved
 - Stale doc counts: 2019 tests, 118 files, 54 modules
 
 ## [0.8.0] — 2026-03-09
@@ -1955,8 +1955,9 @@
 - `h_infinity_controller.py`: inline `np.isfinite` checks replaced with shared validators
 - `disruption_predictor.py`: 7 inline checks replaced with shared validators
 - `advanced_soc_fusion_learning.py`: 8 inline checks replaced with shared validators
-- U-003, U-004, U-005 marked RESOLVED in UNDERDEVELOPED_REGISTER
-- U-007 marked RESOLVED (shared validators in place, P1 modules converted)
+- Rust SPI, multigrid, and SVD fallback limitations resolved
+- Repeated finite-value validation resolved through shared validators in the
+  initial owning modules
 
 ## [0.7.1] — 2026-03-09
 
@@ -2069,8 +2070,8 @@
 ### Added
 - `SECURITY.md` responsible disclosure policy
 - `CODE_OF_CONDUCT.md` (Contributor Covenant v2.1)
-- U-007 in UNDERDEVELOPED_REGISTER (np.isfinite boilerplate)
-- GitHub issues gh-13, gh-14, gh-15 for U-003/004/005 Rust fallback gaps
+- Repeated `np.isfinite` validation boilerplate recorded as a known limitation
+- GitHub issues gh-13, gh-14, and gh-15 opened for the Rust fallback gaps
 
 ## [0.5.0] — 2026-03-02
 
@@ -2083,7 +2084,7 @@
 - 27 new tests: 9 Rust (h_infinity, xpoint, bfield, chebyshev) + 18 Python (rust_compat_wrapper)
 - `cargo-deny` supply-chain policy (`deny.toml`) + CI Job 15
 - `ruff format --check` CI gate + pre-commit hook
-- `UNDERDEVELOPED_REGISTER.md` tracking 6 known gaps
+- Public known-limitations record documenting six then-current gaps
 - Python 3.13 in CI matrix
 
 ### Changed
