@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Studio evidence bundles.
 
-"""Emit ``studio.*.v1`` evidence bundles for CONTROL results (schema B).
+"""Emit versioned ``studio.*`` evidence bundles for CONTROL results (schema B).
 
 This module is the crux of CONTROL's vertical: it maps CONTROL's existing,
 provenance-graded result surfaces onto the locked platform
@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -355,7 +356,7 @@ class ParityRefutationResult:
     Mirrors ``tests/test_rust_python_parity.py``: the Python and Rust ``FusionKernel``
     run the same equilibrium solver on the same grid and their final Psi fields are
     compared. For the SOR solver the hypothesis "the backends agree to ``target_rtol``"
-    is TESTED and REFUTED with raw counts (PARITY-1) — both backends reach the same
+    is tested and refuted with raw counts — both backends reach the same
     equilibrium *structure* (high ``pearson_r``, identical extrema) but SOR's update-norm
     stopping criterion plateaus at ``gs_residual_plateau`` far from the true GS solution,
     so the interior fields halt ``interior_l2_rel`` apart and exact-value parity is not
@@ -378,7 +379,14 @@ class ParityRefutationResult:
     result_digest
         SHA-256 of the canonical result payload.
     raw_reference
-        Pointer to the originating test / tracked finding (e.g. ``"PARITY-1"``).
+        Repository-relative source/test pointer or HTTP(S) URI for the
+        originating evidence.
+
+    Raises
+    ------
+    ValueError
+        If identity fields are blank, numeric evidence is non-finite or outside
+        its physical domain, or the evidence reference is not descriptive.
     """
 
     solver_method: str
@@ -390,6 +398,33 @@ class ParityRefutationResult:
     result_digest: str
     raw_reference: str
 
+    def __post_init__(self) -> None:
+        """Validate identity, numerical domains, and the reference contract."""
+        for name in ("solver_method", "grid", "result_digest", "raw_reference"):
+            value = getattr(self, name)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"ParityRefutationResult.{name} must be a non-empty string")
+        reference = self.raw_reference.strip()
+        relative_parts = reference.split("/")
+        is_http_uri = reference.startswith(("https://", "http://"))
+        is_repo_pointer = "/" in reference and not reference.startswith("/") and ".." not in relative_parts
+        if not (is_http_uri or is_repo_pointer):
+            raise ValueError(
+                "ParityRefutationResult.raw_reference must be a descriptive repository-relative pointer or HTTP(S) URI"
+            )
+        for name in ("pearson_r", "interior_l2_rel", "gs_residual_plateau", "target_rtol"):
+            value = getattr(self, name)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+                raise ValueError(f"ParityRefutationResult.{name} must be finite")
+        if not -1.0 <= self.pearson_r <= 1.0:
+            raise ValueError("ParityRefutationResult.pearson_r must be within [-1, 1]")
+        if self.interior_l2_rel < 0.0:
+            raise ValueError("ParityRefutationResult.interior_l2_rel must be non-negative")
+        if self.gs_residual_plateau < 0.0:
+            raise ValueError("ParityRefutationResult.gs_residual_plateau must be non-negative")
+        if self.target_rtol <= 0.0:
+            raise ValueError("ParityRefutationResult.target_rtol must be positive")
+
 
 def parity_refutation_evidence(
     result: ParityRefutationResult,
@@ -399,7 +434,7 @@ def parity_refutation_evidence(
     started: str,
     ended: str,
 ) -> EvidenceBundle:
-    """Build the ``studio.parity-refutation.v1`` bundle (falsified / refuted).
+    """Build the ``studio.parity-refutation.v1`` bundle.
 
     A cross-backend numerical-parity hypothesis that was TESTED and REFUTED with raw
     counts — distinct from an untested ``validation-gap``. It is carried as

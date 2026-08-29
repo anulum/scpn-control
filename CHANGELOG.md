@@ -12,6 +12,9 @@
   installed-target validation.
 ### Changed
 
+- Preserved the stable `studio.parity-refutation.v1` federation contract while
+  replacing its internal finding label with a descriptive test reference and
+  validating the result's numerical and source-reference domains.
 - Replaced the legacy in-memory IMAS-like facade with an immutable,
   backend-neutral COCOS-1 equilibrium snapshot; added real IMAS-Python DD3/DD4
   IDS and NetCDF DBEntry round trips, real OMAS DD3 ODS round trips, explicit

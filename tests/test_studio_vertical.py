@@ -330,7 +330,7 @@ def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
             gs_residual_plateau=4.0,
             target_rtol=1e-3,
             result_digest="a" * 64,
-            raw_reference="PARITY-1",
+            raw_reference="tests/test_rust_python_parity.py::TestSORSolverParity::test_sor_equilibrium_parity",
         ),
         operator="op",
         studio_version="test",
@@ -348,3 +348,38 @@ def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
     assert parity.passed is False
     assert parity.max_error == 0.06
     assert bundle.numeric_provenance.convergence.residual == 4.0
+
+
+@pytest.mark.parametrize(
+    ("override", "match"),
+    [
+        ({"raw_reference": "internal-short-code"}, "descriptive repository-relative pointer"),
+        ({"raw_reference": ""}, "raw_reference must be a non-empty string"),
+        ({"pearson_r": 1.1}, "pearson_r must be within"),
+        ({"pearson_r": float("nan")}, "pearson_r must be finite"),
+        ({"interior_l2_rel": -0.1}, "interior_l2_rel must be non-negative"),
+        ({"gs_residual_plateau": -0.1}, "gs_residual_plateau must be non-negative"),
+        ({"target_rtol": 0.0}, "target_rtol must be positive"),
+    ],
+)
+def test_parity_refutation_result_rejects_invalid_contract_values(
+    override: dict[str, object],
+    match: str,
+) -> None:
+    """Reject stale references and invalid numerical evidence before bundling."""
+    from scpn_control.studio.evidence import ParityRefutationResult
+
+    values: dict[str, object] = {
+        "solver_method": "sor",
+        "grid": "65x65 Solov'ev",
+        "pearson_r": 0.999,
+        "interior_l2_rel": 0.06,
+        "gs_residual_plateau": 4.0,
+        "target_rtol": 1e-3,
+        "result_digest": "a" * 64,
+        "raw_reference": "tests/test_rust_python_parity.py::TestSORSolverParity::test_sor_equilibrium_parity",
+    }
+    values.update(override)
+
+    with pytest.raises(ValueError, match=match):
+        ParityRefutationResult(**values)  # type: ignore[arg-type]

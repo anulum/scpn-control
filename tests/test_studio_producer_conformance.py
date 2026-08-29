@@ -38,8 +38,12 @@ from scpn_studio_platform.evidence import (  # noqa: E402
     validate_studio_bundle,
 )
 
-from scpn_control.studio.feed import FEED_SCHEMA, claim_summary, studio_feed  # noqa: E402
-from scpn_control.studio.feed import representative_bundles  # noqa: E402
+from scpn_control.studio.feed import (  # noqa: E402
+    FEED_SCHEMA,
+    claim_summary,
+    representative_bundles,  # noqa: E402
+    studio_feed,
+)
 
 _BUNDLES = representative_bundles()
 _IDS = [bundle.schema for bundle in _BUNDLES]

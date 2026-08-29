@@ -47,7 +47,7 @@ STUDIO_ID = "scpn-control"
 #: re-measured per run and recorded on each controller-run evidence bundle.
 CONTROL_CYCLE_DEADLINE_US = 5.0
 
-# ── evidence schema names this studio emits (studio.*.v1) ──────────────
+# ── versioned evidence schema names this studio emits ──────────────────
 EFIT_RECONSTRUCTION_SCHEMA = "studio.efit-reconstruction.v1"
 CONTROLLER_RUN_SCHEMA = "studio.controller-run.v1"
 SAFETY_CERTIFICATE_SCHEMA = "studio.safety-certificate.v1"

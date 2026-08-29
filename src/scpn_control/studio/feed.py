@@ -72,6 +72,7 @@ FEED_SCHEMA = "studio.control-feed.v1"
 _REPRESENTATIVE_STARTED = "2026-06-23T00:00:00Z"
 _REPRESENTATIVE_ENDED = "2026-06-23T00:00:01Z"
 _REPRESENTATIVE_OPERATOR = "opaque:representative"
+_SOR_PARITY_REFERENCE = "tests/test_rust_python_parity.py::TestSORSolverParity::test_sor_equilibrium_parity"
 
 
 def verb_summary(verb: Verb) -> dict[str, object]:
@@ -333,8 +334,8 @@ def representative_bundles(
             interior_l2_rel=0.06,
             gs_residual_plateau=4.0,
             target_rtol=1e-3,
-            result_digest=canonical_digest({"parity": "sor", "finding": "PARITY-1"}),
-            raw_reference="PARITY-1",
+            result_digest=canonical_digest({"parity": "sor", "raw_reference": _SOR_PARITY_REFERENCE}),
+            raw_reference=_SOR_PARITY_REFERENCE,
         ),
         **who,
     )

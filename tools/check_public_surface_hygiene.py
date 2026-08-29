@@ -117,6 +117,10 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "internal pulsed-control campaign identifier",
         re.compile(r"(?<![A-Za-z0-9_])CON-C(?:\.[0-9]+)?(?![A-Za-z0-9_])", re.IGNORECASE),
     ),
+    (
+        "internal parity campaign identifier",
+        re.compile(r"(?<![A-Za-z0-9_])PARITY-1(?![A-Za-z0-9_])", re.IGNORECASE),
+    ),
 )
 
 PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (

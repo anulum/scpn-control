@@ -112,6 +112,12 @@ def test_rejects_internal_pulsed_control_campaign_identifiers() -> None:
         assert {finding.category for finding in findings} == {"internal pulsed-control campaign identifier"}
 
 
+def test_rejects_internal_parity_campaign_identifier() -> None:
+    """Parity evidence must retain a descriptive source reference."""
+    findings = scan_text("validation/parity.json", '"raw_reference": "PARITY-1"\n')
+    assert {finding.category for finding in findings} == {"internal parity campaign identifier"}
+
+
 def test_rejects_private_operational_path_reference() -> None:
     """Outward surfaces must not link into ignored planning trees."""
     assert "private operational path" in _categories("See docs/internal/TODO.md for status.\n")

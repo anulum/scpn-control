@@ -40,10 +40,10 @@ import pytest
 
 try:
     from scpn_control.core._rust_compat import (
+        RUST_BACKEND,  # noqa: F401
+        RustAcceleratedKernel,
         _rust_available,
         rust_multigrid_vcycle,
-        RustAcceleratedKernel,
-        RUST_BACKEND,  # noqa: F401
     )
 
     HAS_RUST = _rust_available()
@@ -79,6 +79,8 @@ _HAS_RUST_SCPN_RUNTIME = False
 try:
     from scpn_control_rs import (  # type: ignore[import-not-found]
         scpn_dense_activations as _rust_dense_act,
+    )
+    from scpn_control_rs import (
         scpn_marking_update as _rust_marking_upd,
     )
 
@@ -193,7 +195,8 @@ class TestSORSolverParity:
             "true GS solution — so Python and Rust halt ~6% apart in interior L2 and exact-value "
             "parity to rtol=1e-3 is not reachable via SOR. Closing it needs a shared GS-residual "
             "stopping criterion in both backends (FUSION-canonical solver semantics, coordinated); "
-            "the multigrid solver is the accurate, converging path. See PARITY-1 in the internal TODO."
+            "the multigrid solver is the accurate, converging path. This remains a tracked "
+            "SOR-equilibrium parity refutation."
         )
     )
     def test_sor_equilibrium_parity(self, tmp_path: Path) -> None:
@@ -446,8 +449,8 @@ class TestVacuumFieldParity:
         """Compare the Rust shafranov_bv() against the Python vacuum
         field computation for the Solov'ev problem.
         """
-        from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
         from scpn_control.core._rust_compat import rust_shafranov_bv
+        from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
 
         cfg_path = _make_config(tmp_path)
         py_kernel = PyFusionKernel(str(cfg_path))
@@ -641,8 +644,8 @@ class TestTopologyParity:
 
     @pytest.mark.xfail(
         reason=(
-            "Inherits the SOR stopping-criterion plateau diagnosed in test_sor_equilibrium_parity "
-            "(PARITY-1): the ~6% Python/Rust interior gap shifts the recovered X-point too."
+            "Inherits the SOR stopping-criterion plateau diagnosed in test_sor_equilibrium_parity: "
+            "the ~6% Python/Rust interior gap shifts the recovered X-point too."
         )
     )
     def test_x_point_parity(self, tmp_path: Path) -> None:
