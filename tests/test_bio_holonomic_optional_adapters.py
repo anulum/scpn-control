@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Bio-holonomic controller coverage hardening tests
-"""COV-1 regression tests for bio-holonomic optional-adapter imports."""
+"""Regression tests for bio-holonomic optional-adapter imports."""
 
 from __future__ import annotations
 

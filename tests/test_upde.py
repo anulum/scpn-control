@@ -5,6 +5,8 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — UPDE non-uniform fallback and step-input validation tests.
+"""Exercise UPDE native delegation, Python fallbacks, and input validation."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -98,7 +100,7 @@ def test_import_enables_rust_upde_when_symbol_present(monkeypatch: pytest.Monkey
     cast(_NativeUpdeModule, native).upde_tick = fake_upde_tick
 
     module_path = Path(upde_module.__file__).resolve()
-    spec = importlib.util.spec_from_file_location("_scpn_control_upde_cov1_probe", module_path)
+    spec = importlib.util.spec_from_file_location("_scpn_control_upde_dependency_probe", module_path)
     assert spec is not None
     assert spec.loader is not None
     probe = importlib.util.module_from_spec(spec)
@@ -115,7 +117,6 @@ def test_import_enables_rust_upde_when_symbol_present(monkeypatch: pytest.Monkey
 
 def test_step_uses_rust_fast_path_for_uniform_layers(monkeypatch: pytest.MonkeyPatch) -> None:
     """Exercise the optional Rust UPDE path with a typed fake native result."""
-
     calls: list[tuple[int, int, float, float, float]] = []
 
     def fake_upde_tick(
@@ -173,7 +174,6 @@ def test_step_uses_rust_fast_path_for_uniform_layers(monkeypatch: pytest.MonkeyP
 
 def test_step_falls_back_when_rust_result_shape_is_invalid(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reject native UPDE snapshots that cannot satisfy the public contract."""
-
     calls = 0
 
     def malformed_upde_tick(
@@ -225,6 +225,7 @@ def test_step_falls_back_when_rust_result_shape_is_invalid(monkeypatch: pytest.M
 
 
 def test_step_uses_python_fallback_for_non_uniform_layers() -> None:
+    """Preserve per-layer shapes when unequal lengths require Python execution."""
     # Layers of unequal length disqualify the uniform-N Rust fast-path, so the
     # Python fallback (with the global-field driver active via non-zero zeta)
     # runs and must return per-layer phases of the original sizes.
@@ -257,6 +258,7 @@ def test_step_uses_python_fallback_for_non_uniform_layers() -> None:
 
 
 def test_step_requires_external_psi_driver() -> None:
+    """Require an explicit phase driver in external-driver mode."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -293,6 +295,7 @@ def test_step_supports_global_mean_field_without_wrapping(monkeypatch: pytest.Mo
 
 
 def test_step_rejects_unknown_psi_mode() -> None:
+    """Reject phase-driver modes outside the documented runtime contract."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="unsupported")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -302,6 +305,7 @@ def test_step_rejects_unknown_psi_mode() -> None:
 
 
 def test_step_rejects_nonpositive_dt() -> None:
+    """Reject a non-positive integration interval."""
     system = UPDESystem(spec=_two_layer_spec(), dt=0.0, psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -311,6 +315,7 @@ def test_step_rejects_nonpositive_dt() -> None:
 
 
 def test_step_rejects_nonfinite_actuation_gain() -> None:
+    """Reject non-finite actuator gains before phase integration."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3), np.zeros(3)]
     omega = [np.zeros(3), np.zeros(3)]
@@ -319,6 +324,7 @@ def test_step_rejects_nonfinite_actuation_gain() -> None:
 
 
 def test_step_rejects_nonfinite_pac_gamma() -> None:
+    """Reject non-finite phase-amplitude coupling coefficients."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3), np.zeros(3)]
     omega = [np.zeros(3), np.zeros(3)]
@@ -327,6 +333,7 @@ def test_step_rejects_nonfinite_pac_gamma() -> None:
 
 
 def test_step_rejects_invalid_k_override_shape() -> None:
+    """Require override coupling matrices to match the layer topology."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -336,6 +343,7 @@ def test_step_rejects_invalid_k_override_shape() -> None:
 
 
 def test_step_rejects_nonfinite_k_override_values() -> None:
+    """Reject non-finite entries in an override coupling matrix."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -346,6 +354,7 @@ def test_step_rejects_nonfinite_k_override_values() -> None:
 
 
 def test_step_rejects_negative_k_override_values() -> None:
+    """Reject negative entries in an override coupling matrix."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -356,6 +365,7 @@ def test_step_rejects_negative_k_override_values() -> None:
 
 
 def test_step_rejects_layer_count_mismatch() -> None:
+    """Require phase and frequency inputs for every declared layer."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -365,6 +375,7 @@ def test_step_rejects_layer_count_mismatch() -> None:
 
 
 def test_step_rejects_non_1d_theta_layer() -> None:
+    """Require each layer's phase state to be one-dimensional."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros((2, 2)), np.zeros(3)]
     omega = [np.zeros(4), np.zeros(3)]
@@ -373,6 +384,7 @@ def test_step_rejects_non_1d_theta_layer() -> None:
 
 
 def test_step_rejects_non_1d_omega_layer() -> None:
+    """Require each layer's natural-frequency state to be one-dimensional."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3), np.zeros(3)]
     omega = [np.zeros((3, 1)), np.zeros(3)]
@@ -381,6 +393,7 @@ def test_step_rejects_non_1d_omega_layer() -> None:
 
 
 def test_step_rejects_omega_shape_mismatch() -> None:
+    """Require phase and frequency vectors to have matching layer shapes."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(2, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -390,6 +403,7 @@ def test_step_rejects_omega_shape_mismatch() -> None:
 
 
 def test_step_rejects_nonfinite_theta_values() -> None:
+    """Reject non-finite phase values before integration."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.array([0.0, np.inf, 0.0], dtype=np.float64), np.zeros(3, dtype=np.float64)]
     omega = [np.zeros(3, dtype=np.float64), np.zeros(3, dtype=np.float64)]
@@ -399,6 +413,7 @@ def test_step_rejects_nonfinite_theta_values() -> None:
 
 
 def test_step_rejects_nonfinite_omega_values() -> None:
+    """Reject non-finite natural frequencies before integration."""
     system = UPDESystem(spec=_two_layer_spec(), psi_mode="external")
     theta = [np.zeros(3), np.zeros(3)]
     omega = [np.array([0.0, np.nan, 0.0]), np.zeros(3)]
@@ -407,6 +422,7 @@ def test_step_rejects_nonfinite_omega_values() -> None:
 
 
 def test_run_returns_layer_and_global_histories() -> None:
+    """Return complete layer and global order-parameter histories."""
     system = UPDESystem(spec=_two_layer_spec(), dt=1e-3, psi_mode="external")
     theta = [
         np.array([0.0, 0.1, 0.2], dtype=np.float64),
@@ -426,6 +442,7 @@ def test_run_returns_layer_and_global_histories() -> None:
 
 
 def test_run_lyapunov_returns_exponents_and_histories() -> None:
+    """Return Lyapunov estimates together with their layer histories."""
     system = UPDESystem(spec=_two_layer_spec(), dt=1e-3, psi_mode="external")
     theta = [
         np.array([0.0, 0.1, 0.2], dtype=np.float64),

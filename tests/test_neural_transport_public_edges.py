@@ -4,8 +4,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Neural transport COV-1 tests.
-"""Focused COV-1 tests for neural transport public surfaces."""
+# SCPN Control — Neural transport public-edge tests.
+"""Focused tests for neural transport public surfaces."""
 
 from __future__ import annotations
 

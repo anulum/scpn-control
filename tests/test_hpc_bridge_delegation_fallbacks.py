@@ -4,9 +4,9 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — COV-1 tests for native solver bridge delegation fallbacks.
+# SCPN Control — Native solver bridge delegation-fallback tests.
 
-"""COV-1 regression tests for defensive HPC bridge delegation paths."""
+"""Regression tests for defensive HPC bridge delegation paths."""
 
 from __future__ import annotations
 

@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — SCPN controller coverage hardening tests
-"""COV-1 regression tests for SCPN controller import-time runtime guards."""
+"""Regression tests for SCPN controller import-time runtime guards."""
 
 from __future__ import annotations
 

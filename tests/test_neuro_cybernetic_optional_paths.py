@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neuro-cybernetic controller coverage hardening tests
-"""COV-1 regression tests for neuro-cybernetic optional-path coverage."""
+"""Regression tests for neuro-cybernetic optional paths."""
 
 from __future__ import annotations
 

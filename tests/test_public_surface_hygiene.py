@@ -82,6 +82,22 @@ def test_rejects_internal_ids_on_source_config_and_workflow_surfaces() -> None:
     assert {finding.category for finding in workflow} == {"internal task identifier"}
 
 
+def test_rejects_internal_coverage_campaign_identifier_in_content_and_path() -> None:
+    """Coverage-campaign labels are rejected from prose and tracked filenames."""
+    content = scan_text("tests/test_solver_edges.py", "Legacy COV-1 coverage campaign.\n")
+    path = scan_text("tests/test_solver_cov1.py", "Descriptive test content.\n")
+
+    assert {finding.category for finding in content} == {"internal coverage campaign identifier"}
+    assert path == [
+        Finding(
+            path="tests/test_solver_cov1.py",
+            line=0,
+            category="internal coverage campaign identifier",
+            detail="tests/test_solver_cov1.py",
+        )
+    ]
+
+
 def test_rejects_private_operational_path_reference() -> None:
     """Outward surfaces must not link into ignored planning trees."""
     assert "private operational path" in _categories("See docs/internal/TODO.md for status.\n")

@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — CLI coverage hardening tests
-"""COV-1 regression tests for CLI validation edge paths."""
+"""Regression tests for CLI validation edge paths."""
 
 from __future__ import annotations
 

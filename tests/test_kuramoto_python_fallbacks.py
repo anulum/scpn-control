@@ -4,8 +4,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Kuramoto COV-1 fallback coverage tests.
-"""Focused COV-1 tests for reachable Kuramoto Python fallback behavior."""
+# SCPN Control — Kuramoto Python-fallback tests.
+"""Focused tests for reachable Kuramoto Python fallback behavior."""
 
 from __future__ import annotations
 
@@ -61,7 +61,7 @@ def test_kuramoto_import_enables_rust_backend_when_symbol_present(monkeypatch: p
     cast(_NativeKuramotoModule, native).kuramoto_step = fake_kuramoto_step
 
     module_path = Path(kuramoto_module.__file__).resolve()
-    spec = importlib.util.spec_from_file_location("_scpn_control_kuramoto_cov1_probe", module_path)
+    spec = importlib.util.spec_from_file_location("_scpn_control_kuramoto_fallback_probe", module_path)
     assert spec is not None
     assert spec.loader is not None
     probe = importlib.util.module_from_spec(spec)
@@ -78,7 +78,6 @@ def test_kuramoto_import_enables_rust_backend_when_symbol_present(monkeypatch: p
 
 def test_kuramoto_step_uses_python_fallback_when_wrap_disabled() -> None:
     """Exercise the NumPy fallback return even when the optional Rust backend exists."""
-
     theta = np.array([3.2, -3.0, 0.25], dtype=np.float64)
     omega = np.array([0.5, -0.25, 0.125], dtype=np.float64)
 

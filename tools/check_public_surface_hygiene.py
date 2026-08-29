@@ -99,6 +99,10 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
             re.IGNORECASE,
         ),
     ),
+    (
+        "internal coverage campaign identifier",
+        re.compile(r"(?<![A-Za-z0-9])COV-?1(?![A-Za-z0-9])", re.IGNORECASE),
+    ),
 )
 
 PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
@@ -312,6 +316,10 @@ def scan_text(path: str, text: str) -> list[Finding]:
         explicitly bounded contexts.
     """
     findings: list[Finding] = []
+    for category, pattern in INTERNAL_IDENTIFIER_PATTERNS:
+        if pattern.search(path) is not None:
+            findings.append(Finding(path, 0, category, path))
+            break
     rendered_header_finding = _rendered_markdown_header_finding(path, text)
     if rendered_header_finding is not None:
         findings.append(rendered_header_finding)

@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — focused artifact validation COV-1 tests.
+# SCPN Control — focused artifact-validation edge-case tests.
 """Focused coverage for artifact validator and compact-codec edge paths."""
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ def _valid_artifact() -> Artifact:
     return Artifact(
         meta=ArtifactMeta(
             artifact_version="1.0.0",
-            name="cov1-validator",
+            name="minimal-validator",
             dt_control_s=0.01,
             stream_length=64,
             fixed_point=FixedPoint(data_width=16, fraction_bits=8, signed=True),
@@ -200,6 +200,6 @@ def test_validate_rejects_readout_numeric_limit_errors() -> None:
     _expect_validation_error(lambda artifact: artifact.readout.slew_per_s.__setitem__(0, float("nan")), "slew_per_s")
 
 
-def test_validate_accepts_minimal_cov1_artifact() -> None:
+def test_validate_accepts_minimal_artifact() -> None:
     """The local fixture remains a valid baseline for mutation tests."""
     _validate(_valid_artifact())

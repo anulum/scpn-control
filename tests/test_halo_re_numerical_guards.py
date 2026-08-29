@@ -4,9 +4,9 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Halo runaway physics COV-1 regressions.
+# SCPN Control — Halo runaway physics numerical-guard regressions.
 
-"""COV-1 regressions for halo runaway numerical guard paths."""
+"""Regressions for halo runaway numerical guard paths."""
 
 from __future__ import annotations
 

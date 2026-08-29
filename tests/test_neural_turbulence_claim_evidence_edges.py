@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Neural turbulence claim-evidence COV-1 tests.
+# SCPN Control — Neural turbulence claim-evidence edge tests.
 """Tests for neural-turbulence reference admission guard behavior."""
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ def _write_reference_artifact(
         "schema_version": "1.0",
         "source": source,
         "model_id": "neural_turbulence_qlknn_facade",
-        "model_version": "cov1",
+        "model_version": "fixture-1",
         "trained_weights_sha256": weights_sha256,
         "reference_dataset_id": "bounded-gk-fixture",
         "reference_artifact_sha256": "e" * 64,
@@ -115,7 +115,7 @@ def test_claim_evidence_rejects_inadmissible_reference_source_after_validator_pa
         neural_turbulence_claim_evidence(
             _validation_result(),
             source="documented_public_reference",
-            source_id="tests/test_neural_turbulence_claim_evidence_cov1.py::source",
+            source_id="tests/test_neural_turbulence_claim_evidence_edges.py::source",
             weights_path=weights,
             reference_artifact_path=artifact,
         )
@@ -133,7 +133,7 @@ def test_claim_evidence_rejects_nonpositive_reference_sample_count_after_validat
         neural_turbulence_claim_evidence(
             _validation_result(),
             source="documented_public_reference",
-            source_id="tests/test_neural_turbulence_claim_evidence_cov1.py::sample_count",
+            source_id="tests/test_neural_turbulence_claim_evidence_edges.py::sample_count",
             weights_path=weights,
             reference_artifact_path=artifact,
         )

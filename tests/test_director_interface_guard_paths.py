@@ -4,8 +4,8 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Director interface COV-1 tests.
-"""Focused COV-1 tests for Director interface guard and plotting paths."""
+# SCPN Control — Director interface guard-path tests.
+"""Focused tests for Director interface guard and plotting paths."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from types import ModuleType
 from typing import Any, cast
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
+from numpy.typing import NDArray
 
 import scpn_control.control.director_interface as director_module
 from scpn_control.control.director_interface import DirectorInterface
