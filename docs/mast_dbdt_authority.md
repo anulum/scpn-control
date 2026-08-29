@@ -1,6 +1,6 @@
 # MAST dB/dt source authority
 
-`validation/mast_dbdt_authority.py` is the second L2F-12d admission gate. It
+`validation/mast_dbdt_authority.py` is the dB/dt source-quantity admission gate. It
 protects canonical `dBdt_gauss_per_s` from a source-quantity ambiguity in the
 centre-column poloidal Mirnov array. The gate measures metadata, geometry,
 finite coverage, and timebase facts, but never differentiates, filters, reduces,

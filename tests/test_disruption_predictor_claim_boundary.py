@@ -69,7 +69,7 @@ def test_safe_fallback_metadata_carries_claim_boundary(monkeypatch: pytest.Monke
     """Explicit fallback inference returns the no-real-ROC claim boundary."""
     import scpn_control.control.disruption_checkpoint as checkpoint_mod
 
-    # load_or_train lives on the checkpoint leaf after R7-S4.
+    # load_or_train belongs to the checkpoint leaf.
     monkeypatch.setattr(checkpoint_mod, "torch", None)
     monkeypatch.setattr(disruption_module, "torch", None)
 

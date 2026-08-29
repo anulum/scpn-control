@@ -11,9 +11,9 @@
 This leaf owns :class:`ArtifactValidationError`, structural contract checks on
 :class:`~scpn_control.scpn.artifact_model.Artifact`, formal-verification evidence
 admission, and safety-critical admit
-(:func:`validate_safety_critical_artifact`). Load/save, JSON schema, and compact
-codec remain on :mod:`scpn_control.scpn.artifact` (CTL-G07 R4-S2+). Compact packed-weight codec
-lives in :mod:`scpn_control.scpn.artifact_codec` (R4-S3).
+(:func:`validate_safety_critical_artifact`). Load/save and JSON schema remain on
+:mod:`scpn_control.scpn.artifact`. Compact packed-weight codec lives in
+:mod:`scpn_control.scpn.artifact_codec`.
 """
 
 from __future__ import annotations
@@ -307,7 +307,7 @@ def validate_safety_critical_artifact(
     formal_report_root: str | Path | None = None,
 ) -> None:
     """Fail closed unless a controller artifact carries passing bounded-proof evidence."""
-    # Lazy import: payload hash lives on the io leaf (CTL-G07 R4-S4).
+    # Lazy import: payload hashing belongs to the IO leaf.
     from scpn_control.scpn.artifact_io import compute_artifact_payload_sha256
 
     if artifact.formal_verification is None:

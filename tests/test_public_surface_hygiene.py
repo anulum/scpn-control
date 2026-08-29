@@ -64,6 +64,21 @@ def test_rejects_public_operational_headings_and_internal_ids() -> None:
     assert "public operational heading" in _categories("## Prioritisation\n")
     assert "internal task identifier" in _categories("Execute CONTROL-AUD-001 next.\n")
     assert "internal task identifier" in _categories("Closed CTL-G07 in this release.\n")
+    assert "internal task identifier" in _categories("Completed L2F-90c(a).\n")
+    assert "internal task identifier" in _categories("Closed SYS-AUDIT-02-MYPY1.\n")
+    assert "internal task identifier" in _categories("Waiver WCG-5e is active.\n")
+    assert "internal task identifier" in _categories("Continue with R3-S4.\n")
+
+
+def test_rejects_internal_ids_on_source_config_and_workflow_surfaces() -> None:
+    """Internal identifier families are governed outside Markdown and JSON."""
+    source = scan_text("module.py", 'VALIDATION = "L2F-22"\n')
+    config = scan_text("pyproject.toml", "# SYS-AUDIT-02-MYPY1\n")
+    workflow = scan_text(".github/workflows/ci.yml", "# WCG-5e\n")
+
+    assert {finding.category for finding in source} == {"internal task identifier"}
+    assert {finding.category for finding in config} == {"internal task identifier"}
+    assert {finding.category for finding in workflow} == {"internal task identifier"}
 
 
 def test_rejects_private_operational_path_reference() -> None:

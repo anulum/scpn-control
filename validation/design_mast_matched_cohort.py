@@ -8,7 +8,7 @@
 # SCPN Control — Fail-closed MAST matched-cohort design gate
 """Design a statistically explicit MAST cohort without admitting proxy labels.
 
-L2F-23a consumes the self-digested L2F-22 proxy-sensitivity report and a
+The matched-cohort design consumes the self-digested proxy-sensitivity report and a
 self-digested design specification. It computes binomial-precision and AUC
 CI/power planning minima, but it never selects shots. The report remains blocked
 until authoritative labels, diagnostic availability, and distribution-informed
@@ -258,7 +258,7 @@ def _load_design_spec(path: Path) -> tuple[CohortDesignSpec, str, str]:
     if _string_tuple(payload, "excluded_outcomes") != EXCLUDED_OUTCOMES:
         raise CohortDesignError("excluded_outcomes must be aborted_no_plasma and ambiguous")
     if _required_string(payload, "caliper_policy_status") != "required_not_supplied":
-        raise CohortDesignError("matching calipers must remain required_not_supplied in L2F-23a")
+        raise CohortDesignError("matching calipers must remain required_not_supplied in the cohort design")
     digest = _verify_self_digest(payload)
     spec = CohortDesignSpec(
         confidence_level=_required_float(payload, "confidence_level"),
@@ -603,7 +603,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run L2F-23a and write the deterministic design report."""
+    """Run the matched-cohort design and write its deterministic report."""
     args = _parse_args(argv)
     report = design_matched_cohort(
         design_spec_path=args.design_spec,

@@ -43,10 +43,10 @@ from scpn_control.core import gs_profile_source as _gs_prof
 from scpn_control.core import gs_rust_multigrid_bridge as _gs_rust_mg
 from scpn_control.core.hpc_bridge import HPCBridge
 
-# Stable public re-export: free-boundary coil set (R0-S6 leaf).
+# Stable public re-export: free-boundary coil set.
 CoilSet = _gs_fb.CoilSet
 
-# Stable public re-exports: configuration schemas + parse/dump (R0-S1 leaf).
+# Stable public re-exports: configuration schemas and parse/dump helpers.
 CoilConfig = _fk_config.CoilConfig
 DimensionsConfig = _fk_config.DimensionsConfig
 FusionKernelConfig = _fk_config.FusionKernelConfig

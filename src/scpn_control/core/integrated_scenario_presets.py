@@ -10,7 +10,7 @@
 
 This leaf owns :class:`ScenarioConfig`, finite-field validators used by the
 integrated shot simulator, facility presets (ITER baseline/hybrid, NSTX-U),
-and config payload hashing (CTL-G07 R5-S1). Coupling audit and the
+and config payload hashing. Coupling audit and the
 :class:`~scpn_control.core.integrated_scenario.IntegratedScenarioSimulator`
 orchestration remain on the owner.
 """

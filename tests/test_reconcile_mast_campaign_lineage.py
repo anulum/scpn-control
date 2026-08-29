@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Tests for FAIR-MAST campaign reconciliation
-"""Adversarial production-path tests for the L2F-90 reconciliation gate."""
+"""Adversarial production-path tests for the MAST campaign reconciliation gate."""
 
 from __future__ import annotations
 

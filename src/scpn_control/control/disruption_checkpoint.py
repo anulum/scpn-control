@@ -10,7 +10,7 @@
 
 This leaf owns the fail-closed SHA-256 integrity gate, default model path
 helpers, and the train/load entry points that deserialise or synthesise a
-predictor (CTL-G07 R7-S4). The optional torch model class remains on the
+predictor. The optional torch model class remains on the
 owner; claim boundaries and physics proxies live in sibling leaves.
 """
 

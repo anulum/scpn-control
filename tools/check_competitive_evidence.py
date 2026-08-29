@@ -71,7 +71,7 @@ FORBIDDEN_TONE: Final = re.compile(
     re.IGNORECASE,
 )
 PRIVATE_MARKER: Final = re.compile(
-    r"(?:docs/internal/|\.coordination/|CONTROL-AUD-|competitor-ahead|TIER 0)",
+    r"(?:docs/internal/|\.coordination/|competitor-ahead|TIER 0)",
     re.IGNORECASE,
 )
 

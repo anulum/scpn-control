@@ -1,6 +1,6 @@
 # MAST normalised-beta authority
 
-`validation/mast_normalised_beta_authority.py` is the L2F-12b admission gate
+`validation/mast_normalised_beta_authority.py` is the normalised-beta admission gate
 for the canonical disruption channel `beta_N`. It diagnoses the public
 FAIR-MAST `EFM_BETAN` source without guessing a scale, changing its values, or
 promoting a metadata correction into physical authority.

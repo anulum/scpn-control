@@ -9,7 +9,7 @@
 """Heuristic disruption physics proxies and synthetic precursor generators.
 
 This leaf owns synthetic tearing-mode trajectories, feature construction,
-fixed-weight risk scoring, and warning-time evaluation (CTL-G07 R7-S2). Claim
+fixed-weight risk scoring, and warning-time evaluation. Claim
 boundaries live in :mod:`disruption_risk_claims`; fault campaigns and
 checkpointed torch models remain on the owner.
 """

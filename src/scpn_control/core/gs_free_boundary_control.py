@@ -13,7 +13,7 @@ least-squares optimisation and objective status reporting. The CONTROL
 :class:`~scpn_control.core.fusion_kernel.FusionKernel` product surface remains
 first-class under dual-home C and keeps thin wrappers that supply mesh/green
 response operators. Full free-boundary solve orchestration stays on the owner
-(R0-S7).
+module.
 """
 
 from __future__ import annotations

@@ -69,7 +69,7 @@ def _nonempty_text(value: object) -> bool:
 
 
 def mast_locked_mode_authority_spec() -> dict[str, object]:
-    """Return the deterministic, self-digested L2F-12d locked-mode contract."""
+    """Return the deterministic, self-digested locked-mode authority contract."""
     saddle_spec = mast_saddle_modal_authority_spec()
     payload: dict[str, object] = {
         "schema_version": LOCKED_MODE_AUTHORITY_SCHEMA,
@@ -276,7 +276,7 @@ def build_locked_mode_authority_report(artifacts: Sequence[VerifiedSourceArtifac
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write a real-object L2F-12d locked-mode authority assessment."""
+    """Write a real-object locked-mode authority assessment."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)

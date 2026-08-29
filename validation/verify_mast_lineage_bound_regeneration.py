@@ -273,7 +273,11 @@ def validate_regeneration_verification(payload: Mapping[str, Any]) -> str:
     if run_a["producer_lineage"] != run_b["producer_lineage"]:
         raise RegenerationVerificationError("producer-lineage bindings differ between runs")
     blockers = _list(payload.get("blockers"), field="blockers")
-    if not blockers or blockers != sorted(set(blockers)) or any(not isinstance(value, str) or not value for value in blockers):
+    if (
+        not blockers
+        or blockers != sorted(set(blockers))
+        or any(not isinstance(value, str) or not value for value in blockers)
+    ):
         raise RegenerationVerificationError("blockers must be a non-empty sorted unique string array")
     claims = _mapping(payload.get("claim_boundary"), field="claim_boundary")
     if set(claims) != set(CLAIM_FIELDS) or any(value is not False for value in claims.values()):
@@ -417,7 +421,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Write an exclusive L2F-90d regeneration verification report."""
+    """Write an exclusive lineage-bound regeneration verification report."""
     args = _parse_args(argv)
     args.json_out.parent.mkdir(parents=True, exist_ok=True)
     try:

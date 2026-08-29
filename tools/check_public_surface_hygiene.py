@@ -83,6 +83,23 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("stale notebook output path", re.compile(r"\bartefacts/notebook-exec\b")),
 )
 
+INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
+    (
+        "internal task identifier",
+        re.compile(
+            r"(?<![A-Za-z0-9_])(?:"
+            r"L2F-[A-Za-z0-9]+(?:\([A-Za-z0-9]+\))?|"
+            r"CTL-G[A-Za-z0-9-]+|"
+            r"R[0-9]+-S[0-9]+|"
+            r"SYS-AUDIT-[A-Za-z0-9-]+|"
+            r"WCG-[A-Za-z0-9-]+|"
+            r"(?:CONTROL|CTRL)-AUD-[A-Za-z0-9-]+"
+            r")(?![A-Za-z0-9_])",
+            re.IGNORECASE,
+        ),
+    ),
+)
+
 PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("public operational task", re.compile(r"^\s*[-*+]\s+\[\s\]")),
     (
@@ -103,10 +120,6 @@ PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         re.compile(
             r'^\s*"(?:required_actions|action_items|next_steps|remediation_plan|task_priority)"\s*:', re.IGNORECASE
         ),
-    ),
-    (
-        "internal task identifier",
-        re.compile(r"\b(?:(?:CONTROL|CTRL)-AUD-\d+|CTL-G\d+)\b", re.IGNORECASE),
     ),
     ("private operational path", re.compile(r"(?:^|[^\w])(?:docs/internal/|\.coordination/)", re.IGNORECASE)),
 )
@@ -305,6 +318,10 @@ def scan_text(path: str, text: str) -> list[Finding]:
         if path.endswith(".md") and re.match(r"^\s*(```|~~~)", line):
             in_fenced_code = not in_fenced_code
             continue
+        for category, pattern in INTERNAL_IDENTIFIER_PATTERNS:
+            if pattern.search(line) is not None:
+                findings.append(Finding(path, line_number, category, line.strip()))
+                break
         if _is_allowed_context(line):
             continue
         for category, pattern in BANNED_PATTERNS:

@@ -10,7 +10,7 @@
 
 This leaf owns :class:`ScenarioModuleExchange`, :class:`ScenarioCouplingMetadata`,
 :class:`ScenarioCouplingAudit`, the fail-closed :func:`audit_scenario_coupling`
-contract, and JSON report serialisation (CTL-G07 R5-S2). Transport micro-physics
+contract, and JSON report serialisation. Transport micro-physics
 and :class:`~scpn_control.core.integrated_scenario.IntegratedScenarioSimulator`
 orchestration remain on the owner. Scenario state snapshots stay on the owner;
 this leaf accepts duck-typed state views with the declared attribute surface.

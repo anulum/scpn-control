@@ -181,7 +181,7 @@ def convert_shot_zarr(
         ds.close()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     # numpy's savez_compressed stub types **kwds against the positional allow_pickle: bool;
-    # the array keyword payload is the documented, correct call. See SYS-AUDIT-02-MYPY1.
+    # the array keyword payload is the documented, correct call.
     np.savez_compressed(output_path, **arrays)  # type: ignore[arg-type]
     return _converted_summary(shot_id=shot_id, source_path=zarr_path, output_path=output_path, arrays=arrays)
 

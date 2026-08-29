@@ -11,8 +11,8 @@
 This leaf owns objective-tolerance and supervisor/limit resolution helpers used
 by :class:`~scpn_control.control.free_boundary_tracking.FreeBoundaryTrackingController`.
 Claims remain in ``free_boundary_tracking_claims`` (must not re-merge). Shot
-orchestration stays on the controller (R3-S4); observation and control-law
-stages live in sibling leaves.
+orchestration stays on the controller; observation and control-law stages live
+in sibling leaves.
 """
 
 from __future__ import annotations

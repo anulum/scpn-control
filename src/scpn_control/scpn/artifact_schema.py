@@ -10,7 +10,7 @@
 
 This leaf owns :func:`get_artifact_json_schema` and the closed object/array
 schema helpers used to emit it. Load/save, validation, codec, and model leaves
-remain separate (CTL-G07 R4-S5).
+remain separate.
 """
 
 from __future__ import annotations

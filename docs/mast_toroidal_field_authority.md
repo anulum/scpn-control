@@ -1,6 +1,6 @@
 # MAST toroidal-field authority
 
-`validation/mast_toroidal_field_authority.py` is the L2F-12a admission gate for
+`validation/mast_toroidal_field_authority.py` is the toroidal-field admission gate for
 the canonical disruption channel `BT_T`. It does not extract, interpolate, or
 rename a field. It answers the narrower question: does one verified FAIR-MAST
 source object carry enough physical authority to call a value canonical total

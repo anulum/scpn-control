@@ -10,7 +10,7 @@
 
 This leaf owns deterministic encode/decode of uint64 packed weight payloads used
 by ``.scpnctl.json`` compact form. Load/save, JSON schema, and payload hashing
-remain on :mod:`scpn_control.scpn.artifact` (CTL-G07 R4-S3).
+remain on :mod:`scpn_control.scpn.artifact`.
 """
 
 from __future__ import annotations

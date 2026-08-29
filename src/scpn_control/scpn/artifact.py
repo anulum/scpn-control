@@ -9,7 +9,7 @@
 
 Re-exports topology model, validation, compact codec, load/save IO, and JSON
 schema leaves so callers keep a stable ``scpn_control.scpn.artifact`` import
-path (CTL-G07 R4-S1–S5).
+path.
 """
 
 from __future__ import annotations

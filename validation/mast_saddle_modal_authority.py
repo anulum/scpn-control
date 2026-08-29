@@ -78,7 +78,7 @@ def _is_trusted_authority_url(value: object) -> bool:
 
 
 def mast_saddle_modal_authority_spec() -> dict[str, object]:
-    """Return the deterministic, self-digested L2F-12c authority contract."""
+    """Return the deterministic, self-digested saddle-modal authority contract."""
     payload: dict[str, object] = {
         "schema_version": SADDLE_MODAL_AUTHORITY_SCHEMA,
         "version": SADDLE_MODAL_AUTHORITY_VERSION,
@@ -348,7 +348,7 @@ def build_saddle_modal_authority_report(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write a real-object L2F-12c saddle-modal authority assessment."""
+    """Write a real-object saddle-modal authority assessment."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)

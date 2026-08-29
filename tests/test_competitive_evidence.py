@@ -211,7 +211,7 @@ def test_page_validation_defers_malformed_types_to_manifest_validation() -> None
             "missing primary source",
         ),
         (PAGE.read_text(encoding="utf-8") + "\nSCPN is superior.\n", "ranking language"),
-        (PAGE.read_text(encoding="utf-8") + "\nCONTROL-AUD-009\n", "private planning marker"),
+        (PAGE.read_text(encoding="utf-8") + "\ndocs/internal/private-plan.md\n", "private planning marker"),
         (
             PAGE.read_text(encoding="utf-8").replace(
                 "quantitative comparison set is currently empty", "numbers unavailable"

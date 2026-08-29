@@ -13,7 +13,8 @@ activation masks, coil headroom penalties, and the Tikhonov-regularised
 least-squares coil correction. Kernel-coupled response identification and
 actuator application stay on
 :class:`~scpn_control.control.free_boundary_tracking.FreeBoundaryTrackingController`
-(R3-S4 shot orchestration). Claims remain in ``free_boundary_tracking_claims``.
+as shot-orchestration responsibilities. Claims remain in
+``free_boundary_tracking_claims``.
 """
 
 from __future__ import annotations

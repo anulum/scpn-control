@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Digest-bound FAIR-MAST real-object alignment tests
-"""Real file-boundary tests for the L2F-11b external alignment gate."""
+"""Real file-boundary tests for the external real-object alignment gate."""
 
 from __future__ import annotations
 
@@ -40,7 +40,7 @@ def _save_named_arrays(path: Path, arrays: Mapping[str, object]) -> None:
 
 
 def _legacy_fixture(tmp_path: Path) -> tuple[Path, Path, str, str]:
-    """Create the recovered values-only manifest boundary used by L2F-11b."""
+    """Create the recovered values-only manifest boundary used by the alignment gate."""
     artifact = tmp_path / f"shot_{_SHOT_ID}.npz"
     _save_named_arrays(
         artifact,
@@ -127,7 +127,7 @@ def _v2_fixture(
             "schema_version": SOURCE_OBJECT_MANIFEST_SCHEMA,
             "manifest_kind": "source_object_inventory",
             "machine": "MAST",
-            "campaign": "L2F-11b alignment contract",
+            "campaign": "real-object alignment contract",
             "status": "complete",
             "synthetic": synthetic,
             "licence_spdx": FAIR_MAST_LICENCE,

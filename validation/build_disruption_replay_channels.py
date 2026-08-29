@@ -24,8 +24,8 @@ computed on their native fast timebase and reduced to the common grid by a
 per-bin peak, preserving warning-relevant bursts a plain interpolation would
 alias away; the equilibrium and summary scalar channels are linearly
 interpolated. The modal candidates retain the historical missing-row
-zero-replacement recipe but remain inadmissible under the L2F-12c authority
-gate. The locked-mode envelope is additionally blocked by the L2F-12d
+zero-replacement recipe but remain inadmissible under the saddle-modal authority
+gate. The locked-mode envelope is additionally blocked by the locked-mode
 stationary-estimator authority gate. The poloidal-probe candidate is blocked by
 the dB/dt source-quantity gate, which prevents either a missed derivative or a
 second derivative until the ``T`` versus ``Tesla/sec`` conflict is attested.

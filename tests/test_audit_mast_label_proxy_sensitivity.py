@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Tests for MAST label/proxy sensitivity audit
-"""Adversarial tests for the fail-closed L2F-22 sensitivity gate."""
+"""Adversarial tests for the fail-closed label/proxy sensitivity gate."""
 
 from __future__ import annotations
 

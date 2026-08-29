@@ -1,6 +1,6 @@
 # MAST locked-mode authority
 
-`validation/mast_locked_mode_authority.py` is the first L2F-12d admission gate
+`validation/mast_locked_mode_authority.py` is the locked-mode admission gate
 for canonical `locked_mode_amp`. It distinguishes a source-authoritative MAST
 locked-mode observable from the historical SCPN-CONTROL compatibility recipe.
 The gate measures source facts and the candidate filter's physical time scale,
@@ -18,7 +18,7 @@ the estimator, filter, calibration, or uncertainty contract.
 - [UKAEA-hosted paper](https://scientific-publications.ukaea.uk/wp-content/uploads/Published/Miss90.pdf)
 - [Pinned FAIR-MAST Level-2 mapping](https://github.com/ukaea/fair-mast-ingestion/blob/862f08d7d91930b988d674e7ec67f3a03aacafac/mappings/level2/mast.yml#L3498-L3685)
 
-The gate therefore requires the existing L2F-12c saddle row/geometry authority
+The gate therefore requires the existing saddle row/geometry authority
 and locked-mode-specific declarations for:
 
 1. a radial measured component on the outer mid-plane;
@@ -57,7 +57,7 @@ of discrete support. Its exact first boxcar null is `50000/201`, approximately
 prove that this frequency is a valid locked-mode boundary.
 
 All fourteen locked-mode-specific declarations listed by the gate are absent.
-The inherited L2F-12c blockers also remain: rows 9 through 12 contain no finite
+The inherited saddle row/geometry blockers also remain: rows 9 through 12 contain no finite
 samples and the ordered row join, selected vertical set, released geometry,
 calibration, baseline, and bad-channel authority are incomplete. The result is
 therefore `blocked`; `locked_mode_amp` remains a compatibility candidate and all

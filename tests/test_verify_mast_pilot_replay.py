@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Exact-object FAIR-MAST pilot replay tests
-"""Offline file-boundary tests for the L2F-13 preserved-pilot gate."""
+"""Offline file-boundary tests for the preserved-pilot replay gate."""
 
 from __future__ import annotations
 

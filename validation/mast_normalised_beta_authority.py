@@ -59,7 +59,7 @@ class NormalisedBetaAuthorityError(ValueError):
 
 
 def mast_normalised_beta_authority_spec() -> dict[str, object]:
-    """Return the deterministic, self-digested L2F-12b authority specification."""
+    """Return the deterministic, self-digested normalised-beta authority specification."""
     payload: dict[str, object] = {
         "schema_version": NORMALISED_BETA_AUTHORITY_SCHEMA,
         "version": NORMALISED_BETA_AUTHORITY_VERSION,
@@ -244,7 +244,7 @@ def assess_normalised_beta_authority(artifact: VerifiedSourceArtifact) -> dict[s
 
 
 def build_normalised_beta_authority_report(artifacts: Sequence[VerifiedSourceArtifact]) -> dict[str, object]:
-    """Build a deterministic multi-shot L2F-12b blocker report."""
+    """Build a deterministic multi-shot normalised-beta blocker report."""
     if not artifacts:
         raise NormalisedBetaAuthorityError("at least one verified source artefact is required")
     shot_ids = [artifact.shot_id for artifact in artifacts]
@@ -265,7 +265,7 @@ def build_normalised_beta_authority_report(artifacts: Sequence[VerifiedSourceArt
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write an exclusive real-object L2F-12b authority assessment."""
+    """Write an exclusive real-object normalised-beta authority assessment."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)

@@ -7,9 +7,9 @@
 # SCPN Control — Coverage exception policy.
 
 schema = "scpn-control.coverage-exception-policy.v1"
-last_review = "2026-08-28"
+last_review = "2026-08-30"
 expected_total = 361
-expected_sha256 = "84fba30cf300d98d9b05797e88d870ac588999159380c7807a4f6fb4c08dc2f3"
+expected_sha256 = "c3877000416cd18a12928d7c788f652182a90b5e3c6f3ff43e5bf624d191e429"
 
 [[rules]]
 id = "python-version"

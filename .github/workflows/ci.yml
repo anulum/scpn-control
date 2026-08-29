@@ -767,8 +767,8 @@ jobs:
   # ─── Job 19: Evidence inventory (informative, non-gating) ───
   # Publishes the validation-report freshness inventory and the evidence
   # gap matrix as build artifacts. Deliberately does NOT pass
-  # --fail-on-stale: WCG-5e enables enforcement only after the stale
-  # inventory is rerun or explicitly waived (docs/internal TODO).
+  # --fail-on-stale is enabled only after the stale inventory is rerun or an
+  # explicit private waiver has been recorded.
   evidence-inventory:
     runs-on: ubuntu-latest
     steps:

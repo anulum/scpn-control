@@ -30,7 +30,7 @@ permanent failures.
 
 ## MAST toroidal-field authority
 
-The L2F-12a gate is documented in
+The toroidal-field admission gate is documented in
 [MAST toroidal-field authority](mast_toroidal_field_authority.md). It separates
 the total `bphi_rmag` source from the vacuum `bvac_rmag` candidate, requires the
 paired magnetic-axis radius, and fails closed until physical sign and
@@ -39,7 +39,7 @@ field from its name, units, observed sign, or approximate magnitude.
 
 ## MAST normalised-beta authority
 
-The L2F-12b gate is documented in
+The normalised-beta admission gate is documented in
 [MAST normalised-beta authority](mast_normalised_beta_authority.md). It records
 the conflict between the live `EFM_BETAN` unit and the current IMAS definition,
 forbids a fabricated numerical unit conversion, and keeps canonical `beta_N`
@@ -49,7 +49,7 @@ source-authoritative.
 
 ## MAST saddle-modal authority
 
-The L2F-12c gate is documented in
+The saddle-modal admission gate is documented in
 [MAST saddle-modal authority](mast_saddle_modal_authority.md). It pins the
 twelve `ASM_SAD/M01..M12` candidates and all three source geometry surfaces,
 verifies the observed polygon centres and finite row coverage, and performs no
@@ -58,17 +58,17 @@ calibration uncertainty, baseline, and bad-channel policies are source-attested.
 
 ## MAST locked-mode authority
 
-The first L2F-12d gate is documented in
+The locked-mode admission gate is documented in
 [MAST locked-mode authority](mast_locked_mode_authority.md). It binds the MAST
 description of a growing stationary n=1 radial perturbation on the outer-midplane
-saddle array to the L2F-12c row/geometry contract. It measures the historical
+saddle array to the saddle row/geometry contract. It measures the historical
 201-sample boxcar's physical time scale but performs no filter or locked-mode
 reduction until component, frame, filter/edge, background/pickup/vessel correction,
 calibration uncertainty, and estimator evidence are source-attested.
 
 ## MAST dB/dt source authority
 
-The second L2F-12d gate is documented in
+The dB/dt source-quantity admission gate is documented in
 [MAST dB/dt source authority](mast_dbdt_authority.md). It records the conflict
 between the official `T` mapping and live `Tesla/sec` label, measures the five
 centre-column Mirnov rows and their 500 kHz timebase, and executes no signal

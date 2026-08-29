@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Real-surface load_or_train + predict_disruption_risk_safe tests
 
-"""Production contracts for load/train and safe prediction (CTL-G07 R7-S4).
+"""Production contracts for load/train and safe prediction.
 
 Real torch is required for checkpoint and inference paths. Optional-dependency
 tests only clear the leaf/owner ``torch`` module attributes to exercise the

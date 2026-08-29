@@ -333,7 +333,7 @@ class TestLevel0Static:
             decode_u64_compact(bad)
 
     def test_compact_u64_codec_rejects_oversized_compressed_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        # Limits live on the codec leaf (CTL-G07 R4-S3); patch the leaf binding.
+        # Limits live on the codec leaf; patch that binding.
         monkeypatch.setattr(artifact_codec_mod, "MAX_COMPRESSED_BYTES", 8)
         payload = base64.b64encode(b"x" * 32).decode("ascii")
         bad = {

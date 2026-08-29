@@ -80,7 +80,7 @@ def _nonempty_text(value: object) -> bool:
 
 
 def mast_dbdt_authority_spec() -> dict[str, object]:
-    """Return the deterministic, self-digested L2F-12d dB/dt contract."""
+    """Return the deterministic, self-digested dB/dt authority contract."""
     payload: dict[str, object] = {
         "schema_version": DBDT_AUTHORITY_SCHEMA,
         "version": DBDT_AUTHORITY_VERSION,
@@ -395,7 +395,7 @@ def build_dbdt_authority_report(artifacts: Sequence[VerifiedSourceArtifact]) -> 
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write a real-object L2F-12d dB/dt authority assessment."""
+    """Write a real-object dB/dt authority assessment."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)

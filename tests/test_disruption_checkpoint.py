@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Real-surface tests for disruption checkpoint leaf
 
-"""Real production paths for checkpoint integrity and train/load (CTL-G07 R7-S4).
+"""Real production paths for checkpoint integrity and train/load.
 
 Integrity tests use real file bytes and the public ``verify_checkpoint_integrity``
 gate. Train/load tests require torch on the interpreter path and exercise the

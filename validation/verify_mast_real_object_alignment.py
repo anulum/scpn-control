@@ -8,8 +8,8 @@
 # SCPN Control — Digest-bound FAIR-MAST real-object alignment gate
 """Run mask-preserving alignment on one digest-pinned external MAST object.
 
-The gate reuses the L2F-04 verified real-object loader, invokes the production
-L2F-10/L2F-11 binding and alignment path, and emits only lineage digests,
+The gate reuses the verified real-object loader, invokes the production
+signal-binding and scalar-alignment path, and emits only lineage digests,
 counts, channel proof digests, and explicit blocker reasons. Raw arrays remain
 outside the repository and are never serialised into the evidence report.
 

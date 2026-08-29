@@ -166,7 +166,7 @@ def test_load_artifact_calls_public_runtime_validator(tmp_path: Path, monkeypatc
         validated.append(artifact)
         original_validate(artifact)
 
-    # Load/save live on the IO leaf (CTL-G07 R4-S4); spy the leaf binding.
+    # Load/save live on the IO leaf; spy on that binding.
     monkeypatch.setattr(artifact_io_module, "validate_artifact", spy)
 
     loaded = load_artifact(artifact_path)

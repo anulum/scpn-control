@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Mask-preserving FAIR-MAST time-alignment tests
-"""Real-surface tests for the L2F-11 scalar time-alignment contract."""
+"""Real-surface tests for the scalar time-alignment contract."""
 
 from __future__ import annotations
 

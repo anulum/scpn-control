@@ -194,7 +194,8 @@
   `control/free_boundary_tracking_control_law.py`. The
   `FreeBoundaryTrackingController` product surface remains first-class with thin
   wrappers; kernel-coupled `identify_response_matrix` and actuator application
-  stay on the owner; claims stay separate; shot orchestration remains for R3-S4.
+  stay on the owner; claims stay separate; shot orchestration remains on the
+  controller.
   Inventory cascade: 184 modules / 533 test files.
 - Extract free-boundary tracking target/measurement vector builders into
   `control/free_boundary_tracking_observation.py`. The
@@ -229,7 +230,7 @@
   `core/gs_free_boundary_control.py`. The
   CONTROL `FusionKernel` product surface remains first-class with thin wrappers
   and re-exports `CoilSet`; full free-boundary solve orchestration stays on the
-  owner (R0-S7). FUSION is not edited. Inventory cascade: 178 modules / 527
+  owner. FUSION is not edited. Inventory cascade: 178 modules / 527
   test files.
 - Extract mTanh pedestal profiles, normalised-flux guard, nonlinear plasma
   source, and profile Jacobian helpers into `core/gs_profile_source.py`. The CONTROL `FusionKernel` product surface

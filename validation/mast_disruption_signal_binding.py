@@ -222,7 +222,7 @@ def _binding(
         timebase_dimensions=timebase_dimensions,
         timebase_units=timebase_units,
         sign_convention=sign_convention,
-        validity_interval="finite source value at a finite source time; L2F-11 defines aligned edges",
+        validity_interval="finite source value at a finite source time; scalar time alignment defines aligned edges",
         missing_data_rule="emit validity mask and reason; never zero-fill or fabricate",
         transform=transform,
         transform_parameters=transform_parameters,
@@ -409,7 +409,8 @@ def assess_artifact_signal_bindings(
 ) -> dict[str, object]:
     """Assess one verified source artefact against the versioned binding contract.
 
-    This function verifies only source membership and metadata needed by L2F-10.
+    This function verifies only source membership and metadata needed by the
+    versioned signal-binding contract.
     It performs no interpolation, filtering, modal reduction, unit conversion, or
     missing-value imputation.
 

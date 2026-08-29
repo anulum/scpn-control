@@ -10,7 +10,7 @@
 
 This leaf owns bit-flip injection, synthetic control-signal generation,
 fault/noise resilience campaigns, and the hybrid anomaly detector plus
-alarm campaign (CTL-G07 R7-S3). Physics proxies and claim boundaries live
+alarm campaign. Physics proxies and claim boundaries live
 in sibling leaves; checkpoint integrity and torch training remain on the
 owner.
 """

@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Tests for the fail-closed MAST cohort-design gate
-"""Adversarial tests for L2F-23a statistical design and claim boundaries."""
+"""Adversarial tests for matched-cohort statistical design and claim boundaries."""
 
 from __future__ import annotations
 

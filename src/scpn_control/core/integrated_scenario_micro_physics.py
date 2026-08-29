@@ -9,7 +9,7 @@
 """Spitzer resistivity, gyro-Bohm diffusivity, and thermal diffusion step.
 
 This leaf owns the pure transport micro-physics helpers used by the
-integrated scenario Strang operator split (CTL-G07 R5-S3). Coupling audit
+integrated scenario Strang operator split. Coupling audit
 lives in :mod:`integrated_scenario_coupling_audit`; the simulator
 orchestration remains on :class:`IntegratedScenarioSimulator`.
 """

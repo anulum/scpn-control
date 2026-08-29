@@ -34,8 +34,7 @@ errors rather than evaluating the flux map at the target boundary points. The
 (all call sites pass ``None``). A real deployment must wire a Grad-Shafranov /
 Green's-function response so both the Jacobian columns and the shape-error
 vector are derived from a real equilibrium; until then this module is a
-control-law reference and test surface, not a validated real-plasma controller
-(SYS-AUDIT-04-SHAPE: documented synthetic-only).
+control-law reference and test surface, not a validated real-plasma controller.
 """
 
 from __future__ import annotations

@@ -1,6 +1,6 @@
 # MAST saddle-modal authority
 
-`validation/mast_saddle_modal_authority.py` is the L2F-12c admission gate for
+`validation/mast_saddle_modal_authority.py` is the saddle-modal admission gate for
 the canonical disruption channels `n1_amp` and `n2_amp`. It verifies the
 source field, timebase, and toroidal geometry but deliberately does not execute
 a Fourier reduction while the row identities and calibration policy are

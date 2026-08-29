@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — tests for immutable post-hoc FAIR-MAST dataset lineage
-"""Adversarial tests for the L2F-90b dataset-lineage contract."""
+"""Adversarial tests for the immutable post-hoc dataset-lineage contract."""
 
 from __future__ import annotations
 

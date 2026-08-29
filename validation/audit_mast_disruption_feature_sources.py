@@ -172,7 +172,7 @@ LABEL_ALGORITHM: dict[str, Any] = {
     "label_record_schema": SHOT_LABEL_RECORD_SCHEMA,
     "label_authority": "ip_proxy",
     "independent_of_input_features": False,
-    "validation_requirement": "L2F-22 parameter-sensitivity and independent-authority disagreement audit",
+    "validation_requirement": "parameter-sensitivity and independent-authority disagreement audit",
     "defuse_cross_check": (
         "level2/defuse HDF5 labels return HTTP 403; labels are derived only, with "
         "DEFUSE reserved as a future cross-check if access is granted"

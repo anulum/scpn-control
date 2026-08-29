@@ -10,7 +10,7 @@
 
 This leaf owns the topology/weight/readout/meta/formal-evidence dataclasses and
 the ``Artifact`` container. Structural validation lives in
-:mod:`scpn_control.scpn.artifact_validate` (CTL-G07 R4-S2); load/save, schema,
+:mod:`scpn_control.scpn.artifact_validate`; load/save, schema,
 and compact codec remain on :mod:`scpn_control.scpn.artifact`.
 """
 
@@ -418,7 +418,7 @@ class Artifact:
     def __post_init__(self, validate_on_init: bool) -> None:
         """Validate direct artifact construction unless explicitly disabled."""
         if validate_on_init:
-            # Lazy import: validation lives on the validate leaf (R4-S2).
+            # Lazy import: validation lives on the validation leaf.
             from scpn_control.scpn.artifact_validate import validate_artifact
 
             validate_artifact(self)

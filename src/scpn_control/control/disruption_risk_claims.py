@@ -10,7 +10,7 @@
 
 This leaf owns :class:`DisruptionRiskClaimBoundary`, the fixed
 :func:`disruption_risk_claim_boundary` factory, heuristic provenance constants,
-and metadata attachment (CTL-G07 R7-S1). Physics proxies, fault campaigns,
+and metadata attachment. Physics proxies, fault campaigns,
 checkpoint integrity, and optional torch training remain on the owner.
 """
 

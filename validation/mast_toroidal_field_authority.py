@@ -149,7 +149,7 @@ def _is_trusted_authority_url(value: str) -> bool:
 
 
 def mast_toroidal_field_authority_spec() -> dict[str, object]:
-    """Return the deterministic, self-digested L2F-12a authority specification."""
+    """Return the deterministic, self-digested toroidal-field authority specification."""
     payload: dict[str, object] = {
         "schema_version": TOROIDAL_FIELD_AUTHORITY_SCHEMA,
         "version": TOROIDAL_FIELD_AUTHORITY_VERSION,
@@ -378,7 +378,7 @@ def build_toroidal_field_authority_report(
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Write a real-object L2F-12a authority assessment."""
+    """Write a real-object toroidal-field authority assessment."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--artifact-root", type=Path, required=True)

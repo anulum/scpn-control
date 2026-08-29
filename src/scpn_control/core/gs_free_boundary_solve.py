@@ -13,7 +13,7 @@ boundary Grad-Shafranov solve. The CONTROL
 :class:`~scpn_control.core.fusion_kernel.FusionKernel` product surface remains
 first-class under dual-home C and keeps a thin wrapper that supplies mesh,
 equilibrium, Green/vacuum, and already-extracted free-boundary control helpers.
-Phase-sync steps and the Rust multigrid bridge stay on the owner (R0-S8/S9).
+Phase-sync steps and the Rust multigrid bridge stay on their owning modules.
 """
 
 from __future__ import annotations

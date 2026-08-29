@@ -205,7 +205,7 @@ module = [
 ]
 disallow_untyped_decorators = false
 
-# SYS-AUDIT-02-MYPY1 complete: all 127 validation/ modules are strict-checked (see
+# All 127 validation/ modules are strict-checked (see
 # [tool.mypy] files). The per-module ignore_errors burn-down list is gone — do not
 # reintroduce it to silence new errors, fix them at source.
 
@@ -266,7 +266,7 @@ ignore = [
     "D105", "D107",
 ]
 
-# Enforce NumPy-style docstrings (SYS-AUDIT-02-RUFF3 / SYS-AUDIT-01-R001). The
+# Enforce NumPy-style docstrings. The
 # convention selects the D-rule subset (resolving the D203/D211 and D212/D213
 # conflicts in favour of D211/D213) and relaxes the numpydoc-incompatible rules;
 # run_docstring_gate.py continues to enforce the D101-D106 coverage floor.
