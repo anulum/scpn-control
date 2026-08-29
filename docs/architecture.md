@@ -44,6 +44,29 @@ capability is ported between repositories, the boundary fixes:
   backend, or evidence gate is unavailable);
 - replay metadata, provenance, and the bounded public-claim status of the result.
 
+### Equilibrium data boundary
+
+`core.imas_adapter.EquilibriumSnapshot` is the single solver-facing equilibrium
+representation. It stores SI metadata, strictly increasing R/Z grids, and
+immutable `(Z, R)` flux and optional toroidal-current arrays in COCOS 1. Kernel,
+GEQDSK, IMAS-Python, and OMAS integrations converge on this object instead of
+passing backend-specific containers into control code.
+
+The adapters own every convention change. IMAS Data Dictionary v3 uses COCOS
+11 and `j_tor`; v4 uses COCOS 17 and `j_phi`; their rectangular IDS arrays are
+ordered `(R, Z)`. The IMAS path therefore applies the version-specific
+`+2π`/`-2π` poloidal-flux transformation and transpose at the boundary. OMAS
+0.x uses its real COCOS conversion environment and remains restricted to its
+bundled v3 schema. Time arrays, vacuum field, reference radius, plasma current,
+schema version, and provenance travel with each snapshot and are checked before
+solver admission.
+
+The boundary is intentionally fail-closed: absent 2-D current density remains
+absent, incomplete kernel metadata is rejected, and DBEntry endpoints and
+credentials remain caller-owned. A successful data round trip proves the
+software conversion contract; it does not imply access to or validation by an
+ITER or other facility deployment.
+
 ```mermaid
 graph LR
     FC["scpn-fusion-core<br/>physics-solver laboratory"]

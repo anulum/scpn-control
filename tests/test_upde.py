@@ -265,8 +265,15 @@ def test_step_requires_external_psi_driver() -> None:
         system.step(theta, omega)
 
 
-def test_step_supports_global_mean_field_without_wrapping() -> None:
-    system = UPDESystem(spec=_two_layer_spec(), dt=1e-3, psi_mode="global_mean_field", wrap=False)
+def test_step_supports_global_mean_field_without_wrapping(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The Python fallback supports zero global drive and unwrapped phase output."""
+    monkeypatch.setattr(upde_module, "HAS_RUST_UPDE", False)
+    system = UPDESystem(
+        spec=KnmSpec(K=_two_layer_spec().K),
+        dt=1e-3,
+        psi_mode="global_mean_field",
+        wrap=False,
+    )
     theta = [
         np.array([0.0, 0.1, 0.2], dtype=np.float64),
         np.array([0.3, 0.4, 0.5], dtype=np.float64),

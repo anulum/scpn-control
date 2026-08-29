@@ -2941,6 +2941,47 @@
       ],
       "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
       "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "backend-neutral IMAS-Python and OMAS equilibrium interchange",
+      "equation_contract": "Equilibrium interchange claims must preserve the solver COCOS-1 convention, SI units, strictly ordered R/Z grids, (Z,R) solver field orientation, IMAS (R,Z) IDS orientation, DD3 COCOS-11 j_tor and DD4 COCOS-17 j_phi current-leaf semantics, indexed time and vacuum-field arrays, reference radius, plasma current, and source provenance without fabricated machine defaults or current density.",
+      "fidelity_status": "reference_validated",
+      "model_references": [
+        "IMAS Data Dictionary equilibrium IDS and COCOS conventions",
+        "IMAS-Python IDSFactory and DBEntry contracts",
+        "OMAS ODS COCOS input/output conversion contract"
+      ],
+      "module_path": "src/scpn_control/core/imas_adapter.py",
+      "public_claim_allowed": true,
+      "claim_admission_requirements": [
+        "Keep real IMAS-Python DD3/DD4 IDS validation and NetCDF DBEntry round trips executing in the authoritative CI lane",
+        "Keep real OMAS DD3 ODS round trips and solver-convention checks executing in the authoritative CI lane",
+        "Restrict public claims to software interchange; facility connectivity, reconstruction accuracy, and control validation require separate evidence"
+      ],
+      "unit_contract": "R and Z in metres; poloidal flux in webers per radian in solver COCOS 1; toroidal current density in A/m^2; plasma current in amperes; vacuum toroidal field in tesla; time in seconds; two-dimensional solver fields ordered (Z,R) and IMAS/OMAS rectangular fields ordered (R,Z).",
+      "validation_evidence": [
+        "tests/test_imas_adapter.py validates the immutable neutral contract, strict kernel metadata, GEQDSK absence semantics, and compatibility boundary",
+        "tests/test_imas_adapter_imas.py executes real DD3/DD4 IDSFactory objects and a real NetCDF DBEntry round trip",
+        "tests/test_imas_adapter_omas.py executes real ODS round trips, COCOS conversion, multiple times, and fail-closed metadata paths",
+        "tests/test_imas_ods_contract.py exercises representative real ODS profile and time-array structures",
+        "Focused adapter coverage executes 363 statements and 90 branches at 100 percent"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/core/imas_adapter.py",
+        "tests/test_imas_adapter.py",
+        "tests/test_imas_adapter_imas.py",
+        "tests/test_imas_adapter_omas.py",
+        "tests/test_imas_ods_contract.py",
+        "docs/api.md",
+        "docs/architecture.md",
+        "docs/deployment.md",
+        "requirements/ci-imas.txt",
+        ".github/workflows/ci.yml"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/core/imas_adapter.py"
+      ],
+      "validity_domain": "Reference-validated software interchange against real IMAS-Python 2.3 DD3/DD4 IDS objects, its NetCDF DBEntry backend, and real OMAS 0.95 DD3 ODS objects. This permits claims about the tested conversion and validation contract only; it is not evidence of facility access, equilibrium reconstruction accuracy, or deployed control performance."
     }
   ],
   "schema_version": "1.1",

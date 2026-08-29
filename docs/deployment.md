@@ -125,19 +125,43 @@ Deploy the real-time monitoring dashboard for live telemetry.
 
 ## 6. Integration with IMAS
 
-For ITER data exchange using the Integrated Modelling and Analysis Suite.
+Install the real IMAS-Python backend with `scpn-control[imas]`. The caller owns
+the URI, open mode, authentication, Data Dictionary version, and DBEntry
+lifecycle; SCPN-CONTROL owns only validated conversion to its neutral solver
+contract.
 
 ```python
-from scpn_control.core.imas_adapter import ImasClient
+import imas
 
-# Load IDS (Interface Data Structure)
-client = ImasClient(shot=12345, run=1)
-equilibrium = client.get_ids("equilibrium")
+from scpn_control.core.imas_adapter import read_imas_entry, write_imas_entry
 
-# Map to scpn-control config
-cfg = equilibrium.to_scpn_config()
+uri = "/operator-owned/path/equilibrium.nc"
+
+with imas.DBEntry(uri, "r", dd_version="4.1.1") as entry:
+    snapshot = read_imas_entry(entry, occurrence=0, time_index=0)
+
+with imas.DBEntry("output.nc", "w", dd_version="4.1.1") as entry:
+    write_imas_entry(entry, snapshot, occurrence=0)
 ```
-Requires `imas` Python bindings to be installed in the environment.
+
+For an in-memory OMAS workflow, install `scpn-control[omas]` and pass a real
+ODS. OMAS 0.x is deliberately restricted to its bundled Data Dictionary v3
+schema; DD v4 exchange uses IMAS-Python.
+
+```python
+from scpn_control.core.imas_adapter import (
+    export_omas_equilibrium,
+    import_omas_equilibrium,
+)
+
+ods = export_omas_equilibrium(snapshot)
+recovered = import_omas_equilibrium(ods)
+```
+
+Both adapters preserve COCOS and array-orientation semantics, reject time-index
+gaps and schema mismatches, and never substitute ITER parameters for missing
+machine metadata. These round trips establish software interoperability, not
+facility connectivity or validation.
 
 ## Deployment boundary and approval route
 

@@ -199,12 +199,12 @@ blocked until the required external artefacts exist.
 | Project scripts | 1 |
 | Public API exports | 44 |
 | Python control/physics modules | 197 |
-| Python public classes | 555 |
+| Python public classes | 559 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 157 |
-| Optional extras | 20 |
-| Python test files | 568 |
+| Optional extras | 23 |
+| Python test files | 569 |
 | Public documentation pages | 69 |
 | GitHub Actions workflows | 12 |
 
@@ -218,6 +218,7 @@ Refresh with `python tools/capability_manifest.py`; enforce with `python tools/c
 ```bash
 pip install scpn-control                        # core (numpy, scipy, click)
 pip install "scpn-control[dashboard,ws]"        # + Streamlit dashboard + WebSocket
+pip install "scpn-control[fusion-data]"         # + real IMAS-Python and OMAS adapters
 scpn-control demo --steps 1000
 scpn-control benchmark --n-bench 5000
 ```
@@ -392,7 +393,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 568 Python test files (generated inventory)
+tests/                 # 569 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
@@ -464,6 +465,8 @@ pytest tests/test_e2e_phase_diiid.py -v
 | | ~~nengo~~ (removed — pure LIF+NEF engine, no external dependency) |
 | | h5py (`pip install "scpn-control[hdf5]"`) |
 | | websockets (`pip install "scpn-control[ws]"`) |
+| | IMAS-Python (`pip install "scpn-control[imas]"`) |
+| | OMAS (`pip install "scpn-control[omas]"`) |
 
 ## CLI
 

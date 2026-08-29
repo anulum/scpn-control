@@ -54,6 +54,11 @@ jobs:
         # Hash-pinned via a pip-compile --generate-hashes requirements file (the SDK
         # has no transitive deps); --hash is only honoured inside a requirements file.
         run: pip install --require-hashes -r requirements/ci-studio.txt
+      - name: Install IMAS-Python and OMAS backends (ubuntu 3.12 only)
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        # This lane exercises real IDSFactory, NetCDF DBEntry, and ODS objects;
+        # the remaining matrix jobs verify the backend-neutral package surface.
+        run: pip install --require-hashes -r requirements/ci-imas.txt
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"

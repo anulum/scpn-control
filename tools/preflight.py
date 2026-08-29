@@ -51,6 +51,7 @@ CI_REQUIREMENTS = [
     "requirements/ci-build.txt",
     "requirements/ci-security.txt",
     "requirements/ci-audit.txt",
+    "requirements/ci-imas.txt",
 ]
 
 GATES: list[tuple[str, list[str], Path | None]] = [

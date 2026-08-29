@@ -4,197 +4,281 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Test Imas Adapter.
+# SCPN Control — neutral equilibrium-data and compatibility tests.
 
-# Tests for IMAS/OMAS equilibrium adapter.
+"""Verify the backend-neutral equilibrium contract and legacy transition API."""
+
+from __future__ import annotations
+
+import importlib
+from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
+import pytest
 
+from scpn_control.core.eqdsk import GEqdsk, write_geqdsk
 from scpn_control.core.imas_adapter import (
+    EquilibriumBackendUnavailableError,
+    EquilibriumDataError,
     EquilibriumIDS,
+    EquilibriumSnapshot,
+    export_omas_equilibrium,
     from_geqdsk,
     from_kernel,
     from_omas,
+    snapshot_from_geqdsk,
+    snapshot_from_kernel,
+    snapshot_to_kernel_state,
     to_kernel_arrays,
     to_omas,
 )
 
 
-def _make_ids(**kwargs):
+def _snapshot(**updates: object) -> EquilibriumSnapshot:
+    r_m = np.array([1.0, 1.6, 2.4])
+    z_m = np.array([-0.7, 0.2])
+    defaults: dict[str, object] = {
+        "r_m": r_m,
+        "z_m": z_m,
+        "psi_wb_per_rad": np.arange(6, dtype=np.float64).reshape(2, 3) / 10.0,
+        "j_phi_a_per_m2": np.arange(6, dtype=np.float64).reshape(2, 3) * 1.0e4,
+        "plasma_current_a": 1.2e6,
+        "vacuum_toroidal_field_t": -2.2,
+        "vacuum_field_reference_radius_m": 1.7,
+        "time_s": 0.4,
+        "source_backend": "memory",
+        "source": "tests/neutral-snapshot",
+    }
+    defaults.update(updates)
+    return EquilibriumSnapshot(**cast(Any, defaults))
+
+
+def test_snapshot_copies_and_freezes_arrays() -> None:
+    """Ensure snapshots own immutable copies of caller arrays."""
+    r_m = np.array([1.0, 1.6, 2.4])
+    snapshot = _snapshot(r_m=r_m)
+    r_m[0] = 99.0
+    assert snapshot.r_m[0] == 1.0
+    assert not snapshot.r_m.flags.writeable
+    assert not snapshot.psi_wb_per_rad.flags.writeable
+    assert snapshot.cocos == 1
+
+
+@pytest.mark.parametrize(
+    ("updates", "message"),
+    [
+        ({"r_m": [[1.0, 2.0]]}, "one-dimensional"),
+        ({"r_m": [1.0]}, "at least two"),
+        ({"r_m": [1.0, np.inf]}, "finite"),
+        ({"r_m": [0.0, 1.0]}, "positive"),
+        ({"r_m": [1.0, 1.0]}, "strictly increasing"),
+        ({"z_m": [0.2, -0.7]}, "strictly increasing"),
+        ({"psi_wb_per_rad": np.zeros((3, 2))}, r"solver \(Z, R\) shape"),
+        ({"psi_wb_per_rad": [[0.0, 1.0, 2.0], [3.0, np.nan, 5.0]]}, "finite"),
+        ({"j_phi_a_per_m2": np.zeros((3, 2))}, r"solver \(Z, R\) shape"),
+        ({"plasma_current_a": "bad"}, "finite scalar"),
+        ({"vacuum_toroidal_field_t": np.inf}, "finite scalar"),
+        ({"vacuum_toroidal_field_t": 0.0}, "non-zero"),
+        ({"vacuum_field_reference_radius_m": -1.0}, "positive"),
+        ({"time_s": np.nan}, "finite scalar"),
+        ({"cocos": 11}, "COCOS 1"),
+        ({"source_backend": "unknown"}, "unsupported source_backend"),
+        ({"source": ""}, "non-empty provenance"),
+        ({"data_dictionary_version": ""}, "non-empty string"),
+    ],
+)
+def test_snapshot_rejects_invalid_domains(updates: dict[str, object], message: str) -> None:
+    """Reject malformed grids, fields, scalars, convention, and provenance."""
+    with pytest.raises(EquilibriumDataError, match=message):
+        _snapshot(**updates)
+
+
+def test_snapshot_without_current_cannot_enter_kernel() -> None:
+    """Require current density when reconstructing a solver state."""
+    snapshot = _snapshot(j_phi_a_per_m2=None)
+    assert snapshot.j_phi_a_per_m2 is None
+    with pytest.raises(EquilibriumDataError, match="requires a toroidal current-density"):
+        snapshot_to_kernel_state(snapshot)
+
+
+def test_kernel_state_is_defensive_and_complete() -> None:
+    """Return complete writable copies for the solver boundary."""
+    snapshot = _snapshot()
+    state = snapshot_to_kernel_state(snapshot)
+    state["Psi"][0, 0] = 99.0
+    assert snapshot.psi_wb_per_rad[0, 0] != 99.0
+    assert state["ip"] == snapshot.plasma_current_a
+    assert state["b0"] == snapshot.vacuum_toroidal_field_t
+    assert state["r0"] == snapshot.vacuum_field_reference_radius_m
+
+
+def test_snapshot_from_kernel_requires_and_preserves_metadata() -> None:
+    """Preserve explicit machine metadata and solver array orientation."""
+
+    class Kernel:
+        R = np.array([1.0, 2.0])
+        Z = np.array([-1.0, 0.0, 1.0])
+        Psi = np.arange(6, dtype=np.float64).reshape(3, 2)
+        J_phi = np.ones((3, 2))
+        cfg = {
+            "physics": {"plasma_current_target": -9.0e5, "B0": -1.8},
+            "dimensions": {"R0": 1.55},
+        }
+
+    snapshot = snapshot_from_kernel(Kernel(), time_s=0.3)
+    assert snapshot.source_backend == "kernel"
+    assert snapshot.plasma_current_a == -9.0e5
+    assert snapshot.vacuum_toroidal_field_t == -1.8
+    assert snapshot.vacuum_field_reference_radius_m == 1.55
+    assert snapshot.time_s == 0.3
+
+
+@pytest.mark.parametrize(
+    ("kernel", "message"),
+    [
+        (type("NoConfig", (), {})(), "kernel.cfg"),
+        (type("NoArrays", (), {"cfg": {"physics": {}, "dimensions": {}}})(), "must expose"),
+        (
+            type(
+                "NoCurrent",
+                (),
+                {
+                    "R": np.array([1.0, 2.0]),
+                    "Z": np.array([0.0, 1.0]),
+                    "Psi": np.zeros((2, 2)),
+                    "cfg": {"physics": {}, "dimensions": {}},
+                },
+            )(),
+            "must expose",
+        ),
+    ],
+)
+def test_snapshot_from_kernel_rejects_missing_contract(kernel: object, message: str) -> None:
+    """Reject kernels that omit configuration or required arrays."""
+    with pytest.raises(EquilibriumDataError, match=message):
+        snapshot_from_kernel(kernel)
+
+
+def test_snapshot_from_kernel_rejects_missing_physical_key() -> None:
+    """Reject kernels that omit mandatory physical metadata."""
+
+    class Kernel:
+        R = np.array([1.0, 2.0])
+        Z = np.array([0.0, 1.0])
+        Psi = np.zeros((2, 2))
+        J_phi = np.zeros((2, 2))
+        cfg = {"physics": {"B0": 2.0}, "dimensions": {"R0": 1.5}}
+
+    with pytest.raises(EquilibriumDataError, match="physics.plasma_current_target"):
+        snapshot_from_kernel(Kernel())
+
+
+def test_geqdsk_import_does_not_fabricate_current_density(tmp_path: Path) -> None:
+    """Import GEQDSK without inventing an unavailable 2-D current field."""
     nr, nz = 5, 7
-    defaults = dict(
-        r=np.linspace(4.0, 8.0, nr),
-        z=np.linspace(-3.0, 3.0, nz),
-        psi=np.random.default_rng(0).standard_normal((nz, nr)),
-        j_tor=np.random.default_rng(1).standard_normal((nz, nr)),
-        ip=15e6,
-        b0=5.3,
-        r0=6.2,
-        time=1.5,
+    geqdsk = GEqdsk(
+        description="contract",
+        nw=nr,
+        nh=nz,
+        rdim=2.0,
+        zdim=3.0,
+        rcentr=1.7,
+        rleft=0.8,
+        zmid=0.0,
+        rmaxis=1.6,
+        zmaxis=0.1,
+        simag=-0.8,
+        sibry=0.2,
+        bcentr=-2.1,
+        current=-8.0e5,
+        fpol=np.linspace(3.0, 2.0, nr),
+        pres=np.linspace(2.0e4, 0.0, nr),
+        ffprime=np.linspace(-0.2, 0.0, nr),
+        pprime=np.linspace(-2.0e4, 0.0, nr),
+        qpsi=np.linspace(1.0, 4.0, nr),
+        psirz=np.arange(nr * nz, dtype=np.float64).reshape(nz, nr) / 20.0,
     )
-    defaults.update(kwargs)
-    return EquilibriumIDS(**defaults)
+    path = tmp_path / "contract.geqdsk"
+    write_geqdsk(geqdsk, str(path))
+    snapshot = snapshot_from_geqdsk(path)
+    assert snapshot.source_backend == "geqdsk"
+    assert snapshot.j_phi_a_per_m2 is None
+    assert snapshot.vacuum_toroidal_field_t == -2.1
 
 
-class TestEquilibriumIDS:
-    def test_fields(self):
-        ids = _make_ids()
-        assert ids.ip == 15e6
-        assert ids.b0 == 5.3
-        assert ids.r0 == 6.2
-        assert ids.time == 1.5
-        assert ids.psi.shape == (7, 5)
-
-    def test_default_time(self):
-        ids = EquilibriumIDS(
-            r=np.array([1.0]),
-            z=np.array([0.0]),
-            psi=np.array([[1.0]]),
-            j_tor=np.array([[0.0]]),
-            ip=1e6,
-            b0=5.0,
-            r0=1.0,
+def test_legacy_facade_warns_and_forwards_real_omas() -> None:
+    """Keep deprecated names truthful while forwarding through real OMAS."""
+    with pytest.warns(DeprecationWarning, match="EquilibriumIDS"):
+        legacy = EquilibriumIDS(
+            r=np.array([1.0, 2.0]),
+            z=np.array([-1.0, 1.0]),
+            psi=np.zeros((2, 2)),
+            j_tor=np.ones((2, 2)),
+            ip=1.0e6,
+            b0=2.0,
+            r0=1.5,
         )
-        assert ids.time == 0.0
+    np.testing.assert_allclose(legacy.r, [1.0, 2.0])
+    np.testing.assert_allclose(legacy.z, [-1.0, 1.0])
+    np.testing.assert_allclose(legacy.j_tor, np.ones((2, 2)))
+    assert legacy.ip == 1.0e6
+    assert legacy.b0 == 2.0
+    assert legacy.r0 == 1.5
+    assert legacy.time == 0.0
+    with pytest.warns(DeprecationWarning, match="to_kernel_arrays"):
+        assert to_kernel_arrays(legacy)["J_phi"].shape == (2, 2)
+    with pytest.warns(DeprecationWarning, match="to_omas"):
+        ods = to_omas(legacy)
+    with pytest.warns(DeprecationWarning, match="from_omas"):
+        recovered = from_omas(ods)
+    np.testing.assert_allclose(recovered.psi, legacy.psi)
 
 
-class TestToKernelArrays:
-    def test_round_trip_shapes(self):
-        ids = _make_ids()
-        arrays = to_kernel_arrays(ids)
-        assert arrays["R"].shape == ids.r.shape
-        assert arrays["Z"].shape == ids.z.shape
-        assert arrays["Psi"].shape == ids.psi.shape
-        assert arrays["J_phi"].shape == ids.j_tor.shape
+def test_legacy_kernel_and_geqdsk_functions_warn(tmp_path: Path) -> None:
+    """Warn for legacy kernel and GEQDSK entry points."""
 
-    def test_arrays_are_copies(self):
-        ids = _make_ids()
-        arrays = to_kernel_arrays(ids)
-        arrays["Psi"][0, 0] = 999.0
-        assert ids.psi[0, 0] != 999.0
+    class Kernel:
+        R = np.array([1.0, 2.0])
+        Z = np.array([-1.0, 1.0])
+        Psi = np.zeros((2, 2))
+        J_phi = np.ones((2, 2))
+        cfg = {"physics": {"plasma_current_target": 1.0e6, "B0": 2.0}, "dimensions": {"R0": 1.5}}
 
+    with pytest.warns(DeprecationWarning, match="from_kernel"):
+        assert from_kernel(Kernel()).ip == 1.0e6
 
-class TestFromKernel:
-    def test_extracts_from_mock_kernel(self):
-        nr, nz = 4, 6
-        rng = np.random.default_rng(42)
-
-        class _MockKernel:
-            R = np.linspace(4.0, 8.0, nr)
-            Z = np.linspace(-3.0, 3.0, nz)
-            Psi = rng.standard_normal((nz, nr))
-            J_phi = rng.standard_normal((nz, nr))
-            cfg = {
-                "physics": {"plasma_current_target": 12e6, "B0": 4.5},
-                "dimensions": {"R0": 5.5},
-            }
-
-        ids = from_kernel(_MockKernel(), time=2.0)
-        assert ids.ip == 12e6
-        assert ids.b0 == 4.5
-        assert ids.r0 == 5.5
-        assert ids.time == 2.0
-        assert ids.psi.shape == (nz, nr)
-
-    def test_defaults_for_missing_keys(self):
-        nr, nz = 3, 3
-
-        class _BareKernel:
-            R = np.linspace(4.0, 8.0, nr)
-            Z = np.linspace(-3.0, 3.0, nz)
-            Psi = np.zeros((nz, nr))
-            J_phi = np.zeros((nz, nr))
-
-        ids = from_kernel(_BareKernel())
-        assert ids.ip == 15e6
-        assert ids.b0 == 5.3
-        assert ids.r0 == 6.2
+    path = tmp_path / "empty.geqdsk"
+    geqdsk = GEqdsk(
+        nw=2,
+        nh=2,
+        rdim=1.0,
+        zdim=1.0,
+        rcentr=1.5,
+        rleft=1.0,
+        bcentr=2.0,
+        current=1.0,
+        fpol=np.ones(2),
+        pres=np.zeros(2),
+        ffprime=np.zeros(2),
+        pprime=np.zeros(2),
+        qpsi=np.ones(2),
+        psirz=np.zeros((2, 2)),
+    )
+    write_geqdsk(geqdsk, str(path))
+    with pytest.warns(DeprecationWarning, match="from_geqdsk"):
+        assert from_geqdsk(str(path)).j_phi_a_per_m2 is None
 
 
-class TestToOmas:
-    def test_returns_none_without_omas(self):
-        ids = _make_ids()
-        result = to_omas(ids)
-        # Either None (omas not installed) or an ODS object
-        assert result is None or hasattr(result, "__getitem__")
+def test_missing_backend_is_descriptive(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Report the exact optional extra when OMAS is unavailable."""
+    real_import = importlib.import_module
 
+    def unavailable(name: str, package: str | None = None) -> object:
+        if name == "omas":
+            raise ImportError("deliberately unavailable")
+        return real_import(name, package)
 
-class TestFromOmas:
-    def _make_mock_ods(self):
-        """Build a minimal dict-based ODS mimic for from_omas."""
-        nr, nz = 5, 7
-        rng = np.random.default_rng(0)
-        r = np.linspace(4.0, 8.0, nr)
-        z = np.linspace(-3.0, 3.0, nz)
-        psi = rng.standard_normal((nz, nr))
-        j_tor = rng.standard_normal((nz, nr))
-
-        class _DictLike(dict):
-            """Dict that also supports .get()."""
-
-            pass
-
-        p2d = _DictLike(
-            {
-                "grid": {"dim1": r, "dim2": z},
-                "psi": psi,
-                "j_tor": j_tor,
-            }
-        )
-        gq = _DictLike({"ip": 15e6, "magnetic_axis": {"r": 6.2}})
-        ts = _DictLike({"profiles_2d": [p2d], "global_quantities": gq, "time": 1.5})
-        ts.get = lambda k, d=None: ts[k] if k in ts else d  # noqa: SIM401
-        ods = {"equilibrium": {"time_slice": [ts]}}
-        return ods
-
-    def test_from_omas_extracts_fields(self):
-        ods = self._make_mock_ods()
-        ids = from_omas(ods)
-        assert ids.ip == 15e6
-        assert ids.r0 == 6.2
-        assert ids.psi.shape == (7, 5)
-        assert ids.time == 1.5
-
-    def test_from_omas_default_time_index(self):
-        ods = self._make_mock_ods()
-        ids = from_omas(ods, time_index=0)
-        assert ids.r.shape == (5,)
-
-
-class TestFromGeqdsk:
-    def test_from_geqdsk_round_trip(self, tmp_path):
-        from scpn_control.core.eqdsk import GEqdsk, write_geqdsk
-
-        nr, nz = 8, 10
-        g = GEqdsk(
-            description="test",
-            nw=nr,
-            nh=nz,
-            rdim=4.0,
-            zdim=6.0,
-            rcentr=6.2,
-            rleft=4.0,
-            zmid=0.0,
-            rmaxis=6.2,
-            zmaxis=0.0,
-            simag=-5.0,
-            sibry=-1.0,
-            bcentr=5.3,
-            current=15e6,
-            fpol=np.full(nr, 12.0),
-            pres=np.zeros(nr),
-            ffprime=np.zeros(nr),
-            pprime=np.zeros(nr),
-            qpsi=np.linspace(1.0, 4.0, nr),
-            psirz=np.random.default_rng(0).standard_normal((nz, nr)),
-        )
-        path = tmp_path / "test.geqdsk"
-        write_geqdsk(g, str(path))
-
-        ids = from_geqdsk(str(path))
-        assert ids.r.shape == (nr,)
-        assert ids.z.shape == (nz,)
-        assert ids.psi.shape == (nz, nr)
-        assert ids.ip == 15e6
-        assert ids.b0 == 5.3
-        assert ids.r0 == 6.2
+    monkeypatch.setattr(importlib, "import_module", unavailable)
+    with pytest.raises(EquilibriumBackendUnavailableError, match=r"scpn-control\[omas\]"):
+        export_omas_equilibrium(_snapshot())

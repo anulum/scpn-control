@@ -1208,11 +1208,59 @@ the analytic fallback.
 
 ### IMAS Adapter
 
+The canonical data boundary is `EquilibriumSnapshot`: immutable SI arrays in
+COCOS 1, with two-dimensional fields ordered `(Z, R)` and poloidal flux in
+webers per radian. `export_imas_equilibrium()` and
+`import_imas_equilibrium()` support real IMAS-Python Data Dictionary v3 and v4
+IDS objects. The v3/v4 current leaf and COCOS differences are explicit;
+`write_imas_entry()` and `read_imas_entry()` operate on a caller-owned open
+`imas.DBEntry`. The OMAS pair operates on real v3 ODS objects with OMAS COCOS
+conversion enabled. No adapter invents missing current density, machine
+metadata, facility endpoints, or credentials.
+
+Install one backend with `scpn-control[imas]` or `scpn-control[omas]`, or both
+with `scpn-control[fusion-data]`.
+
+::: scpn_control.core.imas_adapter.EquilibriumSnapshot
+
+::: scpn_control.core.imas_adapter.EquilibriumDataError
+
+::: scpn_control.core.imas_adapter.EquilibriumBackendUnavailableError
+
+::: scpn_control.core.imas_adapter.EquilibriumBackendError
+
+::: scpn_control.core.imas_adapter.snapshot_from_kernel
+
+::: scpn_control.core.imas_adapter.snapshot_to_kernel_state
+
+::: scpn_control.core.imas_adapter.snapshot_from_geqdsk
+
+::: scpn_control.core.imas_adapter.export_imas_equilibrium
+
+::: scpn_control.core.imas_adapter.import_imas_equilibrium
+
+::: scpn_control.core.imas_adapter.write_imas_entry
+
+::: scpn_control.core.imas_adapter.read_imas_entry
+
+::: scpn_control.core.imas_adapter.export_omas_equilibrium
+
+::: scpn_control.core.imas_adapter.import_omas_equilibrium
+
+The following names are deprecated compatibility facades scheduled for removal
+in 0.25.0. New code should use the canonical surfaces above.
+
 ::: scpn_control.core.imas_adapter.EquilibriumIDS
 
 ::: scpn_control.core.imas_adapter.from_geqdsk
 
 ::: scpn_control.core.imas_adapter.from_kernel
+
+::: scpn_control.core.imas_adapter.to_kernel_arrays
+
+::: scpn_control.core.imas_adapter.to_omas
+
+::: scpn_control.core.imas_adapter.from_omas
 
 ### HPC Bridge
 

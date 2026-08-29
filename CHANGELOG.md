@@ -12,6 +12,12 @@
   installed-target validation.
 ### Changed
 
+- Replaced the legacy in-memory IMAS-like facade with an immutable,
+  backend-neutral COCOS-1 equilibrium snapshot; added real IMAS-Python DD3/DD4
+  IDS and NetCDF DBEntry round trips, real OMAS DD3 ODS round trips, explicit
+  COCOS/shape/current-leaf conversion, fail-closed metadata validation,
+  optional dependency extras, and a hashed backend CI lane. Historical names
+  remain warning-emitting compatibility facades until 0.25.0.
 - Reclassified the former mu-synthesis surface as Riccati state feedback with
   bounded static structured-mu analysis: the canonical API now exposes only
   controls the algorithm actually uses, while the historical module and CLI

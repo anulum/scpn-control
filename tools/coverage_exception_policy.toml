@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-08-28"
-expected_total = 363
-expected_sha256 = "85c0d6ddd8659df12a1725edc518f6bf50ce07c72b16b5927a100055b26434d2"
+expected_total = 361
+expected_sha256 = "84fba30cf300d98d9b05797e88d870ac588999159380c7807a4f6fb4c08dc2f3"
 
 [[rules]]
 id = "python-version"

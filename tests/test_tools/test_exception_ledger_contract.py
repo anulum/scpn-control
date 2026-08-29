@@ -22,8 +22,8 @@ def test_live_coverage_exception_inventory_is_complete() -> None:
     ledger = coverage_exception_ledger.build_ledger()
 
     assert ledger["counts"]["pragma-no-cover"] == 177
-    assert ledger["counts"]["pytest-skipif"] == 128
-    assert ledger["counts"]["pytest-runtime-skip"] == 45
+    assert ledger["counts"]["pytest-skipif"] == 127
+    assert ledger["counts"]["pytest-runtime-skip"] == 44
     assert ledger["counts"]["pytest-xfail"] == 2
     assert ledger["counts"]["coverage-exclude-pattern"] == 11
     assert all(entry["reason"] and entry["removal_condition"] for entry in ledger["entries"])

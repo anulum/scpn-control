@@ -22,7 +22,7 @@ def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None
     """The matrix summary must match the canonical traceability registry."""
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
 
-    assert len(matrix.entries) == 69
+    assert len(matrix.entries) == 70
     assert matrix.public_claim_blocked == 69
     assert matrix.open_fidelity_gaps == 69
     assert len(matrix.trackers) == 8
@@ -30,6 +30,7 @@ def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None
     assert matrix.status_counts == {
         "bounded_model": 41,
         "external_dependency_blocked": 4,
+        "reference_validated": 1,
         "validation_gap": 24,
     }
     assert {package.tracker.issue for package in matrix.work_packages} == {47, 48, 49, 50, 51, 52, 53}

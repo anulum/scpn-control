@@ -1141,6 +1141,17 @@ class TestProfileProjectionAndConfinement:
         assert solver.J_phi.shape == solver.Psi.shape
         assert np.all(np.isfinite(solver.J_phi))
 
+    def test_map_profiles_preserves_resolved_axis_edge_separation(self, solver: TransportSolver) -> None:
+        """Use the resolved X-point flux when its separation from the axis is physical."""
+        solver.Psi = np.arange(solver.Psi.size, dtype=np.float64).reshape(solver.Psi.shape)
+
+        solver.map_profiles_to_2d()
+
+        assert solver.J_phi.shape == solver.Psi.shape
+        assert np.all(np.isfinite(solver.J_phi))
+        integrated_current = float(np.sum(solver.J_phi) * solver.dR * solver.dZ)
+        assert integrated_current == pytest.approx(MINIMAL_CONFIG["physics"]["plasma_current_target"])
+
     def test_confinement_time_is_infinite_for_zero_loss_power(self, solver: TransportSolver) -> None:
         assert solver.compute_confinement_time(0.0) == float("inf")
 
