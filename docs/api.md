@@ -1834,7 +1834,19 @@ or an identified reactor feedback law.
 
 ### Plasma Knm
 
+The plasma-labelled example is a separate ontology from the abstract Paper-27
+Knm construction. Its built-in positional mapping supports ordered reduced
+prefixes with `L=1..8` and one explicit refined hierarchy with `L=16`.
+Unsupported implicit layer counts fail before matrix or frequency construction.
+Custom `layer_names` are display aliases and do not remap the coupling indices.
+These labels and frequencies remain hand-selected model inputs, not identified
+reactor signals.
+
 ::: scpn_control.phase.plasma_knm.build_knm_plasma
+
+::: scpn_control.phase.plasma_knm.build_knm_plasma_from_config
+
+::: scpn_control.phase.plasma_knm.plasma_omega
 
 ### WebSocket Stream
 

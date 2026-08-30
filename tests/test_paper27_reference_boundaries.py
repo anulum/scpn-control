@@ -92,3 +92,18 @@ def test_phase_runtime_surfaces_state_their_non_reactor_boundary() -> None:
 
     for path, marker in required_markers.items():
         assert marker in " ".join(_read(path).split())
+
+
+def test_public_materials_separate_abstract_and_plasma_labelled_layers() -> None:
+    """Paper-27 indices cannot be presented as the plasma-labelled ontology."""
+    notebook = " ".join(_read("examples/scpn_full_stack_demo_2026.ipynb").split())
+    api = " ".join(_read("docs/api.md").split())
+    architecture = " ".join(_read("docs/architecture.md").split())
+
+    assert "16 plasma layers defined in Paper 27" not in notebook
+    assert "Paper 27 Hierarchy" not in notebook
+    assert "distinct from Paper 27's abstract layer indices" in notebook
+    assert "separate ontology from the abstract Paper-27 Knm construction" in api
+    assert "L=1..8" in api
+    assert "L=16" in api
+    assert "scpn-phase-orchestrator" in architecture

@@ -19,9 +19,22 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 import scpn_control.phase.plasma_knm as plasma_knm
+from scpn_control.phase import (
+    OMEGA_PLASMA_16 as PUBLIC_OMEGA_PLASMA_16,
+)
+from scpn_control.phase import (
+    PLASMA_LAYER_NAMES_16 as PUBLIC_PLASMA_LAYER_NAMES_16,
+)
+from scpn_control.phase import (
+    SUPPORTED_PLASMA_LAYER_COUNTS as PUBLIC_SUPPORTED_PLASMA_LAYER_COUNTS,
+)
+from scpn_control.phase import build_knm_paper27
 from scpn_control.phase.plasma_knm import (
     OMEGA_PLASMA_8,
+    OMEGA_PLASMA_16,
     PLASMA_LAYER_NAMES,
+    PLASMA_LAYER_NAMES_16,
+    SUPPORTED_PLASMA_LAYER_COUNTS,
     build_knm_plasma,
     build_knm_plasma_from_config,
     plasma_omega,
@@ -66,11 +79,11 @@ class TestPlasmaKnmInvariants:
 
     def test_layer_names_expand_to_sixteen_layers(self):
         spec = build_knm_plasma(L=16, layer_names=None)
-        assert len(spec.layer_names) == 16
+        assert tuple(spec.layer_names or ()) == PLASMA_LAYER_NAMES_16
 
     def test_layer_names_match_nondefault_layer_count(self):
         spec = build_knm_plasma(L=5, layer_names=None)
-        assert len(spec.layer_names) == 5
+        assert tuple(spec.layer_names or ()) == PLASMA_LAYER_NAMES[:5]
 
     def test_layer_names_custom(self):
         names = ["a", "b", "c"]
@@ -187,15 +200,34 @@ class TestBuilderInputValidation:
         ("kwargs", "field"),
         [
             ({"L": 0}, "L"),
+            ({"L": True}, "L"),
+            ({"L": 1.0}, "L"),
             ({"K_base": -0.1}, "K_base"),
             ({"zeta_uniform": -1e-6}, "zeta_uniform"),
             ({"layer_names": ["core", "edge"]}, "layer_names"),
+            ({"L": 2, "layer_names": ["core", "core"]}, "layer_names"),
+            ({"L": 2, "layer_names": ["core", ""]}, "layer_names"),
+            ({"L": 2, "layer_names": ["core", " edge"]}, "layer_names"),
+            ({"L": 2, "layer_names": ["core", 7]}, "layer_names"),
             ({"custom_overrides": {(0, 1): -0.1}}, "custom_overrides"),
         ],
     )
     def test_build_knm_plasma_rejects_unphysical_inputs(self, kwargs, field):
         with pytest.raises(ValueError, match=field):
             build_knm_plasma(**kwargs)
+
+    @pytest.mark.parametrize("layer_count", [9, 12, 15, 17, 32])
+    def test_build_knm_plasma_rejects_undefined_implicit_hierarchies(self, layer_count):
+        """The builder rejects counts without a defined positional ontology."""
+        with pytest.raises(ValueError, match=r"L must be in 1\.\.8 or equal to 16"):
+            build_knm_plasma(L=layer_count)
+
+    @pytest.mark.parametrize("layer_count", [9, 12, 15, 17, 32])
+    def test_custom_names_cannot_bypass_undefined_plasma_hierarchy(self, layer_count):
+        """Display aliases cannot invent coupling semantics for unsupported counts."""
+        names = [f"caller_layer_{index}" for index in range(layer_count)]
+        with pytest.raises(ValueError, match=r"L must be in 1\.\.8 or equal to 16"):
+            build_knm_plasma(L=layer_count, layer_names=names)
 
     @pytest.mark.parametrize(
         ("kwargs", "field"),
@@ -217,6 +249,24 @@ class TestBuilderInputValidation:
 
         with pytest.raises(ValueError, match=field):
             build_knm_plasma_from_config(**params)
+
+    def test_config_builder_propagates_plasma_hierarchy_domain(self):
+        """Machine-parameter construction retains the same ontology domain."""
+        with pytest.raises(ValueError, match=r"L must be in 1\.\.8 or equal to 16"):
+            build_knm_plasma_from_config(
+                R0=6.2,
+                a=2.0,
+                B0=5.3,
+                Ip=15.0,
+                n_e=10.1,
+                L=12,
+            )
+
+    def test_abstract_paper27_builder_retains_arbitrary_layer_count(self):
+        """Plasma-domain rejection does not restrict the abstract constructor."""
+        abstract_spec = build_knm_paper27(L=12)
+        assert abstract_spec.K.shape == (12, 12)
+        assert abstract_spec.layer_names is None
 
 
 # ── Zeta / global driver ───────────────────────────────────────────
@@ -247,13 +297,31 @@ class TestPlasmaOmega:
         assert w.shape == (4,)
         np.testing.assert_array_equal(w, OMEGA_PLASMA_8[:4])
 
-    def test_omega_more_layers_interpolated(self):
-        w = plasma_omega(12)
-        assert w.shape == (12,)
-        assert w[0] == pytest.approx(OMEGA_PLASMA_8[0], rel=1e-6)
-        assert w[-1] == pytest.approx(OMEGA_PLASMA_8[-1], rel=1e-6)
-        # Monotonically decreasing (log-linear from fast to slow)
-        assert np.all(np.diff(w) < 0)
+    def test_omega_sixteen_matches_refined_hierarchy(self):
+        """The refined names and frequencies share the explicit size-16 contract."""
+        w = plasma_omega(16)
+        np.testing.assert_array_equal(w, OMEGA_PLASMA_16)
+
+    @pytest.mark.parametrize("layer_count", [9, 12, 15, 17, 32])
+    def test_omega_rejects_undefined_implicit_hierarchies(self, layer_count):
+        """Frequencies cannot imply an ontology that the matrix builder rejects."""
+        with pytest.raises(ValueError, match=r"L must be in 1\.\.8 or equal to 16"):
+            plasma_omega(layer_count)
+
+    @pytest.mark.parametrize("layer_count", [True, 1.0, 0, -1])
+    def test_omega_rejects_non_integer_or_nonpositive_counts(self, layer_count):
+        """The frequency helper shares strict positive-integer validation."""
+        with pytest.raises(ValueError, match="L must be a positive integer"):
+            plasma_omega(layer_count)
+
+    @pytest.mark.parametrize("layer_count", [1, 4, 8, 16])
+    def test_matrix_labels_and_frequencies_share_one_layer_domain(self, layer_count):
+        """Every admitted count aligns matrix, label, and frequency dimensions."""
+        spec = build_knm_plasma(L=layer_count)
+        omega = plasma_omega(layer_count)
+        assert spec.K.shape == (layer_count, layer_count)
+        assert len(spec.layer_names or ()) == layer_count
+        assert omega.shape == (layer_count,)
 
     def test_omega_all_positive(self):
         for L in [2, 4, 8, 16]:
@@ -446,3 +514,16 @@ class TestConstants:
 
     def test_layer_names_unique(self):
         assert len(set(PLASMA_LAYER_NAMES)) == 8
+
+    def test_refined_layer_names_and_frequencies_align(self):
+        """The refined hierarchy publishes unique labels and one frequency each."""
+        assert len(PLASMA_LAYER_NAMES_16) == 16
+        assert len(set(PLASMA_LAYER_NAMES_16)) == 16
+        assert OMEGA_PLASMA_16.shape == (16,)
+
+    def test_supported_layer_counts_are_explicit_and_public(self):
+        """Callers can inspect the complete supported built-in layer domain."""
+        assert SUPPORTED_PLASMA_LAYER_COUNTS == frozenset({1, 2, 3, 4, 5, 6, 7, 8, 16})
+        assert PUBLIC_SUPPORTED_PLASMA_LAYER_COUNTS is SUPPORTED_PLASMA_LAYER_COUNTS
+        assert PUBLIC_PLASMA_LAYER_NAMES_16 is PLASMA_LAYER_NAMES_16
+        assert PUBLIC_OMEGA_PLASMA_16 is OMEGA_PLASMA_16

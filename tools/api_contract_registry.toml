@@ -50,13 +50,13 @@ lean_symbols = [
 
 [inventory.python_classifications]
 stable-root-owner = 42
-documented-module-reference = 527
-nonstable-module-surface = 753
+documented-module-reference = 529
+nonstable-module-surface = 751
 
 [inventory.python_classification_sha256]
 stable-root-owner = "d5bb9640c7d90fbbd463cb133193edaa709a29abe2f2e20b558d23db5b8caac6"
-documented-module-reference = "324915dabc0d9fe5a0a6f82101bcac61fea3b4a63a5a85befed7df062d90fba5"
-nonstable-module-surface = "3bb6e774541125a6116e0f00fde8e645fcff3d0d2af77cd37a398ecc76a039e1"
+documented-module-reference = "bc6bb398c6cebee56a78ccf059a84892635cc87682e6e6184c2946a7f48921cb"
+nonstable-module-surface = "6c3c697917d76c807cbd4444b963235f35d9808b75f1a3422d0d70ea13a31816"
 
 [renderer_contracts]
 "pyproject.toml" = ["strict = true", "convention = \"numpy\""]

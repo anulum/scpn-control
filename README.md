@@ -407,6 +407,14 @@ Implements the generalized Kuramoto-Sakaguchi mean-field model with exogenous
 global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27. This
 is an oscillator-model research surface, not a reactor feedback loop: no
 reactor-signal identification, plant state, or actuator mapping is present.
+Paper 27's 16 layers are abstract model indices. The separate
+`plasma_knm.py` helper offers an illustrative eight-layer plasma-labelled
+hierarchy, reduced ordered prefixes, and an explicit 16-layer refinement; it
+does not identify those labels from reactor observations. A reactor-specific
+mapping belongs in a released
+[`scpn-phase-orchestrator`](https://github.com/anulum/scpn-phase-orchestrator)
+domain-binding contract and must then be validated against a FUSION-owned
+coupled plant and actuator model.
 
 **Modules:** `src/scpn_control/phase/` (9 modules)
 
@@ -414,6 +422,7 @@ reactor-signal identification, plant state, or actuator mapping is present.
 |--------|---------|
 | `kuramoto.py` | Kuramoto-Sakaguchi step, order parameter R·e^{iΨ}, Lyapunov V/λ |
 | `knm.py` | Paper 27 16×16 coupling matrix (exponential decay + calibration anchors) |
+| `plasma_knm.py` | Distinct illustrative plasma-labelled 1–8/16 layer hierarchies |
 | `upde.py` | UPDE multi-layer solver with PAC gating |
 | `lyapunov_guard.py` | Sliding-window stability monitor (mirrors DIRECTOR_AI CoherenceScorer) |
 | `realtime_monitor.py` | Tick-by-tick model snapshots + TrajectoryRecorder (HDF5/NPZ export) |

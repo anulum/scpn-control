@@ -2466,6 +2466,46 @@
       "external_validation_tracker_issue": 53
     },
     {
+      "component": "illustrative phase-layer ontology and adaptive coupling contract",
+      "equation_contract": "Layer-ontology claims must keep Paper 27 abstract indices separate from plasma-labelled positions, restrict the built-in plasma hierarchy to reduced ordered prefixes L=1..8 or the explicit refined L=16 mapping, preserve matrix-label-frequency dimensional agreement, and describe adaptive coupling as a bounded model heuristic rather than an identified reactor law.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository Paper 27 abstract Knm construction",
+        "Repository illustrative plasma-labelled hierarchy contract",
+        "Repository bounded adaptive Knm model contract"
+      ],
+      "module_path": "src/scpn_control/phase",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Keep Paper 27 abstract layers separate from the hand-selected plasma-labelled hierarchy and reject implicit plasma ontologies outside reduced L=1..8 and refined L=16",
+        "Require a released phase-orchestration domain binding, identified reactor observation-to-oscillator mapping, coupled FUSION plant, physical actuator contract, and matched closed-loop baselines before any reactor phase-control claim",
+        "Identify and validate scenario-specific adaptive coupling parameters before treating model-local updates as physical reactor dynamics"
+      ],
+      "unit_contract": "Layer indices and labels are distinct categorical positions; illustrative natural frequencies are in radians per second, coupling and phase-amplitude gains are dimensionless by the declared model convention, and all matrix, label, frequency, and diagnostic-vector dimensions must agree.",
+      "validation_evidence": [
+        "tests/test_plasma_knm.py supported hierarchy, dimension, label, frequency, mode, and invalid-domain checks",
+        "tests/test_adaptive_knm.py bounded update, rate-limit, guard, and reset checks",
+        "tests/test_adaptive_knm_diagnostics.py diagnostic-input usage checks",
+        "tests/test_paper27_reference_boundaries.py public ontology-separation checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/phase/plasma_knm.py",
+        "src/scpn_control/phase/adaptive_knm.py",
+        "tests/test_plasma_knm.py",
+        "tests/test_adaptive_knm.py",
+        "tests/test_adaptive_knm_diagnostics.py",
+        "tests/test_paper27_reference_boundaries.py",
+        "docs/api.md",
+        "docs/physics_methods.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/phase/plasma_knm.py",
+        "src/scpn_control/phase/adaptive_knm.py"
+      ],
+      "validity_domain": "Dimensionally consistent illustrative reduced-eight/refined-sixteen plasma-labelled hierarchy construction and bounded model-local adaptive coupling only; no layer labels or parameters are identified from reactor observations, no FUSION plant is closed through this surface, and no reactor phase-control validity is established.",
+      "external_validation_tracker_issue": 53
+    },
+    {
       "component": "SCPN formal Petri-net verification contract",
       "equation_contract": "Formal verification claims must declare the compiled Petri-net transition relation, exact bounded reachability depth, rational marking arithmetic, marking-bound safety obligations, algebraic place-invariant weights, transition liveness obligations, bounded temporal response and recurrence specifications, inhibitor-arc semantics, and counterexample path reporting.",
       "fidelity_status": "bounded_model",

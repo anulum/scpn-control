@@ -12,6 +12,11 @@
   installed-target validation.
 ### Changed
 
+- Separated Paper 27's abstract layer indices from the illustrative
+  plasma-labelled hierarchy. Plasma builders, frequencies, and monitor
+  construction now share one explicit `L=1..8` or `L=16` domain and reject
+  undefined implicit mappings before construction; public examples now route
+  future reactor binding through SPO and plant validation through FUSION.
 - Removed the integrated scenario's write-only phase pseudo-bridge and
   reclassified the retained UPDE, adaptive Knm, monitor, and stream as example
   oscillator-model surfaces. Public documentation now states that reactor use

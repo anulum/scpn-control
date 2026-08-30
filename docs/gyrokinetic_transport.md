@@ -149,6 +149,10 @@ QLKNN surrogate (µs)
 The standalone helper maps GK outputs onto selected entries of an illustrative
 8-layer UPDE/Kuramoto coupling matrix:
 
+This reduced plasma-labelled hierarchy is not Paper 27's abstract sixteen-layer
+ontology. The helper preserves fixed positional P0-P5 semantics and therefore
+does not create or infer a reactor mapping for arbitrary layer counts.
+
 | Coupling | GK Input | Physics |
 |----------|----------|---------|
 | K[0,1] P0↔P1 | max(γ_ITG, γ_TEM) | Microturbulence ↔ zonal flow drive |
@@ -164,7 +168,9 @@ K_adapted = adaptive_knm(K_base, gk_output, chi_i_profile=chi_i)
 This calculation is not connected to the integrated reactor scenario and does
 not close a feedback loop. The layer mapping and gains are uncalibrated research
 hypotheses; reactor use requires scenario-specific identification and causal
-plant-to-controller-to-actuator simulation evidence.
+plant-to-controller-to-actuator simulation evidence. The domain binding and
+oscillator extraction belong in the phase-orchestration contract; plant and
+actuator response belong in the FUSION simulation contract.
 
 ## References
 

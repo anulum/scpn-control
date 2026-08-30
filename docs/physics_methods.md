@@ -513,6 +513,13 @@ $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \
   mathematics only. The UPDE layers, diagnostic-shaped Knm adaptation, and
   stream monitor are examples without reactor-signal identification, a coupled
   plant, or an actuator map; they are not a validated plasma-phase control law.
+  Paper 27's sixteen layers are abstract oscillator indices. The separate
+  plasma-labelled helper defines reduced ordered prefixes of an illustrative
+  eight-layer hierarchy and one explicit sixteen-layer refinement; it rejects
+  other implicit counts because no built-in physical correspondence exists.
+  A scenario-specific mapping must be identified through the orchestration
+  boundary and tested against the coupled FUSION plant before it can carry
+  reactor-control meaning.
 
 ### What this section is for
 

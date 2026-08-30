@@ -22,6 +22,12 @@ but the numeric frequencies, coupling strengths, mode multipliers, and layer
 mapping are not identified from reactor data or a coupled plant simulation.
 They must not be treated as a reactor observer, controller, or universal law.
 
+This plasma-labelled ontology is distinct from Paper 27's abstract layer
+indices. The built-in hierarchy supports ordered reduced prefixes with one to
+eight layers and one explicit sixteen-layer refinement. Other layer counts have
+no defined implicit plasma mapping and are rejected; use the abstract
+``build_knm_paper27`` constructor for arbitrary-size oscillator experiments.
+
 Layer hierarchy (8-layer default)
 ---------------------------------
   P0  Micro-turbulence     ~μs       ITG/TEM drift-wave fluctuations
@@ -103,6 +109,10 @@ PLASMA_LAYER_NAMES_16: tuple[str, ...] = (
     "global_equilibrium_shape",
     "plasma_wall_sputtering",
     "plasma_wall_recycling",
+)
+
+SUPPORTED_PLASMA_LAYER_COUNTS: frozenset[int] = frozenset(
+    {*range(1, len(PLASMA_LAYER_NAMES) + 1), len(PLASMA_LAYER_NAMES_16)}
 )
 
 # Natural frequencies [rad/s] — illustrative order-of-magnitude labels.
@@ -262,6 +272,14 @@ def _apply_mode_bias(K: NDArray[np.float64], mode: str) -> None:
 _VALID_MODES = frozenset({"baseline", "elm", "ntm", "sawtooth", "hybrid"})
 
 
+def _validate_plasma_layer_count(L: int) -> None:
+    """Require a layer count with a defined built-in plasma ontology."""
+    if isinstance(L, bool) or not isinstance(L, int) or L <= 0:
+        raise ValueError("L must be a positive integer")
+    if L not in SUPPORTED_PLASMA_LAYER_COUNTS:
+        raise ValueError("L must be in 1..8 or equal to 16 for the built-in plasma hierarchy")
+
+
 def _require_positive_finite(name: str, value: float) -> None:
     """Validate positive finite plasma parameters."""
     if not np.isfinite(value) or value <= 0.0:
@@ -277,14 +295,18 @@ def _validate_build_inputs(
     layer_names: Sequence[str] | None,
 ) -> None:
     """Validate plasma K_nm builder inputs before matrix construction."""
-    if not isinstance(L, int) or L <= 0:
-        raise ValueError("L must be a positive integer")
+    _validate_plasma_layer_count(L)
     if not np.isfinite(K_base) or K_base < 0.0:
         raise ValueError("K_base must be finite and non-negative")
     if not np.isfinite(zeta_uniform) or zeta_uniform < 0.0:
         raise ValueError("zeta_uniform must be finite and non-negative")
-    if layer_names is not None and len(layer_names) != L:
-        raise ValueError("layer_names length must match L")
+    if layer_names is not None:
+        if len(layer_names) != L:
+            raise ValueError("layer_names length must match L")
+        if any(not isinstance(name, str) or not name or name.strip() != name for name in layer_names):
+            raise ValueError("layer_names must contain non-empty, trimmed strings")
+        if len(set(layer_names)) != L:
+            raise ValueError("layer_names must be unique")
 
     if custom_overrides is None:
         return
@@ -311,7 +333,8 @@ def build_knm_plasma(
         Instability scenario bias.  One of: baseline, elm, ntm,
         sawtooth, hybrid.
     L : int
-        Number of plasma layers (default 8).
+        Number of plasma layers. The built-in ontology supports ordered
+        prefixes from 1 through 8 and the explicit 16-layer refinement.
     K_base : float
         Base coupling strength for exponential decay backbone.
     zeta_uniform : float
@@ -320,8 +343,9 @@ def build_knm_plasma(
         Explicit (i, j) → value overrides applied last.
         Automatically symmetrised.
     layer_names : sequence of str, optional
-        Layer labels.  Defaults to PLASMA_LAYER_NAMES[:L] or
-        PLASMA_LAYER_NAMES_16[:L].
+        Display aliases for the selected positional ontology. They do not
+        remap coupling indices. Defaults to ``PLASMA_LAYER_NAMES[:L]`` for
+        reduced 1-8 layer models or ``PLASMA_LAYER_NAMES_16`` for ``L=16``.
 
     Returns
     -------
@@ -366,25 +390,16 @@ def build_knm_plasma(
 
 
 def plasma_omega(L: int = 8) -> NDArray[np.float64]:
-    """Return natural frequencies for L plasma layers.
+    """Return illustrative natural frequencies for a supported hierarchy.
 
-    For L <= 8, returns OMEGA_PLASMA_8[:L].
-    For L == 16, returns OMEGA_PLASMA_16.
-    For other L > 8, interpolates log-linearly between the fastest (P0)
-    and slowest (P7) process timescales.
+    For ``L=1..8``, return the matching ordered prefix of
+    ``OMEGA_PLASMA_8``. For ``L=16``, return ``OMEGA_PLASMA_16``. Other
+    counts are rejected because no built-in plasma ontology defines them.
     """
+    _validate_plasma_layer_count(L)
     if L <= 8:
         return OMEGA_PLASMA_8[:L].copy()
-    if L == 16:
-        return OMEGA_PLASMA_16.copy()
-
-    # Log-linear interpolation across the timescale range
-    return np.logspace(
-        np.log10(OMEGA_PLASMA_8[0]),
-        np.log10(OMEGA_PLASMA_8[-1]),
-        num=L,
-        base=10.0,
-    )
+    return OMEGA_PLASMA_16.copy()
 
 
 def build_knm_plasma_from_config(

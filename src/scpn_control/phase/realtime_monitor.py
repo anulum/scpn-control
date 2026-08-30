@@ -184,7 +184,12 @@ class RealtimeMonitor:
         adaptive_engine: AdaptiveKnmEngine | None = None,
         seed: int = 42,
     ) -> RealtimeMonitor:
-        """Build from plasma-labelled example defaults and optional adaptation."""
+        """Build a supported plasma-labelled example and optional adaptation.
+
+        ``L`` selects an ordered reduced hierarchy from one through eight
+        layers or the explicit sixteen-layer refinement. Paper 27's abstract
+        hierarchy is available separately through :meth:`from_paper27`.
+        """
         _validate_monitor_domains(N_per=N_per, psi_driver=psi_driver, pac_gamma=pac_gamma)
         spec = build_knm_plasma(mode=mode, L=L, zeta_uniform=zeta_uniform)
         upde = UPDESystem(spec=spec, dt=dt, psi_mode="external")

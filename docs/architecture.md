@@ -216,7 +216,11 @@ rebuilding the whole system:
   constraints.
 - **Phase dynamics (Phase)** evaluate example oscillator models and stream their
   state. They do not currently identify oscillators from reactor signals or
-  close a plant-actuator feedback loop.
+  close a plant-actuator feedback loop. Paper 27's abstract layers remain
+  separate from the illustrative reduced-eight/refined-sixteen plasma-labelled
+  hierarchy. A released `scpn-phase-orchestrator` domain-binding contract must
+  identify any scenario-specific observation-to-oscillator mapping before a
+  FUSION-owned plant and actuator simulation can validate feedback closure.
 - **Execution boundary (Rust/Python)** defines where hard-time and safety-critical
   work must stay deterministic and where Python orchestration can remain
   high-level.

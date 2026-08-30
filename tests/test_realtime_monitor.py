@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 import numpy as np
+import pytest
 
 from scpn_control.phase.adaptive_knm import AdaptiveKnmEngine
 from scpn_control.phase.plasma_knm import build_knm_plasma
@@ -27,6 +28,24 @@ def test_from_plasma_builds_and_ticks() -> None:
     assert "adaptive" not in snap
     assert np.isfinite(snap["R_global"])
     assert np.isfinite(snap["lambda_exp"])
+
+
+def test_from_plasma_rejects_undefined_implicit_hierarchy() -> None:
+    """The runtime constructor propagates the plasma ontology domain."""
+    with pytest.raises(ValueError, match=r"L must be in 1\.\.8 or equal to 16"):
+        RealtimeMonitor.from_plasma(L=12, N_per=10)
+
+
+@pytest.mark.parametrize("layer_count", [1, 8, 16])
+def test_from_plasma_supports_reduced_and_refined_hierarchies(layer_count: int) -> None:
+    """The monitor builds both supported hierarchy families end to end."""
+    monitor = RealtimeMonitor.from_plasma(L=layer_count, N_per=3, seed=11)
+    assert monitor.upde.spec.L == layer_count
+    assert len(monitor.upde.spec.layer_names or ()) == layer_count
+    assert len(monitor.omega_layers) == layer_count
+    assert all(omega.shape == (3,) for omega in monitor.omega_layers)
+    snapshot = monitor.tick(record=False)
+    assert len(snapshot["R_layer"]) == layer_count
 
 
 def test_tick_rejects_nonfinite_pac_gamma() -> None:

@@ -44,7 +44,10 @@ from scpn_control.phase.kuramoto import (
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
 from scpn_control.phase.plasma_knm import (
     OMEGA_PLASMA_8,
+    OMEGA_PLASMA_16,
     PLASMA_LAYER_NAMES,
+    PLASMA_LAYER_NAMES_16,
+    SUPPORTED_PLASMA_LAYER_COUNTS,
     build_knm_plasma,
     build_knm_plasma_from_config,
     plasma_omega,
@@ -73,8 +76,11 @@ __all__ = [
     "build_knm_plasma",
     "build_knm_plasma_from_config",
     "plasma_omega",
+    "OMEGA_PLASMA_16",
     "OMEGA_PLASMA_8",
     "PLASMA_LAYER_NAMES",
+    "PLASMA_LAYER_NAMES_16",
+    "SUPPORTED_PLASMA_LAYER_COUNTS",
     "UPDESystem",
     "LyapunovGuard",
     "RealtimeMonitor",
