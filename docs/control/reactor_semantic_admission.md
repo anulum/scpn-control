@@ -17,6 +17,13 @@ The exchange has three distinct owners:
 3. SCPN-CONTROL consumes SPO's canonical handoff bytes and emits a sealed
    admission decision.
 
+The MIF merge-compression lane preserves the same authority separation through
+a dedicated contract. SCPN-MIF-CORE owns pulsed FRC merge/compression lifecycle
+and source evidence, SPO owns the `frc_compression_mif` carrier assignment, and
+CONTROL independently admits the resulting bytes for review. This lane is not
+the uncompressed `field_reversed_configuration` identity and does not transfer
+ownership to a future SCPN-FRC-CORE project.
+
 CONTROL calls the public SPO `handoff_from_bytes` function directly. It does not
 vendor the schema, decode a looser JSON representation, copy sibling source, or
 construct its own reactor registry.
@@ -107,6 +114,43 @@ sorted unique refusal codes, a decision digest, and an outer payload seal.
 Decoder failures leave upstream identity fields null rather than copying caller
 expectations into evidence.
 
+## MIF merge-compression policy
+
+`MIFReactorSemanticAdmissionPolicy` is deliberately separate from the FUSION
+transport policy. It pins the exact handoff and embedded source-envelope
+digests, MIF producer revision and schema, event and context IDs, SPO registry
+version and digest, complete observation clock, closed observable and semantic
+sets, numerical-phase IDs, producer provenance attributes, freshness limits,
+calibration and transfer allowlists, and minimum numerical observability,
+confidence, and uncertainty bounds.
+
+The public ingress is `admit_mif_reactor_semantic_handoff`. It calls only SPO's
+strict `mif_merge_compression_handoff_from_bytes` decoder. It does not parse the
+embedded MIF JSON independently, import a sibling checkout, infer wall time, or
+load CONTROL action modules. Admission additionally requires:
+
+- source project `SCPN-MIF-CORE` and configuration `frc_compression_mif`;
+- simulation evidence on one exact declared model clock;
+- one semantic record per expected observable with exact carrier identity;
+- exactly the policy-listed numerical phases with declared origin,
+  orientation, wrap, reference signal, and observation operator;
+- usable numerical-phase validity and quality under explicit degradation
+  allowlists;
+- no phase relations, an UNKNOWN zero-confidence regime, and
+  `review_only=true` / `actionable=false`.
+
+The current reference receipt has 25 observables and 25 semantics. Two
+serialized oscillator angles are numerical phase. The other 23 records are
+bounded or categorical and carry zero phase observability. A CONTROL admission
+therefore confirms contract custody and review suitability; it does not claim
+that the two model angles are measured physical plasma phase.
+
+The MIF producer fixture is 2,475 bytes with SHA-256
+`c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca`.
+SPO `1.3.0` produces a 101,652-byte handoff with SHA-256
+`c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2`.
+Both digests are mandatory policy inputs, not inferred trust.
+
 ## What this does not establish
 
 Admission does not define a plant, actuator, diagnostic, or controller. Control
@@ -115,3 +159,10 @@ failure semantics, facility safety, performance, and closed-loop guarantees
 remain unavailable until a named FUSION plant contract supplies and validates
 them. A successful review decision is evidence for human and software review,
 not permission to issue a command.
+
+For MIF, the same limitation includes physical compression actuation, pulsed
+power switching, trigger egress, measured plasma diagnostics, facility clock
+correlation, machine-protection availability, replay/HIL acceptance, and a
+versioned device CONTROL adapter. Future SPO `ControlIntent` is a separate
+contract and remains non-actuating until CONTROL admission and independent
+machine-protection veto are proven.
