@@ -22,9 +22,15 @@ import pytest
 from scpn_control.control.digital_twin_ingest import (
     RealtimeTwinHook,
     TelemetryPacket,
+    _build_snn_planner,
     generate_emulated_stream,
     run_realtime_twin_session,
 )
+
+
+def test_planner_uses_descriptive_artifact_identity() -> None:
+    """The runtime artifact exposes its responsibility, not a workstream code."""
+    assert _build_snn_planner().artifact.meta.name == "digital-twin-ingest-controller"
 
 
 class TestGenerateEmulatedStreamValidation:

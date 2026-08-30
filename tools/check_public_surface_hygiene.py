@@ -121,6 +121,30 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
         "internal parity campaign identifier",
         re.compile(r"(?<![A-Za-z0-9_])PARITY-1(?![A-Za-z0-9_])", re.IGNORECASE),
     ),
+    (
+        "internal controller workstream identifier",
+        re.compile(
+            r"(?<![A-Za-z0-9_])(?:GAI[-_]?0+2(?:_TORAX_HYBRID)?|"
+            r"GDEP[-_]?0+1(?:_DIGITAL_TWIN)?|GNEU[-_]?0+3(?:_FUELING)?)(?![A-Za-z0-9_])",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "internal implementation-review identifier",
+        re.compile(r"(?<![A-Za-z0-9_])CONTROL[-_]F841[-_]REVIEW(?![A-Za-z0-9_])", re.IGNORECASE),
+    ),
+    (
+        "internal integration-stage identifier",
+        re.compile(r"(?<![A-Za-z0-9_])INT-[0-9]+(?![A-Za-z0-9_])", re.IGNORECASE),
+    ),
+    (
+        "internal polyglot work-package identifier",
+        re.compile(r"(?<![A-Za-z0-9_])WP[-_]PY[0-9]+(?![A-Za-z0-9_])", re.IGNORECASE),
+    ),
+    (
+        "internal resolved-finding identifier",
+        re.compile(r"(?<![A-Za-z0-9])O(?:-|_)?0{2}2(?![A-Za-z0-9])", re.IGNORECASE),
+    ),
 )
 
 PUBLIC_PLANNING_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (

@@ -1574,8 +1574,8 @@ mod tests {
     }
 
     #[test]
-    fn test_deposit_toroidal_current_integral_reproduce_o002() {
-        // Reproduce O-002: Missing 2*PI*R factor in current deposition.
+    fn test_deposit_toroidal_current_density_includes_geometric_factor() {
+        // Verify the required 2*PI*R geometric factor in current deposition.
         let grid = Grid2D::new(101, 101, 1.0, 9.0, -5.0, 5.0);
         let p = ChargedParticle {
             x_m: 5.0,

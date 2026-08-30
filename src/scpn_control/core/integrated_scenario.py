@@ -689,7 +689,7 @@ class IntegratedScenarioSimulator:
         P_loss = max(P_aux_W + P_ohm, 1.0)
         tau_E = (W_th / 1e6) / max(P_loss / 1e6, 1.0)
 
-        # INT-7: compute beta_N from profiles — Troyon et al. 1984
+        # Compute beta_N from profiles — Troyon et al. 1984.
         # beta_t = 2 mu_0 <p> / B0^2
         n_si_avg = self.ts_solver.ne * 1e19
         p_avg = n_si_avg * (self.ts_solver.Te + self.ts_solver.Ti) * _E_CHARGE * 1e3
@@ -698,14 +698,14 @@ class IntegratedScenarioSimulator:
         I_N = self.config.Ip_MA / max(self.config.a * self.config.B0, 1e-10)
         beta_N = 100.0 * beta_t / max(I_N, 1e-10)
 
-        # INT-7: compute li from current profile — Wesson 2011 Ch. 3
+        # Compute li from the current profile — Wesson 2011 Ch. 3.
         # li = <B_pol^2> / B_pol(a)^2 ≈ 2 ∫ j^2 rho drho / j_avg^2
         j_tor_sq = j_tor**2
         j2_vol = trapezoid(j_tor_sq * self.rho, self.rho)
         j_vol = trapezoid(np.abs(j_tor) * self.rho, self.rho)
         li = float(j2_vol / max(j_vol**2, 1e-20)) if j_vol > 1e-10 else 1.0
 
-        # INT-5: run stability checks
+        # Evaluate the configured ballooning and Troyon stability limits.
         ballooning_ok = True
         troyon_ok = True
         if self.config.include_stability:
@@ -831,7 +831,7 @@ class IntegratedScenarioSimulator:
                 self.n_crashes += 1
                 self.last_crash_time = event.crash_time
 
-                # INT-1: write crashed q back to psi so current diffusion is consistent
+                # Write the crashed q profile back to psi so current diffusion remains consistent.
                 self.cd_solver.psi = psi_from_q(self.rho, q_prof, self.config.R0, self.config.a, self.config.B0)
 
                 # Also flatten Ti inside the mixing radius (sawtooth only crashes Te+ne)
@@ -844,7 +844,7 @@ class IntegratedScenarioSimulator:
                         Ti_mix = vol_int / vol_tot if vol_tot > 0 else self.ts_solver.Ti[0]
                         self.ts_solver.Ti[:idx_mix] = Ti_mix
 
-                # INT-6: seed NTM from sawtooth crash energy
+                # Seed neoclassical tearing modes from the sawtooth crash energy.
                 for key, island in self._ntm_islands.items():
                     w_seed = self.ntm_seeding.seed_amplitude(event.seed_energy / 1e6, island.r_s)
                     if w_seed > self.ntm_widths.get(key, 0.0):

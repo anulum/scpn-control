@@ -277,7 +277,7 @@ def quasilinear_fluxes(params: GyrokineticsParams, spectrum: SpectrumResult) -> 
     spectrum = _validate_spectrum(spectrum)
     # The mixing-length growth-rate cap gamma_max = c_s/(q R) (= 1/q in c_s/R
     # units) is applied per mode inside saturated_growth_rate below, so it is
-    # not recomputed here (CONTROL-F841-REVIEW: verified redundant, not a gap).
+    # not recomputed here because that would duplicate the per-mode cap.
 
     chi_i = 0.0
     chi_e = 0.0

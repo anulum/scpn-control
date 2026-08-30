@@ -85,6 +85,10 @@ class TestToraxStep:
 
 
 class TestBuildHybridController:
+    def test_uses_descriptive_artifact_identity(self) -> None:
+        """The runtime artifact identifies the TORAX hybrid controller directly."""
+        assert _build_hybrid_controller().artifact.meta.name == "torax-hybrid-controller"
+
     def test_builds_successfully(self):
         ctrl = _build_hybrid_controller()
         obs = {"R_axis_m": 1.85, "Z_axis_m": 0.0}

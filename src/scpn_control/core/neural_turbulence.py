@@ -430,8 +430,8 @@ class TrainingDataGenerator:
             # ∇Te-TEM flux requires a matched real gyrokinetic reference — the
             # surrogate already blocks quantitative claims until one is supplied
             # (validate_neural_turbulence_reference, issue #50). R/L_Te is still
-            # passed to the network as an input feature. (CONTROL-F841-REVIEW:
-            # verified real modelling limitation, disclosed not hidden.)
+            # passed to the network as an input feature. This is a disclosed
+            # modelling limitation rather than a synthesized target.
             R_L_ne = inputs[i, 2]
             q = inputs[i, 3]
             s_hat = inputs[i, 4]

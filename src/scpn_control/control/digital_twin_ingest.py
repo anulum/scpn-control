@@ -7,7 +7,7 @@
 # SCPN Control — Digital Twin Ingest.
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Digital Twin Ingest Hook (GDEP-01)
+# SCPN Control — Digital Twin Ingest Hook
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
@@ -107,7 +107,7 @@ def _build_snn_planner() -> NeuroSymbolicController:
         )
         .compile(net, firing_mode="binary")
         .export_artifact(
-            name="gdep01_digital_twin",
+            name="digital-twin-ingest-controller",
             dt_control_s=0.001,
             readout_config={
                 "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],

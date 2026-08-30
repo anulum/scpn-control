@@ -31,7 +31,7 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not HAS_RUST, reason="scpn_control_rs not compiled")
 
 
-# ── WP-PY3: MPC Controller ──────────────────────────────────────────
+# ── MPC controller binding ──────────────────────────────────────────
 
 
 class TestPyMpcController:
@@ -76,7 +76,7 @@ class TestPyMpcController:
             mpc.plan(state)
 
 
-# ── WP-PY6: Digital Twin (Plasma2D) ─────────────────────────────────
+# ── Digital-twin Plasma2D binding ───────────────────────────────────
 
 
 class TestPyPlasma2D:

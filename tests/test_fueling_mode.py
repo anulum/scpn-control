@@ -14,9 +14,15 @@ import pytest
 from scpn_control.control.fueling_mode import (
     FuelingSimResult,
     IcePelletFuelingController,
+    _build_fueling_controller,
     run_fueling_mode,
     simulate_iter_density_control,
 )
+
+
+def test_fueling_runtime_uses_descriptive_artifact_identity() -> None:
+    """The runtime artifact identifies the ice-pellet controller directly."""
+    assert _build_fueling_controller().artifact.meta.name == "ice-pellet-fueling-controller"
 
 
 class TestIcePelletFuelingController:

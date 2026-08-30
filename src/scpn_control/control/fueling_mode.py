@@ -7,7 +7,7 @@
 # SCPN Control — Fueling Mode.
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Fueling Mode (GNEU-03)
+# SCPN Control — Fueling Mode
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
@@ -93,7 +93,7 @@ def _build_fueling_controller() -> NeuroSymbolicController:
         seed=77,
     ).compile(net, firing_mode="binary")
     artifact = compiled.export_artifact(
-        name="gneu03_fueling",
+        name="ice-pellet-fueling-controller",
         dt_control_s=0.001,
         readout_config={
             "actions": [

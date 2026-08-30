@@ -12,6 +12,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
 from _pytest.capture import CaptureFixture
 
 from tools.check_public_surface_hygiene import Finding, iter_scanned_files, main, scan_repository, scan_text
@@ -116,6 +117,24 @@ def test_rejects_internal_parity_campaign_identifier() -> None:
     """Parity evidence must retain a descriptive source reference."""
     findings = scan_text("validation/parity.json", '"raw_reference": "PARITY-1"\n')
     assert {finding.category for finding in findings} == {"internal parity campaign identifier"}
+
+
+@pytest.mark.parametrize(
+    ("text", "category"),
+    [
+        ("artifact=gai02_torax_hybrid", "internal controller workstream identifier"),
+        ("artifact=gdep01_digital_twin", "internal controller workstream identifier"),
+        ("artifact=gneu03_fueling", "internal controller workstream identifier"),
+        ("CONTROL-F841-REVIEW", "internal implementation-review identifier"),
+        ("INT-7", "internal integration-stage identifier"),
+        ("WP-PY3", "internal polyglot work-package identifier"),
+        ("test_reproduce_o002", "internal resolved-finding identifier"),
+    ],
+)
+def test_rejects_residual_internal_identifiers(text: str, category: str) -> None:
+    """Residual local workstream labels remain forbidden on public surfaces."""
+    findings = scan_text("src/runtime_identity.txt", text)
+    assert {finding.category for finding in findings} == {category}
 
 
 def test_rejects_private_operational_path_reference() -> None:

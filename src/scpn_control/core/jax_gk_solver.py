@@ -156,8 +156,7 @@ def _build_response_matrix_single_ky(
             # denom = nu_eff + i(wd - omega)), matching the native gk_eigenvalue
             # contract. This matrix builder feeds only the differentiable
             # ||R_ion_real||_F^2 transport-stiffness proxy (drive norm ~ R_L_Ti), so
-            # the drift is not recomputed here (CONTROL-F841-REVIEW: verified
-            # vestigial in this path, not a modelling gap).
+            # the drift is not recomputed in this transport-stiffness proxy.
 
             omega_star_full = omega_star_n_i * (1.0 + eta_i * (E_norm - 1.5))
 

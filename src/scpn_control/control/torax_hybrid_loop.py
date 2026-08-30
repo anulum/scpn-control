@@ -7,7 +7,7 @@
 # SCPN Control — Torax Hybrid Loop.
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — TORAX Hybrid Realtime Loop (GAI-02)
+# SCPN Control — TORAX Hybrid Realtime Loop
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
@@ -117,7 +117,7 @@ def _build_hybrid_controller() -> NeuroSymbolicController:
         seed=211,
     ).compile(net, firing_mode="binary")
     artifact = compiled.export_artifact(
-        name="gai02_torax_hybrid",
+        name="torax-hybrid-controller",
         dt_control_s=0.001,
         readout_config={
             "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],

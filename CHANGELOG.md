@@ -12,6 +12,9 @@
   installed-target validation.
 ### Changed
 
+- Replaced local implementation-stage labels in controller artifacts, physics
+  comments, and focused polyglot tests with descriptive responsibilities while
+  retaining the stable MIF module identifiers used across repositories.
 - Preserved the stable `studio.parity-refutation.v1` federation contract while
   replacing its internal finding label with a descriptive test reference and
   validating the result's numerical and source-reference domains.
