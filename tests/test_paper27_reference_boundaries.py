@@ -18,13 +18,11 @@ KURAMOTO_ARXIV_URL = "https://arxiv.org/abs/2004.06344"
 
 def _read(relative_path: str) -> str:
     """Return a repository text file as UTF-8."""
-
     return (ROOT / relative_path).read_text(encoding="utf-8")
 
 
 def test_pitch_separates_paper27_from_kuramoto_arxiv_reference() -> None:
     """The pitch must not attribute the Kuramoto reference as Paper 27."""
-
     pitch = _read("docs/pitch.md")
 
     assert f"[Paper 27 manuscript]({PAPER27_URL})" in pitch
@@ -37,7 +35,6 @@ def test_pitch_separates_paper27_from_kuramoto_arxiv_reference() -> None:
 
 def test_readme_publication_caveat_keeps_references_distinct() -> None:
     """The README caveat names the arXiv paper as a related reference."""
-
     readme = _read("README.md")
 
     assert "Kuramoto-Sakaguchi reference" in readme
@@ -47,7 +44,6 @@ def test_readme_publication_caveat_keeps_references_distinct() -> None:
 
 def test_reviewer_handoff_uses_paper27_source_url() -> None:
     """Reviewer handoff documents cite the real Paper 27 manuscript URL."""
-
     handoff = _read("docs/REVIEWER_PAPER27_INTEGRATION.md")
     handoff_tex = _read("docs/REVIEWER_PAPER27_INTEGRATION.tex")
 
@@ -55,3 +51,44 @@ def test_reviewer_handoff_uses_paper27_source_url() -> None:
     assert PAPER27_URL in handoff_tex
     assert "Related Kuramoto" in handoff
     assert "Related Kuramoto--Sakaguchi reference" in handoff_tex
+
+
+def test_phase_materials_do_not_claim_reactor_control_closure() -> None:
+    """Phase examples state their model boundary without plant-control claims."""
+    paths = (
+        "docs/REVIEWER_PAPER27_INTEGRATION.md",
+        "docs/REVIEWER_PAPER27_INTEGRATION.tex",
+        "docs/paper27_phase_dynamics.md",
+        "examples/paper27_phase_dynamics_demo.ipynb",
+        "examples/tutorial_05_adaptive_phase_dynamics.py",
+    )
+    forbidden = tuple(
+        "".join(parts)
+        for parts in (
+            ("authority over ", "plasma modes"),
+            ("entry point a real ", "control loop would call"),
+            ("maps directly to SNN or ", "PID output amplitude"),
+            ("complete real-time ", "monitoring loop"),
+        )
+    )
+    for path in paths:
+        text = _read(path)
+        normalised = " ".join(text.split())
+        assert "not a reactor feedback loop" in normalised
+        for claim in forbidden:
+            assert claim not in text
+
+
+def test_phase_runtime_surfaces_state_their_non_reactor_boundary() -> None:
+    """Runtime-facing phase APIs cannot imply an identified plant loop."""
+    required_markers = {
+        "README.md": "not a reactor feedback loop",
+        "docs/api.md": "do not identify oscillator states from reactor observations",
+        "docs/architecture.md": "do not currently identify oscillators from reactor signals",
+        "src/scpn_control/phase/adaptive_knm.py": "not facility-calibrated stability laws or a reactor feedback loop",
+        "src/scpn_control/phase/realtime_monitor.py": "It is not a reactor feedback loop",
+        "src/scpn_control/phase/ws_phase_stream.py": "does not ingest a reactor plant state",
+    }
+
+    for path, marker in required_markers.items():
+        assert marker in " ".join(_read(path).split())

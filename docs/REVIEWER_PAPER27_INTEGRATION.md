@@ -9,6 +9,10 @@
 **Related Kuramoto–Sakaguchi finite-size reference:** [arXiv:2004.06344](https://arxiv.org/abs/2004.06344)
 **PDF export:** [`REVIEWER_PAPER27_INTEGRATION.pdf`](REVIEWER_PAPER27_INTEGRATION.pdf)
 
+**Current boundary:** this is an example oscillator-model integration, not a
+reactor feedback loop. Its abstract layers, coefficients, and synthetic SNN
+signals are not identified from reactor diagnostics and do not command a plant.
+
 ---
 
 ## 1. What Was Requested
@@ -37,7 +41,7 @@ dθ_{m,i}/dt = ω_{m,i}
 ```
 
 - **K_{mm}** (diagonal): intra-layer synchronisation strength
-- **K_{nm}** (off-diagonal): inter-layer bidirectional causality
+- **K_{nm}** (off-diagonal): declared inter-layer model coupling
 - **ζ sin(Ψ − θ)**: exogenous global field driver — Ψ resolved externally or from mean-field
 - **α_{nm}**: Sakaguchi phase-lag frustration (optional)
 - **R, ψ**: Kuramoto order parameter R·exp(i·ψ) = ⟨exp(i·θ)⟩
@@ -278,14 +282,15 @@ When a source layer is incoherent (low R), the gate amplifies its coupling,
 implementing the PAC hypothesis that desynchronised layers drive downstream
 amplitude modulation.
 
-### 8.2 SNN PAC Full Architecture Sketch
+### 8.2 SNN PAC Model-Internal Feedback Sketch
 
-The SNN closed-loop couples spiking neural networks with the Kuramoto phase
-oscillator population through a PAC gating mechanism:
+The example couples spiking neural networks with an abstract Kuramoto
+oscillator population through a PAC gating mechanism. It closes a numerical
+model loop only; no reactor observation or actuator interface is present.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    SNN–PAC–Kuramoto Closed Loop                     │
+│                 SNN–PAC–Kuramoto Model Feedback                    │
 ├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │  ┌──────────────┐     spike rate      ┌──────────────────┐         │
@@ -339,7 +344,7 @@ oscillator population through a PAC gating mechanism:
 │  Rate→Ψ decoder:  Ψ = π · (2·ν_window/ν_max − 1)                  │
 │    ν_window = spike_count / T_window  (T_window = 50 ms)           │
 │                                                                     │
-│  Closed-loop stability (Lyapunov candidate):                        │
+│  Model-feedback convergence candidate:                              │
 │    V(t) = (1/N) Σ_i (1 − cos(θ_i − Ψ)) + λ·|ν − ν_target|²     │
 │    dV/dt ≤ 0 when ζ > 0 and SNN rate tracks target                 │
 └─────────────────────────────────────────────────────────────────────┘
@@ -369,7 +374,7 @@ Layer L1 (Quantum)    Layer L7 (Symbolic)    Layer L16 (Director)
 └──────────────────────────────────────────────────────────────┘
 ```
 
-Demo: notebook §9 (SNN closed-loop) and §10 (PAC cross-layer SNN).
+Demo: notebook §9 (synthetic gain feedback) and §10 (PAC cross-layer example).
 
 ---
 
@@ -444,7 +449,7 @@ from scpn_control.phase import LyapunovGuard
 
 guard = LyapunovGuard(window=50, dt=1e-3, max_violations=3)
 
-# Per-timestep check (online monitoring)
+# Per-timestep oscillator-model check
 verdict = guard.check(theta, psi)
 verdict.approved        # True if stable
 verdict.lambda_exp      # current λ
@@ -469,10 +474,10 @@ d = guard.to_director_ai_dict(verdict)
 #  "halt_reason": ""}
 ```
 
-This enables the DIRECTOR_AI `CoherenceAgent` to incorporate Lyapunov stability
-into its dual-entropy coherence score.  When λ > 0 for 3 consecutive windows,
-the guard issues a refusal — analogous to DIRECTOR_AI's `SafetyKernel` emergency
-stop when coherence drops below the hard limit.
+This enables the DIRECTOR_AI `CoherenceAgent` to incorporate the model's
+Lyapunov metric into its dual-entropy coherence score. When λ > 0 for 3
+consecutive windows, the guard refuses the oscillator-model trajectory. This is
+not a machine-protection or reactor-safety verdict.
 
 ### 10.3 Data Flow
 
@@ -482,8 +487,8 @@ Kuramoto oscillators → θ(t) per timestep
          ▼
 LyapunovGuard.check(θ, Ψ) → LyapunovVerdict
          │
-         ├─ approved=True  → continue control loop
-         ├─ approved=False → HALT / parameter clamp
+         ├─ approved=True  → continue model trajectory
+         ├─ approved=False → refuse / clamp model parameters
          │
          └─ to_director_ai_dict() → DIRECTOR_AI AuditLogger
                                       ├─ h_factual = max(0, λ)
@@ -492,21 +497,21 @@ LyapunovGuard.check(θ, Ψ) → LyapunovVerdict
 
 ---
 
-## 11. Real-Time Dashboard Hook
+## 11. Streaming Model Dashboard Hook
 
 ### 11.1 RealtimeMonitor
 
 `scpn_control.phase.realtime_monitor.RealtimeMonitor` wraps UPDESystem +
-LyapunovGuard into a tick-by-tick interface for live control dashboards:
+LyapunovGuard into a tick-by-tick interface for model dashboards:
 
 ```python
 from scpn_control.phase import RealtimeMonitor
 
 monitor = RealtimeMonitor.from_paper27(psi_driver=0.0)
-for sample in sensor_stream:
+for _ in model_ticks:
     snap = monitor.tick()
     if not snap["guard_approved"]:
-        trigger_safety_halt()
+        mark_model_trajectory_refused()
     dashboard.push(snap)
 ```
 
@@ -515,9 +520,10 @@ Each `tick()` returns: `R_global`, `R_layer`, `Psi_global`, `V_global`,
 and a `director_ai` dict ready for AuditLogger. Native Rust monitor ticks
 also expose the raw `dtheta_flat` and `Psi_layer` arrays for parity checks.
 
-Runtime tick failures fail closed: `tick()` returns the same dashboard fields
+Model-tick failures return a refusal snapshot: `tick()` returns the same fields
 with `guard_approved=False`, `guard_score=0.0`, and `error`/`error_type`
-metadata so live controllers can halt without losing the telemetry contract.
+metadata without losing the streaming contract. Nothing in this interface
+halts or commands a reactor.
 
 ### 11.2 Interactive Benchmark Visualisation
 
@@ -528,9 +534,11 @@ chart with 3 vertically concatenated panels:
 2. **λ vs ζ** (K=0 / K=2 configs, stability boundary annotation)
 3. **PAC vs No-PAC Latency** (grouped bars with 95% CI error bars)
 
-### 11.3 CI Benchmark — DIII-D Scale
+### 11.3 CI Benchmark — DIII-D-Sized Oscillator Population
 
-CI job `python-benchmark` runs Kuramoto steps at DIII-D PCS scale:
+CI job `python-benchmark` runs Kuramoto steps at a population size labelled for
+the former DIII-D mock. This is a numerical workload label, not PCS timing,
+diagnostic fidelity, or device validation:
 - N=1000, N=4096 single-step P50 < 5 ms gate
 - RealtimeMonitor tick (16 × 50 oscillators) P50 < 50 ms gate
 
@@ -538,8 +546,8 @@ CI job `python-benchmark` runs Kuramoto steps at DIII-D PCS scale:
 
 `dashboard/control_dashboard.py` — 6 tabs:
 
-1. **Trajectory Viewer** — closed-loop PID/SNN trajectory
-2. **Phase Sync Monitor** — live RealtimeMonitor with R/V/λ plots + DIRECTOR_AI export
+1. **Trajectory Viewer** — bounded PID/SNN trajectory
+2. **Phase Model Monitor** — streamed RealtimeMonitor R/V/λ plots + DIRECTOR_AI export
 3. **Benchmark Plots** — `bench_interactive.vl.json` embedded as `st.vega_lite_chart`
 4. **RMSE Dashboard** — validation summary
 5. **Timing Benchmark** — PID vs SNN latency
@@ -562,12 +570,13 @@ Rust `upde_tick` in `control-math/src/kuramoto.rs`: per-layer Kuramoto +
 inter-layer Knm coupling + PAC gate + Lyapunov V tracking.  11 Rust tests
 (9 existing + 2 new `test_upde_tick_*`).
 
-### 11.6 WebSocket Phase Stream
+### 11.6 WebSocket Phase-Model Stream
 
 ![WebSocket Phase Sync Monitor](ws_phase_demo.svg)
 
 `scpn_control.phase.ws_phase_stream.PhaseStreamServer` — async WebSocket server
-streaming tick snapshots as JSON frames:
+streaming model-tick snapshots as JSON frames. Network hardening does not turn
+these frames into reactor diagnostics or actuator commands:
 
 ```bash
 python -m scpn_control.phase.ws_phase_stream --port 8765 --layers 16 --zeta 0.5
@@ -605,7 +614,7 @@ n_ticks.
 (14 fields: time_s, Ip_MA, BT_T, beta_N, q95, ne_1e19, MHD modes, etc.).
 CI job `e2e-diiid` runs end-to-end tests:
 - Mock shot generation and round-trip load
-- Shot-driven RealtimeMonitor (Ψ = f(beta_N))
+- Synthetic-field-driven RealtimeMonitor (Ψ = f(beta_N))
 - NPZ and HDF5 trajectory export verification
 
 ### 11.9 Streamlit WebSocket Client
@@ -628,13 +637,15 @@ guard status, Ψ control slider, raw JSON expander, auto-refresh at 3 Hz.
 
 ![Phase Sync Convergence](phase_sync_live.gif)
 
-Real data from RealtimeMonitor (500 ticks, 16×50 oscillators, ζ=0.5):
+Generated model trajectory from RealtimeMonitor (500 ticks, 16×50 oscillators,
+ζ=0.5):
 
 - **MP4**: [`docs/phase_sync_live.mp4`](phase_sync_live.mp4) (418 KB, H.264)
 - **GIF**: [`docs/phase_sync_live.gif`](phase_sync_live.gif) (1.1 MB)
 - **Generator**: `tools/generate_phase_video.py --ticks 500 --fps 20`
 
-Observed convergence: R=0.92, V→0, λ=−0.47 (stable), 38 µs/tick.
+Observed model convergence: R=0.92, V→0, λ=−0.47 (model-local stable),
+38 µs/tick in the recorded benchmark context.
 
 ### 11.11 PyPI Publish Script
 
@@ -771,10 +782,10 @@ Total collected: **675 tests** across 41 test files.
 3. **α Frustration** — Sakaguchi phase-lag effect on synchronisation
 4. **16-Layer UPDE** — full multi-layer evolution with R trajectories
 5. **PAC Gating** — phase-amplitude coupling modulation demo
-6. **FusionKernel Plasma Sync** — integration with tokamak config
-7. **Gain Sweep** — actuation_gain parameter exploration
+6. **FusionKernel Oscillator Model** — compatibility wrapper with config defaults
+7. **Gain Sweep** — dimensionless model-gain exploration
 8. **Lyapunov Stability** — V(t) = (1/N)Σ(1−cos(θ_i−Ψ)) monotone decrease
-9. **SNN Closed-Loop** — spike-rate → Ψ feedback via LIF layer
+9. **Synthetic SNN Feedback** — model-internal spike-rate → Ψ mapping
 10. **PAC Cross-Layer SNN** — multi-layer SNN with phase-coupled spike routing
 
 Markdown export: `docs/paper27_phase_dynamics.md`

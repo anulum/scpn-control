@@ -168,7 +168,6 @@ def _default_closed_loop_config(max_steps: int) -> ScenarioConfig:
         include_sol=False,
         include_elm=False,
         include_stability=True,
-        include_phase_bridge=False,
         use_transport_solver=False,
     )
 

@@ -5,6 +5,8 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Integrated scenario tests
+"""Exercise integrated-scenario configuration, coupling, and replay behaviour."""
+
 from __future__ import annotations
 
 import json
@@ -33,6 +35,7 @@ from scpn_control.core.integrated_scenario import (
 
 
 def test_pure_ohmic_iter_scenario():
+    """Run the ITER preset without auxiliary heating or current drive."""
     # Scenario without aux power or CD
     config = iter_baseline_scenario()
     config.P_aux_MW = 0.0
@@ -54,7 +57,9 @@ def test_pure_ohmic_iter_scenario():
 
 
 def test_sawtooth_cycling():
+    """Exercise the sawtooth cycler across multiple model ticks."""
     import numpy as np
+
     from scpn_control.core.sawtooth import SawtoothCycler
 
     rho = np.linspace(0, 1, 50)
@@ -72,6 +77,7 @@ def test_sawtooth_cycling():
 
 
 def test_energy_and_current_conservation_contracts():
+    """Check bounded energy and current evolution in the NSTX-U preset."""
     config = nstx_u_scenario()
     config.t_end = 0.05
     config.dt = 0.01
@@ -164,8 +170,8 @@ def test_bootstrap_current_nonzero():
 
     Sauter et al. 1999, Phys. Plasmas 6, 2834, Eqs. 14–16.
     """
-    from scpn_control.core.neoclassical import sauter_bootstrap
     from scpn_control.core.current_diffusion import q_from_psi
+    from scpn_control.core.neoclassical import sauter_bootstrap
 
     config = _minimal_config()
     sim = IntegratedScenarioSimulator(config)
@@ -205,7 +211,6 @@ def test_ohmic_heating_increases_energy():
     ne_flat = np.full(50, 3.0)
     sim.initialize({"Te": Te_cold, "Ti": Ti_cold, "ne": ne_flat})
 
-    W0 = sim._compute_W_thermal()
     sim.step()
     W1 = sim._compute_W_thermal()
 
@@ -350,40 +355,12 @@ def test_use_transport_solver_flag():
     config.dt = 0.01
 
     sim = IntegratedScenarioSimulator(config)
-    state0 = sim.initialize()
+    sim.initialize()
     state1 = sim.step()
 
     assert np.all(np.isfinite(state1.Te))
     assert np.all(np.isfinite(state1.Ti))
     assert state1.W_thermal > 0
-
-
-def test_include_phase_bridge():
-    """include_phase_bridge=True runs adaptive_knm and gk_natural_frequencies."""
-    from scpn_control.core.gk_interface import GKOutput
-
-    config = _minimal_config(P_aux_MW=5.0)
-    config.include_phase_bridge = True
-    config.t_end = 0.01
-    config.dt = 0.01
-
-    sim = IntegratedScenarioSimulator(config)
-    sim.initialize()
-
-    sim._last_gk_output = GKOutput(
-        chi_i=1.5,
-        chi_e=1.0,
-        D_e=0.5,
-        gamma=np.array([0.1, 0.2]),
-        omega_r=np.array([0.5, -0.3]),
-        k_y=np.array([0.3, 0.6]),
-        dominant_mode="ITG",
-    )
-
-    state = sim.step()
-    assert state is not None
-    assert sim._phase_K_nm is not None
-    assert sim._phase_omega is not None
 
 
 def test_to_json(tmp_path):
@@ -414,6 +391,7 @@ def test_to_json(tmp_path):
 
 
 def test_scenario_config_rejects_nonphysical_domains():
+    """Reject nonphysical public scenario configuration values."""
     cfg = _minimal_config()
 
     with pytest.raises(ValueError, match="a must be smaller"):
@@ -436,6 +414,7 @@ def test_scenario_config_rejects_nonphysical_domains():
 
 
 def test_initialize_rejects_malformed_profile_overrides():
+    """Reject malformed profile overrides at simulator initialisation."""
     cfg = _minimal_config()
     sim = IntegratedScenarioSimulator(cfg)
 
@@ -450,6 +429,7 @@ def test_initialize_rejects_malformed_profile_overrides():
 
 
 def test_physics_helpers_reject_invalid_math_domains():
+    """Reject invalid mathematical domains in scenario physics helpers."""
     rho = np.linspace(0.0, 1.0, 50)
     profile = np.ones_like(rho)
     q = np.ones_like(rho) * 2.0
@@ -559,18 +539,20 @@ def test_scenario_coupling_audit_rejects_nonfinite_replay_profiles():
 
 
 def _one_state():
-    """A single finite scenario state from a short minimal run, for unit checks."""
+    """Return one finite state from a short minimal scenario run."""
     cfg = _minimal_config(P_aux_MW=0.5)
     sim = IntegratedScenarioSimulator(cfg)
     return sim.run()[-1], cfg
 
 
 def test_finite_scalar_rejects_non_finite_value():
+    """Reject non-finite scalar values in the replay audit contract."""
     with pytest.raises(ValueError, match="must be finite"):
         _finite_scalar("test_field", float("nan"))
 
 
 def test_enabled_scenario_modules_lists_every_optional_lane():
+    """List every enabled optional lane in the public module inventory."""
     cfg = replace(
         _minimal_config(P_aux_MW=1.0),
         P_eccd_MW=0.5,
@@ -580,7 +562,6 @@ def test_enabled_scenario_modules_lists_every_optional_lane():
         include_sol=True,
         include_elm=True,
         include_stability=True,
-        include_phase_bridge=True,
     )
     modules = enabled_scenario_modules(cfg)
     for lane in (
@@ -591,7 +572,6 @@ def test_enabled_scenario_modules_lists_every_optional_lane():
         "sol",
         "elm",
         "mhd_stability",
-        "phase_bridge",
     ):
         assert lane in modules
 
@@ -621,11 +601,11 @@ def test_step_without_stability_skips_mhd_checks():
         ("ntm", "ntm_island_count"),
         ("elm", "P_loss_W"),
         ("auxiliary_heating", "P_aux_MW"),
-        ("phase_bridge", "phase_bridge_enabled"),
         ("totally_unknown_module", "module_enabled"),
     ],
 )
 def test_exchange_for_each_module_branch(module, expected_key):
+    """Expose the expected observable exchange for every module branch."""
     state, cfg = _one_state()
     exchange = _exchange_for_module(module, state, cfg)
     assert exchange.module == module
@@ -633,6 +613,7 @@ def test_exchange_for_each_module_branch(module, expected_key):
 
 
 def test_audit_rejects_empty_state_trace():
+    """Reject an empty scenario replay trace."""
     cfg = _minimal_config(P_aux_MW=0.5)
     audit = audit_scenario_coupling([], cfg)
     assert audit.passed is False
@@ -642,6 +623,7 @@ def test_audit_rejects_empty_state_trace():
 
 
 def test_audit_flags_current_deviation_beyond_tolerance():
+    """Flag replay current deviation beyond the configured tolerance."""
     state, cfg = _one_state()
     deviated = replace(state, Ip_MA=cfg.Ip_MA + 10.0)
     audit = audit_scenario_coupling([deviated], cfg)
@@ -649,12 +631,14 @@ def test_audit_flags_current_deviation_beyond_tolerance():
 
 
 def test_audit_flags_non_positive_thermal_energy():
+    """Flag a replay state with non-positive thermal energy."""
     state, cfg = _one_state()
     audit = audit_scenario_coupling([replace(state, W_thermal=-1.0)], cfg)
     assert any("thermal energy must remain positive" in violation for violation in audit.violations)
 
 
 def test_audit_flags_excessive_thermal_energy_step():
+    """Flag an excessive relative thermal-energy step."""
     state, cfg = _one_state()
     low = replace(state, time=0.0, W_thermal=1.0)
     high = replace(state, time=cfg.dt, W_thermal=100.0)
@@ -663,6 +647,7 @@ def test_audit_flags_excessive_thermal_energy_step():
 
 
 def test_audit_flags_non_positive_safety_factor():
+    """Flag a replay profile with a non-positive safety factor."""
     state, cfg = _one_state()
     bad_q = state.q.copy()
     bad_q[-1] = 0.0
@@ -671,6 +656,7 @@ def test_audit_flags_non_positive_safety_factor():
 
 
 def test_audit_flags_non_positive_kinetic_profiles():
+    """Flag replay states with non-positive kinetic profiles."""
     state, cfg = _one_state()
     bad_te = state.Te.copy()
     bad_te[0] = -0.1
@@ -679,6 +665,7 @@ def test_audit_flags_non_positive_kinetic_profiles():
 
 
 def test_simulator_constructs_nbi_source_when_requested():
+    """Construct the NBI source only when the scenario requests it."""
     cfg = replace(_minimal_config(P_aux_MW=1.0), P_nbi_MW=2.0, E_nbi_keV=80.0)
     sim = IntegratedScenarioSimulator(cfg)
     assert sim.nbi is not None
@@ -686,6 +673,7 @@ def test_simulator_constructs_nbi_source_when_requested():
 
 
 def test_run_initialises_transport_solver_when_absent():
+    """Initialise the transport solver through the public run path."""
     cfg = _minimal_config(P_aux_MW=0.0)
     sim = IntegratedScenarioSimulator(cfg)
     assert not hasattr(sim, "ts_solver")
@@ -695,6 +683,7 @@ def test_run_initialises_transport_solver_when_absent():
 
 
 def test_step_handles_sawtooth_crash_event(monkeypatch):
+    """Propagate a sawtooth crash event through one scenario step."""
     cfg = replace(
         _minimal_config(P_aux_MW=2.0),
         include_sawteeth=True,
@@ -717,6 +706,7 @@ def test_step_handles_sawtooth_crash_event(monkeypatch):
 
 
 def test_ntm_step_flattens_wide_island(monkeypatch):
+    """Flatten profiles for an NTM island wider than the model threshold."""
     cfg = replace(_minimal_config(P_aux_MW=1.0), include_ntm=True, include_sawteeth=False)
     sim = IntegratedScenarioSimulator(cfg)
     sim.initialize()
@@ -741,49 +731,6 @@ def test_ntm_step_flattens_wide_island(monkeypatch):
 
     assert not np.array_equal(sim.ts_solver.Te, te_before)
     assert any(width > integrated_scenario._W_FLAT for width in sim.ntm_widths.values())
-
-
-def test_phase_bridge_reuses_knm_on_second_step(monkeypatch):
-    """The phase-bridge K_nm coupling is built once and reused on later steps.
-
-    Exercises the ``_phase_K_nm is None`` guard's False side: on the second
-    step the coupling already exists, so ``build_knm_plasma`` is not called
-    again.
-    """
-    import scpn_control.phase.plasma_knm as plasma_knm
-    from scpn_control.core.gk_interface import GKOutput
-
-    calls = {"n": 0}
-    real_build = plasma_knm.build_knm_plasma
-
-    def _counting_build(*args, **kwargs):
-        calls["n"] += 1
-        return real_build(*args, **kwargs)
-
-    monkeypatch.setattr(plasma_knm, "build_knm_plasma", _counting_build)
-
-    config = _minimal_config(P_aux_MW=5.0)
-    config.include_phase_bridge = True
-    config.t_end = 0.02
-    config.dt = 0.01  # two steps
-    sim = IntegratedScenarioSimulator(config)
-    sim.initialize()
-    sim._last_gk_output = GKOutput(
-        chi_i=1.5,
-        chi_e=1.0,
-        D_e=0.5,
-        gamma=np.array([0.1, 0.2]),
-        omega_r=np.array([0.5, -0.3]),
-        k_y=np.array([0.3, 0.6]),
-        dominant_mode="ITG",
-    )
-
-    states = sim.run()
-
-    assert len(states) == 2
-    assert calls["n"] == 1, f"build_knm_plasma called {calls['n']} times; expected 1 (built once, then reused)"
-    assert sim._phase_K_nm is not None
-    assert sim._phase_omega is not None
 
 
 def test_sawtooth_seed_keeps_wider_existing_ntm_island():

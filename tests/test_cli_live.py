@@ -17,10 +17,12 @@ from scpn_control.cli import main
 
 @pytest.fixture
 def runner() -> CliRunner:
+    """Return an isolated Click CLI runner."""
     return CliRunner()
 
 
 def test_live_command_wires_monitor_and_server(runner, monkeypatch):
+    """Wire the phase-model stream command into its monitor and server."""
     import scpn_control.phase.realtime_monitor as realtime_monitor
     import scpn_control.phase.ws_phase_stream as ws_phase_stream
 
@@ -131,10 +133,11 @@ def test_live_command_wires_monitor_and_server(runner, monkeypatch):
         "allowed_actions": ("set_psi", "stop"),
     }
     assert calls["serve"] == {"host": "127.0.0.1", "port": 9001, "ssl_context": None}
-    assert "Starting phase sync server on ws://127.0.0.1:9001" in result.output
+    assert "Starting phase-model stream on ws://127.0.0.1:9001" in result.output
 
 
 def test_live_help(runner):
+    """Render help for the phase-model stream command."""
     result = runner.invoke(main, ["live", "--help"])
     assert result.exit_code == 0
     assert "--port" in result.output

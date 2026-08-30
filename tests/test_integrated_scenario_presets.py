@@ -58,6 +58,23 @@ def test_config_sha256_is_stable_hex() -> None:
     assert digest == presets.scenario_config_sha256(cfg)
 
 
+def test_removed_phase_bridge_is_rejected_by_public_config() -> None:
+    """The stale write-only scenario option is absent and rejected exactly."""
+    payload = presets.scenario_config_payload(presets.nstx_u_scenario())
+    assert "include_phase_bridge" not in payload
+    with pytest.raises(TypeError, match="include_phase_bridge"):
+        presets.ScenarioConfig(  # type: ignore[call-arg] # exact rejection of removed public field
+            R0=0.93,
+            a=0.58,
+            B0=1.0,
+            kappa=2.0,
+            delta=0.4,
+            Ip_MA=1.0,
+            P_aux_MW=1.0,
+            include_phase_bridge=True,
+        )
+
+
 def test_enabled_modules_track_flags() -> None:
     """Module inventory includes optional physics when flags/power are set."""
     cfg = presets.iter_baseline_scenario()
@@ -71,3 +88,4 @@ def test_enabled_modules_track_flags() -> None:
     modules = presets.enabled_scenario_modules(cfg)
     assert "sawtooth" not in modules
     assert "current_drive" not in modules
+    assert "phase_bridge" not in modules

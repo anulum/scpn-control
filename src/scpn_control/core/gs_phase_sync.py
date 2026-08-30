@@ -6,14 +6,15 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — FusionKernel phase-sync step helpers
 
-"""Reduced-order phase-sync steps used by the CONTROL fusion kernel.
+"""Example reduced-order oscillator steps exposed by ``FusionKernel``.
 
 This leaf owns the Paper-27 / ζ·sin(Ψ−θ) phase-reduction step and multi-step
 Lyapunov tracking helpers previously living on
 :class:`~scpn_control.core.fusion_kernel.FusionKernel`. The CONTROL product
 surface remains first-class under dual-home C and keeps thin wrappers that
 supply ``phase_sync`` config defaults. The core Kuramoto numerics stay in
-:mod:`scpn_control.phase.kuramoto` (not duplicated here).
+:mod:`scpn_control.phase.kuramoto` (not duplicated here). These wrappers do not
+read reactor state, change an equilibrium, or issue an actuator command.
 """
 
 from __future__ import annotations
@@ -43,12 +44,13 @@ def phase_sync_step(
     actuation_gain: float | None = None,
     phase_sync_cfg: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Reduced-order plasma sync kernel (phase reduction).
+    """Advance the example reduced-order oscillator model by one step.
 
     dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
 
     Ψ is exogenous when psi_mode="external" (no dotΨ equation).
-    This is the reviewer's ζ sin(Ψ−θ) injection for plasma sync stability.
+    This evaluates the declared phase equation only. It is not a plasma-control
+    law or a reactor feedback loop.
 
     Parameters
     ----------
@@ -59,6 +61,8 @@ def phase_sync_step(
     K, alpha, zeta, psi_driver, psi_mode, actuation_gain :
         Optional overrides; when ``None``, values are taken from
         ``phase_sync_cfg`` with documented defaults.
+        ``actuation_gain`` is a dimensionless model scale retained for the live
+        cross-repository API; it is not a physical actuator command.
     phase_sync_cfg :
         Optional mapping of defaults (typically
         ``FusionKernel.cfg["phase_sync"]``).
@@ -95,7 +99,7 @@ def phase_sync_step_lyapunov(
     psi_mode: str | None = None,
     phase_sync_cfg: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Multi-step phase sync with Lyapunov stability tracking.
+    """Run the example phase model with Lyapunov trajectory diagnostics.
 
     Returns final state, R trajectory, V trajectory, and λ exponent.
     λ < 0 ⟹ stable convergence toward Ψ.

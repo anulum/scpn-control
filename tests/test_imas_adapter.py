@@ -207,8 +207,8 @@ def test_geqdsk_import_does_not_fabricate_current_density(tmp_path: Path) -> Non
     assert snapshot.vacuum_toroidal_field_t == -2.1
 
 
-def test_legacy_facade_warns_and_forwards_real_omas() -> None:
-    """Keep deprecated names truthful while forwarding through real OMAS."""
+def test_legacy_facade_warns_and_forwards_backend_neutral_data() -> None:
+    """Keep backend-neutral deprecated names truthful without optional extras."""
     with pytest.warns(DeprecationWarning, match="EquilibriumIDS"):
         legacy = EquilibriumIDS(
             r=np.array([1.0, 2.0]),
@@ -228,6 +228,21 @@ def test_legacy_facade_warns_and_forwards_real_omas() -> None:
     assert legacy.time == 0.0
     with pytest.warns(DeprecationWarning, match="to_kernel_arrays"):
         assert to_kernel_arrays(legacy)["J_phi"].shape == (2, 2)
+
+
+def test_legacy_omas_facade_warns_and_forwards_real_omas() -> None:
+    """Forward deprecated OMAS names when the optional real backend is present."""
+    pytest.importorskip("omas", reason="real OMAS backend is an optional dependency")
+    with pytest.warns(DeprecationWarning, match="EquilibriumIDS"):
+        legacy = EquilibriumIDS(
+            r=np.array([1.0, 2.0]),
+            z=np.array([-1.0, 1.0]),
+            psi=np.zeros((2, 2)),
+            j_tor=np.ones((2, 2)),
+            ip=1.0e6,
+            b0=2.0,
+            r0=1.5,
+        )
     with pytest.warns(DeprecationWarning, match="to_omas"):
         ods = to_omas(legacy)
     with pytest.warns(DeprecationWarning, match="from_omas"):

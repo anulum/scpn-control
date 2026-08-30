@@ -8,6 +8,10 @@
 """
 Async WebSocket server streaming RealtimeMonitor tick snapshots.
 
+The stream transports an example oscillator-model state. It does not ingest a
+reactor plant state or send physical actuator commands, and transport security
+evidence does not establish reactor-control validity.
+
 Start standalone::
 
     python -m scpn_control.phase.ws_phase_stream --port 8765
@@ -307,7 +311,7 @@ def _runtime_config_sha256(payload: Mapping[str, Any]) -> str:
 
 @dataclass
 class PhaseStreamServer:
-    """Async WebSocket server wrapping a RealtimeMonitor."""
+    """Async WebSocket transport for example oscillator-model snapshots."""
 
     monitor: RealtimeMonitor
     tick_interval_s: float = 0.001

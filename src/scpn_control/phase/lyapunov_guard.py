@@ -14,11 +14,12 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Real-time Lyapunov stability guardrail for phase-sync control loops.
+Sliding-window Lyapunov diagnostic for phase-model trajectories.
 
 Monitors V(t) = (1/N) Σ (1 − cos(θ_i − Ψ)) over a sliding window.
 When the Lyapunov exponent λ > 0 for K consecutive windows, the guard
-flags instability and can trigger a halt or parameter clamp.
+flags growth in the model trajectory. The verdict is not a reactor safety or
+actuator admission decision.
 
 Interface mirrors DIRECTOR_AI's CoherenceScorer pattern:
     guard.check(theta, psi) → LyapunovVerdict

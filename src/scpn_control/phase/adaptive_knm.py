@@ -14,7 +14,7 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 r"""
-Online-adaptive coupling matrix K(t) driven by tokamak diagnostics.
+Example adaptive coupling matrix K(t) driven by diagnostic-shaped inputs.
 
 Each control tick, diagnostic signals (β_N, disruption risk, Mirnov RMS,
 per-layer order parameters) modulate the baseline Knm through independent
@@ -27,9 +27,10 @@ channels:
   5. Symmetry/pos:     K = ½(K+Kᵀ), K ≥ 0
   6. Guard veto:       if guard_approved=False → revert to last known-good K
 
-The adaptation gains are bounded local-control heuristics. They are not
-facility-calibrated stability laws and should be admitted for public claims only
-through benchmark or validation evidence that records its operating context.
+The field names use tokamak terminology, but this module does not acquire those
+signals from a reactor, identify the oscillator state from them, or map K(t) to
+a physical actuator. The adaptation gains are bounded model heuristics, not
+facility-calibrated stability laws or a reactor feedback loop.
 """
 
 from __future__ import annotations
@@ -45,7 +46,7 @@ from scpn_control.phase.knm import KnmSpec
 
 @dataclass(frozen=True)
 class DiagnosticSnapshot:
-    """Per-tick plasma diagnostic bundle.
+    """Per-tick diagnostic-shaped input bundle for the oscillator example.
 
     Attributes
     ----------
@@ -109,9 +110,11 @@ class AdaptiveKnmConfig:
 
 
 class AdaptiveKnmEngine:
-    """Diagnostic-driven online adaptation of the Knm coupling matrix.
+    """Diagnostic-shaped adaptation of the example Knm coupling matrix.
 
-    Holds a baseline K from a KnmSpec and produces K_adapted each tick.
+    Holds a baseline K from a KnmSpec and produces K_adapted each tick. It does
+    not identify the mapping from reactor measurements to oscillator state or
+    issue a plant command.
     """
 
     def __init__(

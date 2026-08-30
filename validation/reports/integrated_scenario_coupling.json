@@ -3,7 +3,7 @@
   "metadata": {
     "all_profiles_finite": true,
     "claim_status": "bounded replay audit only; external trajectory validation required",
-    "config_sha256": "3ae46cdbb648419791de885b6fea1230f02d34ce352052735030d328ca1a508d",
+    "config_sha256": "da7ebe264129ff8a2e5f18ebd21c2d19493cf4e8e12a223bacdb6e4bb6bd58ee",
     "dt_s": 0.01,
     "enabled_modules": [
       "transport",

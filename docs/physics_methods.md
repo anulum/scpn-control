@@ -509,8 +509,10 @@ $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \
   Lyapunov exponent helper validates positive finite timesteps and finite,
   non-negative sampled histories; it floors endpoint values before applying
   `ln(V_final/V_initial)` and measures elapsed time as
-  `(n_samples - 1) * dt`. This validates the synchronisation physics only; it is
-  not a validated plasma-phase control law.
+  `(n_samples - 1) * dt`. This validates the declared mean-field oscillator
+  mathematics only. The UPDE layers, diagnostic-shaped Knm adaptation, and
+  stream monitor are examples without reactor-signal identification, a coupled
+  plant, or an actuator map; they are not a validated plasma-phase control law.
 
 ### What this section is for
 

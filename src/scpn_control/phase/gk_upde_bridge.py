@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK → UPDE Phase Dynamics Bridge
 """
-Bridge between gyrokinetic transport fluxes and the 8-layer UPDE Kuramoto phase dynamics system.
+Example parameter mapping from gyrokinetic output to a phase model.
 
 Maps GK-computed growth rates and diffusivities into adaptive K_nm
 coupling modulation for layers P0 (microturbulence), P1 (zonal flows),
@@ -17,6 +17,11 @@ Reference layer mappings:
   P1 ← chi_e suppression ratio: zonal flow damping of transport
   P4 ← chi_i pedestal / chi_i core: transport barrier strength
   P5 ← bootstrap current contribution (via pressure gradient)
+
+The mapping is not connected to the integrated reactor scenario, does not
+advance UPDE, and does not produce an actuator command. Its gains and abstract
+layer assignments are research hypotheses that require scenario-specific
+identification before any reactor interpretation.
 """
 
 from __future__ import annotations

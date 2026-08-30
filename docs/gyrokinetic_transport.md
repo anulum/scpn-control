@@ -144,9 +144,10 @@ QLKNN surrogate (µs)
 | `gk_online_learner.py` | Buffer-based retraining with validation holdout + rollback |
 | `gk_verification_report.py` | Per-session stats, JSON export |
 
-## SCPN Phase Bridge
+## Example GK-to-phase parameter mapping
 
-GK fluxes modulate the 8-layer UPDE Kuramoto coupling matrix:
+The standalone helper maps GK outputs onto selected entries of an illustrative
+8-layer UPDE/Kuramoto coupling matrix:
 
 | Coupling | GK Input | Physics |
 |----------|----------|---------|
@@ -159,6 +160,11 @@ from scpn_control.phase.gk_upde_bridge import adaptive_knm
 
 K_adapted = adaptive_knm(K_base, gk_output, chi_i_profile=chi_i)
 ```
+
+This calculation is not connected to the integrated reactor scenario and does
+not close a feedback loop. The layer mapping and gains are uncalibrated research
+hypotheses; reactor use requires scenario-specific identification and causal
+plant-to-controller-to-actuator simulation evidence.
 
 ## References
 

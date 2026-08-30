@@ -125,7 +125,7 @@ review. The package provides the contract layer between those worlds.
 
 | Boundary | SCPN Control role | What still belongs elsewhere |
 | --- | --- | --- |
-| Controller design | SPN/SNN, NMPC, robust control, phase dynamics, digital-twin control contracts | Site-specific PCS implementation and operator procedures |
+| Controller design | SPN/SNN, NMPC, robust control, and digital-twin control contracts; phase-oscillator research models | Site-specific PCS implementation, reactor-specific oscillator identification, and operator procedures |
 | Physics coupling | Control-grade facades, differentiable paths, replay metadata, validation admission | Broad solver development and full physics campaigns, primarily in SCPN Fusion Core or external codes |
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
@@ -259,7 +259,7 @@ Full walkthrough: `python examples/quickstart.py`
   - `examples/q10_breakeven_demo.ipynb`
   - `examples/snn_compiler_walkthrough.ipynb`
   - `examples/paper27_phase_dynamics_demo.ipynb` — Knm/UPDE + ζ sin(Ψ−θ)
-  - `examples/snn_pac_closed_loop_demo.ipynb` — SNN-PAC-Kuramoto closed loop
+  - `examples/snn_pac_closed_loop_demo.ipynb` — model-internal SNN-PAC-Kuramoto loop
   - `examples/streamlit_ws_client.py` — live WebSocket phase sync dashboard
 
 Build docs locally:
@@ -404,7 +404,9 @@ tests/                 # 569 Python test files (generated inventory)
 ## Paper 27 Phase Dynamics (Knm/UPDE Engine)
 
 Implements the generalized Kuramoto-Sakaguchi mean-field model with exogenous
-global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
+global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27. This
+is an oscillator-model research surface, not a reactor feedback loop: no
+reactor-signal identification, plant state, or actuator mapping is present.
 
 **Modules:** `src/scpn_control/phase/` (9 modules)
 
@@ -414,12 +416,12 @@ global field driver `ζ sin(Ψ − θ)`, per arXiv:2004.06344 and SCPN Paper 27.
 | `knm.py` | Paper 27 16×16 coupling matrix (exponential decay + calibration anchors) |
 | `upde.py` | UPDE multi-layer solver with PAC gating |
 | `lyapunov_guard.py` | Sliding-window stability monitor (mirrors DIRECTOR_AI CoherenceScorer) |
-| `realtime_monitor.py` | Tick-by-tick UPDE + TrajectoryRecorder (HDF5/NPZ export) |
+| `realtime_monitor.py` | Tick-by-tick model snapshots + TrajectoryRecorder (HDF5/NPZ export) |
 | `ws_phase_stream.py` | Async WebSocket server streaming R/V/λ per tick |
 
 **Rust acceleration:** `upde_tick()` in `control-math` + `PyRealtimeMonitor` PyO3 binding.
 
-**Live phase sync convergence** ([GIF fallback](docs/phase_sync_live.gif)):
+**Streamed phase-model convergence** ([GIF fallback](docs/phase_sync_live.gif)):
 
 <p align="center">
   <video src="docs/phase_sync_live.mp4" autoplay loop muted playsinline width="100%">

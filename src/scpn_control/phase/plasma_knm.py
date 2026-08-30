@@ -7,18 +7,20 @@
 # SCPN Control — Plasma Knm.
 
 # ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Plasma-Native Knm Coupling Matrix
+# SCPN Control — Plasma-Labelled Example Knm Coupling Matrix
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 r"""
-Plasma-specific Knm coupling matrices for tokamak phase dynamics.
+Illustrative plasma-labelled Knm matrices for phase-model research.
 
-Maps the UPDE multi-layer Kuramoto framework onto physically motivated
-plasma timescale hierarchies.  Each layer represents a distinct plasma
-process; coupling strengths encode known physics interactions.
+This module maps an UPDE/Kuramoto example onto a hand-selected hierarchy of
+plasma-process labels. The cited literature motivates possible relationships,
+but the numeric frequencies, coupling strengths, mode multipliers, and layer
+mapping are not identified from reactor data or a coupled plant simulation.
+They must not be treated as a reactor observer, controller, or universal law.
 
 Layer hierarchy (8-layer default)
 ---------------------------------
@@ -53,11 +55,11 @@ Modes
 ``build_knm_plasma`` accepts a ``mode`` argument that biases the coupling
 matrix toward the dominant instability:
 
-  baseline : Standard H-mode operating point
-  elm      : ELM-dominated (enhanced P3↔P4 coupling)
-  ntm      : NTM-dominated (enhanced P2↔P5 coupling)
-  sawtooth : Sawtooth-dominated (enhanced P3↔P5 coupling)
-  hybrid   : Advanced scenario (balanced, higher overall coupling)
+  baseline : unmodified illustrative matrix
+  elm      : example P3↔P4 emphasis
+  ntm      : example P2↔P5 emphasis
+  sawtooth : example P3↔P5 emphasis
+  hybrid   : example uniform coupling increase
 """
 
 from __future__ import annotations
@@ -103,8 +105,8 @@ PLASMA_LAYER_NAMES_16: tuple[str, ...] = (
     "plasma_wall_recycling",
 )
 
-# Natural frequencies [rad/s] — order-of-magnitude representative
-# timescales for each process, derived from diagnostic observations.
+# Natural frequencies [rad/s] — illustrative order-of-magnitude labels.
+# They are not fitted to a named diagnostic campaign or reactor scenario.
 #
 # P0 micro:  ~100 kHz drift-wave → ω ~ 6.28e5 (normalised below)
 # P1 zonal:  ~1 kHz GAM frequency → ω ~ 6.28e3
@@ -183,11 +185,10 @@ def _base_plasma_knm(L: int = 8, K_base: float = 0.30) -> NDArray[np.float64]:
 
 
 def _apply_physics_couplings(K: NDArray[np.float64]) -> None:
-    """Overlay physically motivated nearest-neighbour couplings.
+    """Overlay literature-motivated example couplings.
 
-    Values are dimensionless coupling strengths calibrated so the
-    Kuramoto model reproduces qualitative multi-scale synchronisation
-    patterns observed in DIII-D and JET.
+    The constants are hand-selected model parameters. They have not been
+    calibrated against DIII-D, JET, or another named reactor campaign.
     """
     L = K.shape[0]
     if L < 8:
@@ -302,7 +303,7 @@ def build_knm_plasma(
     custom_overrides: dict[tuple[int, int], float] | None = None,
     layer_names: Sequence[str] | None = None,
 ) -> KnmSpec:
-    """Build a plasma-native Knm coupling matrix.
+    """Build a plasma-labelled example Knm coupling matrix.
 
     Parameters
     ----------

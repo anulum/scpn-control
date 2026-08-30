@@ -4,12 +4,16 @@ Demonstrates the integration of **SCPN Paper 27** (*The Knm Matrix: A Simulation
 Framework for Modelling Multi-Scale Bidirectional Causality*) into the
 scpn-control tokamak control repo.
 
+This is an example oscillator-model study, not a reactor feedback loop. The
+abstract layers and coefficients have not been identified from reactor signals,
+and none of the examples reads plant state or issues a physical actuator command.
+
 **What this notebook covers:**
 
 1. **Kuramoto–Sakaguchi + ζ sin(Ψ−θ) global driver** — single-layer mean-field
 2. **Paper 27 Knm matrix** — 16×16 coupling with calibration anchors
 3. **Multi-layer UPDE** — 16 SCPN layers coupled through Knm
-4. **FusionKernel.phase_sync_step()** — reviewer's ζ injection into fusion path
+4. **FusionKernel.phase_sync_step()** — compatibility wrapper for the same oscillator model
 5. **Convergence analysis** — R(t) trajectories and per-layer coherence
 
 References:
@@ -249,15 +253,14 @@ plt.tight_layout()
 plt.show()
 ```
 
-## 6. Plasma Sync via FusionKernel.phase_sync_step()
+## 6. Oscillator Model via FusionKernel.phase_sync_step()
 
 The reviewer requested ζ sin(Ψ−θ) inside the fusion kernel path.
-Here we simulate a population of 128 plasma mode oscillators
-(representing ELM pacing, tearing modes, edge oscillations) and
-show the phase-reduction kernel converging under the global driver.
+Here we simulate a population of 128 abstract oscillators and show the declared
+phase-reduction equation converging under the global driver.
 
-This uses `FusionKernel.phase_sync_step()` directly — the same
-entry point a real control loop would call.
+This uses `FusionKernel.phase_sync_step()` directly. The wrapper does not use
+the kernel equilibrium, reactor diagnostics, or a physical actuator.
 
 
 ```python
@@ -318,7 +321,7 @@ axes[0].plot(np.arange(n_fk_steps) * dt_fk, R_fk, color="navy", lw=2)
 axes[0].axhline(0.95, color="red", ls="--", lw=1, label="Theurgic threshold")
 axes[0].set_xlabel("Time (s)")
 axes[0].set_ylabel("R (plasma mode coherence)")
-axes[0].set_title("FusionKernel.phase_sync_step() — Plasma Sync")
+axes[0].set_title("FusionKernel.phase_sync_step() — Oscillator Model")
 axes[0].legend(fontsize=9)
 axes[0].set_ylim(0, 1.05)
 
@@ -347,12 +350,11 @@ plt.tight_layout()
 plt.show()
 ```
 
-## 7. Actuation Gain Sweep — Control Authority
+## 7. Model-Gain Sensitivity Sweep
 
-The `actuation_gain` parameter scales both K and ζ, modelling how
-the controller's authority over the plasma mode ensemble increases.
-This maps directly to SNN or PID output amplitude in a closed-loop
-control scenario.
+The cross-repository parameter named `actuation_gain` scales both K and ζ. In
+this example it is only a dimensionless model sensitivity parameter; no mapping
+to a reactor actuator or controller output has been identified.
 
 
 ```python
@@ -373,7 +375,7 @@ for gain in gains:
 
 ax.set_xlabel("Time (s)")
 ax.set_ylabel("R")
-ax.set_title("Actuation Gain Sweep — FusionKernel Phase Sync")
+ax.set_title("Model-Gain Sweep — FusionKernel Oscillator Response")
 ax.legend(fontsize=9)
 ax.set_ylim(0, 1.05)
 plt.tight_layout()
@@ -442,12 +444,11 @@ print(f"Lyapunov monotonicity violations (dV > 1e-6): {violations}/{n_ly-1}")
 print(f"V: {V_hist[0]:.4f} → {V_hist[-1]:.6f}")
 ```
 
-## 9. SNN Controller Output → Phase Sync (Closed-Loop Sketch)
+## 9. Synthetic Gain Signal → Phase Model
 
-In a real control loop, the SNN controller output maps to `actuation_gain`
-and optionally to `psi_driver` (carrier phase tracking a reference).
-Below is a toy sketch showing how a sinusoidal SNN output modulates
-the phase sync kernel's authority over plasma modes.
+Below, a synthetic scalar signal modulates `actuation_gain` inside the
+oscillator equation. It is a model-internal sensitivity experiment, not a
+reactor observation-to-controller-to-actuator loop.
 
 
 ```python
@@ -481,23 +482,22 @@ ax1.set_ylim(0, 1.05)
 
 ax2 = ax1.twinx()
 ax2.plot(t_cl, gain_cl, color="darkorange", lw=1.5, ls="--", label="SNN gain(t)")
-ax2.set_ylabel("actuation_gain", color="darkorange")
+ax2.set_ylabel("model gain", color="darkorange")
 
 lines1, labels1 = ax1.get_legend_handles_labels()
 lines2, labels2 = ax2.get_legend_handles_labels()
 ax1.legend(lines1 + lines2, labels1 + labels2, fontsize=9, loc="center right")
-ax1.set_title("Closed-Loop Sketch: SNN Output → Phase Sync Gain → Plasma R(t)")
+ax1.set_title("Synthetic Gain Signal → Oscillator Coherence R(t)")
 plt.tight_layout()
 plt.show()
 ```
 
-## 10. Full PAC Cross-Layer SNN Closed-Loop
+## 10. Model-Internal PAC/SNN Feedback Example
 
-A dual-pool SNN controls two plasma mode ensembles (low-frequency MHD
-modes on L2, high-frequency edge oscillations on L7). The SNN error
-signal comes from the per-layer R deficit. PAC gating cross-couples
-the layers: when L2 decoherence rises, L7 coupling strengthens and
-vice versa — modelling the cross-frequency coupling in Paper 27 §4.3.
+A dual-pool SNN feeds back on two abstract oscillator ensembles. The error
+signal comes from the per-layer R deficit, and PAC gating cross-couples the
+example layers. This demonstrates an internally closed numerical model only;
+it does not establish a reactor signal mapping or plant response.
 
 
 ```python
@@ -550,7 +550,7 @@ for m in range(L_pac):
     axes[1].plot(t_snn, gains_snn[:, m], lw=1.2, label=layer_labels[m])
 axes[1].set_xlabel("Time (s)")
 axes[1].set_ylabel("SNN gain")
-axes[1].set_title("SNN Proportional Controller — Actuation Gains")
+axes[1].set_title("Model-Internal Proportional Feedback Gains")
 axes[1].legend(fontsize=8, ncol=5)
 
 plt.tight_layout()
@@ -561,13 +561,13 @@ plt.show()
 
 | Component | Location | Status |
 |-----------|----------|--------|
-| Kuramoto–Sakaguchi + ζ sin(Ψ−θ) | `scpn_control.phase.kuramoto` | Verified |
-| Paper 27 Knm (16×16) | `scpn_control.phase.knm` | Calibration anchors match |
+| Kuramoto–Sakaguchi + ζ sin(Ψ−θ) | `scpn_control.phase.kuramoto` | Declared model behaviour exercised |
+| Paper 27 Knm (16×16) | `scpn_control.phase.knm` | Manuscript anchors reproduced; not reactor-calibrated |
 | Multi-layer UPDE | `scpn_control.phase.upde` | 16-layer convergence shown |
-| FusionKernel hook | `FusionKernel.phase_sync_step()` | Config-driven, non-invasive |
+| FusionKernel hook | `FusionKernel.phase_sync_step()` | Compatibility wrapper; no plant coupling |
 | Lyapunov stability | V(t) = (1/N)Σ(1−cos(θ−Ψ)) | Monotonic decay confirmed |
 | Rust Kuramoto kernel | `control-math::kuramoto` | Rayon-parallelised, 7/7 tests |
-| PAC cross-layer SNN | Notebook §10 | Dual-pool, per-layer gain control |
+| PAC cross-layer SNN | Notebook §10 | Model-internal dual-pool gain feedback |
 | Markdown export | `docs/paper27_phase_dynamics.md` | Auto-generated from notebook |
 
 ## Practical use and scope

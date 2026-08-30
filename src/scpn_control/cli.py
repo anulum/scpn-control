@@ -725,9 +725,10 @@ def live(
     tls_cert: str | None,
     tls_key: str | None,
 ) -> None:
-    """Start real-time WebSocket phase sync server.
+    """Start the WebSocket oscillator-model stream.
 
-    Streams Kuramoto R/V/lambda tick snapshots over ws://<host>:<port>.
+    Streams Kuramoto R/V/lambda model snapshots over ws://<host>:<port>.
+    This command does not connect to reactor diagnostics or actuators.
     Connect with: examples/streamlit_ws_client.py or any WS client.
     """
     import logging
@@ -748,7 +749,7 @@ def live(
         tls_context.load_cert_chain(tls_cert, tls_key)
 
     scheme = "wss" if tls_context is not None else "ws"
-    click.echo(f"Starting phase sync server on {scheme}://{host}:{port}")
+    click.echo(f"Starting phase-model stream on {scheme}://{host}:{port}")
     click.echo(f"  L={layers}, N_per={n_per}, zeta={zeta}, psi={psi}")
     click.echo("  Ctrl-C to stop")
 

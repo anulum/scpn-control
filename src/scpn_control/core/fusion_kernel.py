@@ -1597,12 +1597,15 @@ class FusionKernel:
         psi_mode: str | None = None,
         actuation_gain: float | None = None,
     ) -> dict[str, Any]:
-        """Reduced-order plasma sync kernel (phase reduction).
+        """Advance the example reduced-order oscillator model by one step.
 
         dθ_i/dt = ω_i + K·R·sin(ψ_r − θ_i − α) + ζ·sin(Ψ − θ_i)
 
         Ψ is exogenous when psi_mode="external" (no dotΨ equation).
-        This is the reviewer's ζ sin(Ψ−θ) injection for plasma sync stability.
+        This compatibility wrapper does not consume the kernel's equilibrium,
+        change plant state, or issue an actuator command. ``actuation_gain`` is
+        a dimensionless model scale retained for the live FUSION contract, not
+        evidence of reactor-control authority.
         """
         return _gs_phase.phase_sync_step(
             theta,
@@ -1629,10 +1632,10 @@ class FusionKernel:
         psi_driver: float | None = None,
         psi_mode: str | None = None,
     ) -> dict[str, Any]:
-        """Multi-step phase sync with Lyapunov stability tracking.
+        """Run the example phase model with Lyapunov trajectory diagnostics.
 
         Returns final state, R trajectory, V trajectory, and λ exponent.
-        λ < 0 ⟹ stable convergence toward Ψ.
+        λ < 0 indicates convergence toward Ψ in this oscillator model only.
         """
         return _gs_phase.phase_sync_step_lyapunov(
             theta,

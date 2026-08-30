@@ -54,7 +54,6 @@ from scpn_control.core.current_diffusion import (
 )
 from scpn_control.core.current_drive import CurrentDriveMix, ECCDSource, NBISource
 from scpn_control.core.elm_model import ELMCrashModel, ELMCycler, PeelingBallooningBoundary
-from scpn_control.core.gk_interface import GKOutput
 from scpn_control.core.integrated_scenario_presets import (
     JsonScalar as JsonScalar,
 )
@@ -103,7 +102,6 @@ from scpn_control.core.stability_mhd import (
     troyon_beta_limit,
 )
 from scpn_control.core.tearing_mode_coupling import SawtoothNTMSeeding
-from scpn_control.phase.gk_upde_bridge import adaptive_knm, gk_natural_frequencies
 
 # ── Physical constants (CODATA 2018) ─────────────────────────────────────────
 _E_CHARGE: float = 1.602176634e-19  # C
@@ -302,11 +300,6 @@ class IntegratedScenarioSimulator:
 
         # L-H transition threshold
         self.lh_threshold = MartinThreshold()
-
-        # Phase bridge state (populated when include_phase_bridge=True)
-        self._phase_K_nm: FloatArray | None = None
-        self._phase_omega: FloatArray | None = None
-        self._last_gk_output: GKOutput | None = None
 
     # ── initialisation ────────────────────────────────────────────────────────
 
@@ -785,27 +778,6 @@ class IntegratedScenarioSimulator:
 
         # ── (a) half-step transport ───────────────────────────────────────────
         self._transport_step(dt_half, q_prof)
-
-        # ── phase bridge: GK output → K_nm modulation ────────────────────────
-        if self.config.include_phase_bridge and self._last_gk_output is not None:
-            from scpn_control.phase.plasma_knm import build_knm_plasma
-
-            if self._phase_K_nm is None:
-                knm_spec = build_knm_plasma()
-                self._phase_K_nm = knm_spec.K.copy()
-                self._phase_omega = np.zeros(knm_spec.K.shape[0])
-
-            chi_i_profile = self._chi_total(q_prof)
-            self._phase_K_nm = adaptive_knm(
-                self._phase_K_nm,
-                self._last_gk_output,
-                chi_i_profile=chi_i_profile,
-            )
-            if self._phase_omega is not None:  # pragma: no branch - omega set with K_nm, never None here; #129
-                self._phase_omega = gk_natural_frequencies(
-                    self._phase_omega,
-                    self._last_gk_output,
-                )
 
         # ── (b) full-step current drive + bootstrap + current diffusion ───────
         j_bs = sauter_bootstrap(

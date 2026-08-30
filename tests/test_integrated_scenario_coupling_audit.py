@@ -47,7 +47,6 @@ def _minimal_config(**overrides: object) -> ScenarioConfig:
         include_sol=False,
         include_elm=False,
         include_stability=False,
-        include_phase_bridge=False,
     )
     if not overrides:
         return base
@@ -156,7 +155,6 @@ def test_exchange_for_module_covers_optional_lanes() -> None:
         include_sol=True,
         include_elm=True,
         include_stability=True,
-        include_phase_bridge=True,
     )
     modules = enabled_scenario_modules(cfg)
     sim = IntegratedScenarioSimulator(cfg)

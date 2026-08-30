@@ -82,7 +82,7 @@ and funders because it turns ambiguous demonstrations into auditable evidence.
 
 | Application | Immediate value | Evidence still required for stronger claims |
 | --- | --- | --- |
-| Controller concept review | Prototype SPN/SNN, NMPC, robust, phase, and digital-twin controllers with explicit assumptions | HIL replay, target-hardware timing, independent safety review |
+| Controller concept review | Prototype SPN/SNN, NMPC, robust, and digital-twin controllers plus phase-oscillator research models with explicit assumptions | Reactor-specific oscillator identification, HIL replay, target-hardware timing, independent safety review |
 | Neural equilibrium preparation | Prepare public MAST EFM datasets, launch reports, and result templates without hiding blockers | Executed full-output training, holdout metrics, latency/GPU-cost reports, EFIT/P-EFIT admission |
 | Differentiable control tuning | Use JAX transport/equilibrium paths and gradient evidence for optimisation experiments | External physics validation and target-hardware timing evidence |
 | Gyrokinetic validation | Persist CPU/GPU backend parity and local bounded reports | Real GENE, TGLF, GS2, CGYRO, or QuaLiKiz comparison artefacts |

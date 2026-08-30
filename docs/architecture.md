@@ -214,8 +214,9 @@ rebuilding the whole system:
 - **Plant models (Core)** evolve state and produce physics-ready observables.
 - **Controllers (Control)** convert those observables into actions under explicit
   constraints.
-- **Phase dynamics (Phase)** manage timing and synchronization artifacts that are
-  hard to model as low-order linear systems.
+- **Phase dynamics (Phase)** evaluate example oscillator models and stream their
+  state. They do not currently identify oscillators from reactor signals or
+  close a plant-actuator feedback loop.
 - **Execution boundary (Rust/Python)** defines where hard-time and safety-critical
   work must stay deterministic and where Python orchestration can remain
   high-level.

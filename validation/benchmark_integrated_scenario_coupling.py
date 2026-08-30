@@ -28,7 +28,6 @@ MD_REPORT = REPORT_DIR / "integrated_scenario_coupling.md"
 
 def benchmark_config() -> ScenarioConfig:
     """Return a deterministic compact scenario exercising all control exchanges."""
-
     return ScenarioConfig(
         R0=0.93,
         a=0.58,
@@ -49,13 +48,12 @@ def benchmark_config() -> ScenarioConfig:
         include_sol=True,
         include_elm=False,
         include_stability=True,
-        include_phase_bridge=False,
     )
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic scenario replay audit and write reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
 
     cfg = benchmark_config()
     sim = IntegratedScenarioSimulator(cfg)
@@ -74,14 +72,6 @@ def main() -> None:
     MD_REPORT.write_text(
         "\n".join(
             [
-                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                "<!-- Commercial license available -->",
-                "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- ORCID: 0009-0009-3560-0851 -->",
-                "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                "<!-- SCPN Control — Integrated scenario coupling benchmark report -->",
-                "",
                 "# Integrated Scenario Coupling Benchmark",
                 "",
                 "This report is bounded deterministic replay evidence for the",

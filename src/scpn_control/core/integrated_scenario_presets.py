@@ -130,8 +130,6 @@ class ScenarioConfig:
         Enable the edge-localised-mode model.
     include_stability
         Enable the MHD stability checks.
-    include_phase_bridge
-        Enable the Kuramoto phase-bridge coupling.
     use_transport_solver
         Use the full transport solver instead of the analytic profiles.
     """
@@ -166,7 +164,6 @@ class ScenarioConfig:
     include_sol: bool = True
     include_elm: bool = True
     include_stability: bool = True
-    include_phase_bridge: bool = False
     use_transport_solver: bool = False
 
 
@@ -247,6 +244,4 @@ def enabled_scenario_modules(config: ScenarioConfig) -> tuple[str, ...]:
         modules.append("elm")
     if config.include_stability:
         modules.append("mhd_stability")
-    if config.include_phase_bridge:
-        modules.append("phase_bridge")
     return tuple(modules)

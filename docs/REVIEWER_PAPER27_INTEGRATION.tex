@@ -50,12 +50,15 @@ This document summarises the integration of SCPN Paper~27
 repository.  The implementation adds a multi-layer Unified Phase Dynamics
 Equation (UPDE) engine with Kuramoto--Sakaguchi mean-field coupling,
 the reviewer-requested exogenous global field driver
-$\zeta\sin(\Psi-\theta)$, a Rayon-parallelised Rust kernel for sub-ms
-performance, Lyapunov stability tracking ($V(t)$, $\lambda$ exponent),
-and a \texttt{LyapunovGuard} safety guardrail synchronised with the
-DIRECTOR\_AI coherence framework.  53 tests (44~Python + 9~Rust), all
-passing.  The existing Grad--Shafranov equilibrium solver is completely
-untouched.
+$\zeta\sin(\Psi-\theta)$, a Rayon-parallelised Rust kernel with
+benchmark-context timing, Lyapunov stability tracking ($V(t)$, $\lambda$ exponent),
+and a \texttt{LyapunovGuard} model-trajectory guard synchronised with the
+DIRECTOR\_AI coherence framework. The historical integration inventory listed
+53 tests (44~Python + 9~Rust); current status is governed by live CI and
+coverage reports. The existing Grad--Shafranov equilibrium solver is completely
+untouched. This is an example oscillator-model integration, not a reactor
+feedback loop: no reactor diagnostics, identified parameters, plant state, or
+physical actuator close the numerical model.
 \end{abstract}
 
 \tableofcontents
@@ -74,7 +77,7 @@ Specifically:
         dynamics} (no $\dot\Psi$ equation).
   \item The full 16-layer $K_{nm}$ coupling matrix with calibration anchors
         and cross-hierarchy boosts.
-  \item A Rust sub-ms kernel (Rayon-parallelised).
+  \item A Rayon-parallelised Rust kernel with context-bound timing evidence.
   \item PAC cross-layer SNN sketch.
   \item A demo notebook with visualisations and a markdown/\LaTeX{} export.
 \end{enumerate}
@@ -99,7 +102,7 @@ where the Kuramoto order parameter (Eq.~12) is:
 
 \begin{itemize}
   \item $K_{mm}$ (diagonal): intra-layer synchronisation strength.
-  \item $K_{nm}$ (off-diagonal): inter-layer bidirectional causality.
+  \item $K_{nm}$ (off-diagonal): declared inter-layer model coupling.
   \item $\zeta\sin(\Psi-\theta)$: exogenous global field driver ---
         $\Psi$ resolved externally or from mean-field.
   \item $\alpha_{nm}$: Sakaguchi phase-lag frustration (optional).
@@ -161,7 +164,7 @@ Reference: arXiv:2004.06344 (generalised Kuramoto--Sakaguchi finite-size).
     {UPDESystem.step() [Eq.\,14]};
 
   \node[box, right=1.5cm of kss, fill=red!8, minimum width=3cm] (rust)
-    {Rust fast-path\\[-2pt]\normalfont\scriptsize rayon, sub-ms, N>1000};
+    {Rust fast-path\\[-2pt]\normalfont\scriptsize rayon, context-bound timing};
 
   \draw[->] (ps) -- (phase);
   \draw[->] (kss) -- (rust);
@@ -273,6 +276,9 @@ NumPy arrays.
 Median wall-time for a single \texttt{kuramoto\_sakaguchi\_step()} with
 $\zeta=0.5$, $\Psi=0.3$.  Python: NumPy vectorised (single-thread).
 Rust: Rayon \texttt{par\_chunks\_mut(64)} + \texttt{criterion} harness.
+These historical values are orientation-only: this reviewer record does not
+bind the current source revision, host, or concurrent machine load, so it makes
+no hardware-neutral timing claim.
 
 \begin{table}[h]
 \centering
@@ -290,7 +296,8 @@ Rust: Rayon \texttt{par\_chunks\_mut(64)} + \texttt{criterion} harness.
 \caption{Python NumPy vs Rust Rayon Kuramoto step.
 $N=64$: Rust wins on per-element throughput (no NumPy dispatch overhead).
 $N=256$: parity (NumPy SIMD matches rayon at this size).
-$N\geq 1000$: Rust rayon parallelism scales; sub-ms for $N=16\text{k}$.
+$N\geq 1000$: this historical run reports increasing Rust advantage and
+0.544\,ms at $N=16\text{k}$.
 Source: \texttt{benches/bench\_kuramoto.rs} (criterion, quick mode).}
 \label{tab:bench}
 \end{table}
@@ -312,10 +319,11 @@ When a source layer is incoherent (low $R_n$), the gate amplifies coupling,
 implementing the PAC hypothesis that desynchronised layers drive downstream
 amplitude modulation.
 
-\subsection{SNN--PAC--Kuramoto Closed Loop}
+\subsection{SNN--PAC--Kuramoto Model-Internal Feedback}
 
-The SNN closed loop couples LIF spiking networks with the Kuramoto oscillator
-population through a PAC gating mechanism:
+The example couples LIF spiking networks with an abstract Kuramoto oscillator
+population through a PAC gating mechanism. It closes a numerical model loop
+only; no reactor observation or actuator interface is present.
 
 \begin{enumerate}
   \item \textbf{Kuramoto step} $\to$ per-layer $R_m$, $\psi_m$.
@@ -356,7 +364,7 @@ PAC gates modulate the effective inter-layer synaptic weights, creating
 frequency-dependent routing where desynchronised layers preferentially
 drive downstream amplitude modulation.
 
-Demo: notebook \S9 (SNN closed-loop) and \S10 (PAC cross-layer SNN).
+Demo: notebook \S9 (synthetic gain feedback) and \S10 (PAC cross-layer example).
 
 
 %% ──────────────────────────────────────────────────────────────────────
@@ -453,10 +461,10 @@ d = guard.to_director_ai_dict(verdict)
 #  "halt_reason": ""}
 \end{lstlisting}
 
-Enables DIRECTOR\_AI's \texttt{CoherenceAgent} to incorporate Lyapunov stability
-into its dual-entropy coherence score.  When $\lambda > 0$ for 3 consecutive
-windows, the guard issues a refusal --- analogous to DIRECTOR\_AI's
-\texttt{SafetyKernel} emergency stop.
+Enables DIRECTOR\_AI's \texttt{CoherenceAgent} to incorporate the oscillator
+model's Lyapunov metric into its dual-entropy coherence score. When
+$\lambda > 0$ for 3 consecutive windows, the guard refuses the model
+trajectory. This is not a machine-protection or reactor-safety verdict.
 
 
 %% ──────────────────────────────────────────────────────────────────────
@@ -489,14 +497,15 @@ windows, the guard issues a refusal --- analogous to DIRECTOR\_AI's
 %% ──────────────────────────────────────────────────────────────────────
 \section{Test Coverage}
 
-44 Python + 9 Rust tests, all passing.
+Historical integration inventory: 44 Python + 9 Rust tests. Current repository
+status is governed by the live CI and coverage reports rather than this count.
 
 \begin{table}[h]
 \centering
 \small
 \begin{tabular}{@{}lrl@{}}
 \toprule
-\textbf{Test Class} & \textbf{Tests} & \textbf{Verified} \\
+\textbf{Test Class} & \textbf{Tests} & \textbf{Exercised assertion} \\
 \midrule
 \texttt{TestOrderParameter} & 4 & $R=1$ sync, $R\approx 0$ uniform, $R\in[0,1]$, weighted \\
 \texttt{TestWrapPhase} & 2 & Identity in range, large angle wrapping \\
@@ -528,10 +537,10 @@ Rust inline tests & 9 & Order param, wrap, step count, $\zeta$ pull, trajectory,
   \item $\alpha$ frustration --- Sakaguchi phase-lag effect
   \item 16-layer UPDE --- full multi-layer $R$ trajectories
   \item PAC gating --- phase-amplitude coupling modulation
-  \item FusionKernel plasma sync --- tokamak integration
-  \item Gain sweep --- \texttt{actuation\_gain} exploration
+  \item FusionKernel oscillator model --- compatibility wrapper
+  \item Gain sweep --- dimensionless model-gain exploration
   \item Lyapunov stability --- $V(t) = \frac{1}{N}\sum(1-\cos(\theta_i-\Psi))$
-  \item SNN closed-loop --- spike-rate $\to$ $\Psi$ feedback
+  \item Synthetic SNN feedback --- model-internal spike-rate $\to$ $\Psi$
   \item PAC cross-layer SNN --- multi-layer spike routing
 \end{enumerate}
 

@@ -14,7 +14,7 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Unified Phase Dynamics Equation — multi-layer evolution parameterised by the Knm coupling matrix from Paper 27.
+Example multi-layer phase evolution parameterised by a Knm matrix.
 
 Per-layer equation:
     dθ_{m,i}/dt = ω_{m,i}
@@ -24,7 +24,11 @@ Per-layer equation:
 
 K_{mm} (diagonal):     intra-layer synchronisation
 K_{nm} (off-diagonal): inter-layer bidirectional causality
-ζ_m sin(Ψ − θ):       global field driver (reviewer request)
+ζ_m sin(Ψ − θ):       exogenous model driver
+
+This equation is a research example, not a universal reactor law. The package
+does not define how reactor diagnostics map to oscillator state, identify these
+parameters from a discharge, or map model output to a physical actuator.
 """
 
 from __future__ import annotations
@@ -54,7 +58,12 @@ except ImportError:
 
 @dataclass
 class UPDESystem:
-    """Multi-layer UPDE driven by a KnmSpec."""
+    """Evaluate the declared example phase model driven by a ``KnmSpec``.
+
+    The system evolves oscillator arrays only. It does not observe or actuate a
+    reactor plant, and mathematical convergence does not establish reactor
+    monitoring or control validity.
+    """
 
     spec: KnmSpec
     dt: float = 1e-3
@@ -82,7 +91,9 @@ class UPDESystem:
         psi_driver : float or None
             External global field phase Ψ (required if psi_mode="external").
         actuation_gain : float
-            Multiplicative gain on all coupling terms.
+            Multiplicative model gain on all coupling terms. The public name is
+            retained for cross-repository compatibility; it is not a physical
+            actuator command.
         pac_gamma : float
             PAC-like gating: boost inter-layer coupling by
             (1 + pac_gamma·(1 − R_source)).

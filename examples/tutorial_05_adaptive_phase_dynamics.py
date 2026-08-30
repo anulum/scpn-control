@@ -12,10 +12,13 @@
 Demonstrates the Paper 27 Kuramoto-Sakaguchi engine with online adaptation:
   1. Single-layer phase synchronization (order parameter R)
   2. 16-layer UPDE with Paper 27 coupling matrix
-  3. Lyapunov stability guard (safety veto)
-  4. RealtimeMonitor with trajectory recording
-  5. Adaptive Knm engine (plasma-driven coupling updates)
-  6. Full closed-loop: UPDE + adaptive Knm + guard
+  3. Lyapunov trajectory diagnostic
+  4. Phase-model monitor with trajectory recording
+  5. Adaptive Knm example parameter updates
+  6. Model-internal feedback: UPDE + adaptive Knm + diagnostic
+
+This is an example oscillator model, not a reactor feedback loop. Its synthetic
+diagnostics, layer mapping, and coefficients are not reactor-identified.
 
 Usage:
     pip install scpn-control
@@ -228,8 +231,8 @@ from scpn_control.phase.adaptive_knm import (
     DiagnosticSnapshot,
 )
 
-# The adaptive engine modifies K_nm in real-time based on
-# tokamak diagnostic measurements:
+# The adaptive engine modifies K_nm per model tick from synthetic,
+# diagnostic-shaped inputs. No reactor acquisition or actuator is connected:
 #   1. Beta channel:     K *= (1 + β_scale · β_N)
 #   2. MHD risk channel: K[risk_pairs] += risk_gain · disruption_risk
 #   3. Coherence PI:     K[m,m] += PI(R_target - R_m)
@@ -280,22 +283,21 @@ for name, beta_n, q95, risk, mirnov in scenarios:
     print(f"  {name:>16s}  {beta_n:4.1f}  {q95:4.1f}  {risk:5.2f}  {K_mean:7.4f}  {K_delta:7.4f}")
 
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║ Section 6: Full Adaptive Closed Loop                            ║
+# ║ Section 6: Model-Internal Adaptive Feedback                    ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
 print("\n" + "═" * 60)
-print("SECTION 6: Adaptive Closed-Loop Evolution")
+print("SECTION 6: Model-Internal Adaptive Feedback")
 print("═" * 60)
 
-# Full pipeline: UPDE → diagnostics → adaptive Knm → guard check
-# This is the complete real-time monitoring loop.
+# Example pipeline: UPDE → synthetic diagnostics → adaptive Knm → diagnostic.
 
 adaptive_engine = AdaptiveKnmEngine(baseline_spec=spec, config=config)
 monitor_adaptive = RealtimeMonitor.from_paper27(psi_driver=0.0)
 monitor_adaptive.adaptive_engine = adaptive_engine
 
-# Simulate evolving plasma: beta_N ramps 1.5 -> 2.5 over 200 ticks
-print("  Evolving plasma: beta_N ramps 1.5 -> 2.5 over 200 ticks")
+# Sweep a synthetic beta_N-labelled input over 200 ticks.
+print("  Synthetic beta_N-labelled input ramps 1.5 -> 2.5 over 200 ticks")
 print()
 print(f"  {'Tick':>5s}  {'R_global':>8s}  {'V_global':>8s}  {'lam_exp':>8s}  {'b_N':>4s}  {'Guard':>6s}")
 print(f"  {'---':>5s}  {'--------':>8s}  {'--------':>8s}  {'--------':>8s}  {'----':>4s}  {'------':>6s}")
@@ -328,7 +330,7 @@ print("═" * 60)
 print("  kuramoto_sakaguchi_step — single-layer Euler step with driver")
 print("  order_parameter         — Kuramoto R, ψ_r = <exp(iθ)>")
 print("  UPDESystem              — 16-layer coupled phase evolution")
-print("  LyapunovGuard           — safety veto (V, λ, R thresholds)")
-print("  RealtimeMonitor         — dashboard-ready tick() interface")
-print("  AdaptiveKnmEngine       — plasma-driven coupling updates")
-print("  DiagnosticSnapshot      — tokamak diagnostic measurements")
+print("  LyapunovGuard           — oscillator-trajectory diagnostic")
+print("  RealtimeMonitor         — phase-model tick() interface")
+print("  AdaptiveKnmEngine       — example coupling updates")
+print("  DiagnosticSnapshot      — synthetic labelled inputs")

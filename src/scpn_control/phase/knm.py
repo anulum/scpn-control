@@ -14,11 +14,14 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Paper 27 Knm specification.
+Paper 27 example Knm specification.
 
 K[n, m] encodes coupling from source layer n to target layer m.
 Diagonal: intra-layer synchronisation strength.
-Off-diagonal: inter-layer bidirectional causality (bottom-up / top-down).
+Off-diagonal: declared inter-layer oscillator coupling.
+
+The matrix encodes a model hypothesis. Its entries do not prove causal reactor
+coupling and are not identified reactor-control parameters.
 """
 
 from __future__ import annotations
@@ -58,7 +61,7 @@ OMEGA_N_16 = np.array(
 
 @dataclass(frozen=True)
 class KnmSpec:
-    """Paper 27 coupling specification.
+    """Paper 27 example coupling specification.
 
     K      : (L, L) coupling matrix.  K[n, m] = source n -> target m.
     alpha  : (L, L) Sakaguchi phase-lag (optional).
@@ -108,7 +111,7 @@ def build_knm_paper27(
     K_alpha: float = 0.3,
     zeta_uniform: float = 0.0,
 ) -> KnmSpec:
-    """Build the canonical Paper 27 Knm with exponential distance decay.
+    """Build the Paper 27 example Knm with exponential distance decay.
 
     K[i,j] = K_base · exp(−K_alpha · |i − j|),  diag(K) kept for
     intra-layer sync (unlike the inter-oscillator Knm which zeros diag).
@@ -116,6 +119,9 @@ def build_knm_paper27(
     K_base=0.45 and K_alpha=0.3 from Paper 27 §3.2, Eq. 12.
     Calibration anchors from Paper 27, Table 2.
     Cross-hierarchy boosts from Paper 27 §4.3.
+
+    The resulting coefficients reproduce the declared manuscript construction;
+    they are not fitted reactor parameters or a universal control law.
     """
     if not isinstance(L, int) or L <= 0:
         raise ValueError("L must be a positive integer")

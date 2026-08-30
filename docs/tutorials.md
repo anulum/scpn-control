@@ -20,7 +20,7 @@ scpn-control live --host 127.0.0.1 --port 8765 --zeta 0.5
 | 02 | `examples/tutorial_02_jax_autodiff.py` | JAX gradients through solver and transport-facing routines | `jax` |
 | 03 | `examples/tutorial_03_ppo_rl_agent.py` | Tokamak environment, PID baseline, PPO training and comparison | `stable-baselines3` optional |
 | 04 | `examples/tutorial_04_neural_transport.py` | Critical-gradient model, QLKNN-10D input space, regime scan, CN coupling | none |
-| 05 | `examples/tutorial_05_adaptive_phase_dynamics.py` | Kuramoto synchronisation, Lyapunov guard, adaptive coupling, closed loop | none |
+| 05 | `examples/tutorial_05_adaptive_phase_dynamics.py` | Example Kuramoto synchronisation, trajectory diagnostics, adaptive model coupling | none |
 | 06 | `examples/tutorial_06_frontier_physics.py` | Gyrokinetic, ballooning, current diffusion, NTM, sawtooth, SOL, integrated scenario | none |
 | 07 | `examples/tutorial_07_advanced_controllers.py` | Sliding-mode, gain-scheduled, RWM, bounded mu analysis, FDI, isoflux, scheduler | none |
 

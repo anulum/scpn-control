@@ -12,6 +12,11 @@
   installed-target validation.
 ### Changed
 
+- Removed the integrated scenario's write-only phase pseudo-bridge and
+  reclassified the retained UPDE, adaptive Knm, monitor, and stream as example
+  oscillator-model surfaces. Public documentation now states that reactor use
+  requires scenario-specific signal identification, a coupled plant solver,
+  physical actuator mapping, and closed-loop validation.
 - Replaced local implementation-stage labels in controller artifacts, physics
   comments, and focused polyglot tests with descriptive responsibilities while
   retaining the stable MIF module identifiers used across repositories.

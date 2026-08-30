@@ -14,20 +14,21 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """
-Real-time dashboard hook: UPDE phase sync + LyapunovGuard + DIRECTOR_AI export.
+Streaming dashboard hook: UPDE phase model + LyapunovGuard + snapshot export.
 
-Provides a tick-by-tick interface for live control dashboards.  Each call to
-``tick()`` advances the UPDE by one step, checks Lyapunov stability, and
-returns a snapshot suitable for streaming to a frontend or logging via
-DIRECTOR_AI's AuditLogger.
+Each call to ``tick()`` advances the example UPDE by one step, evaluates its
+model-local Lyapunov guard, and returns a snapshot suitable for a frontend or
+log. This monitor has no reactor-signal acquisition, system identification,
+plant state, actuator mapping, or machine-protection authority. It is not a
+reactor feedback loop.
 
 Usage::
 
     monitor = RealtimeMonitor.from_paper27(psi_driver=0.0)
-    for sample in sensor_stream:
+    for _ in model_ticks:
         snap = monitor.tick()
         if not snap["guard_approved"]:
-            trigger_safety_halt()
+            mark_model_trajectory_refused()
         dashboard.push(snap)
 """
 
@@ -118,7 +119,7 @@ class TrajectoryRecorder:
 
 @dataclass
 class RealtimeMonitor:
-    """Tick-by-tick UPDE monitor with LyapunovGuard."""
+    """Tick-by-tick oscillator-model monitor with a model-local guard."""
 
     upde: UPDESystem
     guard: LyapunovGuard
@@ -183,7 +184,7 @@ class RealtimeMonitor:
         adaptive_engine: AdaptiveKnmEngine | None = None,
         seed: int = 42,
     ) -> RealtimeMonitor:
-        """Build from plasma-native Knm defaults with optional adaptive engine."""
+        """Build from plasma-labelled example defaults and optional adaptation."""
         _validate_monitor_domains(N_per=N_per, psi_driver=psi_driver, pac_gamma=pac_gamma)
         spec = build_knm_plasma(mode=mode, L=L, zeta_uniform=zeta_uniform)
         upde = UPDESystem(spec=spec, dt=dt, psi_mode="external")
@@ -215,9 +216,9 @@ class RealtimeMonitor:
     ) -> dict[str, Any]:
         """Advance one UPDE step and return dashboard snapshot.
 
-        Tick failures are fail-closed: the monitor returns a complete snapshot
-        with ``guard_approved=False`` instead of raising from the live control
-        loop.
+        Tick failures return a complete refusal snapshot with
+        ``guard_approved=False`` instead of raising from the streaming model.
+        This fail-closed software state is not a reactor safety verdict.
         """
         t0 = time.perf_counter_ns()
         attempt_tick = self._tick_count + 1
@@ -310,7 +311,7 @@ class RealtimeMonitor:
         return snap
 
     def _fail_closed_snapshot(self, exc: Exception, *, tick_id: int, started_ns: int) -> dict[str, Any]:
-        """Build a complete refusal snapshot after a live tick failure."""
+        """Build a complete refusal snapshot after a model-tick failure."""
         self._tick_count = max(self._tick_count, tick_id)
         self._last_guard_approved = False
         elapsed_us = (time.perf_counter_ns() - started_ns) / 1000.0

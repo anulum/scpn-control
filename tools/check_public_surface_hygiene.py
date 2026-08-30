@@ -81,6 +81,16 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     ("crown jewel", re.compile(r"\bcrown jewel\b", re.IGNORECASE)),
     ("unsupported uniqueness", re.compile(r"\bdoes not exist elsewhere\b", re.IGNORECASE)),
     ("stale notebook output path", re.compile(r"\bartefacts/notebook-exec\b")),
+    (
+        "unidentified reactor phase-control claim",
+        re.compile(
+            r"\b(?:authority over (?:the )?plasma modes|"
+            r"entry point a real control loop would call|"
+            r"maps directly to SNN or PID output amplitude|"
+            r"complete real-time monitoring loop)\b",
+            re.IGNORECASE,
+        ),
+    ),
 )
 
 INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (

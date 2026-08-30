@@ -13,12 +13,13 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""
-Paper 27 Knm/UPDE engine + Kuramoto-Sakaguchi phase reduction.
+"""Example Knm/UPDE and Kuramoto-Sakaguchi oscillator models.
 
-Implements the generalized Kuramoto-Sakaguchi mean-field model with an
-exogenous global field driver ζ sin(Ψ − θ), per the reviewer request
-referencing arXiv:2004.06344 and SCPN Paper 27.
+The package evaluates declared phase-oscillator equations and exposes bounded
+runtime evidence for those equations. Its abstract layers, frequencies, and
+couplings are not identified from a reactor, and no package surface closes a
+reactor-state-to-actuator feedback loop. Reactor use requires a separate,
+scenario-specific identification and coupled-simulation campaign.
 """
 
 from scpn_control.phase.adaptive_knm import (

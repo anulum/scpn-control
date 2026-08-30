@@ -1748,6 +1748,12 @@ reports that omit it are rejected before safety-critical artifact admission.
 
 ## Phase — Paper 27 Dynamics
 
+These APIs implement and transport an example oscillator model. They do not
+identify oscillator states from reactor observations, connect to a plant
+solver, map outputs to physical actuators, or establish machine-protection
+authority. The model-local guard and network admission states must not be
+interpreted as reactor safety verdicts.
+
 ### Kuramoto-Sakaguchi Step
 
 ::: scpn_control.phase.kuramoto.kuramoto_sakaguchi_step
@@ -1823,7 +1829,8 @@ channel, while `lambda_exp`, `q95`, `disruption_risk`, and `mirnov_rms`
 contribute to a bounded MHD-pair risk drive. The configuration defaults are
 dimensionless local-control gains except `lambda_risk_gain_s`, which converts a
 Lyapunov exponent in `1/s` into a dimensionless stress contribution. These
-settings are bounded heuristics, not facility-calibrated stability claims.
+settings are bounded model heuristics, not facility-calibrated stability claims
+or an identified reactor feedback law.
 
 ### Plasma Knm
 
@@ -1845,13 +1852,14 @@ opt-ins for constrained development or isolated lab environments.  Browser
 clients that send an `Origin` header are rejected unless the origin is
 allowlisted, and deployments may restrict command authority with
 `allowed_actions`.
-`websocket_runtime_evidence()` emits a tamper-evident deployment artifact that
+`websocket_runtime_evidence()` emits a tamper-evident network-runtime artifact that
 binds WebSocket configuration, authenticated sessions, accepted commands,
 successful broadcasts, audit counters, TLS enforcement, payload caps, and
-backpressure state without storing API-key material. Qualified facility
+backpressure state without storing API-key material. Qualified network-runtime
 admission requires client authentication, configured TLS enforcement, observed
 commands, observed broadcasts, no query-token authentication, no insecure remote
-binding, and zero backpressure disconnects.
+binding, and zero backpressure disconnects. It does not admit the streamed
+oscillator model for reactor or facility control.
 
 ::: scpn_control.phase.ws_phase_stream.PhaseStreamServer
 
@@ -2390,6 +2398,8 @@ analysis and preserves the failed audit evidence in the returned result.
 The historical `scpn_control.control.mu_synthesis` names are deprecated
 compatibility aliases scheduled for removal in version 0.25.0. They do not
 perform frequency-dependent D-K synthesis.
+
+::: scpn_control.control.mu_synthesis
 
 ### Real-Time EFIT (v0.16.0)
 

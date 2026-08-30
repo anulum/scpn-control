@@ -208,9 +208,6 @@ def _exchange_for_module(
     elif module == "auxiliary_heating":
         outputs = {"P_aux_MW": float(config.P_aux_MW), "W_thermal_J": float(state.W_thermal)}
         diagnostics = {"power_balance_loss_W": float(state.P_loss)}
-    elif module == "phase_bridge":
-        outputs = {"phase_bridge_enabled": bool(config.include_phase_bridge)}
-        diagnostics = {"claim": "adaptive K_nm coupling metadata only"}
     else:
         outputs = {"module_enabled": True}
         diagnostics = {"module": module}

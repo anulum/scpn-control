@@ -53,6 +53,20 @@ def test_accepts_current_notebook_output_path() -> None:
     assert scan_text("docs/tutorials.md", "--output-dir artifacts/notebook-exec\n") == []
 
 
+@pytest.mark.parametrize(
+    "claim",
+    (
+        "The controller has authority over plasma modes.",
+        "This is the entry point a real control loop would call.",
+        "This maps directly to SNN or PID output amplitude.",
+        "This is the complete real-time monitoring loop.",
+    ),
+)
+def test_rejects_unidentified_reactor_phase_control_claims(claim: str) -> None:
+    """Example oscillator models cannot claim an unidentified reactor loop."""
+    assert "unidentified reactor phase-control claim" in _categories(claim)
+
+
 def test_rejects_public_operational_task_list() -> None:
     """Unchecked work items belong only on private operational surfaces."""
     assert "public operational task" in _categories("- [ ] Run the next validation campaign.\n")
