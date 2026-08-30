@@ -32,11 +32,7 @@ from scpn_control.reactor_semantic_admission import (
     admit_reactor_semantic_handoff,
 )
 
-FUSION_FIXTURE = Path(
-    "/media/anulum/GOTM/aaa_God_of_the_Math_Collection/03_CODE/"
-    "SCPN-FUSION-CORE/validation/reference_data/torax/"
-    "torax_runtime_review_envelope_v1.json"
-)
+FUSION_FIXTURE = Path(__file__).resolve().parent / "fixtures/reactor_semantic/torax_runtime_review_envelope_v1.json"
 SOURCE_SCHEMA = "scpn-fusion-core.torax-runtime-review-envelope.v1"
 SOURCE_REVISION = "314463489c95692d851cf6b9102ca733d878ca8a"
 SOURCE_DIGEST = "b594e2f8b72056426d628b638f6a849ef39e75daddc827305002b109365596c4"

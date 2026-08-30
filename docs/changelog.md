@@ -9,6 +9,10 @@
   notebook simulates the admitted augmented DGKF closed loop, and extreme
   finite capacitor-bank steps return a numerical-domain error instead of
   panicking.
+- Made reactor-semantic integration tests independent of a sibling FUSION
+  checkout by carrying the exact digest-verified evidence fixture without
+  copied source code. The public package-version collision for the required SPO
+  decoder is now stated explicitly instead of implying hosted reproducibility.
 - Replaced the advanced tutorial's deprecated mu-synthesis/D-K and pseudo
   gain-margin claims with the implemented static D-scaled mu-bound and
   normalized DGKF admission boundaries.

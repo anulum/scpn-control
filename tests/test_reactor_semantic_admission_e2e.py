@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — FUSION to SPO to CONTROL semantic exchange
 
-"""Exact checkout E2E over immutable FUSION and SPO receipts."""
+"""Portable E2E over immutable FUSION and SPO receipts."""
 
 from __future__ import annotations
 
@@ -32,14 +32,8 @@ from scpn_control.reactor_semantic_admission import (
     admit_reactor_semantic_handoff,
 )
 
-FUSION_ROOT = Path(
-    os.environ.get(
-        "SCPN_FUSION_CORE_ROOT",
-        "/media/anulum/GOTM/aaa_God_of_the_Math_Collection/03_CODE/SCPN-FUSION-CORE",
-    )
-)
+FIXTURE = Path(__file__).resolve().parent / "fixtures/reactor_semantic/torax_runtime_review_envelope_v1.json"
 CONTROL_ROOT = Path(__file__).resolve().parents[1]
-FIXTURE = FUSION_ROOT / "validation/reference_data/torax/torax_runtime_review_envelope_v1.json"
 FUSION_SOURCE_REVISION = "314463489c95692d851cf6b9102ca733d878ca8a"
 FUSION_FIXTURE_SHA256 = "b594e2f8b72056426d628b638f6a849ef39e75daddc827305002b109365596c4"
 SPO_HANDOFF_SHA256 = "38885e7c8f72a349703f36620714fb416de5e1c003d4e53cf1cb9930e64df043"
@@ -76,36 +70,9 @@ def _policy(handoff_bytes: bytes) -> ReactorSemanticAdmissionPolicy:
 
 
 def test_exact_fusion_spo_control_public_bytes_exchange() -> None:
-    """Cross all three public byte boundaries using exact local receipts."""
-    assert FIXTURE.is_file(), "canonical FUSION fixture is required for this E2E"
+    """Cross the portable FUSION, SPO, and CONTROL byte boundaries."""
     fusion_bytes = FIXTURE.read_bytes()
     assert hashlib.sha256(fusion_bytes).hexdigest() == FUSION_FIXTURE_SHA256
-
-    environment = os.environ.copy()
-    environment["PYTHONPATH"] = str(FUSION_ROOT / "src")
-    program = """
-from pathlib import Path
-from scpn_fusion.integrations.torax import (
-    review_envelope_from_bytes,
-    review_envelope_sha256,
-    review_envelope_to_bytes,
-)
-import sys
-raw = Path(sys.argv[1]).read_bytes()
-value = review_envelope_from_bytes(raw, expected_sha256=sys.argv[2])
-assert review_envelope_to_bytes(value) == raw
-print(review_envelope_sha256(value))
-"""
-    completed = subprocess.run(
-        [sys.executable, "-c", program, str(FIXTURE), FUSION_FIXTURE_SHA256],
-        cwd=FUSION_ROOT,
-        env=environment,
-        check=True,
-        capture_output=True,
-        text=True,
-        timeout=60.0,
-    )
-    assert completed.stdout.strip() == FUSION_FIXTURE_SHA256
 
     handoff = coupled_transport_handoff_from_fusion_bytes(
         fusion_bytes,
@@ -123,9 +90,12 @@ print(review_envelope_sha256(value))
     assert decision.actionable is False
     assert decision.refusal_codes == ()
 
-    control_environment = os.environ.copy()
-    control_environment["PYTHONPATH"] = str(CONTROL_ROOT / "src")
-    import_probe = subprocess.run(
+
+def test_admission_import_does_not_load_control_action_surface() -> None:
+    """Keep the review boundary independent of CONTROL actuation modules."""
+    environment = os.environ.copy()
+    environment["PYTHONPATH"] = str(CONTROL_ROOT / "src")
+    completed = subprocess.run(
         [
             sys.executable,
             "-c",
@@ -133,13 +103,13 @@ print(review_envelope_sha256(value))
             "assert not any(name.startswith('scpn_control.control') for name in sys.modules)",
         ],
         cwd=CONTROL_ROOT,
-        env=control_environment,
+        env=environment,
         check=True,
         capture_output=True,
         text=True,
         timeout=10.0,
     )
-    assert import_probe.stdout == ""
+    assert completed.stdout == ""
 
 
 @pytest.mark.parametrize("mutation", ["duplicate", "whitespace", "bom", "version", "action", "phase"])

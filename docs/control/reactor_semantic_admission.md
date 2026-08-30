@@ -21,6 +21,14 @@ CONTROL calls the public SPO `handoff_from_bytes` function directly. It does not
 vendor the schema, decode a looser JSON representation, copy sibling source, or
 construct its own reactor registry.
 
+The dedicated cross-project test carries only the exact 12,073-byte immutable
+FUSION evidence fixture, with its producer commit, evidence commit, and SHA-256
+recorded beside it. It does not import a sibling checkout or add a local-path
+dependency. The fixture is passed through the installed SPO adapter and then
+through this public CONTROL API. The required SPO decoder is not yet available
+under a distinct public package version, so standard installation and hosted
+execution remain blocked rather than resolving the older public 1.2.0 wheel.
+
 ## Deterministic policy
 
 Every admission call supplies a `ReactorSemanticAdmissionPolicy` containing:

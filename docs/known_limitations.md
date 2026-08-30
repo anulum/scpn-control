@@ -19,11 +19,14 @@ dynamics, reset and failure behavior, facility safety, performance, or
 closed-loop guarantees.
 
 The current upstream SPO package object is locally verified but is not yet a
-declared distributable dependency of `scpn-control`. Standard installation and
-hosted test reproducibility therefore remain unavailable until an immutable SPO
-artifact is published under separate owner authority. Neither the local
-three-project exchange nor a successful admission may be represented as a
-deployed control path.
+declared distributable dependency of `scpn-control`. The public package index
+contains an earlier `scpn-phase-orchestrator` 1.2.0 wheel, while this boundary
+requires a later source object that was initially built with the same version.
+CONTROL therefore does not declare a version range that could silently resolve
+the wrong decoder. Standard installation and hosted test reproducibility remain
+unavailable until SPO publishes the required decoder under a distinct version
+and separate owner authority. Neither the local three-project exchange nor a
+successful admission may be represented as a deployed control path.
 
 ### Fixed-weight disruption-risk baseline
 
