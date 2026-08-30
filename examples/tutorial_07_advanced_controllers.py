@@ -13,7 +13,7 @@ Demonstrates the full suite of advanced tokamak control algorithms:
   1. Sliding-mode vertical stabilizer (super-twisting SMC)
   2. Gain-scheduled multi-regime controller with regime detection
   3. Resistive wall mode (RWM) feedback stabilization
-  4. Mu-synthesis (structured uncertainty, D-K iteration)
+  4. Static structured-mu upper-bound analysis
   5. Fault-tolerant control with fault detection and isolation
   6. Full-kernel free-boundary tracking contract
   7. Scenario scheduler (offline trajectory optimization)
@@ -232,17 +232,17 @@ margin = -rwm_ctrl.effective_growth_rate(rwm_35) / rwm_35.growth_rate()
 print(f"\n  Stabilization margin at beta_N=3.5: {margin:.2%}")
 
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║ Section 4: Mu-Synthesis (Structured Uncertainty)                ║
+# ║ Section 4: Static Structured-Mu Analysis                       ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-from scpn_control.control.mu_synthesis import (
+from scpn_control.control.static_mu_analysis import (
     StructuredUncertainty,
     UncertaintyBlock,
-    compute_mu_upper_bound,
+    compute_static_mu_upper_bound,
 )
 
 print("\n" + "=" * 60)
-print("SECTION 4: Mu-Synthesis (Structured Singular Value)")
+print("SECTION 4: Static Structured-Mu Upper Bound")
 print("=" * 60)
 
 # Structured uncertainty model for tokamak control:
@@ -250,15 +250,15 @@ print("=" * 60)
 # where delta_Ip represents plasma current uncertainty (±20%)
 # and delta_wall represents wall position uncertainty (±10%).
 #
-# Robust stability iff mu_Delta(M) < 1 for all frequencies.
-# mu upper bound via D-scaling: min_D sigma_max(D M D^{-1}).
+# This example evaluates independent static D-scaled upper bounds at sampled
+# frequencies. It is not frequency-coupled D-K controller synthesis.
 
 blocks = [
     UncertaintyBlock("plasma_current", size=2, bound=0.20, block_type="real_scalar"),
     UncertaintyBlock("wall_position", size=2, bound=0.10, block_type="real_scalar"),
 ]
 unc = StructuredUncertainty(blocks)
-delta_struct = unc.build_Delta_structure()
+delta_struct = unc.build_delta_structure()
 
 print("  Uncertainty blocks:")
 for b in blocks:
@@ -271,7 +271,7 @@ rng = np.random.default_rng(42)
 n_freq = 8
 freqs = np.logspace(-1, 3, n_freq)
 
-print(f"  {'freq [rad/s]':>13s}  {'mu_upper':>9s}  {'Robust':>7s}")
+print(f"  {'freq [rad/s]':>13s}  {'mu_upper':>9s}  {'Bound<1':>7s}")
 print(f"  {'-' * 13}  {'-' * 9}  {'-' * 7}")
 
 mu_peak = 0.0
@@ -288,14 +288,14 @@ for omega in freqs:
             ]
         )
     )
-    mu_val = compute_mu_upper_bound(M, delta_struct)
+    mu_val = compute_static_mu_upper_bound(M, delta_struct)
     mu_peak = max(mu_peak, mu_val)
     robust = mu_val < 1.0
     print(f"  {omega:13.2f}  {mu_val:9.4f}  {'YES' if robust else 'NO':>7s}")
 
 print(f"\n  Peak mu: {mu_peak:.4f}")
-print(f"  Robust stability: {'GUARANTEED' if mu_peak < 1.0 else 'NOT GUARANTEED'}")
-print(f"  Robustness margin: {1.0 / mu_peak:.2%}" if mu_peak > 0 else "")
+print(f"  Sampled static bound below one: {'PASS' if mu_peak < 1.0 else 'FAIL'}")
+print("  Claim boundary: no D-K synthesis or continuous-frequency guarantee")
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Section 5: Fault-Tolerant Control (FDI)                         ║
@@ -484,8 +484,7 @@ print("  H-infinity synthesis:")
 print(f"    Synthesis time:     {synth_time * 1e3:.1f} ms")
 print(f"    State dim:          {hinf.n}")
 print(f"    gamma:              {hinf.gamma:.4f}")
-print(f"    Gain margin:        {hinf.gain_margin_db:.1f} dB")
-print(f"    Robust feasible:    {hinf.robust_feasible}")
+print(f"    DGKF admitted:      {hinf.robust_feasible}")
 print(f"    Riccati residuals:  ||R_X||={rx:.2e}, ||R_Y||={ry:.2e}")
 print(f"    Step latency:       {lat_hinf * 1e6:.1f} us/step")
 print()
@@ -537,7 +536,7 @@ print()
 # Summary table
 print(f"  {'Controller':>12s}  {'Latency [us/step]':>18s}  {'Robustness':>16s}")
 print(f"  {'-' * 12}  {'-' * 18}  {'-' * 16}")
-print(f"  {'H-infinity':>12s}  {lat_hinf * 1e6:18.1f}  {hinf.gain_margin_db:.1f} dB margin")
+print(f"  {'H-infinity':>12s}  {lat_hinf * 1e6:18.1f}  normalized DGKF")
 print(f"  {'MPC':>12s}  {lat_mpc * 1e6:18.1f}  receding horizon")
 print(f"  {'PID':>12s}  {lat_pid * 1e6:18.1f}  no guarantees")
 
@@ -551,9 +550,9 @@ print("=" * 60)
 print("  SuperTwistingSMC       -- finite-time chattering-free vertical control")
 print("  GainScheduledController -- bumpless multi-regime PID with hysteresis")
 print("  RWMFeedbackController  -- sensor-coil feedback for resistive wall modes")
-print("  compute_mu_upper_bound -- structured singular value via D-scaling")
+print("  compute_static_mu_upper_bound -- static D-scaled mu bound")
 print("  FDIMonitor             -- innovation-based fault detection & isolation")
 print("  FreeBoundaryTrackingController -- full-kernel boundary tracking")
 print("  ScenarioOptimizer      -- offline trajectory design (Nelder-Mead)")
-print("  HInfinityController    -- Riccati DARE robust synthesis")
+print("  HInfinityController    -- normalized DGKF output feedback")
 print("  ModelPredictiveController -- gradient-based trajectory optimization")

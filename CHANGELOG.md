@@ -3,6 +3,9 @@
 ## Unreleased
 
 ### Fixed
+- Replaced the advanced tutorial's deprecated mu-synthesis/D-K and pseudo
+  gain-margin claims with the implemented static D-scaled mu-bound and
+  normalized DGKF admission boundaries.
 - Removed rendered legal preambles from all generated validation Markdown
   producers so reports open with user-facing content, and extended the public
   surface gate to reject any validation producer that could reintroduce the
