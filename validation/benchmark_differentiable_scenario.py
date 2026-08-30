@@ -96,13 +96,6 @@ def _write_markdown(payload: dict[str, Any], path: Path) -> None:
     raw_blocked_reasons = readiness.get("blocked_reasons", []) if isinstance(readiness, dict) else []
     blocked_reasons = list(raw_blocked_reasons) if isinstance(raw_blocked_reasons, list | tuple) else []
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-        "<!-- Commercial license available -->",
-        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- ORCID: 0009-0009-3560-0851 -->",
-        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-        "<!-- SCPN Control — Differentiable scenario readiness report -->",
         "",
         "# Differentiable Scenario Readiness",
         "",

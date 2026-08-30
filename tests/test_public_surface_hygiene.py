@@ -290,6 +290,25 @@ def test_rejects_bare_rendered_markdown_legal_header() -> None:
     ]
 
 
+def test_rejects_validation_markdown_legal_header_producer() -> None:
+    """Validation code must not regenerate a forbidden public preamble."""
+    source = 'lines = ["<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->", "# Report"]\n'
+    assert scan_text("validation/render_report.py", source) == [
+        Finding(
+            path="validation/render_report.py",
+            line=1,
+            category="rendered Markdown legal-header producer",
+            detail=source.strip(),
+        )
+    ]
+
+
+def test_allows_validation_source_code_header() -> None:
+    """The producer guard does not reject the Python file's own legal header."""
+    source = "# SPDX-License-Identifier: AGPL-3.0-or-later\n"
+    assert scan_text("validation/render_report.py", source) == []
+
+
 def test_allows_source_file_headers() -> None:
     """Source-code SPDX headers remain valid outside rendered Markdown."""
     assert scan_text("module.py", "# SPDX-License-Identifier: AGPL-3.0-or-later\n") == []

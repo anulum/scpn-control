@@ -431,7 +431,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_path = json_path.with_suffix(".md")
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# Transport Heat-Diffusion Validation",
         "",

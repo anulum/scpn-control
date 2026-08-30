@@ -399,7 +399,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     config = evidence["config"]
     detach = evidence["detachment"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# Two-Point Scrape-Off-Layer Model Validation",
         "",

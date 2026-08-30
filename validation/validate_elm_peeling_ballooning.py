@@ -386,7 +386,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     boundary = evidence["boundary"]
     crash = evidence["crash"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# ELM Peeling-Ballooning and Crash Validation",
         "",

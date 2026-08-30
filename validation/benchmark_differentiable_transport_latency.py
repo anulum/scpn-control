@@ -95,13 +95,6 @@ def main() -> None:
         MD_REPORT.write_text(
             "\n".join(
                 [
-                    "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                    "<!-- Commercial license available -->",
-                    "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- ORCID: 0009-0009-3560-0851 -->",
-                    "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                    "<!-- SCPN Control — Differentiable transport latency benchmark report -->",
                     "",
                     "# Differentiable Transport Gradient-Latency Benchmark",
                     "",
@@ -118,13 +111,6 @@ def main() -> None:
         ROLLOUT_MD_REPORT.write_text(
             "\n".join(
                 [
-                    "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                    "<!-- Commercial license available -->",
-                    "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- ORCID: 0009-0009-3560-0851 -->",
-                    "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                    "<!-- SCPN Control — Differentiable transport rollout latency benchmark report -->",
                     "",
                     "# Differentiable Transport Rollout Gradient-Latency Benchmark",
                     "",
@@ -141,13 +127,6 @@ def main() -> None:
         READINESS_MD_REPORT.write_text(
             "\n".join(
                 [
-                    "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                    "<!-- Commercial license available -->",
-                    "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                    "<!-- ORCID: 0009-0009-3560-0851 -->",
-                    "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                    "<!-- SCPN Control — Differentiable transport full-fidelity readiness report -->",
                     "",
                     "# Differentiable Transport Full-Fidelity Readiness",
                     "",
@@ -257,13 +236,6 @@ def main() -> None:
     MD_REPORT.write_text(
         "\n".join(
             [
-                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                "<!-- Commercial license available -->",
-                "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- ORCID: 0009-0009-3560-0851 -->",
-                "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                "<!-- SCPN Control — Differentiable transport latency benchmark report -->",
                 "",
                 "# Differentiable Transport Gradient-Latency Benchmark",
                 "",
@@ -292,13 +264,6 @@ def main() -> None:
     ROLLOUT_MD_REPORT.write_text(
         "\n".join(
             [
-                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                "<!-- Commercial license available -->",
-                "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- ORCID: 0009-0009-3560-0851 -->",
-                "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                "<!-- SCPN Control — Differentiable transport rollout latency benchmark report -->",
                 "",
                 "# Differentiable Transport Rollout Gradient-Latency Benchmark",
                 "",
@@ -329,13 +294,6 @@ def main() -> None:
     READINESS_MD_REPORT.write_text(
         "\n".join(
             [
-                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-                "<!-- Commercial license available -->",
-                "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-                "<!-- ORCID: 0009-0009-3560-0851 -->",
-                "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-                "<!-- SCPN Control — Differentiable transport full-fidelity readiness report -->",
                 "",
                 "# Differentiable Transport Full-Fidelity Readiness",
                 "",

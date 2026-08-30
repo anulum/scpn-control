@@ -5,8 +5,8 @@
     "rerunnable_local": 11
   },
   "freshness_max_age_days": 21,
-  "inventory_as_of_utc": "2026-08-30T04:32:36Z",
-  "registry_source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
+  "inventory_as_of_utc": "2026-08-30T05:31:17Z",
+  "registry_source_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995",
   "reports": [
     {
       "claim_boundary": {
@@ -301,7 +301,7 @@
       },
       "evidence_class": "local_proxy",
       "evidence_time_source": "generated_at",
-      "evidence_time_utc": "2026-08-30T04:32:35.273706Z",
+      "evidence_time_utc": "2026-08-30T05:31:16.638904Z",
       "lifecycle_bucket": "rerunnable_local",
       "path": "validation/reports/h_infinity_control.json",
       "provenance": {
@@ -320,16 +320,16 @@
         "host_load": {
           "cpu_count": 12,
           "loadavg": [
-            6.283203125,
-            7.5478515625,
-            8.1298828125
+            6.4,
+            9.67,
+            9.38
           ],
           "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
           "python": "3.12.3"
         },
         "repeats": 1,
         "samples": 20002,
-        "source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
+        "source_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995",
         "warmup": 0
       },
       "refresh": {
@@ -342,8 +342,8 @@
         "locally_rerunnable": true,
         "status": "pending_refresh"
       },
-      "report_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
-      "report_sha256": "af2f6085ffa4611a03343a7f7edc61e1e6f51e43df6dd5f41aeb338a1fd50558",
+      "report_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995",
+      "report_sha256": "0fac68d4747a2b4486646001c44f8a320a7e01c6de10322c7d8cc0e927abacc8",
       "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
     },

@@ -332,7 +332,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     md_path = json_path.with_suffix(".md")
     avalanche = evidence["avalanche"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# Runaway-Electron Avalanche Validation",
         "",

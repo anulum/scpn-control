@@ -28,7 +28,7 @@ from tools.validation_report_freshness import (
     parse_datetime,
 )
 
-AUDIT_AS_OF = datetime(2026, 8, 30, 4, 32, 37, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 8, 30, 5, 31, 18, tzinfo=timezone.utc)
 
 
 def test_validation_report_freshness_inventory_finds_live_stale_reports() -> None:
@@ -95,7 +95,7 @@ def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path
         main(
             [
                 "--as-of",
-                "2026-08-30T04:32:37Z",
+                "2026-08-30T05:31:18Z",
                 "--max-age-days",
                 "21",
                 "--output-json",
@@ -192,13 +192,13 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
 
 def test_validation_report_freshness_cli_can_fail_on_stale_reports(capsys: CaptureFixture[str]) -> None:
     """Strict freshness mode rejects the stale audited corpus."""
-    assert main(["--as-of", "2026-08-30T04:32:37Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
+    assert main(["--as-of", "2026-08-30T05:31:18Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
     assert "Stale validation reports detected:" in capsys.readouterr().err
 
 
 def test_validation_report_freshness_cli_accepts_current_window(capsys: CaptureFixture[str]) -> None:
     """A caller-selected broad window can make freshness advisory-only."""
-    assert main(["--as-of", "2026-08-30T04:32:37Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
+    assert main(["--as-of", "2026-08-30T05:31:18Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out
 
 
@@ -769,9 +769,9 @@ def test_datetime_and_build_input_validation(tmp_path: Path) -> None:
 
 def test_cli_stdout_modes_default_clock_and_error_path(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """JSON, Markdown, default-clock, and malformed-registry CLI paths are observable."""
-    assert main(["--as-of", "2026-08-30T04:32:37Z", "--json-out"]) == 0
+    assert main(["--as-of", "2026-08-30T05:31:18Z", "--json-out"]) == 0
     assert '"schema_version": "scpn-control.validation-report-freshness.v2"' in capsys.readouterr().out
-    assert main(["--as-of", "2026-08-30T04:32:37Z", "--markdown-out"]) == 0
+    assert main(["--as-of", "2026-08-30T05:31:18Z", "--markdown-out"]) == 0
     assert "# SCPN Control Validation Report Freshness" in capsys.readouterr().out
     assert main(["--max-age-days", "10000"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out

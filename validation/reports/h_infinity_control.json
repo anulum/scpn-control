@@ -13,8 +13,8 @@
     "public_claim_allowed": false,
     "scientific_admission": true
   },
-  "generated_at": "2026-08-30T04:32:35.273706Z",
-  "payload_sha256": "feb0e790ecc60e941e30bb5101acab12e233a413d87a3508756f859b6a94e1c7",
+  "generated_at": "2026-08-30T05:31:16.638904Z",
+  "payload_sha256": "55477a039cb5b516cbc7bcd0ae0d391426d0bc6becbf15f2cd56c2602cded9fa",
   "precision": "float64",
   "reference": {
     "authors": "Doyle, Glover, Khargonekar, Francis",
@@ -37,8 +37,8 @@
   },
   "runtime_source_sha256": {
     "src/scpn_control/control/h_infinity_controller.py": "6b200356d37cd676804e4ba2abc401956f0274cc28a325921b385bae066894d1",
-    "validation/validate_h_infinity_control.py": "9f6d41564c7aff20fc354e3d1abed1a7728643a81ce64efb3203edcea51275bd"
+    "validation/validate_h_infinity_control.py": "692ab151e4e26cc2f8e589e1d7d58468d7ae2b1c17fb078ad6d9c5a242ff7940"
   },
   "schema_version": "scpn-control.h-infinity-validation.v1",
-  "source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab"
+  "source_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995"
 }

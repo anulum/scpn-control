@@ -30,7 +30,7 @@ from tools.public_claim_ledger import (
     main,
 )
 
-AUDIT_AS_OF = datetime(2026, 8, 28, 17, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 8, 30, 5, 31, 18, tzinfo=timezone.utc)
 
 
 def _registry(path: Path, source_commit: str = "1" * 40) -> bytes:
@@ -122,7 +122,7 @@ def test_main_writes_checks_and_detects_drift(tmp_path: Path, capsys: CaptureFix
         "--output",
         str(output),
         "--as-of",
-        "2026-08-28T17:00:00Z",
+        "2026-08-30T05:31:18Z",
     ]
 
     assert main(common) == 0

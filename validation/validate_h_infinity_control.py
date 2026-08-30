@@ -235,15 +235,7 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 def _markdown(payload: Mapping[str, Any]) -> str:
     result = payload["result"]
     boundary = payload["claim_boundary"]
-    return f"""<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Commercial license available -->
-<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->
-<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->
-<!-- ORCID: 0009-0009-3560-0851 -->
-<!-- Contact: www.anulum.li | protoscience@anulum.li -->
-<!-- SCPN Control — normalized DGKF H-infinity validation report. -->
-
-# Normalized DGKF H-infinity validation
+    return f"""# Normalized DGKF H-infinity validation
 
 - Generated: `{payload["generated_at"]}`
 - Source commit: `{payload["source_commit"]}`

@@ -410,7 +410,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     case = evidence["case"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# VMEC-lite Spectral-Geometry Validation",
         "",

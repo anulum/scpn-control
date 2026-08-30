@@ -121,7 +121,9 @@ def test_cli_writes_sealed_json_and_markdown(
     assert main(["--json-out", str(json_path), "--markdown-out", str(markdown_path)]) == 0
     payload = json.loads(json_path.read_text(encoding="utf-8"))
     assert validate_evidence_payload(payload)
-    assert "Normalized DGKF H-infinity validation" in markdown_path.read_text(encoding="utf-8")
+    markdown = markdown_path.read_text(encoding="utf-8")
+    assert markdown.startswith("# Normalized DGKF H-infinity validation\n")
+    assert "SPDX-License-Identifier" not in "\n".join(markdown.splitlines()[:8])
     assert H_INFINITY_SCHEMA_VERSION in capsys.readouterr().out
 
 

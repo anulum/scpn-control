@@ -42,13 +42,6 @@ def _display_path(path: Path) -> str:
 def build_report_markdown(report: dict[str, Any]) -> str:
     """Render a compact Markdown summary for parity-evidence review."""
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-        "<!-- Commercial license available -->",
-        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- ORCID: 0009-0009-3560-0851 -->",
-        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-        "<!-- SCPN Control — JAX GK Parity Evidence -->",
         "",
         "# JAX GK Parity Evidence",
         "",
@@ -117,13 +110,6 @@ def write_benchmark_report(report: dict[str, Any], json_path: Path, markdown_pat
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-        "<!-- Commercial license available -->",
-        "<!-- © Concepts 1996–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- © Code 2020–2026 Miroslav Šotek. All rights reserved. -->",
-        "<!-- ORCID: 0009-0009-3560-0851 -->",
-        "<!-- Contact: www.anulum.li | protoscience@anulum.li -->",
-        "<!-- SCPN Control — JAX GK Parity Benchmark Report -->",
         "",
         "# JAX GK Parity Benchmark Report",
         "",

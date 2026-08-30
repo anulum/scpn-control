@@ -478,7 +478,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     md_path = json_path.with_suffix(".md")
     ignition = evidence["ignition_limits"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# DT Burn-Control Alpha-Heating Validation",
         "",

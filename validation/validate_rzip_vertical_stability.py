@@ -415,7 +415,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     config = evidence["config"]
     wall = evidence["wall"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# RZIP Rigid Vertical Stability Validation",
         "",

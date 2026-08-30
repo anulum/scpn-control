@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- Removed rendered legal preambles from all generated validation Markdown
+  producers so reports open with user-facing content, and extended the public
+  surface gate to reject any validation producer that could reintroduce the
+  forbidden preamble on a future report refresh.
 - Removed the public shape-controller duplicate whose response matrix was a
   fixed seed-42 random array and whose kernel argument and flux-map structure
   were ignored. The existing `FreeBoundaryTrackingController`, which identifies

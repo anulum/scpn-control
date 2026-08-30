@@ -83,7 +83,6 @@ def main() -> None:
     MARKDOWN_REPORT.write_text(
         "\n".join(
             [
-                "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
                 "",
                 "# MARFE Onset Claim-Admission Benchmark",
                 "",

@@ -404,7 +404,6 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     md_path = json_path.with_suffix(".md")
     quasi = evidence["quasi_static"]
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "",
         "# Halo-Current L/R Circuit Validation",
         "",

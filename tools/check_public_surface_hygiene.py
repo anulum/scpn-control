@@ -50,6 +50,10 @@ TEXT_SUFFIXES: Final = {
     ".yml",
 }
 
+RENDERED_MARKDOWN_PRODUCER_PATTERN: Final = re.compile(
+    r"[\"']<!-- SPDX-License-Identifier:\s*AGPL-3\.0-or-later -->[\"']"
+)
+
 SKIPPED_PREFIXES: Final = (
     ".git/",
     ".mypy_cache/",
@@ -351,6 +355,21 @@ def _rendered_markdown_header_finding(path: str, text: str) -> Finding | None:
     return None
 
 
+def _rendered_markdown_producer_finding(path: str, text: str) -> Finding | None:
+    """Reject validation code that emits the forbidden Markdown preamble."""
+    if not path.startswith("validation/") or not path.endswith(".py"):
+        return None
+    for line_number, line in enumerate(text.splitlines(), start=1):
+        if RENDERED_MARKDOWN_PRODUCER_PATTERN.search(line) is not None:
+            return Finding(
+                path=path,
+                line=line_number,
+                category="rendered Markdown legal-header producer",
+                detail=line.strip(),
+            )
+    return None
+
+
 def scan_text(path: str, text: str) -> list[Finding]:
     """Scan one text payload for outward-facing promotion terms.
 
@@ -375,6 +394,9 @@ def scan_text(path: str, text: str) -> list[Finding]:
     rendered_header_finding = _rendered_markdown_header_finding(path, text)
     if rendered_header_finding is not None:
         findings.append(rendered_header_finding)
+    rendered_producer_finding = _rendered_markdown_producer_finding(path, text)
+    if rendered_producer_finding is not None:
+        findings.append(rendered_producer_finding)
     in_fenced_code = False
     for line_number, line in enumerate(text.splitlines(), start=1):
         if path.endswith(".md") and re.match(r"^\s*(```|~~~)", line):
