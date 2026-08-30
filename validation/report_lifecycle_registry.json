@@ -2,11 +2,11 @@
   "expected_bucket_counts": {
     "external_artifact_blocked": 75,
     "historical_only": 41,
-    "rerunnable_local": 10
+    "rerunnable_local": 11
   },
   "freshness_max_age_days": 21,
-  "inventory_as_of_utc": "2026-08-30T03:24:54Z",
-  "registry_source_commit": "778542b3dc2d19a262566c277770ae716299dd26",
+  "inventory_as_of_utc": "2026-08-30T04:32:36Z",
+  "registry_source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
   "reports": [
     {
       "claim_boundary": {
@@ -289,6 +289,62 @@
       "report_commit": "8035e2d6be91a4d43c34de8dc646409db863a97e",
       "report_sha256": "8db0626894b342bf9ffc2118288aba9de1404ab4445238446d08ab8ca1792bed",
       "source_claim_boundary_present": false,
+      "storage_class": "git_tracked"
+    },
+    {
+      "claim_boundary": {
+        "current_evidence": true,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Current bounded-model evidence for the normalized unsaturated continuous-time DGKF identities only; reactor, facility, saturation, arbitrary sampled-data, structured-uncertainty, and performance claims are excluded.",
+        "scientific_admission": true
+      },
+      "evidence_class": "local_proxy",
+      "evidence_time_source": "generated_at",
+      "evidence_time_utc": "2026-08-30T04:32:35.273706Z",
+      "lifecycle_bucket": "rerunnable_local",
+      "path": "validation/reports/h_infinity_control.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/h_infinity_control.json",
+          "validation/reports/h_infinity_control.md"
+        ],
+        "dependency_lock_sha256": "618552d50a625c8e7f0f593ccfbac1d763243a9f22078f4a82b28229ac9860e5",
+        "failures": [
+          "no_facility_or_reactor_validation",
+          "no_saturation_or_arbitrary_sampled_data_guarantee",
+          "frequency_sweep_is_finite_numerical_corroboration"
+        ],
+        "host_class": "workstation-x86_64-intel-i5-11600K",
+        "host_id": "aaarthuus",
+        "host_load": {
+          "cpu_count": 12,
+          "loadavg": [
+            6.283203125,
+            7.5478515625,
+            8.1298828125
+          ],
+          "platform": "Linux-7.0.0-28-generic-x86_64-with-glibc2.39",
+          "python": "3.12.3"
+        },
+        "repeats": 1,
+        "samples": 20002,
+        "source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
+        "warmup": 0
+      },
+      "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
+        "commands": [
+          "PYTHONPATH=src .venv/bin/python validation/validate_h_infinity_control.py"
+        ],
+        "evidence_time_utc": null,
+        "locally_rerunnable": true,
+        "status": "pending_refresh"
+      },
+      "report_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab",
+      "report_sha256": "af2f6085ffa4611a03343a7f7edc61e1e6f51e43df6dd5f41aeb338a1fd50558",
+      "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
     },
     {

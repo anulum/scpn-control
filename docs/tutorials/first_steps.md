@@ -100,9 +100,10 @@ spanning R=[2, 10] m and Z=[-6, 6] m with seven PF/CS coils.
 
 ## Your First Controller
 
-The H-infinity controller provides guaranteed robust stability for vertical
-position control. `get_radial_robust_controller` builds a 2-state vertical
-stability plant and synthesises Riccati-based gains.
+`get_radial_robust_controller` builds a normalized two-state vertical-instability
+example and synthesises the central continuous-time DGKF output-feedback
+controller. The admitted bound applies to the unsaturated linear example, not
+to a facility reactor, arbitrary sample period, or clipped actuator loop.
 
 ```python
 from scpn_control.control.h_infinity_controller import (
@@ -113,7 +114,7 @@ from scpn_control.control.h_infinity_controller import (
 ctrl = get_radial_robust_controller(gamma_growth=100.0, damping=10.0)
 print(f"gamma = {ctrl.gamma:.2f}")
 print(f"Robust feasible: {ctrl.robust_feasible}")
-print(f"State-feedback gain F: {ctrl.F}")
+print(f"Central controller Ak: {ctrl.Ak}")
 
 # Step the controller in a loop
 dt = 1e-3
@@ -122,9 +123,12 @@ for _ in range(500):
 ```
 
 The `gamma_growth` parameter is the vertical instability growth rate in 1/s.
-ITER-like values are ~100; SPARC is ~1000. The controller solves two continuous
-Algebraic Riccati Equations, then discretises via zero-order hold at the
-requested `dt`.
+The controller solves two continuous algebraic Riccati equations, enforces the
+strict spectral condition, constructs the dynamic central realization, and
+then discretises that realization via exact zero-order hold at the requested
+`dt`. The growth-rate values are model inputs, not facility-identification
+evidence; choose `dt` from a sampled closed-loop analysis rather than assuming
+continuous stability transfers to every sample period.
 
 ---
 

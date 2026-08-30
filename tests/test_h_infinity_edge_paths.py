@@ -4,122 +4,162 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Test H Infinity Edge Paths.
+# SCPN Control — H-infinity fail-closed edge tests.
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — H-infinity Controller Edge Path Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
-"""Regression tests for C1/C2 auto-transpose (111,113), dimension mismatch (131),
-make_feedthrough shape (186), non-finite gamma (198), non-finite gains (228),
-gamma search LinAlgError (259-260), and gain_margin_db unstable (384)."""
+"""Numerical and validation edge paths for the public DGKF controller."""
 
 from __future__ import annotations
 
 import numpy as np
 import pytest
 
+import scpn_control.control.h_infinity_controller as hinf_module
 from scpn_control.control.h_infinity_controller import HInfinityController
 
 
-class TestAutoTranspose:
-    def test_c1_column_transpose(self):
-        """C1 with shape (q, 1) triggers transpose (line 111)."""
-        n = 3
-        A = -0.5 * np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.ones((n, 1))  # shape[1]==1 triggers transpose to (1, n)
-        C2 = np.eye(n)
-        ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        assert ctrl.C1.shape[1] == n
-
-    def test_c2_column_transpose(self):
-        """C2 with shape (l, 1) triggers transpose (line 113)."""
-        n = 3
-        A = -0.5 * np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(n)
-        C2 = np.ones((n, 1))  # shape[1]==1 triggers transpose to (1, n)
-        ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        assert ctrl.C2.shape[1] == n
+def _plant() -> dict[str, np.ndarray]:
+    return {
+        "A": np.array([[0.0, 1.0], [1.0, -1.0]]),
+        "B1": np.array([[0.0, 0.0], [0.5, 0.0]]),
+        "B2": np.array([[0.0], [1.0]]),
+        "C1": np.array([[1.0, 0.0], [0.0, 0.0], [0.0, 0.0]]),
+        "C2": np.array([[1.0, 0.0]]),
+        "D12": np.array([[0.0], [0.0], [1.0]]),
+        "D21": np.array([[0.0, 1.0]]),
+    }
 
 
-class TestDimensionMismatch:
-    def test_b1_row_mismatch_raises(self):
-        """B1 with wrong row count raises ValueError (line 129)."""
-        A = np.eye(3)
-        B1 = np.eye(2)  # 2 rows, should be 3
-        B2 = np.eye(3)
-        C1 = np.eye(3)
-        C2 = np.eye(3)
-        with pytest.raises(ValueError, match="B1 row count"):
-            HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-
-    def test_c1_column_mismatch_raises(self):
-        """C1 with wrong column count raises ValueError (line 131)."""
-        n = 3
-        A = -np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(2)  # 2 cols, should be 3
-        C2 = np.eye(n)
-        with pytest.raises(ValueError, match="C1 column count"):
-            HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
+@pytest.mark.parametrize("gamma", [0.0, -1.0, np.nan, np.inf])
+def test_gamma_domain_rejected(gamma: float) -> None:
+    """Gamma must remain finite and strictly positive."""
+    with pytest.raises(ValueError, match="gamma"):
+        HInfinityController(**_plant(), gamma=gamma)
 
 
-class TestFeedthroughShape:
-    def test_d12_wrong_shape_raises(self):
-        """D12 with wrong shape raises ValueError (line 186)."""
-        n = 2
-        A = -np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(n)
-        C2 = np.eye(n)
-        D12 = np.eye(3)  # wrong shape (3,3), should be (q=2, m=2)
-        with pytest.raises(ValueError, match="D12"):
-            HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2, D12=D12)
+def test_gamma_search_domain_rejected() -> None:
+    """Search bounds, tolerance, and iteration budget fail closed."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+    with pytest.raises(ValueError, match="gamma_min must be strictly below"):
+        controller._find_optimal_gamma(gamma_min=2.0, gamma_max=1.0)
+    with pytest.raises(ValueError, match="max_iter must be a positive integer"):
+        controller._find_optimal_gamma(max_iter=0)
+    with pytest.raises(ValueError, match="max_iter must be a positive integer"):
+        controller._find_optimal_gamma(max_iter=True)
 
 
-class TestSynthesizeEdge:
-    def test_non_finite_gamma_raises(self):
-        """Non-finite gamma raises ValueError (line 198)."""
-        n = 2
-        A = -np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(n)
-        C2 = np.eye(n)
-        ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        with pytest.raises(ValueError, match="gamma"):
-            ctrl._synthesize(float("nan"))
-
-    def test_gamma_le_one_raises(self):
-        """gamma <= 1.0 raises ValueError (line 198)."""
-        n = 2
-        A = -np.eye(n)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(n)
-        C2 = np.eye(n)
-        ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        with pytest.raises(ValueError, match="gamma"):
-            ctrl._synthesize(0.5)
+def test_gamma_search_upper_bound_fails_closed() -> None:
+    """An infeasible upper search bound cannot fabricate a result."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+    with pytest.raises(ValueError, match="No feasible gamma found"):
+        controller._find_optimal_gamma(gamma_min=0.1, gamma_max=0.2)
 
 
-class TestGainMarginUnstable:
-    def test_unstable_closed_loop_zero_margin(self):
-        """Unstable A with gain_margin_db → 0.0 (line 384)."""
-        n = 2
-        A = np.array([[1.0, 0.5], [0.0, 2.0]])  # unstable (positive eigenvalues)
-        B1 = np.eye(n)
-        B2 = np.eye(n)
-        C1 = np.eye(n)
-        C2 = np.eye(n)
-        ctrl = HInfinityController(A=A, B1=B1, B2=B2, C1=C1, C2=C2)
-        # If the closed-loop remains unstable, gain_margin_db returns 0.0
-        gm = ctrl.gain_margin_db
-        assert isinstance(gm, float)
+def test_gamma_search_can_exhaust_a_bounded_iteration_budget() -> None:
+    """A bounded early stop still returns an explicitly padded feasible point."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+    gamma = controller._find_optimal_gamma(max_iter=1, rtol=1.0e-15)
+    assert gamma > 0.0
+
+
+def test_empty_and_rank_three_values_rejected() -> None:
+    """Empty and rank-three arrays cannot masquerade as state matrices."""
+    plant = _plant()
+    with pytest.raises(ValueError, match="non-empty"):
+        HInfinityController(**{**plant, "A": np.array([])})
+    with pytest.raises(ValueError, match="one- or two-dimensional"):
+        HInfinityController(**{**plant, "A": np.zeros((1, 1, 1))})
+
+
+def test_c1_detectability_and_b2_stabilizability_rejected() -> None:
+    """Both remaining PBH standard-plant conditions are enforced."""
+    plant = _plant()
+    undetectable = {
+        **plant,
+        "A": np.diag([1.0, -1.0]),
+        "B1": np.array([[1.0, 0.0], [0.0, 0.0]]),
+        "C1": np.array([[0.0, 1.0], [0.0, 0.0], [0.0, 0.0]]),
+        "C2": np.array([[1.0, 0.0]]),
+    }
+    with pytest.raises(ValueError, match=r"\(C1, A\) must be detectable"):
+        HInfinityController(**undetectable)
+
+    uncontrollable = {
+        **plant,
+        "A": np.diag([1.0, -1.0]),
+        "B1": np.array([[1.0, 0.0], [0.0, 0.0]]),
+        "B2": np.array([[0.0], [1.0]]),
+        "C1": np.array([[1.0, 0.0], [0.0, 0.0], [0.0, 0.0]]),
+        "C2": np.array([[1.0, 0.0]]),
+    }
+    with pytest.raises(ValueError, match=r"\(A, B2\) must be stabilizable"):
+        HInfinityController(**uncontrollable)
+
+
+def test_scalar_matrix_is_rejected() -> None:
+    """A scalar is not silently promoted to a one-state plant."""
+    with pytest.raises(ValueError, match="one- or two-dimensional"):
+        HInfinityController(**{**_plant(), "A": 1.0})
+
+
+def test_numerical_admission_failures_are_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A non-PSD dual Riccati result is rejected even after solver return."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+    original_eigvalsh = hinf_module.np.linalg.eigvalsh
+
+    calls = 0
+
+    def negative_y(matrix: np.ndarray) -> np.ndarray:
+        nonlocal calls
+        calls += 1
+        return original_eigvalsh(matrix) if calls == 1 else np.array([-1.0])
+
+    monkeypatch.setattr(hinf_module.np.linalg, "eigvalsh", negative_y)
+    with pytest.raises(ValueError, match="Y is not positive semidefinite"):
+        controller._synthesize(5.0)
+
+
+@pytest.mark.parametrize(("unstable_call", "match"), [(1, "X is not"), (2, "Y is not")])
+def test_nonstabilizing_riccati_solution_is_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+    unstable_call: int,
+    match: str,
+) -> None:
+    """Only stabilizing primal and dual Riccati solutions are admitted."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+    original_eigvals = hinf_module.np.linalg.eigvals
+    calls = 0
+
+    def unstable_once(matrix: np.ndarray) -> np.ndarray:
+        nonlocal calls
+        calls += 1
+        if calls == unstable_call:
+            return np.array([0.0])
+        return original_eigvals(matrix)
+
+    monkeypatch.setattr(hinf_module.np.linalg, "eigvals", unstable_once)
+    with pytest.raises(ValueError, match=match):
+        controller._synthesize(5.0)
+
+
+def test_singular_coupling_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A singular central-controller coupling fails without an explicit inverse."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+
+    def singular(*args: object, **kwargs: object) -> np.ndarray:
+        raise np.linalg.LinAlgError("singular")
+
+    monkeypatch.setattr(hinf_module.np.linalg, "solve", singular)
+    with pytest.raises(ValueError, match="coupling matrix is singular"):
+        controller._synthesize(5.0)
+
+
+def test_unstable_augmented_controller_is_rejected(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The final augmented internal-stability check is mandatory."""
+    controller = HInfinityController(**_plant(), gamma=5.0)
+
+    def unstable_realization(*args: object) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        return np.array([[1.0]]), np.zeros((1, 1)), np.zeros((1, 1)), np.zeros((1, 1))
+
+    monkeypatch.setattr(controller, "_closed_loop_realization", unstable_realization)
+    with pytest.raises(ValueError, match="does not internally stabilize"):
+        controller._synthesize(5.0)

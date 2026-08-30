@@ -167,54 +167,65 @@ $$
 \|T_{wz}\|_\infty = \sup_\omega \bar{\sigma}\bigl(T_{wz}(j\omega)\bigr)
 $$
 
-where $\bar{\sigma}$ is the maximum singular value. The H-infinity controller
-minimises this norm: it minimises the worst-case amplification from disturbance to error
-across all frequencies.
+where $\bar{\sigma}$ is the maximum singular value. A suboptimal H-infinity
+design finds a stabilising controller whose norm is strictly below a declared
+$\gamma$; it need not compute the exact global optimum.
 
 ### Riccati Equations
 
-The Doyle-Glover-Khargonekar synthesis solves two algebraic Riccati equations (AREs).
-For the discrete-time implementation used in real controllers, the plant is first
-discretised via zero-order hold:
+The implemented Doyle-Glover-Khargonekar-Francis result is the normalized
+continuous-time problem. It requires
 
 $$
-x_{k+1} = A_d x_k + B_d u_k, \qquad A_d = e^{A \Delta t}, \quad B_d = \int_0^{\Delta t} e^{A\tau} B \, d\tau
+D_{12}^\top C_1=0,\quad D_{12}^\top D_{12}=I,\quad
+B_1D_{21}^\top=0,\quad D_{21}D_{21}^\top=I.
 $$
 
-The discrete algebraic Riccati equation (DARE) for the state-feedback gain:
+The two stabilising continuous Riccati solutions satisfy
 
 $$
-X = A_d^\top X A_d - A_d^\top X B_d (R + B_d^\top X B_d)^{-1} B_d^\top X A_d + Q
+A^\top X+XA+C_1^\top C_1+
+X(\gamma^{-2}B_1B_1^\top-B_2B_2^\top)X=0,
 $$
 
-The stabilising solution $X \succeq 0$ yields the optimal gain $K = (R + B_d^\top X B_d)^{-1} B_d^\top X A_d$.
+$$
+AY+YA^\top+B_1B_1^\top+
+Y(\gamma^{-2}C_1^\top C_1-C_2^\top C_2)Y=0.
+$$
+
+Existence additionally requires $X,Y\succeq0$ and
+$\rho(XY)<\gamma^2$. With $F=-B_2^\top X$, $L=-YC_2^\top$, and
+$Z=(I-\gamma^{-2}YX)^{-1}$, the central dynamic controller is
+
+$$
+\dot{x}_K=(A+\gamma^{-2}B_1B_1^\top X+B_2F+ZLC_2)x_K-ZLy,
+\qquad u=Fx_K.
+$$
+
+The runtime discretises this admitted controller realization by exact
+zero-order hold. It does not replace the continuous design with an LQR DARE.
 
 ### Stability Margins
 
-Gain margin: the maximum multiplicative factor by which the loop gain can increase
-before instability. Phase margin: the maximum phase lag that can be tolerated. For
-vertical stability, typical requirements are gain margin $> 6$ dB and phase margin
-$> 30°$. The H-infinity controller provides guaranteed margins via the small gain
-theorem: if $\|T_{wz}\|_\infty < \gamma^{-1}$, the system remains stable for all
-perturbations $\|\Delta\| < \gamma$.
+Gain and phase margins require an explicit loop-transfer analysis. An
+H-infinity attenuation bound is not by itself a universal 6 dB margin. A small
+gain conclusion applies only after the uncertainty interconnection and its
+normalisation are declared; for example, robust stability follows when the
+relevant closed-loop map and uncertainty satisfy
+$\|T\|_\infty\|\Delta\|_\infty<1$.
 
 ### Anti-Windup
 
-When coil current saturates, the integrator inside the controller continues accumulating
-error. Anti-windup clamps the integral state:
-
-$$
-\dot{x}_I = \begin{cases}
-e(t) & \text{if } |u| < u_{\max} \\
-0 & \text{if } |u| \geq u_{\max} \text{ and } \text{sign}(e) = \text{sign}(u)
-\end{cases}
-$$
-
-This prevents large overshoot when the actuator exits saturation.
+The runtime clips the returned actuator command at `u_max`, but the central
+controller state remains the linear realization. This is an output safety
+boundary, not a proved anti-windup design, and the continuous H-infinity bound
+does not apply while clipping is active.
 
 **scpn-control**: `HInfinityController` in `scpn_control.control.h_infinity_controller`.
-Implements ZOH discretisation, DARE-based gain synthesis, gamma-bisection for feasibility,
-and 20% multiplicative uncertainty tolerance.
+Implements normalized continuous DGKF synthesis, fail-closed gamma bisection,
+the central output-feedback realization, and exact-ZOH sampled execution. The
+sealed report `validation/reports/h_infinity_control.json` validates the bounded
+model identities and states the excluded claims.
 
 ---
 

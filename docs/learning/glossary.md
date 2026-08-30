@@ -40,7 +40,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 ## D
 
-**DARE (Discrete Algebraic Riccati Equation)** — The matrix equation X = A^T X A - A^T X B (R + B^T X B)^{-1} B^T X A + Q, solved to obtain LQR/H-infinity gains for a sampled-data plant. `control.h_infinity_controller`
+**DARE (Discrete Algebraic Riccati Equation)** — The matrix equation X = A^T X A - A^T X B (R + B^T X B)^{-1} B^T X A + Q, used by sampled-data LQR and estimator designs. The repository's H-infinity owner instead solves the normalized continuous-time DGKF pair and discretises the resulting dynamic controller realization. `control.h_infinity_controller`
 
 **D-K iteration** — Iterative mu-synthesis algorithm alternating between D-scale fitting and H-infinity controller synthesis to achieve robust performance against structured uncertainty. SCPN Control does not currently implement this algorithm; its separate `control.static_mu_analysis` module provides Riccati state feedback with a one-point static D-scaled upper bound.
 
@@ -72,7 +72,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 ## G
 
-**Gain margin** — The factor by which loop gain can increase before the closed-loop system goes unstable. Measured in dB. H-infinity synthesis guarantees >= 6 dB. `control.h_infinity_controller`
+**Gain margin** — The factor by which loop gain can increase before the closed-loop system goes unstable, normally measured from an explicit loop transfer. H-infinity attenuation alone does not establish a universal 6 dB margin; the uncertainty interconnection and scaling must be declared. The legacy `gain_margin_db` property is only a deprecated pole-displacement diagnostic. `control.h_infinity_controller`
 
 **Grad-Shafranov equation** — The elliptic PDE for axisymmetric toroidal equilibrium: Delta* psi = -mu_0 R^2 p'(psi) - F F'(psi), where Delta* is the toroidal Laplacian operator. Solved by Picard iteration. `core.fusion_kernel`
 
@@ -84,7 +84,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **H-mode (High confinement mode)** — Operating regime with an edge transport barrier (pedestal), achieving ~2x the L-mode confinement time. Accessed by exceeding a power threshold. `core.fusion_kernel`
 
-**H-infinity control** — Robust control synthesis minimising the worst-case disturbance-to-performance transfer function norm. Solved via two continuous Riccati equations, then discretised by ZOH. `control.h_infinity_controller`
+**H-infinity control** — Robust control synthesis bounding the worst-case disturbance-to-performance transfer norm. `HInfinityController` implements the normalized continuous-time DGKF central output-feedback controller, fails closed on its standard-plant assumptions and strict Riccati/spectral conditions, then applies exact ZOH to that controller realization for runtime. Saturation and arbitrary sample periods are outside the continuous theorem. `control.h_infinity_controller`
 
 **Halo current** — Current flowing through open field lines and the vessel wall during vertical displacement events. Generates large electromagnetic forces. *A.* `control.halo_re_physics`
 

@@ -45,7 +45,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign  # noqa: E402
-from scpn_control.control.h_infinity_controller import HInfinityController  # noqa: E402
+from scpn_control.control.h_infinity_controller import get_radial_robust_controller  # noqa: E402
 from scpn_control.control.neuro_cybernetic_controller import SpikingControllerPool  # noqa: E402
 from scpn_control.control.nmpc_controller import NMPCConfig, NonlinearMPC  # noqa: E402
 from scpn_control.core._rust_compat import RustPIDController  # noqa: E402
@@ -258,28 +258,28 @@ def _mpc_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
 
 def _h_infinity_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    n = 3
-    ctrl = HInfinityController(A=-0.5 * np.eye(n), B1=np.eye(n), B2=np.eye(n), C1=np.eye(n), C2=np.eye(n))
+    ctrl = get_radial_robust_controller(gamma_growth=10.0, damping=10.0)
+    ctrl.u_max = 1.0e8
     entries.append(
         _entry(
             "H-infinity",
             "numpy",
             _measure(lambda i: ctrl.step(math.sin(i * 0.01), 1.0e-3), iterations=iterations, warmup=warmup),
             "measured",
-            "general state-space",
+            "normalized 2-state DGKF realization",
         )
     )
     if _rust_symbol_available("PyHInfController"):
         from scpn_control.core._rust_compat import RustHInfController
 
-        rust_ctrl = RustHInfController()
+        rust_ctrl = RustHInfController(controller=ctrl, u_max=ctrl.u_max, dt=1.0e-3)
         entries.append(
             _entry(
                 "H-infinity",
                 "rust",
                 _measure(lambda i: rust_ctrl.step(math.sin(i * 0.01), 1.0e-3), iterations=iterations, warmup=warmup),
                 "measured",
-                "2-state VDE",
+                "same normalized 2-state DGKF realization",
             )
         )
     else:
@@ -330,6 +330,7 @@ def _write_markdown(path: Path, payload: dict[str, Any]) -> None:
 
 
 def main() -> int:
+    """Run the governed per-controller latency campaign and write its records."""
     args = _parse_args()
     if args.iterations <= 0:
         raise SystemExit("--iterations must be positive")

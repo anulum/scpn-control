@@ -8,7 +8,7 @@
 #![deny(missing_docs, rustdoc::broken_intra_doc_links)]
 //! PyO3 Python bindings for SCPN Control (Modern Bound API).
 
-use ndarray::{Array1, Array2};
+use ndarray::Array1;
 use numpy::{
     IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2, PyUntypedArrayMethods,
 };
@@ -2104,29 +2104,37 @@ struct PyHInfController {
 
 #[pymethods]
 impl PyHInfController {
+    /// Construct a sampled runtime from an admitted central-controller realization.
     #[new]
     fn new(
-        a: PyReadonlyArray2<'_, f64>,
-        b2: PyReadonlyArray2<'_, f64>,
-        c2: PyReadonlyArray2<'_, f64>,
+        ak: PyReadonlyArray2<'_, f64>,
+        bk: PyReadonlyArray2<'_, f64>,
+        ck: PyReadonlyArray2<'_, f64>,
         gamma: f64,
+        u_max: f64,
         dt: f64,
     ) -> PyResult<Self> {
-        let plant = control_control::h_infinity::HInfPlant::new(
-            a.as_array().to_owned(),
-            Array2::zeros((a.shape()[0], 1)),
-            b2.as_array().to_owned(),
-            Array2::zeros((1, a.shape()[0])),
-            c2.as_array().to_owned(),
-        )
-        .map_err(PyValueError::new_err)?;
         Ok(PyHInfController {
-            inner: HInfController::new(plant, gamma, 1e6, dt),
+            inner: HInfController::new(
+                ak.as_array().to_owned(),
+                bk.as_array().to_owned(),
+                ck.as_array().to_owned(),
+                gamma,
+                u_max,
+                dt,
+            )
+            .map_err(PyValueError::new_err)?,
         })
     }
 
-    fn step(&mut self, y: f64, dt: f64) -> f64 {
-        self.inner.step(y, dt)
+    /// Advance the exact realization from one scalar measurement sample.
+    fn step(&mut self, y: f64, dt: f64) -> PyResult<f64> {
+        self.inner.step(y, dt).map_err(PyValueError::new_err)
+    }
+
+    /// Reset the controller state to zero.
+    fn reset(&mut self) {
+        self.inner.reset();
     }
 
     #[getter]

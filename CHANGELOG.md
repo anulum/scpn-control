@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Replaced the mislabeled H-infinity observer/LQR paths with the normalized
+  continuous-time DGKF central output-feedback controller. The public API now
+  requires explicit normalized feedthrough matrices, fails closed on every
+  existence condition, discretises the admitted controller realization by
+  exact ZOH, and gives Rust that same realization for fair runtime parity;
+  historical unlike-algorithm latency rows remain identified as historical.
 - Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
   weights fail closed or fall back when opted in.
 - Removed seven source-tree-only console scripts that were declared in wheel
@@ -12,6 +18,22 @@
   installed-target validation.
 ### Changed
 
+- Replaced the density estimator's ignored `chord_angles` pseudo-Abel kernel
+  with exact, metre-dimensioned straight-chord lengths through declared
+  circular annular shells. The estimator now validates all state, geometry,
+  timestep, and covariance domains and uses a Cholesky gain solve with the
+  Joseph covariance update; the historical keyword remains a warning-emitting
+  compatibility alias for normalised impact coordinates until 0.25.0.
+- Separated Paper 27's abstract layer indices from the illustrative
+  plasma-labelled hierarchy. Plasma builders, frequencies, and monitor
+  construction now share one explicit `L=1..8` or `L=16` domain and reject
+  undefined implicit mappings before construction; public examples now route
+  future reactor binding through SPO and plant validation through FUSION.
+- Removed the integrated scenario's write-only phase pseudo-bridge and
+  reclassified the retained UPDE, adaptive Knm, monitor, and stream as example
+  oscillator-model surfaces. Public documentation now states that reactor use
+  requires scenario-specific signal identification, a coupled plant solver,
+  physical actuator mapping, and closed-loop validation.
 - Replaced local implementation-stage labels in controller artifacts, physics
   comments, and focused polyglot tests with descriptive responsibilities while
   retaining the stable MIF module identifiers used across repositories.

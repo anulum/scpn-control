@@ -4,470 +4,296 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Test H Infinity Controller.
+# SCPN Control — normalized DGKF controller tests.
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — H-Infinity Robust Controller Tests
-# ──────────────────────────────────────────────────────────────────────
-"""
-Comprehensive tests for the H-infinity robust controller including
-synthesis, gain shapes, stability verification, Riccati residual checks,
-and robustness under plant perturbation.
-"""
+"""Public-surface tests for normalized DGKF synthesis and runtime."""
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import pytest
+from scipy.linalg import expm
 
 from scpn_control.control.h_infinity_controller import (
     HInfinityController,
+    get_flight_sim_controller,
     get_radial_robust_controller,
 )
 
 
-# ── Reference plant (canonical vertical stability model) ─────────────
-
-
-def _vertical_stability_plant(
-    gamma_v: float = 10.0,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Build a 2-state vertical stability model.
-
-    State: [z_plasma, dz/dt]
-    A = [[0, 1], [gamma_v^2, 0]]  (unstable growth)
-    B1 = [[0], [1]]  (disturbance)
-    B2 = [[0], [1]]  (control)
-    C1 = [[1, 0], [0, 0.01]]  (penalize position + small control)
-    C2 = [[1, 0]]  (measure position)
-    """
-    A = np.array([[0.0, 1.0], [gamma_v**2, 0.0]])
-    B1 = np.array([[0.0], [1.0]])
-    B2 = np.array([[0.0], [1.0]])
-    C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
-    C2 = np.array([[1.0, 0.0]])
-    return A, B1, B2, C1, C2
-
-
-# ── 1. Controller Synthesis ──────────────────────────────────────────
-
-
-class TestSynthesis:
-    def test_synthesis_2x2(self) -> None:
-        """Synthesize an H-infinity controller for a 2-state vertical stability model."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.n == 2
-        assert ctrl.m == 1  # one control input
-        assert ctrl.l == 1  # one measurement
-        assert np.isfinite(ctrl.gamma)
-        assert ctrl.gamma > 1.0
-
-    def test_synthesis_with_factory(self) -> None:
-        """get_radial_robust_controller produces a valid controller."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        assert ctrl.n == 2
-        assert ctrl.F is not None
-        assert ctrl.L_gain is not None
-        assert ctrl.X is not None
-        assert ctrl.Y is not None
-
-
-# ── 2. Gain Shapes ──────────────────────────────────────────────────
-
-
-class TestGainShapes:
-    def test_feedback_gain_shape(self) -> None:
-        """F matrix shape is (m, n) where m=num controls, n=num states."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.F.shape == (1, 2)  # (m=1, n=2)
-
-    def test_observer_gain_shape(self) -> None:
-        """L matrix shape is (n, l) where l=num measurements."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.L_gain.shape == (2, 1)  # (n=2, l=1)
-
-    def test_riccati_solution_shapes(self) -> None:
-        """X and Y Riccati solutions should be (n, n) symmetric."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.X.shape == (2, 2)
-        assert ctrl.Y.shape == (2, 2)
-        np.testing.assert_allclose(ctrl.X, ctrl.X.T, atol=1e-12)
-        np.testing.assert_allclose(ctrl.Y, ctrl.Y.T, atol=1e-12)
-
-    def test_gains_finite(self) -> None:
-        """Both F and L gains should contain only finite values."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        assert np.all(np.isfinite(ctrl.F))
-        assert np.all(np.isfinite(ctrl.L_gain))
-
-
-# ── 3. Closed-Loop Stability ─────────────────────────────────────────
-
-
-class TestClosedLoopStability:
-    def test_closed_loop_stable(self) -> None:
-        """Closed loop A_cl = A + B2*F should have all eigenvalues in LHP."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.is_stable
-
-    def test_closed_loop_simulation_bounded(self) -> None:
-        """Simulate closed-loop for 100 steps; state should not diverge."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-
-        # Simulate discrete-time closed loop
-        x = np.array([1.0, 0.0])  # initial displacement
-        dt = 0.001
-        max_state_norm = 0.0
-
-        for step in range(100):
-            # Measurement
-            y = C2 @ x
-            # Control
-            u_val = ctrl.step(float(y[0]), dt=dt)
-            u = np.array([u_val])
-            # Plant dynamics (Euler integration)
-            dx = A @ x + B2 @ u
-            x = x + dx * dt
-            max_state_norm = max(max_state_norm, np.linalg.norm(x))
-
-        # State should remain bounded (not diverge)
-        assert max_state_norm < 1e6
-        assert np.all(np.isfinite(x))
-
-    def test_closed_loop_converges_to_zero(self) -> None:
-        """Over longer time, the controlled state should approach zero.
-
-        Uses the state-feedback gain F directly (no observer dynamics)
-        to verify the closed-loop A+B2*F drives x toward zero.
-        """
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-
-        # Use direct state feedback (F @ x) to avoid observer infeasibility
-        x = np.array([0.5, 0.0])
-        dt = 0.0001  # small dt for Euler stability
-
-        for step in range(10000):
-            u = ctrl.F @ x  # direct state feedback
-            dx = A @ x + B2 @ u
-            x = x + dx * dt
-
-        # After 1 second of state-feedback control, state should be small
-        assert np.linalg.norm(x) < 1.0, f"State norm {np.linalg.norm(x)} did not converge"
-
-
-# ── 4. Gamma and Feasibility ─────────────────────────────────────────
-
-
-class TestGammaFeasibility:
-    def test_gamma_positive(self) -> None:
-        """Synthesized gamma > 0 and > 1."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.gamma > 1.0
-        assert np.isfinite(ctrl.gamma)
-
-    def test_spectral_radius_finite(self) -> None:
-        """Spectral radius of XY should be finite and non-negative."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        assert ctrl.spectral_radius_xy >= 0.0
-        assert np.isfinite(ctrl.spectral_radius_xy)
-
-    def test_feasibility_margin(self) -> None:
-        """robust_feasibility_margin() should return a finite float."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        margin = ctrl.robust_feasibility_margin()
-        assert np.isfinite(margin)
-
-    def test_robust_feasible_property(self) -> None:
-        """robust_feasible flag should be consistent with spectral radius."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        expected = ctrl.spectral_radius_xy < ctrl.gamma**2
-        assert ctrl.robust_feasible == expected
-
-
-# ── 5. Riccati Residuals ─────────────────────────────────────────────
-
-
-class TestRiccatiResiduals:
-    def test_riccati_residual_small(self) -> None:
-        """X and Y Riccati solutions should have small residual norms."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        res_x, res_y = ctrl.riccati_residual_norms()
-        # X Riccati residual should be very small (direct ARE solution)
-        assert res_x < 1e-3, f"X residual {res_x} exceeds tolerance"
-        # Y Riccati (observer ARE) must also be well-solved
-        assert res_y < 0.05, f"Y residual {res_y} exceeds tolerance"
-
-    def test_riccati_residuals_finite(self) -> None:
-        """Residual norms should be finite."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        res_x, res_y = ctrl.riccati_residual_norms()
-        assert np.isfinite(res_x)
-        assert np.isfinite(res_y)
-
-
-# ── 6. Robustness Under Plant Perturbation ───────────────────────────
-
-
-class TestRobustness:
-    def test_perturbed_plant_10_percent(self) -> None:
-        """Perturb A by 10%; closed-loop should still be stable."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-
-        # Perturb the A matrix by 10%
-        rng = np.random.RandomState(42)
-        A_perturbed = A * (1.0 + 0.1 * rng.randn(*A.shape))
-
-        # Check closed-loop stability with original controller gains
-        A_cl_perturbed = A_perturbed + B2 @ ctrl.F
-        eigs = np.linalg.eigvals(A_cl_perturbed)
-        # All eigenvalues should still have negative real parts
-        assert np.all(np.real(eigs) < 0), f"Closed-loop unstable under 10% perturbation: eigs = {eigs}"
-
-    def test_perturbed_plant_simulation(self) -> None:
-        """Simulate the controller (state feedback) on a 10% perturbed plant.
-
-        Uses direct state feedback F@x to verify robustness without
-        observer dynamics, which may be infeasible for this plant.
-        """
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-
-        rng = np.random.RandomState(123)
-        A_perturbed = A * (1.0 + 0.1 * rng.randn(*A.shape))
-
-        x = np.array([1.0, 0.0])
-        dt = 0.0001  # small dt for Euler stability with perturbed plant
-
-        for _ in range(5000):
-            u = ctrl.F @ x  # direct state feedback
-            dx = A_perturbed @ x + B2 @ u
-            x = x + dx * dt
-
-        assert np.all(np.isfinite(x))
-        assert np.linalg.norm(x) < 100.0, f"State norm {np.linalg.norm(x)} diverged"
-
-
-# ── 7. Input Validation ──────────────────────────────────────────────
-
-
-class TestInputValidation:
-    def test_rejects_invalid_gamma(self) -> None:
-        """gamma must be > 1.0 and finite."""
-        A, B1, B2, C1, C2 = _vertical_stability_plant()
-        with pytest.raises(ValueError, match="gamma must be > 1.0"):
-            HInfinityController(A, B1, B2, C1, C2, gamma=1.0)
-        with pytest.raises(ValueError, match="gamma must be finite"):
-            HInfinityController(A, B1, B2, C1, C2, gamma=float("nan"))
-
-    def test_rejects_nonfinite_A(self) -> None:
-        """A matrix with NaN or Inf should be rejected."""
-        _, B1, B2, C1, C2 = _vertical_stability_plant()
-        A_bad = np.array([[float("nan"), 1.0], [0.0, 0.0]])
-        with pytest.raises(ValueError, match="finite"):
-            HInfinityController(A_bad, B1, B2, C1, C2)
-
-    def test_rejects_nonsquare_A(self) -> None:
-        """A must be a square matrix."""
-        _, B1, B2, C1, C2 = _vertical_stability_plant()
-        A_rect = np.array([[0.0, 1.0, 0.0], [1.0, 0.0, 0.0]])
-        with pytest.raises(ValueError, match="square"):
-            HInfinityController(A_rect, B1, B2, C1, C2)
-
-    def test_rejects_dimension_mismatch_B2(self) -> None:
-        """B2 row count must match A."""
-        A, B1, _, C1, C2 = _vertical_stability_plant()
-        B2_wrong = np.array([[0.0], [0.0], [1.0]])  # 3 rows vs A is 2x2
-        with pytest.raises(ValueError, match="row count must match A"):
-            HInfinityController(A, B1, B2_wrong, C1, C2)
-
-    def test_rejects_nonfinite_step_error(self) -> None:
-        """step() rejects NaN measurement."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        with pytest.raises(ValueError, match="error must be finite"):
-            ctrl.step(float("nan"), dt=1e-3)
-
-    def test_rejects_zero_dt(self) -> None:
-        """step() rejects dt <= 0."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        with pytest.raises(ValueError, match="dt must be > 0"):
-            ctrl.step(0.1, dt=0.0)
-
-
-# ── 8. Reset and State Management ────────────────────────────────────
-
-
-class TestStateManagement:
-    def test_reset_zeros_state(self) -> None:
-        """reset() should zero the controller internal state."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        # Accumulate some state
-        for _ in range(10):
-            ctrl.step(0.5, dt=1e-3)
-        assert not np.allclose(ctrl.state, 0.0)
-        ctrl.reset()
-        np.testing.assert_array_equal(ctrl.state, np.zeros(ctrl.n))
-
-    def test_step_modifies_state(self) -> None:
-        """step() should modify the internal state."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        state_before = ctrl.state.copy()
-        ctrl.step(1.0, dt=1e-3)
-        assert not np.array_equal(ctrl.state, state_before)
-
-    def test_step_returns_scalar(self) -> None:
-        """step() should return a scalar control action."""
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        u = ctrl.step(0.5, dt=1e-3)
-        assert isinstance(u, float)
-        assert np.isfinite(u)
-
-
-# ── 9. Enforce Robust Feasibility ────────────────────────────────────
-
-
-class TestEnforceRobustFeasibility:
-    def test_strict_mode_rejects_infeasible(self) -> None:
-        """enforce_robust_feasibility=True raises on infeasible synthesis."""
-        # Pathologically ill-conditioned: huge disturbance, tiny control authority
-        A = np.array([[0.0, 1.0], [1e6, 0.0]])
-        B1 = np.array([[0.0], [100.0]])
-        B2 = np.array([[0.0], [0.01]])
-        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
-        C2 = np.array([[1.0, 0.0]])
-        with pytest.raises(ValueError, match="spectral feasibility condition failed"):
-            HInfinityController(A, B1, B2, C1, C2, enforce_robust_feasibility=True)
-
-    def test_non_strict_mode_warns(self, caplog: pytest.LogCaptureFixture) -> None:
-        """Without enforce_robust_feasibility, infeasible produces a warning."""
-        A = np.array([[0.0, 1.0], [1e6, 0.0]])
-        B1 = np.array([[0.0], [100.0]])
-        B2 = np.array([[0.0], [0.01]])
-        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
-        C2 = np.array([[1.0, 0.0]])
-        with caplog.at_level("WARNING", logger="scpn_control.control.h_infinity_controller"):
-            ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert isinstance(ctrl, HInfinityController)
-
-
-# ── 10. Auto-transpose 1D inputs ────────────────────────────────────
-
-
-class TestAutoTranspose:
-    def test_1d_B_inputs_auto_transposed(self) -> None:
-        """B1, B2 as 1D arrays are auto-transposed to column vectors."""
-        A = np.array([[0.0, 1.0], [100.0, -10.0]])
-        B1 = np.array([0.0, 0.5])  # 1D → should become (2,1)
-        B2 = np.array([0.0, 1.0])  # 1D → should become (2,1)
-        C1 = np.array([[1.0, 0.0], [0.0, 0.0]])
-        C2 = np.array([[1.0, 0.0]])
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.B1.shape == (2, 1)
-        assert ctrl.B2.shape == (2, 1)
-
-    def test_1d_C_inputs_auto_transposed(self) -> None:
-        """C1, C2 as 1D arrays are auto-transposed to row vectors."""
-        A = np.array([[0.0, 1.0], [100.0, -10.0]])
-        B1 = np.array([[0.0], [0.5]])
-        B2 = np.array([[0.0], [1.0]])
-        C1 = np.array([1.0, 0.0])  # 1D → becomes (1,1) then transposed to (1,2)
-        C2 = np.array([1.0, 0.0])  # same
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.C1.shape[1] == 2
-        assert ctrl.C2.shape[1] == 2
-
-
-# ── 11. Gain margin edge cases ──────────────────────────────────────
-
-
-class TestGainMargin:
-    def test_gain_margin_positive(self) -> None:
-        ctrl = get_radial_robust_controller(gamma_growth=100.0)
-        margin = ctrl.gain_margin_db
-        assert margin > 0.0
-
-    def test_gain_margin_stable_plant_returns_inf(self) -> None:
-        """A stable open-loop plant → infinite gain margin."""
-        A = np.array([[-5.0, 1.0], [0.0, -10.0]])
-        B1 = np.array([[0.0], [1.0]])
-        B2 = np.array([[0.0], [1.0]])
-        C1 = np.array([[1.0, 0.0], [0.0, 0.01]])
-        C2 = np.array([[1.0, 0.0]])
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.gain_margin_db == float("inf")
-
-    def test_factory_rejects_nonpositive_damping(self) -> None:
-        with pytest.raises(ValueError, match="damping"):
-            get_radial_robust_controller(damping=0.0)
-
-    def test_factory_rejects_nan_damping(self) -> None:
-        with pytest.raises(ValueError, match="damping"):
-            get_radial_robust_controller(damping=float("nan"))
-
-
-# ── 12. Physics-motivated citation tests ─────────────────────────────
-
-
-class TestPhysicsCitations:
-    """Verify numerical properties cited in Doyle et al. 1989 and Zhou 1996."""
-
-    def test_hinf_riccati_solves_psd(self) -> None:
-        """X must be positive semi-definite for a stable plant.
-
-        Zhou, Doyle & Glover 1996, Theorem 14.2: the stabilising solution X
-        to the state-feedback ARE is PSD when (A, B2) is stabilisable and
-        (C1, A) is detectable.
-        """
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        eigs_x = np.linalg.eigvalsh(ctrl.X)
-        assert np.all(eigs_x >= -1e-10), f"X not PSD: min eigenvalue {eigs_x.min()}"
-
-    def test_hinf_gamma_bound(self) -> None:
-        """Synthesised gamma must be strictly less than the initial search upper bound.
-
-        Green & Limebeer 1995, Ch. 13: binary search converges to optimal gamma*
-        below the initial upper limit _GAMMA_SEARCH_MAX.
-        """
-        A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-        ctrl = HInfinityController(A, B1, B2, C1, C2)
-        assert ctrl.gamma < HInfinityController._GAMMA_SEARCH_MAX
-
-
-def test_stability_margin_zero_for_unstable_closed_loop() -> None:
-    """The eigenvalue margin collapses to zero when the closed loop is unstable.
-
-    Removing the stabilising state feedback leaves the open-loop vertical
-    stability plant, which has a right-half-plane eigenvalue, so the margin is
-    reported as zero rather than a positive ratio.
-    """
-    A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-    ctrl = HInfinityController(A, B1, B2, C1, C2)
-    ctrl.F = np.zeros_like(ctrl.F)
-    assert ctrl.is_stable is False
-    assert ctrl.stability_margin_db == 0.0
-
-
-def test_find_optimal_gamma_exhausts_iteration_budget() -> None:
-    """Fall through the binary search when the iteration budget is spent (branch 279->296).
-
-    A single-iteration search over the wide default gamma bracket cannot reach the
-    relative-tolerance break, so the loop exhausts its iteration budget and returns
-    the padded best gamma found so far rather than a converged infimum.
-    """
-    A, B1, B2, C1, C2 = _vertical_stability_plant(gamma_v=10.0)
-    ctrl = HInfinityController(A, B1, B2, C1, C2)
-
-    gamma = ctrl._find_optimal_gamma(max_iter=1)
-
-    assert np.isfinite(gamma)
-    assert gamma > 0.0
+def _normalized_scalar_plant() -> dict[str, np.ndarray]:
+    """Return a small unstable normalized standard plant."""
+    return {
+        "A": np.array([[0.0, 1.0], [1.0, -1.0]]),
+        "B1": np.array([[0.0, 0.0], [0.5, 0.0]]),
+        "B2": np.array([[0.0], [1.0]]),
+        "C1": np.array([[1.0, 0.0], [0.0, 0.0], [0.0, 0.0]]),
+        "C2": np.array([[1.0, 0.0]]),
+        "D12": np.array([[0.0], [0.0], [1.0]]),
+        "D21": np.array([[0.0, 1.0]]),
+    }
+
+
+def _controller(*, gamma: float | None = None) -> HInfinityController:
+    return HInfinityController(**_normalized_scalar_plant(), gamma=gamma)
+
+
+def test_constructs_exact_central_dgkf_realization() -> None:
+    """The public matrices match Doyle et al. Theorem 3 exactly."""
+    controller = _controller(gamma=5.0)
+    gamma_squared = controller.gamma**2
+    expected_f = -controller.B2.T @ controller.X
+    expected_l = -controller.Y @ controller.C2.T
+    expected_z = np.linalg.solve(
+        np.eye(controller.n) - controller.Y @ controller.X / gamma_squared,
+        np.eye(controller.n),
+    )
+    expected_ak = (
+        controller.A
+        + controller.B1 @ controller.B1.T @ controller.X / gamma_squared
+        + controller.B2 @ expected_f
+        + expected_z @ expected_l @ controller.C2
+    )
+    np.testing.assert_allclose(controller.F, expected_f, rtol=1e-13, atol=1e-13)
+    np.testing.assert_allclose(controller.L, expected_l, rtol=1e-13, atol=1e-13)
+    np.testing.assert_allclose(controller.Z, expected_z, rtol=1e-13, atol=1e-13)
+    np.testing.assert_allclose(controller.Ak, expected_ak, rtol=1e-13, atol=1e-13)
+    np.testing.assert_allclose(controller.Bk, -expected_z @ expected_l, rtol=1e-13, atol=1e-13)
+    np.testing.assert_allclose(controller.Ck, expected_f, rtol=1e-13, atol=1e-13)
+    np.testing.assert_array_equal(controller.Dk, np.zeros((1, 1)))
+
+
+def test_normalization_and_riccati_residuals_are_small() -> None:
+    """Normalized identities are exact and both ARE residuals are negligible."""
+    controller = _controller(gamma=5.0)
+    assert max(controller.normalization_residual_norms()) == 0.0
+    residual_x, residual_y = controller.riccati_residual_norms()
+    scale_x = 1.0 + np.linalg.norm(controller.C1.T @ controller.C1, ord="fro")
+    scale_y = 1.0 + np.linalg.norm(controller.B1 @ controller.B1.T, ord="fro")
+    assert residual_x / scale_x < 1.0e-10
+    assert residual_y / scale_y < 1.0e-10
+
+
+def test_closed_loop_realization_matches_independent_block_assembly() -> None:
+    """The returned w-to-z interconnection matches an independent block assembly."""
+    controller = _controller(gamma=5.0)
+    state, disturbance, performance, feedthrough = controller.closed_loop_realization()
+    expected_state = np.block(
+        [
+            [controller.A, controller.B2 @ controller.Ck],
+            [controller.Bk @ controller.C2, controller.Ak],
+        ]
+    )
+    np.testing.assert_allclose(state, expected_state)
+    np.testing.assert_allclose(disturbance, np.vstack((controller.B1, controller.Bk @ controller.D21)))
+    np.testing.assert_allclose(performance, np.hstack((controller.C1, controller.D12 @ controller.Ck)))
+    np.testing.assert_array_equal(feedthrough, np.zeros((controller.q, controller.p)))
+    assert np.max(np.real(np.linalg.eigvals(state))) < 0.0
+    assert controller.is_stable
+
+
+def test_gamma_search_returns_strictly_feasible_near_infimum() -> None:
+    """Automatic gamma search returns a strict feasible point and rejects a bad one."""
+    controller = _controller()
+    assert controller.gamma < controller._GAMMA_SEARCH_MAX
+    assert controller.robust_feasibility_margin() > 0.0
+    with pytest.raises((ValueError, np.linalg.LinAlgError)):
+        HInfinityController(**_normalized_scalar_plant(), gamma=0.5)
+
+
+def test_feasibility_bypass_is_deprecated_and_ineffective() -> None:
+    """The historical bypass flag cannot create an infeasible controller."""
+    with pytest.warns(DeprecationWarning, match="always fails closed"):
+        controller = HInfinityController(
+            **_normalized_scalar_plant(),
+            gamma=5.0,
+            enforce_robust_feasibility=False,
+        )
+    assert controller.robust_feasible
+
+
+@pytest.mark.parametrize("missing", ["D12", "D21"])
+def test_explicit_feedthrough_is_required(missing: str) -> None:
+    """Neither normalized feedthrough matrix may be invented silently."""
+    plant = _normalized_scalar_plant()
+    plant.pop(missing)
+    with pytest.raises(ValueError, match="D12 and D21 are required"):
+        HInfinityController(**plant)
+
+
+@pytest.mark.parametrize(
+    ("matrix", "replacement", "match"),
+    [
+        ("D12", np.array([[1.0], [0.0], [0.0]]), r"D12.T @ C1"),
+        ("D12", np.array([[0.0], [0.0], [2.0]]), r"D12.T @ D12"),
+        ("D21", np.array([[1.0, 0.0]]), r"B1 @ D21.T"),
+        ("D21", np.array([[0.0, 2.0]]), r"D21 @ D21.T"),
+    ],
+)
+def test_non_normalized_feedthrough_fails_closed(
+    matrix: str,
+    replacement: np.ndarray,
+    match: str,
+) -> None:
+    """Every normalization identity is a fail-closed public contract."""
+    plant = _normalized_scalar_plant()
+    plant[matrix] = replacement
+    with pytest.raises(ValueError, match=match):
+        HInfinityController(**plant)
+
+
+def test_shape_and_finite_domains_fail_closed() -> None:
+    """Malformed and non-finite standard-plant matrices are rejected."""
+    plant = _normalized_scalar_plant()
+    with pytest.raises(ValueError, match="A must be a finite square"):
+        HInfinityController(**{**plant, "A": np.zeros((2, 3))})
+    with pytest.raises(ValueError, match="B1 row count"):
+        HInfinityController(**{**plant, "B1": np.zeros((3, 2))})
+    with pytest.raises(ValueError, match="C2 column count"):
+        HInfinityController(**{**plant, "C2": np.zeros((1, 3))})
+    with pytest.raises(ValueError, match="D12 must have shape"):
+        HInfinityController(**{**plant, "D12": np.zeros((2, 1))})
+    bad_a = plant["A"].copy()
+    bad_a[0, 0] = np.nan
+    with pytest.raises(ValueError, match="A must contain only finite"):
+        HInfinityController(**{**plant, "A": bad_a})
+
+
+def test_stabilizability_and_detectability_fail_closed() -> None:
+    """Unstable uncontrollable or unobservable modes cannot enter synthesis."""
+    stable_channels = {
+        "A": np.diag([1.0, -1.0]),
+        "B1": np.array([[0.0, 0.0], [1.0, 0.0]]),
+        "B2": np.array([[0.0], [1.0]]),
+        "C1": np.array([[0.0, 1.0], [0.0, 0.0]]),
+        "C2": np.array([[0.0, 1.0]]),
+        "D12": np.array([[0.0], [1.0]]),
+        "D21": np.array([[0.0, 1.0]]),
+    }
+    with pytest.raises(ValueError, match=r"\(A, B1\) must be stabilizable"):
+        HInfinityController(**stable_channels)
+
+    plant = _normalized_scalar_plant()
+    plant["C2"] = np.array([[0.0, 0.0]])
+    with pytest.raises(ValueError, match=r"\(C2, A\) must be detectable"):
+        HInfinityController(**plant)
+
+
+def test_one_dimensional_b_and_c_inputs_are_oriented() -> None:
+    """Unambiguous one-dimensional inputs preserve the compatible convenience."""
+    plant = _normalized_scalar_plant()
+    controller = HInfinityController(
+        A=plant["A"],
+        B1=plant["B1"],
+        B2=np.array([0.0, 1.0]),
+        C1=plant["C1"],
+        C2=np.array([1.0, 0.0]),
+        D12=plant["D12"],
+        D21=plant["D21"],
+        gamma=5.0,
+    )
+    assert controller.B2.shape == (2, 1)
+    assert controller.C2.shape == (1, 2)
+
+
+def test_step_matches_independent_exact_zoh_and_updates_after_output() -> None:
+    """Sampled runtime matches an independent exponential and has no fake delay."""
+    controller = _controller(gamma=5.0)
+    dt = 0.01
+    measurement = np.array([0.25])
+    augmented = np.zeros((controller.n + controller.l, controller.n + controller.l))
+    augmented[: controller.n, : controller.n] = controller.Ak * dt
+    augmented[: controller.n, controller.n :] = controller.Bk * dt
+    exact = expm(augmented)
+    expected_state = exact[: controller.n, controller.n :] @ measurement
+
+    assert controller.step(measurement, dt) == 0.0
+    np.testing.assert_allclose(controller.state, expected_state, rtol=1e-13, atol=1e-13)
+    expected_control = float((controller.Ck @ expected_state).item())
+    assert controller.step(measurement, dt) == pytest.approx(expected_control)
+
+
+def test_step_validation_saturation_reset_and_dt_cache() -> None:
+    """Runtime domains, clipping, cache replacement, and reset are effective."""
+    controller = _controller(gamma=5.0)
+    with pytest.raises(ValueError, match="error must have shape"):
+        controller.step([1.0, 2.0], 0.01)
+    with pytest.raises(ValueError, match="error must contain only finite"):
+        controller.step(np.nan, 0.01)
+    with pytest.raises(ValueError, match="dt must be > 0"):
+        controller.step(0.0, 0.0)
+    controller.u_max = 0.1
+    controller.state = np.full(controller.n, 1.0e6)
+    assert abs(float(controller.step(0.0, 0.01))) == pytest.approx(0.1)
+    assert controller._cached_dt == 0.01
+    controller.step(0.0, 0.02)
+    assert controller._cached_dt == 0.02
+    controller.reset()
+    np.testing.assert_array_equal(controller.state, np.zeros(controller.n))
+    controller.u_max = float("nan")
+    with pytest.raises(ValueError, match="u_max"):
+        controller.step(0.0, 0.01)
+
+
+def test_mimo_runtime_returns_vector() -> None:
+    """A normalized MIMO controller returns one command per control channel."""
+    controller = HInfinityController(
+        A=np.array([[-1.0]]),
+        B1=np.array([[1.0, 0.0, 0.0]]),
+        B2=np.array([[1.0, 1.0]]),
+        C1=np.array([[1.0], [0.0], [0.0]]),
+        C2=np.array([[1.0], [1.0]]),
+        D12=np.array([[0.0, 0.0], [1.0, 0.0], [0.0, 1.0]]),
+        D21=np.array([[0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]),
+        gamma=5.0,
+    )
+    output = controller.step(np.array([1.0, -1.0]), 0.01)
+    assert isinstance(output, np.ndarray)
+    assert output.shape == (2,)
+
+
+def test_legacy_margin_name_warns_and_does_not_claim_bode_margin() -> None:
+    """The legacy margin property is explicitly diagnostic and warning-emitting."""
+    controller = _controller(gamma=5.0)
+    with pytest.warns(DeprecationWarning, match="not a classical gain margin"):
+        assert controller.gain_margin_db == controller.stability_margin_db
+    controller.closed_loop_eigenvalues = np.array([1.0 + 0.0j])
+    assert controller.is_stable is False
+    assert controller.stability_margin_db == 0.0
+
+
+def test_stable_open_loop_has_infinite_legacy_diagnostic() -> None:
+    """The legacy pole-displacement ratio preserves its stable-plant sentinel."""
+    plant = _normalized_scalar_plant()
+    plant["A"] = np.array([[-2.0, 1.0], [0.0, -1.0]])
+    controller = HInfinityController(**plant, gamma=5.0)
+    assert controller.stability_margin_db == float("inf")
+
+
+def test_factories_are_normalized_and_validate_parameters() -> None:
+    """Both reduced factories satisfy normalization and validate physical inputs."""
+    for controller in (get_radial_robust_controller(gamma_growth=10.0), get_flight_sim_controller()):
+        assert controller.is_stable
+        assert max(controller.normalization_residual_norms()) == 0.0
+    with pytest.raises(ValueError, match="gamma_growth"):
+        get_radial_robust_controller(gamma_growth=0.0)
+    with pytest.raises(ValueError, match="damping"):
+        get_radial_robust_controller(damping=0.0)
+    with pytest.raises(ValueError, match="response_gain"):
+        get_flight_sim_controller(response_gain=0.0)
+    with pytest.raises(ValueError, match="actuator_tau"):
+        get_flight_sim_controller(actuator_tau=0.0)
+
+
+def test_warning_filters_do_not_hide_explicit_compatibility_warning() -> None:
+    """The feasibility-bypass compatibility warning remains observable."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        HInfinityController(
+            **_normalized_scalar_plant(),
+            gamma=5.0,
+            enforce_robust_feasibility=False,
+        )
+    assert any(item.category is DeprecationWarning for item in caught)

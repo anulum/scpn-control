@@ -1889,7 +1889,7 @@ oscillator model for reactor or facility control.
 
 ## Control — Controllers
 
-### H-infinity (Riccati DARE)
+### H-infinity (normalized continuous-time DGKF)
 
 ::: scpn_control.control.h_infinity_controller.HInfinityController
 

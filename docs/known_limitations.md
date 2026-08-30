@@ -21,13 +21,28 @@ evidence adapter, README limitation disclosure, and validation tests. Optional
 Transformer training on synthetic shots does not close the experimental-data
 boundary.
 
+### Normalized H-infinity model and runtime boundary
+
+`HInfinityController` implements the central DGKF solution only for the
+normalized continuous-time standard plant with `D11=D22=0`, explicit
+`D12`/`D21`, the required stabilizability/detectability and orthogonality
+identities, positive-semidefinite stabilizing Riccati solutions, and strict
+`rho(XY)<gamma^2`. It does not silently transform arbitrary generalized plants.
+
+The theorem covers the unsaturated linear continuous-time interconnection.
+Exact ZOH reproduces the controller realization between samples, but does not
+guarantee stability for every sample period; output clipping also invalidates
+the linear performance proof. The bundled vertical and flight-simulator plants
+are reduced examples, not facility-identified reactor models. Rust executes the
+same admitted realization but does not independently synthesize it.
+
 ## Resolved implementation history
 
 The entries below are historical engineering facts, not open work items.
 
 | Component | Former limitation | Resolution evidence | Tracking |
 |---|---|---|---|
-| Rust H-infinity control | `update_discretization()` used Euler integration and lacked zero-order-hold discretisation | v0.8.1 added Padé(6,6) scaling-and-squaring `matrix_exp`, `zoh_discretize`, and six focused tests | [gh-10](https://github.com/anulum/scpn-control/issues/10) |
+| Rust H-infinity runtime | The historical path used Euler and later a different sampled LQR/observer design labelled as H-infinity | Rust now receives the admitted Python DGKF `(Ak,Bk,Ck)` realization and executes exact ZOH with step-for-step parity; it makes no independent synthesis claim | [gh-10](https://github.com/anulum/scpn-control/issues/10) |
 | Nengo Loihi wrapper | The Loihi backend was not exercised in CI | v0.9.0 added the dedicated `nengo-loihi` job with `nengo>=4.0` | [gh-11](https://github.com/anulum/scpn-control/issues/11) |
 | Rust SPI compatibility | `RustSPIMitigation` had no Python fallback | v0.8.0 added a Python fallback matching the Rust SPI phase constants | [gh-13](https://github.com/anulum/scpn-control/issues/13) |
 | Rust multigrid compatibility | `rust_multigrid_vcycle` had no Python fallback | v0.8.0 delegated the fallback to `FusionKernel._multigrid_vcycle` | [gh-14](https://github.com/anulum/scpn-control/issues/14) |

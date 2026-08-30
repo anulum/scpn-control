@@ -38,7 +38,8 @@ The differentiator is the architecture, not raw speed:
   asserted on every control observation and command, fail-closed; a separate
   bounded Z3 model check + certificate bundle covers the compiled Petri-net
   skeleton offline (not the controller code or physics).
-- **One interface, five controllers.** PID, nonlinear MPC, H∞, SNN, and a
+- **One interface, five controllers.** PID, nonlinear MPC, normalized DGKF H∞,
+  SNN, and a
   neuro-cybernetic controller share a single contract interface and are
   runtime-selectable, so the same safety case covers the whole stack.
 - **CPU-only, Rust-accelerated.** No GPU dependency anywhere in the control path.
@@ -69,7 +70,7 @@ admitted.
 | Grad-Shafranov equilibrium solver | Tested (CI-gated RMSE) |
 | 1.5D coupled transport | Tested |
 | PID controller | Tested |
-| H-infinity controller (Riccati) | Tested |
+| Normalized DGKF H-infinity controller | Bounded-model tested |
 | MPC (gradient-based, surrogate dynamics) | Tested |
 | Spiking neural network controller (pure LIF+NEF engine) | Tested (mocked CI; Loihi untested) |
 | Phase dynamics (Kuramoto/UPDE) | Tested |

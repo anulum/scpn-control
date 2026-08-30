@@ -28,7 +28,7 @@ from tools.validation_report_freshness import (
     parse_datetime,
 )
 
-AUDIT_AS_OF = datetime(2026, 8, 30, 3, 24, 54, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 8, 30, 4, 32, 37, tzinfo=timezone.utc)
 
 
 def test_validation_report_freshness_inventory_finds_live_stale_reports() -> None:
@@ -40,7 +40,7 @@ def test_validation_report_freshness_inventory_finds_live_stale_reports() -> Non
     )
 
     stale_paths = {report.path.relative_to(ROOT).as_posix() for report in matrix.stale_reports}
-    assert len(matrix.reports) == 126
+    assert len(matrix.reports) == 127
     assert len(matrix.stale_reports) == 114
     assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" not in stale_paths
     assert matrix.source_counts["lifecycle_refresh"] == 10
@@ -48,7 +48,7 @@ def test_validation_report_freshness_inventory_finds_live_stale_reports() -> Non
     assert matrix.bucket_counts == {
         "external_artifact_blocked": 75,
         "historical_only": 41,
-        "rerunnable_local": 10,
+        "rerunnable_local": 11,
     }
     assert matrix.claim_boundary_missing == 0
     assert matrix.source_claim_boundary_missing == 40
@@ -95,7 +95,7 @@ def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path
         main(
             [
                 "--as-of",
-                "2026-08-30T03:24:54Z",
+                "2026-08-30T04:32:37Z",
                 "--max-age-days",
                 "21",
                 "--output-json",
@@ -145,7 +145,7 @@ def test_validation_report_freshness_classifies_known_live_reports() -> None:
 
 
 def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> None:
-    """Exactly ten local reports expose bounded refresh plans."""
+    """Every rerunnable local report exposes a bounded refresh plan."""
     matrix = build_validation_report_freshness_matrix(
         ROOT / "validation" / "reports",
         as_of=AUDIT_AS_OF,
@@ -162,6 +162,7 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
         "validation/reports/e2e_control_latency.json",
         "validation/reports/e2e_control_latency_hardening_20260603T0010.json",
         "validation/reports/grad_shafranov_solovev.json",
+        "validation/reports/h_infinity_control.json",
         "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json",
         "validation/reports/runtime_admission_release_20260605T000000Z.json",
         "validation/reports/runtime_admission_soft_isolated_20260604T132240Z.json",
@@ -191,13 +192,13 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
 
 def test_validation_report_freshness_cli_can_fail_on_stale_reports(capsys: CaptureFixture[str]) -> None:
     """Strict freshness mode rejects the stale audited corpus."""
-    assert main(["--as-of", "2026-08-30T03:24:54Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
+    assert main(["--as-of", "2026-08-30T04:32:37Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
     assert "Stale validation reports detected:" in capsys.readouterr().err
 
 
 def test_validation_report_freshness_cli_accepts_current_window(capsys: CaptureFixture[str]) -> None:
     """A caller-selected broad window can make freshness advisory-only."""
-    assert main(["--as-of", "2026-08-30T03:24:54Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
+    assert main(["--as-of", "2026-08-30T04:32:37Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out
 
 
@@ -222,19 +223,16 @@ def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
     assert registry["expected_bucket_counts"] == {
         "external_artifact_blocked": 75,
         "historical_only": 41,
-        "rerunnable_local": 10,
+        "rerunnable_local": 11,
     }
-    assert len(registry["reports"]) == 126
-    assert len({report["path"] for report in registry["reports"]}) == 126
+    assert len(registry["reports"]) == 127
+    assert len({report["path"] for report in registry["reports"]}) == 127
     assert {report["storage_class"] for report in registry["reports"]} == {
         "git_tracked",
         "owner_local_untracked",
     }
-    assert sum(report["claim_boundary"]["current_evidence"] for report in registry["reports"]) == 10
-    assert all(
-        report["claim_boundary"]["current_evidence"] == (report["refresh"]["status"] == "refreshed")
-        for report in registry["reports"]
-    )
+    assert sum(report["claim_boundary"]["current_evidence"] for report in registry["reports"]) == 11
+    assert sum(report["refresh"]["status"] == "refreshed" for report in registry["reports"]) == 10
     assert all(not report["claim_boundary"]["public_claim_allowed"] for report in registry["reports"])
 
 
@@ -771,9 +769,9 @@ def test_datetime_and_build_input_validation(tmp_path: Path) -> None:
 
 def test_cli_stdout_modes_default_clock_and_error_path(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """JSON, Markdown, default-clock, and malformed-registry CLI paths are observable."""
-    assert main(["--as-of", "2026-08-30T03:24:54Z", "--json-out"]) == 0
+    assert main(["--as-of", "2026-08-30T04:32:37Z", "--json-out"]) == 0
     assert '"schema_version": "scpn-control.validation-report-freshness.v2"' in capsys.readouterr().out
-    assert main(["--as-of", "2026-08-30T03:24:54Z", "--markdown-out"]) == 0
+    assert main(["--as-of", "2026-08-30T04:32:37Z", "--markdown-out"]) == 0
     assert "# SCPN Control Validation Report Freshness" in capsys.readouterr().out
     assert main(["--max-age-days", "10000"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out

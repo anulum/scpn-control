@@ -33,7 +33,7 @@ Four Python packages under `src/scpn_control/`:
 | Package | Purpose |
 |---------|---------|
 | `core` | GS equilibrium solver, transport, scaling laws, TokamakConfig presets |
-| `control` | H-infinity, MPC, SNN, flight sim, disruption predictor, digital twin |
+| `control` | normalized DGKF H-infinity, MPC, SNN, flight sim, disruption predictor, digital twin |
 | `scpn` | Stochastic Petri Net → SNN compiler with formal contracts |
 | `phase` | Paper 27 oscillator-model engine, UPDE, model-local Lyapunov guard, WebSocket stream; no reactor feedback closure |
 

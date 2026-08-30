@@ -447,10 +447,32 @@ def test_rust_isoflux_step() -> None:
 
 @pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
 def test_rust_hinf_step() -> None:
-    ctrl = _rust_compat.RustHInfController(gamma_growth=100.0, damping=10.0, gamma=1.0, u_max=10.0, dt=1e-3)
+    ctrl = _rust_compat.RustHInfController(gamma_growth=10.0, damping=10.0, u_max=10.0, dt=1e-3)
     u = ctrl.step(0.5, 1e-3)
     assert np.isfinite(u) and abs(u) <= 10.0
     ctrl.reset()
+
+
+@pytest.mark.skipif(not _HAS_RUST_HINF, reason="Rust PyHInfController not available")
+def test_rust_hinf_executes_exact_python_realization() -> None:
+    """Both runtimes receive one synthesis and preserve step-for-step parity."""
+    from scpn_control.control.h_infinity_controller import get_radial_robust_controller
+
+    python_controller = get_radial_robust_controller(gamma_growth=10.0, damping=10.0)
+    python_controller.u_max = 10.0
+    rust_controller = _rust_compat.RustHInfController(
+        controller=python_controller,
+        u_max=10.0,
+        dt=1.0e-3,
+    )
+    python_outputs = []
+    rust_outputs = []
+    for sample in range(1_000):
+        measurement = float(np.sin(sample * 0.01))
+        python_outputs.append(float(python_controller.step(measurement, 1.0e-3)))
+        rust_outputs.append(rust_controller.step(measurement, 1.0e-3))
+    np.testing.assert_allclose(rust_outputs, python_outputs, rtol=1.0e-10, atol=2.0e-12)
+    assert rust_controller.gamma == pytest.approx(python_controller.gamma)
 
 
 @pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
@@ -555,7 +577,7 @@ def test_rust_isoflux_controller_accessors() -> None:
 
 @pytest.mark.skipif(not _HAS_RUST, reason="Rust backend not available")
 def test_rust_hinf_controller_accessors() -> None:
-    ctrl = _rust_compat.RustHInfController(gamma_growth=100.0, damping=10.0, gamma=1.0, u_max=10.0, dt=1e-3)
+    ctrl = _rust_compat.RustHInfController(gamma_growth=10.0, damping=10.0, u_max=10.0, dt=1e-3)
     assert np.isfinite(ctrl.step(0.5, 1e-3))
     ctrl.reset()
     assert np.isfinite(ctrl.gamma)

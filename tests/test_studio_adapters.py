@@ -310,7 +310,7 @@ def test_registry_adapter_preserves_real_entry_admission_boundaries() -> None:
     validated = [bundle for bundle in bundles if bundle.renders_as_validated]
     assert len(validated) == 1
     assert validated[0].entity.entity_id.endswith("/src/scpn_control/core/imas_adapter.py")
-    assert sum(1 for bundle in bundles if not bundle.renders_as_validated) == 69
+    assert sum(1 for bundle in bundles if not bundle.renders_as_validated) == len(bundles) - 1
     # Every claim carries its qualitative validity-domain prose.
     assert all(b.claim_boundary.validity_domain is not None for b in bundles)
 

@@ -250,8 +250,16 @@ transport; 5000 steps × 7 repeats, P50/P99 µs):
 | MPC (Np=10) | internal QP | 18847 / 25172 | 10460 / 25058 |
 | MPC (Np=10) | scipy | 23302 / 24416 | 12750 / 21701 |
 | MPC (Np=10) | casadi | 78887 / 82806 | 54573 / 88107 |
-| H-infinity | numpy (general state-space) | 29.43 / 53.42 | 13.27 / 29.81 |
-| H-infinity | rust (2-state VDE) | 1.39 / 1.49 | 1.05 / 5.28 |
+| H-infinity | numpy (historical general state-space) | 29.43 / 53.42 | 13.27 / 29.81 |
+| H-infinity | rust (historical 2-state approximation) | 1.39 / 1.49 | 1.05 / 5.28 |
+
+The retained H-infinity rows above are historical records from unlike plants
+and unlike controller algorithms; they do **not** support a Python/Rust speedup
+claim. Current benchmark code supplies both runtimes with one normalized
+two-state plant and the exact same Python-admitted DGKF realization. A new
+side-by-side number becomes current evidence only after an isolated recorded
+campaign; ordinary workstation runs remain orientation-only and do not
+overwrite these historical records.
 
 All five MPC QP backends are now measured (acados is built in the
 benchmark-nightly workflow and locally). Every backend's real-time-iteration tick

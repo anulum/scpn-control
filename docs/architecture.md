@@ -156,7 +156,7 @@ NeuralEquilibrium   IntegratedTransportSolver
            ↓
     Controller Selection
     ├── PID / Gain-Scheduled (GainScheduledController)
-    ├── H-infinity (HInfinityController)
+    ├── Normalized DGKF H-infinity (HInfinityController)
     ├── Riccati + static μ analysis (RiccatiStateFeedbackController)
     ├── NMPC (NMPCController, SQP 20-step)
     ├── MPC (ModelPredictiveController)

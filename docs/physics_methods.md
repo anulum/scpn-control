@@ -168,11 +168,37 @@ $$n_G = \frac{I_p}{\pi a^2} \quad [10^{20} m^{-3}]$$
 
 ## 5. Control and Dynamics
 
-### Vertical Stability Growth Rate
-Estimated from Naydon instability timescale for elongated plasmas.
+### Normalized DGKF H-infinity output feedback
 
-- **Source**: Naydon et al., *Phys. Plasmas* (2005).
-- **Implementation**: `src/scpn_control/control/h_infinity_controller.py:115`.
+For the normalized standard plant
+$\dot{x}=Ax+B_1w+B_2u$, $z=C_1x+D_{12}u$,
+$y=C_2x+D_{21}w$, the production controller enforces
+$D_{12}^TC_1=0$, $D_{12}^TD_{12}=I$, $B_1D_{21}^T=0$, and
+$D_{21}D_{21}^T=I$. It solves the two stabilizing continuous Riccati
+equations, requires $X,Y\succeq0$ and $\rho(XY)<\gamma^2$, and constructs the
+central dynamic realization with
+$F=-B_2^TX$, $L=-YC_2^T$, $Z=(I-\gamma^{-2}YX)^{-1}$,
+$A_K=A+\gamma^{-2}B_1B_1^TX+B_2F+ZLC_2$, $B_K=-ZL$, and $C_K=F$.
+
+- **Source**: Doyle, Glover, Khargonekar & Francis, *IEEE Trans. Autom.
+  Control* 34(8), 831–847 (1989), Theorem 3, DOI `10.1109/9.29425`.
+- **Implementation**:
+  `src/scpn_control/control/h_infinity_controller.py` (synthesis and Python
+  runtime); `scpn-control-rs/crates/control-control/src/h_infinity.rs` (same-
+  realization Rust runtime only).
+- **Validation**: `validation/validate_h_infinity_control.py` independently
+  checks the normalization and Riccati residuals, exact central-controller
+  formula, strict spectral margin, augmented closed-loop poles, and a 20,002-
+  sample frequency-response sweep. Sealed evidence is in
+  `validation/reports/h_infinity_control.json` and direct tests in
+  `tests/test_h_infinity_controller.py`, `tests/test_h_infinity_closed_loop.py`,
+  and `tests/test_h_infinity_validation.py`.
+- **Boundary**: the theorem covers the unsaturated linear continuous-time
+  normalized plant. Exact controller ZOH does not guarantee arbitrary sampled-
+  data stability; clipping, structured uncertainty, D-K iteration, facility
+  performance, and reactor-specific validity remain separate claims. The
+  bundled vertical plants are reduced examples pending SPO scenario
+  identification and a released FUSION plant/diagnostic/actuator contract.
 
 ### RZIP Rigid Vertical Stability
 Linearised rigid-plasma vertical response with the destabilising curvature

@@ -202,9 +202,9 @@ blocked until the required external artefacts exist.
 | Python public classes | 559 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 157 |
+| Validation scripts | 158 |
 | Optional extras | 23 |
-| Python test files | 570 |
+| Python test files | 572 |
 | Public documentation pages | 70 |
 | GitHub Actions workflows | 12 |
 
@@ -300,9 +300,12 @@ jupyter nbconvert --to notebook --execute --output-dir artifacts/notebook-exec e
 - **Controller families** -- PID, MPC, NMPC, H-infinity, Riccati state feedback,
   gain-scheduled, sliding-mode, fault-tolerant, SNN, and reinforcement-learning
   research controllers.
-- **Robust control** -- H-infinity DARE synthesis, bounded static mu-analysis,
-  degraded-mode operation, and shape-control surfaces with explicit admission
-  boundaries.
+- **Robust control** -- normalized continuous-time DGKF H-infinity
+  output-feedback synthesis, bounded static mu-analysis, degraded-mode
+  operation, and shape-control surfaces with explicit admission boundaries.
+  The H-infinity theorem covers the admitted unsaturated continuous linear
+  interconnection; sampled execution, clipping, and reactor performance require
+  separate evidence.
 
 ### Physics and differentiable facades
 

@@ -630,10 +630,11 @@ class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust
 
 
 class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)
-    """Rust H-infinity observer-based controller for vertical stability.
+    """Rust runtime for an admitted Python-synthesized DGKF realization.
 
-    Uses LQR-approximated gains for the 2-state VDE plant
-    (full DARE solver pending ndarray-linalg).
+    Python owns normalized-plant validation, the two Riccati solves, strict
+    feasibility admission, and the central-controller realization. Rust
+    executes those exact ``Ak``, ``Bk``, and ``Ck`` matrices with exact ZOH.
 
     Parameters
     ----------
@@ -641,8 +642,9 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
         Unstable growth rate [1/s].
     damping : float
         Passive damping coefficient.
-    gamma : float
-        H-infinity performance level.
+    gamma : float, optional
+        Explicit feasible attenuation. If omitted, use the factory's padded
+        near-infimum. An infeasible value fails closed in Python synthesis.
     u_max : float
         Actuator saturation limit [A].
     dt : float
@@ -653,18 +655,42 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
         self,
         gamma_growth: float = 100.0,
         damping: float = 10.0,
-        gamma: float = 1.0,
+        gamma: float | None = None,
         u_max: float = 10.0,
         dt: float = 1e-3,
-    ):
+        controller: Any | None = None,
+    ) -> None:
         from scpn_control_rs import PyHInfController  # pragma: no cover - optional Rust backend path
 
-        a = np.array(
-            [[0.0, 1.0], [gamma_growth**2, -damping]], dtype=np.float64
-        )  # pragma: no cover - optional Rust backend path
-        b2 = np.array([[0.0], [1.0]], dtype=np.float64)  # pragma: no cover - optional Rust backend path
-        c2 = np.array([[1.0, 0.0]], dtype=np.float64)  # pragma: no cover - optional Rust backend path
-        self._inner = PyHInfController(a, b2, c2, gamma, dt)  # pragma: no cover - optional Rust backend path
+        if controller is None:
+            from scpn_control.control.h_infinity_controller import (
+                HInfinityController,
+                get_radial_robust_controller,
+            )
+
+            synthesized = get_radial_robust_controller(gamma_growth=gamma_growth, damping=damping)
+            if gamma is not None:
+                synthesized = HInfinityController(
+                    synthesized.A,
+                    synthesized.B1,
+                    synthesized.B2,
+                    synthesized.C1,
+                    synthesized.C2,
+                    gamma=gamma,
+                    D12=synthesized.D12,
+                    D21=synthesized.D21,
+                )
+        else:
+            synthesized = controller
+
+        self._inner = PyHInfController(
+            np.asarray(synthesized.Ak, dtype=np.float64),
+            np.asarray(synthesized.Bk, dtype=np.float64),
+            np.asarray(synthesized.Ck, dtype=np.float64),
+            float(synthesized.gamma),
+            float(u_max),
+            float(dt),
+        )
         self._u_max = u_max  # pragma: no cover - optional Rust backend path
 
     def step(self, y: float, dt: float) -> float:
@@ -673,7 +699,8 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
         return float(max(-self._u_max, min(self._u_max, u)))
 
     def reset(self) -> None:
-        pass
+        """Reset the Rust controller state to zero."""
+        self._inner.reset()
 
     @property
     def gamma(self) -> float:

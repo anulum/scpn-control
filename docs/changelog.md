@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Replaced the mislabeled H-infinity observer/LQR paths with the normalized
+  continuous-time DGKF central output-feedback controller. The public API now
+  requires explicit normalized feedthrough matrices, fails closed on every
+  existence condition, discretises the admitted controller realization by
+  exact ZOH, and gives Rust that same realization for fair runtime parity;
+  historical unlike-algorithm latency rows remain identified as historical.
 - Catch ``pickle.UnpicklingError`` in disruption checkpoint load so corrupt
   weights fail closed or fall back when opted in.
 - Removed seven source-tree-only console scripts that were declared in wheel

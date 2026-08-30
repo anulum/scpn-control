@@ -1,0 +1,44 @@
+{
+  "claim_boundary": {
+    "excluded": [
+      "facility or reactor validation",
+      "saturated H-infinity guarantee",
+      "arbitrary sampled-data stability",
+      "structured uncertainty or D-K synthesis",
+      "classical gain margin"
+    ],
+    "frequency_sweep_classification": "finite numerical corroboration, not exact norm proof",
+    "model": "normalized continuous-time standard plant; D11=D22=0",
+    "production_admission": false,
+    "public_claim_allowed": false,
+    "scientific_admission": true
+  },
+  "generated_at": "2026-08-30T04:32:35.273706Z",
+  "payload_sha256": "feb0e790ecc60e941e30bb5101acab12e233a413d87a3508756f859b6a94e1c7",
+  "precision": "float64",
+  "reference": {
+    "authors": "Doyle, Glover, Khargonekar, Francis",
+    "doi": "10.1109/9.29425",
+    "result": "Theorem 3 normalized central controller",
+    "title": "State-space solutions to standard H2 and H-infinity control problems"
+  },
+  "result": {
+    "controller_formula_relative_error": 0.0,
+    "dominant_closed_loop_real_part": -1.415149238414621,
+    "frequency_samples": 20002,
+    "frequency_sweep_peak": 51.45865550402668,
+    "frequency_sweep_peak_over_gamma": 0.9999875590507028,
+    "gamma": 51.459295706515434,
+    "normalization_max_residual": 0.0,
+    "passed": true,
+    "riccati_x_relative_residual": 9.959051788883506e-11,
+    "riccati_y_relative_residual": 2.6653392715290942e-15,
+    "spectral_feasibility_margin": 31.663382151346468
+  },
+  "runtime_source_sha256": {
+    "src/scpn_control/control/h_infinity_controller.py": "6b200356d37cd676804e4ba2abc401956f0274cc28a325921b385bae066894d1",
+    "validation/validate_h_infinity_control.py": "9f6d41564c7aff20fc354e3d1abed1a7728643a81ce64efb3203edcea51275bd"
+  },
+  "schema_version": "scpn-control.h-infinity-validation.v1",
+  "source_commit": "bbbb1c9567d45fd45432c5a378425323f1f9a7ab"
+}

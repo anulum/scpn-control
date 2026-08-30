@@ -13,8 +13,7 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""
-Benchmark SNN vs MPC vs H-infinity vs PID on three tokamak
+"""Benchmark SNN vs MPC vs H-infinity vs PID on three tokamak
 disturbance-rejection scenarios.
 
 Scenarios
@@ -30,8 +29,9 @@ Controllers
 -----------
 - **PID**: Proportional-Integral-Derivative with tuned gains and
   anti-windup.
-- **H-infinity**: Riccati-synthesised robust controller from
-  ``get_radial_robust_controller()`` with LQR fallback.
+- **H-infinity**: normalized DGKF central controller from
+  ``get_radial_robust_controller()``; infeasible synthesis is skipped rather
+  than relabeling another algorithm as H-infinity.
 - **MPC**: Model Predictive Control with 10-step horizon and
   quadratic cost.
 - **SNN**: Spiking neural network via ``SpikingControllerPool``
@@ -102,13 +102,6 @@ except ImportError:
         "H-infinity will be skipped.",
         stacklevel=1,
     )
-
-try:
-    from scipy.linalg import solve_continuous_are
-
-    _scipy_are_available = True
-except ImportError:
-    _scipy_are_available = False
 
 try:
     from scpn_control.control.neuro_cybernetic_controller import (
@@ -215,82 +208,6 @@ class PIDController:
         self._integral = 0.0
         self._prev_error = 0.0
         self._first_step = True
-
-
-# -------------------------------------------------------------------
-# LQR Robust Controller (fallback for H-infinity)
-# -------------------------------------------------------------------
-
-
-class LQRRobustController:
-    """LQR-based robust controller with observer for vertical stability.
-
-    Uses the same 2-state plant as ``get_radial_robust_controller()``.
-    Falls back to this when the H-infinity ARE solver encounters
-    singular matrices.
-    """
-
-    def __init__(self, gamma_growth: float = 100.0) -> None:
-        self.gamma_growth = float(gamma_growth)
-
-        self.A = np.array(
-            [
-                [0.0, 1.0],
-                [gamma_growth**2, -10.0],
-            ]
-        )
-        self.B = np.array([[0.0], [1.0]])
-        self.C = np.array([[1.0, 0.0]])
-
-        if not _scipy_are_available:
-            raise RuntimeError("scipy.linalg.solve_continuous_are unavailable")
-
-        Q = np.diag([10000.0, 10.0])
-        R = np.array([[0.01]])
-        X = solve_continuous_are(self.A, self.B, Q, R)
-        self.K = np.linalg.inv(R) @ self.B.T @ X
-
-        A_cl = self.A - self.B @ self.K
-        cl_eigs = np.linalg.eigvals(A_cl)
-
-        fastest = float(np.min(np.real(cl_eigs)))
-        p1 = 5.0 * fastest
-        p2 = 5.0 * fastest - 50.0
-
-        alpha1 = -(p1 + p2)
-        alpha0 = p1 * p2
-        tr_a = self.A[0, 0] + self.A[1, 1]
-        det_a = self.A[0, 0] * self.A[1, 1] - self.A[0, 1] * self.A[1, 0]
-        a01 = self.A[0, 1]
-        self.L_obs = np.array(
-            [
-                [alpha1 + tr_a],
-                [(alpha0 - det_a) / a01 + alpha1 + tr_a],
-            ]
-        )
-
-        self.n = 2
-        self.x_hat: npt.NDArray[np.float64] = np.zeros(2)
-        self._is_stable = bool(np.all(np.real(cl_eigs) < 0))
-
-    def step(self, error: float, dt: float) -> float:
-        z_meas = -float(error)
-        y = np.array([z_meas])
-        y_hat = self.C @ self.x_hat
-        innovation = y - y_hat
-
-        u = float((-self.K @ self.x_hat).flat[0])
-
-        dx_hat = self.A @ self.x_hat + self.B.flatten() * u + self.L_obs.flatten() * float(innovation.flat[0])
-        self.x_hat = self.x_hat + dx_hat * dt
-        return u
-
-    def reset(self) -> None:
-        self.x_hat = np.zeros(self.n)
-
-    @property
-    def is_stable(self) -> bool:
-        return self._is_stable
 
 
 # -------------------------------------------------------------------
@@ -742,18 +659,12 @@ def run_scenario(
 
 
 def _build_hinf_controller(gamma_growth: float = 100.0) -> Any:
-    """Build the H-infinity controller with LQR fallback."""
+    """Build the normalized DGKF controller or fail without substitution."""
     if not _hinf_available:
         raise RuntimeError("H-infinity module not importable")
-    try:
-        ctrl: ControllerProtocol = get_radial_robust_controller(gamma_growth=gamma_growth)
-        print("    [H-infinity] Riccati synthesis: OK")
-        return ctrl
-    except (ValueError, np.linalg.LinAlgError) as exc:
-        print(f"    [H-infinity] ARE failed ({exc}); using LQR fallback")
-        ctrl = LQRRobustController(gamma_growth=gamma_growth)
-        assert ctrl.is_stable, "LQR closed-loop must be stable"
-        return ctrl
+    ctrl: ControllerProtocol = get_radial_robust_controller(gamma_growth=gamma_growth)
+    print("    [H-infinity] normalized DGKF synthesis: OK")
+    return ctrl
 
 
 def build_controllers() -> Dict[str, Any]:
@@ -778,7 +689,7 @@ def build_controllers() -> Dict[str, Any]:
                 gamma_growth=100.0,
             )
         except Exception as exc:
-            warnings.warn(f"H-infinity controller skipped: {exc}")
+            warnings.warn(f"H-infinity controller skipped: {exc}", stacklevel=2)
     else:
         print("    [H-infinity] SKIPPED (import failed)")
 
