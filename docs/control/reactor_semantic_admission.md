@@ -124,6 +124,23 @@ sets, numerical-phase IDs, producer provenance attributes, freshness limits,
 calibration and transfer allowlists, and minimum numerical observability,
 confidence, and uncertainty bounds.
 
+The package facade exports both MIF names without promoting them to the root
+`scpn_control` namespace:
+
+```python
+from scpn_control.reactor_semantic_admission import (
+    MIFReactorSemanticAdmissionPolicy,
+    admit_mif_reactor_semantic_handoff,
+)
+```
+
+The installed dependency is pinned to the immutable SPO `v1.3.0` GitHub
+release artifact, source commit
+`00608fd8c469bea228795b5b29b061dc1fb98d79`, and sdist SHA-256
+`26f84c0279e3a373290b5f3f355865cf39570771ba583c59412065764da5ac4e`.
+PyPI does not contain SPO `1.3.0`; the direct artifact pin prevents fallback to
+the incompatible `1.2.0` decoder contract.
+
 The public ingress is `admit_mif_reactor_semantic_handoff`. It calls only SPO's
 strict `mif_merge_compression_handoff_from_bytes` decoder. It does not parse the
 embedded MIF JSON independently, import a sibling checkout, infer wall time, or

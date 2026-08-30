@@ -23,11 +23,16 @@ from .decision import (
     admission_decision_from_bytes,
     admission_decision_to_bytes,
 )
+from .mif_admission import (
+    MIFReactorSemanticAdmissionPolicy,
+    admit_mif_reactor_semantic_handoff,
+)
 
 __all__ = [
     "ADMISSION_SCHEMA",
     "ADMISSION_SCHEMA_VERSION",
     "MAX_ADMISSION_BYTES",
+    "MIFReactorSemanticAdmissionPolicy",
     "REFUSAL_CODES",
     "ReactorSemanticAdmissionDecision",
     "ReactorSemanticAdmissionPolicy",
@@ -35,5 +40,6 @@ __all__ = [
     "admission_decision_digest",
     "admission_decision_from_bytes",
     "admission_decision_to_bytes",
+    "admit_mif_reactor_semantic_handoff",
     "admit_reactor_semantic_handoff",
 ]

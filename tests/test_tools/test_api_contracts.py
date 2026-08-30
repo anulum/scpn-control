@@ -19,7 +19,7 @@ def test_api_inventory_has_disjoint_complete_python_classification() -> None:
     python = inventory["python"]
 
     assert sum(python["classifications"].values()) == python["candidate_count"]
-    assert python["stable_export_count"] == 44
+    assert python["stable_export_count"] == 51
     assert len(inventory["c"]["symbols"]) == 10
     assert len(inventory["lean"]["symbols"]) == 9
 

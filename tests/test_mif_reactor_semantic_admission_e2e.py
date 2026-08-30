@@ -25,11 +25,9 @@ from scpn_phase_orchestrator.reactor_semantics import (
 )
 
 from scpn_control.reactor_semantic_admission import (
+    MIFReactorSemanticAdmissionPolicy,
     admission_decision_from_bytes,
     admission_decision_to_bytes,
-)
-from scpn_control.reactor_semantic_admission.mif_admission import (
-    MIFReactorSemanticAdmissionPolicy,
     admit_mif_reactor_semantic_handoff,
 )
 
@@ -107,16 +105,24 @@ def test_exact_mif_spo_control_public_bytes_exchange() -> None:
     assert decision.refusal_codes == ()
 
 
-def test_mif_admission_import_does_not_load_control_action_surface() -> None:
-    """Keep the MIF review boundary independent of CONTROL action modules."""
+def test_mif_public_facade_does_not_load_action_surfaces() -> None:
+    """Keep the public MIF review boundary independent of action modules."""
     environment = os.environ.copy()
     environment["PYTHONPATH"] = str(CONTROL_ROOT / "src")
     completed = subprocess.run(
         [
             sys.executable,
             "-c",
-            "import sys; import scpn_control.reactor_semantic_admission.mif_admission; "
-            "assert not any(name.startswith('scpn_control.control') for name in sys.modules)",
+            "import sys; import scpn_control; "
+            "from scpn_control.reactor_semantic_admission import "
+            "MIFReactorSemanticAdmissionPolicy, admit_mif_reactor_semantic_handoff; "
+            "blocked = ('scpn_control.control', 'scpn_control.codac', "
+            "'scpn_control.actuator', 'scpn_control.interlock'); "
+            "assert not any(name.startswith(blocked) for name in sys.modules); "
+            "assert not hasattr(scpn_control, 'MIFReactorSemanticAdmissionPolicy'); "
+            "assert not hasattr(scpn_control, 'admit_mif_reactor_semantic_handoff'); "
+            "assert MIFReactorSemanticAdmissionPolicy.__module__.endswith('.mif_admission'); "
+            "assert admit_mif_reactor_semantic_handoff.__module__.endswith('.mif_admission')",
         ],
         cwd=CONTROL_ROOT,
         env=environment,

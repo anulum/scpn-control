@@ -48,9 +48,23 @@ phase was declared; it does not invalidate otherwise usable transport evidence.
 Use the dedicated [Reactor Semantic Admission](control/reactor_semantic_admission.md)
 guide for the policy fields, refusal boundary, and non-actuation limits.
 
+MIF merge-compression review admission is intentionally exposed only from the
+reactor-semantic subpackage. It is not a root-package control API:
+
+```python
+from scpn_control.reactor_semantic_admission import (
+    MIFReactorSemanticAdmissionPolicy,
+    admit_mif_reactor_semantic_handoff,
+)
+```
+
 ::: scpn_control.reactor_semantic_admission.admission
 
 ::: scpn_control.reactor_semantic_admission.decision
+
+::: scpn_control.reactor_semantic_admission.mif_admission.MIFReactorSemanticAdmissionPolicy
+
+::: scpn_control.reactor_semantic_admission.mif_admission.admit_mif_reactor_semantic_handoff
 
 ---
 

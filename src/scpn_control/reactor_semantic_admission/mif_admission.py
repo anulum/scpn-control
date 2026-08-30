@@ -55,6 +55,20 @@ class MIFReactorSemanticAdmissionPolicy:
         Exact semantic IDs that may carry numerical phase.
     required_provenance_attributes:
         Producer attributes that every observable must retain.
+    min_numerical_observability, min_numerical_confidence:
+        Inclusive lower bounds for numerical-phase evidence in ``[0, 1]``.
+    max_numerical_circular_std_rad:
+        Inclusive upper bound for numerical-phase circular uncertainty in
+        radians.
+    allowed_degradation_reasons, allowed_quality_flags:
+        Exact closed allowlists for explicitly degraded evidence. Empty
+        defaults reject every degradation reason and quality flag.
+
+    Notes
+    -----
+    Construction validates the policy shape and identity pins. Admission still
+    evaluates the supplied handoff independently and never confers actuation
+    authority.
     """
 
     expected_handoff_sha256: str
@@ -135,7 +149,23 @@ def admit_mif_reactor_semantic_handoff(
     *,
     policy: MIFReactorSemanticAdmissionPolicy,
 ) -> ReactorSemanticAdmissionDecision:
-    """Admit one exact SPO MIF handoff for non-actuating review only."""
+    """Evaluate one exact SPO MIF handoff for non-actuating review.
+
+    Parameters
+    ----------
+    payload:
+        Canonical SPO MIF merge-compression handoff bytes.
+    policy:
+        Caller-owned identity, clock, provenance, evidence, and uncertainty
+        bounds for the expected handoff.
+
+    Returns
+    -------
+    ReactorSemanticAdmissionDecision
+        Digest-sealed review decision. Decoder or policy mismatches are
+        represented by refusal codes; the result always remains review-only
+        and non-actionable.
+    """
     raw_digest = hashlib.sha256(payload).hexdigest() if isinstance(payload, bytes) else None
     try:
         handoff = mif_merge_compression_handoff_from_bytes(payload)
