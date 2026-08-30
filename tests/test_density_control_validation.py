@@ -25,6 +25,8 @@ from validation.validate_density_control import (
     greenwald_fraction_rel_error,
     greenwald_limit_rel_error,
     greenwald_scaling_checks,
+    interferometer_signed_symmetry_rel_error,
+    interferometer_uniform_projection_rel_error,
     nbi_conservation_rel_error,
     recycling_conservation_rel_error,
     validate_density_control,
@@ -80,6 +82,16 @@ def test_diffusion_leaves_uniform_interior_unchanged(config: DensityConfig) -> N
     assert diffusion_uniform_invariance_abs_error(config) == 0.0
 
 
+def test_interferometer_uniform_projection_matches_exact_chord_length(config: DensityConfig) -> None:
+    """The production shell projector telescopes to the circular chord."""
+    assert interferometer_uniform_projection_rel_error(config) < 1e-15
+
+
+def test_interferometer_projection_is_even_in_signed_impact(config: DensityConfig) -> None:
+    """Circular chord length is even in the signed impact coordinate."""
+    assert interferometer_signed_symmetry_rel_error(config) == 0.0
+
+
 def test_greenwald_scaling_laws_are_exact(config: DensityConfig) -> None:
     checks = {c.name: c for c in greenwald_scaling_checks(config)}
     assert checks["current_linear"].measured_ratio == pytest.approx(2.0, rel=1e-12)
@@ -95,6 +107,7 @@ def test_overall_validation_passes(result: DensityValidationResult) -> None:
     assert result.greenwald_passed is True
     assert result.sources_passed is True
     assert result.diffusion_passed is True
+    assert result.interferometry_passed is True
     assert result.scaling_passed is True
     assert len(result.scaling) == 2
 
@@ -112,6 +125,7 @@ def test_validation_is_deterministic() -> None:
 def _kwargs() -> dict[str, object]:
     return {
         "n_rho": 64,
+        "n_chords": 8,
         "major_radius_m": 6.2,
         "minor_radius_m": 2.0,
         "plasma_current_ma": 15.0,
@@ -137,6 +151,14 @@ def test_config_rejects_non_integer_grid() -> None:
     kwargs = _kwargs()
     kwargs["n_rho"] = 64.0
     with pytest.raises(ValueError, match="n_rho must be an integer"):
+        DensityConfig(**kwargs)  # type: ignore[arg-type]
+
+
+def test_config_rejects_too_few_chords() -> None:
+    """Analytic validation requires at least two diagnostic chords."""
+    kwargs = _kwargs()
+    kwargs["n_chords"] = 1
+    with pytest.raises(ValueError, match="n_chords must be at least 2"):
         DensityConfig(**kwargs)  # type: ignore[arg-type]
 
 
@@ -183,6 +205,11 @@ def test_evidence_roundtrip_is_sealed_and_passing(result: DensityValidationResul
     assert evidence["schema_version"] == DENSITY_CONTROL_SCHEMA_VERSION
     assert validate_evidence_payload(evidence) is True
     assert evidence["diffusion_passed"] is True
+    assert evidence["interferometry_passed"] is True
+    assert set(evidence["runtime_source_sha256"]) == {
+        "src/scpn_control/control/density_controller.py",
+        "validation/validate_density_control.py",
+    }
     assert len(evidence["scaling"]) == 2
 
 
@@ -229,6 +256,7 @@ def test_main_text_output_passes(capsys) -> None:
     out = capsys.readouterr().out
     assert "Status: pass" in out
     assert "diffusion:" in out
+    assert "chords:" in out
 
 
 def test_main_json_output_and_report(capsys, tmp_path) -> None:
@@ -240,7 +268,9 @@ def test_main_json_output_and_report(capsys, tmp_path) -> None:
     assert payload["schema_version"] == DENSITY_CONTROL_SCHEMA_VERSION
     assert report.exists() and report.with_suffix(".md").exists()
     assert validate_evidence_payload(json.loads(report.read_text())) is True
-    assert "Density-Control" in report.with_suffix(".md").read_text()
+    markdown = report.with_suffix(".md").read_text()
+    assert "Density-Control" in markdown
+    assert "Runtime source SHA-256" in markdown
 
 
 def test_main_returns_one_on_failure(monkeypatch, capsys) -> None:

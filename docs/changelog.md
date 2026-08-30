@@ -12,6 +12,12 @@
   installed-target validation.
 ### Changed
 
+- Replaced the density estimator's ignored `chord_angles` pseudo-Abel kernel
+  with exact, metre-dimensioned straight-chord lengths through declared
+  circular annular shells. The estimator now validates all state, geometry,
+  timestep, and covariance domains and uses a Cholesky gain solve with the
+  Joseph covariance update; the historical keyword remains a warning-emitting
+  compatibility alias for normalised impact coordinates until 0.25.0.
 - Separated Paper 27's abstract layer indices from the illustrative
   plasma-labelled hierarchy. Plasma builders, frequencies, and monitor
   construction now share one explicit `L=1..8` or `L=16` domain and reject

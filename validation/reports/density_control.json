@@ -4,6 +4,7 @@
     "gas_puff_rate_per_s": 1e+21,
     "major_radius_m": 6.2,
     "minor_radius_m": 2.0,
+    "n_chords": 8,
     "n_rho": 64,
     "nbi_energy_kev": 100.0,
     "nbi_power_mw": 33.0,
@@ -18,16 +19,23 @@
   "diffusion_uniform_invariance_abs_error": 0.0,
   "exact_tol": 1e-09,
   "gas_puff_conservation_rel_error": 2.705457152e-12,
-  "generated_utc": "2026-06-14T19:22:38Z",
+  "generated_utc": "2026-08-30T03:24:54Z",
   "greenwald_fraction_rel_error": 0.0,
   "greenwald_limit_rel_error": 0.0,
   "greenwald_passed": true,
+  "interferometer_signed_symmetry_rel_error": 0.0,
+  "interferometer_uniform_projection_rel_error": 4.134250011947387e-17,
+  "interferometry_passed": true,
   "invariance_tol": 1e-12,
   "max_scaling_rel_error": 0.0,
   "nbi_conservation_rel_error": 6.253325963636363e-13,
   "passed": true,
-  "payload_sha256": "78bd9b67c5cba64e58d7e672e077a943fdfd0d13e7d81b080823171dafbdd5ac",
+  "payload_sha256": "dfa360825628072fb9ccfb6f17d7a06adfc3a633e26ea416c21402656726b081",
   "recycling_conservation_rel_error": 3.571779562886598e-12,
+  "runtime_source_sha256": {
+    "src/scpn_control/control/density_controller.py": "0b00368ee8aead8f41232f2ca3564df27149ea82cf8c561869d9fed1cc973425",
+    "validation/validate_density_control.py": "4687fff52eeafd468942b1fa618de5f7502b412d1e86ee32b07da684a0ee5b71"
+  },
   "scaling": [
     {
       "expected_ratio": 2.0,
@@ -43,8 +51,8 @@
     }
   ],
   "scaling_passed": true,
-  "schema_version": "scpn-control.density-control-validation.v1",
+  "schema_version": "scpn-control.density-control-validation.v2",
   "sources_passed": true,
-  "target_id": "density-control-particle-balance",
+  "target_id": "density-control-annular-interferometry",
   "volume_element_rel_error": 0.0
 }

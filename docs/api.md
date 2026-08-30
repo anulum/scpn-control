@@ -2563,6 +2563,8 @@ commissioning, or facility qualification.
 
 ::: scpn_control.control.density_controller
 
+::: scpn_control.control.density_controller.KalmanDensityEstimator
+
 ::: scpn_control.control.density_controller.DensityControlClaimEvidence
 
 ::: scpn_control.control.density_controller.density_control_claim_evidence

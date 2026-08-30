@@ -472,7 +472,19 @@ $$p_\alpha = \left(\frac{n_e}{2}\right)^2 \langle \sigma v \rangle(T_i) E_\alpha
 ### Density Control and Particle Balance
 Line-averaged density control against the Greenwald limit, with a cylindrical
 finite-volume particle-transport equation fed by normalised gas-puff,
-neutral-beam, and recycling sources and drained by a cryopump sink.
+neutral-beam, and recycling sources and drained by a cryopump sink. The bounded
+interferometry estimator represents the radial density as uniform annular-shell
+averages. For a straight chord with signed normalised impact coordinate $b$,
+shell $[\rho_j,\rho_{j+1}]$, and physical minor radius $a$, its exact path-length
+weight is
+
+$$C_{ij}=2a\left[\sqrt{\max(\rho_{j+1}^2-b_i^2,0)}-
+\sqrt{\max(\rho_j^2-b_i^2,0)}\right],\qquad
+y_i=\sum_j C_{ij}n_j.$$
+
+The weights telescope for a uniform profile to the circular chord result
+$y_i=2a\sqrt{1-b_i^2}\,n_e$. Thus $C$ has units metres and maps density in
+$\mathrm{m}^{-3}$ to line-integrated density in $\mathrm{m}^{-2}$.
 
 $$n_{\rm GW} = \frac{I_p}{\pi a^2}, \qquad
   f_{\rm GW} = \frac{\langle n \rangle}{n_{\rm GW}}, \qquad
@@ -480,7 +492,9 @@ $$n_{\rm GW} = \frac{I_p}{\pi a^2}, \qquad
   \qquad V' = 4\pi^2 R_0 a^2 \rho$$
 
 - **Source**: Greenwald, *Plasma Phys. Control. Fusion* 44, R27 (2002); ITER
-  Physics Basis, *Nucl. Fusion* 39, 2175, §4.2 (1999).
+  Physics Basis, *Nucl. Fusion* 39, 2175, §4.2 (1999); Milanese et al.,
+  *Phys. Plasmas* 27, 042516 (2020), doi:10.1063/1.5142638 (multi-chord
+  interferometry and Abel reconstruction).
 - **Implementation**: `src/scpn_control/control/density_controller.py:285`.
 - **Validation**: The production `ParticleTransportModel` and `DensityController`
   are checked against their exact closed forms — the Greenwald limit
@@ -489,11 +503,17 @@ $$n_{\rm GW} = \frac{I_p}{\pi a^2}, \qquad
   $V'$ and $V$, the gas-puff, neutral-beam, and recycling source normalisation
   (particle conservation of the source integral, with the neutral-beam rate
   $P/E_{\rm beam}/e$), the cryopump edge sink, and the finite-volume diffusion
-  operator vanishing on a spatially uniform interior — all to machine precision,
+  operator vanishing on a spatially uniform interior, the exact uniform-density
+  circular chord length, and signed-impact symmetry — all to machine precision,
   in `validation/validate_density_control.py` with tests in
-  `tests/test_density_control_validation.py`. The pellet neutral-gas-shielding
-  ablation profile remains a separate bounded model, and facility-calibrated
-  fuelling or exhaust claims still require measured particle-balance references.
+  `tests/test_density_control_validation.py`. Independent tests also verify the
+  Cholesky Kalman gain against a direct linear solve and the Joseph covariance
+  correction under repeated updates. This does not validate shaped-equilibrium
+  ray geometry, refraction, diagnostic calibration, a non-negative constrained
+  posterior, or facility reconstruction accuracy. The pellet neutral-gas-
+  shielding ablation profile remains a separate bounded model, and facility-
+  calibrated fuelling or exhaust claims still require measured particle-balance
+  references.
 
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$

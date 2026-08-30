@@ -272,6 +272,204 @@ def test_kalman_estimator():
     assert ne_upd.shape == (20,)
 
 
+def test_kalman_measurement_matrix_uses_declared_chord_impacts():
+    """Different physical chord layouts must produce different projections."""
+    est = KalmanDensityEstimator(n_rho=8, n_chords=3)
+    central = est.measurement_matrix(np.array([0.0, 0.2, 0.4]))
+    edge = est.measurement_matrix(np.array([0.6, 0.8, 1.0]))
+    assert not np.array_equal(central, edge)
+
+
+def test_kalman_uniform_profile_matches_exact_circular_chord_length():
+    """Annular shell weights telescope to the exact circular chord length."""
+    impacts = np.array([0.0, 0.3, 0.8, 1.0])
+    est = KalmanDensityEstimator(n_rho=16, n_chords=4)
+    projected = est.measurement_matrix(impacts) @ np.ones(est.n_rho)
+    expected = 2.0 * np.sqrt(1.0 - impacts**2)
+    np.testing.assert_allclose(projected, expected, rtol=0.0, atol=1e-14)
+
+
+def test_kalman_annular_projection_has_physical_scale_and_signed_symmetry():
+    """Projection weights retain metres and circular signed symmetry."""
+    impacts = np.array([-0.75, 0.0, 0.75])
+    est = KalmanDensityEstimator(n_rho=4, n_chords=3, minor_radius_m=2.5)
+    projection = est.measurement_matrix(impacts)
+
+    np.testing.assert_allclose(projection[0], projection[2], rtol=0.0, atol=0.0)
+    np.testing.assert_allclose(projection[1], np.full(4, 1.25), rtol=0.0, atol=1e-15)
+    np.testing.assert_allclose(
+        projection.sum(axis=1),
+        2.0 * est.minor_radius_m * np.sqrt(1.0 - impacts**2),
+        rtol=0.0,
+        atol=1e-14,
+    )
+
+
+def test_kalman_deprecated_chord_angles_alias_is_explicit():
+    """The historical keyword warns and preserves normalised-impact values."""
+    est = KalmanDensityEstimator(n_rho=4, n_chords=2)
+    impacts = np.array([0.0, 0.5])
+    with pytest.warns(DeprecationWarning, match="chord_angles"):
+        legacy = est.measurement_matrix(chord_angles=impacts)
+    np.testing.assert_array_equal(legacy, est.measurement_matrix(impacts))
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        ({"n_rho": 0}, "n_rho"),
+        ({"n_rho": True}, "n_rho"),
+        ({"n_rho": 4, "n_chords": 0}, "n_chords"),
+        ({"n_rho": 4, "n_chords": False}, "n_chords"),
+        ({"n_rho": 4, "minor_radius_m": 0.0}, "minor_radius_m"),
+        ({"n_rho": 4, "minor_radius_m": math.inf}, "minor_radius_m"),
+    ],
+)
+def test_kalman_constructor_rejects_invalid_domains(kwargs: dict[str, object], message: str):
+    """Constructor dimensions and physical radius fail closed."""
+    with pytest.raises(ValueError, match=message):
+        KalmanDensityEstimator(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("impacts", "message"),
+    [
+        (None, "must be provided"),
+        (np.array([0.0]), "shape"),
+        (np.array([0.0, math.nan]), "finite"),
+        (np.array([0.0, 1.01]), r"\[-1, 1\]"),
+    ],
+)
+def test_kalman_measurement_matrix_rejects_invalid_geometry(impacts: object, message: str):
+    """Chord geometry must be present, finite, shaped, and in-domain."""
+    est = KalmanDensityEstimator(n_rho=4, n_chords=2)
+    with pytest.raises(ValueError, match=message):
+        est.measurement_matrix(impacts)  # type: ignore[arg-type]
+
+
+def test_kalman_measurement_matrix_rejects_ambiguous_geometry():
+    """Canonical and compatibility geometry keywords cannot be mixed."""
+    est = KalmanDensityEstimator(n_rho=4, n_chords=2)
+    impacts = np.array([0.0, 0.5])
+    with pytest.raises(ValueError, match="not both"):
+        est.measurement_matrix(impacts, chord_angles=impacts)
+
+
+def test_kalman_predict_validates_and_copies_state():
+    """Prediction validates its domain and does not alias caller state."""
+    est = KalmanDensityEstimator(n_rho=3, n_chords=2)
+    ne = np.array([1.0, 2.0, 3.0])
+    predicted = est.predict(ne, dt=0.0)
+    ne[0] = 99.0
+    np.testing.assert_array_equal(predicted, np.array([1.0, 2.0, 3.0]))
+
+    with pytest.raises(ValueError, match="ne must have shape"):
+        est.predict(np.ones(2), dt=0.1)
+    with pytest.raises(ValueError, match="ne must contain only finite"):
+        est.predict(np.array([1.0, math.nan, 3.0]), dt=0.1)
+    with pytest.raises(ValueError, match="ne must be non-negative"):
+        est.predict(np.array([1.0, -1.0, 3.0]), dt=0.1)
+    with pytest.raises(ValueError, match="dt must be finite"):
+        est.predict(np.ones(3), dt=math.inf)
+    with pytest.raises(ValueError, match="dt must be finite"):
+        est.predict(np.ones(3), dt=-0.1)
+
+
+def test_kalman_update_matches_independent_joseph_reference():
+    """Gain, state, and covariance match an independent direct solve."""
+    est = KalmanDensityEstimator(n_rho=3, n_chords=2, minor_radius_m=1.7)
+    est.P = np.array([[4.0, 0.5, 0.2], [0.5, 3.0, 0.1], [0.2, 0.1, 2.0]])
+    est.R = np.array([[0.7, 0.1], [0.1, 0.5]])
+    ne_pred = np.array([4.0, 3.0, 2.0])
+    measurements = np.array([10.0, 4.0])
+    impacts = np.array([0.0, 0.6])
+
+    projection = est.measurement_matrix(impacts)
+    prior = est.P.copy()
+    measurement_covariance = est.R.copy()
+    innovation_covariance = projection @ prior @ projection.T + measurement_covariance
+    expected_gain = np.linalg.solve(innovation_covariance, projection @ prior).T
+    expected_state = ne_pred + expected_gain @ (measurements - projection @ ne_pred)
+    correction = np.eye(est.n_rho) - expected_gain @ projection
+    expected_covariance = correction @ prior @ correction.T + expected_gain @ measurement_covariance @ expected_gain.T
+
+    updated = est.update(ne_pred, measurements, impacts)
+    np.testing.assert_allclose(updated, expected_state, rtol=2e-15, atol=2e-15)
+    np.testing.assert_allclose(est.P, expected_covariance, rtol=2e-14, atol=2e-14)
+    np.testing.assert_allclose(est.P, est.P.T, rtol=0.0, atol=0.0)
+    assert np.linalg.eigvalsh(est.P)[0] >= -1e-14
+
+
+def test_kalman_repeated_updates_preserve_covariance_symmetry_and_psd():
+    """Repeated measurement corrections preserve covariance invariants."""
+    est = KalmanDensityEstimator(n_rho=12, n_chords=5, minor_radius_m=2.0)
+    impacts = np.linspace(-0.8, 0.8, est.n_chords)
+    truth = np.linspace(8.0e19, 2.0e19, est.n_rho)
+    measurements = est.measurement_matrix(impacts) @ truth
+
+    estimate = np.full(est.n_rho, 5.0e19)
+    for _ in range(40):
+        estimate = est.update(estimate, measurements, impacts)
+        np.testing.assert_allclose(est.P, est.P.T, rtol=0.0, atol=0.0)
+        tolerance = np.finfo(float).eps * max(1.0, float(np.max(np.abs(est.P)))) * est.n_rho
+        assert np.linalg.eigvalsh(est.P)[0] >= -tolerance
+    assert np.all(np.isfinite(estimate))
+
+
+@pytest.mark.parametrize(
+    ("attribute", "value", "message"),
+    [
+        ("P", np.eye(2), "P must have shape"),
+        ("P", np.array([[1.0, math.nan, 0.0], [math.nan, 1.0, 0.0], [0.0, 0.0, 1.0]]), "finite"),
+        ("P", np.array([[1.0, 1.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]), "symmetric"),
+        ("P", np.diag([1.0, 1.0, -1.0]), "positive semidefinite"),
+        ("Q", np.diag([1.0, -1.0, 1.0]), "positive semidefinite"),
+    ],
+)
+def test_kalman_predict_rejects_invalid_covariance(attribute: str, value: np.ndarray, message: str):
+    """Prediction rejects malformed or non-PSD state covariances."""
+    est = KalmanDensityEstimator(n_rho=3, n_chords=2)
+    setattr(est, attribute, value)
+    with pytest.raises(ValueError, match=message):
+        est.predict(np.ones(3), dt=0.1)
+
+
+@pytest.mark.parametrize(
+    ("ne_pred", "measurements", "message"),
+    [
+        (np.ones(2), np.ones(2), "ne_pred must have shape"),
+        (np.array([1.0, math.inf, 1.0]), np.ones(2), "ne_pred must contain only finite"),
+        (np.array([1.0, -1.0, 1.0]), np.ones(2), "ne_pred must be non-negative"),
+        (np.ones(3), np.ones(3), "measurements must have shape"),
+        (np.ones(3), np.array([1.0, math.nan]), "measurements must contain only finite"),
+    ],
+)
+def test_kalman_update_rejects_invalid_vectors(ne_pred: np.ndarray, measurements: np.ndarray, message: str):
+    """Measurement correction rejects invalid state and observation vectors."""
+    est = KalmanDensityEstimator(n_rho=3, n_chords=2)
+    with pytest.raises(ValueError, match=message):
+        est.update(ne_pred, measurements, np.array([0.0, 0.5]))
+
+
+def test_kalman_update_rejects_non_positive_measurement_covariance():
+    """Measurement noise must make the observation model non-degenerate."""
+    est = KalmanDensityEstimator(n_rho=3, n_chords=2)
+    est.R = np.zeros((2, 2))
+    with pytest.raises(ValueError, match="R must be positive definite"):
+        est.update(np.ones(3), np.ones(2), np.array([0.0, 0.5]))
+
+
+def test_kalman_update_rejects_non_positive_innovation_covariance():
+    """Round-off-scale invalid priors cannot enter a Cholesky gain solve."""
+    est = KalmanDensityEstimator(n_rho=1, n_chords=1)
+    # The PSD admission tolerance permits a round-off-scale negative prior;
+    # the physical chord magnifies it beyond the strictly positive noise floor.
+    est.P = np.array([[-1.0e-16]])
+    est.R = np.array([[1.0e-18]])
+    with pytest.raises(ValueError, match="innovation covariance must be positive definite"):
+        est.update(np.ones(1), np.ones(1), np.array([0.0]))
+
+
 def test_fueling_optimizer():
     opt = FuelingOptimizer()
     sched = opt.optimize_pellet_sequence(np.zeros(10), np.ones(10), n_pellets=3, time_horizon=1.0)

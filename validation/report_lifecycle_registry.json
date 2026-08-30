@@ -5,8 +5,8 @@
     "rerunnable_local": 10
   },
   "freshness_max_age_days": 21,
-  "inventory_as_of_utc": "2026-08-28T16:40:25Z",
-  "registry_source_commit": "6e325d50a8b11436e34399c0a0dac15defcdbfe8",
+  "inventory_as_of_utc": "2026-08-30T03:24:54Z",
+  "registry_source_commit": "778542b3dc2d19a262566c277770ae716299dd26",
   "reports": [
     {
       "claim_boundary": {
@@ -679,7 +679,7 @@
       },
       "evidence_class": "historical_unreviewed",
       "evidence_time_source": "generated_utc",
-      "evidence_time_utc": "2026-06-14T19:22:38Z",
+      "evidence_time_utc": "2026-08-30T03:24:54Z",
       "lifecycle_bucket": "historical_only",
       "path": "validation/reports/density_control.json",
       "provenance": {
@@ -688,14 +688,19 @@
         ],
         "dependency_lock_sha256": null,
         "failures": [
-          "historical_only_not_current"
+          "bounded_circular_axisymmetric_geometry_only",
+          "shaped_equilibrium_ray_geometry_unvalidated",
+          "diagnostic_calibration_unvalidated",
+          "facility_reconstruction_accuracy_unvalidated",
+          "historical_only_not_current",
+          "public_claim_not_admitted"
         ],
         "host_class": null,
         "host_id": null,
         "host_load": null,
         "repeats": null,
         "samples": null,
-        "source_commit": null,
+        "source_commit": "778542b3dc2d19a262566c277770ae716299dd26",
         "warmup": null
       },
       "refresh": {
@@ -706,8 +711,8 @@
         "locally_rerunnable": false,
         "status": "historical_indexed"
       },
-      "report_commit": "a0c700efacbdd0c56f8fd9df3ba5acac93347e3b",
-      "report_sha256": "6199b147e2a41dba934f9732ceba264df56f6b3dab8ed438b321b912065a1a72",
+      "report_commit": "778542b3dc2d19a262566c277770ae716299dd26",
+      "report_sha256": "8072097869aa7974e8ec181bdba6a141fd3c9892319681027e2e7870eca58a83",
       "source_claim_boundary_present": false,
       "storage_class": "git_tracked"
     },
@@ -2025,8 +2030,8 @@
         "scientific_admission": false
       },
       "evidence_class": "external_required",
-      "evidence_time_source": "file_mtime",
-      "evidence_time_utc": "2026-06-05T18:24:15.679899Z",
+      "evidence_time_source": "report_commit_timestamp",
+      "evidence_time_utc": "2026-08-30T01:29:06Z",
       "lifecycle_bucket": "external_artifact_blocked",
       "path": "validation/reports/integrated_scenario_coupling.json",
       "provenance": {
@@ -2035,14 +2040,17 @@
         ],
         "dependency_lock_sha256": null,
         "failures": [
-          "required_external_artifact_unavailable"
+          "bounded_deterministic_replay_only",
+          "measured_discharge_validation_unavailable",
+          "external_integrated_modelling_validation_unavailable",
+          "public_claim_not_admitted"
         ],
         "host_class": null,
         "host_id": null,
         "host_load": null,
         "repeats": null,
         "samples": null,
-        "source_commit": null,
+        "source_commit": "f78a61d61d6c4d07f808959e518d20fd0aa10ce7",
         "warmup": null
       },
       "refresh": {
@@ -2053,8 +2061,8 @@
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
-      "report_commit": "f8083852bcfbf4cc9f7e31a65c55143c47640c8f",
-      "report_sha256": "53ffccb5e3cecc3980eeaf23a39290ddef809419dbcaba19b0e96add64e10963",
+      "report_commit": "f78a61d61d6c4d07f808959e518d20fd0aa10ce7",
+      "report_sha256": "8ef35371175a224139de76493800b4ace175d4542b0db5a8ba9af30cfcbe6837",
       "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
     },

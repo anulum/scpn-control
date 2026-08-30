@@ -6,7 +6,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Density-control particle-balance analytic validation
-"""Validate the density-control particle balance against exact closed forms.
+"""Validate density control and interferometry against exact closed forms.
 
 The density controller (``src/scpn_control/control/density_controller.py``)
 budgets the line-averaged density against the Greenwald limit and advances a
@@ -34,8 +34,12 @@ Exact references checked against the production classes:
 7. **Diffusion operator.** With a spatially uniform density, zero pinch, and no
    sources, the finite-volume diffusion operator leaves the interior unchanged
    (it vanishes on constants), so only the open edge cell evolves.
+8. **Interferometer projection.** Exact annular shell chord lengths telescope to
+   ``2 a sqrt(1-b^2)`` for a uniform density, and circular geometry is even in
+   the signed normalised impact coordinate ``b``.
 
-References:
+References
+----------
   Greenwald M. (2002) *Plasma Phys. Control. Fusion* 44, R27 (density limit).
   ITER Physics Basis (1999) *Nucl. Fusion* 39, 2175, §4.2 (recycling).
 """
@@ -55,9 +59,14 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from scpn_control.control.density_controller import DensityController, ParticleTransportModel
+from scpn_control.control.density_controller import DensityController, KalmanDensityEstimator, ParticleTransportModel
 
-DENSITY_CONTROL_SCHEMA_VERSION = "scpn-control.density-control-validation.v1"
+DENSITY_CONTROL_SCHEMA_VERSION = "scpn-control.density-control-validation.v2"
+_ROOT = Path(__file__).resolve().parents[1]
+_RUNTIME_SOURCE_PATHS = (
+    "src/scpn_control/control/density_controller.py",
+    "validation/validate_density_control.py",
+)
 
 
 @dataclass(frozen=True)
@@ -65,6 +74,7 @@ class DensityConfig:
     """Geometry, plasma, and actuator parameters for the particle balance."""
 
     n_rho: int
+    n_chords: int
     major_radius_m: float
     minor_radius_m: float
     plasma_current_ma: float
@@ -79,6 +89,7 @@ class DensityConfig:
 
     def __post_init__(self) -> None:
         _positive_int("n_rho", self.n_rho, minimum=4)
+        _positive_int("n_chords", self.n_chords, minimum=2)
         _positive_float("major_radius_m", self.major_radius_m)
         _positive_float("minor_radius_m", self.minor_radius_m)
         _positive_float("plasma_current_ma", self.plasma_current_ma)
@@ -95,20 +106,23 @@ class DensityConfig:
             raise ValueError("minor radius must be smaller than the major radius")
 
     def model(self) -> ParticleTransportModel:
+        """Build the production particle-transport model."""
         return ParticleTransportModel(n_rho=self.n_rho, R0=self.major_radius_m, a=self.minor_radius_m)
 
     def controller(self) -> DensityController:
+        """Build the production density controller."""
         return DensityController(self.model())
 
     def density_profile(self) -> npt.NDArray[np.floating[Any]]:
-        """A monotone ITER-like density profile spanning the grid."""
+        """Return a monotone ITER-like density profile spanning the grid."""
         return np.linspace(1.1e20, 0.7e20, self.n_rho)
 
 
 def default_config() -> DensityConfig:
-    """An ITER-like 15 MA particle-balance geometry."""
+    """Return an ITER-like 15 MA particle-balance geometry."""
     return DensityConfig(
         n_rho=64,
+        n_chords=8,
         major_radius_m=6.2,
         minor_radius_m=2.0,
         plasma_current_ma=15.0,
@@ -208,6 +222,28 @@ def diffusion_uniform_invariance_abs_error(config: DensityConfig) -> float:
     return float(np.max(interior_change) / config.uniform_density_m3)
 
 
+def interferometer_uniform_projection_rel_error(config: DensityConfig) -> float:
+    """Maximum relative error against the exact uniform circular line integral."""
+    estimator = KalmanDensityEstimator(
+        n_rho=config.n_rho,
+        n_chords=config.n_chords,
+        minor_radius_m=config.minor_radius_m,
+    )
+    impacts = np.linspace(-0.95, 0.95, config.n_chords)
+    density = np.full(config.n_rho, config.uniform_density_m3)
+    measured = estimator.measurement_matrix(impacts) @ density
+    analytic = 2.0 * config.minor_radius_m * np.sqrt(1.0 - impacts**2) * config.uniform_density_m3
+    return float(np.max(np.abs(measured - analytic)) / np.max(np.abs(analytic)))
+
+
+def interferometer_signed_symmetry_rel_error(config: DensityConfig) -> float:
+    """Relative mismatch between equal-magnitude positive and negative chords."""
+    estimator = KalmanDensityEstimator(n_rho=config.n_rho, n_chords=2, minor_radius_m=config.minor_radius_m)
+    projection = estimator.measurement_matrix(np.array([-0.63, 0.63]))
+    scale = float(np.max(np.abs(projection)))
+    return float(np.max(np.abs(projection[0] - projection[1])) / scale)
+
+
 @dataclass(frozen=True)
 class ScalingCheck:
     """One Greenwald-limit scaling-law observation."""
@@ -255,6 +291,8 @@ class DensityValidationResult:
     recycling_conservation_rel_error: float
     cryopump_sink_rel_error: float
     diffusion_uniform_invariance_abs_error: float
+    interferometer_uniform_projection_rel_error: float
+    interferometer_signed_symmetry_rel_error: float
     scaling: tuple[ScalingCheck, ...]
     max_scaling_rel_error: float
     exact_tol: float
@@ -262,6 +300,7 @@ class DensityValidationResult:
     greenwald_passed: bool
     sources_passed: bool
     diffusion_passed: bool
+    interferometry_passed: bool
     scaling_passed: bool
     passed: bool
 
@@ -286,15 +325,18 @@ def validate_density_control(
     rec_err = recycling_conservation_rel_error(config)
     cryo_err = cryopump_sink_rel_error(config)
     diffusion_err = diffusion_uniform_invariance_abs_error(config)
+    interferometer_uniform_err = interferometer_uniform_projection_rel_error(config)
+    interferometer_symmetry_err = interferometer_signed_symmetry_rel_error(config)
     scaling = greenwald_scaling_checks(config)
     max_scaling = max(check.rel_error for check in scaling)
 
     greenwald_passed = bool(gw_limit < exact_tol and gw_fraction < exact_tol and vol_err < exact_tol)
     sources_passed = bool(gas_err < exact_tol and nbi_err < exact_tol and rec_err < exact_tol and cryo_err < exact_tol)
     diffusion_passed = bool(diffusion_err < invariance_tol)
+    interferometry_passed = bool(interferometer_uniform_err < exact_tol and interferometer_symmetry_err < exact_tol)
     scaling_passed = bool(max_scaling < exact_tol)
 
-    passed = bool(greenwald_passed and sources_passed and diffusion_passed and scaling_passed)
+    passed = bool(greenwald_passed and sources_passed and diffusion_passed and interferometry_passed and scaling_passed)
     return DensityValidationResult(
         config=config,
         greenwald_limit_rel_error=gw_limit,
@@ -305,6 +347,8 @@ def validate_density_control(
         recycling_conservation_rel_error=rec_err,
         cryopump_sink_rel_error=cryo_err,
         diffusion_uniform_invariance_abs_error=diffusion_err,
+        interferometer_uniform_projection_rel_error=interferometer_uniform_err,
+        interferometer_signed_symmetry_rel_error=interferometer_symmetry_err,
         scaling=scaling,
         max_scaling_rel_error=max_scaling,
         exact_tol=exact_tol,
@@ -312,6 +356,7 @@ def validate_density_control(
         greenwald_passed=greenwald_passed,
         sources_passed=sources_passed,
         diffusion_passed=diffusion_passed,
+        interferometry_passed=interferometry_passed,
         scaling_passed=scaling_passed,
         passed=passed,
     )
@@ -327,6 +372,7 @@ def build_evidence(result: DensityValidationResult, *, target_id: str) -> dict[s
         "target_id": target_id,
         "config": {
             "n_rho": result.config.n_rho,
+            "n_chords": result.config.n_chords,
             "major_radius_m": result.config.major_radius_m,
             "minor_radius_m": result.config.minor_radius_m,
             "plasma_current_ma": result.config.plasma_current_ma,
@@ -349,6 +395,8 @@ def build_evidence(result: DensityValidationResult, *, target_id: str) -> dict[s
         "recycling_conservation_rel_error": result.recycling_conservation_rel_error,
         "cryopump_sink_rel_error": result.cryopump_sink_rel_error,
         "diffusion_uniform_invariance_abs_error": result.diffusion_uniform_invariance_abs_error,
+        "interferometer_uniform_projection_rel_error": result.interferometer_uniform_projection_rel_error,
+        "interferometer_signed_symmetry_rel_error": result.interferometer_signed_symmetry_rel_error,
         "scaling": [
             {
                 "name": check.name,
@@ -362,8 +410,10 @@ def build_evidence(result: DensityValidationResult, *, target_id: str) -> dict[s
         "greenwald_passed": result.greenwald_passed,
         "sources_passed": result.sources_passed,
         "diffusion_passed": result.diffusion_passed,
+        "interferometry_passed": result.interferometry_passed,
         "scaling_passed": result.scaling_passed,
         "passed": result.passed,
+        "runtime_source_sha256": _runtime_source_sha256(),
         "payload_sha256": "",
     }
     payload["payload_sha256"] = _payload_sha256(payload)
@@ -394,6 +444,13 @@ def _payload_sha256(payload: Mapping[str, Any]) -> str:
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
+
+
+def _runtime_source_sha256() -> dict[str, str]:
+    return {
+        relative_path: hashlib.sha256((_ROOT / relative_path).read_bytes()).hexdigest()
+        for relative_path in _RUNTIME_SOURCE_PATHS
+    }
 
 
 def _is_sha256(value: object) -> bool:
@@ -429,9 +486,7 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     md_path = json_path.with_suffix(".md")
     lines = [
-        "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
-        "",
-        "# Density-Control Particle-Balance Validation",
+        "# Density-Control and Interferometry Validation",
         "",
         f"- Schema: `{evidence['schema_version']}`",
         f"- Generated (UTC): {evidence['generated_utc']}",
@@ -455,6 +510,16 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
         "",
         f"- maximum interior relative change: {evidence['diffusion_uniform_invariance_abs_error']:.3e} "
         f"(gate < {evidence['invariance_tol']:.1e})",
+        "",
+        "## Circular interferometer projection",
+        "",
+        f"- uniform-profile chord-length relative error: {evidence['interferometer_uniform_projection_rel_error']:.3e}",
+        f"- signed-impact symmetry relative error: {evidence['interferometer_signed_symmetry_rel_error']:.3e}",
+        f"- status: **{'pass' if evidence['interferometry_passed'] else 'fail'}**",
+        "",
+        "## Runtime source SHA-256",
+        "",
+        *[f"- `{path}`: `{digest}`" for path, digest in evidence["runtime_source_sha256"].items()],
     ]
     md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
@@ -462,7 +527,7 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     """CLI entry point producing schema-versioned validation evidence."""
     parser = argparse.ArgumentParser(
-        description="Validate the density-control particle balance against exact closed forms"
+        description="Validate density control and interferometry against exact closed forms"
     )
     parser.add_argument("--target-id", type=str, default="local-density-control")
     parser.add_argument("--json-out", action="store_true", help="emit the evidence payload as JSON")
@@ -478,7 +543,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.json_out:
         print(json.dumps(evidence, indent=2, sort_keys=True))
     else:
-        print("Density-control particle-balance validation")
+        print("Density-control and interferometry validation")
         print(
             f"  greenwald:  limit={result.greenwald_limit_rel_error:.3e} "
             f"fraction={result.greenwald_fraction_rel_error:.3e} volumes={result.volume_element_rel_error:.3e} "
@@ -493,6 +558,11 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"  diffusion:  uniform_interior={result.diffusion_uniform_invariance_abs_error:.3e} "
             f"scaling={result.max_scaling_rel_error:.3e} "
             f"{'ok' if result.diffusion_passed and result.scaling_passed else 'FAIL'}"
+        )
+        print(
+            f"  chords:     uniform={result.interferometer_uniform_projection_rel_error:.3e} "
+            f"symmetry={result.interferometer_signed_symmetry_rel_error:.3e} "
+            f"{'ok' if result.interferometry_passed else 'FAIL'}"
         )
         print(f"Status: {'pass' if result.passed else 'fail'}")
     return 0 if result.passed else 1
