@@ -12,7 +12,7 @@ use std::fmt::{Display, Formatter};
 
 use ndarray::Array2;
 
-use crate::h_infinity::matrix_exp;
+use crate::h_infinity::try_matrix_exp;
 
 /// Relative residual tolerance for the exact-discretisation RLC energy-balance admission.
 pub const ENERGY_BALANCE_REL_TOLERANCE: f64 = 1.0e-8;
@@ -641,7 +641,7 @@ fn build_exact_rlc_step(
         }
     }
     block[[1, 4]] = 1.0; // (e_i e_i^T)[i][i] with i the current index
-    let expo = matrix_exp(&(block * dt));
+    let expo = try_matrix_exp(&(block * dt)).map_err(|_| CapacitorBankError::NumericalStep)?;
     let mut w = [[0.0_f64; 3]; 3];
     for r in 0..3 {
         for c in 0..3 {
@@ -716,6 +716,8 @@ pub enum CapacitorBankError {
     /// Step state matrix was singular. Retained for API stability; the exact
     /// zero-order-hold discretisation no longer constructs this variant.
     SingularStepMatrix,
+    /// Exact step construction exceeded the finite numerical domain.
+    NumericalStep,
     /// Unknown waveform string.
     UnknownWaveform,
 }
@@ -730,6 +732,9 @@ impl Display for CapacitorBankError {
             Self::InitialVoltageExceedsMax => write!(f, "initial_voltage_v exceeds bank max"),
             Self::VoltageExceedsMax => write!(f, "bank voltage magnitude exceeds voltage_max_v"),
             Self::SingularStepMatrix => write!(f, "RLC step matrix is singular"),
+            Self::NumericalStep => {
+                write!(f, "RLC exact step is outside the finite numerical domain")
+            }
             Self::UnknownWaveform => write!(f, "unknown waveform"),
         }
     }
@@ -958,16 +963,11 @@ mod tests {
         )
         .expect("pulse validates");
         // Reaching this assertion at all proves the call returned (no hang). The
-        // fail-closed contract admits two outcomes: an explicit error (the step
-        // detects the non-finite state and rejects it), or an Ok ledger that —
-        // if admitted — carries only finite quantities. Both are acceptable; a
-        // hang, panic, or admitted non-finite ledger are not.
-        match bank.discharge(pulse, 1.341_801_598_285_21e-309, 1) {
-            Err(_) => {}
-            Ok(report) if report.energy_balance_passed => {
-                assert!(report.energy_initial_j.is_finite() && report.resistive_loss_j.is_finite());
-            }
-            Ok(_) => {}
-        }
+        // fail-closed contract requires an explicit numerical-domain error; a
+        // hang, panic, or admitted non-finite ledger is not acceptable.
+        assert!(matches!(
+            bank.discharge(pulse, 1.341_801_598_285_21e-309, 1),
+            Err(CapacitorBankError::NumericalStep)
+        ));
     }
 }

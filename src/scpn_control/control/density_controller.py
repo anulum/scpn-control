@@ -719,7 +719,7 @@ class KalmanDensityEstimator:
         Raises
         ------
         ValueError
-            If the geometry is absent, ambiguous, mis-shaped, non-finite, or
+            If the geometry is absent, ambiguous, incorrectly shaped, non-finite, or
             outside the circular plasma.
         """
         impacts = self._resolve_chord_impacts(chord_impacts, chord_angles)

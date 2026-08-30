@@ -44,7 +44,7 @@ fn solve_matrix(left: &Array2<f64>, right: &Array2<f64>) -> Result<Array2<f64>, 
 ///
 /// The Padé denominator is solved column by column; no explicit matrix inverse
 /// is formed. Non-finite inputs and results fail closed.
-fn try_matrix_exp(matrix: &Array2<f64>) -> Result<Array2<f64>, String> {
+pub(crate) fn try_matrix_exp(matrix: &Array2<f64>) -> Result<Array2<f64>, String> {
     let n = matrix.nrows();
     if n != matrix.ncols() {
         return Err("matrix_exp requires a square matrix".into());
@@ -105,14 +105,6 @@ fn try_matrix_exp(matrix: &Array2<f64>) -> Result<Array2<f64>, String> {
         }
     }
     Ok(result)
-}
-
-/// Compute a matrix exponential for existing finite internal callers.
-///
-/// New fallible runtime paths use `try_matrix_exp` directly; this compatibility
-/// facade preserves the crate-local API consumed by the capacitor-bank owner.
-pub(crate) fn matrix_exp(matrix: &Array2<f64>) -> Array2<f64> {
-    try_matrix_exp(matrix).expect("finite square matrix exponential failed")
 }
 
 fn zoh_discretize(
@@ -305,9 +297,13 @@ mod tests {
     #[test]
     fn matrix_exponential_matches_known_cases() {
         let zero = Array2::<f64>::zeros((2, 2));
-        assert_eq!(matrix_exp(&zero), Array2::<f64>::eye(2));
+        assert_eq!(
+            try_matrix_exp(&zero).expect("zero matrix has a finite exponential"),
+            Array2::<f64>::eye(2)
+        );
         let diagonal = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, -1.0]).unwrap();
-        let exponential = matrix_exp(&diagonal);
+        let exponential =
+            try_matrix_exp(&diagonal).expect("finite diagonal matrix has an exponential");
         assert!((exponential[[0, 0]] - 1.0_f64.exp()).abs() < 1.0e-12);
         assert!((exponential[[1, 1]] - (-1.0_f64).exp()).abs() < 1.0e-12);
         assert!(try_matrix_exp(&Array2::zeros((2, 3))).is_err());

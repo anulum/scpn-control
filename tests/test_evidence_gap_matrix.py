@@ -22,13 +22,13 @@ def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None
     """The matrix summary must match the canonical traceability registry."""
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
 
-    assert len(matrix.entries) == 70
-    assert matrix.public_claim_blocked == 69
-    assert matrix.open_fidelity_gaps == 69
+    assert len(matrix.entries) == 72
+    assert matrix.public_claim_blocked == 71
+    assert matrix.open_fidelity_gaps == 71
     assert len(matrix.trackers) == 8
     assert matrix.untracked_open_entries == 0
     assert matrix.status_counts == {
-        "bounded_model": 41,
+        "bounded_model": 43,
         "external_dependency_blocked": 4,
         "reference_validated": 1,
         "validation_gap": 24,
@@ -42,7 +42,7 @@ def test_evidence_gap_matrix_renders_tracker_work_package_details() -> None:
     rendered = matrix.to_markdown()
 
     assert "# SCPN Control Evidence Gap Matrix" in rendered
-    assert "Public full-fidelity claims blocked: `69`" in rendered
+    assert "Public full-fidelity claims blocked: `71`" in rendered
     assert "### Tracker #47: External gyrokinetic validation artefacts" in rendered
     assert "`src/scpn_control/core/gk_interface.py`" in rendered
 
@@ -58,7 +58,7 @@ def test_evidence_gap_matrix_cli_writes_json_and_markdown(tmp_path: Path, capsys
 
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "scpn-control.evidence-gap-matrix.v1"
-    assert payload["summary"]["public_claim_blocked"] == 69
+    assert payload["summary"]["public_claim_blocked"] == 71
     assert "Tracker #47" in output_md.read_text(encoding="utf-8")
 
 
@@ -67,7 +67,7 @@ def test_evidence_gap_matrix_cli_emits_json_stdout(capsys: CaptureFixture[str]) 
     assert main(["--json-out"]) == 0
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload["summary"]["open_fidelity_gaps"] == 69
+    assert payload["summary"]["open_fidelity_gaps"] == 71
     assert payload["summary"]["untracked_open_entries"] == 0
 
 

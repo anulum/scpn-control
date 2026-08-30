@@ -148,8 +148,8 @@ def _run_hinf_episode(config_path: Any, shot_duration: int = 30) -> EpisodeResul
 
     def hinf_step(pid: Any, err: float) -> float:
         if id(pid) == pid_R_id:
-            return hinf_R.step(err, dt)
-        return hinf_Z.step(err, dt)
+            return float(np.asarray(hinf_R.step(err, dt)).item())
+        return float(np.asarray(hinf_Z.step(err, dt)).item())
 
     # Override the bound PID step with the H-infinity step for this episode.
     # The instance-attribute override drops ``self`` (hinf_step takes (pid, err)),

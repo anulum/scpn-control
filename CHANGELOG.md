@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Corrected hosted verification drift: traceability assertions and the
+  coverage-exception ledger now match their canonical inventories, scalar
+  H-infinity validation consumers narrow the multi-output API explicitly, the
+  notebook simulates the admitted augmented DGKF closed loop, and extreme
+  finite capacitor-bank steps return a numerical-domain error instead of
+  panicking.
 - Replaced the advanced tutorial's deprecated mu-synthesis/D-K and pseudo
   gain-margin claims with the implemented static D-scaled mu-bound and
   normalized DGKF admission boundaries.
