@@ -37,6 +37,13 @@
   installed-target validation.
 ### Changed
 
+- Added a deterministic review-only admission boundary for portable reactor
+  semantics from SCPN-PHASE-ORCHESTRATOR. CONTROL now verifies the exact
+  handoff and embedded FUSION digest chain, caller-supplied clock freshness,
+  calibration identities, and observable usability before emitting a
+  canonical sealed decision with `actionable=false`; malformed, stale,
+  phase-relabeled, or action-bearing handoffs fail closed without constructing
+  a control action.
 - Replaced the density estimator's ignored `chord_angles` pseudo-Abel kernel
   with exact, metre-dimensioned straight-chord lengths through declared
   circular annular shells. The estimator now validates all state, geometry,

@@ -8,7 +8,7 @@ surfaces.
 
 ## SCPN ecosystem and cross-repository contracts
 
-`scpn-control` is one repository in a three-repository SCPN ecosystem. Each
+`scpn-control` is one repository in a four-repository reactor-semantics path. Each
 repository owns a distinct surface, and the boundaries between them are explicit
 contracts rather than copied code. Understanding the split explains why a given
 capability lives where it does, and where to look for the canonical version of a
@@ -17,6 +17,7 @@ physics model, a quantum routine, or a control surface.
 | Repository | Role | Owns |
 |------------|------|------|
 | [`scpn-fusion-core`](https://github.com/anulum/scpn-fusion-core) | Physics-solver laboratory | Broad physics kernels, high-fidelity numerical formulation, external-code validation campaigns, facility-data integration, Rust and GPU solver paths, 3D equilibrium / stellarator / VMEC / free-boundary internals, and neural physics training stacks. |
+| [`scpn-phase-orchestrator`](https://github.com/anulum/scpn-phase-orchestrator) | Reactor-semantic owner | Reactor configuration identity, phase and nonphase semantic carriers, regime meaning, U0 vocabulary and registry, and portable review-only handoffs. |
 | [`scpn-control`](https://github.com/anulum/scpn-control) (this repository) | Control-grade integration and facade | Bounded public control APIs, NMPC and controller-loop integration, Petri-net and SNN runtime contracts, replay and campaign metadata, fail-closed adapters, HIL/CODAC/EPICS/WebSocket safety boundaries, control-side source and actuator gradients, and traceable claim surfaces. |
 | [`scpn-quantum-control`](https://github.com/anulum/scpn-quantum-control) | Quantum and phase-dynamics research | Quantum disruption classifiers, Qiskit/PennyLane execution and provider integration, and quantum Kuramoto/UPDE variants. `scpn-control` consumes a bounded control adapter for the quantum disruption path rather than re-implementing it. |
 
@@ -33,6 +34,9 @@ twice and each repository's public claims stay scoped to what it can validate:
 - When `scpn-control` needs new mathematics, the solver-level result belongs
   upstream in `scpn-fusion-core`, so that control stays a bounded facade and does
   not become a second physics laboratory with divergent copies of the same model.
+- `scpn-phase-orchestrator` alone assigns reactor identity and semantic meaning.
+  CONTROL consumes its portable result and does not reproduce the U0 registry,
+  phase vocabulary, or source-envelope decoder.
 
 ### What crosses a boundary
 
@@ -43,6 +47,30 @@ capability is ported between repositories, the boundary fixes:
 - the failure mode (boundaries fail closed when an optional dependency, native
   backend, or evidence gate is unavailable);
 - replay metadata, provenance, and the bounded public-claim status of the result.
+
+### Reactor semantic review boundary
+
+The reactor-semantic path is a one-way, non-actuating evidence exchange:
+
+```text
+SCPN-FUSION-CORE canonical model evidence bytes
+  -> SCPN-PHASE-ORCHESTRATOR U0/nonphase semantic handoff bytes
+  -> SCPN-CONTROL sealed review admission bytes
+```
+
+SPO's public `handoff_from_bytes` decoder is the only portable ingress. It
+refuses duplicate keys, alternate JSON encodings, schema/U0/registry drift,
+embedded-source tamper, non-empty phase relations, phase relabelling, and action
+authority. CONTROL independently checks the expected byte and source digests,
+producer identity, caller-supplied reference clock, evidence and calibration
+age, declared calibration identities, observable usability, and provenance.
+
+Transport quantities deliberately carry bounded-feature semantics with
+`UNOBSERVABLE` phase validity and UNKNOWN noncyclic quality. That states that no
+cyclic phase exists in the evidence; it is not an observable-data rejection.
+The bundle's UNKNOWN regime has the same bounded meaning. CONTROL emits only a
+review decision with `review_only=true` and `actionable=false`; no
+`ControlAction` crosses or is created at this boundary.
 
 ### Equilibrium data boundary
 
@@ -70,9 +98,12 @@ ITER or other facility deployment.
 ```mermaid
 graph LR
     FC["scpn-fusion-core<br/>physics-solver laboratory"]
+    SPO["scpn-phase-orchestrator<br/>reactor semantic owner"]
     QC["scpn-quantum-control<br/>quantum and phase research"]
     CC["scpn-control<br/>control-grade facade"]
     FC -- "port / wrap solver subset<br/>(control-loop contract)" --> CC
+    FC -- "canonical physics evidence bytes" --> SPO
+    SPO -- "review-only semantic handoff bytes" --> CC
     QC -- "control adapter<br/>(classifier + feature contract)" --> CC
     CC -. "upstream reusable maths" .-> FC
 ```

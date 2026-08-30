@@ -64,6 +64,13 @@ __all__ = [
     "validate_physics_debug_quorum_report",
     "write_physics_debug_quorum_report",
     "write_physics_debug_report",
+    "ReactorSemanticAdmissionDecision",
+    "ReactorSemanticAdmissionPolicy",
+    "ReactorSemanticAdmissionStatus",
+    "admission_decision_digest",
+    "admission_decision_from_bytes",
+    "admission_decision_to_bytes",
+    "admit_reactor_semantic_handoff",
 ]
 
 _EXPORT_MODULES = {
@@ -110,6 +117,13 @@ _EXPORT_MODULES = {
     "validate_physics_debug_quorum_report": "scpn_control.physics_debug",
     "write_physics_debug_quorum_report": "scpn_control.physics_debug",
     "write_physics_debug_report": "scpn_control.physics_debug",
+    "ReactorSemanticAdmissionDecision": "scpn_control.reactor_semantic_admission",
+    "ReactorSemanticAdmissionPolicy": "scpn_control.reactor_semantic_admission",
+    "ReactorSemanticAdmissionStatus": "scpn_control.reactor_semantic_admission",
+    "admission_decision_digest": "scpn_control.reactor_semantic_admission",
+    "admission_decision_from_bytes": "scpn_control.reactor_semantic_admission",
+    "admission_decision_to_bytes": "scpn_control.reactor_semantic_admission",
+    "admit_reactor_semantic_handoff": "scpn_control.reactor_semantic_admission",
 }
 
 

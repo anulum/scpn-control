@@ -7,6 +7,24 @@ its effect on claims, and the evidence that resolves a historical issue.
 
 ## Current limitation
 
+### Reactor semantics are review evidence, not a plant or actuator contract
+
+`scpn_control.reactor_semantic_admission` verifies a portable
+SCPN-PHASE-ORCHESTRATOR handoff over canonical SCPN-FUSION-CORE model evidence.
+Admission proves byte integrity, semantic ownership, declared clock and
+calibration freshness, observable usability, and a non-actuating review
+boundary. It does not identify control or disturbance channels, actuator
+saturation, slew or delay, diagnostic transfer and latency, sampled plant
+dynamics, reset and failure behavior, facility safety, performance, or
+closed-loop guarantees.
+
+The current upstream SPO package object is locally verified but is not yet a
+declared distributable dependency of `scpn-control`. Standard installation and
+hosted test reproducibility therefore remain unavailable until an immutable SPO
+artifact is published under separate owner authority. Neither the local
+three-project exchange nor a successful admission may be represented as a
+deployed control path.
+
 ### Fixed-weight disruption-risk baseline
 
 `scpn_control.control.disruption_predictor.predict_disruption_risk` computes a

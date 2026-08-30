@@ -24,6 +24,7 @@ source_roots = [
   "src/scpn_control/control",
   "src/scpn_control/phase",
   "src/scpn_control/scpn",
+  "src/scpn_control/reactor_semantic_admission",
 ]
 docs_root = "docs"
 tests_root = "tests"

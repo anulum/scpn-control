@@ -21,7 +21,36 @@ scpn_control.UPDESystem
 scpn_control.LyapunovGuard
 scpn_control.RealtimeMonitor
 scpn_control.PhysicsDebugAssistant
+scpn_control.ReactorSemanticAdmissionPolicy
+scpn_control.ReactorSemanticAdmissionDecision
+scpn_control.admit_reactor_semantic_handoff
 ```
+
+---
+
+## Reactor Semantic Review Admission
+
+`scpn_control.reactor_semantic_admission` consumes only the canonical portable
+bytes decoded by
+`scpn_phase_orchestrator.reactor_semantics.handoff_from_bytes`. The caller
+supplies the expected handoff and embedded FUSION digests, exact producer
+revision and schema, a reference clock, freshness limits, and calibration and
+degradation allowlists. The result is deterministic, digest-sealed,
+`review_only=true`, and `actionable=false`.
+
+The SPO decoder owns strict UTF-8, duplicate-key, canonical-byte, U0, registry,
+source-envelope, nonphase semantic, empty-relation, UNKNOWN-regime, and action
+refusal. CONTROL then checks independent expected identities, clock freshness,
+observable validity and quality, calibration declarations, and FUSION
+provenance. The expected semantic `UNOBSERVABLE` state means that no cyclic
+phase was declared; it does not invalidate otherwise usable transport evidence.
+
+Use the dedicated [Reactor Semantic Admission](control/reactor_semantic_admission.md)
+guide for the policy fields, refusal boundary, and non-actuation limits.
+
+::: scpn_control.reactor_semantic_admission.admission
+
+::: scpn_control.reactor_semantic_admission.decision
 
 ---
 
