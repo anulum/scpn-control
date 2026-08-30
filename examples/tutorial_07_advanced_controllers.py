@@ -15,7 +15,7 @@ Demonstrates the full suite of advanced tokamak control algorithms:
   3. Resistive wall mode (RWM) feedback stabilization
   4. Mu-synthesis (structured uncertainty, D-K iteration)
   5. Fault-tolerant control with fault detection and isolation
-  6. Plasma shape controller (isoflux boundary, Tikhonov pseudoinverse)
+  6. Full-kernel free-boundary tracking contract
   7. Scenario scheduler (offline trajectory optimization)
   8. Controller comparison: H-infinity vs MPC vs PID
 
@@ -363,64 +363,31 @@ else:
     print("\n  Fault not detected within 60 steps")
 
 # ╔══════════════════════════════════════════════════════════════════╗
-# ║ Section 6: Shape Controller (Isoflux Boundary)                  ║
+# ║ Section 6: Full-Kernel Free-Boundary Tracking                  ║
 # ╚══════════════════════════════════════════════════════════════════╝
 
-from scpn_control.control.shape_controller import (
-    CoilSet,
-    PlasmaShapeController,
-    ShapeTarget,
+from scpn_control.control.free_boundary_tracking import (
+    FreeBoundaryTrackingController,
+    run_free_boundary_tracking,
 )
 
 print("\n" + "=" * 60)
-print("SECTION 6: Plasma Shape Controller")
+print("SECTION 6: Full-Kernel Free-Boundary Tracking")
 print("=" * 60)
-
-# The shape controller minimizes the isoflux error and gap targets
-# using a Tikhonov-regularized pseudoinverse of the shape Jacobian:
-#   delta_I = -(J^T W J + lambda I)^{-1} J^T W * e_shape
-
-isoflux_pts = [(6.2 + 2.0 * np.cos(th), 1.7 * np.sin(th)) for th in np.linspace(0, 2 * np.pi, 8, endpoint=False)]
-gap_pts = [
-    (8.2, 0.0, -1.0, 0.0),  # outer midplane
-    (4.2, 0.0, 1.0, 0.0),  # inner midplane
-]
-gap_targets = [0.08, 0.08]  # 8 cm gaps
-
-target = ShapeTarget(
-    isoflux_points=isoflux_pts,
-    gap_points=gap_pts,
-    gap_targets=gap_targets,
-)
-
-coils = CoilSet(n_coils=6)
-shape_ctrl = PlasmaShapeController(target=target, coil_set=coils, kernel=None)
-
-print(f"  Isoflux points: {len(isoflux_pts)}")
-print(
-    f"  Gap targets:    {len(gap_targets)} (outer={gap_targets[0] * 100:.0f} cm, inner={gap_targets[1] * 100:.0f} cm)"
-)
-print(f"  PF coils:       {coils.n_coils}")
-print(f"  Jacobian shape: {shape_ctrl.jacobian.J.shape}")
-print(f"  Regularization: lambda={shape_ctrl.lambda_reg}")
+print("  Public owner: FreeBoundaryTrackingController")
+print("  Runner:       run_free_boundary_tracking")
+print("  Plant:        repeated FusionKernel free-boundary solves")
+print("  Identification: symmetric per-coil current perturbations")
+print("  Admission:    explicit flux/X-point/divertor targets required")
+print("  Safety:       current, slew, actuator, supervisor and fallback limits")
 print()
+print("  No synthetic response matrix is substituted in this tutorial.")
+print("  Run the controller only with a reviewed free-boundary configuration;")
+print("  see docs/api.md#free-boundary-tracking for the complete call contract.")
 
-psi_mock = np.ones((33, 33)) * 0.01
-I_coils = np.zeros(coils.n_coils)
-
-print(f"  {'Iter':>4s}  {'||delta_I|| [A]':>15s}  {'Isoflux err':>12s}  {'Min gap [cm]':>12s}")
-print(f"  {'-' * 4}  {'-' * 15}  {'-' * 12}  {'-' * 12}")
-
-for it in range(10):
-    delta_I = shape_ctrl.step(psi_mock, I_coils)
-    I_coils += delta_I
-    perf = shape_ctrl.evaluate_performance(psi_mock)
-    norm_dI = float(np.linalg.norm(delta_I))
-    print(f"  {it + 1:4d}  {norm_dI:15.4f}  {perf.isoflux_error:12.6f}  {perf.min_gap * 100:12.4f}")
-
-print("\n  Final coil currents [A]:")
-for i, ic in enumerate(I_coils):
-    print(f"    PF{i + 1}: {ic:+10.2f}")
+# Keep both public entry points import-checked by this executable tutorial.
+assert FreeBoundaryTrackingController is not None
+assert run_free_boundary_tracking is not None
 
 # ╔══════════════════════════════════════════════════════════════════╗
 # ║ Section 7: Scenario Scheduler                                   ║
@@ -455,7 +422,7 @@ for t in sample_times:
 
 # Offline trajectory optimization with a simple integrator plant
 def simple_plant(x, u, dt_p):
-    """x' = A x + B u, Euler step. x=[pos, vel], u=[P_aux, Ip_ref]."""
+    """Advance ``x' = A x + B u`` by one Euler step."""
     A_p = np.array([[0, 1], [-1, -0.5]])
     B_p = np.array([[0, 0.1], [0.5, 0]])
     return x + (A_p @ x + B_p @ u) * dt_p
@@ -586,7 +553,7 @@ print("  GainScheduledController -- bumpless multi-regime PID with hysteresis")
 print("  RWMFeedbackController  -- sensor-coil feedback for resistive wall modes")
 print("  compute_mu_upper_bound -- structured singular value via D-scaling")
 print("  FDIMonitor             -- innovation-based fault detection & isolation")
-print("  PlasmaShapeController  -- Tikhonov isoflux boundary control")
+print("  FreeBoundaryTrackingController -- full-kernel boundary tracking")
 print("  ScenarioOptimizer      -- offline trajectory design (Nelder-Mead)")
 print("  HInfinityController    -- Riccati DARE robust synthesis")
 print("  ModelPredictiveController -- gradient-based trajectory optimization")

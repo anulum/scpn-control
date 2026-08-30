@@ -125,7 +125,7 @@ graph TD
         CLS[closed_loop_scenario.py]
         SM2[sliding_mode_vertical.py]
         FT2[fault_tolerant_control.py]
-        SC2[shape_controller.py]
+        SC2[free_boundary_tracking.py]
         DP[disruption_predictor.py]
         GYM[gym_tokamak_env.py]
     end
@@ -251,7 +251,7 @@ graph LR
         GS_CTRL[gain_scheduled]
         SM[sliding_mode_vertical]
         FT[fault_tolerant]
-        SC[shape_controller]
+        SC[free_boundary_tracking]
         SNN[snn_controller]
         SRL[safe_rl_controller]
     end
@@ -278,6 +278,7 @@ graph LR
     FS --> MPC
     FS --> HINF
     GYM --> FK
+    SC --> FK
     MPC --> NEQ
     ITS --> FK
     ITS --> NT

@@ -533,21 +533,34 @@ The shape Jacobian $J = \partial e_{\text{shape}} / \partial I_{\text{coil}}$ re
 coil current changes to shape changes. Computing $J$ requires perturbing each coil
 and re-solving the Grad-Shafranov equation.
 
-The control law uses Tikhonov-regularised pseudoinverse:
+`FreeBoundaryTrackingController` obtains this response from the configured
+`FusionKernel`: it perturbs each external-coil current in both directions,
+re-solves the free-boundary equilibrium, and differences the resulting
+flux/X-point/divertor observation vectors. It therefore does not substitute a
+fixed random or analytic response surface for the configured plant.
+
+The correction is the bounded, weighted Tikhonov least-squares problem
 
 $$
-\Delta I = -(J^\top J + \lambda I)^{-1} J^\top e_{\text{shape}}
+\underset{\Delta I}{\operatorname{argmin}}\;
+\left\|W\left(J\Delta I-e_{\text{shape}}\right)\right\|_2^2
++ \lambda\left\|P\Delta I\right\|_2^2,
 $$
 
-The regularisation parameter $\lambda$ prevents large current corrections when $J$ is
-ill-conditioned (which happens when coils are far from the plasma or nearly collinear
-in their effect on the boundary).
+where $W$ applies objective tolerances and deadbands and $P$ increases the
+penalty on coils with little remaining current headroom. The implementation
+solves the augmented system with `numpy.linalg.lstsq`, reports response rank and
+condition diagnostics, and enters the configured safe-state recovery path when
+the response loses control authority.
 
-Coil currents are clipped to $|I| \leq I_{\max}$ after the solve, and slew rates
-$|\Delta I / \Delta t| \leq \dot{I}_{\max}$ are enforced to respect power supply limits.
+Correction amplitude, coil-current limits, actuator dynamics, and slew rates
+$|\Delta I / \Delta t| \leq \dot{I}_{\max}$ are enforced explicitly. This is an
+experimental simulation path through the repository's own equilibrium kernel;
+it is not a facility-validated controller or a universal reactor law.
 
-**scpn-control**: `PlasmaShapeController`, `ShapeJacobian`, `ShapeTarget` in
-`scpn_control.control.shape_controller`.
+**scpn-control**: `FreeBoundaryTrackingController` and
+`run_free_boundary_tracking` in
+`scpn_control.control.free_boundary_tracking`.
 
 ---
 
@@ -564,7 +577,7 @@ Tokamak control is organised in nested loops with decreasing bandwidth:
 │  Decisions: scenario phase, emergency shutdown           │
 ├─────────────────────────────────────────────────────────┤
 │  Profile & Shape Layer  (100 Hz - 1 kHz)                │
-│  PlasmaShapeController, GainScheduledController         │
+│  FreeBoundaryTrackingController, GainScheduledController│
 │  NonlinearMPC, NeuroCyberneticController                │
 │  Decisions: heating mix, density, current profile        │
 ├─────────────────────────────────────────────────────────┤

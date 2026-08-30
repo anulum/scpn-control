@@ -198,13 +198,13 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.10 |
 | Project scripts | 1 |
 | Public API exports | 44 |
-| Python control/physics modules | 197 |
-| Python public classes | 559 |
+| Python control/physics modules | 196 |
+| Python public classes | 555 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 158 |
 | Optional extras | 23 |
-| Python test files | 572 |
+| Python test files | 571 |
 | Public documentation pages | 70 |
 | GitHub Actions workflows | 12 |
 
@@ -371,7 +371,7 @@ src/scpn_control/
 |   +-- gain_scheduled_controller.py  # PID scheduled on operating regime
 |   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
 |   +-- fault_tolerant_control.py  # Fault detection + degraded-mode operation
-|   +-- shape_controller.py        # Plasma shape via boundary Jacobian
+|   +-- free_boundary_tracking.py  # Kernel-coupled plasma boundary tracking
 |   +-- safe_rl_controller.py      # Clipped policy gradient + MHD constraint costs
 |   +-- scenario_scheduler.py      # Shot timeline + actuator scheduling
 |   +-- closed_loop_scenario.py    # Bounded scheduler -> scenario simulator loop

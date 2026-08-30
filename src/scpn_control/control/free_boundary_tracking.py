@@ -87,12 +87,12 @@ class FreeBoundaryTrackingController:
     --------
     >>> from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
     >>> summary = run_free_boundary_tracking(
-    ...     "iter_config.json",
+    ...     "reviewed_free_boundary_config.json",  # doctest: +SKIP
     ...     shot_steps=3,
     ...     gain=0.8,
     ...     verbose=False,
     ... )
-    >>> summary["boundary_variant"]
+    >>> summary["boundary_variant"]  # doctest: +SKIP
     'free_boundary'
     """
 
@@ -1454,8 +1454,13 @@ def run_free_boundary_tracking(
 
     Examples
     --------
-    >>> summary = run_free_boundary_tracking("iter_config.json", shot_steps=2, gain=0.7, verbose=False)
-    >>> bool(summary["objective_convergence_active"])
+    >>> summary = run_free_boundary_tracking(  # doctest: +SKIP
+    ...     "reviewed_free_boundary_config.json",
+    ...     shot_steps=2,
+    ...     gain=0.7,
+    ...     verbose=False,
+    ... )
+    >>> bool(summary["objective_convergence_active"])  # doctest: +SKIP
     True
     """
     if config_file is None:  # pragma: no cover - module demo default-config path

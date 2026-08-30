@@ -2021,7 +2021,10 @@ the same schema-versioned integrity-digest semantics as the safety-case bundle.
 
 Experimental closed-loop free-boundary tracking that keeps the full
 `FusionKernel` in the loop and re-identifies the local coil-response map from
-repeated solves. Safe-current fallback targets can be supplied through the
+repeated solves. The configuration must declare at least one explicit
+free-boundary flux, X-point, or divertor target; the repository's generic
+`iter_config.json` is not a tracking configuration. Safe-current fallback
+targets can be supplied through the
 `free_boundary_tracking.fallback_currents` config block when supervisor
 rejection should ramp the coils toward a predefined safe state. Persistent
 objective residuals can also be accumulated with the config-driven
@@ -2048,7 +2051,7 @@ calibration faults cannot masquerade as control success in acceptance tests.
 from scpn_control.control.free_boundary_tracking import run_free_boundary_tracking
 
 summary = run_free_boundary_tracking(
-    "iter_config.json",
+    "reviewed_free_boundary_config.json",
     shot_steps=5,
     gain=0.8,
     verbose=False,
@@ -2428,10 +2431,6 @@ perform frequency-dependent D-K synthesis.
 ### Gain-Scheduled Controller (v0.16.0)
 
 ::: scpn_control.control.gain_scheduled_controller.GainScheduledController
-
-### Shape Controller (v0.16.0)
-
-::: scpn_control.control.shape_controller.PlasmaShapeController
 
 ### Safe RL Controller (v0.16.0)
 

@@ -3,6 +3,12 @@
 ## Unreleased
 
 ### Fixed
+- Removed the public shape-controller duplicate whose response matrix was a
+  fixed seed-42 random array and whose kernel argument and flux-map structure
+  were ignored. The existing `FreeBoundaryTrackingController`, which identifies
+  coil response through repeated full-kernel solves and applies explicit
+  objective, actuator, slew, supervisor, and fallback contracts, is now the
+  sole documented plasma shape-control owner.
 - Replaced the mislabeled H-infinity observer/LQR paths with the normalized
   continuous-time DGKF central output-feedback controller. The public API now
   requires explicit normalized feedthrough matrices, fails closed on every
@@ -1762,8 +1768,9 @@
     measurements; coil-current-to-psi mapping; sub-10ms latency target
   - `gain_scheduled_controller.py` — PID gains scheduled on operating regime
     (Ip, beta_N); automatic interpolation with hysteresis-aware regime detection
-  - `shape_controller.py` — plasma shape feedback via divertor/shaping coils;
-    boundary-geometry Jacobian; x-point and separatrix tracking
+  - `shape_controller.py` — historical synthetic shape-control reference,
+    removed in v0.24.0 after the kernel-coupled free-boundary tracker became
+    the sole public shape-control owner
   - `safe_rl_controller.py` — policy-gradient wrapper with MHD constraint checker; vetoes
     actions violating stability limits; Gymnasium-compatible
   - `sliding_mode_vertical.py` — sliding-mode controller for vertical stability;
