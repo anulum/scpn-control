@@ -89,11 +89,13 @@ def _latency() -> ControllerLatencyResult:
 
 # ── verbs ──────────────────────────────────────────────────────────────
 def test_control_advertises_twelve_verbs() -> None:
+    """Advertise the twelve declared CONTROL Studio verbs."""
     assert len(CONTROL_VERBS) == 12
     assert STUDIO_ID == "scpn-control"
 
 
 def test_core_and_domain_verb_split() -> None:
+    """Keep core and domain-specific Studio verbs in their declared groups."""
     assert {v.name for v in core_verbs()} == {
         "reconstruct",
         "simulate",
@@ -114,6 +116,7 @@ def test_core_and_domain_verb_split() -> None:
 
 
 def test_regulate_is_realtime_live_hardware_gated() -> None:
+    """Gate real-time regulation on live hardware evidence."""
     regulate = next(v for v in CONTROL_VERBS if v.name == "regulate")
     assert regulate.timing.timing_class is TimingClass.REALTIME
     assert regulate.timing.deadline_us == pytest.approx(5.0)
@@ -123,6 +126,7 @@ def test_regulate_is_realtime_live_hardware_gated() -> None:
 
 
 def test_mitigate_is_live_hardware_and_certify_is_certified_read_only() -> None:
+    """Gate mitigation on live hardware and keep certification read-only."""
     mitigate = next(v for v in CONTROL_VERBS if v.name == "mitigate")
     certify = next(v for v in CONTROL_VERBS if v.name == "certify")
     assert mitigate.requires_live_hardware_gate is True
@@ -132,6 +136,7 @@ def test_mitigate_is_live_hardware_and_certify_is_certified_read_only() -> None:
 
 
 def test_every_verb_produces_exactly_one_schema() -> None:
+    """Map every Studio verb to exactly one evidence schema."""
     for verb in CONTROL_VERBS:
         assert len(verb.produces) == 1
         assert verb.produces[0].startswith("studio.")
@@ -139,6 +144,7 @@ def test_every_verb_produces_exactly_one_schema() -> None:
 
 
 def test_evidence_schemas_are_sorted_unique_and_complete() -> None:
+    """Keep the evidence-schema list sorted, unique, and complete."""
     schemas = evidence_schemas()
     assert list(schemas) == sorted(set(schemas))
     assert len(schemas) == len(CONTROL_VERBS)
@@ -146,6 +152,7 @@ def test_evidence_schemas_are_sorted_unique_and_complete() -> None:
 
 # ── manifest ───────────────────────────────────────────────────────────
 def test_manifest_identity_and_surface() -> None:
+    """Bind the Studio manifest to the CONTROL identity and declared surface."""
     manifest = build_manifest()
     assert manifest.studio == "scpn-control"
     assert len(manifest.verbs) == 12
@@ -155,10 +162,12 @@ def test_manifest_identity_and_surface() -> None:
 
 
 def test_manifest_content_digest_is_deterministic() -> None:
+    """Keep the manifest content digest deterministic."""
     assert build_manifest().content_digest == build_manifest().content_digest
 
 
 def test_manifest_version_override_changes_stamp_not_digest() -> None:
+    """Change the manifest version stamp without perturbing its content digest."""
     pinned = build_manifest(studio_version="9.9.9")
     assert pinned.studio_version == "9.9.9"
     # The content digest covers verbs + schemas, not the studio version stamp.
@@ -166,6 +175,7 @@ def test_manifest_version_override_changes_stamp_not_digest() -> None:
 
 
 def test_declared_surface_covers_every_verb_and_schema_list() -> None:
+    """Cover every declared verb and evidence schema in the Studio surface."""
     surface = declared_surface()
     for verb in CONTROL_VERBS:
         assert f"verb/{verb.name}" in surface
@@ -174,6 +184,7 @@ def test_declared_surface_covers_every_verb_and_schema_list() -> None:
 
 # ── EFIT reconstruction evidence (bounded-model) ───────────────────────
 def test_efit_evidence_does_not_render_as_validated() -> None:
+    """Keep EFIT evidence below validated status."""
     bundle = efit_reconstruction_evidence(_efit(), **_WHO, **_TS)
     assert bundle.renders_as_validated is False
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -183,6 +194,7 @@ def test_efit_evidence_does_not_render_as_validated() -> None:
 
 
 def test_efit_evidence_carries_prose_validity_domain() -> None:
+    """Retain the prose validity domain on EFIT evidence."""
     bundle = efit_reconstruction_evidence(_efit(), **_WHO, **_TS)
     validity = bundle.claim_boundary.validity_domain
     assert validity is not None
@@ -203,6 +215,7 @@ def test_efit_evidence_carries_prose_validity_domain() -> None:
     ],
 )
 def test_efit_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> None:
+    """Exercise EFIT result validation against invalid inputs."""
     base = {
         "ip_reconstructed_a": 1.5e7,
         "chi_squared": 1e-9,
@@ -219,6 +232,7 @@ def test_efit_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> None:
 
 # ── safety certificate evidence (formally-proven) ──────────────────────
 def test_held_certificate_renders_as_validated_and_is_proven() -> None:
+    """Render a held, proven certificate as validated."""
     bundle = safety_certificate_evidence(_cert(), **_WHO, **_TS)
     assert bundle.renders_as_validated is True
     assert bundle.evidence_kind is EvidenceKind.FORMALLY_PROVEN
@@ -230,12 +244,14 @@ def test_held_certificate_renders_as_validated_and_is_proven() -> None:
 
 
 def test_drifted_certificate_is_not_admissible() -> None:
+    """Refuse admission when a certificate has drifted."""
     bundle = safety_certificate_evidence(_cert(live="f" * 64), **_WHO, **_TS)
     assert bundle.renders_as_validated is False
     assert bundle.evidence_kind is EvidenceKind.FORMALLY_PROVEN
 
 
 def test_certificate_topology_matches_property() -> None:
+    """Match the certificate topology field to the proven property."""
     assert _cert().topology_matches is True
     assert _cert(live="f" * 64).topology_matches is False
 
@@ -253,6 +269,7 @@ def test_certificate_topology_matches_property() -> None:
     ],
 )
 def test_certificate_result_rejects_empty_fields(field: str) -> None:
+    """Exercise certificate result validation against empty fields."""
     base = {
         "theorem_id": "t",
         "checker": "z3",
@@ -269,6 +286,7 @@ def test_certificate_result_rejects_empty_fields(field: str) -> None:
 
 # ── controller latency evidence (measured benchmark) ───────────────────
 def test_latency_evidence_is_measured_and_bounded() -> None:
+    """Classify bounded latency evidence as measured."""
     bundle = controller_latency_evidence(_latency(), **_WHO, **_TS)
     assert bundle.renders_as_validated is False
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -289,6 +307,7 @@ def test_latency_evidence_is_measured_and_bounded() -> None:
     ],
 )
 def test_latency_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> None:
+    """Exercise latency result validation against invalid inputs."""
     base = {
         "controller": "h_infinity",
         "active_backend": "rust",
@@ -307,16 +326,19 @@ def test_latency_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> Non
 
 # ── canonical digest ───────────────────────────────────────────────────
 def test_canonical_digest_is_order_independent_and_stable() -> None:
+    """Keep the canonical digest stable across mapping order."""
     assert canonical_digest({"a": 1, "b": 2}) == canonical_digest({"b": 2, "a": 1})
     assert len(canonical_digest({"x": 1})) == 64
 
 
 def test_canonical_digest_rejects_nan() -> None:
+    """Exercise canonical digest validation against NaN."""
     with pytest.raises(ValueError):
         canonical_digest({"x": float("nan")})
 
 
 def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
+    """Promote parity refutation only as a negative finding."""
     from scpn_studio_platform.evidence import AdmissionDecision, ClaimStatus
 
     from scpn_control.studio.evidence import ParityRefutationResult, parity_refutation_evidence

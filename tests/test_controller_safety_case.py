@@ -424,6 +424,7 @@ def _readiness_artifacts(root: Path, controller_sha256: str) -> tuple[ReadinessA
 
 
 def test_controller_safety_case_binds_formal_transport_and_twin_evidence():
+    """Check that controller safety case binds formal transport and twin evidence."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -439,6 +440,7 @@ def test_controller_safety_case_binds_formal_transport_and_twin_evidence():
 
 
 def test_controller_safety_case_manifest_round_trips_with_integrity_digest(tmp_path):
+    """Round-trip the safety-case manifest with its integrity digest intact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -454,6 +456,7 @@ def test_controller_safety_case_manifest_round_trips_with_integrity_digest(tmp_p
 
 
 def test_controller_safety_case_manifest_rejects_tampering(tmp_path):
+    """Exercise controller safety case manifest validation against tampering."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -472,6 +475,7 @@ def test_controller_safety_case_manifest_rejects_tampering(tmp_path):
 
 
 def test_controller_safety_case_manifest_rejects_malformed_schema(tmp_path):
+    """Exercise controller safety case manifest validation against malformed schema."""
     path = tmp_path / "bad_controller_safety_case.json"
     path.write_text(json.dumps({"schema_version": 99, "evidence": {}}), encoding="utf-8")
 
@@ -480,6 +484,7 @@ def test_controller_safety_case_manifest_rejects_malformed_schema(tmp_path):
 
 
 def test_controller_safety_case_manifest_rejects_unreadable_and_malformed_payloads(tmp_path: Path):
+    """Exercise controller safety case manifest validation against unreadable and malformed payloads."""
     unreadable_json = tmp_path / "not_json.json"
     unreadable_json.write_text("{", encoding="utf-8")
     with pytest.raises(ValueError, match="readable JSON"):
@@ -497,6 +502,7 @@ def test_controller_safety_case_manifest_rejects_unreadable_and_malformed_payloa
 
 
 def test_controller_safety_case_manifest_rejects_invalid_evidence_fields(tmp_path: Path):
+    """Exercise controller safety case manifest validation against invalid evidence fields."""
     evidence = ControllerSafetyCaseEvidence(
         schema_version=1,
         controller_artifact_sha256="1" * 64,
@@ -519,6 +525,7 @@ def test_controller_safety_case_manifest_rejects_invalid_evidence_fields(tmp_pat
 
 
 def test_controller_safety_case_readiness_blocks_without_external_evidence():
+    """Check that controller safety case readiness remains blocked without external evidence."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -547,6 +554,7 @@ def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissibl
     # Complete digest-only evidence reaches promotion_ready, but because the
     # digests are attested-not-verified (any valid hex, "0"*64 included, passes), it must
     # NOT be admissible for promotion — only the artifact-verified path is.
+    """Distinguish digest completeness from artifact-backed promotion admissibility."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -577,6 +585,7 @@ def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissibl
 def test_controller_safety_case_readiness_rejects_fabricated_zero_digests():
     # Seven fabricated "0"*64 digests reach promotion_ready
     # (valid hex) but are refused at the promotion gate because they are unverified.
+    """Exercise controller safety case readiness validation against fabricated zero digests."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -603,6 +612,7 @@ def test_controller_safety_case_readiness_rejects_fabricated_zero_digests():
 
 
 def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_path: Path):
+    """Exercise the valid typed artifact evidence path through controller safety case readiness."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -627,6 +637,7 @@ def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_pa
 
 
 def test_controller_safety_case_readiness_rejects_unqualified_timing_artifact(tmp_path: Path):
+    """Exercise controller safety case readiness validation against unqualified timing artifact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -658,6 +669,7 @@ def test_controller_safety_case_readiness_rejects_unqualified_timing_artifact(tm
 
 
 def test_controller_safety_case_readiness_rejects_timing_artifact_digest_mismatch(tmp_path: Path):
+    """Exercise controller safety case readiness validation against timing artifact digest mismatch."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -683,6 +695,7 @@ def test_controller_safety_case_readiness_rejects_timing_artifact_digest_mismatc
 
 
 def test_controller_safety_case_readiness_rejects_local_hil_replay_artifact(tmp_path: Path):
+    """Exercise controller safety case readiness validation against local HIL replay artifact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -710,6 +723,7 @@ def test_controller_safety_case_readiness_rejects_local_hil_replay_artifact(tmp_
 
 
 def test_controller_safety_case_readiness_rejects_local_hdl_export_artifact(tmp_path: Path):
+    """Exercise controller safety case readiness validation against local HDL export artifact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -741,6 +755,7 @@ def test_controller_safety_case_readiness_rejects_local_hdl_export_artifact(tmp_
 
 
 def test_controller_safety_case_readiness_rejects_hdl_export_controller_mismatch(tmp_path: Path):
+    """Exercise controller safety case readiness validation against HDL export controller mismatch."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -772,6 +787,7 @@ def test_controller_safety_case_readiness_rejects_hdl_export_controller_mismatch
 
 
 def test_controller_safety_case_readiness_rejects_local_codac_runtime_artifact(tmp_path: Path):
+    """Exercise controller safety case readiness validation against local CODAC runtime artifact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -803,6 +819,7 @@ def test_controller_safety_case_readiness_rejects_local_codac_runtime_artifact(t
 
 
 def test_controller_safety_case_readiness_rejects_local_websocket_runtime_artifact(tmp_path: Path):
+    """Exercise controller safety case readiness validation against local WebSocket runtime artifact."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -834,6 +851,7 @@ def test_controller_safety_case_readiness_rejects_local_websocket_runtime_artifa
 
 
 def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe_uri(tmp_path: Path):
+    """Reject readiness artifacts with the wrong kind or an unsafe URI."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -910,6 +928,7 @@ def test_controller_safety_case_readiness_artifacts_reject_wrong_kind_and_unsafe
 
 
 def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_contracts(tmp_path: Path):
+    """Reject readiness artifacts whose evidence envelopes violate their contracts."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -993,6 +1012,7 @@ def test_controller_safety_case_readiness_artifacts_reject_invalid_envelope_cont
 
 
 def test_controller_safety_case_readiness_artifacts_reject_missing_files(tmp_path: Path):
+    """Reject readiness artifacts whose referenced files are absent."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1014,6 +1034,7 @@ def test_controller_safety_case_readiness_artifacts_reject_missing_files(tmp_pat
 
 
 def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_path: Path):
+    """Reject duplicate readiness-artifact kinds."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1032,6 +1053,7 @@ def test_controller_safety_case_readiness_artifacts_reject_duplicate_kind(tmp_pa
 
 
 def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
+    """Preserve readiness fields through manifest serialisation."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1069,6 +1091,7 @@ def test_controller_safety_case_readiness_artifact_admissible_in_process_but_dig
     # and the loaded readiness is NOT admissible. Admissibility is only ever earned in-process; it
     # is never trusted from a serialised flag (closing the deserialise-trust
     # bypass where a forged True + valid-hex digests + a self-computed integrity hash would pass).
+    """Drop in-process artifact admissibility after digest-only deserialisation."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1098,6 +1121,7 @@ def test_controller_safety_case_readiness_forged_admissible_flag_is_refused(tmp_
     # readiness is digest-only by construction, the forged flag is forced False on load, so the
     # gate refuses it even though the (self-referential) integrity digest still matches — the flip
     # is invisible to the hash, which is exactly why the flag must never be trusted from the wire.
+    """Refuse a forged deserialised admissibility flag."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1128,6 +1152,7 @@ def test_controller_safety_case_readiness_forged_admissible_flag_is_refused(tmp_
 
 
 def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
+    """Exercise controller safety case readiness manifest validation against tampering."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1156,6 +1181,7 @@ def test_controller_safety_case_readiness_manifest_rejects_tampering(tmp_path):
 
 
 def test_controller_safety_case_readiness_manifest_rejects_malformed_schema(tmp_path):
+    """Exercise controller safety case readiness manifest validation against malformed schema."""
     path = tmp_path / "bad_controller_safety_case_readiness.json"
     path.write_text(json.dumps({"schema_version": 99, "readiness": {}}), encoding="utf-8")
 
@@ -1164,6 +1190,7 @@ def test_controller_safety_case_readiness_manifest_rejects_malformed_schema(tmp_
 
 
 def test_controller_safety_case_readiness_manifest_rejects_unreadable_and_malformed_payloads(tmp_path: Path):
+    """Exercise controller safety case readiness manifest validation against unreadable and malformed payloads."""
     unreadable_json = tmp_path / "not_json_readiness.json"
     unreadable_json.write_text("{", encoding="utf-8")
     with pytest.raises(ValueError, match="readable JSON"):
@@ -1181,6 +1208,7 @@ def test_controller_safety_case_readiness_manifest_rejects_unreadable_and_malfor
 
 
 def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
+    """Exercise controller safety case readiness validation against drift and bad digest."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1221,6 +1249,7 @@ def test_controller_safety_case_readiness_rejects_drift_and_bad_digest():
 
 
 def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift():
+    """Exercise controller safety case readiness admission validation against type and state drift."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1266,6 +1295,7 @@ def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift
 
 
 def test_controller_safety_case_rejects_mismatched_evidence_chain():
+    """Exercise controller safety case validation against mismatched evidence chain."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -1281,6 +1311,7 @@ def test_controller_safety_case_rejects_mismatched_evidence_chain():
 
 
 def test_controller_safety_case_rejects_invalid_public_input_types(tmp_path: Path):
+    """Exercise controller safety case validation against invalid public input types."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -1320,6 +1351,7 @@ def test_controller_safety_case_rejects_invalid_public_input_types(tmp_path: Pat
     ],
 )
 def test_controller_safety_case_admission_rejects_each_evidence_field_drift(field_name, replacement, message):
+    """Exercise controller safety case admission validation against each evidence field drift."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -1332,6 +1364,7 @@ def test_controller_safety_case_admission_rejects_each_evidence_field_drift(fiel
 
 
 def test_controller_safety_case_rejects_bad_transport_and_twin_claims():
+    """Exercise controller safety case validation against bad transport and twin claims."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     transport = _transport_evidence(controller_sha256)
@@ -1359,6 +1392,7 @@ def test_controller_safety_case_rejects_bad_transport_and_twin_claims():
 
 
 def test_controller_safety_case_rejects_non_passing_formal_proof():
+    """Reject a controller safety case whose formal proof does not pass."""
     artifact = _controller_artifact()
     assert artifact.formal_verification is not None
     artifact.formal_verification.status = "blocked"

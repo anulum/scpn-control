@@ -50,6 +50,7 @@ _IDS = [bundle.schema for bundle in _BUNDLES]
 
 
 def test_representative_surface_is_one_bundle_per_schema() -> None:
+    """Emit exactly one representative bundle per schema."""
     schemas = [bundle.schema for bundle in _BUNDLES]
     assert len(schemas) == len(set(schemas)), "schemas must be unique (one bundle per verb)"
     assert len(schemas) >= 12, "the representative surface must cover the 12-verb vertical"
@@ -60,6 +61,7 @@ def test_representative_surface_is_one_bundle_per_schema() -> None:
 def test_renders_as_validated_is_exactly_the_admitted_reference_validated_pair(bundle: EvidenceBundle) -> None:
     # The load-bearing cross-field invariant, stated as an iff for every emittable bundle:
     # a bundle renders as validated if and only if it is BOTH reference-validated AND admitted.
+    """Limit validated rendering to the admitted reference-validated pair."""
     boundary = bundle.claim_boundary
     expected = boundary.status is ClaimStatus.REFERENCE_VALIDATED and boundary.admission is AdmissionDecision.ADMITTED
     assert bundle.renders_as_validated is expected, (
@@ -70,6 +72,7 @@ def test_renders_as_validated_is_exactly_the_admitted_reference_validated_pair(b
 
 @pytest.mark.parametrize("bundle", _BUNDLES, ids=_IDS)
 def test_every_axis_is_a_valid_enum_member(bundle: EvidenceBundle) -> None:
+    """Constrain every evidence axis to its declared enumeration."""
     boundary = bundle.claim_boundary
     assert isinstance(boundary.status, ClaimStatus)
     assert isinstance(boundary.admission, AdmissionDecision)
@@ -80,6 +83,7 @@ def test_every_axis_is_a_valid_enum_member(bundle: EvidenceBundle) -> None:
 def test_nothing_reaches_validated_by_any_other_path() -> None:
     # The honesty floor stated negatively: no bundle on the whole surface is validated
     # unless it carries the full admitted + reference-validated pair.
+    """Prevent every unadmitted route from rendering as validated."""
     for bundle in _BUNDLES:
         if bundle.renders_as_validated:
             boundary = bundle.claim_boundary
@@ -91,6 +95,7 @@ def test_surface_is_honest_by_default_only_a_formal_proof_validates() -> None:
     # Regression guard: a change that lets the surface render validated more broadly is a
     # honesty regression. Today exactly the held safety certificate validates, and it is
     # backed by a formal proof.
+    """Reserve default validated status for formal-proof evidence."""
     validated = sorted(bundle.schema for bundle in _BUNDLES if bundle.renders_as_validated)
     assert validated == ["studio.safety-certificate.v1"], validated
     proven_and_validated = [
@@ -103,6 +108,7 @@ def test_surface_is_honest_by_default_only_a_formal_proof_validates() -> None:
 
 @pytest.mark.parametrize("bundle", _BUNDLES, ids=_IDS)
 def test_federation_gate_agrees_with_producer_rendering(bundle: EvidenceBundle) -> None:
+    """Compare federation gate against producer rendering."""
     verdict = validate_studio_bundle(bundle.to_dict())
     assert verdict.admitted is True
     assert verdict.rejections == ()
@@ -116,6 +122,7 @@ def test_federation_gate_agrees_with_producer_rendering(bundle: EvidenceBundle) 
 
 
 def test_refuted_parity_is_a_fresh_traceable_negative_finding() -> None:
+    """Represent parity refutation as a fresh, traceable negative finding."""
     parity = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.parity-refutation.v1")
     assert parity.evidence_kind is EvidenceKind.FALSIFIED
     assert parity.claim_boundary.status is ClaimStatus.REFUTED
@@ -126,6 +133,7 @@ def test_refuted_parity_is_a_fresh_traceable_negative_finding() -> None:
 
 
 def test_validated_certificate_declares_verified_at_source_freshness() -> None:
+    """Require a validated certificate to declare source-verified freshness."""
     certificate = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.safety-certificate.v1")
     assert certificate.evidence_kind is EvidenceKind.FORMALLY_PROVEN
     assert certificate.claim_boundary.status is ClaimStatus.REFERENCE_VALIDATED
@@ -135,6 +143,7 @@ def test_validated_certificate_declares_verified_at_source_freshness() -> None:
 
 
 def test_unchecked_freshness_floors_reference_validated_claims() -> None:
+    """Downgrade reference-validated claims when freshness is unchecked."""
     bundle = EvidenceBundle(
         schema="studio.synthetic-freshness-floor.v1",
         entity=ProvEntity(entity_id="scpn-control/freshness-floor/demo", digest="a" * 64),
@@ -155,6 +164,7 @@ def test_unchecked_freshness_floors_reference_validated_claims() -> None:
 
 
 def test_producer_asserted_claims_are_never_validated() -> None:
+    """Prevent producer-asserted claims from rendering as validated."""
     bundle = EvidenceBundle(
         schema="studio.synthetic-producer-asserted.v1",
         entity=ProvEntity(entity_id="scpn-control/producer-asserted/demo", digest="b" * 64),
@@ -175,6 +185,7 @@ def test_producer_asserted_claims_are_never_validated() -> None:
 
 
 def test_claim_summary_and_feed_preserve_freshness_axis() -> None:
+    """Preserve the freshness axis in summaries and rendered feeds."""
     certificate = next(bundle for bundle in _BUNDLES if bundle.schema == "studio.safety-certificate.v1")
     assert claim_summary(certificate)["freshness"] == "verified-at-source"
 

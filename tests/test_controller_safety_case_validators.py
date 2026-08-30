@@ -5,8 +5,10 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Safety-Case Mapping Validator Tests
-"""Negative-path coverage for the controller safety-case mapping validators and
-readiness-artifact resolution helpers, driven through crafted payloads."""
+"""Exercise negative paths in controller safety-case mapping validators.
+
+Readiness-artifact resolution is driven through deliberately invalid payloads.
+"""
 
 from __future__ import annotations
 
@@ -66,41 +68,50 @@ def _readiness_payload() -> dict[str, Any]:
 
 
 class TestEvidenceMappingValidator:
+    """Exercise safety-case evidence mapping validation boundaries."""
+
     def test_accepts_valid_payload(self) -> None:
+        """Exercise acceptance of valid payload."""
         evidence = _controller_safety_case_evidence_from_mapping(_evidence_payload())
         assert evidence.schema_version == 1
 
     def test_rejects_missing_key(self) -> None:
+        """Require rejection of missing key."""
         payload = _evidence_payload()
         del payload["schema_version"]
         with pytest.raises(ValueError, match="payload is malformed"):
             _controller_safety_case_evidence_from_mapping(payload)
 
     def test_rejects_unsupported_schema_version(self) -> None:
+        """Require rejection of unsupported schema version."""
         payload = _evidence_payload()
         payload["schema_version"] = 2
         with pytest.raises(ValueError, match="schema_version is unsupported"):
             _controller_safety_case_evidence_from_mapping(payload)
 
     def test_rejects_wrong_length_digest(self) -> None:
+        """Require rejection of wrong length digest."""
         payload = _evidence_payload()
         payload["controller_artifact_sha256"] = "a" * 63
         with pytest.raises(ValueError, match="must be a SHA-256 digest"):
             _controller_safety_case_evidence_from_mapping(payload)
 
     def test_rejects_non_hexadecimal_digest(self) -> None:
+        """Require rejection of non hexadecimal digest."""
         payload = _evidence_payload()
         payload["transport_evidence_sha256"] = "z" * 64
         with pytest.raises(ValueError, match="must be a SHA-256 digest"):
             _controller_safety_case_evidence_from_mapping(payload)
 
     def test_rejects_negative_formal_max_depth(self) -> None:
+        """Require rejection of negative formal max depth."""
         payload = _evidence_payload()
         payload["formal_max_depth"] = -1
         with pytest.raises(ValueError, match="formal_max_depth must be >= 0"):
             _controller_safety_case_evidence_from_mapping(payload)
 
     def test_rejects_unbounded_claim_status(self) -> None:
+        """Require rejection of unbounded claim status."""
         payload = _evidence_payload()
         payload["claim_status"] = "unrestricted"
         with pytest.raises(ValueError, match="must state a bounded boundary"):
@@ -108,11 +119,15 @@ class TestEvidenceMappingValidator:
 
 
 class TestReadinessMappingValidator:
+    """Exercise promotion-readiness mapping validation boundaries."""
+
     def test_accepts_valid_blocked_payload(self) -> None:
+        """Exercise acceptance of valid blocked payload."""
         readiness = _safety_case_readiness_from_mapping(_readiness_payload())
         assert readiness.status == "blocked"
 
     def test_rejects_missing_key(self) -> None:
+        """Require rejection of missing key."""
         payload = _readiness_payload()
         del payload["safety_case_sha256"]
         with pytest.raises(ValueError, match="payload is malformed"):
@@ -120,6 +135,7 @@ class TestReadinessMappingValidator:
 
     def test_rejects_missing_promotion_admissible_key(self) -> None:
         # The key must be present for schema completeness even though its value is forced False.
+        """Require rejection of missing promotion admissible key."""
         payload = _readiness_payload()
         del payload["promotion_admissible"]
         with pytest.raises(ValueError, match="payload is malformed"):
@@ -128,24 +144,28 @@ class TestReadinessMappingValidator:
     def test_deserialised_promotion_admissible_is_forced_false(self) -> None:
         # A deserialised readiness is digest-only by construction: a serialised True is never
         # trusted, so the parsed flag is always False.
+        """Force promotion admissibility false after deserialisation."""
         payload = _readiness_payload()
         payload["promotion_admissible"] = True
         readiness = _safety_case_readiness_from_mapping(payload)
         assert readiness.promotion_admissible is False
 
     def test_rejects_unsupported_schema_version(self) -> None:
+        """Require rejection of unsupported schema version."""
         payload = _readiness_payload()
         payload["schema_version"] = 3
         with pytest.raises(ValueError, match="readiness schema_version is unsupported"):
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_malformed_safety_case_digest(self) -> None:
+        """Require rejection of malformed safety case digest."""
         payload = _readiness_payload()
         payload["safety_case_sha256"] = "not-a-digest"
         with pytest.raises(ValueError, match="safety_case_sha256 must be a SHA-256 digest"):
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_unsupported_status(self) -> None:
+        """Require rejection of unsupported status."""
         payload = _readiness_payload()
         payload["status"] = "unknown"
         # blocking_reasons must clear so the status branch is the first failure.
@@ -154,6 +174,7 @@ class TestReadinessMappingValidator:
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_promotion_ready_with_blocking_reasons(self) -> None:
+        """Require rejection of promotion ready with blocking reasons."""
         payload = _readiness_payload()
         digest = "e" * 64
         for name in (
@@ -172,6 +193,7 @@ class TestReadinessMappingValidator:
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_promotion_ready_missing_evidence(self) -> None:
+        """Require rejection of promotion ready missing evidence."""
         payload = _readiness_payload()
         payload["status"] = "promotion_ready"
         payload["blocking_reasons"] = ()
@@ -180,12 +202,14 @@ class TestReadinessMappingValidator:
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_blocked_with_mismatched_blocking_reasons(self) -> None:
+        """Require rejection of blocked with mismatched blocking reasons."""
         payload = _readiness_payload()
         payload["blocking_reasons"] = ("external_physics_validation_sha256",)
         with pytest.raises(ValueError, match="blocking_reasons must match missing evidence"):
             _safety_case_readiness_from_mapping(payload)
 
     def test_rejects_unbounded_claim_status(self) -> None:
+        """Require rejection of unbounded claim status."""
         payload = _readiness_payload()
         payload["claim_status"] = "unrestricted"
         with pytest.raises(ValueError, match="must state a bounded boundary"):
@@ -193,7 +217,10 @@ class TestReadinessMappingValidator:
 
 
 class TestReadinessArtifactHelpers:
+    """Exercise readiness-artifact kind and path resolution boundaries."""
+
     def test_rejects_unsupported_artifact_kind(self) -> None:
+        """Require rejection of unsupported artifact kind."""
         artifact = ReadinessArtifactEvidence(
             kind="not_a_real_kind",
             artifact_sha256="a" * 64,
@@ -205,6 +232,7 @@ class TestReadinessArtifactHelpers:
             _validate_readiness_artifact(artifact)
 
     def test_resolve_rejects_path_escaping_root(self, tmp_path: Path) -> None:
+        """Reject an artifact path that escapes the declared evidence root."""
         artifact = ReadinessArtifactEvidence(
             kind="external_physics_validation",
             artifact_sha256="a" * 64,

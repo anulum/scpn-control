@@ -46,6 +46,7 @@ def _verb(name: str):  # type: ignore[no-untyped-def]
 
 # ── verb_summary ───────────────────────────────────────────────────────
 def test_verb_summary_realtime_carries_deadline() -> None:
+    """Check that verb summary real-time retains deadline."""
     summary = verb_summary(_verb("regulate"))
     assert summary["name"] == "regulate"
     assert summary["safety_tier"] == "certified"
@@ -56,6 +57,7 @@ def test_verb_summary_realtime_carries_deadline() -> None:
 
 
 def test_verb_summary_interactive_omits_deadline() -> None:
+    """Check that verb summary interactive excludes deadline."""
     summary = verb_summary(_verb("reconstruct"))
     assert summary["timing_class"] == "interactive"
     assert "deadline_us" not in summary
@@ -64,6 +66,7 @@ def test_verb_summary_interactive_omits_deadline() -> None:
 
 # ── claim_summary ──────────────────────────────────────────────────────
 def test_claim_summary_reduces_bundle_to_panel_fields() -> None:
+    """Check that claim summary reduces bundle to panel fields."""
     efit = representative_bundles()[0]
     summary = claim_summary(efit)
     assert summary == {
@@ -95,6 +98,7 @@ def test_claim_summary_omits_freshness_when_absent() -> None:
 
 # ── studio_feed ────────────────────────────────────────────────────────
 def test_studio_feed_uses_explicit_digest() -> None:
+    """Check that studio feed consumes explicit digest."""
     feed = studio_feed([], content_digest="sha256:deadbeef")
     assert feed["feed_schema"] == FEED_SCHEMA
     assert feed["studio"] == "scpn-control"
@@ -106,12 +110,14 @@ def test_studio_feed_uses_explicit_digest() -> None:
 
 
 def test_studio_feed_derives_digest_from_manifest_when_absent() -> None:
+    """Check that studio feed derives digest from manifest when absent."""
     feed = studio_feed([])
     assert feed["content_digest"] == build_manifest().content_digest
 
 
 # ── representative_bundles ─────────────────────────────────────────────
 def test_representative_bundles_cover_every_schema() -> None:
+    """Provide a representative evidence bundle for every declared schema."""
     bundles = representative_bundles()
     schemas = {bundle.schema for bundle in bundles}
     assert schemas == set(evidence_schemas())
@@ -119,6 +125,7 @@ def test_representative_bundles_cover_every_schema() -> None:
 
 
 def test_representative_bundles_carry_the_honesty_spectrum() -> None:
+    """Represent each admitted evidence-strength category in the sample bundles."""
     by_schema = {bundle.schema: bundle for bundle in representative_bundles()}
     # The held safety certificate is the one claim that renders as validated.
     assert by_schema["studio.safety-certificate.v1"].renders_as_validated is True
@@ -133,6 +140,7 @@ def test_representative_bundles_carry_the_honesty_spectrum() -> None:
 
 # ── representative_feed + render_feed_json ─────────────────────────────
 def test_representative_feed_is_complete_and_agrees_with_manifest() -> None:
+    """Keep the representative feed complete and consistent with its manifest."""
     feed = representative_feed()
     assert feed["feed_schema"] == FEED_SCHEMA
     assert feed["content_digest"] == build_manifest().content_digest
@@ -148,6 +156,7 @@ def test_representative_feed_is_complete_and_agrees_with_manifest() -> None:
 
 
 def test_render_feed_json_is_deterministic_sorted_json() -> None:
+    """Render deterministic feed JSON with stable key ordering."""
     text = render_feed_json()
     assert text.endswith("\n")
     parsed = json.loads(text)
@@ -165,6 +174,7 @@ def test_committed_feed_artifact_matches_the_producer() -> None:
     # version, or ``"0+unknown"`` when run from a non-installed source tree as in CI),
     # so it is excluded — the structural contract (verbs, claims, digest, schema) is
     # what must stay in lock-step.
+    """Compare committed feed artifact with the producer."""
     repo_root = Path(__file__).resolve().parents[1]
     artifact = repo_root / "studio-web" / "public" / "studio-feed.json"
     committed = json.loads(artifact.read_text(encoding="utf-8"))

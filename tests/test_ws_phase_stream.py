@@ -108,7 +108,10 @@ class _ModernWS(_FakeWS):
 
 
 class TestPhaseStreamServer:
+    """Exercise phase-stream security, control, and broadcast boundaries."""
+
     def test_init(self):
+        """Construct the phase-stream server with its default security state."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, tick_interval_s=0.01)
         assert server.tick_interval_s == 0.01
@@ -126,11 +129,13 @@ class TestPhaseStreamServer:
 
     @pytest.mark.parametrize("tick_interval_s", [0.0, -1.0, math.nan, math.inf])
     def test_init_rejects_nonpositive_or_nonfinite_tick_interval(self, tick_interval_s):
+        """Reject a non-positive or non-finite broadcast interval."""
         mon = _make_monitor()
         with pytest.raises(ValueError, match="tick_interval_s"):
             PhaseStreamServer(monitor=mon, tick_interval_s=tick_interval_s)
 
     def test_init_rejects_invalid_security_domains(self):
+        """Reject invalid phase-stream security configuration values."""
         mon = _make_monitor()
         with pytest.raises(ValueError, match="command_rate_limit"):
             PhaseStreamServer(monitor=mon, command_rate_limit=0)
@@ -168,6 +173,7 @@ class TestPhaseStreamServer:
             PhaseStreamServer(monitor=mon, allowed_actions=("shell",))
 
     def test_init_accepts_numpy_integral_security_limits(self):
+        """Accept NumPy integer values for bounded security limits."""
         mon = _make_monitor()
         server = PhaseStreamServer(
             monitor=mon,
@@ -183,6 +189,8 @@ class TestPhaseStreamServer:
         assert server.max_client_write_buffer_bytes == 8192
 
     def test_handler_rejects_unauthenticated_control_connection_when_api_key_configured(self, caplog):
+        """Reject an unauthenticated control connection when API-key auth is active."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -201,6 +209,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_malformed_bearer_scheme_without_mutation(self):
+        """Reject a malformed bearer scheme without mutating monitor state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -219,6 +229,7 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_origin_check_treats_non_mapping_headers_as_no_origin(self):
+        """Treat non-mapping request headers as a missing Origin header."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
         ws = _FakeWS(headers=object())
@@ -226,6 +237,7 @@ class TestPhaseStreamServer:
         assert server._origin_allowed(ws) is True
 
     def test_rate_limiter_uses_token_bucket_without_fixed_window_burst(self, monkeypatch):
+        """Use token-bucket limiting without a fixed-window boundary burst."""
         mon = _make_monitor()
         server = PhaseStreamServer(
             monitor=mon,
@@ -242,6 +254,7 @@ class TestPhaseStreamServer:
         assert server._rate_limited(ws) is True
 
     def test_rate_limiter_applies_peer_bucket_across_connections(self):
+        """Share a peer rate-limit bucket across separate connections."""
         mon = _make_monitor()
         server = PhaseStreamServer(
             monitor=mon,
@@ -259,6 +272,8 @@ class TestPhaseStreamServer:
         assert server._rate_limited(second) is True
 
     def test_handler_rejects_browser_origin_without_allowlist(self):
+        """Reject a browser Origin when no allowlist is configured."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -277,6 +292,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_accepts_configured_browser_origin(self):
+        """Admit a browser Origin present in the configured allowlist."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -305,6 +322,8 @@ class TestPhaseStreamServer:
         ],
     )
     def test_handler_accepts_authenticated_control_connection(self, headers):
+        """Admit an API-key-authenticated control connection."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -318,6 +337,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_clients_beyond_configured_backpressure_capacity(self):
+        """Reject clients beyond the configured backpressure capacity."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", max_clients=1)
@@ -337,6 +358,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_allows_observer_connection_when_auth_explicitly_disabled(self):
+        """Permit an observer connection when authentication is explicitly disabled."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, require_client_auth=False)
@@ -350,6 +373,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_accepts_query_token_for_authentication(self):
+        """Authenticate a connection with an enabled query token."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -370,6 +395,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_accepts_access_token_query_parameter_when_enabled(self):
+        """Authenticate through the enabled access-token query parameter."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -390,6 +417,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_query_token_when_not_explicitly_enabled(self):
+        """Reject query-token authentication unless explicitly enabled."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -408,6 +437,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rate_limits_control_commands_without_state_mutation(self, monkeypatch):
+        """Rate-limit control commands without mutating monitor state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -431,6 +462,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_disallowed_action_without_state_mutation(self):
+        """Reject a disallowed action without mutating monitor state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -449,6 +482,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_drops_client_when_control_response_backpressures(self):
+        """Drop a client when its control response exceeds backpressure limits."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -475,6 +510,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_send_frame_drops_client_when_transport_buffer_exceeds_limit(self):
+        """Drop a client whose transport buffer exceeds its limit."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -531,6 +568,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rate_limits_invalid_json_before_parsing(self, monkeypatch):
+        """Rate-limit malformed JSON before attempting to parse it."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -551,6 +590,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_oversized_payload_without_state_mutation(self):
+        """Reject oversized text payloads without mutating monitor state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", max_payload_bytes=32)
@@ -566,6 +607,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_rejects_oversized_binary_payload_without_json_parsing(self):
+        """Reject oversized binary payloads before JSON parsing."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", max_payload_bytes=4)
@@ -581,6 +624,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_set_psi(self):
+        """Apply a valid poloidal-flux command to the monitor."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -592,6 +637,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_ignores_non_object_json_commands(self):
+        """Ignore JSON commands that are not objects."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -606,6 +653,8 @@ class TestPhaseStreamServer:
 
     @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf, "not-a-number"])
     def test_handler_rejects_invalid_psi_commands_without_state_mutation(self, value):
+        """Reject invalid poloidal-flux commands without mutating state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -622,6 +671,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_set_pac_gamma(self):
+        """Apply a valid PAC coupling command to the monitor."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -633,6 +684,8 @@ class TestPhaseStreamServer:
 
     @pytest.mark.parametrize("value", [math.nan, math.inf, -math.inf, "not-a-number"])
     def test_handler_rejects_invalid_pac_gamma_commands_without_state_mutation(self, value):
+        """Reject invalid PAC-coupling commands without mutating state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -649,6 +702,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_reset(self):
+        """Reset the monitor through the authenticated command path."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -659,6 +714,8 @@ class TestPhaseStreamServer:
 
     @pytest.mark.parametrize("seed", [0, 42, 2**40])
     def test_handler_reset_accepts_valid_seed(self, seed):
+        """Reset the monitor with each accepted integer seed."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -675,6 +732,8 @@ class TestPhaseStreamServer:
         # A hostile reset seed reaches np.random.default_rng, which raises on a
         # string/float/negative int. Pre-fix that exception was uncaught and dropped
         # the connection; now the frame fails closed with an error response.
+        """Reject an invalid reset seed without aborting command handling."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -689,6 +748,8 @@ class TestPhaseStreamServer:
 
     @pytest.mark.parametrize("value", [0.0, 0.5, -0.5, 1000.0])
     def test_handler_accepts_pac_gamma_above_physical_floor(self, value):
+        """Accept PAC coupling above its physical positivity floor."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -705,6 +766,8 @@ class TestPhaseStreamServer:
     def test_handler_rejects_pac_gamma_at_or_below_physical_floor(self, value):
         # pac_gate = 1 + pac_gamma*(1 - R) goes non-positive at pac_gamma <= -1
         # (destabilising). The command fails closed and the monitor is not mutated.
+        """Reject PAC coupling at or below its physical positivity floor."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -719,6 +782,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_stop(self):
+        """Stop command processing through the authenticated handler."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -729,6 +794,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_bad_json_ignored(self):
+        """Ignore malformed JSON without mutating monitor state."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -738,6 +805,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_reports_malformed_json_frame(self):
+        """Check handler reporting for malformed JSON frame."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -750,6 +819,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_handler_reports_non_object_frame(self):
+        """Report a JSON frame that is not an object."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -763,21 +834,25 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_origin_rejected_when_missing_header_and_allowlist_configured(self):
+        """Reject a missing Origin header when an allowlist is configured."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
         assert server._origin_allowed(_FakeWS(headers={})) is False
 
     def test_origin_allowed_when_present_and_in_allowlist(self):
+        """Admit an Origin header present in the configured allowlist."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
         assert server._origin_allowed(_FakeWS(headers={"Origin": "https://ui.example"})) is True
 
     def test_origin_rejected_when_present_and_not_in_allowlist(self):
+        """Reject an Origin header absent from the configured allowlist."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", allowed_origins=("https://ui.example",))
         assert server._origin_allowed(_FakeWS(headers={"Origin": "https://evil.example"})) is False
 
     def test_stop_signals_tick_loop_to_halt(self):
+        """Signal the broadcast loop to halt when the server stops."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
         server._running = True
@@ -785,6 +860,8 @@ class TestPhaseStreamServer:
         assert server._running is False
 
     def test_serve_cancels_tick_task_on_cancellation(self, monkeypatch):
+        """Cancel the broadcast task when server execution is cancelled."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.01)
@@ -816,6 +893,7 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_rate_limit_window_resets_after_configured_interval(self, monkeypatch):
+        """Refill the command-rate budget after its configured interval."""
         mon = _make_monitor()
         server = PhaseStreamServer(
             monitor=mon,
@@ -831,6 +909,8 @@ class TestPhaseStreamServer:
         assert server._rate_limited(ws) is False
 
     def test_tick_loop_sends_to_clients(self):
+        """Broadcast a phase frame to each connected client."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.001)
@@ -850,6 +930,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_tick_loop_no_clients_idles(self):
+        """Keep the broadcast loop idle when no clients are connected."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.001)
@@ -864,6 +946,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_tick_loop_dead_client_removed(self):
+        """Remove a disconnected client from the broadcast set."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.001)
@@ -886,6 +970,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_tick_loop_drops_slow_broadcast_client(self):
+        """Drop a broadcast client that exceeds the send deadline."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -918,6 +1004,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_tick_loop_slow_client_does_not_delay_healthy_client(self):
+        """Prevent a slow client from delaying a healthy broadcast peer."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -976,6 +1064,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_requires_websockets(self, monkeypatch):
+        """Fail explicitly when the optional websockets package is unavailable."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -986,6 +1076,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_creates_tick_task_and_starts_websocket_server(self, monkeypatch):
+        """Start the broadcast task alongside the WebSocket server."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.01)
@@ -1027,6 +1119,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_defaults_to_loopback(self, monkeypatch):
+        """Check the loopback default selected by serve."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", tick_interval_s=0.01)
@@ -1064,6 +1158,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_rejects_non_loopback_bind_without_api_key_or_tls(self):
+        """Reject a non-loopback bind lacking both API-key auth and TLS."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon)
@@ -1073,6 +1169,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_rejects_non_loopback_without_api_key_even_when_auth_disabled(self):
+        """Require an API key for non-loopback binds despite disabled client auth."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, require_client_auth=False)
@@ -1082,6 +1180,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_rejects_missing_api_key_when_auth_required(self):
+        """Reject server start when required API-key authentication is unconfigured."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon)
@@ -1134,6 +1234,7 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_sync_delegates_to_async_server(self, monkeypatch):
+        """Delegate the synchronous entry point to the asynchronous server."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
         called = {}
@@ -1151,6 +1252,7 @@ class TestPhaseStreamServer:
         assert called == {"host": "127.0.0.1", "port": 8766, "ssl_context": tls_context}
 
     def test_main_builds_configured_secure_server_from_cli(self, monkeypatch):
+        """Build the configured secure server from CLI arguments."""
         captured = {}
 
         class _FakeMonitorFactory:
@@ -1232,6 +1334,8 @@ class TestPhaseStreamServer:
         assert captured["serve"] == {"host": "127.0.0.1", "port": 9999, "ssl_context": None}
 
     def test_main_rejects_partial_tls_material(self, monkeypatch):
+        """Reject a CLI invocation with incomplete TLS material."""
+
         class _FakeMonitorFactory:
             @staticmethod
             def from_paper27(**_kwargs):
@@ -1254,6 +1358,8 @@ class TestPhaseStreamServer:
             ws_phase_stream.main()
 
     def test_serve_rejects_plaintext_non_loopback_by_default(self):
+        """Reject plaintext non-loopback serving by default."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -1263,6 +1369,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_requires_tls_when_configured(self):
+        """Require a TLS context when TLS enforcement is configured."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", require_tls=True)
@@ -1272,6 +1380,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_serve_passes_tls_context_to_websocket_server(self, monkeypatch):
+        """Check that serve forwards TLS context to WebSocket server."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -1317,6 +1427,8 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_runtime_counters_record_command_broadcast_and_backpressure(self):
+        """Account for commands, broadcasts, and backpressure in runtime counters."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -1357,6 +1469,7 @@ class TestPhaseStreamServer:
         asyncio.run(_run())
 
     def test_websocket_runtime_evidence_round_trips_without_secret_and_supports_claim(self, tmp_path):
+        """Round-trip claim-capable runtime evidence without serialising secrets."""
         mon = _make_monitor()
         server = PhaseStreamServer(
             monitor=mon,
@@ -1390,6 +1503,7 @@ class TestPhaseStreamServer:
         assert load_websocket_runtime_evidence(path, require_facility_claim=True) == evidence
 
     def test_websocket_runtime_evidence_rejects_local_only_and_tls_gaps(self):
+        """Reject facility claims backed by local-only or TLS-incomplete evidence."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", require_tls=True)
         local_only = websocket_runtime_evidence(
@@ -1439,6 +1553,7 @@ class TestPhaseStreamServer:
             )
 
     def test_websocket_runtime_evidence_rejects_tampering_and_duplicate_keys(self, tmp_path):
+        """Reject tampered runtime evidence and duplicate JSON keys."""
         mon = _make_monitor()
         server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456", require_tls=True)
         evidence = websocket_runtime_evidence(
@@ -1544,18 +1659,22 @@ def _reseal_config_and_payload(payload):
 
 
 def test_payload_size_bytes_handles_non_text_message():
+    """Measure a non-text payload through its encoded representation."""
     assert ws_phase_stream._payload_size_bytes(12345) == len("12345".encode("utf-8"))
 
 
 def test_websocket_peer_accepts_string_remote():
+    """Use a string remote address as the peer identity."""
     assert ws_phase_stream._websocket_peer(SimpleNamespace(remote_address="10.0.0.5")) == "10.0.0.5"
 
 
 def test_websocket_peer_falls_back_to_unknown():
+    """Exercise the unknown fallback provided by WebSocket peer."""
     assert ws_phase_stream._websocket_peer(SimpleNamespace(remote_address=None)) == "unknown"
 
 
 def test_utc_now_is_z_suffixed():
+    """Emit UTC timestamps with the canonical Z suffix."""
     assert ws_phase_stream._utc_now().endswith("Z")
 
 
@@ -1570,54 +1689,64 @@ def test_utc_now_is_z_suffixed():
     ],
 )
 def test_scalar_validators_reject_bad_values(fn_name, arg, match):
+    """Reject invalid values across scalar validation helpers."""
     with pytest.raises(ValueError, match=match):
         getattr(ws_phase_stream, fn_name)("field", arg)
 
 
 def test_tuple_of_nonempty_strings_rejects_non_sequence():
+    """Reject a non-sequence where a string tuple is required."""
     with pytest.raises(ValueError, match="must be a list or tuple"):
         ws_phase_stream._tuple_of_nonempty_strings("field", 5)
 
 
 def test_tuple_of_nonempty_strings_rejects_blank_entry():
+    """Exercise tuple of nonempty strings validation against blank entry."""
     with pytest.raises(ValueError, match="non-empty strings"):
         ws_phase_stream._tuple_of_nonempty_strings("field", ["ok", "  "])
 
 
 def test_server_rejects_empty_api_key():
+    """Exercise server validation against empty API key."""
     with pytest.raises(ValueError, match="api_key must be non-empty"):
         PhaseStreamServer(monitor=_make_monitor(), api_key="")
 
 
 def test_runtime_evidence_rejects_non_server():
+    """Reject runtime evidence built from a non-server object."""
     with pytest.raises(ValueError, match="server must be PhaseStreamServer"):
         websocket_runtime_evidence(object(), deployment_id="d")  # type: ignore[arg-type]
 
 
 def test_runtime_evidence_rejects_blank_deployment_id():
+    """Exercise runtime evidence validation against blank deployment id."""
     server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
     with pytest.raises(ValueError, match="deployment_id must be non-empty"):
         websocket_runtime_evidence(server, deployment_id="  ")
 
 
 def test_runtime_evidence_rejects_blank_bind_host():
+    """Exercise runtime evidence validation against blank bind host."""
     server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
     with pytest.raises(ValueError, match="bind_host must be non-empty"):
         websocket_runtime_evidence(server, deployment_id="d", bind_host="  ")
 
 
 def test_runtime_evidence_rejects_non_bool_uses_tls():
+    """Reject a non-boolean TLS-use declaration."""
     server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
     with pytest.raises(ValueError, match="uses_tls must be boolean"):
         websocket_runtime_evidence(server, deployment_id="d", uses_tls="yes")  # type: ignore[arg-type]
 
 
 def test_save_evidence_rejects_non_evidence(tmp_path):
+    """Reject saving an object that is not runtime evidence."""
     with pytest.raises(ValueError, match="evidence must be WebSocketRuntimeEvidence"):
         save_websocket_runtime_evidence({"not": "evidence"}, tmp_path / "e.json")  # type: ignore[arg-type]
 
 
 def test_load_evidence_rejects_non_object(tmp_path):
+    """Reject a runtime-evidence JSON value that is not an object."""
     path = tmp_path / "e.json"
     path.write_text("[]", encoding="utf-8")
     with pytest.raises(ValueError, match="must be a JSON object"):
@@ -1625,6 +1754,7 @@ def test_load_evidence_rejects_non_object(tmp_path):
 
 
 def test_validate_runtime_payload_rejects_non_sha_digest():
+    """Reject a payload digest that is not canonical SHA-256."""
     payload = _local_evidence_dict()
     payload["payload_sha256"] = "not-a-digest"
     with pytest.raises(ValueError, match="payload_sha256 must be a SHA-256"):
@@ -1645,6 +1775,7 @@ def test_validate_runtime_payload_rejects_non_sha_digest():
     ],
 )
 def test_validate_runtime_payload_rejects_field(field, value, match):
+    """Reject each invalid runtime-evidence field variant."""
     payload = _local_evidence_dict()
     payload[field] = value
     _reseal_payload(payload)
@@ -1653,6 +1784,7 @@ def test_validate_runtime_payload_rejects_field(field, value, match):
 
 
 def test_validate_runtime_payload_rejects_claim_status_mismatch():
+    """Reject a claim status inconsistent with its evidence envelope."""
     payload = _qualified_evidence_dict()
     payload["claim_status"] = WEBSOCKET_RUNTIME_EVIDENCE_LOCAL_ONLY
     _reseal_payload(payload)
@@ -1679,6 +1811,7 @@ def test_validate_runtime_payload_rejects_claim_status_mismatch():
     ],
 )
 def test_qualified_runtime_evidence_rejects(overrides, match):
+    """Reject each invalid qualified-runtime evidence variant."""
     payload = _qualified_evidence_dict()
     payload.update(overrides)
     _reseal_config_and_payload(payload)
@@ -1687,6 +1820,8 @@ def test_qualified_runtime_evidence_rejects(overrides, match):
 
 
 def test_close_client_without_close_method():
+    """Tolerate a connection object without a close operation."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16)
         await server._close_client(SimpleNamespace(), code=1000, reason="x")
@@ -1695,6 +1830,8 @@ def test_close_client_without_close_method():
 
 
 def test_handler_breaks_when_oversized_payload_response_fails():
+    """Terminate handling when an oversized-payload error response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
 
@@ -1710,6 +1847,8 @@ def test_handler_breaks_when_oversized_payload_response_fails():
 
 
 def test_handler_breaks_when_rate_limit_response_fails():
+    """Terminate handling when a rate-limit response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456", command_rate_limit=1)
 
@@ -1726,6 +1865,8 @@ def test_handler_breaks_when_rate_limit_response_fails():
 
 
 def test_handler_breaks_when_malformed_frame_response_fails():
+    """Terminate handling when a malformed-frame response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
 
@@ -1741,6 +1882,8 @@ def test_handler_breaks_when_malformed_frame_response_fails():
 
 
 def test_handler_breaks_when_non_object_frame_response_fails():
+    """Terminate handling when a non-object-frame response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
 
@@ -1756,6 +1899,8 @@ def test_handler_breaks_when_non_object_frame_response_fails():
 
 
 def test_handler_breaks_when_invalid_seed_response_fails():
+    """Terminate handling when an invalid-seed response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
 
@@ -1771,6 +1916,7 @@ def test_handler_breaks_when_invalid_seed_response_fails():
 
 
 def test_valid_reset_seed_accepts_non_negative_int_only():
+    """Accept only non-negative integers as reset seeds."""
     assert ws_phase_stream._valid_reset_seed(0) is True
     assert ws_phase_stream._valid_reset_seed(2**40) is True
     assert ws_phase_stream._valid_reset_seed(True) is False
@@ -1780,6 +1926,8 @@ def test_valid_reset_seed_accepts_non_negative_int_only():
 
 
 def test_handler_breaks_when_pac_gamma_range_response_fails():
+    """Terminate handling when a PAC-range response cannot be sent."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="secret-token-123456")
 
@@ -1796,6 +1944,7 @@ def test_handler_breaks_when_pac_gamma_range_response_fails():
 
 def test_valid_pac_gamma_accepts_above_physical_floor_only():
     # pac_gate = 1 + pac_gamma*(1 - R) stays positive iff pac_gamma > -1.
+    """Accept PAC coupling only above its physical positivity floor."""
     assert ws_phase_stream._valid_pac_gamma(0.0) is True
     assert ws_phase_stream._valid_pac_gamma(-0.999) is True
     assert ws_phase_stream._valid_pac_gamma(1e6) is True
@@ -1804,6 +1953,8 @@ def test_valid_pac_gamma_accepts_above_physical_floor_only():
 
 
 def test_tick_loop_reraises_cancelled_error():
+    """Propagate cancellation out of the broadcast loop."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16, tick_interval_s=0.001)
 
@@ -1820,6 +1971,8 @@ def test_tick_loop_reraises_cancelled_error():
 
 
 def test_tick_loop_logs_and_continues_on_send_exception():
+    """Log a send failure and continue broadcasting to remaining clients."""
+
     async def _run():
         server = PhaseStreamServer(monitor=_make_monitor(), api_key="x" * 16, tick_interval_s=0.001)
 
@@ -1840,6 +1993,7 @@ def test_tick_loop_logs_and_continues_on_send_exception():
 
 
 def test_main_builds_tls_context(monkeypatch, tmp_path):
+    """Inspect main construction of TLS context."""
     cert = tmp_path / "cert.pem"
     key = tmp_path / "key.pem"
     cert.write_text("cert", encoding="utf-8")
@@ -1862,15 +2016,19 @@ class TestModernWebsocketsApi:
     """
 
     def test_get_header_reads_modern_request_headers_case_insensitively(self):
+        """Read modern request headers case-insensitively."""
         ws = _ModernWS(headers={"Authorization": "Bearer secret-token-123456"})
         assert ws_phase_stream._get_header(ws, "Authorization") == "Bearer secret-token-123456"
         assert ws_phase_stream._get_header(ws, "authorization") == "Bearer secret-token-123456"
 
     def test_request_path_reads_modern_request_path_with_query(self):
+        """Preserve the query component of a modern request path."""
         ws = _ModernWS(path="/phase?token=secret-token-123456")
         assert ws_phase_stream._request_path(ws) == "/phase?token=secret-token-123456"
 
     def test_handler_authenticates_control_connection_via_modern_headers(self):
+        """Authenticate a control connection through modern request headers."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(monitor=mon, api_key="secret-token-123456")
@@ -1884,6 +2042,8 @@ class TestModernWebsocketsApi:
         asyncio.run(_run())
 
     def test_handler_authenticates_query_token_via_modern_request_path(self):
+        """Authenticate a query token through the modern request path."""
+
         async def _run():
             mon = _make_monitor()
             server = PhaseStreamServer(
@@ -1904,16 +2064,19 @@ class TestModernWebsocketsApi:
         asyncio.run(_run())
 
     def test_helpers_fall_back_to_legacy_connection_attributes(self):
+        """Read headers and paths from legacy WebSocket connection attributes."""
         ws = _FakeWS(headers={"Authorization": "Bearer legacy-token-123456"}, path="/legacy?token=x")
         assert ws_phase_stream._get_header(ws, "Authorization") == "Bearer legacy-token-123456"
         assert ws_phase_stream._request_path(ws) == "/legacy?token=x"
 
     def test_helpers_return_empty_when_connection_exposes_neither_surface(self):
+        """Return empty header and path values when no supported connection surface exists."""
         ws = SimpleNamespace()
         assert ws_phase_stream._get_header(ws, "Authorization") is None
         assert ws_phase_stream._request_path(ws) == ""
 
     def test_helpers_resolve_a_real_websockets_request_object(self):
+        """Read headers and paths from a real websockets request object."""
         pytest.importorskip("websockets")
         from websockets.datastructures import Headers
         from websockets.http11 import Request
@@ -1928,6 +2091,7 @@ class TestModernWebsocketsApi:
         assert ws_phase_stream._request_path(ws) == "/phase?token=secret-token-123456"
 
     def test_live_end_to_end_auth_with_a_real_websockets_client(self):
+        """Authenticate a live end-to-end connection from a real websockets client."""
         websockets = pytest.importorskip("websockets")
 
         async def _run():

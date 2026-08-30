@@ -11,9 +11,7 @@
 # © 1998–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""
-Tests for SPN logic invariants and formal data contracts.
-"""
+"""Tests for SPN logic invariants and formal data contracts."""
 
 from __future__ import annotations
 
@@ -24,6 +22,8 @@ from scpn_control.scpn.contracts import (
     DEFAULT_PHYSICS_INVARIANTS,
     ActionSpec,
     PhysicsInvariant,
+    _is_satisfied,
+    _seed64,
     check_all_invariants,
     check_boundedness,
     check_deadlock,
@@ -32,8 +32,6 @@ from scpn_control.scpn.contracts import (
     decode_actions,
     evaluate_safety_invariants,
     should_trigger_mitigation,
-    _is_satisfied,
-    _seed64,
 )
 
 
@@ -92,26 +90,31 @@ def test_boundedness_check() -> None:
 
 
 def test_physics_invariant_invalid_comparator() -> None:
+    """Reject an unsupported invariant comparator during construction."""
     with pytest.raises(ValueError, match="Invalid comparator"):
         PhysicsInvariant(name="x", description="d", threshold=1.0, comparator="eq")
 
 
 def test_physics_invariant_non_finite_threshold() -> None:
+    """Reject a non-finite invariant threshold during construction."""
     with pytest.raises(ValueError, match="finite"):
         PhysicsInvariant(name="x", description="d", threshold=float("inf"), comparator="gt")
 
 
 def test_is_satisfied_gte() -> None:
+    """Evaluate the inclusive greater-than comparator at its boundary."""
     assert _is_satisfied("gte", 1.0, 1.0) is True
     assert _is_satisfied("gte", 0.9, 1.0) is False
 
 
 def test_is_satisfied_lte() -> None:
+    """Evaluate the inclusive less-than comparator at its boundary."""
     assert _is_satisfied("lte", 1.0, 1.0) is True
     assert _is_satisfied("lte", 1.1, 1.0) is False
 
 
 def test_is_satisfied_gt_lt() -> None:
+    """Evaluate strict greater-than and less-than comparators."""
     assert _is_satisfied("gt", 2.0, 1.0) is True
     assert _is_satisfied("lt", 0.5, 1.0) is True
 
@@ -290,6 +293,7 @@ def test_decode_actions_allows_zero_limits() -> None:
 
 
 def test_check_physics_invariant_non_finite_value() -> None:
+    """Classify a non-finite measured value as a critical violation."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     result = check_physics_invariant(inv, float("nan"))
     assert result is not None
@@ -298,6 +302,7 @@ def test_check_physics_invariant_non_finite_value() -> None:
 
 
 def test_check_physics_invariant_violation_warning() -> None:
+    """Classify a near-threshold breach as a warning."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     result = check_physics_invariant(inv, 0.9)
     assert result is not None
@@ -306,6 +311,7 @@ def test_check_physics_invariant_violation_warning() -> None:
 
 
 def test_check_physics_invariant_violation_critical() -> None:
+    """Classify a large threshold breach as critical."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     result = check_physics_invariant(inv, 0.5)
     assert result is not None
@@ -313,11 +319,13 @@ def test_check_physics_invariant_violation_critical() -> None:
 
 
 def test_check_physics_invariant_satisfied() -> None:
+    """Return no violation when a physics invariant is satisfied."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     assert check_physics_invariant(inv, 1.5) is None
 
 
 def test_check_all_invariants_default() -> None:
+    """Evaluate the default physics-invariant collection."""
     violations = check_all_invariants({"q_min": 0.5, "beta_N": 1.0})
     names = [v.invariant.name for v in violations]
     assert "q_min" in names
@@ -325,6 +333,7 @@ def test_check_all_invariants_default() -> None:
 
 
 def test_check_all_invariants_custom() -> None:
+    """Evaluate a caller-supplied physics invariant."""
     inv = PhysicsInvariant(name="x", description="d", threshold=5.0, comparator="lt")
     violations = check_all_invariants({"x": 10.0}, invariants=[inv])
     assert len(violations) == 1
@@ -332,11 +341,13 @@ def test_check_all_invariants_custom() -> None:
 
 
 def test_check_all_invariants_no_violations() -> None:
+    """Return an empty collection for nominal invariant values."""
     violations = check_all_invariants({"q_min": 2.0, "beta_N": 1.0})
     assert violations == []
 
 
 def test_should_trigger_mitigation_critical() -> None:
+    """Trigger mitigation when a critical violation is present."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     v = check_physics_invariant(inv, 0.5)
     assert v is not None
@@ -344,6 +355,7 @@ def test_should_trigger_mitigation_critical() -> None:
 
 
 def test_should_trigger_mitigation_warning_only() -> None:
+    """Withhold mitigation for warning-only evidence."""
     inv = PhysicsInvariant(name="q", description="d", threshold=1.0, comparator="gt")
     v = check_physics_invariant(inv, 0.9)
     assert v is not None
@@ -352,6 +364,7 @@ def test_should_trigger_mitigation_warning_only() -> None:
 
 
 def test_should_trigger_mitigation_empty() -> None:
+    """Withhold mitigation when no violations are present."""
     assert should_trigger_mitigation([]) is False
 
 

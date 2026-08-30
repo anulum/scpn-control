@@ -200,9 +200,10 @@ class TestSORSolverParity:
         )
     )
     def test_sor_equilibrium_parity(self, tmp_path: Path) -> None:
-        """Run the SOR-based equilibrium solver via both Python and Rust
-        FusionKernel on the same 65x65 Solov'ev grid (R0=1.7, a=0.5,
-        B0=2.0, Ip=1.0 MA).  The final Psi arrays must agree within
+        """Run the SOR-based equilibrium solver through both backends.
+
+        Python and Rust use the same 65x65 Solov'ev grid (R0=1.7, a=0.5,
+        B0=2.0, Ip=1.0 MA). The final Psi arrays must agree within
         rtol=1e-3.
         """
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
@@ -211,13 +212,13 @@ class TestSORSolverParity:
 
         # --- Python path ---
         py_kernel = PyFusionKernel(str(cfg_path))
-        py_result = py_kernel.solve_equilibrium()
+        py_kernel.solve_equilibrium()
         psi_py = py_kernel.Psi.copy()
 
         # --- Rust path ---
         rust_kernel = RustAcceleratedKernel(str(cfg_path))
         rust_kernel.set_solver_method("sor")
-        rust_result = rust_kernel.solve_equilibrium()
+        rust_kernel.solve_equilibrium()
         psi_rs = rust_kernel.Psi.copy()
 
         # --- Compare ---
@@ -234,9 +235,10 @@ class TestSORSolverParity:
         )
 
     def test_sor_single_sweep_consistency(self, tmp_path: Path) -> None:
-        """Verify that the Python SOR sweep is self-consistent by
-        running two sweeps and checking monotonic residual decrease.
-        Both backends start from the same Solov'ev initial condition.
+        """Verify that consecutive Python SOR sweeps remain finite.
+
+        Two sweeps begin from the same Solov'ev initial condition and exercise
+        the same source and relaxation factor.
         """
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
 
@@ -270,8 +272,10 @@ class TestMultigridSolverParity:
         reason="Rust multigrid_vcycle not exposed via PyO3",
     )
     def test_multigrid_vcycle_parity(self, tmp_path: Path) -> None:
-        """Run the multigrid V-cycle through both Python and Rust on
-        the same 65x65 Solov'ev input (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+        """Run the multigrid V-cycle through both Python and Rust.
+
+        Both paths use the same 65x65 Solov'ev input (R0=1.7, a=0.5,
+        B0=2.0, Ip=1.0 MA).
 
         The Python path runs a single V-cycle while the Rust path runs
         multigrid_solve (multiple cycles to convergence), so strict
@@ -334,8 +338,10 @@ class TestMultigridSolverParity:
         )
 
     def test_multigrid_equilibrium_parity(self, tmp_path: Path) -> None:
-        """Compare full equilibrium solve using multigrid in both backends
-        on the Solov'ev problem (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+        """Compare full multigrid equilibrium solves from both backends.
+
+        Both paths use the Solov'ev problem (R0=1.7, a=0.5, B0=2.0,
+        Ip=1.0 MA).
         """
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
 
@@ -343,13 +349,13 @@ class TestMultigridSolverParity:
 
         # --- Python path ---
         py_kernel = PyFusionKernel(str(cfg_path))
-        py_result = py_kernel.solve_equilibrium()
+        py_kernel.solve_equilibrium()
         psi_py = py_kernel.Psi.copy()
 
         # --- Rust path ---
         rust_kernel = RustAcceleratedKernel(str(cfg_path))
         rust_kernel.set_solver_method("multigrid")
-        rust_result = rust_kernel.solve_equilibrium()
+        rust_kernel.solve_equilibrium()
         psi_rs = rust_kernel.Psi.copy()
 
         # --- Compare ---
@@ -386,13 +392,17 @@ class TestMultigridSolverParity:
 
 
 class TestVacuumFieldParity:
-    """Compare vacuum field (coil Green's functions) between Python and Rust
-    on the same Solov'ev geometry (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+    """Compare vacuum-field Green's functions between Python and Rust.
+
+    Both backends use the same Solov'ev geometry (R0=1.7, a=0.5, B0=2.0,
+    Ip=1.0 MA).
     """
 
     def test_vacuum_field_parity(self, tmp_path: Path) -> None:
-        """Compute vacuum field from both backends. They should agree
-        within rtol=1e-3 since they solve the same coil geometry.
+        """Compute the vacuum field through both backends.
+
+        Results must agree within rtol=1e-3 because both paths solve the same
+        coil geometry.
         """
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
 
@@ -446,8 +456,10 @@ class TestVacuumFieldParity:
         reason="Rust shafranov_bv not exposed via PyO3",
     )
     def test_shafranov_bv_parity(self, tmp_path: Path) -> None:
-        """Compare the Rust shafranov_bv() against the Python vacuum
-        field computation for the Solov'ev problem.
+        """Compare the Rust Shafranov vertical field with Python.
+
+        The Python reference is the vacuum-field computation for the same
+        Solov'ev problem.
         """
         from scpn_control.core._rust_compat import rust_shafranov_bv
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
@@ -474,8 +486,10 @@ class TestVacuumFieldParity:
 
 
 class TestTransportSolverParity:
-    """Compare transport-related computations between Rust and Python
-    on the Solov'ev equilibrium (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+    """Compare transport-related computations between Rust and Python.
+
+    The exercised equilibrium is Solov'ev with R0=1.7, a=0.5, B0=2.0, and
+    Ip=1.0 MA.
     """
 
     @pytest.mark.skipif(
@@ -483,7 +497,8 @@ class TestTransportSolverParity:
         reason="Rust simulate_tearing_mode not exposed via PyO3",
     )
     def test_tearing_mode_parity(self) -> None:
-        """Compare the Rust and Python tearing mode simulators.
+        """Compare the Rust and Python tearing-mode simulators.
+
         Both should produce statistically equivalent disruption physics
         when given the same RNG seed.
         """
@@ -516,8 +531,9 @@ class TestTransportSolverParity:
             )
 
     def test_transport_no_rust_path_skips_gracefully(self) -> None:
-        """Verify that the neural transport module works in pure-Python
-        mode without Rust, and produces a valid surrogate object.
+        """Exercise the neural-transport fallback without Rust.
+
+        Pure Python must still construct a valid surrogate object.
         """
         from scpn_control.core.neural_transport import NeuralTransportSurrogate
 
@@ -588,13 +604,14 @@ class TestSCPNRuntimeParity:
 
 
 class TestBFieldParity:
-    """Compare the B-field derivation from Psi between backends on the
-    Solov'ev equilibrium (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+    """Compare the magnetic-field derivation from Psi between backends.
+
+    Both paths use the Solov'ev equilibrium (R0=1.7, a=0.5, B0=2.0,
+    Ip=1.0 MA).
     """
 
     def test_b_field_parity(self, tmp_path: Path) -> None:
-        """After equilibrium solve, B_R and B_Z should be structurally
-        consistent between Python and Rust.
+        """Compare B_R and B_Z after each backend solves equilibrium.
 
         The SOR solvers in Rust and Python converge differently (Rust uses
         red-black ordering, Python uses lexicographic), so psi — and thus
@@ -638,8 +655,10 @@ class TestBFieldParity:
 
 
 class TestTopologyParity:
-    """Compare X-point detection between backends on the Solov'ev
-    equilibrium (R0=1.7, a=0.5, B0=2.0, Ip=1.0 MA).
+    """Compare X-point detection between both solver backends.
+
+    Both paths use the Solov'ev equilibrium (R0=1.7, a=0.5, B0=2.0,
+    Ip=1.0 MA).
     """
 
     @pytest.mark.xfail(
@@ -649,8 +668,10 @@ class TestTopologyParity:
         )
     )
     def test_x_point_parity(self, tmp_path: Path) -> None:
-        """After equilibrium solve, the X-point location and Psi value
-        should agree between Python and Rust.
+        """Compare X-point location and Psi after equilibrium solves.
+
+        Python and Rust should recover the same topology within the declared
+        grid-cell tolerance.
         """
         from scpn_control.core.fusion_kernel import FusionKernel as PyFusionKernel
 

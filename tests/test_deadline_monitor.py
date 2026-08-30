@@ -21,6 +21,7 @@ from scpn_control.scpn.deadline_monitor import DeadlineMonitor, DeadlineOverrunE
 
 
 def test_within_deadline_is_counted_without_overrun() -> None:
+    """Count an on-time sample without recording an overrun."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     assert monitor.record(300.0) is True
     assert monitor.cycles == 1
@@ -30,12 +31,14 @@ def test_within_deadline_is_counted_without_overrun() -> None:
 
 
 def test_boundary_elapsed_equals_deadline_is_within() -> None:
+    """Treat an elapsed time equal to the deadline as on time."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     assert monitor.record(500.0) is True
     assert monitor.overruns == 0
 
 
 def test_overrun_is_counted_in_fail_soft_default() -> None:
+    """Count an overrun while retaining fail-soft operation."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     assert monitor.record(750.0) is False
     assert monitor.record(200.0) is True
@@ -46,6 +49,7 @@ def test_overrun_is_counted_in_fail_soft_default() -> None:
 
 
 def test_strict_mode_raises_on_overrun() -> None:
+    """Raise immediately when strict mode observes a deadline overrun."""
     monitor = DeadlineMonitor(deadline_us=500.0, strict=True)
     assert monitor.record(400.0) is True
     with pytest.raises(DeadlineOverrunError, match="exceeded deadline"):
@@ -55,12 +59,14 @@ def test_strict_mode_raises_on_overrun() -> None:
 
 
 def test_rejects_non_finite_or_non_positive_deadline() -> None:
+    """Reject a non-finite or non-positive deadline."""
     for bad in (0.0, -1.0, math.inf, math.nan):
         with pytest.raises(ValueError, match="deadline_us must be finite and > 0"):
             DeadlineMonitor(deadline_us=bad)
 
 
 def test_record_rejects_non_finite_or_negative_elapsed() -> None:
+    """Reject a non-finite or negative elapsed duration."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     for bad in (-1.0, math.inf, math.nan):
         with pytest.raises(ValueError, match="elapsed_us must be finite and >= 0"):
@@ -68,6 +74,7 @@ def test_record_rejects_non_finite_or_negative_elapsed() -> None:
 
 
 def test_as_dict_snapshots_state() -> None:
+    """Snapshot deadline-monitor counters as a dictionary."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     monitor.record(700.0)
     monitor.observe_trace_write(900.0)
@@ -115,6 +122,7 @@ def test_observe_trace_write_rejects_non_finite_or_negative_total() -> None:
 
 
 def test_reset_clears_statistics() -> None:
+    """Clear all accumulated deadline statistics on reset."""
     monitor = DeadlineMonitor(deadline_us=500.0)
     monitor.record(700.0)
     monitor.record(100.0)

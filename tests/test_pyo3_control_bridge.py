@@ -48,17 +48,20 @@ class TestPyMpcController:
         return scpn_control_rs.PyMpcController(b_matrix, target)
 
     def test_plan_returns_action(self, mpc):
+        """Check the action produced by plan."""
         state = np.array([0.5, -0.3, 0.1, 0.0], dtype=np.float64)
         action = mpc.plan(state)
         assert isinstance(action, np.ndarray)
         assert len(action) == 2  # n_coils
 
     def test_action_bounded(self, mpc):
+        """Keep the planned control action inside actuator bounds."""
         state = np.array([10.0, -10.0, 5.0, -5.0], dtype=np.float64)
         action = mpc.plan(state)
         assert np.all(np.abs(action) <= 2.1)  # ACTION_CLIP=2.0 + tolerance
 
     def test_tracks_target_over_10_steps(self, mpc):
+        """Track the target state over ten consecutive planner steps."""
         state = np.array([1.0, 1.0, 1.0, 1.0], dtype=np.float64)
         b_matrix = np.array(
             [[0.1, 0.0], [0.0, 0.1], [0.05, 0.05], [0.02, -0.02]],
@@ -71,6 +74,7 @@ class TestPyMpcController:
         assert np.linalg.norm(state) < 1.3  # started at norm=2.0
 
     def test_rejects_nan_state(self, mpc):
+        """Require rejection of NaN state."""
         state = np.array([float("nan"), 0.0, 0.0, 0.0], dtype=np.float64)
         with pytest.raises((ValueError, RuntimeError)):
             mpc.plan(state)
@@ -83,28 +87,33 @@ class TestPyPlasma2D:
     """Tests for Plasma2D binding (fusion-control/digital_twin.rs)."""
 
     def test_construction(self):
+        """Construct the PyO3 plasma model with valid parameters."""
         plasma = scpn_control_rs.PyPlasma2D()
         assert plasma is not None
 
     def test_step_returns_tuple(self):
+        """Check the tuple produced by step."""
         plasma = scpn_control_rs.PyPlasma2D()
         temp, position = plasma.step(0.0)
         assert isinstance(temp, float) and np.isfinite(temp)
         assert isinstance(position, float) and np.isfinite(position)
 
     def test_measure_core_temp(self):
+        """Recover the core-temperature diagnostic from the plasma state."""
         plasma = scpn_control_rs.PyPlasma2D()
         plasma.step(0.5)
         temp = plasma.measure_core_temp(0.01)
         assert isinstance(temp, float) and np.isfinite(temp)
 
     def test_100_steps_stable(self):
+        """Keep the PyO3 plasma model finite over one hundred steps."""
         plasma = scpn_control_rs.PyPlasma2D()
         for _ in range(100):
             temp, pos = plasma.step(0.1)
             assert np.isfinite(temp) and np.isfinite(pos)
 
     def test_heating_raises_temperature(self):
+        """Increase core temperature when external heating is applied."""
         plasma = scpn_control_rs.PyPlasma2D()
         # Zero heating baseline
         temp_cold, _ = plasma.step(0.0)

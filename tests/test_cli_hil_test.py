@@ -26,15 +26,18 @@ from scpn_control.cli import main
 
 @pytest.fixture
 def runner() -> CliRunner:
+    """Provide an isolated Click runner for HIL command tests."""
     return CliRunner()
 
 
 def test_hil_test_nonexistent_dir(runner: CliRunner) -> None:
+    """Require the HIL command to fail for an absent shots directory."""
     result = runner.invoke(main, ["hil-test", "--shots-dir", "nonexistent_dir_12345", "--json-out"])
     assert result.exit_code != 0
 
 
 def test_hil_test_with_mock_shots(runner: CliRunner, tmp_path: Path) -> None:
+    """Process deterministic NPZ shot fixtures through the HIL command."""
     rng = np.random.default_rng(0)
     for name in ("shot_001", "shot_002"):
         np.savez(
@@ -52,6 +55,7 @@ def test_hil_test_with_mock_shots(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_hil_test_text_output(runner: CliRunner, tmp_path: Path) -> None:
+    """Render the accepted-shot summary in human-readable form."""
     np.savez(tmp_path / "s42.npz", plasma=np.zeros(5))
     result = runner.invoke(main, ["hil-test", "--shots-dir", str(tmp_path)])
     assert result.exit_code == 0
@@ -60,6 +64,7 @@ def test_hil_test_text_output(runner: CliRunner, tmp_path: Path) -> None:
 
 
 def test_hil_test_empty_dir(runner: CliRunner, tmp_path: Path) -> None:
+    """Report an empty shot directory without failing the campaign."""
     result = runner.invoke(main, ["hil-test", "--shots-dir", str(tmp_path), "--json-out"])
     assert result.exit_code == 0
     data = json.loads(result.output)
@@ -69,6 +74,7 @@ def test_hil_test_empty_dir(runner: CliRunner, tmp_path: Path) -> None:
 def test_hil_test_rejects_a_corrupt_npz_without_crashing(runner: CliRunner, tmp_path: Path) -> None:
     # A hostile/corrupt .npz must be recorded per file, not crash the whole
     # campaign; the load is size-audited and each file fails closed.
+    """Record a corrupt NPZ as rejected without aborting the HIL campaign."""
     np.savez(tmp_path / "good.npz", ip=np.array([15e6]))
     (tmp_path / "hostile.npz").write_bytes(b"PK\x03\x04 not a valid zip archive")
 
@@ -83,6 +89,7 @@ def test_hil_test_rejects_a_corrupt_npz_without_crashing(runner: CliRunner, tmp_
 
 
 def test_hil_test_text_output_reports_rejected_shot(runner: CliRunner, tmp_path: Path) -> None:
+    """Include rejected-shot accounting in the human-readable HIL summary."""
     np.savez(tmp_path / "good.npz", ip=np.array([15e6]))
     (tmp_path / "hostile.npz").write_bytes(b"PK\x03\x04 not a valid zip archive")
 
