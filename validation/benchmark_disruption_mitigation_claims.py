@@ -33,8 +33,8 @@ def _json_default(value: object) -> object:
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded disruption-mitigation claim benchmark."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     seed = 20240531
     report = run_disruption_ensemble(ensemble_runs=24, seed=seed)

@@ -34,7 +34,8 @@ ELM-trigger pedestal proxy with a different width scaling and is not exposed to
 Python; it is not a parity counterpart of this EPED1 model, so no cross-language
 parity is asserted.
 
-References:
+References
+----------
   Snyder P. B. et al. (2009) *Phys. Plasmas* 16, 056118 (EPED1, KBM width).
   Snyder P. B. et al. (2011) *Nucl. Fusion* 51, 103016 (collisionality).
   Connor J. W. et al. (1998) *Phys. Plasmas* 5, 2687 (ballooning boundary).
@@ -70,7 +71,7 @@ _COLL_NARROW_COEFF = 0.4
 
 
 def default_config() -> EPEDConfig:
-    """An ITER-like pedestal operating point at finite collisionality."""
+    """Build an ITER-like pedestal operating point at finite collisionality."""
     return EPEDConfig(
         R0=1.7, a=0.5, B0=2.0, kappa=1.7, delta=0.33, Ip_MA=1.0, ne_ped_19=5.0, B_pol_ped=0.5, nu_star_e=1.0
     )
@@ -133,7 +134,7 @@ class ShapingCheck:
 
 
 def shaping_checks() -> ShapingCheck:
-    """The shaping factor is unity at the ITER reference and rises with triangularity."""
+    """Verify the reference and triangularity response of the shaping factor."""
     reference = _shaping_factor(_KAPPA_REF, _DELTA_REF)
     higher_delta = _shaping_factor(_KAPPA_REF, 0.5)
     lower_delta = _shaping_factor(_KAPPA_REF, 0.1)

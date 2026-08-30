@@ -31,7 +31,8 @@ Exact references checked against the production methods:
    ``beta_N >= beta_w`` is the ideal kink (infinite growth).
 7. **Wall-time scaling**: ``gamma_wall`` scales as ``1/tau_wall``.
 
-References:
+References
+----------
   Bondeson A., Ward D. J. (1994) *Phys. Rev. Lett.* 72, 2709.
   Fitzpatrick R. (2001) *Phys. Plasmas* 8, 4489.
   Strait E. J. et al. (2003) *Nucl. Fusion* 43, 430.
@@ -77,7 +78,7 @@ class RWMConfig:
 
 
 def default_config() -> RWMConfig:
-    """A representative unstable RWM window with a 5 ms wall time."""
+    """Build a representative unstable RWM window with a 5 ms wall time."""
     return RWMConfig(beta_n_nowall=2.0, beta_n_wall=4.0, tau_wall_s=5e-3)
 
 

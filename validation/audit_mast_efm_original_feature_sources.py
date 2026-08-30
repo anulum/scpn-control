@@ -127,7 +127,6 @@ def _variable_summary(metadata: dict[str, Any], variable_name: str) -> dict[str,
 
 def load_zarr_candidate_metadata(zarr_path: Path) -> dict[str, dict[str, Any]]:
     """Load candidate variable metadata from consolidated Zarr JSON."""
-
     metadata_path = zarr_path / ".zmetadata"
     if not metadata_path.is_file():
         raise FileNotFoundError(f"consolidated Zarr metadata is missing: {metadata_path}")
@@ -205,7 +204,6 @@ def _select_candidate(feature: str, variables: dict[str, dict[str, Any]]) -> dic
 
 def classify_feature_sources(variables: dict[str, dict[str, Any]]) -> dict[str, dict[str, Any]]:
     """Classify original metadata support for fallback training features."""
-
     return {feature: _select_candidate(feature, variables) for feature in FALLBACK_FEATURES}
 
 
@@ -263,7 +261,6 @@ def _aggregate_feature_status(shots: list[dict[str, Any]]) -> dict[str, dict[str
 
 def build_original_feature_source_audit(dataset_report_path: Path, storage_root: Path) -> dict[str, Any]:
     """Build the original public Zarr feature-source audit."""
-
     dataset_report = _load_json_object(dataset_report_path)
     if dataset_report.get("schema_version") != DATASET_SCHEMA:
         raise ValueError("dataset report has unsupported schema_version")
@@ -324,7 +321,6 @@ def _next_processing_steps(blocked_features: list[str]) -> list[str]:
 
 def write_report(audit: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
     """Write JSON and Markdown original-source audit reports."""
-
     json_out.parent.mkdir(parents=True, exist_ok=True)
     json_out.write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [
@@ -357,7 +353,6 @@ def write_report(audit: dict[str, Any], json_out: Path, markdown_out: Path) -> N
 
 def parse_args() -> argparse.Namespace:
     """Parse CLI arguments."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
     parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
@@ -368,7 +363,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Run the original public Zarr feature-source audit."""
-
     args = parse_args()
     audit = build_original_feature_source_audit(args.dataset_report, args.storage_root)
     write_report(audit, args.json_out, args.report_out)

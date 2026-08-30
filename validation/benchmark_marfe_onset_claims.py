@@ -47,6 +47,7 @@ def _percentile(values: list[float], percentile: float) -> float:
 
 
 def main() -> None:
+    """Run the bounded MARFE-onset claim benchmark and write reports."""
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=ROOT)
     timings_us: list[float] = []
     for _ in range(40):

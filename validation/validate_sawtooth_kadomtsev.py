@@ -35,7 +35,8 @@ Exact references checked against the production ``kadomtsev_crash`` and
 6. **No-crash guard.** With ``q > 1`` everywhere there is no ``q = 1`` surface and
    the crash leaves every profile unchanged.
 
-References:
+References
+----------
   Kadomtsev B. B. (1975) *Sov. J. Plasma Phys.* 1, 389.
   Porcelli F. et al. (1996) *Plasma Phys. Control. Fusion* 38, 2163.
 """
@@ -85,14 +86,16 @@ class SawtoothConfig:
             raise ValueError("a must be smaller than r0 for tokamak ordering")
 
     def rho(self) -> FloatArray:
+        """Return the normalized radial grid."""
         return np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
 
     def q_profile(self, rho: FloatArray) -> FloatArray:
+        """Evaluate the parabolic safety-factor profile on a radial grid."""
         return np.asarray(self.q0 + (self.qa - self.q0) * rho**2, dtype=np.float64)
 
 
 def default_config() -> SawtoothConfig:
-    """A 201-point grid with a parabolic q-profile crossing unity at rho≈0.30."""
+    """Build a 201-point parabolic q-profile crossing unity near rho 0.30."""
     return SawtoothConfig(nr=201, q0=0.8, qa=3.0, r0=1.7, a=0.5)
 
 

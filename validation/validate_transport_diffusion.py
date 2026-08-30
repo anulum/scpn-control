@@ -36,7 +36,8 @@ Three checks, all exercising the production methods:
    ``transport_step`` — must reproduce the Python ``thomas_solve`` solution of
    the identical Crank-Nicolson system to machine precision.
 
-References:
+References
+----------
   Wesson J. (2011) *Tokamaks*, 4th ed., Oxford University Press, Ch. 4
   (radial transport equations).
   Crank J., Nicolson P. (1947) *Proc. Camb. Phil. Soc.* 43, 50.
@@ -113,9 +114,7 @@ def bessel_operator_error(nr: int, *, chi_value: float = _CHI_VALUE, lam: float 
     solver = _build_solver(nr)
     chi = np.full(solver.nr, chi_value, dtype=np.float64)
     eigenmode = np.asarray(j0(lam * solver.rho), dtype=np.float64)
-    applied = np.asarray(
-        explicit_diffusion_rhs(eigenmode, chi, solver.rho, solver.drho, solver.a), dtype=np.float64
-    )
+    applied = np.asarray(explicit_diffusion_rhs(eigenmode, chi, solver.rho, solver.drho, solver.a), dtype=np.float64)
     eigenvalue = -(chi_value * lam**2 / solver.a**2)
     exact = eigenvalue * eigenmode
     interior_error = np.abs(applied[1:-1] - exact[1:-1])

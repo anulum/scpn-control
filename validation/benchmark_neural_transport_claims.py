@@ -26,8 +26,8 @@ MD_REPORT = REPORT_DIR / "neural_transport_claims.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded neural-transport claim benchmark."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     model = NeuralTransportModel(auto_discover=False)
     validation_result = cross_validate_neural_transport(model)

@@ -30,7 +30,8 @@ Exact references checked against the production ``RunawayElectronModel``:
    critical field), linear in ``n_RE`` and in ``(E/E_c - 1)``, with a 0.001
    deconfinement factor above 0.3 mol of injected neon.
 
-References:
+References
+----------
   Connor J. W., Hastie R. J. (1975) *Nucl. Fusion* 15, 415 (critical/Dreicer field).
   Rosenbluth M. N., Putvinski S. V. (1997) *Nucl. Fusion* 37, 1355 (avalanche).
   Paz-Soldan C. et al. (2019) *Nucl. Fusion* 59, 066025 (RMP deconfinement).

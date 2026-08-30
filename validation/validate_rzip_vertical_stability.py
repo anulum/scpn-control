@@ -34,7 +34,8 @@ Exact references checked against the production ``RZIPModel``:
    growth rate below the no-wall value while keeping it finite, confirming the
    eddy-current circuit coupling is stabilising.
 
-References:
+References
+----------
   Lazarus E. A. et al. (1990) *Nucl. Fusion* 30, 111 (rigid vertical model).
   Wesson J. (2011) *Tokamaks*, 4th ed., Oxford University Press, Ch. 3.10
   (vertical stability and field index).

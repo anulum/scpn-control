@@ -26,8 +26,8 @@ MD_REPORT = REPORT_DIR / "neural_turbulence_claims.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded neural-turbulence claim benchmark."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     surrogate = QLKNNSurrogate(pretrained=True)
     validation_result = cross_validate_neural_turbulence(surrogate, n_samples=256, seed=20240531)

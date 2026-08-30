@@ -32,7 +32,6 @@ from validation.validate_jax_gk_parity import validate_jax_gk_parity
 
 def _display_path(path: Path) -> str:
     """Render repository paths relative to the checkout for stable reports."""
-
     try:
         return str(path.resolve(strict=False).relative_to(ROOT))
     except ValueError:
@@ -85,7 +84,6 @@ def build_benchmark_report(
     cases: tuple[str, ...],
 ) -> dict[str, Any]:
     """Build a benchmark report outside the parity-artifact directory."""
-
     report: dict[str, Any] = {
         "schema_version": "scpn-control.jax-gk-parity-benchmark.v1",
         "status": validation_report["status"],
@@ -106,7 +104,6 @@ def build_benchmark_report(
 
 def write_benchmark_report(report: dict[str, Any], json_path: Path, markdown_path: Path) -> None:
     """Persist benchmark JSON and Markdown reports."""
-
     json_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     lines = [
@@ -134,6 +131,7 @@ def write_benchmark_report(report: dict[str, Any], json_path: Path, markdown_pat
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the configured JAX gyrokinetic parity campaign."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact-root",

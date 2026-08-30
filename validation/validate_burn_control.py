@@ -37,7 +37,8 @@ Exact references checked against the production classes:
    centred finite difference the production code uses, with the low-temperature
    guard.
 
-References:
+References
+----------
   Bosch H.-S. & Hale G.M. (1992) *Nucl. Fusion* 32, 611 (DT reactivity).
   Lawson J.D. (1957) *Proc. Phys. Soc. B* 70, 6 (ignition criterion).
   ITER Physics Basis (1999) *Nucl. Fusion* 39, 2137 (alpha-heating power).
@@ -109,11 +110,12 @@ class BurnConfig:
             raise ValueError("minor radius must be smaller than the major radius")
 
     def alpha_heating(self) -> AlphaHeating:
+        """Build the alpha-heating model for this burn configuration."""
         return AlphaHeating(R0=self.major_radius_m, a=self.minor_radius_m, kappa=self.elongation)
 
 
 def default_config() -> BurnConfig:
-    """An ITER-like 20 keV burning-plasma operating point."""
+    """Build an ITER-like 20 keV burning-plasma operating point."""
     return BurnConfig(
         n_rho=32,
         major_radius_m=6.2,

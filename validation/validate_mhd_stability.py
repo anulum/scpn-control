@@ -28,7 +28,8 @@ Exact references checked against the production methods:
 4. **Kruskal-Shafranov criterion.** External-kink stability iff ``q_edge > 1``,
    with margin ``q_edge - 1``.
 
-References:
+References
+----------
   Troyon F. et al. (1984) *Plasma Phys. Control. Fusion* 26, 209.
   Freidberg J. P. (2014) *Ideal MHD*, Cambridge University Press, Ch. 12.
   Connor J. W., Hastie R. J., Taylor J. B. (1978) *Phys. Rev. Lett.* 40, 396.
@@ -150,7 +151,7 @@ def ballooning_rel_error() -> float:
 
 
 def ballooning_branches_consistent() -> bool:
-    """The low-shear and high-shear ballooning branches must match their closed forms."""
+    """Verify both ballooning branches against their closed forms."""
     shear = np.array([0.5, 0.8, 1.2, 1.8], dtype=np.float64)
     alpha = np.full_like(shear, 0.1)
     result = ballooning_stability(_controlled_profile(shear, alpha))

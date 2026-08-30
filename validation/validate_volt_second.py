@@ -37,7 +37,8 @@ Exact references checked against the production classes:
 7. **Ramp optimiser.** ``VoltSecondOptimizer.optimize_ramp`` returns a uniform
    linear ramp from zero to the target current.
 
-References:
+References
+----------
   Wesson J. (2011) *Tokamaks*, 4th ed., Oxford University Press, Eq. 3.7.4.
   Ejima S. et al. (1982) *Nucl. Fusion* 22, 1313 (startup flux coefficient).
   ITER Physics Basis (1999) *Nucl. Fusion* 39, 2137, §3 (flat-top flux budget).
@@ -99,6 +100,7 @@ class VoltSecondConfig:
             raise ValueError("bootstrap current must be smaller than the plasma current")
 
     def budget(self) -> FluxBudget:
+        """Build the flux-budget model for this flat-top configuration."""
         return FluxBudget(
             Phi_CS_Vs=self.flux_budget_vs,
             L_plasma_uH=self.plasma_inductance_uh,
@@ -107,7 +109,7 @@ class VoltSecondConfig:
 
 
 def default_config() -> VoltSecondConfig:
-    """An ITER-like flat-top flux budget with positive flat-top margin."""
+    """Build an ITER-like flat-top flux budget with positive margin."""
     return VoltSecondConfig(
         flux_budget_vs=300.0,
         plasma_inductance_uh=10.0,

@@ -25,9 +25,9 @@ Published reference:
 
 from __future__ import annotations
 
-import json
 import argparse
 import hashlib
+import json
 import sys
 import time
 from pathlib import Path
@@ -38,7 +38,6 @@ import numpy as np
 
 def ensure_repo_src_on_path() -> None:
     """Allow direct script execution from a source checkout without installation."""
-
     repo_src = str(Path(__file__).resolve().parents[1] / "src")
     if repo_src not in sys.path:
         sys.path.insert(0, repo_src)
@@ -58,7 +57,6 @@ MARKDOWN_REPORT_PATH = Path(__file__).parent / "reports" / "gk_nonlinear_cyclone
 
 def _json_safe(value: Any) -> Any:
     """Return a deterministic JSON-compatible payload without NumPy scalars."""
-
     if isinstance(value, dict):
         return {str(key): _json_safe(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):
@@ -76,19 +74,16 @@ def _json_safe(value: Any) -> Any:
 
 def _canonical_json(value: Any) -> str:
     """Serialise evidence deterministically for SHA-256 binding."""
-
     return json.dumps(_json_safe(value), sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
 def _payload_sha256(value: Any) -> str:
     """Return the canonical SHA-256 digest for a JSON-compatible payload."""
-
     return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _payload_without_digest(report: dict[str, Any]) -> dict[str, Any]:
     """Return a report copy with the self-referential digest field removed."""
-
     payload = dict(report)
     payload.pop("payload_sha256", None)
     return payload
@@ -96,7 +91,6 @@ def _payload_without_digest(report: dict[str, Any]) -> dict[str, Any]:
 
 def verify_payload_digest(report: dict[str, Any]) -> bool:
     """Return true when a persisted nonlinear CBC report matches its digest."""
-
     digest = report.get("payload_sha256")
     if not isinstance(digest, str) or len(digest) != 64:
         return False
@@ -149,7 +143,6 @@ def assess_cbc_saturation_evidence(
 
 def _find_result(results: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
     """Return a named validation result from the benchmark result list."""
-
     for result in results:
         if result.get("test") == name:
             return result
@@ -158,14 +151,12 @@ def _find_result(results: list[dict[str, Any]], name: str) -> dict[str, Any] | N
 
 def _diagnostic_checks_passed(results: list[dict[str, Any]]) -> bool:
     """Return whether all non-saturation diagnostics passed."""
-
     diagnostics = [result for result in results if result.get("test") != "V4_cbc_saturated"]
     return bool(diagnostics) and all(bool(result.get("passed")) for result in diagnostics)
 
 
 def build_cbc_report(results: list[dict[str, Any]]) -> dict[str, Any]:
     """Build a digest-bound nonlinear CBC saturation-evidence report."""
-
     safe_results = _json_safe(results)
     v4 = _find_result(safe_results, "V4_cbc_saturated")
     saturation_evidence = v4.get("saturation_evidence", {}) if isinstance(v4, dict) else {}
@@ -205,7 +196,6 @@ def build_cbc_report(results: list[dict[str, Any]]) -> dict[str, Any]:
 
 def write_markdown_report(report: dict[str, Any], path: Path = MARKDOWN_REPORT_PATH) -> None:
     """Write a Markdown summary for the nonlinear CBC evidence report."""
-
     blocked = ", ".join(report["blocked_reasons"]) or "none"
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
@@ -387,7 +377,6 @@ def run_cbc_saturated() -> dict[str, Any]:
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse nonlinear CBC validation command-line options."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--require-saturation",
@@ -410,6 +399,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the selected nonlinear Cyclone gyrokinetic validation cases."""
     args = _parse_args(argv)
 
     tests = [

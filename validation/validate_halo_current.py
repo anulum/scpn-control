@@ -28,7 +28,8 @@ Exact references checked against the production ``HaloCurrentModel``:
    halo current tracks ``M |dI_p/dt| / R_h`` with an error that decreases as
    ``tau_h/tau_cq``, confirming the L/R relaxation.
 
-References:
+References
+----------
   Fitzpatrick R. (2002) *Phys. Plasmas* 9, 3459 (halo-current/error-field model).
   Wesson J. (2011) *Tokamaks*, 4th ed., Oxford University Press, Ch. 7.
 """
@@ -75,6 +76,7 @@ class HaloConfig:
             raise ValueError("minor radius must be smaller than the major radius")
 
     def model(self) -> HaloCurrentModel:
+        """Build the halo-current model for this disruption configuration."""
         return HaloCurrentModel(
             plasma_current_ma=self.plasma_current_ma,
             minor_radius_m=self.minor_radius_m,
@@ -87,7 +89,7 @@ class HaloConfig:
 
 
 def default_config() -> HaloConfig:
-    """An ITER-like 15 MA disruption geometry."""
+    """Build an ITER-like 15 MA disruption geometry."""
     return HaloConfig(
         plasma_current_ma=15.0,
         minor_radius_m=2.0,

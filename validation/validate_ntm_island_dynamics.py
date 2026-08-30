@@ -32,7 +32,8 @@ The classical tearing term uses the finite-island saturation
    ``dw_dt`` must vanish there and ``evolve`` must converge monotonically to
    ``w_sat`` from both below and above, confirming it is a stable attractor.
 
-References:
+References
+----------
   Rutherford P. H. (1973) *Phys. Fluids* 16, 1903.
   Sauter O. et al. (1997) *Phys. Plasmas* 4, 1654.
   La Haye R. J. (2006) *Phys. Plasmas* 13, 055501.
@@ -85,7 +86,7 @@ class RationalSurfaceConfig:
 
 
 def default_surface() -> RationalSurfaceConfig:
-    """A 2/1 rational surface in an ITER-like geometry."""
+    """Build a 2/1 rational surface in an ITER-like geometry."""
     return RationalSurfaceConfig(r_s=0.3, m=2, n=1, a=0.5, R0=1.7, B0=2.0)
 
 

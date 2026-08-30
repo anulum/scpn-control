@@ -41,8 +41,8 @@ def _benchmark_model() -> RZIPModel:
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded RZIP calibration benchmark and write reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
 
     model = _benchmark_model()
     evidence = rzip_calibration_evidence(

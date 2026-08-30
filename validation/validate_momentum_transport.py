@@ -33,7 +33,8 @@ Exact references checked against the production functions:
    inverse ``I_p`` scaling.
 6. **Toroidal Mach number.** ``M = |omega_phi R0| / sqrt(T_i e / m_i)``.
 
-References:
+References
+----------
   Stacey W. M., Sigmar D. J. (1985) *Phys. Fluids* 28, 2800 (NBI torque).
   Hinton F. L., Hazeltine R. D. (1976) *Rev. Mod. Phys.* 48, 239 (force balance).
   Burrell K. H. (1997) *Phys. Plasmas* 4, 1499 (E×B shearing).
@@ -91,14 +92,16 @@ class MomentumConfig:
             raise ValueError("a must be smaller than r0 for tokamak ordering")
 
     def rho(self) -> FloatArray:
+        """Return the normalized radial grid."""
         return np.linspace(0.0, 1.0, self.nr, dtype=np.float64)
 
     def radius(self) -> FloatArray:
+        """Return the physical minor-radius grid in metres."""
         return self.rho() * self.a
 
 
 def default_config() -> MomentumConfig:
-    """An ITER-like geometry on a 51-point radial grid."""
+    """Build an ITER-like geometry on a 51-point radial grid."""
     return MomentumConfig(r0=1.7, a=0.5, b0=2.0, nr=51)
 
 
@@ -112,7 +115,7 @@ def nbi_torque_rel_error(config: MomentumConfig, *, v_beam: float = 2.0e6, theta
 
 
 def nbi_zero_for_nonpositive_beam(config: MomentumConfig) -> bool:
-    """A non-positive beam speed must give zero torque everywhere."""
+    """Verify that a non-positive beam speed produces zero torque."""
     p_nbi = np.full(config.nr, 1.0e5, dtype=np.float64)
     return bool(np.all(nbi_torque(p_nbi, config.r0, 0.0, 45.0) == 0.0))
 

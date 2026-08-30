@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — VMEC-lite claim-admission benchmark
 
+"""Benchmark bounded VMEC-lite geometry claims against their reference case."""
+
 from __future__ import annotations
 
 import json
@@ -24,8 +26,11 @@ if str(SRC) not in sys.path:
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.vmec_lite import StellaratorBoundary, VMECLiteSolver, vmec_lite_claim_evidence
-from validation.validate_vmec_lite_geometry import build_evidence, validate_evidence_payload, validate_vmec_lite_geometry
-
+from validation.validate_vmec_lite_geometry import (
+    build_evidence,
+    validate_evidence_payload,
+    validate_vmec_lite_geometry,
+)
 
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 GEOMETRY_REPORT = REPORT_DIR / "vmec_lite_geometry.json"
@@ -34,6 +39,7 @@ MARKDOWN_REPORT = REPORT_DIR / "vmec_lite_claims.md"
 
 
 def build_reference_case() -> VMECLiteSolver:
+    """Build the deterministic W7-X-like VMEC-lite reference case."""
     solver = VMECLiteSolver(n_s=11, m_pol=2, n_tor=1, n_fp=5)
     b_R, b_Z = StellaratorBoundary.w7x_standard()
     solver.set_boundary(b_R, b_Z)
@@ -53,6 +59,7 @@ def _load_or_build_geometry_validation() -> dict[str, object]:
 
 
 def main() -> None:
+    """Run the VMEC-lite claim benchmark and write its evidence reports."""
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     solver = build_reference_case()
     result = solver.solve(max_iter=100, tol=1e-3)

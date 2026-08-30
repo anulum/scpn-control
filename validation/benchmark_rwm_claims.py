@@ -26,8 +26,8 @@ MD_REPORT = REPORT_DIR / "rwm_claims.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded RWM claim-admission benchmark and write reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
 
     rwm = RWMPhysics(
         beta_n=3.0,

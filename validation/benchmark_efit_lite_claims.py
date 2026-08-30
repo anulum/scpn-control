@@ -28,8 +28,8 @@ MD_REPORT = REPORT_DIR / "efit_lite_claims.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded EFIT-lite claim benchmark and write reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
 
     diagnostics = MagneticDiagnostics(
         flux_loops=[(4.8, -1.5), (6.2, 0.0), (7.6, 1.5)],

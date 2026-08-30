@@ -30,7 +30,8 @@ Exact references checked against the production methods:
 5. **Profile crash.** Applying the crash scales the pedestal-region ``n T``
    product by ``(1 - f)`` while leaving the core region unchanged.
 
-References:
+References
+----------
   Snyder P. B. et al. (2002) *Phys. Plasmas* 9, 2037 (peeling-ballooning).
   Sauter O. et al. (1999) *Phys. Plasmas* 6, 2834 (shaping factor).
   Loarte A. et al. (2003) *Plasma Phys. Control. Fusion* 45, 1549 (ELM energy).
@@ -78,11 +79,12 @@ class ELMConfig:
             raise ValueError("a must be smaller than r0 for tokamak ordering")
 
     def boundary(self) -> PeelingBallooningBoundary:
+        """Build the peeling-ballooning boundary for this configuration."""
         return PeelingBallooningBoundary(self.q95, self.kappa, self.delta, self.a, self.r0)
 
 
 def default_config() -> ELMConfig:
-    """An ITER-like edge with q95 = 3.5, kappa = 1.7, delta = 0.33."""
+    """Build an ITER-like edge with q95 = 3.5, kappa = 1.7, and delta = 0.33."""
     return ELMConfig(q95=3.5, kappa=1.7, delta=0.33, a=0.5, r0=1.7)
 
 

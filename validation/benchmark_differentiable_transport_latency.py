@@ -71,6 +71,7 @@ def _controller_formal_digest(report_path: Path = FORMAL_REPORT) -> str | None:
 
 
 def main() -> None:
+    """Run the audited transport-gradient latency benchmark and write reports."""
     require_recorded_campaign(
         JSON_REPORT,
         MD_REPORT,
@@ -80,7 +81,6 @@ def main() -> None:
         READINESS_MD_REPORT,
         repository_root=REPORT_DIR.parents[1],
     )
-    """Run local audited transport-gradient latency benchmark and write reports."""
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     if not has_jax():
         blocked_payload = {

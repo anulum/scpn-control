@@ -29,7 +29,8 @@ Exact references checked against the production methods:
    ``T_t = (2 q_par/(gamma n_u T_u e))^2 m_i/e`` crosses the 5 eV onset at the
    analytic critical density.
 
-References:
+References
+----------
   Stangeby P. C. (2000) *The Plasma Boundary of Magnetic Fusion Devices*, IoP.
   Eich T. et al. (2013) *Nucl. Fusion* 53, 093031.
   Lipschultz B. et al. (1999) *Plasma Phys. Control. Fusion* 41, A585.
@@ -83,14 +84,16 @@ class SOLConfig:
 
     @property
     def epsilon(self) -> float:
+        """Return the inverse aspect ratio."""
         return self.a / self.r0
 
     def model(self) -> TwoPointSOL:
+        """Build the two-point scrape-off-layer model."""
         return TwoPointSOL(self.r0, self.a, self.q95, self.b_pol)
 
 
 def default_config() -> SOLConfig:
-    """An ITER-like SOL geometry with q95 = 3.5 and a 0.4 T poloidal field."""
+    """Build an ITER-like SOL geometry with q95 = 3.5 and a 0.4 T field."""
     return SOLConfig(r0=1.7, a=0.5, q95=3.5, b_pol=0.4)
 
 

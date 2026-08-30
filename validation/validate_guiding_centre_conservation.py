@@ -35,7 +35,8 @@ tokamak field:
 Passing and trapped (banana) orbits are both covered: a trapped orbit reverses
 the sign of ``v_par`` at its bounce points, while a passing orbit does not.
 
-References:
+References
+----------
   Boozer A. H. (2004) "Physics of magnetically confined plasmas",
   *Rev. Mod. Phys.* 76, 1071.
   White R. B. (2014) *The Theory of Toroidally Confined Plasmas*, 3rd ed.,
@@ -96,10 +97,12 @@ class AxisymmetricField:
         return b_r, b_z, b_phi
 
     def magnitude(self, r: float, z: float) -> float:
+        """Return the magnetic-field magnitude at the requested position."""
         b_r, b_z, b_phi = self.components(r, z)
         return math.sqrt(b_r**2 + b_z**2 + b_phi**2)
 
     def __call__(self, r: float, z: float) -> tuple[float, float, float]:
+        """Return the magnetic-field components at the requested position."""
         return self.components(r, z)
 
 
@@ -231,7 +234,7 @@ def default_field() -> AxisymmetricField:
 
 
 def default_cases() -> tuple[OrbitCase, ...]:
-    """A passing and a trapped orbit for deuterons and 3.5 MeV alphas."""
+    """Build passing and trapped orbit cases for deuterons and fusion alphas."""
     return (
         OrbitCase("passing_deuteron", 2.0, 1, 100.0, 0.5, 0.2, 1e-9, 6e-6),
         OrbitCase("trapped_deuteron", 2.0, 1, 100.0, 1.45, 0.2, 1e-9, 6e-6),

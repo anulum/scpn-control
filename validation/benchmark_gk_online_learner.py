@@ -32,8 +32,8 @@ def _sample_target(x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run deterministic bounded online-retraining campaign."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     rng = np.random.default_rng(20240531)
     learner = OnlineLearner(
         LearnerConfig(
@@ -46,7 +46,9 @@ def main() -> None:
     )
     for _ in range(48):
         x = rng.random(10)
-        learner.add_sample(x, _sample_target(x), ood_score=float(rng.uniform(0.0, 1.0)), source="synthetic_gk_spot_check")
+        learner.add_sample(
+            x, _sample_target(x), ood_score=float(rng.uniform(0.0, 1.0)), source="synthetic_gk_spot_check"
+        )
     weights = learner.try_retrain()
     learner.save_retrain_report(DECISION_REPORT)
     decision = learner.latest_decision()

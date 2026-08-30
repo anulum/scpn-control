@@ -45,7 +45,8 @@ in the Rust sign convention (``-Δ*ψ = source``), so the validator feeds it the
 negated forcing to target the same analytic equilibrium; the recorded NRMSE then
 reflects whether the binding reproduces the Solov'ev field.
 
-References:
+References
+----------
   Solov'ev L. S. (1968) "The theory of hydromagnetic stability of toroidal
   plasma configurations", *Sov. Phys. JETP* 26, 400.
   Cerfon A. J., Freidberg J. P. (2010) "One size fits all analytic solutions to

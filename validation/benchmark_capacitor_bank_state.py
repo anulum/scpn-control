@@ -31,6 +31,7 @@ DEFAULT_JSON = PROJECT_ROOT / "validation" / "reports" / "capacitor_bank_state_s
 
 
 def main() -> None:
+    """Run the capacitor-bank state benchmark and write requested reports."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json-out", type=Path, default=DEFAULT_JSON)
     parser.add_argument("--md-out", type=Path)

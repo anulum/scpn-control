@@ -19,15 +19,14 @@ from scpn_control.control.federated_disruption import (
     run_synthetic_multifacility_benchmark,
 )
 
-
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 JSON_REPORT = REPORT_DIR / "federated_disruption_benchmark.json"
 MD_REPORT = REPORT_DIR / "federated_disruption_benchmark.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run the benchmark and write machine-readable plus human reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     dp_config = DifferentialPrivacyConfig(
         max_update_norm=0.15,
         noise_multiplier=2.5,

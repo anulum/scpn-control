@@ -10,9 +10,9 @@
 from __future__ import annotations
 
 import json
+import sys
 from dataclasses import asdict
 from pathlib import Path
-import sys
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "src"))
@@ -33,8 +33,8 @@ MD_REPORT = REPORT_DIR / "digital_twin_online_update.md"
 
 
 def main() -> None:
-    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     """Run the synthetic online-update benchmark and write reports."""
+    require_recorded_campaign(JSON_REPORT, MD_REPORT, repository_root=REPORT_DIR.parents[1])
     result = synthetic_online_update_benchmark(seed=20240531)
     target_summary = run_digital_twin(
         time_steps=24,

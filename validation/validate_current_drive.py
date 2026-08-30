@@ -32,7 +32,8 @@ Exact references checked against the production methods:
 7. **Neutral-beam current chain.** ``j_cd = e n_fast v_par / Z_beam`` with
    ``n_fast = P_heat tau_s / E_beam`` and ``v_par = sqrt(2 E_beam/m_beam)``.
 
-References:
+References
+----------
   Fisch N. J., Boozer A. H. (1980) *Phys. Rev. Lett.* 45, 720.
   Fisch N. J. (1978) *Phys. Rev. Lett.* 41, 873.
   Prater R. (2004) *Phys. Plasmas* 11, 2349.
@@ -116,7 +117,7 @@ def eccd_efficiency_rel_error(
 
 
 def launch_factor_is_maximised_at_unity(*, te_kev: float = 10.0, z_eff: float = 1.5) -> bool:
-    """The ECCD launch-angle factor ``xi/(1+xi^2)`` peaks at ``N_parallel = 1``."""
+    """Verify that the ECCD launch factor peaks at ``N_parallel = 1``."""
     peak = float(eccd_efficiency(te_kev, z_eff, 1.0))
     sweep = [float(eccd_efficiency(te_kev, z_eff, n)) for n in (0.3, 0.6, 1.4, 2.0, 3.0)]
     return all(peak >= value - 1e-15 for value in sweep)
