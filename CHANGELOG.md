@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Fixed
+- Bound reactor-semantic installation to the public SPO `>=1.3.1,<1.4`
+  contract and Python 3.11–3.13, with an exact hash-locked CI artifact. Generic
+  and MIF policy construction now rejects malformed clock objects, and MIF
+  circular-uncertainty bounds reject NaN and both infinities before admission.
 - Corrected hosted verification drift: traceability assertions and the
   coverage-exception ledger now match their canonical inventories, scalar
   H-infinity validation consumers narrow the multi-output API explicitly, the

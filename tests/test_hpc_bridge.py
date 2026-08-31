@@ -19,7 +19,7 @@ import os
 import platform
 import shutil
 import subprocess
-import sys
+import tomllib
 from collections.abc import Callable, Sequence
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
@@ -34,11 +34,6 @@ from scpn_control.core.hpc_bridge import (
     NativeSolverStatus,
     _as_contiguous_f64,
 )
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 ArrayF64 = np.ndarray[Any, np.dtype[np.float64]]
 
@@ -586,8 +581,9 @@ def test_compile_cpp_macos_omits_linux_linker_flags(monkeypatch: pytest.MonkeyPa
 
     out = hpc_mod.compile_cpp()
     assert out is not None
-    assert "-Wl,-z,relro" not in calls["cmd"]  # Linux-only hardening flag skipped
-    assert "-mtune=generic" in calls["cmd"]  # common gcc flag still present
+    compiler_cmd = cast(list[str], calls["cmd"])
+    assert "-Wl,-z,relro" not in compiler_cmd  # Linux-only hardening flag skipped
+    assert "-mtune=generic" in compiler_cmd  # common gcc flag still present
 
 
 def test_release_native_solver_skips_destroy_without_lib() -> None:

@@ -80,6 +80,8 @@ class ReactorSemanticAdmissionPolicy:
             raise ValueError("expected_source_revision must be a lowercase Git commit")
         if not self.expected_source_schema:
             raise ValueError("expected_source_schema must be non-empty")
+        if not isinstance(self.reference_clock, ClockReference):
+            raise ValueError("reference_clock must be a ClockReference")
         for field, value in (
             ("max_evidence_age_ns", self.max_evidence_age_ns),
             ("max_calibration_age_ns", self.max_calibration_age_ns),

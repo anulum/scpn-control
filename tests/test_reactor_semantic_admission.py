@@ -13,6 +13,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import replace
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 from scpn_phase_orchestrator.reactor_semantics import (
@@ -132,7 +133,7 @@ def test_independent_expected_identity_mismatches_reject(
 ) -> None:
     """Reject caller expectations that differ from the decoded receipt."""
     handoff = _handoff_bytes()
-    policy = replace(_policy(handoff), **policy_change)
+    policy = replace(_policy(handoff), **cast(Any, policy_change))
     decision = admit_reactor_semantic_handoff(handoff, policy=policy)
 
     assert decision.admitted is False
@@ -170,7 +171,10 @@ def test_freshness_and_calibration_policy_fail_closed(
 ) -> None:
     """Reject evidence outside explicit time and calibration bounds."""
     handoff = _handoff_bytes()
-    decision = admit_reactor_semantic_handoff(handoff, policy=_policy(handoff, **policy))
+    decision = admit_reactor_semantic_handoff(
+        handoff,
+        policy=_policy(handoff, **cast(Any, policy)),
+    )
 
     assert expected_code in decision.refusal_codes
     assert decision.admitted is False
@@ -192,7 +196,7 @@ def test_reference_clock_domain_kind_and_epoch_must_match(
     base = _policy(handoff)
     mismatched = replace(
         base,
-        reference_clock=replace(base.reference_clock, **clock_change),
+        reference_clock=replace(base.reference_clock, **cast(Any, clock_change)),
     )
     decision = admit_reactor_semantic_handoff(handoff, policy=mismatched)
 
@@ -338,6 +342,7 @@ def test_nonusable_observable_states_always_reject(
         ({"expected_source_envelope_sha256": "x"}, "expected_source_envelope_sha256"),
         ({"expected_source_revision": "x"}, "expected_source_revision"),
         ({"expected_source_schema": ""}, "expected_source_schema"),
+        ({"reference_clock": object()}, "reference_clock must be a ClockReference"),
         ({"max_evidence_age_ns": -1}, "max_evidence_age_ns"),
         ({"max_evidence_age_ns": True}, "max_evidence_age_ns"),
         ({"max_calibration_age_ns": -1}, "max_calibration_age_ns"),
@@ -352,4 +357,4 @@ def test_policy_rejects_ambiguous_or_unbounded_inputs(
 ) -> None:
     """Reject malformed digests, limits, identities, and allowlists."""
     with pytest.raises(ValueError, match=message):
-        replace(_policy(_handoff_bytes()), **change)
+        replace(_policy(_handoff_bytes()), **cast(Any, change))

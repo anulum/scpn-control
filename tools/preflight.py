@@ -32,9 +32,9 @@ RUST_DIR = ROOT / "scpn-control-rs"
 _PY = sys.executable
 
 # CI matrix minimum Python version — deps in COMPAT_REQUIREMENTS must support this.
-CI_MIN_PYTHON = (3, 10)
+CI_MIN_PYTHON = (3, 11)
 
-# Requirements files used by ALL Python versions in the CI matrix (including 3.10).
+# Requirements files used by every Python version in the CI matrix.
 # These must have version pins compatible with CI_MIN_PYTHON.
 COMPAT_REQUIREMENTS = [
     "requirements/ci-deps.txt",

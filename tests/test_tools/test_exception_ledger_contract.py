@@ -21,7 +21,7 @@ def test_live_coverage_exception_inventory_is_complete() -> None:
     """All five exception families are present and fully owned."""
     ledger = coverage_exception_ledger.build_ledger()
 
-    assert ledger["counts"]["pragma-no-cover"] == 173
+    assert ledger["counts"]["pragma-no-cover"] == 171
     assert ledger["counts"]["pytest-skipif"] == 128
     assert ledger["counts"]["pytest-runtime-skip"] == 44
     assert ledger["counts"]["pytest-xfail"] == 2

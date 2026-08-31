@@ -16,10 +16,10 @@ from typing import cast
 import pytest
 
 from scpn_control.control.capacitor_bank_state import (
+    ENERGY_BALANCE_REL_TOLERANCE,
     CapacitorBank,
     CapacitorBankSpec,
     CapacitorBankState,
-    ENERGY_BALANCE_REL_TOLERANCE,
     EnergyReport,
     PulseSpec,
     RLCRegime,
@@ -281,6 +281,17 @@ def test_feasibility_rejects_resistive_dissipation_above_available_energy() -> N
     feasible, reason = bank.feasibility(pulse)
     assert feasible is False
     assert "exceeds available" in reason
+
+
+def test_feasibility_rejects_any_positive_pulse_from_empty_bank() -> None:
+    """Reject resistive demand when neither capacitor nor inductor stores energy."""
+    bank = CapacitorBank(_underdamped_spec(), initial_voltage_V=0.0, initial_current_A=0.0)
+    pulse = PulseSpec(peak_current_A=1.0, duration_s=1.0e-6, waveform="rect")
+
+    feasible, reason = bank.feasibility(pulse)
+
+    assert feasible is False
+    assert reason == "resistive dissipation 5e-07 J exceeds available 0 J"
 
 
 def test_recharge_status_uses_linear_energy_growth_until_voltage_cap() -> None:

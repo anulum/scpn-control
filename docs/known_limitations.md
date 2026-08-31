@@ -18,12 +18,12 @@ saturation, slew or delay, diagnostic transfer and latency, sampled plant
 dynamics, reset and failure behavior, facility safety, performance, or
 closed-loop guarantees.
 
-SPO `v1.3.0` is available as an immutable GitHub release and contains the
-required strict generic and MIF decoders. `scpn-control` pins that exact sdist
-URL and SHA-256 because PyPI still exposes only the incompatible SPO `1.2.0`
-artifact. This makes the review boundary reproducible without implying that a
-PyPI `1.3.0` package exists. Neither the portable three-project exchange nor a
-successful admission may be represented as a deployed control path.
+SPO `v1.3.1` is available as an immutable GitHub Release and non-yanked PyPI
+wheel/sdist and contains the required strict generic and MIF decoders.
+`scpn-control` accepts only `scpn-phase-orchestrator>=1.3.1,<1.4`; its CI lock
+pins the exact `1.3.1` public artifacts and hashes. Neither the portable
+three-project exchange nor a successful admission may be represented as a
+deployed control path.
 
 ### Fixed-weight disruption-risk baseline
 

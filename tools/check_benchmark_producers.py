@@ -13,13 +13,9 @@ from __future__ import annotations
 import argparse
 import ast
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - Python 3.10 CI uses tomli.
-    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REGISTRY = REPO_ROOT / "benchmarks" / "producer_registry.toml"

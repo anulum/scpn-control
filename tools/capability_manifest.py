@@ -13,14 +13,9 @@ import ast
 import json
 import re
 import sys
+import tomllib
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised on Python 3.10 CI.
-    import tomli as tomllib
-
 
 README_START = "<!-- capability-snapshot:start -->"
 README_END = "<!-- capability-snapshot:end -->"

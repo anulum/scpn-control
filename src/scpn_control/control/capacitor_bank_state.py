@@ -10,20 +10,8 @@
 from __future__ import annotations
 
 import math
-import sys
 from dataclasses import dataclass
-from enum import Enum
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:  # pragma: no cover — Python 3.10 StrEnum shim; coverage gate runs on 3.12+
-
-    class _CompatStrEnum(str, Enum):
-        """Local Python 3.10-compatible subset of enum.StrEnum."""
-
-    StrEnum = _CompatStrEnum
-
-
+from enum import StrEnum
 from typing import Literal
 
 from scpn_control.control.pulsed_scenario_scheduler_v2 import CapacitorBankTelemetry

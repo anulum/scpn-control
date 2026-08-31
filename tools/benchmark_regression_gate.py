@@ -32,16 +32,12 @@ import argparse
 import hashlib
 import json
 import sys
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 from scpn_control.benchmark_records import require_recorded_campaign
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10 CI.
-    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

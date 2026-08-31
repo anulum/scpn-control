@@ -7,18 +7,18 @@
 # SCPN Control — Coverage exception policy.
 
 schema = "scpn-control.coverage-exception-policy.v1"
-last_review = "2026-08-30"
-expected_total = 358
-expected_sha256 = "0eb88c277d1fa8071bbcf0802040be980e264b4be4d15f3427a3104a3bd0d303"
+last_review = "2026-08-31"
+expected_total = 356
+expected_sha256 = "5c0578b61227362935b52573f2eaf667d286ae42db66a7404a9a899c34075690"
 
 [[rules]]
 id = "python-version"
 pattern = "python_version|sys\\.version|python [0-9]"
 external_dependency = "supported Python interpreter matrix"
-execution_lane = "python-tests: Python 3.10-3.13"
+execution_lane = "python-tests: Python 3.11-3.13"
 status = "variant-ci-lane"
 removal_condition = "Remove when the guarded interpreter is no longer supported or the branch executes in the baseline lane."
-workflow_evidence = "python-version: [\"3.10\", \"3.11\", \"3.12\", \"3.13\"]"
+workflow_evidence = "python-version: [\"3.11\", \"3.12\", \"3.13\"]"
 
 [[rules]]
 id = "windows"

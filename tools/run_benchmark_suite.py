@@ -32,6 +32,7 @@ import platform
 import subprocess
 import sys
 import time
+import tomllib
 from pathlib import Path
 from types import ModuleType
 from typing import Any, Callable
@@ -42,11 +43,6 @@ try:
     import resource
 except ModuleNotFoundError:  # pragma: no cover - resource is Unix-only (absent on Windows).
     resource = None  # type: ignore[assignment]
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised on Python 3.10 CI.
-    import tomli as tomllib
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_CARGO = REPO_ROOT / "scpn-control-rs" / "Cargo.toml"

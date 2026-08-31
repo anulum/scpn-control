@@ -9,35 +9,55 @@
 
 from __future__ import annotations
 
-import importlib
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
-from typing import Any, Protocol, cast
+from typing import Any, cast
 
 import pytest
+from packaging.requirements import Requirement
+from packaging.version import Version
 
 from tools import check_version_sync
 
-
-class _TomlModule(Protocol):
-    def loads(self, data: str, /) -> dict[str, Any]:
-        """Parse TOML text into a metadata dictionary."""
-
-
-def _toml_module() -> _TomlModule:
-    """Return the stdlib TOML parser, or the Python 3.10 backport."""
-    module_name = "tomllib" if sys.version_info >= (3, 11) else "tomli"
-    return cast("_TomlModule", importlib.import_module(module_name))
-
-
 ROOT = Path(__file__).resolve().parents[1]
-TOML = _toml_module()
 
 
 def _load_pyproject() -> dict[str, Any]:
     """Return the parsed project metadata from the repository pyproject."""
-    return TOML.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    return tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+
+
+def test_python_and_spo_dependency_contract_is_bounded_and_locked() -> None:
+    """Bind supported Python versions to the immutable public SPO release."""
+    project = cast("dict[str, Any]", _load_pyproject()["project"])
+    classifiers = cast("list[str]", project["classifiers"])
+    dependencies = [Requirement(item) for item in cast("list[str]", project["dependencies"])]
+    spo = next(item for item in dependencies if item.name == "scpn-phase-orchestrator")
+
+    assert project["requires-python"] == ">=3.11,<3.14"
+    assert "Programming Language :: Python :: 3.10" not in classifiers
+    assert {
+        item.rsplit(" :: ", 1)[-1] for item in classifiers if item.startswith("Programming Language :: Python :: 3.")
+    } == {
+        "3.11",
+        "3.12",
+        "3.13",
+    }
+    assert spo.url is None
+    assert Version("1.3.1") in spo.specifier
+    assert Version("1.3.0") not in spo.specifier
+    assert Version("1.4.0") not in spo.specifier
+
+    lock_input = (ROOT / "requirements/ci-deps.in").read_text(encoding="utf-8")
+    lock = (ROOT / "requirements/ci-deps.txt").read_text(encoding="utf-8")
+    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "scpn-phase-orchestrator==1.3.1" in lock_input
+    assert "scpn-phase-orchestrator==1.3.1" in lock
+    assert "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274" in lock
+    assert "c0318a85931eef3fba6615bb5ff587c749c5a83c766504d10cdf7f2ac94e6fe3" in lock
+    assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
 
 
 def _write_release_metadata(root: Path, version: str) -> None:

@@ -10,4 +10,4 @@ numpy>=1.24,<2.3
 scipy>=1.10,<1.16
 click>=8.0
 pydantic>=2.0
-scpn-phase-orchestrator @ https://github.com/anulum/scpn-phase-orchestrator/releases/download/v1.3.0/scpn_phase_orchestrator-1.3.0.tar.gz#sha256=26f84c0279e3a373290b5f3f355865cf39570771ba583c59412065764da5ac4e
+scpn-phase-orchestrator==1.3.1

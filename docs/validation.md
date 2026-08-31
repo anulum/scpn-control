@@ -2114,7 +2114,7 @@ PCS.
 
 ## CI quality gates in `.github/workflows/ci.yml`
 
-- `python-tests` (3.10/3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
+- `python-tests` (3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
 - `native-coverage-combine` (combines rust-absent `coverage-data-python` with
   Rust-present `coverage-data-rust` and gates `coverage-report-combined`)
 - `python-lint` (ruff check + ruff format)

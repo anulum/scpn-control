@@ -134,12 +134,15 @@ from scpn_control.reactor_semantic_admission import (
 )
 ```
 
-The installed dependency is pinned to the immutable SPO `v1.3.0` GitHub
-release artifact, source commit
-`00608fd8c469bea228795b5b29b061dc1fb98d79`, and sdist SHA-256
-`26f84c0279e3a373290b5f3f355865cf39570771ba583c59412065764da5ac4e`.
-PyPI does not contain SPO `1.3.0`; the direct artifact pin prevents fallback to
-the incompatible `1.2.0` decoder contract.
+The runtime dependency uses the public-index range
+`scpn-phase-orchestrator>=1.3.1,<1.4`. CI and reproducibility locks select the
+immutable SPO `1.3.1` release at source commit
+`c2a7581d58819060806c6f173da941c822103695`. The non-yanked PyPI wheel has
+SHA-256 `c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274`;
+the PyPI and GitHub Release sdist has SHA-256
+`c0318a85931eef3fba6615bb5ff587c749c5a83c766504d10cdf7f2ac94e6fe3`.
+This rejects decoder-incompatible `1.3.0`, the earlier `1.2.0` package, and any
+future `1.4` contract without relying on a direct URL.
 
 The public ingress is `admit_mif_reactor_semantic_handoff`. It calls only SPO's
 strict `mif_merge_compression_handoff_from_bytes` decoder. It does not parse the
@@ -164,7 +167,7 @@ that the two model angles are measured physical plasma phase.
 
 The MIF producer fixture is 2,475 bytes with SHA-256
 `c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca`.
-SPO `1.3.0` produces a 101,652-byte handoff with SHA-256
+SPO `1.3.1` produces a 101,652-byte handoff with SHA-256
 `c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2`.
 Both digests are mandatory policy inputs, not inferred trust.
 

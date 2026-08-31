@@ -13,10 +13,13 @@ producer/evidence receipt, a matching SPO receipt, and an explicit digest
 change in the dedicated tests.
 
 `mif_merge_compression_observation_v1.json` is a byte-for-byte copy of the
-canonical SCPN-MIF-CORE merge-compression observation committed at producer
-revision `f60dbae4b2ea3344ac0cb086a3b7d248d65cf92f`. Its SHA-256 is
+canonical SCPN-MIF-CORE merge-compression observation committed as evidence at
+`a1a83eb04becebeb0e0c8d05a88b5a90a2cef5a4`. The serialized payload's
+producer revision is `f60dbae4b2ea3344ac0cb086a3b7d248d65cf92f`; both commits
+are ancestors of public MIF `main` at
+`4f46f80a3678388f3de363701ac5e568c2e2a969`. Its SHA-256 is
 `c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca`.
-The installed SPO `1.3.0` public adapter deterministically converts these 2,475
+The installed SPO `1.3.1` public adapter deterministically converts these 2,475
 bytes into the 101,652-byte review-only handoff with SHA-256
 `c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2`.
 

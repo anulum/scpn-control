@@ -3,7 +3,7 @@
 | Surface | Count |
 | --- | ---: |
 | Package version | 0.23.0 |
-| Python requirement | >=3.10 |
+| Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
 | Python control/physics modules | 199 |

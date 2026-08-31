@@ -11,18 +11,8 @@ from __future__ import annotations
 
 import json
 import math
-import sys
 from dataclasses import dataclass
-from enum import Enum
-
-if sys.version_info >= (3, 11):
-    from enum import StrEnum
-else:  # pragma: no cover - Python 3.10 StrEnum shim; supported runtimes use 3.12
-
-    class _CompatStrEnum(str, Enum):
-        """Local Python 3.10-compatible subset of enum.StrEnum."""
-
-    StrEnum = _CompatStrEnum
+from enum import StrEnum
 
 
 class PulsedScenarioState(StrEnum):

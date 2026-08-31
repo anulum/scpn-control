@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import re
 from dataclasses import dataclass
 
@@ -113,6 +114,9 @@ class MIFReactorSemanticAdmissionPolicy:
         ):
             if not isinstance(getattr(self, field), str) or not getattr(self, field):
                 raise ValueError(f"{field} must be a non-empty string")
+        for field in ("expected_observation_clock", "reference_clock"):
+            if not isinstance(getattr(self, field), ClockReference):
+                raise ValueError(f"{field} must be a ClockReference")
         for field in ("max_evidence_age_ns", "max_calibration_age_ns"):
             value = getattr(self, field)
             if isinstance(value, bool) or not isinstance(value, int) or value < 0:
@@ -131,6 +135,8 @@ class MIFReactorSemanticAdmissionPolicy:
         if (
             isinstance(self.max_numerical_circular_std_rad, bool)
             or not isinstance(self.max_numerical_circular_std_rad, (int, float))
+            or isinstance(self.max_numerical_circular_std_rad, float)
+            and not math.isfinite(self.max_numerical_circular_std_rad)
             or self.max_numerical_circular_std_rad < 0.0
         ):
             raise ValueError("max_numerical_circular_std_rad must be a non-negative number")

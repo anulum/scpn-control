@@ -15,15 +15,10 @@ import ast
 import hashlib
 import json
 import re
-import sys
+import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "tools/coverage_exception_policy.toml"

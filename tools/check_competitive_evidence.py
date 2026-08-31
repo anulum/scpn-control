@@ -14,15 +14,11 @@ import argparse
 import json
 import re
 import sys
+import tomllib
 from datetime import date
 from pathlib import Path
 from typing import Any, Final, TypedDict, cast
 from urllib.parse import urlsplit
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised on Python 3.10 CI.
-    import tomli as tomllib
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST: Final = ROOT / "docs/_data/competitive_evidence.json"

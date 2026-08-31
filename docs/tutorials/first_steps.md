@@ -6,7 +6,7 @@ A hands-on introduction to scpn-control. No plasma physics background required.
 
 ## Prerequisites
 
-- Python 3.10+
+- Python 3.11–3.13
 - numpy (installed automatically as a dependency)
 
 ## What this tutorial proves

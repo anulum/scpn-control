@@ -207,8 +207,8 @@ Repository validation evidence includes:
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
 The test suite comprises Python module tests and Rust workspace tests across
-CI jobs (Python 3.10–3.14 on Linux/Windows/macOS, Rust stable, JAX parity,
-CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
+CI jobs (Python 3.11–3.13 on Linux, Python 3.12 on Windows and macOS, Rust
+stable, JAX parity, CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
 configuration currently enforces a 100% package-coverage gate while publishing
 XML coverage artefacts. Physics equations cite their source papers, and named
 integration tests exercise cross-module chains such as bootstrap→NTM,

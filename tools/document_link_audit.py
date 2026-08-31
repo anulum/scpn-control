@@ -18,22 +18,16 @@ import ipaddress
 import json
 import re
 import subprocess
-import sys
 import tempfile
 import time
+import tomllib
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 from urllib.error import HTTPError, URLError
 from urllib.parse import parse_qsl, unquote, urlencode, urlsplit, urlunsplit
 from urllib.request import Request, urlopen
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:  # pragma: no cover - exercised on Python 3.10 CI.
-    import tomli as tomllib
-
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_POLICY = ROOT / "tools" / "document_link_policy.toml"
@@ -475,7 +469,7 @@ def _request_once(url: str, policy: Policy, method: str) -> tuple[int, str]:
 
 
 def _check_external(url: str, policy: Policy) -> ExternalResult:
-    checked_at = datetime.now(timezone.utc).isoformat()
+    checked_at = datetime.now(UTC).isoformat()
     attempts = 0
     last_detail = ""
     for attempt in range(policy.retries + 1):
@@ -551,7 +545,7 @@ def audit_external(urls: Sequence[str], policy: Policy, cache_path: Path) -> tup
     if len(urls) > policy.max_urls:
         raise ValueError(f"external URL count {len(urls)} exceeds policy maximum {policy.max_urls}")
     cache = _load_cache(cache_path, policy)
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     last_host_at: dict[str, float] = {}
     results: list[ExternalResult] = []
     for url in urls:
@@ -584,7 +578,7 @@ def _write_report(
 ) -> None:
     payload = {
         "schema_version": SCHEMA,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "provenance": {
             "policy_sha256": hashlib.sha256(policy_path.read_bytes()).hexdigest(),
             "tool_sha256": _tool_sha256(),
