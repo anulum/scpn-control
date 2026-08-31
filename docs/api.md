@@ -54,9 +54,17 @@ reactor-semantic subpackage. It is not a root-package control API:
 ```python
 from scpn_control.reactor_semantic_admission import (
     MIFReactorSemanticAdmissionPolicy,
+    ReactorRegimeAssessmentAdmissionPolicy,
+    admit_reactor_regime_assessment,
     admit_mif_reactor_semantic_handoff,
 )
 ```
+
+The regime-assessment API is a second, separate review gate over SPO's complete
+eight-axis assessment bytes. It pins exact producer, source, registry, clock,
+axis, provenance, freshness, and abstention custody and emits its own canonical
+sealed, non-actionable decision. See
+[Reactor Regime-Assessment Admission](control/reactor_regime_assessment_admission.md).
 
 ::: scpn_control.reactor_semantic_admission.admission
 
@@ -65,6 +73,26 @@ from scpn_control.reactor_semantic_admission import (
 ::: scpn_control.reactor_semantic_admission.mif_admission.MIFReactorSemanticAdmissionPolicy
 
 ::: scpn_control.reactor_semantic_admission.mif_admission.admit_mif_reactor_semantic_handoff
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_admission.ReactorRegimeAssessmentAdmissionPolicy
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_admission.admit_reactor_regime_assessment
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_admission.regime_assessment_registry_custody_digest
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_admission.regime_assessment_clock_custody_digest
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_admission.regime_assessment_axis_custody_digest
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_decision.ReactorRegimeAssessmentAdmissionStatus
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_decision.ReactorRegimeAssessmentAdmissionDecision
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_decision.regime_assessment_admission_decision_to_bytes
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_decision.regime_assessment_admission_decision_from_bytes
+
+::: scpn_control.reactor_semantic_admission.regime_assessment_decision.regime_assessment_admission_decision_digest
 
 ---
 

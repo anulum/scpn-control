@@ -86,6 +86,13 @@ control-loop contract.
 The split avoids double work: FUSION-CORE advances physics breadth, while
 CONTROL turns selected physics into auditable controller surfaces.
 
+SCPN-PHASE-ORCHESTRATOR provides canonical reactor-semantic and complete
+eight-axis regime-assessment byte contracts. CONTROL admits those artifacts
+only through separate digest-bound review gates. The current MIF assessment
+profile is deliberately abstaining and non-actionable; it is evidence custody,
+not regime classification or permission to actuate. See the
+[regime-assessment admission guide](docs/control/reactor_regime_assessment_admission.md).
+
 [`scpn-quantum-control`](https://github.com/anulum/scpn-quantum-control) is the
 third repository in the ecosystem: it owns quantum disruption classifiers,
 Qiskit/PennyLane execution, and quantum phase-dynamics variants. `scpn-control`
@@ -198,14 +205,14 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
-| Python control/physics modules | 199 |
-| Python public classes | 559 |
+| Python control/physics modules | 201 |
+| Python public classes | 562 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 158 |
 | Optional extras | 23 |
-| Python test files | 577 |
-| Public documentation pages | 71 |
+| Python test files | 580 |
+| Public documentation pages | 72 |
 | GitHub Actions workflows | 22 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

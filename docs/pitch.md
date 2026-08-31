@@ -76,6 +76,7 @@ admitted.
 | Phase dynamics (Kuramoto/UPDE) | Tested |
 | WebSocket live telemetry | Tested |
 | Contract-based pre/post-condition checking | Tested |
+| SPO reactor-regime assessment admission | Tested (review-only, abstaining profile) |
 | **Native linear GK eigenvalue solver** | **Tested (Cyclone Base Case)** |
 | **External GK coupling (TGLF/GENE/GS2/CGYRO/QuaLiKiz)** | **Tested (mock subprocess)** |
 | **Hybrid surrogate+GK validation** | **Tested (OOD + correction + online learning)** |

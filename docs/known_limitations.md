@@ -25,6 +25,13 @@ pins the exact `1.3.1` public artifacts and hashes. Neither the portable
 three-project exchange nor a successful admission may be represented as a
 deployed control path.
 
+The additional regime-assessment admission gate accepts only the exact
+abstaining eight-axis SPO assessment profile for review. It does not implement
+or validate a regime classifier, and a successful decision does not select a
+controller or authorize actuation. Physical diagnostic evidence, facility
+clock correlation, classifier validation, machine protection, and the device
+CONTROL adapter remain unavailable.
+
 ### Fixed-weight disruption-risk baseline
 
 `scpn_control.control.disruption_predictor.predict_disruption_risk` computes a

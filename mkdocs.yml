@@ -99,6 +99,7 @@ nav:
     - Multi-Shot Campaign: control/multi_shot_campaign.md
     - Runtime Admission: control/runtime_admission.md
     - Reactor Semantic Admission: control/reactor_semantic_admission.md
+    - Reactor Regime Assessment Admission: control/reactor_regime_assessment_admission.md
     - Pulsed Scenario Scheduler: control/pulsed_scenario_scheduler.md
     - Pulsed MPC Adapter: control/pulsed_mpc_adapter.md
     - AER Observation: scpn/aer_observation.md
