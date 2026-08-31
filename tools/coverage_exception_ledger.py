@@ -15,15 +15,20 @@ import ast
 import hashlib
 import json
 import re
+import sys
 import tomllib
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.ci_workflow_inventory import read_ci_workflow_source
+
 ROOT = Path(__file__).resolve().parents[1]
 POLICY_PATH = ROOT / "tools/coverage_exception_policy.toml"
 OUTPUT_PATH = ROOT / "tools/coverage_exception_ledger.json"
-WORKFLOW_PATH = ROOT / ".github/workflows/ci.yml"
 
 
 @dataclass(frozen=True)
@@ -217,7 +222,7 @@ def _coverage_pattern_entries(policy: dict[str, Any]) -> list[ExceptionEntry]:
 def build_ledger() -> dict[str, Any]:
     """Return the current deterministic exception ledger."""
     policy = tomllib.loads(POLICY_PATH.read_text(encoding="utf-8"))
-    workflow = WORKFLOW_PATH.read_text(encoding="utf-8")
+    workflow = read_ci_workflow_source()
     for rule in policy["rules"]:
         if rule["workflow_evidence"] and rule["workflow_evidence"] not in workflow:
             raise ValueError(f"workflow evidence missing for policy rule {rule['id']}: {rule['workflow_evidence']}")
@@ -241,7 +246,8 @@ def build_ledger() -> dict[str, Any]:
             "tests/**/*.py",
             "validation/**/*.py",
             "pyproject.toml",
-            ".github/workflows/ci.yml",
+            "tools/ci_workflow_policy.json",
+            ".github/workflows/ci-*.yml",
             "tools/coverage_exception_policy.toml",
         ],
         "last_review": policy["last_review"],

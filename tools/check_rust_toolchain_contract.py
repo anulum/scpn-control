@@ -20,7 +20,10 @@ ROOT: Final = Path(__file__).resolve().parents[1]
 STABLE_TOOLCHAIN: Final = "1.98.0"
 NIGHTLY_TOOLCHAIN: Final = "nightly-2026-08-18"
 EXPECTED_WORKFLOWS: Final = {
-    ".github/workflows/ci.yml": (STABLE_TOOLCHAIN, 5, "rustfmt, clippy"),
+    ".github/workflows/ci-native-polyglot.yml": (STABLE_TOOLCHAIN, 2, "rustfmt, clippy"),
+    ".github/workflows/ci-rust-benchmark.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
+    ".github/workflows/ci-security-supply-chain.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
+    ".github/workflows/ci-static-governance.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
     ".github/workflows/pre-commit.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
     ".github/workflows/benchmark-nightly.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
     ".github/workflows/fuzz-nightly.yml": (NIGHTLY_TOOLCHAIN, 2, None),

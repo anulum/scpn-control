@@ -13,12 +13,18 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Final, Sequence
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.ci_workflow_inventory import load_ci_workflow_policy, read_ci_workflow_source
+
 REPO_ROOT: Final = Path(__file__).resolve().parents[1]
-DEFAULT_WORKFLOW: Final = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+DEFAULT_WORKFLOW: Final = REPO_ROOT / "tools" / "ci_workflow_policy.json"
 DEFAULT_PYPROJECT: Final = REPO_ROOT / "pyproject.toml"
 DEFAULT_DOCS: Final = (
     REPO_ROOT / "docs" / "validation.md",
@@ -82,7 +88,7 @@ def _add_if_missing(
 
 
 def validate_native_coverage_matrix(
-    workflow_path: Path = DEFAULT_WORKFLOW,
+    workflow_path: Path | None = None,
     pyproject_path: Path = DEFAULT_PYPROJECT,
     docs_paths: Sequence[Path] = DEFAULT_DOCS,
 ) -> NativeCoverageMatrix:
@@ -91,7 +97,8 @@ def validate_native_coverage_matrix(
     Parameters
     ----------
     workflow_path
-        CI workflow file to inspect.
+        Optional monolithic workflow fixture. The live default reads the
+        distributed executable inventory and its versioned dependency policy.
     pyproject_path
         Project metadata file carrying the coverage threshold.
     docs_paths
@@ -103,20 +110,23 @@ def validate_native_coverage_matrix(
         Findings for missing workflow, coverage, or documentation contracts.
     """
     findings: list[NativeCoverageFinding] = []
-    workflow = workflow_path.read_text(encoding="utf-8")
+    distributed = workflow_path is None
+    workflow_contract_path = DEFAULT_WORKFLOW if distributed else workflow_path
+    assert workflow_contract_path is not None
+    workflow = read_ci_workflow_source() if distributed else workflow_contract_path.read_text(encoding="utf-8")
     pyproject = pyproject_path.read_text(encoding="utf-8")
     docs = "\n".join(path.read_text(encoding="utf-8") for path in docs_paths)
 
     _add_if_missing(
         findings,
-        path=workflow_path,
+        path=workflow_contract_path,
         check="python coverage data artifact",
         detail="Python coverage job must upload artifacts/coverage/python/.coverage.python.",
         ok=_contains_all(workflow, ("coverage-data-python", "artifacts/coverage/python/.coverage.python")),
     )
     _add_if_missing(
         findings,
-        path=workflow_path,
+        path=workflow_contract_path,
         check="rust-present coverage data artifact",
         detail="Rust interop job must run parity tests with COVERAGE_FILE=.coverage.rust and upload the data file.",
         ok=_contains_all(
@@ -142,18 +152,31 @@ def validate_native_coverage_matrix(
     )
     _add_if_missing(
         findings,
-        path=workflow_path,
+        path=workflow_contract_path,
         check="combined coverage job",
         detail="CI must combine Python and Rust-present coverage data and gate the merged report.",
         ok=_contains_all(
             workflow,
             (
                 "native-coverage-combine:",
-                "needs: [python-tests, rust-python-interop]",
                 "python -m coverage combine --keep artifacts/coverage/python artifacts/coverage/rust",
                 "python -m coverage report --fail-under=100",
                 "coverage-report-combined",
             ),
+        )
+        and (
+            (
+                load_ci_workflow_policy()["dependency_graph"].get("native-coverage-combine")
+                == ["python-tests", "rust-python-interop"]
+                and next(
+                    category
+                    for category in load_ci_workflow_policy()["categories"]
+                    if category["id"] == "native-coverage"
+                )["caller_needs"]
+                == ["python-quality", "native-polyglot"]
+            )
+            if distributed
+            else "needs: [python-tests, rust-python-interop]" in workflow
         ),
     )
     _add_if_missing(
@@ -185,7 +208,7 @@ def validate_native_coverage_matrix(
 def main(argv: list[str] | None = None) -> int:
     """Run the native coverage matrix guard."""
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", default=str(DEFAULT_WORKFLOW), help="CI workflow file to inspect")
+    parser.add_argument("--workflow", type=Path, help="optional monolithic CI workflow fixture")
     parser.add_argument("--pyproject", default=str(DEFAULT_PYPROJECT), help="pyproject.toml path")
     parser.add_argument(
         "--docs",
@@ -197,7 +220,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     docs_paths = tuple(Path(path) for path in args.docs)
-    matrix = validate_native_coverage_matrix(Path(args.workflow), Path(args.pyproject), docs_paths)
+    matrix = validate_native_coverage_matrix(args.workflow, Path(args.pyproject), docs_paths)
     if args.json:
         print(json.dumps(matrix.to_jsonable(), indent=2, sort_keys=True))
         return 0 if matrix.passed else 1

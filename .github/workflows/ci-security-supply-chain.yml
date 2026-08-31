@@ -1,0 +1,81 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — CI Security and Supply Chain.
+
+name: CI / Security and Supply Chain
+
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
+
+jobs:
+  # ─── Job 4: Python dependency audit ───
+  python-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install project and audit tools
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-audit.txt
+      - name: Run pip audit
+        run: python -m pip_audit
+
+  # ─── Job 12: Python security scan (Bandit) ───
+  python-security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install Bandit
+        run: pip install --require-hashes -r requirements/ci-security.txt
+      - name: Run Bandit
+        run: bandit -r src/scpn_control/ -c pyproject.toml -ll -f json -o bandit-report.json
+      - name: Summary
+        run: bandit -r src/scpn_control/ -c pyproject.toml -ll -f screen
+      - name: GitHub installation token format readiness
+        run: python tools/check_github_token_format_readiness.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: bandit-report
+          path: bandit-report.json
+
+  # ─── Job 14: Rust audit ───
+  rust-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scpn-control-rs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Audit
+        run: cargo audit
+
+  # ─── Job 15: Rust supply-chain policy (cargo-deny) ───
+  cargo-deny:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25  # v2
+        with:
+          manifest-path: scpn-control-rs/Cargo.toml

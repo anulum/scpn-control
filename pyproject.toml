@@ -106,6 +106,7 @@ dev = [
     "torch>=2.0",
     "pre-commit>=4.0",
     "types-jsonschema>=4.26",
+    "types-PyYAML>=6.0.12",
     "z3-solver>=4.12",
 ]
 

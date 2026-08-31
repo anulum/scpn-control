@@ -1,0 +1,293 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — CI Python and Scientific Quality.
+
+name: CI / Python and Scientific Quality
+
+on:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
+
+jobs:
+  # ─── Job 1: Python tests ───
+  python-tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+        include:
+          - os: windows-2025
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+      - name: Install studio platform SDK (ubuntu 3.12 only)
+        # The studio vertical (scpn_control.studio) consumes the published
+        # scpn-studio-platform SDK; install it on the job that runs mypy + the
+        # 100% coverage gate so tests/test_studio_vertical.py executes (it
+        # importorskips elsewhere) and the studio modules are covered.
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        # Hash-pinned via a pip-compile --generate-hashes requirements file (the SDK
+        # has no transitive deps); --hash is only honoured inside a requirements file.
+        run: pip install --require-hashes -r requirements/ci-studio.txt
+      - name: Install IMAS-Python and OMAS backends (ubuntu 3.12 only)
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        # This lane exercises real IDSFactory, NetCDF DBEntry, and ODS objects;
+        # the remaining matrix jobs verify the backend-neutral package surface.
+        run: pip install --require-hashes -r requirements/ci-imas.txt
+      - name: Test
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest -p hypothesis.extra.pytestplugin tests/ -v --tb=short -x
+      - name: Mypy (ubuntu 3.12 only)
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        run: python -m mypy
+        timeout-minutes: 10
+      - name: Test quality policy
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        run: python tools/check_test_quality_policy.py
+      - name: Coverage (ubuntu 3.12 only)
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          JAX_ENABLE_X64: "1"
+          CUDA_VISIBLE_DEVICES: ""
+        run: |
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes -r requirements/ci-hdf5.txt
+          pip install --require-hashes -r requirements/ci-jax.txt
+          # Real torch for disruption_checkpoint train/load E2E (CPU wheel; hashes in ci-torch.txt).
+          pip install --require-hashes -r requirements/ci-torch.txt
+          pytest -p hypothesis.extra.pytestplugin -p pytest_cov tests/ --cov=scpn_control --cov-report=xml --cov-report=term --cov-fail-under=100
+          mkdir -p artifacts/coverage/python
+          cp .coverage artifacts/coverage/python/.coverage.python
+      - name: Verify native C++ toolchain (ubuntu 3.12 only)
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        run: |
+          command -v g++
+          g++ --version
+      - name: Upload coverage artifact
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-report
+          path: coverage.xml
+      - name: Upload Python coverage data
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-data-python
+          path: artifacts/coverage/python/.coverage.python
+          include-hidden-files: true
+      - name: Upload to Codecov
+        if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          # Coverage is gated locally by the --cov-fail-under step above; the
+          # upload to the external Codecov dashboard must not fail CI on a
+          # transient uploader/GPG signature problem.
+          fail_ci_if_error: false
+
+  # ─── Job 2: Notebook smoke tests ───
+  notebook-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install notebook dependencies
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes -r requirements/ci-notebook.txt
+      - name: Execute notebooks
+        run: |
+          mkdir -p artifacts/notebook-exec
+          NOTEBOOKS=(
+            "examples/q10_breakeven_demo.ipynb"
+            "examples/snn_compiler_walkthrough.ipynb"
+            "examples/paper27_phase_dynamics_demo.ipynb"
+            "examples/h_infinity_controller_demo.ipynb"
+            "examples/frontier_physics_demo.ipynb"
+            "examples/advanced_control_demo.ipynb"
+          )
+
+          if python -c "import importlib.util, sys; sys.exit(0 if importlib.util.find_spec('sc_neurocore') is not None else 1)"
+          then
+            NOTEBOOKS+=("examples/neuro_symbolic_control_demo.ipynb")
+          else
+            echo "Skipping examples/neuro_symbolic_control_demo.ipynb (sc_neurocore not available)"
+          fi
+
+          for nb in "${NOTEBOOKS[@]}"; do
+            jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
+          done
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: executed-notebooks
+          path: artifacts/notebook-exec/
+
+  # ─── Job 2b: Tutorial script smoke tests ───
+  tutorial-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+      - name: Run tutorial 01 (closed-loop control)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_01_closed_loop_control.py
+        timeout-minutes: 5
+      - name: Run tutorial 04 (neural transport)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_04_neural_transport.py
+        timeout-minutes: 5
+      - name: Run tutorial 05 (phase dynamics)
+        run: PYTHONIOENCODING=utf-8 python examples/tutorial_05_adaptive_phase_dynamics.py
+        timeout-minutes: 5
+
+  # ─── Job 5: RMSE gate ───
+  rmse-gate:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+      - name: RMSE Dashboard
+        run: python validation/rmse_dashboard.py --output-json artifacts/rmse_dashboard_ci.json --output-md artifacts/rmse_dashboard_ci.md
+      - name: Bounded reference-evidence validation
+        run: >-
+          python validation/validate_real_shots.py
+          --output-json artifacts/reference_evidence_validation.json
+          --output-markdown artifacts/reference_evidence_validation.md
+      - name: RMSE Gate
+        run: python tools/ci_rmse_gate.py
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: bounded-reference-evidence
+          path: |
+            artifacts/rmse_dashboard_ci.json
+            artifacts/rmse_dashboard_ci.md
+            artifacts/reference_evidence_validation.json
+            artifacts/reference_evidence_validation.md
+
+  # ─── Job 10: E2E mock DIII-D shot test ───
+  e2e-diiid:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-hdf5.txt
+      - name: E2E mock DIII-D + trajectory export
+        run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_e2e_phase_diiid.py -v --tb=short
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: e2e-diiid-results
+          path: "*.json"
+          if-no-files-found: ignore
+
+  # ─── Job 10b: Synthetic DIII-D reference fixture validation ───
+  synthetic-diiid-reference:
+    needs: python-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+      - name: Validate synthetic DIII-D reference fixtures
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest tests/test_synthetic_diiid_reference_shots.py -v --tb=short
+
+  # ─── Job 16: JAX backend parity ───
+  jax-parity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-jax.txt
+      - name: JAX runtime + solver tests
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+          JAX_ENABLE_X64: "1"
+        run: |
+          pytest -p hypothesis.extra.pytestplugin tests/test_jax_traceable_runtime.py -v --tb=short
+          pytest tests/test_jax_solvers.py -v --tb=short
+          pytest tests/test_jax_neural_equilibrium.py -v --tb=short
+      - name: Persisted GK parity evidence gate
+        run: |
+          python validation/validate_jax_gk_parity.py \
+            --artifact-root validation/reports/jax_gk_parity \
+            --require-parity-artifacts \
+            --require-cases cyclone_base_case,tem_kinetic_electron,stable_mode \
+            --require-backends cpu,gpu
+
+  # ─── Job 17: Nengo Loihi emulator ───
+  nengo-loihi:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-nengo.txt
+      - name: Nengo tests
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: pytest tests/test_nengo_snn_wrapper.py -v --tb=short

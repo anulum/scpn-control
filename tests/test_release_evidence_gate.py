@@ -15,16 +15,12 @@ allowed because it covers the named release-evidence workflow contract.
 
 from __future__ import annotations
 
-from pathlib import Path
+from tools.ci_workflow_inventory import read_ci_workflow_source
 
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
-CI_WORKFLOW = REPO_ROOT / ".github" / "workflows" / "ci.yml"
-
-
-def test_ci_publishes_top_level_release_evidence_report():
+def test_ci_publishes_top_level_release_evidence_report() -> None:
     """CI must run top-level validation and upload the release evidence report."""
-    workflow = CI_WORKFLOW.read_text(encoding="utf-8")
+    workflow = read_ci_workflow_source()
 
     assert "release-evidence-gate:" in workflow
     assert "python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json" in workflow

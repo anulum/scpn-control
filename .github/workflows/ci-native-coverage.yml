@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — CI Native Coverage Integration.
+
+name: CI / Native Coverage Integration
+
+on:
+  workflow_call:
+    secrets:
+      CODECOV_TOKEN:
+        required: false
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
+
+jobs:
+  native-coverage-combine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install coverage tooling
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+      - name: Download Python coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7
+        with:
+          name: coverage-data-python
+          path: artifacts/coverage/python
+      - name: Download Rust-present coverage data
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v7
+        with:
+          name: coverage-data-rust
+          path: artifacts/coverage/rust
+      - name: Verify native coverage matrix
+        run: python tools/native_coverage_matrix.py
+      - name: Combine coverage data
+        run: |
+          python -m coverage combine --keep artifacts/coverage/python artifacts/coverage/rust
+          python -m coverage xml -o coverage.xml
+          python -m coverage report --fail-under=100
+      - name: Upload combined coverage artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-report-combined
+          path: coverage.xml
+      - name: Upload combined coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f  # v7
+        with:
+          files: coverage.xml
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false

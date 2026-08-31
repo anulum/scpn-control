@@ -10,11 +10,10 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
 from tools import coverage_exception_ledger
+from tools.ci_workflow_inventory import read_ci_workflow_source
 
 
 def test_live_coverage_exception_inventory_is_complete() -> None:
@@ -36,18 +35,13 @@ def test_committed_coverage_exception_ledger_is_current() -> None:
 
 def test_rust_variant_owner_cannot_disappear_from_native_lane(
     monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
 ) -> None:
     """A Rust-conditional test file absent from its real lane fails closed."""
-    workflow = tmp_path / "ci.yml"
-    workflow.write_text(
-        coverage_exception_ledger.WORKFLOW_PATH.read_text(encoding="utf-8").replace(
-            "tests/test_boris_pyo3_bridge.py",
-            "removed.py",
-        ),
-        encoding="utf-8",
+    workflow = read_ci_workflow_source().replace(
+        "tests/test_boris_pyo3_bridge.py",
+        "removed.py",
     )
-    monkeypatch.setattr(coverage_exception_ledger, "WORKFLOW_PATH", workflow)
+    monkeypatch.setattr(coverage_exception_ledger, "read_ci_workflow_source", lambda: workflow)
 
     with pytest.raises(ValueError, match="omits conditional test owners"):
         coverage_exception_ledger.build_ledger()

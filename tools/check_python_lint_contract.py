@@ -34,7 +34,7 @@ CONTRACTS: Final = (
         ("\truff check src/ tests/\n",),
     ),
     SurfaceContract(
-        Path(".github/workflows/ci.yml"),
+        Path(".github/workflows/ci-static-governance.yml"),
         ("run: ruff check src/scpn_control/", "run: ruff format --check src/scpn_control/ tests/"),
         ("run: ruff check src/ tests/",),
     ),

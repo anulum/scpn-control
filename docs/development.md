@@ -167,6 +167,17 @@ coverage report --fail-under=100
 docs still describe the `scpn-control.native-coverage-matrix.v1` contract. The
 same guard runs through `tools/preflight.py`.
 
+The per-commit CI is a distributed responsibility graph. The small
+`.github/workflows/ci.yml` coordinator owns only triggers, concurrency,
+explicit reusable calls, and the fail-closed `ci-gate`; executable jobs live in
+the cohesive `.github/workflows/ci-*.yml` owners declared by
+`tools/ci_workflow_policy.json`. Run
+`python tools/check_ci_workflow_modularity.py` after any workflow change. The
+guard verifies exclusive job ownership, original dependency and artifact
+ordering, conditional behavior, explicit secrets, immutable action pins,
+workflow sizes, and complete aggregate-gate failure semantics. It is also part
+of the normal local preflight surface and the hosted `python-lint` job.
+
 Repository audit and generation helpers under `tools/` are source-tree
 commands, not installed package entry points. Release artifacts expose only the
 shipped `scpn-control` CLI. Build wheel and sdist through

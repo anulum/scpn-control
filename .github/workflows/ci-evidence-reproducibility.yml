@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — CI Evidence and Reproducibility.
+
+name: CI / Evidence and Reproducibility
+
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
+
+jobs:
+  # ─── Job 4b: Data manifest provenance gate ───
+  data-manifest-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Validate data manifests
+        run: python validation/validate_data_manifests.py --output-json artifacts/data_manifest_report.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: data-manifest-report
+          path: artifacts/data_manifest_report.json
+
+  # ─── Job 4d: Release evidence gate ───
+  release-evidence-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install validation dependencies
+        run: pip install --require-hashes -r requirements/ci-deps.txt
+      - name: Validate release evidence
+        run: |
+          mkdir -p artifacts
+          python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json
+          python -m scpn_control.cli validate-release-evidence artifacts/release_evidence_report.json --json-out > artifacts/release_evidence_admission.json
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: release-evidence-report
+          path: |
+            artifacts/release_evidence_report.json
+            artifacts/release_evidence_admission.json
+
+  # ─── Job 19: Evidence inventory (informative, non-gating) ───
+  # Publishes the validation-report freshness inventory and the evidence
+  # gap matrix as build artifacts. Deliberately does NOT pass
+  # --fail-on-stale is enabled only after the stale inventory is rerun or an
+  # explicit private waiver has been recorded.
+  evidence-inventory:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Generate freshness inventory and evidence gap matrix
+        run: |
+          mkdir -p evidence-inventory
+          python tools/validation_report_freshness.py \
+            --output-json evidence-inventory/validation_report_freshness.json \
+            --output-md evidence-inventory/validation_report_freshness.md
+          python tools/evidence_gap_matrix.py \
+            --output-json evidence-inventory/evidence_gap_matrix.json \
+            --output-md evidence-inventory/evidence_gap_matrix.md
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: evidence-inventory
+          path: evidence-inventory/

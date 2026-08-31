@@ -20,6 +20,7 @@ from packaging.requirements import Requirement
 from packaging.version import Version
 
 from tools import check_version_sync
+from tools.ci_workflow_inventory import read_ci_workflow_source
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -52,7 +53,7 @@ def test_python_and_spo_dependency_contract_is_bounded_and_locked() -> None:
 
     lock_input = (ROOT / "requirements/ci-deps.in").read_text(encoding="utf-8")
     lock = (ROOT / "requirements/ci-deps.txt").read_text(encoding="utf-8")
-    workflow = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    workflow = read_ci_workflow_source()
     assert "scpn-phase-orchestrator==1.3.1" in lock_input
     assert "scpn-phase-orchestrator==1.3.1" in lock
     assert "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274" in lock

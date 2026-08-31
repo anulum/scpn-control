@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — CI Native and Polyglot Validation.
+
+name: CI / Native and Polyglot Validation
+
+on:
+  workflow_call:
+
+permissions: {}
+
+env:
+  CARGO_TERM_COLOR: always
+  PYTHONPATH: ${{ github.workspace }}/src
+
+jobs:
+  # ─── Job 6: Rust tests ───
+  rust-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: scpn-control-rs
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - name: Format check
+        run: cargo fmt --check
+      - name: Clippy
+        run: cargo clippy -- -D warnings
+      - name: Strict API docs
+        env:
+          RUSTDOCFLAGS: -D warnings -D missing_docs
+        run: cargo doc --workspace --all-features --no-deps
+      - name: Test
+        run: cargo test --workspace
+
+  # ─── Job 7: Rust-Python interop ───
+  rust-python-interop:
+    needs: rust-tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
+        with:
+          toolchain: 1.98.0
+          components: rustfmt, clippy
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Create virtualenv
+        run: python -m venv .venv
+      - name: Install toolchain deps
+        run: |
+          . .venv/bin/activate
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-interop.txt
+      - name: Build Rust bindings
+        run: |
+          . .venv/bin/activate
+          cd scpn-control-rs/crates/control-python
+          python -m maturin develop --release
+      - name: Verify Rust bindings
+        run: |
+          . .venv/bin/activate
+          PYTHONPATH=$PWD/src python - <<'PY'
+          import importlib.util
+          from scpn_control.core._rust_compat import _rust_available
+
+          if importlib.util.find_spec("scpn_control_rs") is None:
+              raise SystemExit("scpn_control_rs module missing after maturin develop")
+          if not _rust_available():
+              raise SystemExit("Rust compatibility layer reports unavailable backend")
+          print("Rust bindings import and compatibility probe passed.")
+          PY
+      - name: Parity tests
+        run: |
+          . .venv/bin/activate
+          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 COVERAGE_FILE=.coverage.rust python -m coverage run --context=rust-present --source=scpn_control -m pytest -p hypothesis.extra.pytestplugin \
+            tests/test_aer_observation_rust_parity.py \
+            tests/test_boris_pyo3_bridge.py \
+            tests/test_capacitor_bank_state_pyo3.py \
+            tests/test_controller_advanced_paths.py \
+            tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py \
+            tests/test_multi_shot_campaign.py \
+            tests/test_multi_shot_campaign_pyo3.py \
+            tests/test_pyo3_control_bridge.py \
+            tests/test_rust_compat_wrapper.py \
+            tests/test_rust_python_parity.py \
+            tests/test_rust_realtime_parity.py \
+            tests/test_snn_pyo3_bridge.py -v
+          mkdir -p artifacts/coverage/rust
+          mv .coverage.rust artifacts/coverage/rust/.coverage.rust
+      - name: Upload Rust-present coverage data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        with:
+          name: coverage-data-rust
+          path: artifacts/coverage/rust/.coverage.rust
+          include-hidden-files: true
+
+  # ─── Job 18: Lean formal proofs ───
+  lean-proofs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+      - uses: leanprover/lean-action@50fcf42d2e460296f1a34b402e990d1b24f8b596  # v1.6.0
+        with:
+          use-github-cache: true
+          test: false
+          lint: false

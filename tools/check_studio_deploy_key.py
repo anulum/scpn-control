@@ -14,9 +14,14 @@ import subprocess  # noqa: S404
 import sys
 from pathlib import Path
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.ci_workflow_inventory import workflow_path_for_job
+
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC_KEY = ROOT / "studio-web" / "deploy" / "scpn-control-studio-ci-deploy.pub"
-WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
+WORKFLOW = workflow_path_for_job("studio-web")
 EXPECTED_COMMENT = "scpn-control-studio-ci-deploy-2026-07-08"
 EXPECTED_DEPLOY_MARKERS = (
     "Configure Studio deploy SSH",

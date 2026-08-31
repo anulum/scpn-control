@@ -15,10 +15,10 @@ from pathlib import Path
 
 import pytest
 
+from tools.ci_workflow_inventory import read_ci_workflow_source
 from tools.native_coverage_matrix import (
     DEFAULT_DOCS,
     DEFAULT_PYPROJECT,
-    DEFAULT_WORKFLOW,
     main,
     validate_native_coverage_matrix,
 )
@@ -29,7 +29,13 @@ def _copy_matrix_inputs(tmp_path: Path) -> tuple[Path, Path, tuple[Path, ...]]:
     workflow = tmp_path / "ci.yml"
     pyproject = tmp_path / "pyproject.toml"
     docs = (tmp_path / "validation.md", tmp_path / "development.md")
-    workflow.write_text(DEFAULT_WORKFLOW.read_text(encoding="utf-8"), encoding="utf-8")
+    workflow.write_text(
+        read_ci_workflow_source().replace(
+            "  native-coverage-combine:\n",
+            "  native-coverage-combine:\n    needs: [python-tests, rust-python-interop]\n",
+        ),
+        encoding="utf-8",
+    )
     pyproject.write_text(DEFAULT_PYPROJECT.read_text(encoding="utf-8"), encoding="utf-8")
     for source, target in zip(DEFAULT_DOCS, docs, strict=True):
         target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")

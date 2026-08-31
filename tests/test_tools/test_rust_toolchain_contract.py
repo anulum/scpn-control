@@ -103,7 +103,7 @@ def test_contract_rejects_invalid_toml_and_missing_file(tmp_path: Path) -> None:
 def test_contract_rejects_workflow_count_pin_and_version_drift(tmp_path: Path) -> None:
     """Every expected action must exist with a full SHA and exact channel."""
     _write_contract(tmp_path)
-    stable_path = tmp_path / ".github/workflows/ci.yml"
+    stable_path = tmp_path / ".github/workflows/ci-native-polyglot.yml"
     text = stable_path.read_text(encoding="utf-8")
     text = text.replace(ACTION_SHA, "main", 1).replace(f"toolchain: {STABLE_TOOLCHAIN}", "toolchain: stable", 1)
     stable_path.write_text(text, encoding="utf-8")
@@ -119,7 +119,7 @@ def test_contract_rejects_workflow_count_pin_and_version_drift(tmp_path: Path) -
 def test_contract_rejects_stable_component_drift(tmp_path: Path) -> None:
     """Stable hosted jobs must install the canonical components up front."""
     _write_contract(tmp_path)
-    path = tmp_path / ".github/workflows/ci.yml"
+    path = tmp_path / ".github/workflows/ci-native-polyglot.yml"
     text = path.read_text(encoding="utf-8")
     path.write_text(text.replace("components: rustfmt, clippy", "components: rustfmt", 1), encoding="utf-8")
     assert any(

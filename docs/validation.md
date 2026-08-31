@@ -2108,11 +2108,14 @@ PCS.
 
 ## CI workflows
 
-- Core CI: `.github/workflows/ci.yml`
+- Core CI coordinator: `.github/workflows/ci.yml`
+- Core CI responsibility owners: `.github/workflows/ci-*.yml`, governed by
+  `tools/ci_workflow_policy.json` and checked by
+  `python tools/check_ci_workflow_modularity.py`
 - Docs and Pages deployment: `.github/workflows/docs-pages.yml`
 - PyPI publish workflow: `.github/workflows/publish-pypi.yml`
 
-## CI quality gates in `.github/workflows/ci.yml`
+## CI quality gates in the distributed core CI
 
 - `python-tests` (3.11/3.12/3.13 Ubuntu + 3.12 Windows + 3.12 macOS; mypy + coverage on 3.12)
 - `native-coverage-combine` (combines rust-absent `coverage-data-python` with
