@@ -40,7 +40,7 @@ import os
 import ssl
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
@@ -213,7 +213,7 @@ def _websocket_peer(websocket: Any) -> str:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
@@ -574,7 +574,7 @@ class PhaseStreamServer:
                 if buffered > self.max_client_write_buffer_bytes:
                     await self._close_backpressured_client(websocket)
                     return websocket
-        except asyncio.TimeoutError:
+        except TimeoutError:
             await self._close_backpressured_client(websocket)
             return websocket
         except (ConnectionError, OSError):

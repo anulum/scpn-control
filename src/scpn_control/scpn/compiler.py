@@ -28,7 +28,7 @@ import logging
 import os
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -330,7 +330,7 @@ class CompiledNet:
             firing_mode=self.firing_mode,
             firing_margin=self.firing_margin,
             seed_policy=artifact_mod.SeedPolicy(id="default", hash_fn="splitmix64", rng_family="xoshiro256++"),
-            created_utc=datetime.now(timezone.utc).isoformat(),
+            created_utc=datetime.now(UTC).isoformat(),
             compiler=artifact_mod.CompilerInfo(
                 name="FusionCompiler",
                 version=PACKAGE_VERSION,

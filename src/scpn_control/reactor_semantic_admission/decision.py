@@ -15,7 +15,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Final, cast
 
 ADMISSION_SCHEMA: Final = "scpn-control.reactor-semantic-admission.v1"
@@ -48,7 +48,7 @@ _PAYLOAD_KEYS = frozenset(
 )
 
 
-class ReactorSemanticAdmissionStatus(str, Enum):
+class ReactorSemanticAdmissionStatus(StrEnum):
     """Outcome of CONTROL's non-actuating semantic review gate."""
 
     ADMITTED_FOR_REVIEW = "admitted_for_review"

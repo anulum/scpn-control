@@ -32,9 +32,10 @@ The dedicated cross-project test carries only the exact 12,073-byte immutable
 FUSION evidence fixture, with its producer commit, evidence commit, and SHA-256
 recorded beside it. It does not import a sibling checkout or add a local-path
 dependency. The fixture is passed through the installed SPO adapter and then
-through this public CONTROL API. The required SPO decoder is not yet available
-under a distinct public package version, so standard installation and hosted
-execution remain blocked rather than resolving the older public 1.2.0 wheel.
+through this public CONTROL API. SPO 1.3.1 is the first supported public
+package version carrying the required decoder; standard installation therefore
+resolves `scpn-phase-orchestrator>=1.3.1,<1.4` rather than the older 1.2.0
+wheel.
 
 ## Deterministic policy
 

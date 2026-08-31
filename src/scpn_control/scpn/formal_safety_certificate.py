@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -723,10 +723,8 @@ def _require_utc_timestamp(name: str, value: object) -> str:
         raise ValueError(f"safety certificate bundle artifact {name} must be an ISO-8601 UTC timestamp") from exc
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise ValueError(f"safety certificate bundle artifact {name} must include a UTC offset")
-    parsed = parsed.astimezone(timezone.utc)
-    max_created_at = datetime.now(timezone.utc) + timedelta(
-        seconds=SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_FUTURE_SKEW_SECONDS
-    )
+    parsed = parsed.astimezone(UTC)
+    max_created_at = datetime.now(UTC) + timedelta(seconds=SAFETY_CERTIFICATE_BUNDLE_ARTIFACT_FUTURE_SKEW_SECONDS)
     if parsed > max_created_at:
         raise ValueError(f"safety certificate bundle artifact {name} must not be future-dated")
     return value

@@ -16,7 +16,7 @@ import platform
 import re
 import shutil
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
@@ -30,7 +30,7 @@ _SECRET_OPTION = re.compile(r"(?i)(token|secret|password|credential|api[-_]?key)
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -81,7 +81,7 @@ def _validate_identifier(value: str, label: str) -> str:
 
 def new_campaign_id() -> str:
     """Return a collision-resistant UTC benchmark campaign identifier."""
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     return f"{timestamp}-{uuid4().hex[:12]}"
 
 

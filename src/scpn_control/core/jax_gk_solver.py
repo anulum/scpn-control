@@ -25,7 +25,7 @@ import hashlib
 import json
 import logging
 import platform
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Any, cast
@@ -679,8 +679,7 @@ def build_jax_gk_parity_artifact(
         "device_kind": backend_metadata["device_kind"],
         "dtype": backend_metadata["dtype"],
         "x64_enabled": backend_metadata["x64_enabled"],
-        "executed_at": executed_at
-        or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "executed_at": executed_at or datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "native_gamma_max_cs_over_a": native_gamma,
         "jax_gamma_max_cs_over_a": jax_gamma,
         "native_omega_r_cs_over_a": native_omega,

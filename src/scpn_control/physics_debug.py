@@ -24,7 +24,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, cast
 
@@ -453,7 +453,7 @@ def build_physics_debug_report(
     payload: dict[str, Any] = {
         "schema_version": PHYSICS_DEBUG_REPORT_SCHEMA_VERSION,
         "status": "advisory",
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "scope": PHYSICS_DEBUG_SCOPE,
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
         "human_review_required": resolved_safety_policy.human_review_required,
@@ -648,7 +648,7 @@ def run_provider_quorum(
     payload: dict[str, Any] = {
         "schema_version": PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION,
         "status": "advisory-quorum",
-        "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "created_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
         "scope": PHYSICS_DEBUG_QUORUM_SCOPE,
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
         "human_review_required": resolved_safety_policy.human_review_required,

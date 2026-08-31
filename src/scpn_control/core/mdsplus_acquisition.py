@@ -13,7 +13,7 @@ from __future__ import annotations
 import importlib
 import json
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
@@ -142,8 +142,7 @@ def acquire_mdsplus_shot(
             "uri": source_uri,
             "access": access_policy,
         },
-        "retrieved_at": retrieved_at
-        or datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "retrieved_at": retrieved_at or datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "checksum_sha256": checksum,
         "licence": licence,
         "artifacts": [
