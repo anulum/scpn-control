@@ -99,6 +99,26 @@ BANNED_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
 
 INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
     (
+        "internal queue or workstream identifier",
+        re.compile(
+            r"(?<![A-Za-z0-9_])(?:"
+            r"(?:BL|QWC)[-_][A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+            r")(?![A-Za-z0-9_])",
+            re.IGNORECASE,
+        ),
+    ),
+    (
+        "internal queue or workstream identifier",
+        re.compile(
+            r"(?<![A-Za-z0-9_])WS[-_][A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+            r"(?![A-Za-z0-9_])",
+        ),
+    ),
+    (
+        "internal LIF lane identifier",
+        re.compile(r"(?<![A-Za-z0-9_])LIF-FF-[0-9]+(?![A-Za-z0-9_])"),
+    ),
+    (
         "internal task identifier",
         re.compile(
             r"(?<![A-Za-z0-9_])(?:"
@@ -112,6 +132,10 @@ INTERNAL_IDENTIFIER_PATTERNS: Final[tuple[tuple[str, re.Pattern[str]], ...]] = (
             r")(?![A-Za-z0-9_])",
             re.IGNORECASE,
         ),
+    ),
+    (
+        "internal CONTROL lane identifier",
+        re.compile(r"(?<![A-Za-z0-9_])CONTROL-(?:[A-Z0-9]+-)+[0-9]{3}(?![A-Za-z0-9_])"),
     ),
     (
         "internal coverage campaign identifier",
@@ -448,7 +472,7 @@ def main(argv: list[str] | None = None) -> int:
 
     findings = scan_repository(args.repo.resolve())
     if not findings:
-        print("PASS: public surfaces contain no bare promotion terms or operational planning")
+        print("PASS: public surfaces contain no forbidden claims, planning, or internal identifiers")
         return 0
 
     print("FAIL: outward-facing claim or operational-planning findings found")

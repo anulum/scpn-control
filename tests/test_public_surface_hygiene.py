@@ -86,6 +86,100 @@ def test_rejects_public_operational_headings_and_internal_ids() -> None:
     assert "internal task identifier" in _categories("Resolve U-015 next.\n")
 
 
+@pytest.mark.parametrize(
+    "identifier",
+    (
+        "BL-19",
+        "bl_19",
+        "QWC-04",
+        "qwc_04",
+        "WS-12",
+        "WS-alpha",
+        "WS_12A",
+    ),
+)
+def test_rejects_generic_internal_queue_and_workstream_identifiers(identifier: str) -> None:
+    """Generic queue/workstream labels remain private coordination metadata."""
+    findings = scan_text("src/runtime_identity.txt", f"owner={identifier}\n")
+
+    assert {finding.category for finding in findings} == {"internal queue or workstream identifier"}
+
+
+@pytest.mark.parametrize(
+    "path",
+    (
+        "src/bl_19_controller.py",
+        "validation/qwc-04.json",
+        "docs/WS_12.md",
+    ),
+)
+def test_rejects_generic_internal_identifiers_in_tracked_paths(path: str) -> None:
+    """Internal queue/workstream labels are invalid as tracked path names."""
+    assert scan_text(path, "descriptive content\n") == [
+        Finding(
+            path=path,
+            line=0,
+            category="internal queue or workstream identifier",
+            detail=path,
+        )
+    ]
+
+
+@pytest.mark.parametrize(
+    "identifier",
+    (
+        "CONTROL-TORAX-CONSUMER-001",
+        "CONTROL-PHASE-REACTOR-LOOP-001",
+        "CONTROL-REACTOR-PLUGIN-PROTOCOL-001",
+    ),
+)
+def test_rejects_internal_control_lane_identifiers(identifier: str) -> None:
+    """CONTROL queue identities must not become public contract names."""
+    findings = scan_text("docs/control/runtime.md", f"contract={identifier}\n")
+
+    assert {finding.category for finding in findings} == {"internal CONTROL lane identifier"}
+
+
+def test_rejects_internal_lif_lane_identifier() -> None:
+    """The private LIF handoff lane must not become a runtime identity."""
+    findings = scan_text("validation/lif_state.json", '{"profile": "LIF-FF-02"}\n')
+
+    assert {finding.category for finding in findings} == {"internal LIF lane identifier"}
+
+
+@pytest.mark.parametrize(
+    ("path", "category"),
+    (
+        ("validation/CONTROL-TORAX-CONSUMER-001.json", "internal CONTROL lane identifier"),
+        ("tests/LIF-FF-02.json", "internal LIF lane identifier"),
+    ),
+)
+def test_rejects_internal_lane_identifiers_in_tracked_paths(path: str, category: str) -> None:
+    """Private CONTROL and LIF lane labels cannot become artifact paths."""
+    assert scan_text(path, "descriptive content\n") == [Finding(path=path, line=0, category=category, detail=path)]
+
+
+@pytest.mark.parametrize(
+    ("path", "content"),
+    (
+        (
+            "src/scpn_control/phase/ws_phase_stream.py",
+            'WEBSOCKET_EVIDENCE = "scpn-control.websocket-runtime-evidence.v1"\n',
+        ),
+        (
+            "examples/streamlit_ws_client.py",
+            'ws_url = "ws://localhost:8765"\n',
+        ),
+        ("examples/client.py", '_parser.add_argument("--ws-url")\n'),
+        ("validation/host.json", '"host_id": "ws-aud002"\n'),
+        ("validation/report.json", '"id": "ws-nmpc-hardening-host"\n'),
+    ),
+)
+def test_accepts_descriptive_websocket_identifiers(path: str, content: str) -> None:
+    """Established WebSocket abbreviations are domain names, not task codes."""
+    assert scan_text(path, content) == []
+
+
 def test_rejects_internal_ids_on_source_config_and_workflow_surfaces() -> None:
     """Internal identifier families are governed outside Markdown and JSON."""
     source = scan_text("module.py", 'VALIDATION = "L2F-22"\n')
@@ -387,6 +481,22 @@ def test_scan_repository_reports_relative_paths(tmp_path: Path) -> None:
             line=1,
             category="best-in-class",
             detail="Best-in-class control claim",
+        )
+    ]
+
+
+def test_scan_repository_rejects_internal_code_and_keeps_websocket_path(tmp_path: Path) -> None:
+    """The tracked-repository surface distinguishes workstream codes from WebSocket names."""
+    repo = _tracked_repo(tmp_path)
+    _track(repo, "src/ws_phase_stream.py", b"WEBSOCKET_SCHEME = 'ws'\n")
+    _track(repo, "validation/control_contract.json", b'{"contract": "CONTROL-TORAX-CONSUMER-001"}\n')
+
+    assert scan_repository(repo) == [
+        Finding(
+            path="validation/control_contract.json",
+            line=1,
+            category="internal CONTROL lane identifier",
+            detail='{"contract": "CONTROL-TORAX-CONSUMER-001"}',
         )
     ]
 
