@@ -35,6 +35,8 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures/reactor_semantic/mif_merge
 CONTROL_ROOT = Path(__file__).resolve().parents[1]
 SOURCE_SHA256 = "c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca"
 HANDOFF_SHA256 = "c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2"
+DECISION_ENVELOPE_SHA256 = "50be73641cc6b4f59cc95403c6421d9442e6a19219a0ecce160cd1646385da75"
+INNER_DECISION_SHA256 = "d1900dacb70893d080bd6c6902a00a68e08920d39457a4240ce89f0db0bac8c9"
 
 
 def _policy(handoff: MIFMergeCompressionHandoff) -> MIFReactorSemanticAdmissionPolicy:
@@ -97,7 +99,12 @@ def test_exact_mif_spo_control_public_bytes_exchange() -> None:
         policy=_policy(handoff),
     )
     decision_bytes = admission_decision_to_bytes(decision)
+    decision_record = json.loads(decision_bytes)
 
+    assert len(decision_bytes) == 964
+    assert hashlib.sha256(decision_bytes).hexdigest() == DECISION_ENVELOPE_SHA256
+    assert decision.decision_digest == INNER_DECISION_SHA256
+    assert decision_record["payload"]["decision_digest"] == INNER_DECISION_SHA256
     assert admission_decision_from_bytes(decision_bytes) == decision
     assert decision.admitted is True
     assert decision.review_only is True
