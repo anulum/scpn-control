@@ -43,6 +43,79 @@ MIF_SOURCE_SHA256 = "c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b
 SPO_REVISION = "c2a7581d58819060806c6f173da941c822103695"
 SPO_WHEEL_SHA256 = "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274"
 ASSESSMENT_SHA256 = "3a5077b95d8b94b23a647d57a8b25f80cb798f712f00d0a34e71b95c600b154b"
+SPO_HANDOFF_SHA256 = "c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2"
+MIF_SOURCE_REVISION = "f60dbae4b2ea3344ac0cb086a3b7d248d65cf92f"
+EXPECTED_SOURCE_SEMANTIC_IDS = (
+    "spo.mif.merge_compression.kinematics.local_error_estimate.bounded_feature",
+    "spo.mif.merge_compression.kinematics.order_parameter.bounded_feature",
+    "spo.mif.merge_compression.kinematics.phase_lock_error_rad.bounded_feature",
+    "spo.mif.merge_compression.kinematics.reference_error_m.bounded_feature",
+    "spo.mif.merge_compression.kinematics.reference_point_m.bounded_feature",
+    "spo.mif.merge_compression.kinematics.separation_m.bounded_feature",
+    "spo.mif.merge_compression.merge_window.candidate_lock.categorical_state",
+    "spo.mif.merge_compression.merge_window.consecutive_samples.bounded_feature",
+    "spo.mif.merge_compression.merge_window.lock_achieved.categorical_state",
+    "spo.mif.merge_compression.merge_window.phase_tolerance_rad.bounded_feature",
+    "spo.mif.merge_compression.merge_window.spatial_tolerance_m.bounded_feature",
+    "spo.mif.merge_compression.merge_window.streak.bounded_feature",
+    "spo.mif.merge_compression.phase.0.numerical_phase",
+    "spo.mif.merge_compression.phase.1.numerical_phase",
+    "spo.mif.merge_compression.positions_m.0.bounded_feature",
+    "spo.mif.merge_compression.positions_m.1.bounded_feature",
+    "spo.mif.merge_compression.trigger.armed.categorical_state",
+    "spo.mif.merge_compression.trigger.bank_feasible.categorical_state",
+    "spo.mif.merge_compression.trigger.decision.categorical_state",
+    "spo.mif.merge_compression.trigger.first_fire_timestamp_ns.categorical_state",
+    "spo.mif.merge_compression.trigger.first_violation_index.categorical_state",
+    "spo.mif.merge_compression.trigger.safety_slack_m.bounded_feature",
+    "spo.mif.merge_compression.trigger.sample_index.bounded_feature",
+    "spo.mif.merge_compression.velocities_m_s.0.bounded_feature",
+    "spo.mif.merge_compression.velocities_m_s.1.bounded_feature",
+)
+EXPECTED_AXIS_IDS = (
+    "confinement_or_assembly",
+    "diagnostic_observability",
+    "driver_synchronization",
+    "evidence_maturity",
+    "exhaust_or_boundary",
+    "plant_readiness",
+    "power_or_burn",
+    "stability_or_symmetry",
+)
+EXPECTED_AXIS_PROVENANCE = (
+    (
+        "confinement_or_assembly",
+        "spo.assessment.c0f03b7c49346c3934259827.confinement_or_assembly.source-handoff",
+    ),
+    (
+        "diagnostic_observability",
+        "spo.assessment.c0f03b7c49346c3934259827.diagnostic_observability.source-handoff",
+    ),
+    (
+        "driver_synchronization",
+        "spo.assessment.c0f03b7c49346c3934259827.driver_synchronization.source-handoff",
+    ),
+    (
+        "evidence_maturity",
+        "spo.assessment.c0f03b7c49346c3934259827.evidence_maturity.source-handoff",
+    ),
+    (
+        "exhaust_or_boundary",
+        "spo.assessment.c0f03b7c49346c3934259827.exhaust_or_boundary.source-handoff",
+    ),
+    (
+        "plant_readiness",
+        "spo.assessment.c0f03b7c49346c3934259827.plant_readiness.source-handoff",
+    ),
+    (
+        "power_or_burn",
+        "spo.assessment.c0f03b7c49346c3934259827.power_or_burn.source-handoff",
+    ),
+    (
+        "stability_or_symmetry",
+        "spo.assessment.c0f03b7c49346c3934259827.stability_or_symmetry.source-handoff",
+    ),
+)
 
 
 @cache
@@ -115,6 +188,42 @@ def test_real_public_spo_assessment_is_admitted_for_review_only() -> None:
     assert decision.registry_custody_sha256 == regime_assessment_registry_custody_digest(assessment)
     assert decision.clock_custody_sha256 == regime_assessment_clock_custody_digest(assessment)
     assert decision.axis_custody_sha256 == regime_assessment_axis_custody_digest(assessment)
+
+
+def test_literal_pinned_policy_admits_the_frozen_assessment() -> None:
+    """Admit with caller expectations independent of decoded assessment fields."""
+    _assessment_record, payload = _assessment()
+    policy = ReactorRegimeAssessmentAdmissionPolicy(
+        expected_assessment_sha256=ASSESSMENT_SHA256,
+        expected_assessment_id="spo.assessment.abstaining.c0f03b7c49346c3934259827",
+        expected_reactor_context_id="spo.mif.frc_compression.c780706abd5a0b185a95e857",
+        expected_configuration="frc_compression_mif",
+        expected_event_id="shot_2026_08_30.event_0001",
+        expected_producer_project="SCPN-PHASE-ORCHESTRATOR",
+        expected_producer_revision=SPO_REVISION,
+        expected_producer_artifact_sha256=SPO_WHEEL_SHA256,
+        expected_source_project="SCPN-MIF-CORE",
+        expected_source_revision=MIF_SOURCE_REVISION,
+        expected_source_handoff_schema="scpn-phase-orchestrator.mif-merge-compression-handoff.v1",
+        expected_source_handoff_sha256=SPO_HANDOFF_SHA256,
+        expected_source_semantic_ids=EXPECTED_SOURCE_SEMANTIC_IDS,
+        expected_assessment_schema_version="1.0.0",
+        expected_registry_custody_sha256="ec574bce4bd3a52c2e90ecf40f495f0fde20d0880e812b6bd823eb04f544947e",
+        expected_clock_custody_sha256="ab31cd022cbefc082ff3eb94dc7d4d71fea72b7c03d2a51acb084522effa3610",
+        expected_axis_custody_sha256="3bb17bdaa822f2f171ffc47ea30d27867fba2ea81de4d6f491d0362703708d2a",
+        expected_axis_ids=EXPECTED_AXIS_IDS,
+        expected_axis_provenance=EXPECTED_AXIS_PROVENANCE,
+        checked_at_ns=0,
+        max_evidence_age_ns=0,
+    )
+
+    decision = admit_reactor_regime_assessment(payload, policy=policy)
+
+    assert decision.decision is ReactorRegimeAssessmentAdmissionStatus.ADMITTED_FOR_REVIEW
+    assert decision.admitted is True
+    assert decision.review_only is True
+    assert decision.actionable is False
+    assert decision.refusal_codes == ()
 
 
 @pytest.mark.parametrize("payload", [b"", b"{}", b'{"x":1,"x":2}', b"\xff"])

@@ -22,7 +22,7 @@ a dedicated contract. SCPN-MIF-CORE owns pulsed FRC merge/compression lifecycle
 and source evidence, SPO owns the `frc_compression_mif` carrier assignment, and
 CONTROL independently admits the resulting bytes for review. This lane is not
 the uncompressed `field_reversed_configuration` identity and does not transfer
-ownership to a future SCPN-FRC-CORE project.
+ownership to the separate SCPN-FRC-CORE project.
 
 CONTROL calls the public SPO `handoff_from_bytes` function directly. It does not
 vendor the schema, decode a looser JSON representation, copy sibling source, or
