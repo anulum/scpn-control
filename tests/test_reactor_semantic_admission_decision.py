@@ -101,6 +101,7 @@ def test_public_decision_bytes_are_canonical_and_round_trip(
         (b"[]", "must be an object"),
         (b"{" + b" " * MAX_ADMISSION_BYTES + b"}", "size limit"),
     ],
+    ids=["empty", "invalid-utf8", "invalid-json", "non-object", "oversized"],
 )
 def test_public_decoder_rejects_invalid_portable_bytes(payload: bytes, message: str) -> None:
     """Reject empty, oversized, non-UTF-8, non-JSON, and non-object bytes."""
