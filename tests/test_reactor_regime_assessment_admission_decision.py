@@ -113,6 +113,7 @@ def test_decision_bytes_are_canonical_digest_sealed_and_round_trip(
         (b"[]", "unsupported or missing fields"),
         (b"{" + b" " * MAX_REGIME_ASSESSMENT_ADMISSION_BYTES + b"}", "size limit"),
     ],
+    ids=["empty", "invalid-utf8", "invalid-json", "non-object", "oversized"],
 )
 def test_decoder_rejects_invalid_bytes(payload: bytes, message: str) -> None:
     """Reject empty, malformed, non-object, and oversized envelopes."""

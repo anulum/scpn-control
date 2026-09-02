@@ -5,6 +5,11 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Typographical checker configuration.
+[default]
+# Digests and digest-derived external identifiers are opaque evidence. Treating
+# their hexadecimal fragments as prose can silently corrupt exact identities.
+extend-ignore-identifiers-re = ["^[0-9a-f]{16,}$"]
+
 [default.extend-words]
 AER = "AER"
 aer = "aer"

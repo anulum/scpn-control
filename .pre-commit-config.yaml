@@ -15,6 +15,9 @@ repos:
       - id: check-toml
       - id: trailing-whitespace
       - id: end-of-file-fixer
+        # This is a byte-for-byte external evidence fixture; adding a newline
+        # would change its bound artifact digest.
+        exclude: ^tests/fixtures/reactor_semantic/torax_runtime_review_envelope_v1\.json$
       - id: check-added-large-files
         args: [--maxkb=500]
       - id: check-merge-conflict
