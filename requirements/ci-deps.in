@@ -7,7 +7,7 @@
 # SCPN Control — Ci deps.
 
 numpy>=1.24,<2.3
-scipy>=1.10,<1.16
+scipy>=1.10,<1.18
 click>=8.0
 pydantic>=2.0
 scpn-phase-orchestrator==1.3.1
