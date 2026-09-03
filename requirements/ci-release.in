@@ -6,5 +6,5 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci release.
 
-build>=1.5.1
+build>=1.6.0
 cyclonedx-bom>=4.0
