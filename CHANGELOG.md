@@ -7,7 +7,8 @@
 - Added an opt-in, digest- and commit-bound SC-NeuroCore exact-current LIF
   runtime for compiled transitions. It preserves complete membrane state across
   calls, resets only at an explicit shot boundary, commits multi-transition
-  execution and checkpoint restore atomically, and retains full canonical SC
+  execution and checkpoint restore atomically, rejects checkpoints that splice
+  transitions from different shot timelines, and retains full canonical SC
   state/event packets while leaving the existing stateless `lif_fire` contract
   unchanged.
 

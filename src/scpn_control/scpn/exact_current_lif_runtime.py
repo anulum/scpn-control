@@ -549,6 +549,7 @@ class ExactCurrentLIFRuntime:
             if not isinstance(states, list) or len(states) != len(self.transition_names):
                 raise ValueError("checkpoint state count mismatch")
             candidates: list[_Session] = []
+            timeline: tuple[object, object, object] | None = None
             for state in states:
                 state_payload = _mapping("checkpoint state", state)
                 state_json = _canonical_json(state_payload)
@@ -556,6 +557,15 @@ class ExactCurrentLIFRuntime:
                 shot_id = state_body.get("shot_id")
                 if not isinstance(shot_id, str):
                     raise ValueError("checkpoint shot_id must be a string")
+                candidate_timeline = (
+                    shot_id,
+                    state_body.get("time_ms"),
+                    state_body.get("reset_epoch"),
+                )
+                if timeline is None:
+                    timeline = candidate_timeline
+                elif candidate_timeline != timeline:
+                    raise ValueError("checkpoint states must share shot_id, time_ms, and reset_epoch")
                 candidates.append(self._new_session(shot_id=shot_id, serialized_state=state_json))
         except (ArithmeticError, OSError, TypeError, ValueError) as exc:
             raise ExactCurrentLIFStateError(str(exc)) from exc

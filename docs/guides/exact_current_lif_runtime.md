@@ -106,8 +106,10 @@ runtime.reset_shot("shot-2026-002")
 ```
 
 Checkpoint restore validates the CONTROL envelope, transition order, complete
-SC state envelopes, profile digest, and state schema before committing any
-state. Unknown and duplicate JSON members are rejected.
+SC state envelopes, profile digest, state schema, and a shared shot identity,
+shot-relative time, and reset epoch before committing any state. A checkpoint
+cannot splice transitions from different shot timelines. Unknown and duplicate
+JSON members are rejected.
 
 ## Failure types
 

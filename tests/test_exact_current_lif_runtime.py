@@ -12,8 +12,12 @@ from __future__ import annotations
 
 import json
 import math
+import os
+import subprocess
+import sys
 from dataclasses import replace
 from importlib import resources
+from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
@@ -301,6 +305,15 @@ def test_checkpoint_rejections_are_failure_atomic(
     wrong_shot = json.loads(json.dumps(payload))
     wrong_shot["states"][1]["state"]["shot_id"] = 7
     mutations.append((wrong_shot, "checkpoint shot_id must be a string"))
+    split_shot = json.loads(json.dumps(payload))
+    split_shot["states"][1]["state"]["shot_id"] = "shot-b"
+    mutations.append((split_shot, "states must share"))
+    split_time = json.loads(json.dumps(payload))
+    split_time["states"][1]["state"]["time_ms"] = 7.0
+    mutations.append((split_time, "states must share"))
+    split_epoch = json.loads(json.dumps(payload))
+    split_epoch["states"][1]["state"]["reset_epoch"] = 3
+    mutations.append((split_epoch, "states must share"))
     wrong_state_shape = json.loads(json.dumps(payload))
     wrong_state_shape["states"][1] = []
     mutations.append((wrong_state_shape, "checkpoint state must be an object"))
@@ -339,6 +352,32 @@ def test_execution_overflow_is_failure_atomic(
 
     with pytest.raises(ExactCurrentLIFExecutionError, match="overflowed binary64"):
         runtime.execute((_single_tick(1e308, 0.0),))
+    assert runtime.serialized_states == original
+
+
+def test_late_second_transition_failure_rolls_back_completed_first_transition(
+    binding: ExactCurrentLIFProfileBinding,
+) -> None:
+    """A later transition failure cannot commit an earlier completed session."""
+    runtime = ExactCurrentLIFRuntime(("completes", "fails"), binding)
+    original = runtime.serialized_states
+
+    with pytest.raises(
+        ExactCurrentLIFExecutionError,
+        match="non-positive threshold-crossing interval",
+    ):
+        runtime.execute(
+            (
+                ExactCurrentLIFTransitionTick(
+                    1.0,
+                    (
+                        (0.0,),
+                        (1e308,),
+                    ),
+                ),
+            )
+        )
+
     assert runtime.serialized_states == original
 
 
@@ -455,3 +494,156 @@ def test_reset_rejection_preserves_every_transition(
     with pytest.raises(ExactCurrentLIFStateError, match="non-empty string"):
         runtime.reset_shot("")
     assert runtime.serialized_states == original
+
+
+_PUBLIC_BINDING_PROBE = """
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+source, fixture, profile_path, action = sys.argv[1:]
+spec = importlib.util.spec_from_file_location("exact_current_lif_public_probe", source)
+if spec is None or spec.loader is None:
+    raise SystemExit("could not load public runtime module")
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
+sys.path[:] = [fixture] + [
+    path for path in sys.path
+    if "site-packages" not in path and "dist-packages" not in path
+]
+for name in tuple(sys.modules):
+    if name == "sc_neurocore" or name.startswith("sc_neurocore."):
+        del sys.modules[name]
+try:
+    if action == "installed-reference":
+        module.ExactCurrentLIFProfileBinding.from_installed_reference()
+    else:
+        module.ExactCurrentLIFProfileBinding.from_json(
+            Path(profile_path).read_bytes(),
+            implementation_commit=module.SC_IMPLEMENTATION_COMMIT,
+            contract_commit=module.SC_CONTRACT_COMMIT,
+        )
+except module.ExactCurrentLIFError as exc:
+    print(json.dumps({"type": type(exc).__name__, "code": exc.code}))
+else:
+    raise SystemExit("incompatible installation was unexpectedly accepted")
+"""
+
+
+def _write_distribution_metadata(root: Path, version: str) -> None:
+    dist_info = root / f"sc_neurocore-{version}.dist-info"
+    dist_info.mkdir()
+    (dist_info / "METADATA").write_text(
+        f"Metadata-Version: 2.1\nName: sc-neurocore\nVersion: {version}\n",
+        encoding="utf-8",
+    )
+
+
+def _run_incompatible_installation_probe(
+    fixture: Path,
+    *,
+    action: str = "from-json",
+) -> dict[str, str]:
+    source = Path(__file__).parents[1] / "src/scpn_control/scpn/exact_current_lif_runtime.py"
+    profile = resources.files("sc_neurocore.neurons").joinpath("reference_trace_data/exact_current_lif_profile_v1.json")
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-c",
+            _PUBLIC_BINDING_PROBE,
+            str(source),
+            str(fixture),
+            str(profile),
+            action,
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=environment,
+    )
+    return cast(dict[str, str], json.loads(completed.stdout))
+
+
+@pytest.mark.parametrize(
+    ("case", "expected"),
+    [
+        (
+            "missing-distribution",
+            {"type": "ExactCurrentLIFUnavailableError", "code": "exact_current_lif_unavailable"},
+        ),
+        (
+            "wrong-version",
+            {"type": "ExactCurrentLIFBindingError", "code": "exact_current_lif_binding_mismatch"},
+        ),
+        (
+            "missing-source-path",
+            {"type": "ExactCurrentLIFBindingError", "code": "exact_current_lif_binding_mismatch"},
+        ),
+        (
+            "unreadable-source",
+            {"type": "ExactCurrentLIFBindingError", "code": "exact_current_lif_binding_mismatch"},
+        ),
+        (
+            "mismatched-source",
+            {"type": "ExactCurrentLIFBindingError", "code": "exact_current_lif_binding_mismatch"},
+        ),
+        (
+            "absent-public-api",
+            {"type": "ExactCurrentLIFUnavailableError", "code": "exact_current_lif_unavailable"},
+        ),
+    ],
+)
+def test_public_binding_rejects_incompatible_installed_contracts(
+    tmp_path: Path,
+    case: str,
+    expected: dict[str, str],
+) -> None:
+    """Isolated real package layouts fail through the typed public boundary."""
+    package = tmp_path / "sc_neurocore"
+    solvers = package / "solvers"
+    solvers.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (solvers / "__init__.py").write_text("", encoding="utf-8")
+    contract_source = solvers / "exact_lif_profile.py"
+
+    if case != "missing-distribution":
+        _write_distribution_metadata(tmp_path, "9.9.0" if case == "wrong-version" else "3.16.0")
+    if case == "missing-source-path":
+        contract_source.write_text("del __file__\n", encoding="utf-8")
+    elif case == "unreadable-source":
+        contract_source.write_text(
+            f"__file__ = {str(solvers)!r}\n",
+            encoding="utf-8",
+        )
+    elif case == "absent-public-api":
+        installed_solvers = resources.files("sc_neurocore.solvers")
+        contract_source.write_bytes(installed_solvers.joinpath("exact_lif_profile.py").read_bytes())
+        (solvers / "exact_lif.py").write_bytes(installed_solvers.joinpath("exact_lif.py").read_bytes())
+    else:
+        contract_source.write_text("CONTRACT_PRESENT = True\n", encoding="utf-8")
+
+    assert _run_incompatible_installation_probe(tmp_path) == expected
+
+
+def test_public_binding_rejects_missing_installed_profile_artifact(
+    tmp_path: Path,
+) -> None:
+    """A distribution without the immutable profile yields a typed failure."""
+    package = tmp_path / "sc_neurocore"
+    neurons = package / "neurons"
+    neurons.mkdir(parents=True)
+    (package / "__init__.py").write_text("", encoding="utf-8")
+    (neurons / "__init__.py").write_text("", encoding="utf-8")
+    _write_distribution_metadata(tmp_path, "3.16.0")
+
+    assert _run_incompatible_installation_probe(
+        tmp_path,
+        action="installed-reference",
+    ) == {
+        "type": "ExactCurrentLIFUnavailableError",
+        "code": "exact_current_lif_unavailable",
+    }
