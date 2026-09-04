@@ -1,0 +1,90 @@
+{
+    "claim_boundary": {
+        "demonstrated": [
+            "deterministic CONTROL execution through the public SC-NeuroCore exact-current LIF contract",
+            "complete ordered state and event equivalence to the immutable SC-NeuroCore multi-tick reference packet",
+            "persistent state across calls with explicit shot reset only",
+            "failure-atomic multi-transition execution and checkpoint restore"
+        ],
+        "not_demonstrated": [
+            "NEST or Brian2 parity",
+            "MIF AER transport",
+            "RTL equivalence or post-route timing",
+            "hardware-in-the-loop behavior",
+            "biological fidelity",
+            "machine-safety admission",
+            "stochastic or adaptive model admission"
+        ]
+    },
+    "control": {
+        "implementation_commit": "783f90d93590365a2725b77c22f82ca34a3afda3",
+        "package": "scpn-control",
+        "public_entry_point": "scpn_control.scpn.ExactCurrentLIFRuntime"
+    },
+    "negative_outcomes": {
+        "checkpoint_binding_schema_profile_and_state_mismatch": "exact_current_lif_state_invalid",
+        "duplicate_or_unknown_json_member": "rejected",
+        "invalid_or_non_finite_tick": "exact_current_lif_input_invalid",
+        "invalid_shot_reset": "exact_current_lif_state_invalid",
+        "profile_artifact_schema_name_source_unit_or_commit_mismatch": "exact_current_lif_binding_mismatch",
+        "runtime_numeric_overflow": "exact_current_lif_execution_failed",
+        "state_after_rejected_operation": "unchanged"
+    },
+    "profile": {
+        "artifact_sha256": "8051be0ff173b0ff6434d3f5b54ab8a1c9f5078f62fddd3e359e6a77deb5c716",
+        "canonical_sha256": "c667f3885f564dcf968febaf62125a86abaaee4758df792d5f06b0e82d1f121a",
+        "model_source_sha256": "064be334316184e50a85fb82b1a804cdf1342bb927c39588b4d4105c7a087762",
+        "name": "sc_exact_current_hard_reset_lif_v1",
+        "packet_schema": "sc-neurocore.exact-current-lif-packet.v1",
+        "profile_schema": "sc-neurocore.exact-current-lif-profile.v1",
+        "state_schema": "sc-neurocore.exact-current-lif-state.v1",
+        "units": {
+            "current": "normalized_current",
+            "resistance": "normalized_resistance",
+            "time": "ms",
+            "voltage": "normalized_voltage"
+        }
+    },
+    "reference_execution": {
+        "aggregate_execution_sha256": "4de99077efc4a57624561e2404d46322e4d66ea0a72ac9588ab29c83e4f4e279",
+        "event_count": 3,
+        "events_sha256": "e271b8d3d8674d043018099acfcf54a8a22f39448f8299aaa9311bfaa9487b26",
+        "final_state": {
+            "reset_epoch": 0,
+            "shot_id": "mif-reference-v1",
+            "time_ms": 62.0,
+            "voltage": -55.76618679163504
+        },
+        "final_state_sha256": "64dcca8c44f8f006bc02648c05ecf2978428ddb0eb42ad8c5a17e6ec51f71956",
+        "initial_state_sha256": "0ceacfff8f3555a13b356e3246b70dd915c287d4aa4434e07c97671173863a12",
+        "packet_sha256": "f86689dd7d568729e5ee5d4f2717a7c62a193072f95ad53f57fd0ffd35adadff",
+        "reference_artifact_sha256": "d8752ce402c91ad6cae7170add60172454497811e83ae3e8b68930f03f36bcde",
+        "state_sample_count": 11,
+        "state_trace_sha256": "5980057db79be9189d8b01f4a7a2ad64025372652a7622e31099046d224e642d",
+        "tick_count": 4,
+        "ticks_sha256": "73a4003e6ab58ad98947b6545ccde710494b3bcdd1043c5e1e0bc187e1441d56"
+    },
+    "sc_neurocore": {
+        "contract_commit": "248e88a827acfe9be0d654855ae9d3b7d2dcd527",
+        "distribution_version": "3.16.0",
+        "implementation_commit": "bc76e5b3c217fec191534bb650685316e645ad34",
+        "package": "sc-neurocore"
+    },
+    "schema": "scpn-control.exact-current-lif-runtime-receipt.v1",
+    "semantics": {
+        "input_delivery": "simultaneous current contributions summed at tick start",
+        "numeric": "IEEE-754 binary64/round_to_nearest_ties_to_even/fail_closed_non_finite",
+        "reset_boundary": "explicit_shot_reset_only",
+        "rng": "none",
+        "solver": "closed_form_piecewise_constant_event_driven",
+        "threshold_comparison": "greater_than_or_equal"
+    },
+    "verification": {
+        "branch_coverage_percent": 100,
+        "covered_branches": 80,
+        "covered_statements": 285,
+        "reference_comparison": "complete packet equality",
+        "result": "pass",
+        "statement_coverage_percent": 100
+    }
+}
