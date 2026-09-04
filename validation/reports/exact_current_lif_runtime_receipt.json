@@ -17,17 +17,20 @@
         ]
     },
     "control": {
-        "implementation_commit": "783f90d93590365a2725b77c22f82ca34a3afda3",
+        "implementation_commit": "52e60963f81995860b73514fe67d2d457ed9b1d4",
         "package": "scpn-control",
         "public_entry_point": "scpn_control.scpn.ExactCurrentLIFRuntime"
     },
     "negative_outcomes": {
         "checkpoint_binding_schema_profile_and_state_mismatch": "exact_current_lif_state_invalid",
         "duplicate_or_unknown_json_member": "rejected",
+        "incompatible_installed_distribution_source_api_or_profile_artifact": "typed_failure",
         "invalid_or_non_finite_tick": "exact_current_lif_input_invalid",
         "invalid_shot_reset": "exact_current_lif_state_invalid",
+        "late_second_transition_failure": "all_transition_states_unchanged",
         "profile_artifact_schema_name_source_unit_or_commit_mismatch": "exact_current_lif_binding_mismatch",
         "runtime_numeric_overflow": "exact_current_lif_execution_failed",
+        "split_shot_time_or_reset_epoch_checkpoint": "exact_current_lif_state_invalid",
         "state_after_rejected_operation": "unchanged"
     },
     "profile": {
@@ -81,8 +84,11 @@
     },
     "verification": {
         "branch_coverage_percent": 100,
-        "covered_branches": 80,
-        "covered_statements": 285,
+        "coverage_scope": "runtime implementation; static typing protocols and installation-environment guards excluded from the in-process denominator",
+        "covered_branches": 84,
+        "covered_statements": 291,
+        "isolated_public_installation_boundary_cases": 7,
+        "multi_transition_late_failure_atomicity": "pass",
         "reference_comparison": "complete packet equality",
         "result": "pass",
         "statement_coverage_percent": 100

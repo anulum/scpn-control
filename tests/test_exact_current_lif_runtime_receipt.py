@@ -107,7 +107,7 @@ def test_receipt_binds_exact_commits_profile_and_semantics() -> None:
     )
 
     assert receipt["schema"] == "scpn-control.exact-current-lif-runtime-receipt.v1"
-    assert implementation_commit == "783f90d93590365a2725b77c22f82ca34a3afda3"
+    assert implementation_commit == "52e60963f81995860b73514fe67d2d457ed9b1d4"
     assert receipt["control"]["public_entry_point"] == ("scpn_control.scpn.ExactCurrentLIFRuntime")
     assert receipt["sc_neurocore"] == {
         "contract_commit": SC_CONTRACT_COMMIT,
@@ -141,8 +141,14 @@ def test_receipt_binds_exact_commits_profile_and_semantics() -> None:
     }
     assert receipt["verification"] == {
         "branch_coverage_percent": 100,
-        "covered_branches": 80,
-        "covered_statements": 285,
+        "coverage_scope": (
+            "runtime implementation; static typing protocols and "
+            "installation-environment guards excluded from the in-process denominator"
+        ),
+        "covered_branches": 84,
+        "covered_statements": 291,
+        "isolated_public_installation_boundary_cases": 7,
+        "multi_transition_late_failure_atomicity": "pass",
         "reference_comparison": "complete packet equality",
         "result": "pass",
         "statement_coverage_percent": 100,
