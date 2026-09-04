@@ -21,6 +21,19 @@ if TYPE_CHECKING:
     from pathlib import Path
     from typing import Any
 
+    from scpn_control.scpn.exact_current_lif_runtime import (
+        ExactCurrentLIFBindingError,
+        ExactCurrentLIFError,
+        ExactCurrentLIFExecution,
+        ExactCurrentLIFExecutionError,
+        ExactCurrentLIFInputError,
+        ExactCurrentLIFProfileBinding,
+        ExactCurrentLIFRuntime,
+        ExactCurrentLIFStateError,
+        ExactCurrentLIFTransitionPacket,
+        ExactCurrentLIFTransitionTick,
+        ExactCurrentLIFUnavailableError,
+    )
     from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence
 
 from scpn_control.scpn.artifact import (
@@ -139,6 +152,36 @@ SUPPORTED_GEOMETRY_NEUTRAL_REPLAY_SCHEMA_VERSIONS = (
 GEOMETRY_NEUTRAL_REPLAY_MANIFEST_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-manifest.v1"
 GEOMETRY_NEUTRAL_REPLAY_EVIDENCE_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-evidence.v1"
 GEOMETRY_NEUTRAL_REPLAY_AER_ADMISSION_SCHEMA_VERSION = "scpn-control.geometry-neutral-replay-aer-admission.v1"
+
+_EXACT_CURRENT_LIF_EXPORTS = frozenset(
+    {
+        "ExactCurrentLIFBindingError",
+        "ExactCurrentLIFError",
+        "ExactCurrentLIFExecution",
+        "ExactCurrentLIFExecutionError",
+        "ExactCurrentLIFInputError",
+        "ExactCurrentLIFProfileBinding",
+        "ExactCurrentLIFRuntime",
+        "ExactCurrentLIFStateError",
+        "ExactCurrentLIFTransitionPacket",
+        "ExactCurrentLIFTransitionTick",
+        "ExactCurrentLIFUnavailableError",
+    }
+)
+
+
+def __getattr__(name: str) -> object:
+    """Load optional exact-current LIF exports only when requested."""
+    if name in _EXACT_CURRENT_LIF_EXPORTS:
+        from scpn_control.scpn import exact_current_lif_runtime
+
+        return getattr(exact_current_lif_runtime, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    """Include lazily loaded public names in interactive discovery."""
+    return sorted(set(globals()) | _EXACT_CURRENT_LIF_EXPORTS)
 
 
 def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> dict[str, object]:
@@ -281,6 +324,17 @@ __all__ = [
     "StochasticPetriNet",
     "FusionCompiler",
     "CompiledNet",
+    "ExactCurrentLIFBindingError",
+    "ExactCurrentLIFError",
+    "ExactCurrentLIFExecution",
+    "ExactCurrentLIFExecutionError",
+    "ExactCurrentLIFInputError",
+    "ExactCurrentLIFProfileBinding",
+    "ExactCurrentLIFRuntime",
+    "ExactCurrentLIFStateError",
+    "ExactCurrentLIFTransitionPacket",
+    "ExactCurrentLIFTransitionTick",
+    "ExactCurrentLIFUnavailableError",
     "ControlObservation",
     "ControlAction",
     "ControlTargets",

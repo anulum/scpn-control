@@ -28,6 +28,24 @@ scpn_control.admit_reactor_semantic_handoff
 
 ---
 
+## SCPN — Stateful exact-current LIF runtime
+
+`scpn_control.scpn.exact_current_lif_runtime` consumes the immutable
+SC-NeuroCore exact-current profile through its public solver classes. The
+opt-in compiler binding creates one persistent session per compiled transition,
+preserves complete state across calls, commits multi-transition execution
+atomically, and retains every ordered SC state sample and event in canonical
+packets. It is separate from the established stateless `CompiledNet.lif_fire`
+gate.
+
+Use the [Exact-current LIF runtime](guides/exact_current_lif_runtime.md) guide
+for the required hashes and commits, multi-transition input shape,
+checkpoint/replay workflow, typed failures, and evidence limits.
+
+::: scpn_control.scpn.exact_current_lif_runtime
+
+---
+
 ## Reactor Semantic Review Admission
 
 `scpn_control.reactor_semantic_admission` consumes only the canonical portable

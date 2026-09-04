@@ -80,6 +80,7 @@ nav:
     - Glossary: learning/glossary.md
   - Reference:
     - API Reference: api.md
+    - Exact-current LIF Runtime: guides/exact_current_lif_runtime.md
     - Native C and Lean API: _generated/native_api_reference.md
     - Theory: theory.md
     - Gyrokinetic Transport: gyrokinetic_transport.md

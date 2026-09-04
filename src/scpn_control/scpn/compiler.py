@@ -30,7 +30,7 @@ import subprocess
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -38,6 +38,12 @@ from numpy.typing import NDArray
 from scpn_control import __version__ as PACKAGE_VERSION
 
 from .structure import StochasticPetriNet
+
+if TYPE_CHECKING:
+    from .exact_current_lif_runtime import (
+        ExactCurrentLIFProfileBinding,
+        ExactCurrentLIFRuntime,
+    )
 
 logger = logging.getLogger(__name__)
 
@@ -165,6 +171,10 @@ class CompiledNet:
     # LIF neurons (one per transition) — empty list if no sc_neurocore
     neurons: list[Any] = field(default_factory=list)
 
+    # Explicit stateful exact-current mode. This is intentionally independent
+    # of the historical stateless ``lif_fire`` transition gate.
+    exact_current_lif_runtime: ExactCurrentLIFRuntime | None = None
+
     # Config
     bitstream_length: int = 1024
     thresholds: FloatArray = field(default_factory=lambda: np.array([], dtype=np.float64))
@@ -208,13 +218,16 @@ class CompiledNet:
         # v3.16.0+ path: sc_forward runs the AND+popcount estimate over the
         # caller-owned packed weights on the fastest available backend (Rust, with
         # a bit-identical NumPy fallback for a fixed seed).
-        if _HAS_NEUROCORE_V3:  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
+        if _HAS_NEUROCORE_V3 and hasattr(
+            np, "bitwise_count"
+        ):  # pragma: no cover - sc_neurocore optional dep, uninstalled on CI
             return np.asarray(
                 sc_forward(W_packed, input_probs, length=self.bitstream_length, seed=self.seed + 1_000_000),
                 dtype=np.float64,
             )
 
-        # Legacy path: manual pack + AND + popcount (sc_neurocore <3.16)
+        # Portable path: manual pack + AND + popcount for sc_neurocore <3.16
+        # and NumPy versions that predate ``bitwise_count``.
         else:  # pragma: no cover - legacy sc_neurocore <3.16 path, uninstalled on CI
             n_out, n_in, n_words = W_packed.shape
             output = np.zeros(n_out, dtype=np.float64)
@@ -508,6 +521,8 @@ class FusionCompiler:
         allow_inhibitor: bool = False,
         validate_topology: bool = False,
         strict_topology: bool = False,
+        exact_current_lif_binding: ExactCurrentLIFProfileBinding | None = None,
+        exact_current_lif_shot_id: str = "shot-0",
     ) -> CompiledNet:
         """Compile the Petri Net into sc_neurocore artifacts.
 
@@ -522,6 +537,11 @@ class FusionCompiler:
             carries inhibitor arcs explicitly.
         validate_topology : run topology diagnostics during compile.
         strict_topology : raise if topology diagnostics detect issues.
+        exact_current_lif_binding : explicit digest- and commit-bound SC-NeuroCore
+            profile for the persistent exact-current execution mode. The mode
+            does not alter ``lif_fire`` or reinterpret Petri-net thresholds.
+        exact_current_lif_shot_id : initial explicit shot identifier for the
+            stateful runtime.
 
         Steps:
             1. Extract dense W_in (nT x nP) and W_out (nP x nT).
@@ -579,7 +599,18 @@ class FusionCompiler:
             W_in_packed = _encode_weight_matrix_packed(W_in, self.bitstream_length, seed=self.seed)
             W_out_packed = _encode_weight_matrix_packed(W_out, self.bitstream_length, seed=self.seed + W_in.size)
 
-        # 4. Assemble
+        # 4. Bind the separate persistent exact-current mode when requested.
+        exact_current_lif_runtime: ExactCurrentLIFRuntime | None = None
+        if exact_current_lif_binding is not None:
+            from .exact_current_lif_runtime import ExactCurrentLIFRuntime
+
+            exact_current_lif_runtime = ExactCurrentLIFRuntime(
+                net.transition_names,
+                exact_current_lif_binding,
+                shot_id=exact_current_lif_shot_id,
+            )
+
+        # 5. Assemble
         return CompiledNet(
             n_places=net.n_places,
             n_transitions=net.n_transitions,
@@ -590,6 +621,7 @@ class FusionCompiler:
             W_in_packed=W_in_packed,
             W_out_packed=W_out_packed,
             neurons=neurons,
+            exact_current_lif_runtime=exact_current_lif_runtime,
             bitstream_length=self.bitstream_length,
             thresholds=thresholds,
             transition_delay_ticks=delay_ticks,
