@@ -6,5 +6,5 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci build.
 
-build==1.5.1
+build==1.6.0
 twine==7.0.0
