@@ -13,6 +13,30 @@ import ControlStudioPanel from '../src/ControlStudioPanel.js';
 import type { ClaimSummary, ControlVerb } from '../src/domain.js';
 
 describe('ControlStudioPanel', () => {
+  it('labels bundled data as a sample without a receipt timestamp', () => {
+    render(<ControlStudioPanel feedReceivedAt="2026-09-05T09:00:00.000Z" />);
+    expect(screen.getByRole('status')).toHaveTextContent('Bundled sample — not live reactor data.');
+    expect(screen.queryByText('2026-09-05T09:00:00.000Z')).not.toBeInTheDocument();
+  });
+
+  it('labels fetched transport separately from measurement freshness', () => {
+    const receivedAt = '2026-09-05T09:00:00.000Z';
+    const { rerender } = render(
+      <ControlStudioPanel feedSource="fetched" feedReceivedAt={receivedAt} />,
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'live measurements and freshness not verified',
+    );
+    expect(screen.getByText(receivedAt)).toHaveAttribute('datetime', receivedAt);
+    rerender(<ControlStudioPanel feedSource="fetched" />);
+    expect(screen.queryByText(receivedAt)).not.toBeInTheDocument();
+  });
+
+  it('does not infer a trusted origin for caller-provided collections', () => {
+    render(<ControlStudioPanel claims={[]} />);
+    expect(screen.getByRole('status')).toHaveTextContent('Caller-provided data');
+  });
+
   it('renders the studio header', () => {
     render(<ControlStudioPanel />);
     expect(
@@ -80,6 +104,7 @@ describe('ControlStudioPanel', () => {
       },
     ];
     render(<ControlStudioPanel verbs={verbs} claims={claims} />);
+    expect(screen.getByRole('status')).toHaveAttribute('data-feed-source', 'provided');
     // Only the feed-supplied verb is rendered (1 verb + 1 header row), not the sample.
     expect(screen.getAllByRole('row')).toHaveLength(2);
     expect(screen.queryByText('reconstruct')).not.toBeInTheDocument();

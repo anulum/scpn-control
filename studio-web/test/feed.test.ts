@@ -61,6 +61,8 @@ describe('narrowFeed', () => {
   it('maps the snake_case wire feed to camelCase domain types', () => {
     const feed = narrowFeed(VALID_FEED);
     expect(feed.studioVersion).toBe('0.21.0');
+    expect(feed.source).toBe('provided');
+    expect(feed.receivedAt).toBeUndefined();
     expect(feed.contentDigest).toBe(VALID_FEED.content_digest);
     expect(feed.verbs).toHaveLength(2);
     expect(feed.claims).toHaveLength(1);
@@ -180,10 +182,18 @@ describe('isRawFeed', () => {
 });
 
 describe('loadStudioFeed', () => {
-  it('fetches and narrows the live feed from the default url', async () => {
+  it.each([0, -1, 1.5, NaN, Infinity, 60001])('rejects invalid timeout %s', async (timeout) => {
+    await expect(loadStudioFeed('/feed', timeout)).rejects.toThrow(RangeError);
+  });
+
+  it('fetches and narrows the feed from the default url', async () => {
     mockFetch(() => Promise.resolve({ ok: true, json: () => Promise.resolve(VALID_FEED) }));
     const feed = await loadStudioFeed();
-    expect(globalThis.fetch).toHaveBeenCalledWith(DEFAULT_FEED_URL);
+    expect(globalThis.fetch).toHaveBeenCalledWith(DEFAULT_FEED_URL, {
+      signal: expect.any(AbortSignal) as unknown,
+    });
+    expect(feed.source).toBe('fetched');
+    expect(new Date(feed.receivedAt ?? '').toISOString()).toBe(feed.receivedAt);
     expect(feed.studioVersion).toBe('0.21.0');
     expect(feed.verbs).toHaveLength(2);
   });
@@ -191,6 +201,8 @@ describe('loadStudioFeed', () => {
   it('falls back to the bundled sample when the response is not OK', async () => {
     mockFetch(() => Promise.resolve({ ok: false, json: () => Promise.resolve(VALID_FEED) }));
     expect(await loadStudioFeed('/missing.json')).toBe(FALLBACK_FEED);
+    expect(FALLBACK_FEED.source).toBe('sample');
+    expect(FALLBACK_FEED.receivedAt).toBeUndefined();
   });
 
   it('falls back when the payload is malformed', async () => {

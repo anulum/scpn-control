@@ -7,8 +7,8 @@
 // SCPN Control — Feed.
 
 /**
- * Load the CONTROL studio feed the Python vertical emits, so the panel renders live
- * data instead of a hard-coded copy.
+ * Load the CONTROL studio feed the Python vertical emits. Transport success does
+ * not establish live measurements or evidence freshness.
  *
  * The wire feed (`scpn_control.studio.feed`, schema `studio.control-feed.v1`) is
  * snake_case; this module narrows it to the panel's camelCase domain types at the
@@ -68,7 +68,7 @@ export interface RawFeed {
   readonly studio: string;
   /** Version of the producing Studio package. */
   readonly studio_version: string;
-  /** Digest binding the emitted feed content. */
+  /** Producer manifest digest, not a digest of the feed bytes. */
   readonly content_digest: string;
   /** Advertised CONTROL verbs. */
   readonly verbs: readonly RawVerb[];
@@ -78,9 +78,13 @@ export interface RawFeed {
 
 /** The narrowed feed the panel consumes. */
 export interface StudioFeed {
+  /** Transport origin only; never proof of live measurements. */
+  readonly source: 'sample' | 'provided' | 'fetched';
+  /** Local UTC receipt time of the latest successful load, not measurement time. */
+  readonly receivedAt?: string;
   /** Version of the producing Studio package. */
   readonly studioVersion: string;
-  /** Digest binding the emitted feed content. */
+  /** Producer manifest digest, not a digest of the feed bytes. */
   readonly contentDigest: string;
   /** Advertised CONTROL verbs. */
   readonly verbs: readonly ControlVerb[];
@@ -88,8 +92,9 @@ export interface StudioFeed {
   readonly claims: readonly ClaimSummary[];
 }
 
-/** The bundled fallback feed — the domain sample, used when the live feed is absent. */
+/** The bundled domain sample, used when the requested feed is unavailable or invalid. */
 export const FALLBACK_FEED: StudioFeed = {
+  source: 'sample',
   studioVersion: 'fallback',
   contentDigest: 'fallback',
   verbs: CONTROL_VERBS,
@@ -212,6 +217,7 @@ export function isRawFeed(value: unknown): value is RawFeed {
 export function narrowFeed(raw: unknown): StudioFeed {
   if (!isRawFeed(raw)) throw new TypeError('Invalid CONTROL studio feed');
   return {
+    source: 'provided',
     studioVersion: raw.studio_version,
     contentDigest: raw.content_digest,
     verbs: raw.verbs.map(toVerb),
@@ -220,21 +226,35 @@ export function narrowFeed(raw: unknown): StudioFeed {
 }
 
 /**
- * Fetch and narrow the live studio feed, falling back to the bundled sample.
+ * Fetch and narrow the studio feed, falling back to the bundled sample.
  *
  * @param url - where to fetch the feed from (defaults to {@link DEFAULT_FEED_URL}).
- * @returns the narrowed live feed, or {@link FALLBACK_FEED} when it is unreachable
+ * @param timeoutMs - total fetch/body deadline, 1–60000 ms; defaults to 5000.
+ * @throws RangeError for an invalid deadline.
+ * @returns the narrowed fetched feed, or {@link FALLBACK_FEED} when it is unreachable
  *   (non-OK response, network error) or malformed.
  */
-export async function loadStudioFeed(url: string = DEFAULT_FEED_URL): Promise<StudioFeed> {
+export async function loadStudioFeed(
+  url: string = DEFAULT_FEED_URL,
+  timeoutMs = 5000,
+): Promise<StudioFeed> {
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60000) {
+    throw new RangeError('Feed timeout must be an integer from 1 to 60000 ms');
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) {
       return FALLBACK_FEED;
     }
     const payload: unknown = await response.json();
-    return narrowFeed(payload);
+    return { ...narrowFeed(payload), source: 'fetched', receivedAt: new Date().toISOString() };
   } catch {
     return FALLBACK_FEED;
+  } finally {
+    clearTimeout(timer);
   }
 }

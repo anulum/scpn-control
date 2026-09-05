@@ -96,12 +96,24 @@ export function narrowPortalAccount(raw: RawPortalAccount): PortalAccount {
  * Fetch the portal session using the shared same-origin httpOnly cookie.
  *
  * @param url - portal account endpoint, defaults to {@link DEFAULT_AUTH_URL}.
+ * @param timeoutMs - total fetch/body deadline, 1–60000 ms; defaults to 5000.
+ * @throws RangeError for an invalid deadline.
  * @returns authenticated account state, anonymous state for 401/403, or
  *   unavailable when the endpoint is missing, unreachable, or malformed.
  */
-export async function loadPortalAuth(url: string = DEFAULT_AUTH_URL): Promise<PortalAuthState> {
+export async function loadPortalAuth(
+  url: string = DEFAULT_AUTH_URL,
+  timeoutMs = 5000,
+): Promise<PortalAuthState> {
+  if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 60000) {
+    throw new RangeError('Portal timeout must be an integer from 1 to 60000 ms');
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    controller.abort();
+  }, timeoutMs);
   try {
-    const response = await fetch(url, { credentials: 'include' });
+    const response = await fetch(url, { credentials: 'include', signal: controller.signal });
     if (response.status === 401 || response.status === 403) {
       return { status: 'anonymous' };
     }
@@ -114,5 +126,7 @@ export async function loadPortalAuth(url: string = DEFAULT_AUTH_URL): Promise<Po
       : FALLBACK_AUTH;
   } catch {
     return FALLBACK_AUTH;
+  } finally {
+    clearTimeout(timer);
   }
 }

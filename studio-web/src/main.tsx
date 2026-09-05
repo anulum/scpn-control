@@ -23,6 +23,12 @@ if (container === null) {
 const [feed, portalAuth] = await Promise.all([loadStudioFeed(), loadPortalAuth()]);
 createRoot(container).render(
   <StrictMode>
-    <ControlStudioPanel verbs={feed.verbs} claims={feed.claims} portalAuth={portalAuth} />
+    <ControlStudioPanel
+      verbs={feed.verbs}
+      claims={feed.claims}
+      portalAuth={portalAuth}
+      feedSource={feed.source}
+      feedReceivedAt={feed.receivedAt}
+    />
   </StrictMode>,
 );

@@ -64,6 +64,10 @@ describe('narrowPortalAccount', () => {
 });
 
 describe('loadPortalAuth', () => {
+  it.each([0, -1, 1.5, NaN, Infinity, 60001])('rejects invalid timeout %s', async (timeout) => {
+    await expect(loadPortalAuth('/auth', timeout)).rejects.toThrow(RangeError);
+  });
+
   it('fetches the current portal session with same-origin cookies', async () => {
     mockFetch(() =>
       Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve(RAW_ACCOUNT) }),
@@ -71,7 +75,10 @@ describe('loadPortalAuth', () => {
 
     const auth = await loadPortalAuth();
 
-    expect(globalThis.fetch).toHaveBeenCalledWith(DEFAULT_AUTH_URL, { credentials: 'include' });
+    expect(globalThis.fetch).toHaveBeenCalledWith(DEFAULT_AUTH_URL, {
+      credentials: 'include',
+      signal: expect.any(AbortSignal) as unknown,
+    });
     expect(auth).toEqual({
       status: 'authenticated',
       account: narrowPortalAccount(RAW_ACCOUNT),

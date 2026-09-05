@@ -14,6 +14,7 @@ import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, expect, it } from 'vitest';
 
 import ControlStudioPanel from '../src/ControlStudioPanel.js';
+import { FALLBACK_AUTH, loadPortalAuth } from '../src/auth.js';
 import { FALLBACK_FEED, isRawFeed, loadStudioFeed } from '../src/feed.js';
 
 afterEach(cleanup);
@@ -24,6 +25,11 @@ it('loads the emitted Python feed over HTTP and renders its claims and verbs', a
   expect(isRawFeed(payload)).toBe(true);
   const server = createServer((request, response) => {
     response.setHeader('Content-Type', 'application/json');
+    if (request.url === '/pending') return;
+    if (request.url === '/body-pending') {
+      response.write('{');
+      return;
+    }
     response.end(request.url === '/feed' ? emitted : JSON.stringify({ verbs: [], claims: [] }));
   });
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
@@ -31,7 +37,15 @@ it('loads the emitted Python feed over HTTP and renders its claims and verbs', a
     const url = `http://127.0.0.1:${String((server.address() as AddressInfo).port)}`;
     const feed = await loadStudioFeed(`${url}/feed`);
     expect(feed).not.toBe(FALLBACK_FEED);
-    render(<ControlStudioPanel verbs={feed.verbs} claims={feed.claims} />);
+    const { rerender } = render(
+      <ControlStudioPanel
+        verbs={feed.verbs}
+        claims={feed.claims}
+        feedSource={feed.source}
+        feedReceivedAt={feed.receivedAt}
+      />,
+    );
+    expect(screen.getByRole('status')).toHaveAttribute('data-feed-source', 'fetched');
     expect(screen.getAllByRole('row')).toHaveLength(feed.verbs.length + 1);
     expect(screen.getByText(/studio\.efit-reconstruction\.v1/).closest('li')).toHaveAttribute(
       'data-validated',
@@ -42,6 +56,26 @@ it('loads the emitted Python feed over HTTP and renders its claims and verbs', a
       'yes',
     );
     expect(await loadStudioFeed(`${url}/invalid`)).toBe(FALLBACK_FEED);
+    for (const route of ['/pending', '/body-pending']) {
+      const [fallback, auth] = await Promise.all([
+        loadStudioFeed(`${url}${route}`, 100),
+        loadPortalAuth(`${url}${route}`, 100),
+      ]);
+      expect(fallback).toBe(FALLBACK_FEED);
+      expect(auth).toBe(FALLBACK_AUTH);
+      rerender(
+        <ControlStudioPanel
+          verbs={fallback.verbs}
+          claims={fallback.claims}
+          feedSource={fallback.source}
+          portalAuth={auth}
+        />,
+      );
+      expect(screen.getByRole('status')).toHaveTextContent(
+        'Bundled sample — not live reactor data.',
+      );
+      expect(screen.getByText('Portal session: unavailable')).toBeInTheDocument();
+    }
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve, reject) =>

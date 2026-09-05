@@ -38,6 +38,17 @@ validation. Explicitly stale or rejected claims remain visible without promotion
 Invalid feeds fall back to the bundled sample. `narrowFeed` also validates direct
 inputs and throws `TypeError` on failure. Additional fields are ignored.
 
+The panel labels bundled samples, fetched feeds, and caller-provided data
+separately. A fetched feed is not evidence of live reactor measurements or
+freshness. Its displayed UTC receipt time is local load time, not measurement
+time. The standalone application loads once; it does not poll or retain a stale
+feed cache. Invalid or unavailable feeds display the explicitly labelled sample.
+
+Feed and portal-auth requests each abort after 5 seconds, including stalled
+response bodies. Both loaders accept an optional integer timeout of 1–60000 ms;
+invalid timeouts throw `RangeError`. Feed failures return the sample, while auth
+failures remain unavailable. Neither fallback grants execution authority.
+
 `content_digest` identifies the producer's manifest, not the feed bytes. Format
 validation does not authenticate the producer or independently verify its claims.
 Rendering a feed does not authorise hardware execution. The integration test

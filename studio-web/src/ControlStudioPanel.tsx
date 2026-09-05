@@ -10,6 +10,7 @@ import type { ReactElement } from 'react';
 
 import type { PortalAuthState } from './auth.js';
 import { FALLBACK_AUTH } from './auth.js';
+import type { StudioFeed } from './feed.js';
 import type { ClaimSummary, ControlVerb } from './domain.js';
 import {
   claimRendersAsValidated,
@@ -18,8 +19,12 @@ import {
   requiresLiveHardwareGate,
 } from './domain.js';
 
-/** The verbs and claims the panel renders — supplied from the live feed, or sampled. */
+/** The panel's verbs, claims, transport origin and portal session. */
 export interface ControlStudioPanelProps {
+  /** Transport origin supplied by the feed loader; not scientific provenance. */
+  readonly feedSource?: StudioFeed['source'];
+  /** Local receipt time, never a measurement timestamp or freshness proof. */
+  readonly feedReceivedAt?: string | undefined;
   /** Control verbs to render in manifest order. */
   readonly verbs?: readonly ControlVerb[];
   /** Honesty-graded claim summaries to render. */
@@ -37,14 +42,18 @@ export interface ControlStudioPanelProps {
  * marking only a reference-validated claim as validated. The same honesty grading
  * the Python vertical emits is shown here as UI.
  *
- * The verbs and claims come from the live studio feed (see ``feed.ts``); the bundled
+ * The verbs and claims come from the studio feed (see ``feed.ts``); the bundled
  * domain sample is the default so the remote also renders standalone.
  */
 export default function ControlStudioPanel({
   verbs = CONTROL_VERBS,
   claims = CONTROL_CLAIMS,
   portalAuth = FALLBACK_AUTH,
+  feedSource,
+  feedReceivedAt,
 }: ControlStudioPanelProps = {}): ReactElement {
+  const source =
+    feedSource ?? (verbs === CONTROL_VERBS && claims === CONTROL_CLAIMS ? 'sample' : 'provided');
   const portalStatus =
     portalAuth.status === 'authenticated'
       ? `${portalAuth.account.displayName} · ${portalAuth.account.tier}`
@@ -53,6 +62,19 @@ export default function ControlStudioPanel({
     <section className="control-studio">
       <header className="control-studio__header">
         <h2>SCPN-CONTROL — Control Studio</h2>
+        <p role="status" data-feed-source={source}>
+          {source === 'sample'
+            ? 'Bundled sample — not live reactor data.'
+            : source === 'fetched'
+              ? 'Fetched feed — live measurements and freshness not verified.'
+              : 'Caller-provided data — origin and freshness not verified.'}
+          {source === 'fetched' && feedReceivedAt !== undefined && (
+            <>
+              {' '}
+              Received at <time dateTime={feedReceivedAt}>{feedReceivedAt}</time>.
+            </>
+          )}
+        </p>
         <p className="control-studio__portal" data-auth-status={portalAuth.status}>
           Portal session: {portalStatus}
         </p>
