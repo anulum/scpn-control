@@ -257,3 +257,25 @@ def test_package_lazy_export_rejects_unknown_symbol() -> None:
 
     with pytest.raises(AttributeError, match="definitely_missing"):
         scpn_control.__getattr__("definitely_missing")
+
+
+def test_scpn_interactive_discovery_includes_exact_current_lif_api() -> None:
+    """Interactive discovery exposes the optional LIF API alongside eager exports."""
+    import scpn_control.scpn as scpn
+
+    names = dir(scpn)
+    assert {
+        "FusionCompiler",
+        "ExactCurrentLIFRuntime",
+        "ExactCurrentLIFProfileBinding",
+        "ExactCurrentLIFTransitionTick",
+        "ExactCurrentLIFTransitionPacket",
+        "ExactCurrentLIFExecution",
+        "ExactCurrentLIFError",
+        "ExactCurrentLIFBindingError",
+        "ExactCurrentLIFExecutionError",
+        "ExactCurrentLIFInputError",
+        "ExactCurrentLIFStateError",
+        "ExactCurrentLIFUnavailableError",
+    }.issubset(names)
+    assert names == sorted(set(names))
