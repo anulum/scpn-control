@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -68,3 +69,63 @@ def test_called_facade_alias_links_real_owner_but_not_untested_sibling(tmp_path:
     assert result.returncode == 1
     assert OWNER not in result.stdout
     assert "src/scpn_control/reactor_semantic_admission/mif_admission.py" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "def test_shadow():\n    def admit(): return 'local'\n    assert admit() == 'local'",
+        "def test_shadow():\n    admit = lambda: 'local'\n    assert admit() == 'local'",
+        "def helper(admit):\n    assert admit() == 'local'\ndef test_shadow(): helper(lambda: 'local')",
+        "def test_shadow():\n    assert (lambda admit: admit())(lambda: 'local') == 'local'",
+        "def test_shadow():\n    for admit in [lambda: 'local']:\n        assert admit() == 'local'",
+        "def test_shadow():\n    assert [admit() for admit in [lambda: 'local']] == ['local']",
+        "def test_shadow():\n    from pathlib import Path as admit\n    assert str(admit('local')) == 'local'",
+        "def test_import_only():\n    from scpn_control.reactor_semantic_admission import admit_reactor_regime_assessment as other\n"
+        "def test_shadow():\n    other = lambda: 'local'\n    assert other() == 'local'",
+    ],
+)
+def test_shadowed_api_does_not_credit_real_owner(tmp_path: Path, body: str) -> None:
+    """Execute passing local decoys, then require the public guard to reject their owner link."""
+    fixture = tmp_path / "test_shadow.py"
+    fixture.write_text(
+        "from scpn_control.reactor_semantic_admission import admit_reactor_regime_assessment as admit\n" + body + "\n"
+    )
+    run = subprocess.run(
+        [sys.executable, "-m", "pytest", "-q", "-o", "addopts=", "-p", "no:cacheprovider", str(fixture)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert run.returncode == 0, run.stdout + run.stderr
+    guard = subprocess.run(
+        [sys.executable, str(GUARD), "--test-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert guard.returncode == 1
+    assert OWNER in guard.stdout
+
+
+def test_independent_scopes_keep_real_facade_binding(tmp_path: Path) -> None:
+    """An unrelated local alias cannot overwrite another test's real public call."""
+    (tmp_path / "test_scopes.py").write_text(
+        textwrap.dedent("""\
+        def test_real():
+            from scpn_control.reactor_semantic_admission import admit_reactor_regime_assessment as api
+            api(b'{}', policy=None)
+
+        def test_other():
+            from pathlib import Path as api
+            assert str(api('local')) == 'local'
+        """)
+    )
+    result = subprocess.run(
+        [sys.executable, str(GUARD), "--test-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert OWNER not in result.stdout

@@ -89,28 +89,82 @@ def _owner(name: str, source_root: Path, seen: frozenset[str] = frozenset()) -> 
     return None
 
 
+_SCOPES = (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Lambda)
+
+
+def _scope_nodes(tree: ast.AST) -> list[ast.AST]:
+    nodes: list[ast.AST] = []
+    for child in ast.iter_child_nodes(tree):
+        nodes.append(child)
+        if not isinstance(child, _SCOPES):
+            nodes.extend(_scope_nodes(child))
+    return nodes
+
+
+def _linked_names(tree: ast.AST, inherited: dict[str, str]) -> set[str]:
+    nodes = _scope_nodes(tree)
+    bindings = inherited.copy()
+    imports: dict[str, set[str]] = {}
+    shadowed: set[str] = set()
+    if isinstance(tree, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+        shadowed.update(arg.arg for arg in ast.walk(tree.args) if isinstance(arg, ast.arg))
+    for node in nodes:
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            for name, target in _imports(node).items():
+                imports.setdefault(name, set()).add(target)
+        elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
+            shadowed.add(node.id)
+        elif (
+            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+            or isinstance(node, ast.ExceptHandler)
+            and node.name
+            or isinstance(node, (ast.MatchAs, ast.MatchStar))
+            and node.name
+        ):
+            shadowed.add(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            shadowed.add(node.rest)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            shadowed.update(node.names)
+    for name, targets in imports.items():
+        if len(targets) == 1:
+            bindings[name] = next(iter(targets))
+        else:
+            shadowed.add(name)
+    for name in shadowed:
+        bindings.pop(name, None)
+    linked: set[str] = set()
+    for node in nodes:
+        if isinstance(node, _SCOPES):
+            # Class namespaces are not enclosing lexical scopes for methods.
+            child_bindings = inherited if isinstance(tree, ast.ClassDef) else bindings
+            linked.update(_linked_names(node, child_bindings))
+        expressions: list[ast.expr] = []
+        if isinstance(node, ast.Call):
+            expressions.append(node.func)
+        elif isinstance(node, ast.Assert):
+            expressions.extend(part for part in _scope_nodes(node.test) if isinstance(part, (ast.Name, ast.Attribute)))
+            expressions.append(node.test)
+        for expression in expressions:
+            name = _qualified_name(expression)
+            first, _, rest = name.partition(".")
+            if first in bindings:
+                linked.add(bindings[first] + ("." + rest if rest else ""))
+    return linked
+
+
 def collect_unlinked_modules(*, source_root: Path, test_root: Path) -> list[str]:
     """Find owners without a called or asserted API, resolving facade re-exports.
 
     This is a static linkage check, not proof of execution or coverage. Comments,
     strings, unused imports and test filenames cannot establish a linkage.
+    Rebound names and conflicting imports within a scope are conservatively
+    refused; independent function scopes retain their own import bindings.
     """
     linked: set[str] = set()
     for path in sorted(test_root.rglob("test_*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        bindings = _imports(tree)
-        expressions: list[ast.expr] = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Call):
-                expressions.append(node.func)
-            elif isinstance(node, ast.Assert):
-                expressions.extend(part for part in ast.walk(node.test) if isinstance(part, (ast.Name, ast.Attribute)))
-        for expression in expressions:
-            name = _qualified_name(expression)
-            first, _, rest = name.partition(".")
-            resolved = bindings.get(first, first)
-            if rest:
-                resolved += "." + rest
+        for resolved in _linked_names(tree, {}):
             owner = _owner(resolved, source_root)
             if owner:
                 linked.add(owner)
