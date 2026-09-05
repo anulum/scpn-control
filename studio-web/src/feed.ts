@@ -121,20 +121,96 @@ function toClaim(raw: RawClaim): ClaimSummary {
   return raw.freshness === undefined ? base : { ...base, freshness: raw.freshness };
 }
 
-/** Structural type guard for the wire feed (validates the two collections). */
-export function isRawFeed(value: unknown): value is RawFeed {
-  if (typeof value !== 'object' || value === null) {
-    return false;
-  }
-  const candidate = value as { verbs?: unknown; claims?: unknown };
-  if (!Array.isArray(candidate.verbs)) {
-    return false;
-  }
-  return Array.isArray(candidate.claims);
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Narrow a validated wire feed to the panel's camelCase domain types. */
-export function narrowFeed(raw: RawFeed): StudioFeed {
+function isText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim().length > 0;
+}
+
+function member(value: unknown, choices: readonly string[]): boolean {
+  return typeof value === 'string' && choices.includes(value);
+}
+
+function isVerb(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    isText(value.name) &&
+    member(value.safety_tier, ['research', 'certified', 'production']) &&
+    member(value.side_effect, ['read-only', 'simulated', 'live-hardware']) &&
+    member(value.timing_class, ['batch', 'interactive', 'realtime']) &&
+    typeof value.domain_distinctive === 'boolean' &&
+    (value.timing_class === 'realtime'
+      ? typeof value.deadline_us === 'number' &&
+        Number.isFinite(value.deadline_us) &&
+        value.deadline_us > 0
+      : !Object.hasOwn(value, 'deadline_us'))
+  );
+}
+
+function isClaim(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  return (
+    isText(value.schema) &&
+    member(value.status, [
+      'reference-validated',
+      'bounded-model',
+      'bounded-support',
+      'validation-gap',
+      'external-dependency-blocked',
+      'roadmap',
+      'toolchain-gated',
+      'refuted',
+    ]) &&
+    member(value.admission, ['admitted', 'rejected']) &&
+    member(value.kind, [
+      'measured',
+      'curated',
+      'formally-proven',
+      'falsified',
+      'noise-limited',
+      'hardware-validated',
+      'producer-asserted',
+    ]) &&
+    (!Object.hasOwn(value, 'freshness') ||
+      member(value.freshness, ['verified-at-source', 'traceable-unchecked', 'untraceable'])) &&
+    !(
+      value.status === 'reference-validated' &&
+      value.admission === 'admitted' &&
+      !Object.hasOwn(value, 'freshness')
+    )
+  );
+}
+
+/**
+ * Validate CONTROL wire identity and every field consumed by the panel.
+ *
+ * Additional fields are ignored for forward compatibility. The digest is a
+ * manifest identifier: its format is checked, not a signature or a hash of
+ * this feed. Legacy claims without freshness cannot assert admitted validation.
+ */
+export function isRawFeed(value: unknown): value is RawFeed {
+  return (
+    isRecord(value) &&
+    value.feed_schema === 'studio.control-feed.v1' &&
+    value.studio === 'scpn-control' &&
+    isText(value.studio_version) &&
+    typeof value.content_digest === 'string' &&
+    /^sha256:[0-9a-f]{64}$/.test(value.content_digest) &&
+    Array.isArray(value.verbs) &&
+    Array.from(value.verbs).every(isVerb) &&
+    Array.isArray(value.claims) &&
+    Array.from(value.claims).every(isClaim)
+  );
+}
+
+/**
+ * Validate and map a wire feed to the panel's camelCase domain types.
+ * @throws TypeError if identity, item structure or rendering fields are invalid.
+ */
+export function narrowFeed(raw: unknown): StudioFeed {
+  if (!isRawFeed(raw)) throw new TypeError('Invalid CONTROL studio feed');
   return {
     studioVersion: raw.studio_version,
     contentDigest: raw.content_digest,
@@ -157,7 +233,7 @@ export async function loadStudioFeed(url: string = DEFAULT_FEED_URL): Promise<St
       return FALLBACK_FEED;
     }
     const payload: unknown = await response.json();
-    return isRawFeed(payload) ? narrowFeed(payload) : FALLBACK_FEED;
+    return narrowFeed(payload);
   } catch {
     return FALLBACK_FEED;
   }

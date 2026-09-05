@@ -30,6 +30,20 @@ studio is independent.
 
 ## Develop
 
+The feed loader validates `studio.control-feed.v1`, the `scpn-control` identity,
+non-empty version, manifest-digest format, and every displayed verb/claim field.
+Realtime deadlines must be finite and positive; other timing classes omit them.
+Legacy claims may omit freshness only when they do not assert admitted reference
+validation. Explicitly stale or rejected claims remain visible without promotion.
+Invalid feeds fall back to the bundled sample. `narrowFeed` also validates direct
+inputs and throws `TypeError` on failure. Additional fields are ignored.
+
+`content_digest` identifies the producer's manifest, not the feed bytes. Format
+validation does not authenticate the producer or independently verify its claims.
+Rendering a feed does not authorise hardware execution. The integration test
+serves the committed Python-emitted feed over loopback HTTP and renders the panel;
+it is not a facility or deployment test.
+
 ```bash
 pnpm install
 pnpm typecheck   # tsc --noEmit, strict

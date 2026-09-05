@@ -20,7 +20,7 @@ const VALID_FEED = {
   feed_schema: 'studio.control-feed.v1',
   studio: 'scpn-control',
   studio_version: '0.21.0',
-  content_digest: 'sha256:abc',
+  content_digest: `sha256:${'a'.repeat(64)}`,
   verbs: [
     {
       name: 'regulate',
@@ -61,7 +61,7 @@ describe('narrowFeed', () => {
   it('maps the snake_case wire feed to camelCase domain types', () => {
     const feed = narrowFeed(VALID_FEED);
     expect(feed.studioVersion).toBe('0.21.0');
-    expect(feed.contentDigest).toBe('sha256:abc');
+    expect(feed.contentDigest).toBe(VALID_FEED.content_digest);
     expect(feed.verbs).toHaveLength(2);
     expect(feed.claims).toHaveLength(1);
   });
@@ -103,6 +103,70 @@ describe('narrowFeed', () => {
 });
 
 describe('isRawFeed', () => {
+  it.each([
+    {},
+    [],
+    { verbs: [], claims: [] },
+    { ...VALID_FEED, feed_schema: 'studio.control-feed.v2' },
+    { ...VALID_FEED, studio: 'different-studio' },
+    ...[null, 2, '', ' '].map((studio_version) => ({ ...VALID_FEED, studio_version })),
+    ...[null, 2, '', 'sha256:abc', `sha256:${'A'.repeat(64)}`].map((content_digest) => ({
+      ...VALID_FEED,
+      content_digest,
+    })),
+    { ...VALID_FEED, verbs: null },
+    { ...VALID_FEED, claims: null },
+    { ...VALID_FEED, verbs: new Array<unknown>(1) },
+    { ...VALID_FEED, claims: new Array<unknown>(1) },
+    ...[
+      null,
+      [],
+      4,
+      {},
+      { ...VALID_FEED.verbs[0], name: '' },
+      { ...VALID_FEED.verbs[0], safety_tier: 'unknown' },
+      { ...VALID_FEED.verbs[0], side_effect: 1 },
+      { ...VALID_FEED.verbs[0], timing_class: 'unknown' },
+      { ...VALID_FEED.verbs[0], domain_distinctive: 'false' },
+      ...[undefined, null, '5', 0, -1, Infinity, NaN].map((deadline_us) => ({
+        ...VALID_FEED.verbs[0],
+        deadline_us,
+      })),
+      { ...VALID_FEED.verbs[1], deadline_us: 5 },
+    ].map((verb) => ({ ...VALID_FEED, verbs: [verb] })),
+    ...[
+      null,
+      [],
+      4,
+      {},
+      { ...VALID_FEED.claims[0], schema: '' },
+      { ...VALID_FEED.claims[0], status: 'unknown' },
+      { ...VALID_FEED.claims[0], admission: 'unknown' },
+      { ...VALID_FEED.claims[0], kind: 'unknown' },
+      ...[undefined, null, 'unknown'].map((freshness) => ({ ...VALID_FEED.claims[0], freshness })),
+      {
+        schema: 'claim.v1',
+        status: 'reference-validated',
+        admission: 'admitted',
+        kind: 'measured',
+      },
+    ].map((claim) => ({ ...VALID_FEED, claims: [claim] })),
+  ])('rejects malformed identity or rendering fields: %j', (payload) => {
+    expect(isRawFeed(payload)).toBe(false);
+    expect(() => narrowFeed(payload)).toThrow(TypeError);
+  });
+
+  it('preserves stale or rejected claims without upgrading their evidence', () => {
+    for (const admission of ['admitted', 'rejected'] as const) {
+      const raw = {
+        ...VALID_FEED,
+        claims: [{ ...VALID_FEED.claims[0], admission, freshness: 'untraceable' }],
+      };
+      expect(isRawFeed(raw)).toBe(true);
+      expect(narrowFeed(raw).claims[0]?.freshness).toBe('untraceable');
+    }
+  });
+
   it('accepts a well-formed feed', () => {
     expect(isRawFeed(VALID_FEED)).toBe(true);
   });
