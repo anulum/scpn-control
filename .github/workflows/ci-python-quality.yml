@@ -36,6 +36,9 @@ jobs:
             python-version: "3.12"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # Receipt verification checks the implementation commit ancestry.
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -43,6 +46,8 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
+          # Build the immutable LIF contract with the hash-pinned setuptools from ci-test.
+          pip install --require-hashes --no-build-isolation -r requirements/ci-neuro.txt
       - name: Install studio platform SDK (ubuntu 3.12 only)
         # The studio vertical (scpn_control.studio) consumes the published
         # scpn-studio-platform SDK; install it on the job that runs mypy + the
