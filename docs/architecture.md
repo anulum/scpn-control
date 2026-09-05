@@ -72,6 +72,18 @@ The bundle's UNKNOWN regime has the same bounded meaning. CONTROL emits only a
 review decision with `review_only=true` and `actionable=false`; no
 `ControlAction` crosses or is created at this boundary.
 
+The device-diagnostic design-review path is a distinct contract. CONTROL
+accepts only the canonical bytes decoded by SPO 1.4.3's public
+`device_diagnostic_plan_review_from_bytes` function. It does not accept raw
+device manifests, diagnostic envelopes, plans, FAIR-MAST records, or sibling
+checkout objects. The consumer pins the public distribution and decoder source,
+the complete review envelope, device producer and source-document digests,
+configuration set, and all clock-review fields. A successful result means only
+that the exact synthetic design declaration is eligible for review; facility
+clock mapping, physical evidence, observation, measurement, facility binding,
+classification, semantic ingress, control intent, execution and actuation
+remain false.
+
 ### Equilibrium data boundary
 
 `core.imas_adapter.EquilibriumSnapshot` is the single solver-facing equilibrium
@@ -103,7 +115,7 @@ graph LR
     CC["scpn-control<br/>control-grade facade"]
     FC -- "port / wrap solver subset<br/>(control-loop contract)" --> CC
     FC -- "canonical physics evidence bytes" --> SPO
-    SPO -- "review-only semantic handoff bytes" --> CC
+    SPO -- "sealed review-only bytes" --> CC
     QC -- "control adapter<br/>(classifier + feature contract)" --> CC
     CC -. "upstream reusable maths" .-> FC
 ```

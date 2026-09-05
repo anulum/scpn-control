@@ -8,8 +8,17 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-09-05"
-expected_total = 367
-expected_sha256 = "d8970ac5f6f4f0447336f4c3c4ad0eae9076229c9a94ec5203cb937ee9a739e6"
+expected_total = 377
+expected_sha256 = "ab2b2fed9cd963678b26c4c5e166532753dc57357dc823fc37b382f8d808ade2"
+
+[[rules]]
+id = "spo-installation-boundary"
+pattern = "SPO installation guard"
+external_dependency = "hash-verified public SPO wheel, distribution metadata and decoder exports/source"
+execution_lane = "manual isolated wheel installations plus tests/test_device_diagnostic_review_admission.py public subprocess refusals"
+status = "separate-process-evidence"
+removal_condition = "Remove when the actual installed-wheel and layout refusal subprocesses collect and merge owner branch coverage; successful baseline imports alone do not cover absent or incompatible installations."
+workflow_evidence = "pytest -p hypothesis.extra.pytestplugin tests/"
 
 [[rules]]
 id = "package-layout-boundary"

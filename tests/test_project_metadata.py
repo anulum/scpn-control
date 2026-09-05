@@ -47,17 +47,17 @@ def test_python_and_spo_dependency_contract_is_bounded_and_locked() -> None:
         "3.13",
     }
     assert spo.url is None
-    assert Version("1.3.1") in spo.specifier
-    assert Version("1.3.0") not in spo.specifier
+    assert Version("1.4.3") in spo.specifier
     assert Version("1.4.0") not in spo.specifier
+    assert Version("1.5.0") not in spo.specifier
 
     lock_input = (ROOT / "requirements/ci-deps.in").read_text(encoding="utf-8")
     lock = (ROOT / "requirements/ci-deps.txt").read_text(encoding="utf-8")
     workflow = read_ci_workflow_source()
-    assert "scpn-phase-orchestrator==1.3.1" in lock_input
-    assert "scpn-phase-orchestrator==1.3.1" in lock
-    assert "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274" in lock
-    assert "c0318a85931eef3fba6615bb5ff587c749c5a83c766504d10cdf7f2ac94e6fe3" in lock
+    assert "scpn-phase-orchestrator==1.4.3" in lock_input
+    assert "scpn-phase-orchestrator==1.4.3" in lock
+    assert "5da94500760f9394a637f7edec044a844c12230d8d16c25a573b6e67a1ddb409" in lock
+    assert "36495e013c6f436438437fab3a77611d401d4f0ef8b6838647fd33e19fc27979" in lock
     assert 'python-version: ["3.11", "3.12", "3.13"]' in workflow
 
 

@@ -2827,7 +2827,7 @@ requires-dist = [
     { name = "scipy", specifier = ">=1.10" },
     { name = "scpn-fusion", marker = "extra == 'all'", specifier = ">=4.0,<5.0" },
     { name = "scpn-fusion", marker = "extra == 'fusion'", specifier = ">=4.0,<5.0" },
-    { name = "scpn-phase-orchestrator", specifier = ">=1.3.1,<1.4" },
+    { name = "scpn-phase-orchestrator", specifier = ">=1.4.3,<1.5" },
     { name = "scpn-studio-platform", marker = "python_full_version >= '3.12' and extra == 'studio'", specifier = ">=0.1,<0.9" },
     { name = "stable-baselines3", marker = "extra == 'all'", specifier = ">=2.0" },
     { name = "stable-baselines3", marker = "extra == 'rl'", specifier = ">=2.0" },
@@ -2867,7 +2867,7 @@ wheels = [
 
 [[package]]
 name = "scpn-phase-orchestrator"
-version = "1.3.1"
+version = "1.4.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
@@ -2877,9 +2877,9 @@ dependencies = [
     { name = "scipy" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7e/35/cce2a8b58b411be7556738ff6226c1d9f67c1d6e3034b94e7b20d232932e/scpn_phase_orchestrator-1.3.1.tar.gz", hash = "sha256:c0318a85931eef3fba6615bb5ff587c749c5a83c766504d10cdf7f2ac94e6fe3", size = 3107303, upload-time = "2026-08-31T10:26:38.828Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ce/e1/5fc24c69cd2e0636fae50aec6dd1633b9f5d4a923f5185860017da39a935/scpn_phase_orchestrator-1.4.3.tar.gz", hash = "sha256:36495e013c6f436438437fab3a77611d401d4f0ef8b6838647fd33e19fc27979", size = 3253110, upload-time = "2026-09-05T16:21:50.773Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/25/3b/13eb0024e903cf9dcbd1e017e05066b49c6e67f6ca2094e3612e15daeef3/scpn_phase_orchestrator-1.3.1-py3-none-any.whl", hash = "sha256:c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274", size = 2074843, upload-time = "2026-08-31T10:26:36.94Z" },
+    { url = "https://files.pythonhosted.org/packages/2a/01/0415c2bcef1e4ccc78bf7885ee37b9530d6dbb0346fce849af7b94048f93/scpn_phase_orchestrator-1.4.3-py3-none-any.whl", hash = "sha256:5da94500760f9394a637f7edec044a844c12230d8d16c25a573b6e67a1ddb409", size = 2141863, upload-time = "2026-09-05T16:21:48.93Z" },
 ]
 
 [[package]]

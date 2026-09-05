@@ -41,3 +41,7 @@
 
 # Lock files -- generated, do not diff
 Cargo.lock linguist-generated
+
+# The review carrier includes a transport newline after the upstream sealed
+# newline; preserve both bytes instead of treating the second as prose whitespace.
+tests/fixtures/reactor_semantic/tokamak_device_diagnostic_review_v1.json -text whitespace=-blank-at-eof

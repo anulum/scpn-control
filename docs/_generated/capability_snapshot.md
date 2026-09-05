@@ -6,14 +6,14 @@
 | Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
-| Python control/physics modules | 202 |
-| Python public classes | 573 |
+| Python control/physics modules | 204 |
+| Python public classes | 576 |
 | Rust source files | 65 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 158 |
 | Optional extras | 23 |
-| Python test files | 583 |
-| Public documentation pages | 73 |
+| Python test files | 588 |
+| Public documentation pages | 74 |
 | GitHub Actions workflows | 22 |
 
 **Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.

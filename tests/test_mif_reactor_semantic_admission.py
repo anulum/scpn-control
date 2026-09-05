@@ -17,6 +17,7 @@ from typing import Any, cast
 
 import pytest
 from scpn_phase_orchestrator.reactor_semantics import (
+    REACTOR_REGISTRY_V1_0_0,
     ClockKind,
     EvidenceClass,
     MIFMergeCompressionHandoff,
@@ -52,12 +53,16 @@ def _handoff() -> MIFMergeCompressionHandoff:
     return mif_merge_compression_handoff_from_mif_bytes(
         source,
         expected_sha256=SOURCE_SHA256,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
 
 
 def _handoff_bytes(handoff: MIFMergeCompressionHandoff | None = None) -> bytes:
     resolved = _handoff() if handoff is None else handoff
-    return mif_merge_compression_handoff_to_bytes(resolved)
+    return mif_merge_compression_handoff_to_bytes(
+        resolved,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
 
 
 def _policy(

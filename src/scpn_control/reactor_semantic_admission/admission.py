@@ -22,6 +22,7 @@ from scpn_phase_orchestrator.reactor_semantics import (
     ValidityState,
     handoff_digest,
     handoff_from_bytes,
+    resolve_reactor_registry_release,
 )
 
 from .decision import ReactorSemanticAdmissionDecision, ReactorSemanticAdmissionStatus
@@ -175,7 +176,12 @@ def _check_identity(
     policy: ReactorSemanticAdmissionPolicy,
     refusals: set[str],
 ) -> None:
-    if handoff_sha256 != policy.expected_handoff_sha256 or handoff_digest(handoff) != policy.expected_handoff_sha256:
+    # Preserve the decoded release identity when checking historical evidence.
+    registry = resolve_reactor_registry_release(handoff.context.registry_version, handoff.context.registry_digest)
+    if (
+        handoff_sha256 != policy.expected_handoff_sha256
+        or handoff_digest(handoff, registry=registry) != policy.expected_handoff_sha256
+    ):
         refusals.add("handoff_digest_mismatch")
     if handoff.source_schema != policy.expected_source_schema:
         refusals.add("source_schema_mismatch")

@@ -24,8 +24,7 @@ from scpn_phase_orchestrator.reactor_semantics import (
     ReactorRegimeAxisDisposition,
     ReactorRegimeEvidenceBinding,
     ValidityState,
-    build_abstaining_regime_assessment,
-    mif_merge_compression_handoff_from_mif_bytes,
+    regime_assessment_from_bytes,
     regime_assessment_to_bytes,
 )
 
@@ -40,9 +39,9 @@ from scpn_control.reactor_semantic_admission import (
 
 MIF_FIXTURE = Path(__file__).resolve().parent / "fixtures/reactor_semantic/mif_merge_compression_observation_v1.json"
 MIF_SOURCE_SHA256 = "c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca"
-SPO_REVISION = "c2a7581d58819060806c6f173da941c822103695"
-SPO_WHEEL_SHA256 = "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274"
-ASSESSMENT_SHA256 = "3a5077b95d8b94b23a647d57a8b25f80cb798f712f00d0a34e71b95c600b154b"
+SPO_REVISION = "71dec310825344e533e944ea984591eb353e8730"
+SPO_WHEEL_SHA256 = "5da94500760f9394a637f7edec044a844c12230d8d16c25a573b6e67a1ddb409"
+ASSESSMENT_SHA256 = "cd0de8341aff1efded88278771d866cfb784c2a67b1f47ef943f97a07e4906a9"
 SPO_HANDOFF_SHA256 = "c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2"
 MIF_SOURCE_REVISION = "f60dbae4b2ea3344ac0cb086a3b7d248d65cf92f"
 EXPECTED_SOURCE_SEMANTIC_IDS = (
@@ -122,17 +121,10 @@ EXPECTED_AXIS_PROVENANCE = (
 def _assessment() -> tuple[ReactorRegimeAssessment, bytes]:
     source = MIF_FIXTURE.read_bytes()
     assert hashlib.sha256(source).hexdigest() == MIF_SOURCE_SHA256
-    handoff = mif_merge_compression_handoff_from_mif_bytes(
-        source,
-        expected_sha256=MIF_SOURCE_SHA256,
-    )
-    assessment = build_abstaining_regime_assessment(
-        handoff,
-        producer_revision=SPO_REVISION,
-        producer_artifact_sha256=SPO_WHEEL_SHA256,
-    )
-    payload = regime_assessment_to_bytes(assessment)
+    payload = MIF_FIXTURE.with_name("mif_regime_assessment_spo_1_4_3.json").read_bytes()
     assert hashlib.sha256(payload).hexdigest() == ASSESSMENT_SHA256
+    assessment = regime_assessment_from_bytes(payload)
+    assert regime_assessment_to_bytes(assessment) == payload
     return assessment, payload
 
 
@@ -208,7 +200,7 @@ def test_literal_pinned_policy_admits_the_frozen_assessment() -> None:
         expected_source_handoff_sha256=SPO_HANDOFF_SHA256,
         expected_source_semantic_ids=EXPECTED_SOURCE_SEMANTIC_IDS,
         expected_assessment_schema_version="1.0.0",
-        expected_registry_custody_sha256="ec574bce4bd3a52c2e90ecf40f495f0fde20d0880e812b6bd823eb04f544947e",
+        expected_registry_custody_sha256="1b2d4e2b2d15986ec9297130970273881dee3d62dbfed07c559099c28310c575",
         expected_clock_custody_sha256="ab31cd022cbefc082ff3eb94dc7d4d71fea72b7c03d2a51acb084522effa3610",
         expected_axis_custody_sha256="3bb17bdaa822f2f171ffc47ea30d27867fba2ea81de4d6f491d0362703708d2a",
         expected_axis_ids=EXPECTED_AXIS_IDS,

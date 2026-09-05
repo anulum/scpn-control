@@ -7,11 +7,12 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Check Test Module Linkage.
 
-"""Guard against source modules with no direct test linkage."""
+"""Guard source ownership links through called or asserted public test APIs."""
 
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 from pathlib import Path
 
@@ -29,6 +30,7 @@ def _resolve(path_value: str) -> Path:
 
 
 def collect_source_modules(source_root: Path) -> list[Path]:
+    """Return Python implementation owners beneath the configured source root."""
     modules: list[Path] = []
     for path in source_root.rglob("*.py"):
         if path.name == "__init__.py":
@@ -42,32 +44,88 @@ def _module_import_path(source_root: Path, module_path: Path) -> str:
     return "scpn_control." + ".".join(rel.parts)
 
 
-def _build_test_corpus(test_root: Path) -> str:
-    parts: list[str] = []
+def _qualified_name(node: ast.expr) -> str:
+    if isinstance(node, ast.Name):
+        return node.id
+    if isinstance(node, ast.Attribute):
+        prefix = _qualified_name(node.value)
+        return f"{prefix}.{node.attr}" if prefix else ""
+    return ""
+
+
+def _imports(tree: ast.AST, package: str = "") -> dict[str, str]:
+    bindings: dict[str, str] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                bindings[alias.asname or alias.name.split(".")[0]] = (
+                    alias.name if alias.asname else alias.name.split(".")[0]
+                )
+        elif isinstance(node, ast.ImportFrom):
+            base = node.module or ""
+            if node.level:
+                parent = package.split(".")[: len(package.split(".")) - node.level + 1]
+                base = ".".join([*parent, *([base] if base else [])])
+            for alias in node.names:
+                bindings[alias.asname or alias.name] = f"{base}.{alias.name}"
+    return bindings
+
+
+def _owner(name: str, source_root: Path, seen: frozenset[str] = frozenset()) -> str | None:
+    if name in seen or not name.startswith("scpn_control."):
+        return None
+    parts = name.split(".")
+    for count in range(len(parts), 1, -1):
+        path = source_root.joinpath(*parts[1:count]).with_suffix(".py")
+        if path.is_file():
+            return ".".join(parts[:count])
+        facade = source_root.joinpath(*parts[1:count], "__init__.py")
+        if facade.is_file() and count < len(parts):
+            package = ".".join(parts[:count])
+            bindings = _imports(ast.parse(facade.read_text(encoding="utf-8")), package)
+            target = bindings.get(parts[count])
+            if target:
+                return _owner(".".join([target, *parts[count + 1 :]]), source_root, seen | {name})
+    return None
+
+
+def collect_unlinked_modules(*, source_root: Path, test_root: Path) -> list[str]:
+    """Find owners without a called or asserted API, resolving facade re-exports.
+
+    This is a static linkage check, not proof of execution or coverage. Comments,
+    strings, unused imports and test filenames cannot establish a linkage.
+    """
+    linked: set[str] = set()
     for path in sorted(test_root.rglob("test_*.py")):
-        parts.append(path.read_text(encoding="utf-8", errors="ignore"))
-    return "\n".join(parts)
-
-
-def collect_unlinked_modules(
-    *,
-    source_root: Path,
-    test_root: Path,
-) -> list[str]:
-    corpus = _build_test_corpus(test_root)
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        bindings = _imports(tree)
+        expressions: list[ast.expr] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                expressions.append(node.func)
+            elif isinstance(node, ast.Assert):
+                expressions.extend(part for part in ast.walk(node.test) if isinstance(part, (ast.Name, ast.Attribute)))
+        for expression in expressions:
+            name = _qualified_name(expression)
+            first, _, rest = name.partition(".")
+            resolved = bindings.get(first, first)
+            if rest:
+                resolved += "." + rest
+            owner = _owner(resolved, source_root)
+            if owner:
+                linked.add(owner)
     unlinked: list[str] = []
-    for module_path in collect_source_modules(source_root):
-        import_path = _module_import_path(source_root, module_path)
-        stem = module_path.stem
-        if import_path in corpus:
-            continue
-        if f"test_{stem}" in corpus:
-            continue
-        unlinked.append(module_path.relative_to(REPO_ROOT).as_posix())
+    for path in collect_source_modules(source_root):
+        if _module_import_path(source_root, path) not in linked:
+            try:
+                unlinked.append(path.relative_to(REPO_ROOT).as_posix())
+            except ValueError:
+                unlinked.append(path.as_posix())
     return sorted(unlinked)
 
 
 def load_allowlist(path: Path) -> set[str]:
+    """Read the explicit path allowlist and reject malformed entries."""
     if not path.exists():
         raise FileNotFoundError(f"Allowlist file not found: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
@@ -88,6 +146,7 @@ def load_allowlist(path: Path) -> set[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Check static API linkage and report missing or stale owner exemptions."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source-root",

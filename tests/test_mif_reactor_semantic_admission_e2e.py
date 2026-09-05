@@ -18,6 +18,7 @@ import sys
 from pathlib import Path
 
 from scpn_phase_orchestrator.reactor_semantics import (
+    REACTOR_REGISTRY_V1_0_0,
     MIFMergeCompressionHandoff,
     SemanticCarrier,
     mif_merge_compression_handoff_from_mif_bytes,
@@ -89,8 +90,12 @@ def test_exact_mif_spo_control_public_bytes_exchange() -> None:
     handoff = mif_merge_compression_handoff_from_mif_bytes(
         source,
         expected_sha256=SOURCE_SHA256,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
-    handoff_bytes = mif_merge_compression_handoff_to_bytes(handoff)
+    handoff_bytes = mif_merge_compression_handoff_to_bytes(
+        handoff,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     assert len(handoff_bytes) == 101_652
     assert hashlib.sha256(handoff_bytes).hexdigest() == HANDOFF_SHA256
 
@@ -147,8 +152,12 @@ def test_public_control_ingress_refuses_authority_mutation() -> None:
     handoff = mif_merge_compression_handoff_from_mif_bytes(
         source,
         expected_sha256=SOURCE_SHA256,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
-    valid = mif_merge_compression_handoff_to_bytes(handoff)
+    valid = mif_merge_compression_handoff_to_bytes(
+        handoff,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     record = json.loads(valid)
     record["payload"]["actionable"] = True
     changed = _reseal_handoff(record)

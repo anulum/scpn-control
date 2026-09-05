@@ -71,10 +71,13 @@ reactor-semantic subpackage. It is not a root-package control API:
 
 ```python
 from scpn_control.reactor_semantic_admission import (
+    DeviceDiagnosticReviewAdmissionPolicy,
     MIFReactorSemanticAdmissionPolicy,
     ReactorRegimeAssessmentAdmissionPolicy,
+    admit_device_diagnostic_plan_review,
     admit_reactor_regime_assessment,
     admit_mif_reactor_semantic_handoff,
+    tokamak_device_diagnostic_review_policy,
 )
 ```
 
@@ -83,6 +86,13 @@ eight-axis assessment bytes. It pins exact producer, source, registry, clock,
 axis, provenance, freshness, and abstention custody and emits its own canonical
 sealed, non-actionable decision. See
 [Reactor Regime-Assessment Admission](control/reactor_regime_assessment_admission.md).
+
+The sealed device-diagnostic review API is a third independent gate. It uses
+only SPO 1.4.2's public decoder, binds the immutable Tokamak review and producer
+custody, and emits a separate canonical decision whose evidence, observation,
+measurement, facility-binding, classification, semantic-ingress, intent,
+actionability, execution and actuation fields are all false. See
+[Device Diagnostic Review Admission](control/device_diagnostic_review_admission.md).
 
 ::: scpn_control.reactor_semantic_admission.admission
 
@@ -111,6 +121,24 @@ sealed, non-actionable decision. See
 ::: scpn_control.reactor_semantic_admission.regime_assessment_decision.regime_assessment_admission_decision_from_bytes
 
 ::: scpn_control.reactor_semantic_admission.regime_assessment_decision.regime_assessment_admission_decision_digest
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_admission.DeviceDiagnosticReviewAdmissionPolicy
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_admission.tokamak_device_diagnostic_review_policy
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_admission.admit_device_diagnostic_plan_review
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_admission.device_diagnostic_review_clock_custody_digest
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_decision.DeviceDiagnosticReviewAdmissionStatus
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_decision.DeviceDiagnosticReviewAdmissionDecision
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_decision.device_diagnostic_review_decision_to_bytes
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_decision.device_diagnostic_review_decision_from_bytes
+
+::: scpn_control.reactor_semantic_admission.device_diagnostic_review_decision.device_diagnostic_review_decision_digest
 
 ---
 

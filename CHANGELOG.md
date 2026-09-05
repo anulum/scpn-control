@@ -4,6 +4,13 @@
 
 ### Added
 
+- Added a public-decoder-only admission boundary for the exact SPO 1.4.3
+  Tokamak device-diagnostic review. CONTROL binds the published package,
+  decoder source, sealed review, producer artefact, source documents,
+  configurations and all clock fields before emitting its own canonical
+  decision with evidence, observation, measurement, facility binding,
+  classification, semantic ingress, intent, actionability, execution and
+  actuation fixed false.
 - Added an opt-in, digest- and commit-bound SC-NeuroCore exact-current LIF
   runtime for compiled transitions. It preserves complete membrane state across
   calls, resets only at an explicit shot boundary, commits multi-transition
@@ -12,11 +19,18 @@
   state/event packets while leaving the existing stateless `lif_fire` contract
   unchanged.
 
+### Changed
+
+- Migrated semantic admission to public SPO 1.4.3. Historical handoffs retain
+  their declared registry digest; new assessments use current registry custody
+  and the actual released producer identity. Historical 1.3.1 assessment bytes
+  remain preserved and explicitly refused by the current upstream decoder.
+
 ### Fixed
 - Kept the SC-NeuroCore packed stochastic forward path compatible with NumPy
   versions before 2.0 by selecting the existing vector-popcount implementation
   when `numpy.bitwise_count` is unavailable.
-- Bound reactor-semantic installation to the public SPO `>=1.3.1,<1.4`
+- Bound reactor-semantic installation to the public SPO `>=1.4.3,<1.5`
   contract and Python 3.11–3.13, with an exact hash-locked CI artifact. Generic
   and MIF policy construction now rejects malformed clock objects, and MIF
   circular-uncertainty bounds reject NaN and both infinities before admission.

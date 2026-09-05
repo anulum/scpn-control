@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pytest
 from scpn_phase_orchestrator.reactor_semantics import (
+    REACTOR_REGISTRY_V1_0_0,
     ClockKind,
     ClockReference,
     coupled_transport_handoff_from_fusion_bytes,
@@ -77,8 +78,12 @@ def test_exact_fusion_spo_control_public_bytes_exchange() -> None:
     handoff = coupled_transport_handoff_from_fusion_bytes(
         fusion_bytes,
         expected_sha256=FUSION_FIXTURE_SHA256,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
-    handoff_bytes = handoff_to_bytes(handoff)
+    handoff_bytes = handoff_to_bytes(
+        handoff,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     assert len(handoff_bytes) == 71_090
     assert hashlib.sha256(handoff_bytes).hexdigest() == SPO_HANDOFF_SHA256
 
@@ -120,7 +125,9 @@ def test_public_control_ingress_refuses_handoff_drift(mutation: str) -> None:
         coupled_transport_handoff_from_fusion_bytes(
             source,
             expected_sha256=FUSION_FIXTURE_SHA256,
-        )
+            registry=REACTOR_REGISTRY_V1_0_0,
+        ),
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
     if mutation == "duplicate":
         changed = valid.replace(b'{"payload":', b'{"payload":{},"payload":', 1)

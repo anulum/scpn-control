@@ -10,7 +10,7 @@ select a controller, issue a command, or authorize a machine transition.
 
 ## End-to-end ownership
 
-The verified reference chain has three explicit owners:
+The historical reference chain has three explicit owners:
 
 1. SCPN-MIF-CORE owns the canonical merge/compression observation envelope.
 2. SCPN-PHASE-ORCHESTRATOR 1.3.1 validates that envelope, builds the semantic
@@ -34,6 +34,26 @@ The assessment was produced by SPO tag source commit
 `c2a7581d58819060806c6f173da941c822103695` using the public 1.3.1 wheel with
 SHA-256
 `c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274`.
+
+## Public package migration
+
+The supported runtime starts at SPO 1.4.3. Its public decoder requires current
+registry bindings and refuses the historical 1.3.1 assessment above. CONTROL
+returns `assessment_decode_failed`, retains the raw digest, and grants no
+authority. The original bytes remain archived for historical replay with their
+original compatible runtime; they are never rewritten as current evidence.
+
+New assessments use the current 1.1 registry bindings while retaining the
+historical source handoff's exact 1.0 registry identity and digest. The public
+1.4.3 builder at source `71dec310825344e533e944ea984591eb353e8730`, wheel SHA-256
+`5da94500760f9394a637f7edec044a844c12230d8d16c25a573b6e67a1ddb409`, produces
+11,943 canonical bytes for the same MIF source. Their SHA-256 is
+`cd0de8341aff1efded88278771d866cfb784c2a67b1f47ef943f97a07e4906a9`.
+The source handoff and abstaining axes are unchanged. Producer and registry
+custody differ. Current assessments require an independently approved current
+policy. Historical assessment admission is unavailable under this runtime;
+supporting it requires a separately versioned upstream decoder contract.
+Neither assessment grants operational authority.
 
 ## Exact policy
 

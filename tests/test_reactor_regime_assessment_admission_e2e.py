@@ -20,10 +20,12 @@ from pathlib import Path
 
 import pytest
 from scpn_phase_orchestrator.reactor_semantics import (
+    REACTOR_REGISTRY_V1_0_0,
     ReactorRegimeAssessment,
     build_abstaining_regime_assessment,
     mif_merge_compression_handoff_from_mif_bytes,
     mif_merge_compression_handoff_to_bytes,
+    regime_assessment_from_bytes,
     regime_assessment_to_bytes,
 )
 
@@ -41,9 +43,9 @@ FIXTURE = Path(__file__).resolve().parent / "fixtures/reactor_semantic/mif_merge
 CONTROL_ROOT = Path(__file__).resolve().parents[1]
 MIF_SOURCE_SHA256 = "c780706abd5a0b185a95e85767e623248388664da61126d196fcb3d528b0c0ca"
 SPO_HANDOFF_SHA256 = "c0f03b7c49346c39342598275556e8ac28c93138ba14f6e21d6739400e0edeb2"
-SPO_ASSESSMENT_SHA256 = "3a5077b95d8b94b23a647d57a8b25f80cb798f712f00d0a34e71b95c600b154b"
-SPO_REVISION = "c2a7581d58819060806c6f173da941c822103695"
-SPO_WHEEL_SHA256 = "c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274"
+SPO_ASSESSMENT_SHA256 = "cd0de8341aff1efded88278771d866cfb784c2a67b1f47ef943f97a07e4906a9"
+SPO_REVISION = "71dec310825344e533e944ea984591eb353e8730"
+SPO_WHEEL_SHA256 = "5da94500760f9394a637f7edec044a844c12230d8d16c25a573b6e67a1ddb409"
 
 
 def _assessment_chain() -> tuple[ReactorRegimeAssessment, bytes]:
@@ -53,8 +55,12 @@ def _assessment_chain() -> tuple[ReactorRegimeAssessment, bytes]:
     handoff = mif_merge_compression_handoff_from_mif_bytes(
         source,
         expected_sha256=MIF_SOURCE_SHA256,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
-    handoff_bytes = mif_merge_compression_handoff_to_bytes(handoff)
+    handoff_bytes = mif_merge_compression_handoff_to_bytes(
+        handoff,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     assert len(handoff_bytes) == 101_652
     assert hashlib.sha256(handoff_bytes).hexdigest() == SPO_HANDOFF_SHA256
     assessment = build_abstaining_regime_assessment(
@@ -123,12 +129,57 @@ def test_exact_mif_spo_control_assessment_byte_exchange() -> None:
     assert sum(axis.disposition.value == "not_applicable" for axis in assessment.axes) == 1
 
 
-def test_e2e_uses_installed_public_spo_1_3_1_distribution() -> None:
+def test_historical_assessment_is_preserved_and_explicitly_refused() -> None:
+    """Keep old evidence intact when the installed codec cannot admit it."""
+    historical_bytes = FIXTURE.with_name("mif_regime_assessment_spo_1_3_1.json").read_bytes()
+    historical_digest = "3a5077b95d8b94b23a647d57a8b25f80cb798f712f00d0a34e71b95c600b154b"
+    assert hashlib.sha256(historical_bytes).hexdigest() == historical_digest
+    with pytest.raises(ValueError, match="assessment reactor registry binding mismatch"):
+        regime_assessment_from_bytes(historical_bytes)
+    current, current_bytes = _assessment_chain()
+    current_fixture = FIXTURE.with_name("mif_regime_assessment_spo_1_4_3.json").read_bytes()
+    assert current_bytes == current_fixture
+    assert current.reactor_registry_version == "1.1.0"
+    assert current.producer_revision == SPO_REVISION
+    assert current.producer_artifact_sha256 == SPO_WHEEL_SHA256
+    decision = admit_reactor_regime_assessment(historical_bytes, policy=_policy(current, current_bytes))
+    assert not decision.admitted and decision.review_only and not decision.actionable
+    assert decision.assessment_sha256 == historical_digest
+    assert decision.assessment_id is None
+    assert decision.refusal_codes == ("assessment_decode_failed",)
+    assert (
+        regime_assessment_admission_decision_from_bytes(regime_assessment_admission_decision_to_bytes(decision))
+        == decision
+    )
+
+
+def test_current_assessment_retains_source_and_abstention_semantics() -> None:
+    """Compare actual release artifacts without relabelling historical output."""
+    historical = json.loads(FIXTURE.with_name("mif_regime_assessment_spo_1_3_1.json").read_bytes())["payload"]
+    _, current_bytes = _assessment_chain()
+    current = json.loads(current_bytes)["payload"]
+    changed = {key for key in historical if historical[key] != current[key]}
+    assert changed == {
+        "producer_revision",
+        "producer_artifact_sha256",
+        "reactor_registry_version",
+        "reactor_registry_digest",
+        "semantic_profile_registry_version",
+        "semantic_profile_registry_digest",
+        "observability_registry_version",
+        "observability_registry_digest",
+        "ontology_version",
+        "ontology_digest",
+    }
+    assert historical["source_handoff_sha256"] == current["source_handoff_sha256"] == SPO_HANDOFF_SHA256
+
+
+def test_e2e_uses_installed_public_spo_1_4_3_distribution() -> None:
     """Bind the integration test to the installed public package release."""
     distribution = importlib.metadata.distribution("scpn-phase-orchestrator")
     package_root = Path(str(distribution.locate_file("scpn_phase_orchestrator"))).resolve()
 
-    assert distribution.version == "1.3.1"
+    assert distribution.version == "1.4.3"
     assert "site-packages" in package_root.parts
 
 

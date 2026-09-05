@@ -11,16 +11,20 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
 from scpn_phase_orchestrator.reactor_semantics import (
+    DEFAULT_REACTOR_REGISTRY,
+    REACTOR_REGISTRY_V1_0_0,
     ClockKind,
     ClockReference,
     QualityAssessment,
     QualityState,
+    ReactorConfigurationRegistry,
     ValidityState,
     ValidityWindow,
     coupled_transport_handoff_from_fusion_bytes,
@@ -47,8 +51,9 @@ def _handoff_bytes() -> bytes:
     handoff = coupled_transport_handoff_from_fusion_bytes(
         source,
         expected_sha256=SOURCE_DIGEST,
+        registry=REACTOR_REGISTRY_V1_0_0,
     )
-    return handoff_to_bytes(handoff)
+    return handoff_to_bytes(handoff, registry=REACTOR_REGISTRY_V1_0_0)
 
 
 def _policy(
@@ -99,6 +104,49 @@ def test_real_handoff_is_admitted_only_for_non_actuating_review() -> None:
     assert decision.handoff_sha256 == hashlib.sha256(handoff).hexdigest()
     assert decision.source_envelope_sha256 == SOURCE_DIGEST
     assert decision.source_revision == SOURCE_REVISION
+
+
+@pytest.mark.parametrize("registry", [REACTOR_REGISTRY_V1_0_0, DEFAULT_REACTOR_REGISTRY])
+def test_declared_registry_release_preserves_review_admission(registry: ReactorConfigurationRegistry) -> None:
+    """Test derived current evidence separately from immutable historical bytes."""
+    source = FUSION_FIXTURE.read_bytes()
+    if registry is DEFAULT_REACTOR_REGISTRY:
+        document = json.loads(source)
+        document["payload"]["reactor"]["registry_version"] = registry.version
+        document["payload"]["reactor"]["registry_digest"] = registry.digest
+        document["payload_sha256"] = hashlib.sha256(
+            json.dumps(document["payload"], sort_keys=True, separators=(",", ":")).encode()
+        ).hexdigest()
+        source = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    source_digest = hashlib.sha256(source).hexdigest()
+    handoff = coupled_transport_handoff_from_fusion_bytes(source, expected_sha256=source_digest, registry=registry)
+    payload = handoff_to_bytes(handoff, registry=registry)
+    policy = replace(_policy(payload), expected_source_envelope_sha256=source_digest)
+    decision = admit_reactor_semantic_handoff(payload, policy=policy)
+
+    assert decision.admitted is True
+    assert decision.review_only is True
+    assert decision.actionable is False
+    assert decision.refusal_codes == ()
+    assert decision.handoff_sha256 == hashlib.sha256(payload).hexdigest()
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [("registry_version", "99.0.0"), ("registry_digest", "0" * 64)],
+)
+def test_unknown_registry_identity_is_rejected_without_guessed_identity(field: str, value: str) -> None:
+    """Never substitute the current registry for an unknown declared release."""
+    document = json.loads(_handoff_bytes())
+    document[field] = value
+    payload = json.dumps(document, sort_keys=True, separators=(",", ":")).encode()
+    decision = admit_reactor_semantic_handoff(payload, policy=_policy(payload))
+
+    assert decision.refusal_codes == ("handoff_decode_failed",)
+    assert decision.admitted is False
+    assert decision.actionable is False
+    assert decision.event_id is None
+    assert decision.context_id is None
 
 
 @pytest.mark.parametrize(
@@ -206,7 +254,11 @@ def test_reference_clock_domain_kind_and_epoch_must_match(
 def test_explicitly_allowlisted_degraded_observable_can_be_reviewed() -> None:
     """Admit degraded evidence only when every declaration is allowlisted."""
     source = FUSION_FIXTURE.read_bytes()
-    handoff = coupled_transport_handoff_from_fusion_bytes(source, expected_sha256=SOURCE_DIGEST)
+    handoff = coupled_transport_handoff_from_fusion_bytes(
+        source,
+        expected_sha256=SOURCE_DIGEST,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     first = handoff.observables[0]
     degraded = replace(
         first,
@@ -222,7 +274,7 @@ def test_explicitly_allowlisted_degraded_observable_can_be_reviewed() -> None:
         ),
     )
     changed = replace(handoff, observables=(degraded, *handoff.observables[1:]))
-    encoded = handoff_to_bytes(changed)
+    encoded = handoff_to_bytes(changed, registry=REACTOR_REGISTRY_V1_0_0)
 
     rejected = admit_reactor_semantic_handoff(encoded, policy=_policy(encoded))
     admitted = admit_reactor_semantic_handoff(
@@ -244,7 +296,11 @@ def test_explicitly_allowlisted_degraded_observable_can_be_reviewed() -> None:
 def test_degraded_quality_without_flags_is_rejected() -> None:
     """Reject degraded quality that declares no caller-reviewable flags."""
     source = FUSION_FIXTURE.read_bytes()
-    handoff = coupled_transport_handoff_from_fusion_bytes(source, expected_sha256=SOURCE_DIGEST)
+    handoff = coupled_transport_handoff_from_fusion_bytes(
+        source,
+        expected_sha256=SOURCE_DIGEST,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     first = handoff.observables[0]
     changed = replace(
         handoff,
@@ -256,7 +312,7 @@ def test_degraded_quality_without_flags_is_rejected() -> None:
             *handoff.observables[1:],
         ),
     )
-    encoded = handoff_to_bytes(changed)
+    encoded = handoff_to_bytes(changed, registry=REACTOR_REGISTRY_V1_0_0)
 
     decision = admit_reactor_semantic_handoff(encoded, policy=_policy(encoded))
 
@@ -269,7 +325,11 @@ def test_observable_provenance_must_retain_the_fusion_digest_chain(
 ) -> None:
     """Reject a valid SPO handoff whose observable lineage was weakened."""
     source = FUSION_FIXTURE.read_bytes()
-    handoff = coupled_transport_handoff_from_fusion_bytes(source, expected_sha256=SOURCE_DIGEST)
+    handoff = coupled_transport_handoff_from_fusion_bytes(
+        source,
+        expected_sha256=SOURCE_DIGEST,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     first = handoff.observables[0]
     if provenance_change == "digest":
         provenance = replace(first.provenance, sha256="0" * 64)
@@ -284,7 +344,7 @@ def test_observable_provenance_must_retain_the_fusion_digest_chain(
         handoff,
         observables=(replace(first, provenance=provenance), *handoff.observables[1:]),
     )
-    encoded = handoff_to_bytes(changed)
+    encoded = handoff_to_bytes(changed, registry=REACTOR_REGISTRY_V1_0_0)
 
     decision = admit_reactor_semantic_handoff(encoded, policy=_policy(encoded))
 
@@ -314,7 +374,11 @@ def test_nonusable_observable_states_always_reject(
 ) -> None:
     """Reject every nonusable observable validity or quality state."""
     source = FUSION_FIXTURE.read_bytes()
-    handoff = coupled_transport_handoff_from_fusion_bytes(source, expected_sha256=SOURCE_DIGEST)
+    handoff = coupled_transport_handoff_from_fusion_bytes(
+        source,
+        expected_sha256=SOURCE_DIGEST,
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     first = handoff.observables[0]
     changed_observable = replace(
         first,
@@ -329,7 +393,10 @@ def test_nonusable_observable_states_always_reject(
             flags=("declared",) if quality is not QualityState.VALID else (),
         ),
     )
-    encoded = handoff_to_bytes(replace(handoff, observables=(changed_observable, *handoff.observables[1:])))
+    encoded = handoff_to_bytes(
+        replace(handoff, observables=(changed_observable, *handoff.observables[1:])),
+        registry=REACTOR_REGISTRY_V1_0_0,
+    )
     decision = admit_reactor_semantic_handoff(encoded, policy=_policy(encoded))
 
     assert expected_code in decision.refusal_codes
