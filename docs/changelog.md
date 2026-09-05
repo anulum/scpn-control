@@ -2,7 +2,20 @@
 
 ## Unreleased
 
+### Added
+
+- Added an opt-in, digest- and commit-bound SC-NeuroCore exact-current LIF
+  runtime for compiled transitions. It preserves complete membrane state across
+  calls, resets only at an explicit shot boundary, commits multi-transition
+  execution and checkpoint restore atomically, rejects checkpoints that splice
+  transitions from different shot timelines, and retains full canonical SC
+  state/event packets while leaving the existing stateless `lif_fire` contract
+  unchanged.
+
 ### Fixed
+- Kept the SC-NeuroCore packed stochastic forward path compatible with NumPy
+  versions before 2.0 by selecting the existing vector-popcount implementation
+  when `numpy.bitwise_count` is unavailable.
 - Bound reactor-semantic installation to the public SPO `>=1.3.1,<1.4`
   contract and Python 3.11–3.13, with an exact hash-locked CI artifact. Generic
   and MIF policy construction now rejects malformed clock objects, and MIF

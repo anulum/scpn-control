@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, cast
@@ -21,7 +21,6 @@ from pytest import CaptureFixture
 
 from tools import public_claim_ledger
 from tools.public_claim_ledger import (
-    DEFAULT_LIFECYCLE_REGISTRY,
     DEFAULT_REPORTS_ROOT,
     _claim_record,
     _ledger_from_matrix,
@@ -29,8 +28,9 @@ from tools.public_claim_ledger import (
     build_public_claim_ledger,
     main,
 )
+from tools.validation_report_freshness import DEFAULT_LIFECYCLE_REGISTRY
 
-AUDIT_AS_OF = datetime(2026, 8, 30, 5, 31, 18, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 9, 5, 13, 0, 1, tzinfo=UTC)
 
 
 def _registry(path: Path, source_commit: str = "1" * 40) -> bytes:
@@ -56,7 +56,7 @@ def _admitted_report(path: str, *, commit: str | None = "2" * 40) -> Any:
         refresh_artifact_sha256="6" * 64,
     )
     return SimpleNamespace(
-        evidence_time=datetime(2026, 8, 28, tzinfo=timezone.utc),
+        evidence_time=datetime(2026, 8, 28, tzinfo=UTC),
         lifecycle=lifecycle,
     )
 
@@ -86,13 +86,17 @@ def test_ledger_sorts_admitted_reports_and_binds_registry(tmp_path: Path) -> Non
     )
 
     ledger = _ledger_from_matrix(matrix, registry_path=registry_path)
+    claims = ledger["claims"]
+    generated_from = ledger["generated_from"]
+    assert isinstance(claims, list)
+    assert isinstance(generated_from, dict)
 
-    assert [claim["report_path"] for claim in ledger["claims"]] == [
+    assert [claim["report_path"] for claim in claims] == [
         "validation/reports/a.json",
         "validation/reports/z.json",
     ]
-    assert ledger["generated_from"]["lifecycle_registry_sha256"] == hashlib.sha256(raw).hexdigest()
-    assert ledger["claims"][0]["claim_boundary"]["public_claim_allowed"] is True
+    assert generated_from["lifecycle_registry_sha256"] == hashlib.sha256(raw).hexdigest()
+    assert claims[0]["claim_boundary"]["public_claim_allowed"] is True
 
 
 def test_claim_record_requires_immutable_report_commit() -> None:
@@ -122,7 +126,7 @@ def test_main_writes_checks_and_detects_drift(tmp_path: Path, capsys: CaptureFix
         "--output",
         str(output),
         "--as-of",
-        "2026-08-30T05:31:18Z",
+        "2026-09-05T13:00:01Z",
     ]
 
     assert main(common) == 0

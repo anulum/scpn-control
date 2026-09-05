@@ -12,7 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 from copy import deepcopy
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, cast
 
@@ -28,11 +28,11 @@ from tools.validation_report_freshness import (
     parse_datetime,
 )
 
-AUDIT_AS_OF = datetime(2026, 8, 30, 5, 31, 18, tzinfo=timezone.utc)
+AUDIT_AS_OF = datetime(2026, 9, 5, 13, 0, 1, tzinfo=UTC)
 
 
 def test_validation_report_freshness_inventory_finds_live_stale_reports() -> None:
-    """The frozen audit corpus has exact counts and no missing registry boundary."""
+    """The versioned inventory has exact counts and no missing registry boundary."""
     matrix = build_validation_report_freshness_matrix(
         ROOT / "validation" / "reports",
         as_of=AUDIT_AS_OF,
@@ -40,14 +40,14 @@ def test_validation_report_freshness_inventory_finds_live_stale_reports() -> Non
     )
 
     stale_paths = {report.path.relative_to(ROOT).as_posix() for report in matrix.stale_reports}
-    assert len(matrix.reports) == 127
+    assert len(matrix.reports) == 128
     assert len(matrix.stale_reports) == 114
     assert "validation/reports/pulsed_scenario_scheduler_v2_soft_isolated_20260604T113618Z.json" not in stale_paths
     assert matrix.source_counts["lifecycle_refresh"] == 10
     assert matrix.source_counts["generated_at_utc"] >= 1
     assert matrix.bucket_counts == {
         "external_artifact_blocked": 75,
-        "historical_only": 41,
+        "historical_only": 42,
         "rerunnable_local": 11,
     }
     assert matrix.claim_boundary_missing == 0
@@ -70,6 +70,33 @@ def test_validation_report_freshness_can_render_markdown_summary() -> None:
     assert "Immutable source reports missing embedded claim metadata" in rendered
     assert "## Classification Buckets" in rendered
     assert "rerunnable_local" in rendered
+
+
+def test_exact_current_lif_receipt_retains_software_verification_boundary() -> None:
+    """Index the immutable runtime receipt without promoting it to current evidence."""
+    matrix = build_validation_report_freshness_matrix(
+        ROOT / "validation" / "reports", as_of=AUDIT_AS_OF, max_age_days=21
+    )
+    path = ROOT / "validation" / "reports" / "exact_current_lif_runtime_receipt.json"
+    report = next(report for report in matrix.reports if report.path == path)
+    source = json.loads(path.read_bytes())
+    wire = report.to_dict()
+
+    assert report.lifecycle.report_sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert report.lifecycle.report_commit == "8ae2e2ddf276e857f4c499278221e682f514b0e9"
+    assert report.lifecycle.provenance["source_commit"] == source["control"]["implementation_commit"]
+    assert report.lifecycle.evidence_time_source == "git_report_commit_time_not_execution_time"
+    assert report.classification.bucket == "historical_only"
+    assert report.lifecycle.source_claim_boundary_present
+    assert not report.lifecycle.current_evidence
+    assert not report.lifecycle.scientific_admission
+    assert not report.lifecycle.production_admission
+    assert not report.lifecycle.public_claim_allowed
+    assert not report.lifecycle.locally_rerunnable
+    assert wire["refresh_artifact_path"] is None
+    assert report not in matrix.current_admitted_reports
+    assert source["verification"]["result"] == "pass"
+    assert "machine-safety admission" in source["claim_boundary"]["not_demonstrated"]
 
 
 def test_markdown_reports_absent_local_lineages(tmp_path: Path) -> None:
@@ -95,7 +122,7 @@ def test_validation_report_freshness_cli_writes_json_and_markdown(tmp_path: Path
         main(
             [
                 "--as-of",
-                "2026-08-30T05:31:18Z",
+                "2026-09-05T13:00:01Z",
                 "--max-age-days",
                 "21",
                 "--output-json",
@@ -192,13 +219,13 @@ def test_validation_report_freshness_exposes_rerunnable_local_refresh_plan() -> 
 
 def test_validation_report_freshness_cli_can_fail_on_stale_reports(capsys: CaptureFixture[str]) -> None:
     """Strict freshness mode rejects the stale audited corpus."""
-    assert main(["--as-of", "2026-08-30T05:31:18Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
+    assert main(["--as-of", "2026-09-05T13:00:01Z", "--max-age-days", "21", "--fail-on-stale"]) == 1
     assert "Stale validation reports detected:" in capsys.readouterr().err
 
 
 def test_validation_report_freshness_cli_accepts_current_window(capsys: CaptureFixture[str]) -> None:
     """A caller-selected broad window can make freshness advisory-only."""
-    assert main(["--as-of", "2026-08-30T05:31:18Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
+    assert main(["--as-of", "2026-09-05T13:00:01Z", "--max-age-days", "10000", "--fail-on-stale"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out
 
 
@@ -222,11 +249,11 @@ def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
     assert registry["schema_version"] == "scpn-control.validation-report-lifecycle.v1"
     assert registry["expected_bucket_counts"] == {
         "external_artifact_blocked": 75,
-        "historical_only": 41,
+        "historical_only": 42,
         "rerunnable_local": 11,
     }
-    assert len(registry["reports"]) == 127
-    assert len({report["path"] for report in registry["reports"]}) == 127
+    assert len(registry["reports"]) == 128
+    assert len({report["path"] for report in registry["reports"]}) == 128
     assert {report["storage_class"] for report in registry["reports"]} == {
         "git_tracked",
         "owner_local_untracked",
@@ -752,8 +779,8 @@ def test_source_claim_boundary_drift_is_rejected(tmp_path: Path) -> None:
 
 def test_datetime_and_build_input_validation(tmp_path: Path) -> None:
     """Timestamp and report-root inputs reject malformed and ambiguous values."""
-    assert parse_datetime("20260604T121529Z") == datetime(2026, 6, 4, 12, 15, 29, tzinfo=timezone.utc)
-    assert parse_datetime("2026-06-04T12:15:29") == datetime(2026, 6, 4, 12, 15, 29, tzinfo=timezone.utc)
+    assert parse_datetime("20260604T121529Z") == datetime(2026, 6, 4, 12, 15, 29, tzinfo=UTC)
+    assert parse_datetime("2026-06-04T12:15:29") == datetime(2026, 6, 4, 12, 15, 29, tzinfo=UTC)
     with pytest.raises(ValueError, match="non-empty"):
         parse_datetime(" ")
     with pytest.raises(ValueError, match="non-negative"):
@@ -769,9 +796,9 @@ def test_datetime_and_build_input_validation(tmp_path: Path) -> None:
 
 def test_cli_stdout_modes_default_clock_and_error_path(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """JSON, Markdown, default-clock, and malformed-registry CLI paths are observable."""
-    assert main(["--as-of", "2026-08-30T05:31:18Z", "--json-out"]) == 0
+    assert main(["--as-of", "2026-09-05T13:00:01Z", "--json-out"]) == 0
     assert '"schema_version": "scpn-control.validation-report-freshness.v2"' in capsys.readouterr().out
-    assert main(["--as-of", "2026-08-30T05:31:18Z", "--markdown-out"]) == 0
+    assert main(["--as-of", "2026-09-05T13:00:01Z", "--markdown-out"]) == 0
     assert "# SCPN Control Validation Report Freshness" in capsys.readouterr().out
     assert main(["--max-age-days", "10000"]) == 0
     assert "Validation report freshness:" in capsys.readouterr().out

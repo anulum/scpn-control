@@ -8,8 +8,8 @@
   "claims": [],
   "generated_from": {
     "lifecycle_registry_path": "validation/report_lifecycle_registry.json",
-    "lifecycle_registry_sha256": "4e8c9deb2dc64c55a9f9a3153db17b7b1caeeb18326b36ac73a591a2c2af458b",
-    "registry_source_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995"
+    "lifecycle_registry_sha256": "28dbeb13ebd65421dd007a23150dda1a9189a7c4ea5088f3a7ae8f725d4b9c34",
+    "registry_source_commit": "a0e2cdfc30ef2b31c46fa318edaa0e91cd51488f"
   },
   "public_claim_count": 0,
   "schema_version": "scpn-control.public-claim-ledger.v1"

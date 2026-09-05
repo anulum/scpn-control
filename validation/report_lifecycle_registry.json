@@ -1,13 +1,56 @@
 {
   "expected_bucket_counts": {
     "external_artifact_blocked": 75,
-    "historical_only": 41,
+    "historical_only": 42,
     "rerunnable_local": 11
   },
   "freshness_max_age_days": 21,
-  "inventory_as_of_utc": "2026-08-30T05:31:17Z",
-  "registry_source_commit": "62e4655fd05a8297d8b97377d7dee453bffe1995",
+  "inventory_as_of_utc": "2026-09-05T13:00:00Z",
+  "registry_source_commit": "a0e2cdfc30ef2b31c46fa318edaa0e91cd51488f",
   "reports": [
+    {
+      "claim_boundary": {
+        "current_evidence": false,
+        "production_admission": false,
+        "public_claim_allowed": false,
+        "rationale": "Immutable source-bound software-contract verification receipt, retained as historical evidence in this lifecycle inventory. Its recorded deterministic state/event and failure-atomicity results remain intact; no current benchmark, biological fidelity, hardware-in-the-loop, scientific or machine-safety admission is established. Git commit time records custody, not execution time.",
+        "scientific_admission": false
+      },
+      "evidence_class": "historical_unreviewed",
+      "evidence_time_source": "git_report_commit_time_not_execution_time",
+      "evidence_time_utc": "2026-09-04T15:14:57Z",
+      "lifecycle_bucket": "historical_only",
+      "path": "validation/reports/exact_current_lif_runtime_receipt.json",
+      "provenance": {
+        "artifacts": [
+          "validation/reports/exact_current_lif_runtime_receipt.json"
+        ],
+        "dependency_lock_sha256": null,
+        "failures": [
+          "historical_receipt_not_current_measurement",
+          "execution_timestamp_and_host_provenance_not_recorded"
+        ],
+        "host_class": null,
+        "host_id": null,
+        "host_load": null,
+        "repeats": null,
+        "samples": null,
+        "source_commit": "52e60963f81995860b73514fe67d2d457ed9b1d4",
+        "warmup": null
+      },
+      "refresh": {
+        "artifact_path": null,
+        "artifact_sha256": null,
+        "commands": [],
+        "evidence_time_utc": null,
+        "locally_rerunnable": false,
+        "status": "historical_indexed"
+      },
+      "report_commit": "8ae2e2ddf276e857f4c499278221e682f514b0e9",
+      "report_sha256": "686b3b2fbd2582a3be7dd9f1abfd44d71c4e1ab287a0ad0bd76deaddbe1f76e7",
+      "source_claim_boundary_present": true,
+      "storage_class": "git_tracked"
+    },
     {
       "claim_boundary": {
         "current_evidence": true,

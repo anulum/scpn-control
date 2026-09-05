@@ -7,9 +7,18 @@
 # SCPN Control — Coverage exception policy.
 
 schema = "scpn-control.coverage-exception-policy.v1"
-last_review = "2026-08-31"
-expected_total = 356
-expected_sha256 = "2a4dbd994b8d3bb38552fa2b6439069b76371574c7db78aef5ebf0170b38237a"
+last_review = "2026-09-05"
+expected_total = 367
+expected_sha256 = "d8970ac5f6f4f0447336f4c3c4ad0eae9076229c9a94ec5203cb937ee9a739e6"
+
+[[rules]]
+id = "package-layout-boundary"
+pattern = "environment guard"
+external_dependency = "SC-NeuroCore distribution metadata, public exports and source/profile files"
+execution_lane = "python-tests: tests/test_exact_current_lif_runtime.py subprocess package-layout refusals"
+status = "separate-process-evidence"
+removal_condition = "Remove when installed-wheel refusal tests collect and merge subprocess branch coverage; existing package-layout probes are not wheel-installation or in-process coverage evidence."
+workflow_evidence = "pytest -p hypothesis.extra.pytestplugin tests/"
 
 [[rules]]
 id = "python-version"
