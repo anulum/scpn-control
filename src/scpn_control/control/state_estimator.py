@@ -284,6 +284,11 @@ class ExtendedKalmanFilter:
     def predict(self, dt: float, u: AnyFloatArray | None = None) -> FloatArray:
         """Advance the nonlinear state and covariance prediction.
 
+        Model, numerical and covariance validation failures leave the previous
+        estimator state unchanged. This is an exception-safety guarantee, not
+        synchronisation for concurrent callers or callbacks that directly
+        mutate the estimator through external references.
+
         Parameters
         ----------
         dt:
@@ -329,12 +334,12 @@ class ExtendedKalmanFilter:
             self.state_dimension,
         )
         predicted_covariance = jacobian @ self.P @ jacobian.T + process_noise
-        self.x = predicted
-        self.P = _as_covariance(
+        validated_covariance = _as_covariance(
             "predicted covariance",
             0.5 * (predicted_covariance + predicted_covariance.T),
             self.state_dimension,
         )
+        self.x, self.P = predicted, validated_covariance
         return self.x.copy()
 
     def update(self, z: AnyFloatArray) -> FloatArray:
@@ -344,6 +349,11 @@ class ExtendedKalmanFilter:
         innovation covariance, without forming a matrix inverse. Covariance is
         updated in Joseph form
         ``(I-KH) P (I-KH)^T + K R K^T`` and then symmetrised.
+
+        State, covariance and measurement Jacobian are published only after
+        the complete correction validates. A rejected correction preserves
+        their previous values, under the same serial-caller and callback
+        ownership conditions as :meth:`predict`.
 
         Parameters
         ----------
@@ -392,7 +402,7 @@ class ExtendedKalmanFilter:
             np.linalg.solve(lower, covariance_times_jacobian_t.T),
         ).T
         correction = gain @ residual
-        self.x = _as_vector(
+        corrected_state = _as_vector(
             "state_addition output",
             self._state_addition(prior_state.copy(), correction.copy()),
             self.state_dimension,
@@ -402,12 +412,12 @@ class ExtendedKalmanFilter:
         posterior_covariance = (
             identity_minus_gain_jacobian @ self.P @ identity_minus_gain_jacobian.T + gain @ self.R @ gain.T
         )
-        self.P = _as_covariance(
+        validated_covariance = _as_covariance(
             "updated covariance",
             0.5 * (posterior_covariance + posterior_covariance.T),
             self.state_dimension,
         )
-        self.H = jacobian.copy()
+        self.x, self.P, self.H = corrected_state, validated_covariance, jacobian
         return self.x.copy()
 
     def estimate(self) -> FloatArray:
