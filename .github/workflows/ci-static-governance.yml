@@ -49,6 +49,10 @@ jobs:
         run: ruff check src/scpn_control/
       - name: Ruff format check
         run: ruff format --check src/scpn_control/ tests/
+      - name: Scalar benchmark native docs and lint
+        run: |
+          ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
+          ruff format --check validation/control_benchmark_suite.py
       - name: Python lint scope contract
         run: python tools/check_python_lint_contract.py
       - name: Changelog mirror sync

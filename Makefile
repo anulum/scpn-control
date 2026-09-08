@@ -18,6 +18,8 @@ test-all: test test-rust
 
 lint:
 	ruff check src/scpn_control/
+	ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
+	ruff format --check validation/control_benchmark_suite.py
 	ruff format --check src/ tests/
 	python tools/check_python_lint_contract.py
 	python tools/check_changelog_sync.py

@@ -57,6 +57,17 @@ CI_REQUIREMENTS = [
 GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
     ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
+    # Native documentation is enforced for the remediated scalar benchmark owner.
+    (
+        "scalar-benchmark-docs",
+        [_PY, "-m", "ruff", "check", "validation/control_benchmark_suite.py", "tests/test_control_benchmark_suite.py"],
+        None,
+    ),
+    (
+        "scalar-benchmark-format",
+        [_PY, "-m", "ruff", "format", "--check", "validation/control_benchmark_suite.py"],
+        None,
+    ),
     ("python-lint-contract", [_PY, "tools/check_python_lint_contract.py"], None),
     ("ci-workflow-modularity", [_PY, "tools/check_ci_workflow_modularity.py"], None),
     ("rust-toolchain-contract", [_PY, "tools/check_rust_toolchain_contract.py"], None),

@@ -50,6 +50,20 @@ repos:
 
   - repo: local
     hooks:
+      - id: scalar-benchmark-native-docs
+        name: Scalar benchmark native docs and lint
+        entry: python -m ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
+        language: system
+        pass_filenames: false
+        files: ^(validation/control_benchmark_suite|tests/test_control_benchmark_suite)\.py$
+
+      - id: scalar-benchmark-format
+        name: Scalar benchmark format
+        entry: python -m ruff format --check validation/control_benchmark_suite.py
+        language: system
+        pass_filenames: false
+        files: ^validation/control_benchmark_suite\.py$
+
       - id: check-python-lint-contract
         name: Python lint scope contract
         entry: python tools/check_python_lint_contract.py
