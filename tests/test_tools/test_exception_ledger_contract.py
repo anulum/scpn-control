@@ -20,12 +20,32 @@ def test_live_coverage_exception_inventory_is_complete() -> None:
     """All five exception families are present and fully owned."""
     ledger = coverage_exception_ledger.build_ledger()
 
-    assert ledger["counts"]["pragma-no-cover"] == 182
+    assert ledger["counts"]["pragma-no-cover"] == 192
     assert ledger["counts"]["pytest-skipif"] == 128
     assert ledger["counts"]["pytest-runtime-skip"] == 44
     assert ledger["counts"]["pytest-xfail"] == 2
     assert ledger["counts"]["coverage-exclude-pattern"] == 11
     assert all(entry["reason"] and entry["removal_condition"] for entry in ledger["entries"])
+
+
+def test_device_review_exceptions_keep_their_evidence_boundaries() -> None:
+    """Separate installed-package refusals from the upstream decoder invariant."""
+    entries = [
+        entry
+        for entry in coverage_exception_ledger.build_ledger()["entries"]
+        if entry["path"] == "src/scpn_control/reactor_semantic_admission/device_diagnostic_review_admission.py"
+    ]
+    installation = [entry for entry in entries if entry["reason"] == "SPO installation guard"]
+    invariants = [entry for entry in entries if entry["reason"] == "decoder invariant"]
+    assert len(entries) == 10
+    assert len(installation) == 9
+    assert len(invariants) == 1
+    assert all(entry["classification"] == "spo-installation-boundary" for entry in installation)
+    assert all(entry["status"] == "separate-process-evidence" for entry in installation)
+    assert all("isolated wheel installations" in entry["execution_lane"] for entry in installation)
+    assert all("collect and merge owner branch coverage" in entry["removal_condition"] for entry in installation)
+    assert invariants[0]["classification"] == "intrinsic-control-flow"
+    assert invariants[0]["status"] == "reasoned-control-flow"
 
 
 def test_lif_environment_guards_name_their_separate_process_evidence() -> None:
