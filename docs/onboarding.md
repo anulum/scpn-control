@@ -199,3 +199,34 @@ Use this guide as the entry lane for new operators and campaign owners.
 - Read it first if you are joining the project and need a repeatable setup and first-run path.
 - Move to `docs/tutorials.md` after environment checks, then to `docs/physics_traceability.md` for claim boundaries.
 - For production discussions, follow this with `docs/production_readiness.md` before running facility-admissibility conversations.
+
+
+## Interpreting benchmark gate verdicts
+
+`tools/benchmark_regression_gate.py` compares existing reports; it does not
+measure latency or prove that producer-supplied source, CPU or digest claims
+are authentic. Both inputs must contain nonempty benchmark, language and metric
+maps. Every language metric is numeric and finite. Baseline values must be
+strictly positive because they are ratio denominators; report values may be
+zero but cannot be negative. Place descriptive metadata outside metric maps.
+A valid checksum alone cannot qualify empty or invalid metric evidence.
+
+Metric keys carry units: compare `p95_us` with `p95_us`, not a millisecond value.
+Threshold ratios are dimensionless. Names containing `throughput`, `ops_s` or
+`speedup` use a lower ratio bound; other names use an upper bound. A benchmark
+policy overrides the default policy. Missing policy or required report metrics
+rejects admission, as does a mismatch between two declared CPU models. Missing
+CPU identity does not establish that machines are comparable.
+
+The strict CLI returns exit 1 for rejected evidence. `--evidence-only` intentionally
+returns exit 0 for a generated rejection verdict and prints its findings; that
+exit code is not admission. Missing input files and threshold-loading failures
+still fail. JSON verdict output requires the recorded-campaign wrapper described
+above. Python callers should use `gate` for complete validation, including threshold
+policy validation (`policy_invalid` findings); `compare` is an
+arithmetic helper for already validated inputs.
+
+The real subprocess examples and invalid-input cases are exercised by
+`tests/test_benchmark_regression_gate.py`, including checksummed empty baselines,
+nonfinite values, malformed maps, zero report observations and evidence-only
+reporting. These tests establish admission behavior, not benchmark performance.

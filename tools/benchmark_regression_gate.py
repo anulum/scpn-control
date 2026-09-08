@@ -31,6 +31,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 import tomllib
 from dataclasses import asdict, dataclass
@@ -101,8 +102,8 @@ def parse_thresholds(raw: dict[str, Any]) -> dict[str, dict[str, float]]:
         for metric, ratio in table.items():
             if not isinstance(ratio, (int, float)) or isinstance(ratio, bool):
                 raise ValueError(f"threshold '{section}.{metric}' must be a number")
-            value = float(ratio)
-            if not (value > 0.0) or value != value or value in (float("inf"), float("-inf")):
+            value = _coerce_float(ratio)
+            if value is None or value <= 0.0:
                 raise ValueError(f"threshold '{section}.{metric}' must be positive and finite")
             metrics[metric] = value
         normalised[section] = metrics
@@ -117,6 +118,28 @@ def resolve_threshold(thresholds: dict[str, dict[str, float]], benchmark: str, m
     return thresholds.get("default", {}).get(metric)
 
 
+def _metric_block_errors(benchmarks: dict[str, Any], label: str) -> list[str]:
+    """Validate metric-map shape and numeric domains before any comparison."""
+    errors: list[str] = []
+    if not benchmarks:
+        return [f"{label} benchmarks block is empty"]
+    for name, benchmark in benchmarks.items():
+        languages = benchmark.get("languages") if isinstance(benchmark, dict) else None
+        if not isinstance(languages, dict) or not languages:
+            errors.append(f"{label} benchmark {name!r} requires a nonempty languages map")
+            continue
+        for language, metrics in languages.items():
+            if not isinstance(metrics, dict) or not metrics:
+                errors.append(f"{label} {name}/{language} requires a nonempty metric map")
+                continue
+            for metric, raw in metrics.items():
+                value = _coerce_float(raw)
+                if value is None or value < 0.0 or (label == "baseline" and value == 0.0):
+                    domain = "positive" if label == "baseline" else "nonnegative"
+                    errors.append(f"{label} {name}/{language}/{metric} must be a finite {domain} number")
+    return errors
+
+
 def validate_report(report: dict[str, Any]) -> list[str]:
     """Structural + integrity validation of a benchmark suite report."""
     errors: list[str] = []
@@ -124,8 +147,8 @@ def validate_report(report: dict[str, Any]) -> list[str]:
         errors.append(f"report schema_version must be {REPORT_SCHEMA!r}")
     if "benchmarks" not in report or not isinstance(report["benchmarks"], dict):
         errors.append("report has no benchmarks block")
-    elif not report["benchmarks"]:
-        errors.append("report benchmarks block is empty")
+    else:
+        errors.extend(_metric_block_errors(report["benchmarks"], "report"))
     if "payload_sha256" not in report:
         errors.append("report is missing payload_sha256")
     else:
@@ -144,6 +167,7 @@ def verify_baseline_integrity(baseline: dict[str, Any]) -> list[str]:
     if "benchmarks" not in baseline or not isinstance(baseline["benchmarks"], dict):
         errors.append("baseline has no benchmarks block")
         return errors
+    errors.extend(_metric_block_errors(baseline["benchmarks"], "baseline"))
     stamped = baseline.get("baseline_sha256")
     if not stamped:
         errors.append("baseline is missing baseline_sha256")
@@ -157,8 +181,11 @@ def verify_baseline_integrity(baseline: dict[str, Any]) -> list[str]:
 def _coerce_float(value: Any) -> float | None:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
-    out = float(value)
-    return out if out == out else None
+    try:
+        out = float(value)
+    except OverflowError:
+        return None
+    return out if math.isfinite(out) else None
 
 
 def compare(
@@ -166,7 +193,11 @@ def compare(
     baseline: dict[str, Any],
     thresholds: dict[str, dict[str, float]],
 ) -> list[Finding]:
-    """Compare every baseline metric against the report, fail-closed on gaps."""
+    """Compare validated metric documents; use ``gate`` for complete admission.
+
+    This arithmetic helper does not verify schemas, hashes or input domains.
+    Missing metrics and missing threshold policies produce findings.
+    """
     findings: list[Finding] = []
     report_benches = report.get("benchmarks", {})
     for bench_name, base_bench in baseline.get("benchmarks", {}).items():
@@ -271,13 +302,22 @@ def gate(
     *,
     generated_utc: str,
 ) -> dict[str, Any]:
-    """Run validation + comparison and assemble a fail-closed verdict report."""
+    """Validate both metric documents and policy before assembling a verdict.
+
+    Python callers receive the same threshold validation as file-based CLI
+    callers. Invalid policies produce ``policy_invalid`` findings rather than
+    allowing undefined numeric comparisons to qualify a report.
+    """
     findings: list[Finding] = []
     for error in validate_report(report):
         findings.append(Finding("report_invalid", "", "", "", None, None, None, None, "", error))
     for error in verify_baseline_integrity(baseline):
         findings.append(Finding("baseline_invalid", "", "", "", None, None, None, None, "", error))
-    # Only compare metrics when both documents are structurally sound, otherwise
+    try:
+        thresholds = parse_thresholds(thresholds)
+    except ValueError as error:
+        findings.append(Finding("policy_invalid", "", "", "", None, None, None, None, "", str(error)))
+    # Only compare metrics when both documents and policy are valid, otherwise
     # the comparison itself is unreliable; the structural failures above already
     # fail the gate.
     if not findings:
@@ -307,12 +347,25 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 
 def load_thresholds_file(path: Path) -> dict[str, dict[str, float]]:
+    """Load TOML ratios with benchmark overrides over a required default table.
+
+    Ratios are dimensionless, positive and finite. File/TOML/policy errors
+    propagate as OSError or ValueError; no implicit policy is substituted.
+    """
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
     return parse_thresholds(raw)
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Compare explicit report/baseline files under the supplied ratio policy.
+
+    Return 0 on admission and 1 on missing files, invalid thresholds or rejected
+    metrics. Evidence-only mode reports a rejected verdict but returns 0; input
+    loading failures still fail. JSON output requires recorded-campaign custody.
+    Metrics use the units encoded by their keys; this tool neither measures
+    latency nor independently authenticates source-provided digests or CPUs.
+    """
     parser = argparse.ArgumentParser(description="Benchmark regression gate.")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--baseline", type=Path, required=True)
@@ -326,7 +379,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--evidence-only",
         action="store_true",
-        help="Collect and report the verdict but never fail (for generic CI "
+        help="Report rejected verdicts with exit zero (input loading errors still fail; for generic CI "
         "runners whose CPU differs from the declared-hardware baseline).",
     )
     args = parser.parse_args(argv)
