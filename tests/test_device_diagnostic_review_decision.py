@@ -127,6 +127,7 @@ def test_decision_round_trips_with_both_digest_seals(
             "size limit",
         ),
     ],
+    ids=["empty", "invalid-utf8", "invalid-json", "non-object", "oversized"],
 )
 def test_decoder_rejects_invalid_byte_envelopes(payload: bytes, message: str) -> None:
     """Reject empty, malformed, non-object and oversized byte envelopes."""
