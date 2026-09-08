@@ -13,12 +13,12 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Synthetic TORAX-hybrid realtime control lane for NSTX-U-like scenarios."""
+"""Synthetic hybrid-control example with analytical timing proxies; no TORAX execution."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Callable, cast
+from dataclasses import dataclass, field
+from typing import Callable, Literal, cast
 
 import numpy as np
 
@@ -37,7 +37,7 @@ _predict_disruption_risk = cast(_PredictRiskFn, predict_disruption_risk)
 
 @dataclass(frozen=True)
 class ToraxPlasmaState:
-    """Reduced plasma state exchanged with the TORAX transport solver.
+    """Reduced synthetic state used by the local illustrative update equations.
 
     Attributes
     ----------
@@ -59,7 +59,7 @@ class ToraxPlasmaState:
 
 @dataclass(frozen=True)
 class ToraxHybridCampaignResult:
-    """Summary of a TORAX-coupled hybrid-control campaign.
+    """Summary of a synthetic campaign with explicit detached-result provenance.
 
     Attributes
     ----------
@@ -70,14 +70,40 @@ class ToraxHybridCampaignResult:
     disruption_avoidance_rate
         Fraction of episodes that avoided disruption.
     torax_parity_pct
-        Agreement with the TORAX reference as a percentage.
+        Legacy name for synthetic beta-trajectory agreement, in percent.
     p95_loop_latency_ms
-        95th-percentile control-loop latency in milliseconds.
+        Legacy name for the p95 analytical complexity proxy, expressed in nominal ms.
     mean_risk
         Mean disruption risk over the campaign.
     passes_thresholds
-        Whether all acceptance thresholds were met.
+        Whether illustrative synthetic regression thresholds were met.
+    schema_version
+        Version of this annotated synthetic result representation.
+    torax_parity_kind, latency_kind
+        Explicit interpretation of the two legacy metric names.
+    external_torax_executed, wall_clock_measured, production_claim_allowed
+        Always false: this example supplies no external or measured evidence.
+    threshold_scope
+        Restricts threshold results to synthetic regression checks.
+
+    Notes
+    -----
+    ``dataclasses.asdict`` preserves these fixed provenance fields. Consumers
+    must retain them when exporting results; legacy metric names alone carry
+    no TORAX execution, measured-latency or production qualification.
     """
+
+    schema_version: Literal["scpn-control.synthetic-hybrid-campaign.v1"] = field(
+        default="scpn-control.synthetic-hybrid-campaign.v1", init=False
+    )
+    torax_parity_kind: Literal["synthetic_beta_trajectory_agreement"] = field(
+        default="synthetic_beta_trajectory_agreement", init=False
+    )
+    latency_kind: Literal["analytical_complexity_proxy"] = field(default="analytical_complexity_proxy", init=False)
+    external_torax_executed: Literal[False] = field(default=False, init=False)
+    wall_clock_measured: Literal[False] = field(default=False, init=False)
+    production_claim_allowed: Literal[False] = field(default=False, init=False)
+    threshold_scope: Literal["synthetic_regression_only"] = field(default="synthetic_regression_only", init=False)
 
     episodes: int
     steps_per_episode: int
@@ -89,7 +115,7 @@ class ToraxHybridCampaignResult:
 
 
 def _estimated_loop_latency_ms(disturbance: float, snn_corr: float) -> float:
-    """Return deterministic hardware-normalized loop latency proxy.
+    """Return a deterministic analytical complexity proxy in nominal milliseconds.
 
     This synthetic campaign tracks control-loop complexity rather than host CPU
     wall-clock jitter, so CI and local environments remain comparable.
@@ -139,7 +165,7 @@ def _build_hybrid_controller() -> NeuroSymbolicController:
 
 
 def _torax_policy(state: ToraxPlasmaState) -> float:
-    """Reduced TORAX-like policy head for beta/q tracking."""
+    """Illustrative clipped linear policy for synthetic beta/q tracking."""
     beta_err = 1.85 - state.beta_n
     q_err = state.q95 - 4.9
     cmd = 1.10 * beta_err - 0.32 * q_err
@@ -152,7 +178,7 @@ def _torax_step(
     disturbance: float,
     rng: np.random.Generator,
 ) -> ToraxPlasmaState:
-    """Reduced TORAX-like transport/equilibrium state update."""
+    """Illustrative local state update; no external transport solver is called."""
     command = float(np.clip(command, -2.0, 2.0))
     beta_n = state.beta_n + 0.045 * (
         0.85 * command - (state.beta_n - 1.85) - 0.52 * disturbance + rng.normal(0.0, 0.004)
@@ -186,7 +212,17 @@ def run_nstxu_torax_hybrid_campaign(
     episodes: int = 16,
     steps_per_episode: int = 220,
 ) -> ToraxHybridCampaignResult:
-    """Run deterministic NSTX-U-like realtime hybrid control campaign."""
+    """Run a seeded synthetic example, without external TORAX or stopwatch timing.
+
+    Beta is mapped numerically into the controller's ``R_axis_m`` input as an
+    illustrative proxy, not a calibrated conversion from beta to metres. Both
+    branches share the deterministic disturbance envelope but consume successive
+    independent noise draws from one generator. Each episode resets plasma state
+    and risk history; the controller and random generator persist across episodes,
+    and the controller receives the campaign-wide ``ep * steps + k`` index.
+    Threshold passes qualify only this synthetic regression. Serialise with
+    ``dataclasses.asdict`` to retain the result's metric semantics and provenance.
+    """
     rng = np.random.default_rng(int(seed))
     controller = _build_hybrid_controller()
     episodes = int(episodes)
@@ -221,11 +257,11 @@ def run_nstxu_torax_hybrid_campaign(
             if 0.35 <= phase <= 0.58:
                 disturbance = float(0.22 + 0.15 * np.sin(np.pi * (phase - 0.35) / 0.23))
 
-            # TORAX-only baseline branch
+            # Synthetic baseline branch
             torax_cmd = _torax_policy(torax_state)
             torax_state = _torax_step(torax_state, torax_cmd, disturbance, rng)
 
-            # Hybrid branch = TORAX command + SNN correction
+            # Synthetic hybrid branch = local policy command + SNN correction
             base_cmd = _torax_policy(hybrid_state)
             obs: dict[str, float] = {"R_axis_m": hybrid_state.beta_n, "Z_axis_m": 0.0}
             action = controller.step(obs, ep * steps + k)

@@ -15,6 +15,9 @@
 
 from __future__ import annotations
 
+import json
+from dataclasses import asdict
+
 import numpy as np
 import pytest
 
@@ -155,3 +158,18 @@ class TestRunCampaign:
         r = run_nstxu_torax_hybrid_campaign(seed=42, episodes=8, steps_per_episode=120)
         assert r.episodes == 8
         assert r.p95_loop_latency_ms < 2.0
+
+
+def test_detached_campaign_json_declares_synthetic_metric_semantics() -> None:
+    """A real campaign retains provenance when detached from its Python type."""
+    result = run_nstxu_torax_hybrid_campaign(seed=42, episodes=1, steps_per_episode=32)
+    payload = json.loads(json.dumps(asdict(result), allow_nan=False))
+    assert payload["schema_version"] == "scpn-control.synthetic-hybrid-campaign.v1"
+    assert payload["torax_parity_kind"] == "synthetic_beta_trajectory_agreement"
+    assert payload["latency_kind"] == "analytical_complexity_proxy"
+    assert payload["external_torax_executed"] is False
+    assert payload["wall_clock_measured"] is False
+    assert payload["production_claim_allowed"] is False
+    assert payload["threshold_scope"] == "synthetic_regression_only"
+    assert payload["torax_parity_pct"] == result.torax_parity_pct
+    assert payload["p95_loop_latency_ms"] == result.p95_loop_latency_ms

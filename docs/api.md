@@ -2388,7 +2388,36 @@ Requires `pip install "scpn-control[jax]"`.
 
 ::: scpn_control.control.neuro_cybernetic_controller.NeuroCyberneticController
 
-### TORAX Hybrid Loop
+### Synthetic hybrid-control example
+
+The historical TORAX-named API executes local illustrative update equations.
+It neither invokes an external TORAX solver nor measures wall-clock latency.
+Serialise its result with `dataclasses.asdict`; retain the provenance fields
+alongside the legacy numeric fields when exporting JSON.
+
+| Legacy metric | Actual interpretation |
+| --- | --- |
+| `torax_parity_pct` | Mean per-episode synthetic beta-trajectory agreement: clipped `100 * (1 - RMSE / RMS(baseline beta))`. |
+| `p95_loop_latency_ms` | P95 of the analytical proxy `0.24 + 0.12 * clip(disturbance, 0, 1) + 0.08 * abs(snn_corr)`, in nominal milliseconds. No hardware calibration is supplied. |
+| `passes_thresholds` | Synthetic regression checks only; no physical or performance qualification. |
+
+Detached results carry schema `scpn-control.synthetic-hybrid-campaign.v1`,
+`torax_parity_kind`, `latency_kind`, `threshold_scope`, and explicit false
+`external_torax_executed`, `wall_clock_measured`, `production_claim_allowed`.
+Existing metric names and numerical calculations remain compatible. These
+annotations describe provenance; they do not authenticate an arbitrary payload.
+
+Both branches start each episode from the same sampled state and receive the
+same deterministic disturbance envelope. Their stochastic state updates consume
+successive draws from one RNG, so they do not use paired identical noise. Beta
+is assigned numerically to `R_axis_m` for this example; it is not a physical
+beta-to-position calibration. Plasma state and risk history reset each episode;
+the controller and RNG persist, and controller step indices remain campaign-wide.
+A high-risk streak can end an episode early, so episodes need not have equal
+numbers of executed steps. External parity and measured latency require a
+separate executable solver contract and actual measurement evidence.
+
+::: scpn_control.control.torax_hybrid_loop.ToraxHybridCampaignResult
 
 ::: scpn_control.control.torax_hybrid_loop.run_nstxu_torax_hybrid_campaign
 
