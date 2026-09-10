@@ -8,7 +8,7 @@
 
 pytest==9.1.1
 pytest-cov==7.1.0
-hypothesis==6.165.10
+hypothesis==6.167.1
 jsonschema==4.26.0
 mypy==2.3.1
 osqp==1.1.3
