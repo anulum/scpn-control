@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci deps.
 
-numpy>=1.24,<2.3
+numpy>=1.24,<2.5
 scipy>=1.10,<1.16
 click>=8.0
 pydantic>=2.0
