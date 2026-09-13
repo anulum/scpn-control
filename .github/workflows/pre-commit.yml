@@ -35,8 +35,10 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install pre-commit
-        run: pip install --require-hashes -r requirements/ci-precommit.txt
+      - name: Install pre-commit and system hook tools
+        run: |
+          pip install --require-hashes -r requirements/ci-precommit.txt
+          pip install --require-hashes -r requirements/ci-lint.txt
 
       - name: Run pre-commit
         run: pre-commit run --all-files --show-diff-on-failure
