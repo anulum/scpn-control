@@ -6,4 +6,4 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci studio.
 
-scpn-studio-platform>=0.1,<0.9
+scpn-studio-platform>=0.1,<0.12
