@@ -72,7 +72,7 @@ jobs:
 
       - name: Build docs
         env:
-          PYTHONPATH: ${{ github.workspace }}/src
+          PYTHONPATH: ${{ github.workspace }}:${{ github.workspace }}/src
         run: mkdocs build --strict
 
       - name: Install Studio remote in Pages artifact
