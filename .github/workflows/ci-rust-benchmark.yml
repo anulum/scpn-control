@@ -21,6 +21,10 @@ jobs:
   # ─── Job 8: Rust benchmarks ───
   rust-benchmarks:
     runs-on: ubuntu-latest
+    env:
+      # Intel MKL's static archive ordering is not preserved by rust-lld 21;
+      # use the platform linker for the benchmark-only LAPACK binaries.
+      RUSTFLAGS: -C linker-features=-lld
     defaults:
       run:
         working-directory: scpn-control-rs
