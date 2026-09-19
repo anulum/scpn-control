@@ -41,7 +41,7 @@
       "workflow": ".github/workflows/ci-build-package.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["package-quality"]
+      "jobs": ["package-quality", "docs-build", "release-env-smoke"]
     },
     {
       "id": "native-polyglot",
@@ -120,7 +120,9 @@
     "nengo-loihi",
     "lean-proofs",
     "evidence-inventory",
-    "commit-authorship"
+    "commit-authorship",
+    "docs-build",
+    "release-env-smoke"
   ],
   "dependency_graph": {
     "rmse-gate": ["python-tests"],
