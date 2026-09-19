@@ -563,6 +563,13 @@ def _parse_lifecycle_record(
         refresh_status=refresh_status,
         provenance=provenance,
     )
+    if refresh_artifact_path is not None:
+        _validate_refresh_claim_boundary(
+            repository_root=reports_root.parents[1],
+            artifact_path=refresh_artifact_path,
+            registry_claim=claim,
+            context=context,
+        )
     return ValidationReportLifecycle(
         path=report_path,
         storage_class=storage_class,
@@ -625,6 +632,32 @@ def _parse_refresh_artifact(
     if evidence_time > as_of:
         raise LifecycleRegistryError(f"future refresh evidence timestamp for {artifact_path}")
     return artifact_path, artifact_sha256, evidence_time
+
+
+def _validate_refresh_claim_boundary(
+    *, repository_root: Path, artifact_path: str, registry_claim: dict[str, object], context: str
+) -> None:
+    """Bind mutable registry claims to the sealed refresh without losing caveats."""
+    artifact = _read_json_object(repository_root / artifact_path)
+    sealed_claim = _require_object(artifact.get("claim_boundary"), f"{context}.refresh.claim_boundary")
+    _require_exact_keys(sealed_claim, set(registry_claim), context=f"{context}.refresh.claim_boundary")
+    if sealed_claim == registry_claim:
+        return
+    if any(
+        sealed_claim[field] != registry_claim[field]
+        for field in ("scientific_admission", "production_admission", "public_claim_allowed")
+    ) or sealed_claim["current_evidence"] is not True or registry_claim["current_evidence"] is not False:
+        raise LifecycleRegistryError(f"refresh claim boundary drift for {artifact_path}")
+    source_rationale = _require_string(sealed_claim["rationale"], f"{context}.refresh.claim_boundary.rationale")
+    source_scope, separator, caveats = source_rationale.partition("; ")
+    if not separator or not source_scope.startswith("Fresh ") or not caveats:
+        raise LifecycleRegistryError(f"unsupported refresh expiry rationale for {artifact_path}")
+    historical_scope = f"Historical {source_scope.removeprefix('Fresh ')}"
+    if historical_scope.endswith(" evidence only"):
+        historical_scope = historical_scope.removesuffix(" only")
+    expected = f"{historical_scope}; the 21-day current-evidence window elapsed. {caveats[0].upper()}{caveats[1:]}"
+    if registry_claim["rationale"] != expected:
+        raise LifecycleRegistryError(f"refresh claim boundary drift for {artifact_path}")
 
 
 def _parse_provenance(value: object, *, context: str, report_path: str) -> dict[str, object]:

@@ -41,7 +41,14 @@ def _assert_claim_boundary_not_promoted(refresh_claim: dict[str, Any], registry_
     else:
         assert refresh_claim["current_evidence"] is True
         assert registry_claim["current_evidence"] is False
-        assert "21-day current-evidence window elapsed" in registry_claim["rationale"]
+        source_scope, separator, caveats = refresh_claim["rationale"].partition("; ")
+        assert separator and source_scope.startswith("Fresh ") and caveats
+        historical_scope = f"Historical {source_scope.removeprefix('Fresh ')}"
+        if historical_scope.endswith(" evidence only"):
+            historical_scope = historical_scope.removesuffix(" only")
+        assert registry_claim["rationale"] == (
+            f"{historical_scope}; the 21-day current-evidence window elapsed. {caveats[0].upper()}{caveats[1:]}"
+        )
 
 
 def test_refresh_records_are_schema_valid_self_sealed_and_lineage_bound() -> None:

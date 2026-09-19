@@ -264,6 +264,39 @@ def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
     assert all(not report["claim_boundary"]["public_claim_allowed"] for report in registry["reports"])
 
 
+@pytest.mark.parametrize(
+    ("source_marker", "source_clause", "replacement"),
+    [
+        ("local-proxy", "target-hardware, ", ""),
+        ("zero-frequency", "No full-frequency D-K, ", ""),
+        ("local-proxy", "No facility,", "Facility validation is permitted. No facility,"),
+    ],
+)
+def test_expired_refresh_rejects_weakened_sealed_claim_caveat(
+    tmp_path: Path, source_marker: str, source_clause: str, replacement: str
+) -> None:
+    """The public registry loader rejects a real refresh with a weakened claim."""
+    registry = json.loads(DEFAULT_LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
+    record = next(
+        report
+        for report in registry["reports"]
+        if report["refresh"]["status"] == "refreshed" and source_marker in report["claim_boundary"]["rationale"]
+    )
+    rationale = record["claim_boundary"]["rationale"]
+    assert source_clause in rationale
+    record["claim_boundary"]["rationale"] = rationale.replace(source_clause, replacement, 1)
+    registry_path = tmp_path / "lifecycle_registry.json"
+    registry_path.write_text(json.dumps(registry), encoding="utf-8")
+
+    with pytest.raises(LifecycleRegistryError, match="refresh claim boundary drift"):
+        build_validation_report_freshness_matrix(
+            ROOT / "validation" / "reports",
+            as_of=AUDIT_AS_OF,
+            max_age_days=21,
+            registry_path=registry_path,
+        )
+
+
 def _write_single_report_registry(tmp_path: Path) -> tuple[Path, Path, dict[str, object]]:
     source_registry = json.loads(DEFAULT_LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
     source_record = next(
@@ -473,7 +506,6 @@ def test_lifecycle_registry_rejects_duplicate_extra_missing_and_count_drift(tmp_
 def _make_refreshed_local(record: dict[str, Any], tmp_path: Path) -> None:
     artifact_path = tmp_path / "validation" / "report_refreshes" / "test.json"
     artifact_path.parent.mkdir(parents=True)
-    artifact_path.write_text('{"schema_version": "test"}\n', encoding="utf-8")
     record["lifecycle_bucket"] = "rerunnable_local"
     record["evidence_class"] = "local_proxy"
     record["evidence_time_utc"] = "2026-08-26T00:00:00Z"
@@ -482,7 +514,7 @@ def _make_refreshed_local(record: dict[str, Any], tmp_path: Path) -> None:
         "status": "refreshed",
         "commands": ["python benchmark.py --json-out report.json"],
         "artifact_path": "validation/report_refreshes/test.json",
-        "artifact_sha256": hashlib.sha256(artifact_path.read_bytes()).hexdigest(),
+        "artifact_sha256": "0" * 64,
         "evidence_time_utc": "2026-08-26T00:00:00Z",
     }
     record["claim_boundary"] = {
@@ -492,6 +524,8 @@ def _make_refreshed_local(record: dict[str, Any], tmp_path: Path) -> None:
         "public_claim_allowed": True,
         "rationale": "Fresh local evidence admitted for its declared bounded claim only.",
     }
+    artifact_path.write_text(json.dumps({"claim_boundary": record["claim_boundary"]}) + "\n", encoding="utf-8")
+    record["refresh"]["artifact_sha256"] = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
     record["provenance"] = {
         "source_commit": "a" * 40,
         "dependency_lock_sha256": "b" * 64,
