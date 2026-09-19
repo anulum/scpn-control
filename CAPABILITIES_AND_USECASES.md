@@ -2,7 +2,7 @@
 
 ## 1. Core Architecture: Neuro-Symbolic Actuation
 
-`scpn-control` is a real-time control research layer for tokamak plasma scenarios. It ingests high-frequency diagnostics, computes stability and transport quantities, and issues actuator commands through fail-closed admission gates.
+`scpn-control` is a control research layer for tokamak plasma scenarios. It processes diagnostic inputs, computes stability and transport quantities, and evaluates candidate control actions behind fail-closed admission gates. It does not have live tokamak actuator authority.
 
 ### Technical Specifications
 
@@ -14,7 +14,7 @@
 
 The architecture is domain-configurable: the controller updates its $K_{nm}$ coupling matrix online via the `AdaptiveKnmEngine`, and layer adapters map domain telemetry onto the phase-coupling model.
 
-*   **Plasma Control Loop:** Ingests $\beta_N$, Mirnov RMS, and Greenwald limits. Executes Singular Value Decomposition (SVD) and $H_\infty$ control synthesis to adjust magnetic coil voltages ($\Delta V_{coil}$) for Neoclassical Tearing Mode (NTM) suppression studies.
+*   **Plasma Control Loop:** Uses $\beta_N$, Mirnov RMS, and Greenwald limits in research scenarios. Singular Value Decomposition (SVD) and $H_\infty$ control synthesis produce candidate magnetic coil voltage changes ($\Delta V_{coil}$) for Neoclassical Tearing Mode (NTM) suppression studies; these are not live actuator commands.
 
 ## 3. Gyrokinetic Transport (v0.17.0)
 

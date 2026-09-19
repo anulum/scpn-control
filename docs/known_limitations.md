@@ -18,12 +18,11 @@ saturation, slew or delay, diagnostic transfer and latency, sampled plant
 dynamics, reset and failure behavior, facility safety, performance, or
 closed-loop guarantees.
 
-SPO `v1.3.1` is available as an immutable GitHub Release and non-yanked PyPI
-wheel/sdist and contains the required strict generic and MIF decoders.
-`scpn-control` accepts only `scpn-phase-orchestrator>=1.3.1,<1.4`; its CI lock
-pins the exact `1.3.1` public artifacts and hashes. Neither the portable
-three-project exchange nor a successful admission may be represented as a
-deployed control path.
+The current package requirement is `scpn-phase-orchestrator>=1.4.3,<1.5` in
+`pyproject.toml`; the CI dependency lock pins `1.4.3` with hashes. The earlier
+`v1.3.1` exchange is historical evidence, not the current dependency contract.
+Neither the portable three-project exchange nor a successful admission may be
+represented as a deployed control path.
 
 The additional regime-assessment admission gate accepts only the exact
 abstaining eight-axis SPO assessment profile for review. It does not implement

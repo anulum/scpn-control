@@ -227,6 +227,9 @@ commit `5997eed1c135608dcd04720a8287ee9c10067265` in workflow run
 `fail`, and `production_claim_allowed=false`. Treat this as a dated loopback
 handoff observation, not fielded plant or PCS-cycle latency, HIL evidence, or
 deterministic real-time admission.
+The same report records a 179.687 µs effective native step and only 1.024x
+wall-time speed-up. The 5.619 µs P50 is the active-cycle measurement, not the
+effective step duration.
 
 The diagram is a module map and claim-boundary guide, not a statement that every
 listed controller is exercised in one runtime path. The currently wired bounded

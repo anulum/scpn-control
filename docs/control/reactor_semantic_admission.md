@@ -32,10 +32,10 @@ The dedicated cross-project test carries only the exact 12,073-byte immutable
 FUSION evidence fixture, with its producer commit, evidence commit, and SHA-256
 recorded beside it. It does not import a sibling checkout or add a local-path
 dependency. The fixture is passed through the installed SPO adapter and then
-through this public CONTROL API. SPO 1.3.1 is the first supported public
-package version carrying the required decoder; standard installation therefore
-resolves `scpn-phase-orchestrator>=1.3.1,<1.4` rather than the older 1.2.0
-wheel.
+through this public CONTROL API. SPO 1.3.1 was the first supported public
+package version carrying the required decoder. The current package requirement
+is `scpn-phase-orchestrator>=1.4.3,<1.5`, rather than the historical 1.3.1
+range or the older 1.2.0 wheel.
 
 ## Deterministic policy
 
@@ -135,15 +135,16 @@ from scpn_control.reactor_semantic_admission import (
 )
 ```
 
-The runtime dependency uses the public-index range
-`scpn-phase-orchestrator>=1.3.1,<1.4`. CI and reproducibility locks select the
-immutable SPO `1.3.1` release at source commit
-`c2a7581d58819060806c6f173da941c822103695`. The non-yanked PyPI wheel has
+The current runtime dependency uses the public-index range
+`scpn-phase-orchestrator>=1.4.3,<1.5`; the CI dependency lock selects `1.4.3`
+with hashes. The following immutable SPO `1.3.1` release is historical producer
+evidence, not the current dependency lock. Its source commit was
+`c2a7581d58819060806c6f173da941c822103695`. The recorded PyPI wheel has
 SHA-256 `c2d7c0a5c0ad47f420fee02e54ccc28122bf8d128eb3b80ca51ba5f034320274`;
-the PyPI and GitHub Release sdist has SHA-256
+the recorded PyPI and GitHub Release sdist has SHA-256
 `c0318a85931eef3fba6615bb5ff587c749c5a83c766504d10cdf7f2ac94e6fe3`.
-This rejects decoder-incompatible `1.3.0`, the earlier `1.2.0` package, and any
-future `1.4` contract without relying on a direct URL.
+The current requirement excludes the 1.3.x and 1.2.0 packages and does not
+admit an unreviewed 1.5 contract.
 
 The public ingress is `admit_mif_reactor_semantic_handoff`. It calls only SPO's
 strict `mif_merge_compression_handoff_from_bytes` decoder. It does not parse the

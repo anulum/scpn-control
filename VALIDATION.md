@@ -9,12 +9,12 @@
 | "DIII-D shot replay" | Synthetic mock shots | `tests/mock_diiid.py` | **Not real MDSplus data** |
 | SPARC equilibrium RMSE | Published GEQDSK design files | CFS public data | Design equilibria, not experimental |
 | IPB98(y,2) scaling | Published ITPA coefficients | Wesson, ITER Physics Basis | Coefficient comparison only |
-| Control cycle ~5 µs P50 (native) | `benchmark_native_handoff.py` | CI (EPYC 7763) + local | Integrated cycle, not E2E plant loop |
+| Native active-cycle P50 5.619 µs | `validation/reports/native_handoff_comparison.json` | Dated loopback-UDP run on an EPYC 7763 | `local_proxy`, runtime admission `fail`; effective native step 179.687 µs and wall-time speed-up 1.024x, not an E2E plant loop |
 | Neural equilibrium facade | PCA+MLP vs Picard solver | Internal simulation | No admitted current latency; not cross-validated against P-EFIT |
-| "Formal verification" | Runtime contract assertions | `scpn/contracts.py` | Not theorem-proved (no Coq/Lean) |
+| Bounded formal methods | Lean pulsed-FSM model, Petri-net checks, and runtime assertions | `lean/SCPNControl/PulsedFSM.lean`; `src/scpn_control/scpn/contracts.py` | Lean proof covers the pulsed-FSM model, not controller implementation, plasma physics, or facility safety |
 | Disruption prediction | Synthetic training data | Internal generator | Not validated on real disruption DBs |
 | SPI mitigation physics | Physics equations only | Literature constants | Not validated against JET/ITER data |
-| SNN controller | Mocked Nengo CI tests | Simulated neurons | Nengo Loihi hardware untested |
+| SNN controller | Pure-NumPy LIF+NEF wrapper tests | `tests/test_nengo_snn_wrapper.py` | The wrapper does not require Nengo; Loihi hardware is untested |
 
 **What does NOT exist:**
 - No real MDSplus shot data ingestion
@@ -28,7 +28,7 @@
 
 | Suite | Count | Scope |
 |-------|------:|-------|
-| Python unit/integration | 3,300+ | `pytest tests/` across 235 files |
+| Python unit/integration | See generated capability inventory | `pytest tests/`; test-file count is generated in `README.md` |
 | Rust engine | 140+ | `cargo test --workspace` in `scpn-control-rs/` |
 | Rust-Python interop | 3 files | PyO3 parity tests via maturin |
 | Notebooks | 5 | Executed in CI via `nbconvert` |
@@ -68,7 +68,7 @@ All gates must pass before merge to `main`.
 | ruff check | `ci.yml` | Import hygiene, code quality |
 | ruff format | `ci.yml` | Consistent formatting |
 | bandit | `ci.yml` | Security static analysis (SAST) |
-| test + coverage | `ci.yml` | `pytest --cov-fail-under=99` on Python 3.12 |
+| test + coverage | `ci-python-quality.yml` | `pytest --cov-fail-under=100` on Python 3.12 |
 | mypy | `ci.yml` | Type checking (scoped files) |
 | notebook smoke | `ci.yml` | All tutorial notebooks execute |
 | package quality | `ci.yml` | `twine check` on built sdist/wheel |
@@ -90,7 +90,7 @@ All gates must pass before merge to `main`.
 
 ## Coverage Policy
 
-- Threshold: 99% (enforced by `pytest --cov-fail-under=99`). Current: 100% (10,142 statements, 0 missed).
+- Threshold: 100% (`pyproject.toml` and `pytest --cov-fail-under=100` in CI). No exact-current-head coverage result is asserted here.
 - Excluded lines: `pragma: no cover`, `if __name__`, `raise NotImplementedError`,
   conditional imports (`HAS_TORCH`, `HAS_NENGO`, `HAS_SC_NEUROCORE`, `except ImportError`)
 

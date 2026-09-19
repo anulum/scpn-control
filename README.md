@@ -137,13 +137,14 @@ review. The package provides the contract layer between those worlds.
 | Evidence | Schema-versioned JSON/Markdown artefacts, checksums, unit contracts, strict validators | Facility sign-off, independent V&V, and regulator or plant acceptance |
 | Deployment preparation | Runtime security boundaries, target-hardware evidence hooks, CODAC/EPICS/HIL artefact admission | Commissioned plant deployment and machine-protection qualification |
 
-## What is new in v0.22.1
+## Historical v0.22.1 checkpoint
 
-This patch release hardens the post-0.22 control-evidence package checkpoint.
-It fixes deterministic disruption replay percentile handling, adds a bounded
-RZIP Riccati fallback for local numerical-stack failures, refreshes generated
-capability metadata, and consolidates the studio-web dependency maintenance
-stack after all replacement CI and benchmark evidence turned green. It does not
+The current package version is in the generated capability inventory below.
+The v0.22.1 patch release hardened the post-0.22 control-evidence checkpoint.
+It fixed deterministic disruption replay percentile handling, added a bounded
+RZIP Riccati fallback for local numerical-stack failures, refreshed generated
+capability metadata, and consolidated the studio-web dependency maintenance
+stack. That checkpoint did not
 relax the facility, target-hardware, P-EFIT, PREEMPT_RT, TORAX, or
 external-code evidence gates.
 
@@ -179,9 +180,10 @@ blocked until the required external artefacts exist.
 > Stochastic Petri Nets into spiking neural network controllers and runs them
 > behind pre/post-condition contracts checked on every control action, in a
 > runtime-selectable stack alongside PID, nonlinear MPC, and H∞ — no GPU required.
-> The retained native-handoff report records a 5.619 µs P50 local-proxy cycle
-> on its named GitHub Actions host and explicitly denies runtime/production
-> admission. It demonstrates bounded controller-compute headroom, not an
+> The retained native-handoff report records a 5.619 µs P50 active cycle on its
+> named GitHub Actions host, but the effective native step is 179.687 µs and
+> the wall-time speed-up is 1.024x. Its evidence class is `local_proxy`, runtime
+> admission is `fail`, and production claims are disallowed. This is not an
 > end-to-end plant loop; diagnostics, reconstruction, transport, scheduling,
 > I/O and actuation remain outside that measurement.
 > Benchmark methodology and per-backend tables: [benchmarks](docs/benchmarks.md).
@@ -572,7 +574,7 @@ The Rust backend provides PyO3 bindings for:
 ```bibtex
 @software{sotek2026scpncontrol,
   title   = {SCPN Control: Neuro-Symbolic Stochastic Petri Net Controller},
-  author  = {Sotek, Miroslav and Reiprich, Michal},
+  author  = {Sotek, Miroslav},
   year    = {2026},
   url     = {https://github.com/anulum/scpn-control},
   license = {AGPL-3.0-or-later}
@@ -688,7 +690,6 @@ Full tier details (Pro, Academic, Enterprise, Sponsorships): [docs/pricing.md](d
 ## Authors
 
 - **Miroslav Sotek** — ANULUM CH & LI — [ORCID](https://orcid.org/0009-0009-3560-0851)
-- **** — ANULUM CH & LI
 
 ## License
 

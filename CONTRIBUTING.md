@@ -77,12 +77,10 @@ pre-commit run --all-files    # check everything
 pre-commit run ruff            # single hook
 ```
 
-Python (3,300+ tests, 100% coverage):
+Python (run focused tests locally; CI enforces the full-suite 100% coverage gate):
 
 ```bash
-pytest                       # full suite
-pytest tests/ -k "not slow"  # skip long-running regression tests
-pytest --cov=scpn_control    # with coverage (gate: 99%)
+pytest tests/test_nengo_snn_wrapper.py  # example: choose the module for your change
 ```
 
 Rust (5 crates: control-core, control-math, control-types, control-control, control-python):
