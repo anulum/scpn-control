@@ -258,7 +258,8 @@ def test_lifecycle_registry_is_digest_bound_and_complete() -> None:
         "git_tracked",
         "owner_local_untracked",
     }
-    assert sum(report["claim_boundary"]["current_evidence"] for report in registry["reports"]) == 11
+    assert sum(report["claim_boundary"]["current_evidence"] for report in registry["reports"]) == 0
+    assert all(not report["claim_boundary"]["scientific_admission"] for report in registry["reports"])
     assert sum(report["refresh"]["status"] == "refreshed" for report in registry["reports"]) == 10
     assert all(not report["claim_boundary"]["public_claim_allowed"] for report in registry["reports"])
 

@@ -8,7 +8,7 @@
   "claims": [],
   "generated_from": {
     "lifecycle_registry_path": "validation/report_lifecycle_registry.json",
-    "lifecycle_registry_sha256": "28dbeb13ebd65421dd007a23150dda1a9189a7c4ea5088f3a7ae8f725d4b9c34",
+    "lifecycle_registry_sha256": "cf3e626d7990d9ed6749d59e2805d2c6ea81a022aa737d15396920cc3d597e5e",
     "registry_source_commit": "a0e2cdfc30ef2b31c46fa318edaa0e91cd51488f"
   },
   "public_claim_count": 0,

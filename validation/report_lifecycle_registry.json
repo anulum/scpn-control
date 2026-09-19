@@ -53,10 +53,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -120,10 +120,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local evidence for the declared zero-frequency static analysis only; no full-frequency D-K, scientific-validation, facility, production, or hardware-neutral claim.",
+        "rationale": "Historical loaded-workstation local evidence for the declared zero-frequency static analysis only; the 21-day current-evidence window elapsed. No full-frequency D-K, scientific-validation, facility, production, or hardware-neutral claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -175,10 +175,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -336,11 +336,11 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Current bounded-model evidence for the normalized unsaturated continuous-time DGKF identities only; reactor, facility, saturation, arbitrary sampled-data, structured-uncertainty, and performance claims are excluded.",
-        "scientific_admission": true
+        "rationale": "Conservatively retired from current-evidence status before the 21-day window closes; historical bounded-model evidence for normalized unsaturated continuous-time DGKF identities only. Reactor, facility, saturation, arbitrary sampled-data, structured-uncertainty, and performance claims remain excluded.",
+        "scientific_admission": false
       },
       "evidence_class": "local_proxy",
       "evidence_time_source": "generated_at",
@@ -859,10 +859,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -1180,10 +1180,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -1254,10 +1254,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -1990,10 +1990,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4687,10 +4687,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4794,10 +4794,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
@@ -4871,10 +4871,10 @@
     },
     {
       "claim_boundary": {
-        "current_evidence": true,
+        "current_evidence": false,
         "production_admission": false,
         "public_claim_allowed": false,
-        "rationale": "Fresh loaded-workstation local-proxy evidence only; no facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
+        "rationale": "Historical loaded-workstation local-proxy evidence; the 21-day current-evidence window elapsed. No facility, target-hardware, scientific-validation, production, or hardware-neutral performance claim.",
         "scientific_admission": false
       },
       "evidence_class": "local_proxy",
