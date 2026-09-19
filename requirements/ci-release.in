@@ -7,4 +7,4 @@
 # SCPN Control — Ci release.
 
 build>=1.6.1
-cyclonedx-bom>=4.0
+cyclonedx-bom>=7.4.0
