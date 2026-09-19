@@ -57,6 +57,13 @@ updates:
     directory: "/studio-web"
     schedule:
       interval: "weekly"
+    # pnpm regenerates pnpm-lock.yaml without the mandatory seven-line header.
+    # Keep vulnerability alerts, but refresh this graph in the canonical checkout.
+    # The limit stops version PRs; the wildcard also blocks security-update PRs.
+    open-pull-requests-limit: 0
+    ignore:
+      - dependency-name: "*"
+    rebase-strategy: "disabled"
     commit-message:
       prefix: "deps(studio-web)"
     labels:
