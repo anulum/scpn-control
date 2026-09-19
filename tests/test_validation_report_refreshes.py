@@ -31,6 +31,19 @@ def _canonical_sha256(value: dict[str, Any]) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _assert_claim_boundary_not_promoted(refresh_claim: dict[str, Any], registry_claim: dict[str, Any]) -> None:
+    """Allow expiry in the mutable registry without rewriting sealed evidence."""
+    assert refresh_claim.keys() == registry_claim.keys()
+    for field in ("scientific_admission", "production_admission", "public_claim_allowed"):
+        assert registry_claim[field] == refresh_claim[field]
+    if registry_claim["current_evidence"] == refresh_claim["current_evidence"]:
+        assert registry_claim == refresh_claim
+    else:
+        assert refresh_claim["current_evidence"] is True
+        assert registry_claim["current_evidence"] is False
+        assert "21-day current-evidence window elapsed" in registry_claim["rationale"]
+
+
 def test_refresh_records_are_schema_valid_self_sealed_and_lineage_bound() -> None:
     """Every refresh is separate from, and digest-bound to, its source report."""
     schema = _json(ROOT / "validation" / "report_refresh.schema.json")
@@ -63,7 +76,7 @@ def test_refresh_records_are_schema_valid_self_sealed_and_lineage_bound() -> Non
         assert payload["source_commit"] == record["provenance"]["source_commit"]
         assert payload["refresh_evidence_time_utc"] == record["refresh"]["evidence_time_utc"]
         assert payload["producer_command"] == record["refresh"]["commands"][0]
-        assert payload["claim_boundary"] == record["claim_boundary"]
+        _assert_claim_boundary_not_promoted(payload["claim_boundary"], record["claim_boundary"])
         assert payload["failures"] == record["provenance"]["failures"]
         assert payload["sampling"] == {
             "samples": record["provenance"]["samples"],
