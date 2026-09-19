@@ -18,8 +18,8 @@ overrides:
   "@module-federation/dts-plugin>undici": ">=8.9.0"
   adm-zip: ">=0.6.0"
   brace-expansion: "5.0.9"
-  # Force transitive postcss (via vite) onto security-fixed line:
-  # Dependabot: lowest fixed 8.5.18; pin current patched 8.5.23.
+  # Require the patched PostCSS line for transitive users; the direct
+  # development dependency has its own exact pin in package.json.
   postcss: ">=8.5.18"
   nanoid: "3.3.18"
   # Dependabot cannot update this transitive package without a root override.
