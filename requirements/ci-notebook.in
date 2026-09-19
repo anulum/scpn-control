@@ -9,3 +9,4 @@
 jupyter
 nbconvert
 jupyterlab==4.5.10
+soupsieve>=2.9.2,<3
