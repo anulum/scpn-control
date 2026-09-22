@@ -56,12 +56,12 @@ python validation/train_mast_efm_neural_equilibrium.py --execute --compute-host-
 
 | Scenario | GPU class | Minimum GPU-h | Nominal GPU-h | Upper GPU-h | Storage TB | Blocking condition |
 |---|---|---:|---:|---:|---:|---|
-| `mast_efm_readiness_smoke` | single 16-24 GB CUDA GPU or CPU fallback | 0.0 | 1.0 | 3.0 | 0.05 | full-output trainer still required before predictive admission |
-| `mast_efm_single_seed_full_output` | single 24-48 GB CUDA GPU | 2.0 | 6.0 | 12.0 | 0.1 | requires implementation of full-output trainer and admitted input-feature provenance |
-| `mast_efm_multiseed_ablation` | one to four 24-80 GB CUDA GPUs | 30.0 | 80.0 | 180.0 | 0.5 | requires single-seed trainer and stable holdout metric schema |
-| `qlknn_qualikiz_payload_processing` | single A10/A100-class GPU for first pass; A100/H100 for sweeps | 100.0 | 350.0 | 900.0 | 2.0 | large numeric payloads must be pulled to storage-host storage and checksum-verified first |
-| `external_efit_pefit_or_diiid_equilibrium_set` | single 24-80 GB CUDA GPU after CPU-side conversion | 20.0 | 120.0 | 400.0 | 1.0 | requires acquired public or collaborator-provided matched reconstruction artefacts |
-| `publication_grade_equilibrium_campaign` | multi-GPU A100/H100-class allocation | 500.0 | 1500.0 | 4000.0 | 4.0 | requires at least one admitted external equilibrium reference set beyond MAST EFM candidate data |
+| `mast_efm_readiness_smoke` | single 16-24 GB ROCm-capable GPU or CPU fallback | 0.0 | 1.0 | 3.0 | 0.05 | full-output trainer still required before predictive admission |
+| `mast_efm_single_seed_full_output` | single 24-48 GB ROCm-capable GPU | 2.0 | 6.0 | 12.0 | 0.1 | requires implementation of full-output trainer and admitted input-feature provenance |
+| `mast_efm_multiseed_ablation` | one to four 24-80 GB ROCm-capable GPUs | 30.0 | 80.0 | 180.0 | 0.5 | requires single-seed trainer and stable holdout metric schema |
+| `qlknn_qualikiz_payload_processing` | single 24-80 GB accelerator for first pass; multiple accelerators for sweeps | 100.0 | 350.0 | 900.0 | 2.0 | large numeric payloads must be pulled to storage-host storage and checksum-verified first |
+| `external_efit_pefit_or_diiid_equilibrium_set` | single 24-80 GB accelerator after CPU-side conversion | 20.0 | 120.0 | 400.0 | 1.0 | requires acquired public or collaborator-provided matched reconstruction artefacts |
+| `publication_grade_equilibrium_campaign` | multiple 24-80 GB accelerators | 500.0 | 1500.0 | 4000.0 | 4.0 | requires at least one admitted external equilibrium reference set beyond MAST EFM candidate data |
 
 ## Run order
 

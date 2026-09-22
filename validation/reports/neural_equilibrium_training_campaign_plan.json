@@ -33,7 +33,7 @@
   "gpu_budget_estimates": [
     {
       "blocking_condition": "full-output trainer still required before predictive admission",
-      "gpu_class": "single 16-24 GB CUDA GPU or CPU fallback",
+      "gpu_class": "single 16-24 GB ROCm-capable GPU or CPU fallback",
       "minimum_gpu_hours": 0.0,
       "nominal_gpu_hours": 1.0,
       "scenario": "mast_efm_readiness_smoke",
@@ -43,7 +43,7 @@
     },
     {
       "blocking_condition": "requires implementation of full-output trainer and admitted input-feature provenance",
-      "gpu_class": "single 24-48 GB CUDA GPU",
+      "gpu_class": "single 24-48 GB ROCm-capable GPU",
       "minimum_gpu_hours": 2.0,
       "nominal_gpu_hours": 6.0,
       "scenario": "mast_efm_single_seed_full_output",
@@ -53,7 +53,7 @@
     },
     {
       "blocking_condition": "requires single-seed trainer and stable holdout metric schema",
-      "gpu_class": "one to four 24-80 GB CUDA GPUs",
+      "gpu_class": "one to four 24-80 GB ROCm-capable GPUs",
       "minimum_gpu_hours": 30.0,
       "nominal_gpu_hours": 80.0,
       "scenario": "mast_efm_multiseed_ablation",
@@ -63,7 +63,7 @@
     },
     {
       "blocking_condition": "large numeric payloads must be pulled to storage-host storage and checksum-verified first",
-      "gpu_class": "single A10/A100-class GPU for first pass; A100/H100 for sweeps",
+      "gpu_class": "single 24-80 GB accelerator for first pass; multiple accelerators for sweeps",
       "minimum_gpu_hours": 100.0,
       "nominal_gpu_hours": 350.0,
       "scenario": "qlknn_qualikiz_payload_processing",
@@ -73,7 +73,7 @@
     },
     {
       "blocking_condition": "requires acquired public or collaborator-provided matched reconstruction artefacts",
-      "gpu_class": "single 24-80 GB CUDA GPU after CPU-side conversion",
+      "gpu_class": "single 24-80 GB accelerator after CPU-side conversion",
       "minimum_gpu_hours": 20.0,
       "nominal_gpu_hours": 120.0,
       "scenario": "external_efit_pefit_or_diiid_equilibrium_set",
@@ -83,7 +83,7 @@
     },
     {
       "blocking_condition": "requires at least one admitted external equilibrium reference set beyond MAST EFM candidate data",
-      "gpu_class": "multi-GPU A100/H100-class allocation",
+      "gpu_class": "multiple 24-80 GB accelerators",
       "minimum_gpu_hours": 500.0,
       "nominal_gpu_hours": 1500.0,
       "scenario": "publication_grade_equilibrium_campaign",
@@ -133,7 +133,7 @@
     },
     "status": "prepared"
   },
-  "payload_sha256": "878ffbb1cf2d269d6ef9ac659c95c7ba702e679a504f18e54e0a44761d56b002",
+  "payload_sha256": "96d24990651e9e84121e45d49f245d4ce7f3e7daa0a19550d94472ea029eb911",
   "prepared_dataset_lanes": [
     {
       "id": "mast_efm_neural_equilibrium",
@@ -211,7 +211,7 @@
     "Pull QLKNN/QuaLiKiz large payloads to storage-host storage only when storage and GPU allocation are reserved.",
     "Keep all predictive and facility claims blocked until strict admission reports pass."
   ],
-  "storage_root": "/data/SCPN-CONTROL",
   "schema_version": "scpn-control.neural-equilibrium-training-campaign-plan.v1",
-  "status": "prepared"
+  "status": "prepared",
+  "storage_root": "/data/SCPN-CONTROL"
 }

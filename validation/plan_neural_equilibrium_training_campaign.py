@@ -136,7 +136,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "mast_efm_readiness_smoke",
             "target": "load dataset, verify splits, run one short fit/evaluation dry campaign",
-            "gpu_class": "single 16-24 GB CUDA GPU or CPU fallback",
+            "gpu_class": "single 16-24 GB ROCm-capable GPU or CPU fallback",
             "minimum_gpu_hours": round(0.0 * mast_scale, 2),
             "nominal_gpu_hours": round(1.0 * mast_scale, 2),
             "upper_gpu_hours": round(3.0 * mast_scale, 2),
@@ -146,7 +146,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "mast_efm_single_seed_full_output",
             "target": "one full-output neural-equilibrium training run with flux, pressure, q-profile, LCFS, and axis heads",
-            "gpu_class": "single 24-48 GB CUDA GPU",
+            "gpu_class": "single 24-48 GB ROCm-capable GPU",
             "minimum_gpu_hours": round(2.0 * mast_scale, 2),
             "nominal_gpu_hours": round(6.0 * mast_scale, 2),
             "upper_gpu_hours": round(12.0 * mast_scale, 2),
@@ -156,7 +156,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "mast_efm_multiseed_ablation",
             "target": "five seeds, architecture sweep, uncertainty calibration, and holdout reports",
-            "gpu_class": "one to four 24-80 GB CUDA GPUs",
+            "gpu_class": "one to four 24-80 GB ROCm-capable GPUs",
             "minimum_gpu_hours": round(30.0 * mast_scale, 2),
             "nominal_gpu_hours": round(80.0 * mast_scale, 2),
             "upper_gpu_hours": round(180.0 * mast_scale, 2),
@@ -166,7 +166,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "qlknn_qualikiz_payload_processing",
             "target": "download, checksum, preprocess, split, and train neural-transport baselines",
-            "gpu_class": "single A10/A100-class GPU for first pass; A100/H100 for sweeps",
+            "gpu_class": "single 24-80 GB accelerator for first pass; multiple accelerators for sweeps",
             "minimum_gpu_hours": round(100.0 * qlknn_scale, 2),
             "nominal_gpu_hours": round(350.0 * qlknn_scale, 2),
             "upper_gpu_hours": round(900.0 * qlknn_scale, 2),
@@ -176,7 +176,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "external_efit_pefit_or_diiid_equilibrium_set",
             "target": "matched EFIT/P-EFIT or documented public equilibrium artefacts converted into strict reference reports",
-            "gpu_class": "single 24-80 GB CUDA GPU after CPU-side conversion",
+            "gpu_class": "single 24-80 GB accelerator after CPU-side conversion",
             "minimum_gpu_hours": 20.0,
             "nominal_gpu_hours": 120.0,
             "upper_gpu_hours": 400.0,
@@ -186,7 +186,7 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
         {
             "scenario": "publication_grade_equilibrium_campaign",
             "target": "multi-dataset training, seed repeats, uncertainty, latency, and strict admission evidence",
-            "gpu_class": "multi-GPU A100/H100-class allocation",
+            "gpu_class": "multiple 24-80 GB accelerators",
             "minimum_gpu_hours": 500.0,
             "nominal_gpu_hours": 1500.0,
             "upper_gpu_hours": 4000.0,

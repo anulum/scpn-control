@@ -5,16 +5,18 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural-equilibrium campaign-plan tests
+"""Exercise the public neural-equilibrium campaign planner and its reports."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import pytest
 
 from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA
-from validation.plan_neural_equilibrium_training_campaign import CampaignInputs, REPORT_SCHEMA, build_plan, write_report
+from validation.plan_neural_equilibrium_training_campaign import REPORT_SCHEMA, CampaignInputs, build_plan, write_report
 from validation.validate_public_data_acquisition import SCHEMA_VERSION as PUBLIC_DATA_SCHEMA
 
 
@@ -74,6 +76,7 @@ def _write_public_data_manifest(root: Path) -> None:
 
 
 def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path) -> None:
+    """Keep the dataset, execution-host, and deferred-payload contracts intact."""
     mast_report = tmp_path / "mast.json"
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
@@ -113,6 +116,7 @@ def test_build_plan_prepares_mast_and_deferred_public_data_lanes(tmp_path: Path)
 
 
 def test_build_plan_can_require_storage_payload(tmp_path: Path) -> None:
+    """Require an explicit verified-storage acknowledgement when requested."""
     mast_report = tmp_path / "mast.json"
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
@@ -141,6 +145,7 @@ def test_build_plan_can_require_storage_payload(tmp_path: Path) -> None:
 
 
 def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
+    """Write vendor-neutral budgets to both public report formats."""
     mast_report = tmp_path / "mast.json"
     public_root = tmp_path / "public"
     _write_mast_report(mast_report)
@@ -159,3 +164,11 @@ def test_write_report_records_gpu_budget_table(tmp_path: Path) -> None:
     assert "--compute-host-kind workstation" in markdown
     assert "predictive EFIT/P-EFIT" in markdown
     assert "The storage host is storage-only" in markdown
+    report = json.loads((tmp_path / "plan.json").read_text(encoding="utf-8"))
+    bound_payload = {**report, "payload_sha256": None}
+    encoded_payload = json.dumps(bound_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+    assert report["payload_sha256"] == hashlib.sha256(encoded_payload).hexdigest()
+    assert len(report["gpu_budget_estimates"]) == 6
+    assert all("ROCm-capable" in budget["gpu_class"] for budget in report["gpu_budget_estimates"][:3])
+    for output in (markdown, json.dumps(report)):
+        assert not any(vendor_class in output for vendor_class in ("CUDA", "A10", "A100", "H100"))
