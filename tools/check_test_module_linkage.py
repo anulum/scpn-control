@@ -115,11 +115,11 @@ def _linked_names(tree: ast.AST, inherited: dict[str, str]) -> set[str]:
         elif isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del)):
             shadowed.add(node.id)
         elif (
-            isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
-            or isinstance(node, ast.ExceptHandler)
-            and node.name
-            or isinstance(node, (ast.MatchAs, ast.MatchStar))
-            and node.name
+            isinstance(
+                node,
+                (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.ExceptHandler, ast.MatchAs, ast.MatchStar),
+            )
+            and node.name is not None
         ):
             shadowed.add(node.name)
         elif isinstance(node, ast.MatchMapping) and node.rest:
@@ -135,10 +135,6 @@ def _linked_names(tree: ast.AST, inherited: dict[str, str]) -> set[str]:
         bindings.pop(name, None)
     linked: set[str] = set()
     for node in nodes:
-        if isinstance(node, _SCOPES):
-            # Class namespaces are not enclosing lexical scopes for methods.
-            child_bindings = inherited if isinstance(tree, ast.ClassDef) else bindings
-            linked.update(_linked_names(node, child_bindings))
         expressions: list[ast.expr] = []
         if isinstance(node, ast.Call):
             expressions.append(node.func)
@@ -153,6 +149,67 @@ def _linked_names(tree: ast.AST, inherited: dict[str, str]) -> set[str]:
     return linked
 
 
+def _test_links(tree: ast.Module) -> set[str]:
+    """Follow test entry points and statically called local helpers."""
+    imports: list[ast.stmt] = [node for node in tree.body if isinstance(node, (ast.Import, ast.ImportFrom))]
+    module_bindings = _imports(ast.Module(body=imports, type_ignores=[]))
+    helpers = {node.name: node for node in tree.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+    linked: set[str] = set()
+    visited: set[int] = set()
+
+    def visit(
+        scope: ast.FunctionDef | ast.AsyncFunctionDef,
+        available: dict[str, ast.FunctionDef | ast.AsyncFunctionDef],
+        methods: dict[str, ast.FunctionDef | ast.AsyncFunctionDef] | None = None,
+    ) -> None:
+        if id(scope) in visited:
+            return
+        visited.add(id(scope))
+        linked.update(_linked_names(scope, module_bindings))
+        nodes = _scope_nodes(scope)
+        nested = {node.name: node for node in scope.body if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        blocked = {arg.arg for arg in ast.walk(scope.args) if isinstance(arg, ast.arg)}
+        blocked.update(
+            node.id for node in nodes if isinstance(node, ast.Name) and isinstance(node.ctx, (ast.Store, ast.Del))
+        )
+        blocked.update(
+            name for node in nodes if isinstance(node, (ast.Import, ast.ImportFrom)) for name in _imports(node)
+        )
+        for node in nodes:
+            if not isinstance(node, ast.Call):
+                continue
+            if isinstance(node.func, ast.Name):
+                name = node.func.id
+                target = nested.get(name)
+                if target is None and name not in blocked:
+                    target = available.get(name)
+                if target is not None:
+                    visit(target, {**available, **nested}, methods)
+            elif (
+                methods is not None
+                and isinstance(node.func, ast.Attribute)
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id in {"self", "cls"}
+            ):
+                target = methods.get(node.func.attr)
+                if target is not None:
+                    visit(target, available, methods)
+
+    for node in tree.body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and node.name.startswith("test_"):
+            visit(node, helpers)
+        elif isinstance(node, ast.ClassDef) and node.name.startswith("Test"):
+            methods = {
+                method.name: method
+                for method in node.body
+                if isinstance(method, (ast.FunctionDef, ast.AsyncFunctionDef))
+            }
+            for name, method in methods.items():
+                if name.startswith("test_"):
+                    visit(method, helpers, methods)
+    return linked
+
+
 def collect_unlinked_modules(*, source_root: Path, test_root: Path) -> list[str]:
     """Find owners without a called or asserted API, resolving facade re-exports.
 
@@ -164,7 +221,7 @@ def collect_unlinked_modules(*, source_root: Path, test_root: Path) -> list[str]
     linked: set[str] = set()
     for path in sorted(test_root.rglob("test_*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"))
-        for resolved in _linked_names(tree, {}):
+        for resolved in _test_links(tree):
             owner = _owner(resolved, source_root)
             if owner:
                 linked.add(owner)

@@ -129,3 +129,35 @@ def test_independent_scopes_keep_real_facade_binding(tmp_path: Path) -> None:
     )
     assert result.returncode == 1
     assert OWNER not in result.stdout
+
+
+@pytest.mark.parametrize(
+    "body,linked",
+    [
+        ("def unused(): admit(b'{}', policy=None)\ndef test_idle(): pass\n", False),
+        ("def test_idle():\n    def unused(): admit(b'{}', policy=None)\n    assert True\n", False),
+        ("def helper(): admit(b'{}', policy=None)\ndef test_call(): helper()\n", True),
+        ("def test_call():\n    def helper(): admit(b'{}', policy=None)\n    helper()\n", True),
+        (
+            "def helper(): admit(b'{}', policy=None)\ndef test_shadow():\n    helper = lambda: None\n    helper()\n",
+            False,
+        ),
+        (
+            "class TestAdmission:\n    def helper(self): admit(b'{}', policy=None)\n    def test_call(self): self.helper()\n",
+            True,
+        ),
+    ],
+)
+def test_only_reachable_helpers_link_owner(tmp_path: Path, body: str, linked: bool) -> None:
+    """A public guard run credits helpers only when a test calls them."""
+    (tmp_path / "test_reachability.py").write_text(
+        "from scpn_control.reactor_semantic_admission import admit_reactor_regime_assessment as admit\n" + body
+    )
+    result = subprocess.run(
+        [sys.executable, str(GUARD), "--test-root", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1
+    assert (OWNER not in result.stdout) is linked
