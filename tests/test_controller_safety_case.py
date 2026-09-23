@@ -551,10 +551,7 @@ def test_controller_safety_case_readiness_blocks_without_external_evidence():
 
 
 def test_controller_safety_case_readiness_digest_only_is_ready_but_not_admissible():
-    # Complete digest-only evidence reaches promotion_ready, but because the
-    # digests are attested-not-verified (any valid hex, "0"*64 included, passes), it must
-    # NOT be admissible for promotion — only the artifact-verified path is.
-    """Distinguish digest completeness from artifact-backed promotion admissibility."""
+    """Distinguish digest completeness from qualified promotion evidence."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -611,8 +608,8 @@ def test_controller_safety_case_readiness_rejects_fabricated_zero_digests():
         assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
-def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_path: Path):
-    """Exercise the valid typed artifact evidence path through controller safety case readiness."""
+def test_controller_safety_case_readiness_refuses_unqualified_external_artifacts(tmp_path: Path):
+    """File hashes cannot qualify self-authored physics and review reports."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -633,7 +630,9 @@ def test_controller_safety_case_readiness_accepts_typed_artifact_evidence(tmp_pa
     assert readiness.hdl_export_evidence_sha256 == artifacts[3].artifact_sha256
     assert readiness.codac_runtime_evidence_sha256 == artifacts[4].artifact_sha256
     assert readiness.websocket_runtime_evidence_sha256 == artifacts[5].artifact_sha256
-    assert_controller_safety_case_readiness_admissible(readiness, evidence)
+    assert readiness.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
 
 def test_controller_safety_case_readiness_rejects_unqualified_timing_artifact(tmp_path: Path):
@@ -1084,14 +1083,8 @@ def test_controller_safety_case_readiness_manifest_round_trips(tmp_path):
         assert_controller_safety_case_readiness_admissible(loaded, evidence)
 
 
-def test_controller_safety_case_readiness_artifact_admissible_in_process_but_digest_only_after_load(tmp_path):
-    # An artifact-verified readiness is admissible IN-PROCESS (its evidence files were re-hashed
-    # by evaluate_..._from_artifacts). But once serialised and loaded it is digest-only by
-    # construction: the load cannot re-hash the artifacts, so promotion_admissible is forced False
-    # and the loaded readiness is NOT admissible. Admissibility is only ever earned in-process; it
-    # is never trusted from a serialised flag (closing the deserialise-trust
-    # bypass where a forged True + valid-hex digests + a self-computed integrity hash would pass).
-    """Drop in-process artifact admissibility after digest-only deserialisation."""
+def test_controller_safety_case_readiness_artifact_bytes_remain_unqualified_after_load(tmp_path):
+    """Neither in-process file hashes nor serialisation grant promotion."""
     artifact = _controller_artifact()
     controller_sha256 = compute_artifact_payload_sha256(artifact)
     evidence = controller_safety_case_evidence(
@@ -1101,15 +1094,15 @@ def test_controller_safety_case_readiness_artifact_admissible_in_process_but_dig
     )
     artifacts = _readiness_artifacts(tmp_path, controller_sha256)
     readiness = evaluate_controller_safety_case_readiness_from_artifacts(evidence, artifacts, artifact_root=tmp_path)
-    # In-process the artifact-verified readiness is admissible.
-    assert readiness.promotion_admissible is True
-    assert_controller_safety_case_readiness_admissible(readiness, evidence)
+    assert readiness.promotion_admissible is False
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_controller_safety_case_readiness_admissible(readiness, evidence)
 
     path = tmp_path / "controller_safety_case_readiness_artifact.json"
     save_controller_safety_case_readiness(readiness, path)
     loaded = load_controller_safety_case_readiness(path)
 
-    # After the round trip the readiness is digest-only: the flag is forced False and refused.
+    # Loading a manifest cannot elevate the unqualified result.
     assert loaded.promotion_admissible is False
     with pytest.raises(ValueError, match="not admissible"):
         assert_controller_safety_case_readiness_admissible(loaded, evidence)

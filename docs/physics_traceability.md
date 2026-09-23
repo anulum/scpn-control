@@ -307,7 +307,7 @@ It blocks full-fidelity public claims for entries whose evidence status is still
   - Reject duplicate JSON keys in Lean reports reached through safety-critical artifact report-root manifests
   - Bind promoted controller safety-case bundles to the same controller artifact digest across formal proof, differentiable-transport, and digital-twin update evidence
   - Persist controller safety-case bundles with schema-versioned integrity manifests before replay admission
-  - Keep controller safety-case readiness blocked until external physics validation, target-hardware timing, qualified runtime/hardware evidence, and independent safety-review digests are all present
+  - Keep controller safety-case promotion blocked until external physics validation and independent safety review have signed, distinct-identity attestations as well as the required target-hardware and runtime evidence; matching file hashes alone establish custody, not admissibility
   - Prefer typed readiness artifacts with safe relative URIs, producers, timestamps, and kind-specific SHA-256 digests over anonymous promotion digests
   - Persist controller safety-case readiness decisions with schema-versioned integrity manifests before promotion replay
   - Publish optional Z3 bounded-model-checking artifacts with every SMT-backed proof obligation

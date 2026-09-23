@@ -2076,13 +2076,13 @@ or edited evidence payloads before replay admission.
 from promotion readiness: external physics validation, target-hardware timing
 evidence, qualified HIL replay evidence, qualified CODAC/EPICS runtime
 evidence, qualified WebSocket runtime evidence, qualified HDL export evidence,
-and independent safety-review digests are all required before
-`assert_controller_safety_case_readiness_admissible()` accepts the package.
+and independent safety-review digests are necessary for evidence completeness.
+They do not make the package admissible for promotion by themselves.
 `ReadinessArtifactEvidence` and
-`evaluate_controller_safety_case_readiness_from_artifacts()` provide the normal
-promotion path: each required readiness input must be a typed artifact with a
+`evaluate_controller_safety_case_readiness_from_artifacts()` check the supplied
+files: each required readiness input must be a typed artifact with a
 known kind, SHA-256 digest, safe relative artifact URI, producer, and generation
-timestamp before it can satisfy the promotion gate. The evaluator also requires
+timestamp. The evaluator also requires
 an explicit `artifact_root`: each URI must resolve below that root and match the
 declared bytes. `target_hardware_timing` artifacts must additionally pass the
 schema-versioned E2E latency evidence validator with qualified target hardware
@@ -2100,6 +2100,11 @@ zero backpressure disconnects.
 `hdl_export_evidence` artifacts must pass the schema-versioned FPGA export
 admission loader with controller-artifact binding, generated project file
 digests, synthesis-report digest binding, and non-negative timing slack.
+External physics validation and independent safety review currently have no
+signed, distinct-identity attestation verifier. Their file hashes establish
+custody only, so `promotion_admissible` remains false even if every artifact
+file is present. `assert_controller_safety_case_readiness_admissible()` refuses
+promotion until those contracts are implemented and independently verified.
 `save_controller_safety_case_readiness()` and
 `load_controller_safety_case_readiness()` persist that readiness decision with
 the same schema-versioned integrity-digest semantics as the safety-case bundle.
