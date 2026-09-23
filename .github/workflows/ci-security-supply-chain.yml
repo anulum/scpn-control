@@ -67,7 +67,7 @@ jobs:
           toolchain: 1.98.0
           components: rustfmt, clippy
       - name: Install cargo-audit
-        run: cargo install cargo-audit
+        run: cargo install --locked cargo-audit --version 0.22.2
       - name: Audit
         run: cargo audit
 

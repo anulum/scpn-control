@@ -105,6 +105,8 @@ pub struct TransportSnapshotFrame {
 }
 
 const FRAME_SIZE: usize = size_of::<TransportSnapshotFrame>();
+const _: () = assert!(size_of::<TransportFrameHeader>() == 24);
+const _: () = assert!(FRAME_SIZE == 96);
 
 type HmacSha256 = Hmac<Sha256>;
 

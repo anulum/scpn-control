@@ -115,6 +115,8 @@ pub(crate) struct NativeFormalConfig {
     pub(crate) core_z3: usize,
 }
 
+pub(crate) const MAX_FORMAL_DEPTH: usize = 64;
+
 #[derive(Clone, Debug)]
 pub(crate) struct NativeFormalReport {
     pub(crate) mode_code: u64,
@@ -231,6 +233,12 @@ impl NativeFormalRuntime {
         config: NativeFormalConfig,
         shutdown_flag: Arc<AtomicBool>,
     ) -> std::io::Result<Self> {
+        if !(1..=MAX_FORMAL_DEPTH).contains(&config.max_depth) {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "native formal max_depth must be in [1, 64]",
+            ));
+        }
         let violation_flag = Arc::new(AtomicBool::new(false));
         let generated = Arc::new(AtomicU64::new(0));
         let submitted = Arc::new(AtomicU64::new(0));
@@ -544,18 +552,13 @@ impl CertificateAdmission {
                 "AOT certificate admission requires a positive max_marking",
             ));
         }
-        let bounded_depth = i64::try_from(max_depth).map_err(|_| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidInput,
-                "AOT certificate admission requires max_depth to fit in i64",
-            )
-        })?;
-        if bounded_depth <= 0 {
+        if !(1..=MAX_FORMAL_DEPTH).contains(&max_depth) {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
-                "AOT certificate admission requires a positive max_depth",
+                "AOT certificate admission requires max_depth in [1, 64]",
             ));
         }
+        let bounded_depth = max_depth as i64;
 
         let payload = build_certificate_assumption_payload(max_marking, bounded_depth);
         Ok(Self {
@@ -669,6 +672,9 @@ fn verify_snapshot_with_z3(
     max_marking: i64,
     depth: usize,
 ) -> VerificationOutcome {
+    if !(1..=MAX_FORMAL_DEPTH).contains(&depth) {
+        return VerificationOutcome::Unknown;
+    }
     z3::with_z3_config(&z3::Config::new(), || {
         let solver = Solver::new();
 
@@ -788,6 +794,30 @@ fn percentile_from_samples(samples: &[u64], percentile: usize) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn every_internal_entry_refuses_unbounded_depth() {
+        let snapshot = PetriNetSnapshot {
+            step_index: 1,
+            active_markings: [1, 1, 1, 0],
+        };
+        for depth in [0, MAX_FORMAL_DEPTH + 1, usize::MAX] {
+            assert!(CertificateAdmission::new(100, depth).is_err());
+            assert_eq!(
+                verify_snapshot_with_z3(&snapshot, 100, depth),
+                VerificationOutcome::Unknown
+            );
+            let config = NativeFormalConfig {
+                mode: NativeFormalMode::AsyncDrop,
+                max_marking: 100,
+                max_depth: depth,
+                channel_capacity: 1,
+                core_z3: 4095,
+            };
+            assert!(NativeFormalRuntime::spawn(config, Arc::new(AtomicBool::new(false))).is_err());
+        }
+        assert!(CertificateAdmission::new(100, MAX_FORMAL_DEPTH).is_ok());
+    }
 
     #[test]
     fn z3_worker_accepts_bounded_snapshot() {

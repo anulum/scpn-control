@@ -26,6 +26,10 @@ concurrency:
 jobs:
   analyze:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript-typescript, rust]
     permissions:
       contents: read
       security-events: write
@@ -34,6 +38,7 @@ jobs:
 
       - uses: github/codeql-action/init@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4.38.0
         with:
-          languages: python
+          languages: ${{ matrix.language }}
+          build-mode: none
 
       - uses: github/codeql-action/analyze@b96794f015dfd88f77b49b1c93e0fa7110f94c63  # v4.38.0

@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import re
 import subprocess
 from pathlib import Path
 
@@ -35,6 +36,36 @@ def test_production_pypi_step_requires_tag_for_push_and_dispatch() -> None:
     assert "startsWith(github.ref, 'refs/tags/v')" in condition
     assert "github.event_name == 'push'" in condition
     assert "github.event.inputs.repository == 'pypi'" in condition
+
+
+def test_supply_chain_audit_uses_a_locked_version() -> None:
+    """Reject a floating cargo-audit install in the security workflow."""
+    workflow = _workflow("ci-security-supply-chain.yml")
+    steps = workflow["jobs"]["rust-audit"]["steps"]
+    install = next(step for step in steps if step.get("name") == "Install cargo-audit")
+    assert install["run"] == "cargo install --locked cargo-audit --version 0.22.2"
+
+
+def test_codeql_covers_all_supported_repository_languages() -> None:
+    """Keep Python, TypeScript, and Rust analysis in the CodeQL matrix."""
+    workflow = _workflow("codeql.yml")
+    analyze = workflow["jobs"]["analyze"]
+    assert set(analyze["strategy"]["matrix"]["language"]) == {
+        "python",
+        "javascript-typescript",
+        "rust",
+    }
+    init = next(step for step in analyze["steps"] if step.get("uses", "").startswith("github/codeql-action/init@"))
+    assert init["with"]["languages"] == "${{ matrix.language }}"
+    assert init["with"]["build-mode"] == "none"
+
+
+def test_precommit_remote_hooks_are_pinned_to_commit_objects() -> None:
+    """Refuse moving tag references in the hook execution policy."""
+    config = yaml.safe_load((ROOT / ".pre-commit-config.yaml").read_text(encoding="utf-8"))
+    for repo in config["repos"]:
+        if repo["repo"] != "local":
+            assert re.fullmatch(r"[0-9a-f]{40}", repo["rev"])
 
 
 @pytest.mark.parametrize(
