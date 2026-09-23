@@ -27,10 +27,10 @@
 \begin{abstract}
 We present \textsc{scpn-control}, an open-source neuro-symbolic control engine
 that compiles Stochastic Petri Nets (SPNs) into spiking neural network (SNN)
-controllers with formal contract verification for tokamak plasma control.
+controllers with runtime contract checks for tokamak plasma control.
 The compilation pipeline translates SPN graphs into leaky integrate-and-fire
 (LIF) neuron pools with stochastic bitstream encoding, enforcing
-pre/post-condition contracts on every control observation and action.
+pre/post-condition checks on the configured SCPN observation and action path.
 The contribution is this compilation-and-contract architecture and a
 runtime-selectable controller stack (PID, nonlinear MPC, $H_\infty$, SNN) sharing
 a single contract interface, rather than raw throughput. The control compute is
@@ -89,16 +89,16 @@ with well-defined reachability, boundedness, and liveness
 properties~\cite{marsan1995,murata1989}.
 
 We bridge these paradigms.  \textsc{scpn-control} compiles an SPN
-control specification into an SNN controller, preserving the formal
-contract structure of the Petri net as pre/post-condition checks on
-every control action.  The SPN graph is declarative and inspectable;
+control specification into an SNN controller, exposing the Petri net's
+contract structure as configurable observation and action checks.
+The SPN graph is declarative and inspectable;
 the compiled SNN is fast and neuromorphic-hardware-compatible.
 
 \paragraph{Contributions.}
 \begin{enumerate}
   \item A compilation pipeline from SPN graphs to LIF neuron pools
         with stochastic bitstream encoding, antithetic variance
-        reduction, and formal contract verification
+        reduction, and runtime contract checks
         (Section~\ref{sec:compilation}).
   \item A multi-layer Kuramoto--Sakaguchi phase dynamics engine with
         the Paper~27 $K_{nm}$ coupling matrix, a plasma-native
@@ -303,10 +303,11 @@ we evaluate both $u < p$ and $u > 1-p$, halving the
 variance of the firing probability estimator at no
 additional memory cost.
 
-\subsection{Formal Contract Verification}
+\subsection{Runtime Contract Checks}
 \label{sec:contracts}
 
-Every control tick verifies two contract layers:
+The configured SCPN controller path applies observation and action checks;
+other controller paths require their own integration and admission evidence.
 
 \textbf{Observation contracts.}\quad
 The observation $\mathbf{o}_t = (R_\mathrm{axis}, Z_\mathrm{axis})$
@@ -318,17 +319,20 @@ The decoded action $\mathbf{a}_t = (\Delta I_\mathrm{PF3},
 \Delta I_\mathrm{PF,tb})$ is subject to slew-rate limiting
 ($|\dot{u}| \leq \dot{u}_\mathrm{max}$) and absolute
 saturation ($|u| \leq u_\mathrm{abs}$).
-Violations trigger a safe fallback (zero-action or last-known-good).
+The configured decoder clamps actions to those limits. This software check
+does not itself grant permission to actuate a physical plant.
 
 \textbf{Physics invariants.}\quad
-Five runtime invariants are monitored:
+Five default tokamak invariants are available to an explicitly invoked
+safety evaluator; they are not automatically monitored on every tick:
 $q_\mathrm{min} > 1$ (Kruskal--Shafranov~\cite{freidberg2014}),
 $\beta_N < 2.8$ (Troyon limit~\cite{troyon1984}),
 Greenwald fraction $< 1.2$~\cite{greenwald2002},
 $T_i < 25$~keV (first-wall constraint), and
 $|\Delta W/W| < 0.01$ (energy conservation).
 Violations exceeding 20\% of the threshold are classified as
-critical and trigger immediate protective action.
+critical by the evaluator. A separate mitigation consumer may use that
+classification; the evaluator itself issues no protective action.
 
 
 %% ════════════════════════════════════════════════════════════════
@@ -937,8 +941,8 @@ by inference:
 
 We presented a neuro-symbolic approach to tokamak plasma control
 that compiles Stochastic Petri Nets into spiking neural network
-controllers through a formal pipeline preserving contract
-verification at every control tick.
+controllers with inspectable runtime contract checks on the configured
+SCPN observation and action path.
 
 The technical result is an inspectable compilation-and-contract architecture:
 control logic is specified as a Petri-net graph, compiled into LIF neuron pools,

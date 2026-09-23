@@ -110,8 +110,8 @@ This paper evaluates four connected `scpn-control` capabilities:
 
 3. **SPN-to-SNN compilation** — translates control graphs into leaky
    integrate-and-fire neuron pools with stochastic bitstream encoding
-   [@murata1989; @maass1997], enforcing pre/post-condition contracts on
-   every observation and action. The pure-NumPy LIF+NEF engine requires
+   [@murata1989; @maass1997], with configurable observation and action
+   contract checks on the SCPN controller path. The pure-NumPy LIF+NEF engine requires
    no external dependencies.
 
 4. **8-layer plasma phase dynamics** — a Kuramoto-Sakaguchi multi-layer
