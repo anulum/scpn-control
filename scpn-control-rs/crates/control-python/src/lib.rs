@@ -144,6 +144,32 @@ use control_core::xpoint;
 use control_math::kuramoto;
 use control_math::multigrid::{multigrid_solve, MultigridConfig};
 use control_math::tridiag;
+use control_math::tridiag::TridiagonalError;
+
+pyo3::create_exception!(
+    scpn_control_rs,
+    InvalidShapeError,
+    PyValueError,
+    "Invalid compact or padded tridiagonal shape."
+);
+pyo3::create_exception!(
+    scpn_control_rs,
+    NonFiniteInputError,
+    PyValueError,
+    "NaN or infinite tridiagonal input."
+);
+pyo3::create_exception!(
+    scpn_control_rs,
+    SingularFactorizationError,
+    PyRuntimeError,
+    "Singular pivoted tridiagonal factorisation."
+);
+pyo3::create_exception!(
+    scpn_control_rs,
+    NumericalFailureError,
+    PyRuntimeError,
+    "Nonfinite or inaccurate tridiagonal solution."
+);
 use control_types::state::Grid2D;
 
 mod bout_grid_input;
@@ -2159,7 +2185,15 @@ fn py_thomas_solve<'py>(
     c: PyReadonlyArray1<'py, f64>,
     d: PyReadonlyArray1<'py, f64>,
 ) -> PyResult<Bound<'py, PyArray1<f64>>> {
-    let x = tridiag::thomas_solve(a.as_slice()?, b.as_slice()?, c.as_slice()?, d.as_slice()?);
+    let x = tridiag::thomas_solve(a.as_slice()?, b.as_slice()?, c.as_slice()?, d.as_slice()?)
+        .map_err(|error| match error {
+            TridiagonalError::InvalidShape => InvalidShapeError::new_err(error.to_string()),
+            TridiagonalError::NonFiniteInput => NonFiniteInputError::new_err(error.to_string()),
+            TridiagonalError::SingularFactorization => {
+                SingularFactorizationError::new_err(error.to_string())
+            }
+            TridiagonalError::NumericalFailure => NumericalFailureError::new_err(error.to_string()),
+        })?;
     Ok(Array1::from_vec(x).into_pyarray(py))
 }
 
@@ -2636,7 +2670,7 @@ fn scpn_sample_firing<'py>(
 // ─── Module registration ───
 
 #[pymodule]
-fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
+fn scpn_control_rs<'py>(py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<()> {
     m.add_class::<PyFusionKernel>()?;
     m.add_class::<PyEquilibriumResult>()?;
     m.add_class::<PyUpdeTick>()?;
@@ -2664,6 +2698,16 @@ fn scpn_control_rs<'py>(_py: Python<'py>, m: &Bound<'py, PyModule>) -> PyResult<
     m.add_class::<PyTransportSolver>()?;
     m.add_class::<PyHInfController>()?;
     m.add_function(wrap_pyfunction!(py_thomas_solve, m)?)?;
+    m.add("InvalidShapeError", py.get_type::<InvalidShapeError>())?;
+    m.add("NonFiniteInputError", py.get_type::<NonFiniteInputError>())?;
+    m.add(
+        "SingularFactorizationError",
+        py.get_type::<SingularFactorizationError>(),
+    )?;
+    m.add(
+        "NumericalFailureError",
+        py.get_type::<NumericalFailureError>(),
+    )?;
     m.add_class::<PyAmrSolver>()?;
     m.add_class::<PyVmecSolver>()?;
     m.add_class::<PyBoutInterface>()?;

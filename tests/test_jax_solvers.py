@@ -49,30 +49,25 @@ jax_available = has_jax()
 class TestThomasSolveNumpy:
     """Verify NumPy Thomas solver against known tridiagonal systems."""
 
-    def test_vanishing_leading_pivot_is_floored(self) -> None:
-        """A zero leading diagonal entry is floored so forward elimination is finite.
-
-        The Thomas sweep divides by the running pivot ``m``; when the first
-        diagonal entry is zero the solver floors ``m`` to ``1e-30`` rather than
-        dividing by zero, keeping the eliminated coefficients finite.
-        """
+    def test_vanishing_leading_pivot_is_pivoted(self) -> None:
+        """A nonsingular zero-leading-pivot system uses row interchange."""
         a = np.array([1.0, 1.0])
         b = np.array([0.0, 2.0, 2.0])
         c = np.array([1.0, 1.0])
         d = np.array([1.0, 2.0, 3.0])
         x = _thomas_solve_np(a, b, c, d)
         assert x.shape == (3,)
-        assert np.all(np.isfinite(x))
+        np.testing.assert_allclose(b * x + np.r_[c * x[1:], 0] + np.r_[0, a * x[:-1]], d)
 
-    def test_vanishing_inner_pivot_is_floored(self) -> None:
-        """A later zero pivot is floored during forward elimination."""
+    def test_vanishing_inner_pivot_is_pivoted(self) -> None:
+        """A nonsingular zero inner pivot uses row interchange."""
         a = np.array([1.0, 1.0])
         b = np.array([1.0, 1.0, 2.0])
         c = np.array([1.0, 1.0])
         d = np.array([1.0, 2.0, 3.0])
         x = _thomas_solve_np(a, b, c, d)
         assert x.shape == (3,)
-        assert np.all(np.isfinite(x))
+        np.testing.assert_allclose(b * x + np.r_[c * x[1:], 0] + np.r_[0, a * x[:-1]], d)
 
     def test_identity_system(self) -> None:
         """I x = d => x = d."""

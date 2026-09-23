@@ -67,7 +67,9 @@ $$\frac{3}{2} n \frac{\partial T}{\partial t} = \frac{1}{r} \frac{\partial}{\par
   `validation/validate_transport_diffusion.py`, with tests in
   `tests/test_transport_diffusion_validation.py`. The Python `_thomas_solve` and
   the Rust `scpn_control_rs.py_thomas_solve` (used by the Rust `transport_step`)
-  agree to machine precision, validating the polyglot diffusion-solve chain.
+  agree within the reported parity tolerance, validating the polyglot
+  diffusion-solve chain. Both general CPU paths use pivoted banded LAPACK;
+  the separate JAX no-pivot path is limited to certified dominant matrices.
   This validates the diffusion discretisation and linear solver against analytic
   references; facility-calibrated integrated-modelling claims still require a
   measured discharge or published benchmark.

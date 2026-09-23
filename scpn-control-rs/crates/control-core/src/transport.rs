@@ -340,37 +340,34 @@ pub fn transport_step(solver: &mut TransportSolver, p_aux_mw: f64, dt: f64) -> F
         )));
     }
 
-    let dt_prev = solver.dt;
-    solver.dt = dt;
+    let mut candidate = solver.clone();
+    candidate.dt = dt;
     let step_result = (|| -> FusionResult<()> {
-        solver.update_transport_model(p_aux_mw)?;
-        let te_before = solver.profiles.te.clone();
-        solver.evolve_profiles(p_aux_mw)?;
+        candidate.update_transport_model(p_aux_mw)?;
+        candidate.evolve_profiles(p_aux_mw)?;
 
         // CN smoothing pass using current diffusivity for added robustness.
-        let (a, b, c, mut d) = build_cn_tridiag(&solver.chi, &solver.profiles.rho, dt);
-        let n = solver.profiles.te.len();
+        let (a, b, c, mut d) = build_cn_tridiag(&candidate.chi, &candidate.profiles.rho, dt);
+        let n = candidate.profiles.te.len();
         if n >= 3 {
             for (i, d_i) in d.iter_mut().enumerate().skip(1).take(n - 2) {
-                *d_i = solver.profiles.te[i];
+                *d_i = candidate.profiles.te[i];
             }
-            let solved = thomas_solve(&a, &b, &c, &d);
+            let solved = thomas_solve(&a, &b, &c, &d).map_err(|error| {
+                FusionError::ConfigError(format!("transport tridiagonal solve failed: {error}"))
+            })?;
             for i in 1..(n - 1) {
                 let val = solved[i];
-                solver.profiles.te[i] = if val.is_finite() {
-                    val.clamp(EDGE_TEMPERATURE, MAX_TEMPERATURE)
-                } else {
-                    te_before[i]
-                };
-                solver.profiles.ti[i] = solver.profiles.te[i];
+                candidate.profiles.te[i] = val.clamp(EDGE_TEMPERATURE, MAX_TEMPERATURE);
+                candidate.profiles.ti[i] = candidate.profiles.te[i];
             }
-            solver.profiles.te[n - 1] = EDGE_TEMPERATURE;
-            solver.profiles.ti[n - 1] = EDGE_TEMPERATURE;
+            candidate.profiles.te[n - 1] = EDGE_TEMPERATURE;
+            candidate.profiles.ti[n - 1] = EDGE_TEMPERATURE;
         }
 
-        if solver.profiles.te.iter().any(|v| !v.is_finite())
-            || solver.profiles.ti.iter().any(|v| !v.is_finite())
-            || solver.profiles.ne.iter().any(|v| !v.is_finite())
+        if candidate.profiles.te.iter().any(|v| !v.is_finite())
+            || candidate.profiles.ti.iter().any(|v| !v.is_finite())
+            || candidate.profiles.ne.iter().any(|v| !v.is_finite())
         {
             return Err(FusionError::ConfigError(
                 "transport step produced non-finite profile outputs".to_string(),
@@ -378,11 +375,14 @@ pub fn transport_step(solver: &mut TransportSolver, p_aux_mw: f64, dt: f64) -> F
         }
         Ok(())
     })();
-    solver.dt = dt_prev;
-    step_result
+    step_result?;
+    candidate.dt = solver.dt;
+    *solver = candidate;
+    Ok(())
 }
 
 /// 1.5D radial transport solver.
+#[derive(Clone)]
 pub struct TransportSolver {
     /// Evolving radial temperature, density, safety-factor, and field profiles.
     pub profiles: RadialProfiles,
@@ -868,6 +868,22 @@ mod tests {
         // Should not panic and profiles should remain finite
         assert!(ts.profiles.te.iter().all(|v| v.is_finite()));
         assert!(ts.profiles.ti.iter().all(|v| v.is_finite()));
+    }
+
+    #[test]
+    fn failed_transport_step_does_not_commit_partial_state() {
+        let mut solver = TransportSolver::new();
+        solver.profiles.te[10] = f64::NAN;
+        let chi_before = solver.chi.clone();
+        let ti_before = solver.profiles.ti.clone();
+        let ne_before = solver.profiles.ne.clone();
+        let dt_before = solver.dt;
+        assert!(transport_step(&mut solver, 20.0, 0.01).is_err());
+        assert_eq!(solver.chi, chi_before);
+        assert_eq!(solver.profiles.ti, ti_before);
+        assert_eq!(solver.profiles.ne, ne_before);
+        assert_eq!(solver.dt, dt_before);
+        assert!(solver.profiles.te[10].is_nan());
     }
 
     #[test]

@@ -848,6 +848,16 @@ wall load, and a relative cost proxy from validated tokamak design inputs.
 
 ### Radial Diffusion Numerics
 
+The compact tridiagonal API accepts finite real float64 vectors with lengths
+`n-1, n, n-1, n` for `n >= 1`. It uses pivoted banded LAPACK and raises distinct
+shape, nonfinite-input, singular-factorisation, and numerical-failure errors.
+Inputs are never mutated. The historical `thomas_solve` name is a compatibility
+entry point; the Rust/PyO3 adapter accepts `n`-padded off-diagonals with zero
+unused sentinels. JAX's traced no-pivot path requires strict row diagonal
+dominance.
+
+::: scpn_control.core.tridiagonal.solve_tridiagonal
+
 ::: scpn_control.core.radial_diffusion.thomas_solve
 
 ::: scpn_control.core.radial_diffusion.explicit_diffusion_rhs

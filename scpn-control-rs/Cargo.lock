@@ -267,11 +267,13 @@ dependencies = [
  "approx",
  "control-types",
  "criterion",
+ "lapack-sys",
  "ndarray",
  "ndarray-linalg",
  "num-complex",
  "rayon",
  "rustfft",
+ "thiserror 2.0.20",
 ]
 
 [[package]]

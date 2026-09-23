@@ -37,6 +37,13 @@ from typing import Any, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray
+from scpn_control.core.tridiagonal import (
+    InvalidShapeError,
+    certify_diffusion_cn,
+    check_tridiagonal_result,
+    solve_tridiagonal,
+    validate_tridiagonal,
+)
 
 try:
     import jax
@@ -102,30 +109,8 @@ def _thomas_solve_np(
     c: AnyFloatArray,
     d: AnyFloatArray,
 ) -> AnyFloatArray:
-    """Thomas algorithm (NumPy). Same semantics as radial_diffusion.thomas_solve."""
-    n = len(d)
-    cp = np.empty(n - 1)
-    dp = np.empty(n)
-
-    m = b[0]
-    if abs(m) < 1e-30:
-        m = 1e-30
-    cp[0] = c[0] / m
-    dp[0] = d[0] / m
-
-    for i in range(1, n):
-        m = b[i] - a[i - 1] * cp[i - 1] if i > 0 else b[i]
-        if abs(m) < 1e-30:
-            m = 1e-30
-        dp[i] = (d[i] - a[i - 1] * dp[i - 1]) / m
-        if i < n - 1:
-            cp[i] = c[i] / m
-
-    x = np.empty(n)
-    x[-1] = dp[-1]
-    for i in range(n - 2, -1, -1):
-        x[i] = dp[i] - cp[i] * x[i + 1]
-    return x
+    """Compatibility entrypoint for the pivoted compact solver."""
+    return solve_tridiagonal(a, b, c, d)
 
 
 def _diffusion_rhs_np(
@@ -173,7 +158,6 @@ if _HAS_JAX:
             # Use where to handle i==0 (no previous cp/dp)
             ai = jnp.where(i > 0, a[i - 1], 0.0)
             m = b[i] - ai * cp_prev
-            m = jnp.where(jnp.abs(m) < 1e-30, 1e-30, m)
             dp_i = (d[i] - ai * dp_prev) / m
             cp_i = jnp.where(i < n - 1, c[i] / m, 0.0)
             return (cp_i, dp_i), (cp_i, dp_i)
@@ -294,16 +278,26 @@ def thomas_solve(
         allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
         context="thomas_solve",
     )
+    lower, diagonal, upper, rhs = validate_tridiagonal(a, b, c, d)
     if use_jax_runtime:
-        return np.asarray(
+        row_off = np.zeros(diagonal.size)
+        row_off[1:] += np.abs(lower)
+        row_off[:-1] += np.abs(upper)
+        if not np.all(np.abs(diagonal) > row_off):
+            raise InvalidShapeError("JAX no-pivot solve requires strict row diagonal dominance")
+        if diagonal.size == 1:
+            return solve_tridiagonal(lower, diagonal, upper, rhs)
+        result = np.asarray(
             _thomas_solve_jax_impl(
-                jnp.asarray(a, dtype=jnp.float64),
-                jnp.asarray(b, dtype=jnp.float64),
-                jnp.asarray(c, dtype=jnp.float64),
-                jnp.asarray(d, dtype=jnp.float64),
+                jnp.asarray(lower, dtype=jnp.float64),
+                jnp.asarray(diagonal, dtype=jnp.float64),
+                jnp.asarray(upper, dtype=jnp.float64),
+                jnp.asarray(rhs, dtype=jnp.float64),
             )
         )
-    return _thomas_solve_np(a, b, c, d)
+        check_tridiagonal_result(lower, diagonal, upper, rhs, result)
+        return result
+    return _thomas_solve_np(lower, diagonal, upper, rhs)
 
 
 def diffusion_rhs(
@@ -366,6 +360,7 @@ def crank_nicolson_step(
         allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
         context="crank_nicolson_step",
     )
+    certify_diffusion_cn(T, chi, source, rho, drho, dt, T_edge)
     if use_jax_runtime:
         return np.asarray(
             _cn_step_jax(
@@ -434,6 +429,11 @@ def batched_crank_nicolson(
         allow_legacy_numpy_fallback=allow_legacy_numpy_fallback,
         context="batched_crank_nicolson",
     )
+    batch = np.asarray(T_batch)
+    if batch.ndim != 2 or batch.shape[0] == 0:
+        raise InvalidShapeError("CN batch must be a nonempty two-dimensional array")
+    for row in batch:
+        certify_diffusion_cn(row, chi, source, rho, drho, dt, T_edge)
     if not use_jax_runtime:
         return np.stack(
             [

@@ -20,6 +20,7 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.core.tridiagonal import solve_tridiagonal
 
 __all__ = [
     "build_cn_tridiag",
@@ -29,11 +30,13 @@ __all__ = [
 
 
 def thomas_solve(a: AnyFloatArray, b: AnyFloatArray, c: AnyFloatArray, d: AnyFloatArray) -> FloatArray:
-    """Solve a tridiagonal system in O(n) with the Thomas algorithm.
+    """Solve a general tridiagonal system through pivoted banded LAPACK.
 
     Solves ``A x = d`` where ``A`` is tridiagonal with sub-diagonal *a*, main
-    diagonal *b*, and super-diagonal *c*. Near-zero or non-finite pivots are
-    floored so a degenerate row cannot propagate NaNs.
+    diagonal *b*, and super-diagonal *c*. The historical name is retained for
+    callers; unlike the no-pivot Thomas algorithm, this accepts nonsingular
+    systems whose first diagonal entry is zero. Invalid or singular inputs
+    raise typed errors from :mod:`scpn_control.core.tridiagonal`.
 
     Parameters
     ----------
@@ -49,41 +52,9 @@ def thomas_solve(a: AnyFloatArray, b: AnyFloatArray, c: AnyFloatArray, d: AnyFlo
     Returns
     -------
     x : array, length n
-        Solution vector.
+        Finite solution vector with a scale-aware residual check.
     """
-    n = len(d)
-    # Work on copies to avoid mutating input
-    cp = np.empty(n - 1)
-    dp = np.empty(n)
-
-    b0 = float(b[0])
-    if (not np.isfinite(b0)) or abs(b0) < 1e-30:
-        b0 = 1e-30
-    cp0 = float(c[0]) / b0
-    dp0 = float(d[0]) / b0
-    cp[0] = cp0 if np.isfinite(cp0) else 0.0
-    dp[0] = dp0 if np.isfinite(dp0) else 0.0
-
-    for i in range(1, n):
-        m = b[i] - a[i - 1] * (cp[i - 1] if i - 1 < len(cp) else 0.0)
-        if (not np.isfinite(m)) or abs(m) < 1e-30:
-            m = 1e-30
-        numer = d[i] - a[i - 1] * dp[i - 1]
-        if not np.isfinite(numer):
-            numer = 0.0
-        dp_i = numer / m
-        dp[i] = dp_i if np.isfinite(dp_i) else 0.0
-        if i < n - 1:
-            cp_i = c[i] / m
-            cp[i] = cp_i if np.isfinite(cp_i) else 0.0
-
-    x = np.empty(n)
-    x[-1] = dp[-1]
-    for i in range(n - 2, -1, -1):
-        x_i = dp[i] - cp[i] * x[i + 1]
-        x[i] = x_i if np.isfinite(x_i) else 0.0
-
-    return x
+    return solve_tridiagonal(a, b, c, d)
 
 
 def explicit_diffusion_rhs(

@@ -15,6 +15,7 @@ tridiagonal assembly extracted from the integrated transport solver.
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.core.radial_diffusion import (
     build_cn_tridiag,
@@ -51,39 +52,36 @@ class TestThomasSolve:
         assert x.shape == (n,)
         assert np.all(np.isfinite(x))
 
-    def test_floors_near_zero_initial_diagonal(self) -> None:
-        """A zero first diagonal is floored without producing NaNs."""
+    def test_rejects_singular_initial_diagonal(self) -> None:
+        """A zero uncoupled row is singular."""
         n = 10
         a = np.zeros(n - 1)
         b = np.ones(n)
         b[0] = 0.0
         c = np.zeros(n - 1)
         d = np.ones(n)
-        x = thomas_solve(a, b, c, d)
-        assert x.shape == (n,)
-        assert np.all(np.isfinite(x))
+        with pytest.raises(np.linalg.LinAlgError):
+            thomas_solve(a, b, c, d)
 
-    def test_repairs_nonfinite_initial_diagonal(self) -> None:
-        """A non-finite first diagonal is repaired to a finite solution."""
+    def test_rejects_nonfinite_initial_diagonal(self) -> None:
+        """A nonfinite first diagonal is invalid input."""
         n = 10
         a = np.zeros(n - 1)
         b = np.ones(n)
         b[0] = float("nan")
         c = np.zeros(n - 1)
         d = np.ones(n)
-        x = thomas_solve(a, b, c, d)
-        assert x.shape == (n,)
-        assert np.all(np.isfinite(x))
+        with pytest.raises(ValueError, match="finite"):
+            thomas_solve(a, b, c, d)
 
-    def test_repairs_singular_and_nonfinite_inner_rows(self) -> None:
-        """Singular and non-finite interior rows are floored, keeping the solve finite."""
+    def test_rejects_nonfinite_inner_row(self) -> None:
+        """A nonfinite right-hand side is invalid input."""
         a = np.array([1.0, 1.0])
         b = np.array([1e-31, 1e-31, 1e-31])
         c = np.array([0.0, 0.0])
         d = np.array([1.0, np.inf, 1.0])
-        x = thomas_solve(a, b, c, d)
-        assert x.shape == (3,)
-        assert np.all(np.isfinite(x))
+        with pytest.raises(ValueError, match="finite"):
+            thomas_solve(a, b, c, d)
 
 
 class TestExplicitDiffusionRhs:
