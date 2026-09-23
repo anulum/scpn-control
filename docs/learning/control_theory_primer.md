@@ -504,24 +504,30 @@ Sensors fail. Actuators fail. The controller must detect faults, isolate the fai
 component, and reconfigure.
 
 **Fault Detection and Isolation (FDI)** monitors the innovation sequence $\nu_k = y_k - \hat{y}_k$
-(measurement minus prediction). Under normal operation, $\nu_k$ is zero-mean with
-covariance $S$. A sensor fault causes a persistent bias in $\nu_k$. Detection uses
-a windowed chi-squared test: if $\nu_k$ exceeds $3\sigma$ for $n_{\text{alert}}$
-consecutive samples, a fault is declared.
+(measurement minus prediction). In the implemented `FDIMonitor`, each finite
+sensor residual is compared with its own configured variance: a fault is
+declared when $|\nu_k| > \text{threshold\_sigma}\sqrt{S_{ii}}$ for every sample
+in the $n_{\text{alert}}$-sample window. This is a per-channel threshold, not a
+chi-squared test. A non-finite measured value is flagged immediately as a
+dropout; a non-finite prediction or invalid variance is rejected before the
+monitor consumes a sample.
 
 Fault types distinguished:
 
-- **Sensor dropout**: $y = 0$ or NaN
+- **Sensor dropout**: a non-finite reading, or a near-zero reading with a persistent large innovation
 - **Sensor drift**: persistent bias
 - **Stuck actuator**: command changes but output does not
 - **Open circuit**: actuator output collapses to zero
 
-After isolation, the `ReconfigurableController` removes the faulted channel from the
-measurement matrix $C$ (or control matrix $B$) and re-solves for the reduced-order
-gains. Performance degrades gracefully rather than catastrophically.
+After a fault is reported to `ReconfigurableController`, it zeros the faulty
+sensor's weight in $W$ or the faulty coil's column in its allocation Jacobian,
+then recomputes the regularized gain. The caller must check controllability and
+decide how to handle an insufficient actuator space. These software utilities
+do not establish closed-loop stability or physical fault-response performance.
 
 **scpn-control**: `FDIMonitor`, `ReconfigurableController` in
-`scpn_control.control.fault_tolerant_control`.
+`scpn_control.control.fault_tolerant_control`. `FaultInjector` remains available
+at that import path and is implemented in `control.fault_injector`.
 
 ### Plasma Shape Control
 

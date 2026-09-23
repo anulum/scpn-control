@@ -62,7 +62,7 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 ## F
 
-**Fault detection and isolation (FDI)** — Real-time detection of actuator or sensor failures and reconfiguration of the control system to maintain stability. `control.fault_tolerant_control`
+**Fault detection and isolation (FDI)** — In this package, a per-sensor innovation threshold and immediate non-finite-reading check flag sensor faults; a separate allocation utility accepts reported sensor or actuator faults and recomputes a gain. Stability and physical fault response require separate validation. `control.fault_tolerant_control`
 
 **Flux coordinates** — Coordinate system (psi, theta_p, phi) aligned to magnetic flux surfaces. Eliminates the magnetic field's cross-surface component, simplifying transport equations. `core.fusion_kernel`
 

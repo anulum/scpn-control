@@ -380,6 +380,7 @@ src/scpn_control/
 |   +-- gain_scheduled_controller.py  # PID scheduled on operating regime
 |   +-- sliding_mode_vertical.py   # Sliding-mode vertical stabilizer
 |   +-- fault_tolerant_control.py  # Fault detection + degraded-mode operation
+|   +-- fault_injector.py          # Fault categories + signal injection for tests
 |   +-- free_boundary_tracking.py  # Kernel-coupled plasma boundary tracking
 |   +-- safe_rl_controller.py      # Clipped policy gradient + MHD constraint costs
 |   +-- scenario_scheduler.py      # Shot timeline + actuator scheduling
