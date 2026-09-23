@@ -4260,8 +4260,8 @@
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
-      "report_commit": "9ecd928fe7d1330ea6850123574758f74f1f8141",
-      "report_sha256": "ef531f0b9a588dd8c8b720d6ccc10e5af4d74cf32f3b943c9e5a95f961570d9e",
+      "report_commit": "7de3340fa01a95771fe29d24c9693cca5fa5d779",
+      "report_sha256": "709b5d25f6a8d44e61e21720de8e4e4ecaad865dcf448f8bd2a50062e22811ad",
       "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
     },
