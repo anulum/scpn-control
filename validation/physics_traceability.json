@@ -2998,7 +2998,7 @@
     },
     {
       "component": "disruption checkpoint integrity and train/load leaf",
-      "equation_contract": "Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch. Synthetic training and pinned-weight load path.",
+      "equation_contract": "Checkpoint SHA-256 integrity gate, default model path helpers, and train/load orchestration with optional torch. The loader hashes a bounded temporary snapshot and deserialises those same bytes, binding reported weights_sha256 to the loaded weights. Synthetic training and pinned-weight load path.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
@@ -3013,11 +3013,14 @@
       "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
       "validation_evidence": [
         "Real-surface tests under tests/test_disruption_*.py for leaf contracts",
+        "Real Torch path-swap test in tests/test_disruption_checkpoint_race.py binds loaded weights to the reported digest",
         "Owner re-export facade remains scpn_control.control.disruption_predictor"
       ],
       "evidence_paths": [
         "src/scpn_control/control/disruption_checkpoint.py",
+        "src/scpn_control/control/disruption_checkpoint_integrity.py",
         "tests/test_disruption_checkpoint.py",
+        "tests/test_disruption_checkpoint_race.py",
         "tests/test_disruption_safe_api.py",
         "docs/api.md"
       ],
@@ -3025,6 +3028,35 @@
         "src/scpn_control/control/disruption_checkpoint.py"
       ],
       "validity_domain": "Synthetic/heuristic disruption control-path contracts only; not measured-facility prediction or live control authority.",
+      "external_validation_tracker_issue": 48
+    },
+    {
+      "component": "disruption checkpoint immutable-byte integrity leaf",
+      "equation_contract": "SHA-256 pin parsing and bounded byte-copy snapshot bind the reported weights digest to the exact bytes passed to Torch. A sidecar or explicit pin checks byte equality only; it does not establish model quality or facility authority.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "SHA-256 checkpoint byte integrity and repository disruption predictor provenance contract"
+      ],
+      "module_path": "src/scpn_control/control/disruption_checkpoint_integrity.py",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Keep full-fidelity predictive claims blocked pending measured labelled disruption data and independent facility validation",
+        "Require an owner-qualified pin source for any promoted checkpoint provenance claim"
+      ],
+      "unit_contract": "SHA-256 is a 64-character hexadecimal byte digest; it carries no physical units or calibrated risk meaning.",
+      "validation_evidence": [
+        "tests/test_disruption_checkpoint_race.py loads real Torch weights after a controlled path replacement",
+        "tests/test_disruption_checkpoint.py verifies explicit and sidecar pins through the public API"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/disruption_checkpoint_integrity.py",
+        "tests/test_disruption_checkpoint_race.py",
+        "tests/test_disruption_checkpoint.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/disruption_checkpoint_integrity.py"
+      ],
+      "validity_domain": "Local checkpoint-byte custody only; no measured-facility prediction or live control authority.",
       "external_validation_tracker_issue": 48
     },
     {

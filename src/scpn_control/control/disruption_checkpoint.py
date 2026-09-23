@@ -16,7 +16,6 @@ owner; claim boundaries and physics proxies live in sibling leaves.
 
 from __future__ import annotations
 
-import hashlib
 import logging
 import pickle
 from pathlib import Path
@@ -24,6 +23,24 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control.control.disruption_checkpoint_integrity import (
+    DisruptionCheckpointIntegrityError as DisruptionCheckpointIntegrityError,
+)
+from scpn_control.control.disruption_checkpoint_integrity import (
+    _expected_checkpoint_digest as _expected_checkpoint_digest,
+)
+from scpn_control.control.disruption_checkpoint_integrity import (
+    _is_hex as _is_hex,
+)
+from scpn_control.control.disruption_checkpoint_integrity import (
+    _sha256_file as _sha256_file,
+)
+from scpn_control.control.disruption_checkpoint_integrity import (
+    verified_checkpoint_snapshot,
+)
+from scpn_control.control.disruption_checkpoint_integrity import (
+    verify_checkpoint_integrity as verify_checkpoint_integrity,
+)
 from scpn_control.control.disruption_physics_proxies import simulate_tearing_mode
 from scpn_control.control.disruption_risk_claims import (
     _attach_disruption_claim_boundary,
@@ -65,89 +82,6 @@ def _repo_root() -> Path:
 def default_model_path() -> Path:
     """Return the default trained-model artifact path."""
     return _repo_root() / "artifacts" / DEFAULT_MODEL_FILENAME
-
-
-class DisruptionCheckpointIntegrityError(RuntimeError):
-    """Raised when a disruption-model checkpoint fails its weights-hash check.
-
-    Raised when a pinned digest mismatches, when a sidecar is malformed, or when
-    ``require_pin`` is set but no digest is available. It is a hard, fail-closed
-    error and is *not* downgraded to the heuristic fallback (unlike a corrupt or
-    unreadable file). The strong "never load unverified weights" guarantee holds
-    only when a digest is pinned or ``require_pin=True``; an unpinned load is
-    RCE-safe (``weights_only=True``) and records the digest for provenance, but
-    does not verify the weights against a known-good reference.
-    """
-
-
-def _sha256_file(path: Path) -> str:
-    """Return the hex SHA-256 digest of a file, read in bounded chunks."""
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(65536), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _is_hex(text: str) -> bool:
-    """Return whether every character in ``text`` is a hexadecimal digit."""
-    try:
-        int(text, 16)
-    except ValueError:
-        return False
-    return True
-
-
-def _expected_checkpoint_digest(path: Path, explicit: str | None) -> str | None:
-    """Resolve the expected checkpoint digest from an explicit value or sidecar.
-
-    Precedence: an ``explicit`` digest wins; otherwise a ``<checkpoint>.sha256``
-    sidecar file (first whitespace-delimited token, as written by ``sha256sum``)
-    is used if present. Returns ``None`` when neither pins a digest.
-    """
-    if explicit is not None:
-        token = explicit.strip().split()[0] if explicit.strip() else ""
-        if len(token) != 64 or not _is_hex(token):
-            raise ValueError("expected_sha256 must be a 64-character hex SHA-256 digest")
-        return token.lower()
-    sidecar = path.with_name(path.name + ".sha256")
-    if not sidecar.exists():
-        return None
-    raw = sidecar.read_text(encoding="utf-8").strip()
-    token = raw.split()[0] if raw else ""
-    if len(token) != 64 or not _is_hex(token):
-        raise DisruptionCheckpointIntegrityError(
-            f"checkpoint sidecar {sidecar.name} does not contain a valid SHA-256 digest"
-        )
-    return token.lower()
-
-
-def verify_checkpoint_integrity(
-    path: Path,
-    expected_sha256: str | None = None,
-    *,
-    require_pin: bool = False,
-) -> str:
-    """Return a checkpoint's SHA-256, enforcing an expected digest when pinned.
-
-    When ``expected_sha256`` (or a ``<checkpoint>.sha256`` sidecar) pins a digest,
-    a mismatch raises :class:`DisruptionCheckpointIntegrityError`. With nothing
-    pinned the digest is returned for provenance without gating the load — unless
-    ``require_pin`` is set, in which case an unpinned load is itself a fail-closed
-    :class:`DisruptionCheckpointIntegrityError` (the strong "never load unverified
-    weights" posture for safety-critical use).
-    """
-    expected = _expected_checkpoint_digest(path, expected_sha256)
-    if expected is None and require_pin:
-        raise DisruptionCheckpointIntegrityError(
-            f"checkpoint {path.name} has no pinned SHA-256 digest but require_pin is set"
-        )
-    actual = _sha256_file(path)
-    if expected is not None and actual.lower() != expected:
-        raise DisruptionCheckpointIntegrityError(
-            f"checkpoint {path.name} SHA-256 {actual} does not match the pinned digest {expected}"
-        )
-    return actual
 
 
 def _owner_signal_helpers() -> tuple[Any, Any, Any]:
@@ -364,45 +298,47 @@ def load_or_train_predictor(
     kwargs = dict(train_kwargs or {})
 
     if path.exists() and not force_retrain:
-        # Fail-closed weights-integrity gate BEFORE deserialisation: a pinned
-        # digest mismatch (or a missing pin under require_pin) raises hard and is
-        # never swallowed by allow_fallback.
-        weights_sha256 = verify_checkpoint_integrity(path, expected_sha256, require_pin=require_pin)
-        try:
-            checkpoint = torch.load(path, map_location="cpu", weights_only=True)
-            if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
-                state_dict = checkpoint["state_dict"]
-                loaded_seq_len = normalize_seq_len(checkpoint.get("seq_len", seq_len))
-            else:
-                state_dict = checkpoint
-                loaded_seq_len = seq_len
+        # Copy, hash and load the same bytes. A path swap between verification
+        # and deserialisation cannot substitute different checkpoint weights.
+        with verified_checkpoint_snapshot(path, expected_sha256, require_pin=require_pin) as (
+            checkpoint_stream,
+            weights_sha256,
+        ):
+            try:
+                checkpoint = torch.load(checkpoint_stream, map_location="cpu", weights_only=True)
+                if isinstance(checkpoint, dict) and "state_dict" in checkpoint:
+                    state_dict = checkpoint["state_dict"]
+                    loaded_seq_len = normalize_seq_len(checkpoint.get("seq_len", seq_len))
+                else:
+                    state_dict = checkpoint
+                    loaded_seq_len = seq_len
 
-            model = disruption_transformer_cls(seq_len=loaded_seq_len)
-            model.load_state_dict(state_dict)
-            model.eval()
-            return model, _attach_disruption_claim_boundary(
-                {
-                    "trained": False,
-                    "fallback": False,
-                    "model_path": str(path),
-                    "seq_len": int(loaded_seq_len),
-                    "training_data": "checkpoint_metadata_unavailable",
-                    "facility_roc_validated": False,
-                    "weights_sha256": weights_sha256,
-                }
-            )
-        except (RuntimeError, ValueError, KeyError, OSError, pickle.UnpicklingError) as exc:
-            if not allow_fallback:
-                raise
-            return None, _attach_disruption_claim_boundary(
-                {
-                    "trained": False,
-                    "fallback": True,
-                    "reason": f"checkpoint_load_failed:{exc.__class__.__name__}",
-                    "model_path": str(path),
-                    "seq_len": int(seq_len),
-                }
-            )
+                model = disruption_transformer_cls(seq_len=loaded_seq_len)
+                model.load_state_dict(state_dict)
+                model.eval()
+                return model, _attach_disruption_claim_boundary(
+                    {
+                        "trained": False,
+                        "fallback": False,
+                        "model_path": str(path),
+                        "seq_len": int(loaded_seq_len),
+                        "training_data": "checkpoint_metadata_unavailable",
+                        "facility_roc_validated": False,
+                        "weights_sha256": weights_sha256,
+                    }
+                )
+            except (RuntimeError, ValueError, KeyError, OSError, pickle.UnpicklingError) as exc:
+                if not allow_fallback:
+                    raise
+                return None, _attach_disruption_claim_boundary(
+                    {
+                        "trained": False,
+                        "fallback": True,
+                        "reason": f"checkpoint_load_failed:{exc.__class__.__name__}",
+                        "model_path": str(path),
+                        "seq_len": int(seq_len),
+                    }
+                )
 
     if not train_if_missing and not force_retrain:
         if allow_fallback:
