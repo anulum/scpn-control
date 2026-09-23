@@ -85,6 +85,8 @@ build_submission() {
     done
     cffconvert --validate -i "${source_dir}/CITATION.cff" >/dev/null
     jq empty "${source_dir}/submission_metadata.json"
+    python "${SCRIPT_DIR}/evidence_pins.py" \
+        --repo-root "${REPO_ROOT}" "${source_dir}/submission_metadata.json"
 
     (
         cd -- "${scratch_dir}"
@@ -93,6 +95,7 @@ build_submission() {
             pandoc manuscript.md --from=markdown --citeproc \
                 --bibliography=references.bib \
                 --metadata=author:"Miroslav Šotek" \
+                --include-in-header=reproducible_pdf.tex \
                 --pdf-engine=pdflatex --output=manuscript.pdf
         elif [[ -f manuscript.tex ]]; then
             pdflatex -interaction=nonstopmode -halt-on-error manuscript.tex >pass1.log
@@ -118,7 +121,7 @@ main() {
     local found=0
     local tracked_auxiliaries
 
-    for command_name in bibtex cffconvert cmp jq pandoc pdffonts pdflatex pdftotext rg; do
+    for command_name in bibtex cffconvert cmp git jq pandoc pdffonts pdflatex pdftotext python rg; do
         require_command "${command_name}"
     done
 

@@ -7,7 +7,7 @@
     "name": "Miroslav Sotek",
     "orcid": "0009-0009-3560-0851"
   },
-  "evidence_revision": "856adaf10f247bc77943f0c034fdc3a0e997eaa6",
+  "evidence_revision": "c598b4eceabd335b0913e84cc9632f01a4867f59",
   "source_date_epoch": 1787386155,
   "evidence_files": [
     "../../../validation/reports/controller_latency.json",
