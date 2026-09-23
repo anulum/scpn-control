@@ -11,12 +11,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import Enum, auto
 from typing import Any
 
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control.fault_injector import FaultInjector as FaultInjector
+from scpn_control.control.fault_injector import FaultType as FaultType
 
 # FDIR terminology: Blanke et al. 2006, "Diagnosis and Fault-Tolerant Control",
 # Springer, Ch. 1 — fault detection, isolation, reconfiguration.
@@ -37,16 +38,6 @@ DEFAULT_THRESHOLD_SIGMA: float = 3.0
 # Small regularisation on the weighted least-squares gain to prevent singularity.
 # Bodson 2002, J. Guidance 25, 307, Eq. 12 — Tikhonov regularisation λI.
 GAIN_REGULARISATION: float = 1e-6
-
-
-class FaultType(Enum):
-    """Actuator and sensor fault categories."""
-
-    STUCK_ACTUATOR = auto()
-    OPEN_CIRCUIT_ACTUATOR = auto()
-    SENSOR_DROPOUT = auto()
-    SENSOR_DRIFT = auto()
-    SENSOR_NOISE_INCREASE = auto()
 
 
 @dataclass
@@ -89,6 +80,14 @@ class FDIMonitor:
         threshold_sigma: float = DEFAULT_THRESHOLD_SIGMA,
         n_alert: int = 5,
     ):
+        if isinstance(n_sensors, bool) or not isinstance(n_sensors, int) or n_sensors < 0:
+            raise ValueError("n_sensors must be a non-negative integer")
+        if isinstance(n_actuators, bool) or not isinstance(n_actuators, int) or n_actuators < 0:
+            raise ValueError("n_actuators must be a non-negative integer")
+        if isinstance(n_alert, bool) or not isinstance(n_alert, int) or n_alert < 1:
+            raise ValueError("n_alert must be a positive integer")
+        if not np.isfinite(threshold_sigma) or threshold_sigma <= 0:
+            raise ValueError("threshold_sigma must be positive and finite")
         self.n_sensors = n_sensors
         self.n_actuators = n_actuators
         self.threshold_sigma = threshold_sigma
@@ -104,8 +103,25 @@ class FDIMonitor:
         self.faulted_sensors: set[int] = set()
 
     def update(self, y_measured: AnyFloatArray, y_predicted: AnyFloatArray, t: float) -> list[FaultReport]:
-        """Check for sensor faults using the prediction residual (innovation)."""
-        nu = y_measured - y_predicted
+        """Flag invalid measurements immediately and persistent finite innovations.
+
+        Invalid predictions, variance, time, or vector shape raise before the
+        monitor consumes a sample. Non-finite measured channels are isolated as
+        dropouts while healthy channels continue through the innovation window.
+        """
+        measured = np.asarray(y_measured, dtype=np.float64)
+        predicted = np.asarray(y_predicted, dtype=np.float64)
+        if measured.shape != (self.n_sensors,) or predicted.shape != (self.n_sensors,):
+            raise ValueError("measurements and predictions must match the sensor vector shape")
+        if not np.all(np.isfinite(predicted)) or not np.isfinite(t):
+            raise ValueError("predictions and detection time must be finite")
+        if self.S_diag.shape != (self.n_sensors,) or not np.all(np.isfinite(self.S_diag)) or np.any(self.S_diag <= 0):
+            raise ValueError("innovation variances must be positive and finite")
+        invalid = ~np.isfinite(measured)
+        with np.errstate(over="ignore", invalid="ignore"):
+            nu = np.where(invalid, 0.0, measured - predicted)
+        if not np.all(np.isfinite(nu)):
+            raise ValueError("finite measurements produced a non-finite innovation")
 
         self.innovation_history[self.innovation_idx] = nu
         self.innovation_idx = (self.innovation_idx + 1) % self.n_alert
@@ -116,11 +132,18 @@ class FDIMonitor:
             if i in self.faulted_sensors:
                 continue
 
+            if invalid[i]:
+                report = FaultReport(i, True, FaultType.SENSOR_DROPOUT, 1.0, t)
+                new_faults.append(report)
+                self.detected_faults.append(report)
+                self.faulted_sensors.add(i)
+                continue
+
             hist = self.innovation_history[:, i]
             sigma = np.sqrt(self.S_diag[i])
 
             if np.all(np.abs(hist) > self.threshold_sigma * sigma):
-                if np.isnan(y_measured[i]) or abs(y_measured[i]) < 1e-6:
+                if abs(measured[i]) < 1e-6:
                     ftype = FaultType.SENSOR_DROPOUT
                 else:
                     ftype = FaultType.SENSOR_DRIFT
@@ -151,8 +174,14 @@ class ReconfigurableController:
     """
 
     def __init__(self, base_controller: Any, jacobian: AnyFloatArray, n_coils: int, n_sensors: int):
+        if isinstance(n_coils, bool) or not isinstance(n_coils, int) or n_coils < 0:
+            raise ValueError("n_coils must be a non-negative integer")
+        if isinstance(n_sensors, bool) or not isinstance(n_sensors, int) or n_sensors < 0:
+            raise ValueError("n_sensors must be a non-negative integer")
         self.base_controller = base_controller
         jacobian_arr = np.asarray(jacobian, dtype=np.float64)
+        if jacobian_arr.shape != (n_sensors, n_coils) or not np.all(np.isfinite(jacobian_arr)):
+            raise ValueError("jacobian must be a finite sensor-by-coil matrix")
         self.nominal_jacobian: FloatArray = jacobian_arr.copy()
         self.current_jacobian: FloatArray = jacobian_arr.copy()
         self.n_coils = n_coils
@@ -163,23 +192,34 @@ class ReconfigurableController:
         self.stuck_values: dict[int, float] = {}
         self.sensor_fault_types: dict[int, FaultType] = {}
 
-        self.W: FloatArray = np.eye(jacobian.shape[0])
+        self.W: FloatArray = np.eye(n_sensors)
         self.lambda_reg = GAIN_REGULARISATION
 
         self.K = self._compute_gain()
 
-    def _compute_gain(self) -> FloatArray:
+    def _compute_gain(
+        self,
+        jacobian: FloatArray | None = None,
+        weight: FloatArray | None = None,
+        faulted_coils: set[int] | None = None,
+    ) -> FloatArray:
+        """Solve finite weighted allocation for the supplied candidate state."""
         # u = B^+ v  where B^+ = (J^T W J + λI)^{-1} J^T W
         # Bodson 2002, J. Guidance 25, 307, Eq. 12
-        J = self.current_jacobian
-        J_T_W = J.T @ self.W
+        J = self.current_jacobian if jacobian is None else jacobian
+        W = self.W if weight is None else weight
+        if not np.all(np.isfinite(J)) or not np.all(np.isfinite(W)):
+            raise ValueError("allocation matrices must be finite")
+        J_T_W = J.T @ W
         H = J_T_W @ J + self.lambda_reg * np.eye(self.n_coils)
 
         # The Tikhonov term λI (λ = 1e-6 > 0) makes H = JᵀWJ + λI strictly
         # positive definite for finite J and W, so solve avoids an explicit inverse.
         K = np.linalg.solve(H, J_T_W)
+        if not np.all(np.isfinite(K)):
+            raise ValueError("allocation gain must be finite")
 
-        for i in self.faulted_coils:
+        for i in self.faulted_coils if faulted_coils is None else faulted_coils:
             K[i, :] = 0.0
 
         return np.asarray(K)
@@ -198,17 +238,32 @@ class ReconfigurableController:
             The actuator fault category.
         stuck_val
             Held output value for a stuck actuator.
+
+        Raises
+        ------
+        IndexError
+            If the coil index is outside the configured actuator range.
+        ValueError
+            If the category or held value is invalid, or allocation fails.
         """
+        if isinstance(coil_index, bool) or not isinstance(coil_index, int) or not 0 <= coil_index < self.n_coils:
+            raise IndexError("coil_index outside configured coil range")
+        if fault_type not in {FaultType.STUCK_ACTUATOR, FaultType.OPEN_CIRCUIT_ACTUATOR}:
+            raise ValueError("fault_type must describe an actuator fault")
+        if fault_type is FaultType.STUCK_ACTUATOR and not np.isfinite(stuck_val):
+            raise ValueError("stuck_val must be finite")
         if coil_index in self.faulted_coils:
             return
 
-        self.faulted_coils.add(coil_index)
-
-        if fault_type == FaultType.STUCK_ACTUATOR:
-            self.stuck_values[coil_index] = stuck_val
-
-        self.current_jacobian[:, coil_index] = 0.0
-        self.K = self._compute_gain()
+        candidate_faults = self.faulted_coils | {coil_index}
+        candidate_jacobian = self.current_jacobian.copy()
+        candidate_jacobian[:, coil_index] = 0.0
+        candidate_gain = self._compute_gain(candidate_jacobian, faulted_coils=candidate_faults)
+        self.current_jacobian = candidate_jacobian
+        self.K = candidate_gain
+        self.faulted_coils = candidate_faults
+        if fault_type is FaultType.STUCK_ACTUATOR:
+            self.stuck_values[coil_index] = float(stuck_val)
 
     def handle_sensor_fault(self, sensor_index: int, fault_type: FaultType) -> None:
         """Reconfigure the controller around a faulted sensor.
@@ -229,7 +284,11 @@ class ReconfigurableController:
         ValueError
             If ``fault_type`` is not a sensor fault.
         """
-        if sensor_index < 0 or sensor_index >= self.n_sensors:
+        if (
+            isinstance(sensor_index, bool)
+            or not isinstance(sensor_index, int)
+            or not 0 <= sensor_index < self.n_sensors
+        ):
             raise IndexError("sensor_index outside configured sensor range")
         if fault_type not in {
             FaultType.SENSOR_DROPOUT,
@@ -240,15 +299,27 @@ class ReconfigurableController:
         if sensor_index in self.faulted_sensors:
             return
 
+        candidate_weight = self.W.copy()
+        candidate_weight[sensor_index, :] = 0.0
+        candidate_weight[:, sensor_index] = 0.0
+        candidate_gain = self._compute_gain(weight=candidate_weight)
+        self.W = candidate_weight
+        self.K = candidate_gain
         self.faulted_sensors.add(sensor_index)
         self.sensor_fault_types[sensor_index] = fault_type
-        self.W[sensor_index, :] = 0.0
-        self.W[:, sensor_index] = 0.0
-        self.K = self._compute_gain()
 
     def step(self, error: AnyFloatArray, dt: float) -> FloatArray:
-        """Apply reconfigured gain; compensate for stuck-coil offsets."""
-        adjusted_error = error.copy()
+        """Allocate a finite sensor error; compensate for stuck-coil offsets.
+
+        ``dt`` is validated as finite and non-negative. The allocation itself
+        is an instantaneous gain operation and does not integrate over ``dt``.
+        """
+        error_array = np.asarray(error, dtype=np.float64)
+        if error_array.shape != (self.n_sensors,) or not np.all(np.isfinite(error_array)):
+            raise ValueError("error must be a finite sensor vector")
+        if not np.isfinite(dt) or dt < 0:
+            raise ValueError("dt must be non-negative and finite")
+        adjusted_error = error_array.copy()
         for sensor_idx in self.faulted_sensors:
             adjusted_error[sensor_idx] = 0.0
 
@@ -256,6 +327,8 @@ class ReconfigurableController:
             adjusted_error -= self.nominal_jacobian[:, c_idx] * val
 
         delta_u = self.K @ adjusted_error
+        if not np.all(np.isfinite(delta_u)):
+            raise ValueError("allocation produced a non-finite command")
 
         for c_idx in self.faulted_coils:
             delta_u[c_idx] = 0.0
@@ -282,52 +355,3 @@ class ReconfigurableController:
     def graceful_shutdown(self) -> FloatArray:
         """Return zero ramp-down command for all coils."""
         return np.zeros(self.n_coils)
-
-
-class FaultInjector:
-    """Inject a fault into actuator/sensor signals after a trigger time.
-
-    Parameters
-    ----------
-    fault_time
-        Time at which the fault begins, in seconds.
-    component_index
-        Index of the component to corrupt.
-    fault_type
-        The fault category to inject.
-    severity
-        Fault severity scale (e.g. drift rate).
-    """
-
-    def __init__(self, fault_time: float, component_index: int, fault_type: FaultType, severity: float = 1.0):
-        self.fault_time = fault_time
-        self.component_index = component_index
-        self.fault_type = fault_type
-        self.severity = severity
-
-    def inject(self, t: float, signals: AnyFloatArray) -> AnyFloatArray:
-        """Return the signal vector with the configured fault applied.
-
-        Parameters
-        ----------
-        t
-            Current time in seconds; the fault applies once ``t >= fault_time``.
-        signals
-            The clean signal vector.
-
-        Returns
-        -------
-        AnyFloatArray
-            The signals with the fault applied (unchanged before the fault time).
-        """
-        if t < self.fault_time:
-            return signals
-
-        corrupted = signals.copy()
-
-        if self.fault_type == FaultType.SENSOR_DROPOUT:
-            corrupted[self.component_index] = 0.0
-        elif self.fault_type == FaultType.SENSOR_DRIFT:
-            corrupted[self.component_index] += self.severity * (t - self.fault_time)
-
-        return corrupted
