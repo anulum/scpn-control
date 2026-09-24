@@ -8,5 +8,5 @@
 
 jupyter
 nbconvert
-jupyterlab==4.5.10
+jupyterlab==4.5.11
 soupsieve>=2.9.2,<3
