@@ -9,5 +9,6 @@
 jupyter
 nbconvert
 jupyterlab==4.5.11
+jupyter-server>=2.21.0,<3
 setuptools==84.0.0
 soupsieve>=2.9.2,<3
