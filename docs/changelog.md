@@ -127,6 +127,15 @@
   backend, CPython 3.12.3, NumPy 2.2.6) every measured value reproduces
   exactly; only `generator_sha256` and `payload_sha256` change, and the
   lifecycle registry and public claim ledger rebind to the new report bytes.
+- Fault-tolerant allocation no longer returns a silently zero gain when a
+  finite Jacobian overflows `JᵀWJ`; the normal matrix is checked with the gain,
+  and command overflow is refused without a runtime warning. Tests now cover
+  every monitor and controller refusal, and the safety-case tamper detector has
+  a consistent-record control beside its drift refusal.
+- The release changelog-extraction test is skipped on Windows, where
+  `subprocess` resolves `bash` to the WSL launcher (no distribution on the
+  runner) and every refusal case passed without running the step; the release
+  job itself runs on `ubuntu-latest`.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor

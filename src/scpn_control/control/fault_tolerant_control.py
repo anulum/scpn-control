@@ -210,13 +210,15 @@ class ReconfigurableController:
         W = self.W if weight is None else weight
         if not np.all(np.isfinite(J)) or not np.all(np.isfinite(W)):
             raise ValueError("allocation matrices must be finite")
-        J_T_W = J.T @ W
-        H = J_T_W @ J + self.lambda_reg * np.eye(self.n_coils)
-
         # The Tikhonov term λI (λ = 1e-6 > 0) makes H = JᵀWJ + λI strictly
         # positive definite for finite J and W, so solve avoids an explicit inverse.
-        K = np.linalg.solve(H, J_T_W)
-        if not np.all(np.isfinite(K)):
+        # JᵀWJ can still overflow to infinity for a finite J, and the solve then
+        # returns a silently zero gain, so the normal matrix is checked as well.
+        with np.errstate(over="ignore", invalid="ignore"):
+            J_T_W = J.T @ W
+            H = J_T_W @ J + self.lambda_reg * np.eye(self.n_coils)
+            K = np.linalg.solve(H, J_T_W)
+        if not np.all(np.isfinite(H)) or not np.all(np.isfinite(K)):
             raise ValueError("allocation gain must be finite")
 
         for i in self.faulted_coils if faulted_coils is None else faulted_coils:
@@ -323,10 +325,10 @@ class ReconfigurableController:
         for sensor_idx in self.faulted_sensors:
             adjusted_error[sensor_idx] = 0.0
 
-        for c_idx, val in self.stuck_values.items():
-            adjusted_error -= self.nominal_jacobian[:, c_idx] * val
-
-        delta_u = self.K @ adjusted_error
+        with np.errstate(over="ignore", invalid="ignore"):
+            for c_idx, val in self.stuck_values.items():
+                adjusted_error -= self.nominal_jacobian[:, c_idx] * val
+            delta_u = self.K @ adjusted_error
         if not np.all(np.isfinite(delta_u)):
             raise ValueError("allocation produced a non-finite command")
 

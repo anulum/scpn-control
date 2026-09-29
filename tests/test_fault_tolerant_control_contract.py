@@ -103,3 +103,59 @@ def test_negative_injector_index_does_not_corrupt_last_signal() -> None:
     with pytest.raises(IndexError, match="component_index"):
         injector.inject(1.0, signals)
     np.testing.assert_array_equal(signals, [1.0, 2.0])
+
+
+@pytest.mark.parametrize(
+    ("arguments", "message"),
+    [
+        ((-1, 1), "n_sensors"),
+        ((True, 1), "n_sensors"),
+        ((1, -1), "n_actuators"),
+        ((1, 1.5), "n_actuators"),
+        ((1, 1, 3.0, 0), "n_alert"),
+        ((1, 1, 3.0, False), "n_alert"),
+        ((1, 1, np.nan), "threshold_sigma"),
+        ((1, 1, 0.0), "threshold_sigma"),
+    ],
+)
+def test_monitor_refuses_invalid_dimensions_and_thresholds(arguments: tuple[object, ...], message: str) -> None:
+    """Bool, negative, fractional or non-finite settings cannot build a monitor."""
+    with pytest.raises(ValueError, match=message):
+        FDIMonitor(*arguments)
+
+
+def test_overflowing_innovation_is_refused_before_monitor_mutation() -> None:
+    """Finite measurement and prediction whose difference overflows are refused."""
+    monitor = FDIMonitor(n_sensors=1, n_actuators=1, n_alert=2)
+    with pytest.raises(ValueError, match="non-finite innovation"):
+        monitor.update(np.array([1e308]), np.array([-1e308]), 1.0)
+    assert monitor.innovation_idx == 0
+    assert not monitor.detected_faults
+
+
+@pytest.mark.parametrize(("n_coils", "n_sensors", "message"), [(-1, 1, "n_coils"), (1, True, "n_sensors")])
+def test_controller_refuses_invalid_dimensions(n_coils: int, n_sensors: int, message: str) -> None:
+    """Allocation dimensions must be non-negative integers, not booleans."""
+    with pytest.raises(ValueError, match=message):
+        ReconfigurableController(None, np.eye(1), n_coils, n_sensors)
+
+
+def test_overflowing_normal_matrix_does_not_yield_a_silent_zero_gain() -> None:
+    """A finite Jacobian whose JᵀWJ overflows must not allocate a zero gain."""
+    with pytest.raises(ValueError, match="allocation gain must be finite"):
+        ReconfigurableController(None, np.array([[1e200]]), 1, 1)
+
+
+@pytest.mark.parametrize("dt", [-1.0, np.nan, np.inf])
+def test_step_refuses_invalid_time_step(dt: float) -> None:
+    """The allocation step accepts only a non-negative finite dt."""
+    controller = ReconfigurableController(None, np.eye(1), 1, 1)
+    with pytest.raises(ValueError, match="dt must be"):
+        controller.step(np.ones(1), dt)
+
+
+def test_step_refuses_an_overflowing_command() -> None:
+    """A finite error that overflows through the allocation gain is refused."""
+    controller = ReconfigurableController(None, np.array([[0.01]]), 1, 1)
+    with pytest.raises(ValueError, match="non-finite command"):
+        controller.step(np.array([1e308]), 0.1)

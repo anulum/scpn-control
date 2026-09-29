@@ -13,6 +13,7 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -68,6 +69,11 @@ def test_precommit_remote_hooks_are_pinned_to_commit_objects() -> None:
             assert re.fullmatch(r"[0-9a-f]{40}", repo["rev"])
 
 
+# The release job runs this step in POSIX bash on ubuntu-latest. On Windows,
+# subprocess resolves "bash" from System32 before PATH; on the runner that WSL
+# launcher has no distribution and exits 1, so the refusal cases would pass
+# without running the step.
+@pytest.mark.skipif(sys.platform == "win32", reason="release step runs in POSIX bash, not on win32")
 @pytest.mark.parametrize(
     ("ref", "accepted"),
     [

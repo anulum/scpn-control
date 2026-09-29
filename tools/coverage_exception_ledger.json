@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 192,
     "pytest-runtime-skip": 44,
-    "pytest-skipif": 129,
+    "pytest-skipif": 130,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4868,6 +4868,21 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "windows",
+      "condition": "sys.platform == \"win32\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-30f705150a5b3b21",
+      "kind": "pytest-skipif",
+      "last_review": "2026-09-05",
+      "line": 76,
+      "owner": "tests/release_workflow_security",
+      "path": "tests/test_release_workflow_security.py",
+      "reason": "release step runs in POSIX bash, not on win32",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "optional-package",
       "condition": "getattr(rmse_dashboard, \"generate_forward_channels\", None) is None",
       "execution_lane": "baseline or named optional-owner lane",
@@ -5678,8 +5693,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 378,
-  "entry_sha256": "b8002860ba2dc3b3d1971d420bb105b3729c6783f571232bf496f83eaef2c721",
+  "entry_count": 379,
+  "entry_sha256": "aafdf6179cde71402bb9ef5322c9b6a82d954bbd976e712dfb81743a28b91d84",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

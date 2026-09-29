@@ -1282,6 +1282,12 @@ def test_controller_safety_case_readiness_admission_rejects_type_and_state_drift
     with pytest.raises(ValueError, match="evidence mismatch"):
         assert_controller_safety_case_readiness_admissible(drifted, evidence)
 
+    # Control for the tamper detector: the same record without the drift passes
+    # the recompute check, so the refusal above is caused by the drift. No
+    # producer sets this flag; evaluation, artifacts and loading all return False.
+    consistent = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "promotion_admissible": True})
+    assert assert_controller_safety_case_readiness_admissible(consistent, evidence) is consistent
+
     digest_only = SafetyCaseReadinessEvidence(**{**readiness.__dict__, "promotion_admissible": False})
     with pytest.raises(ValueError, match="not admissible"):
         assert_controller_safety_case_readiness_admissible(digest_only, evidence)
