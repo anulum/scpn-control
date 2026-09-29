@@ -313,6 +313,47 @@ def test_zenodo_text_and_date_describe_the_recorded_version() -> None:
         assert set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", metadata[field])) <= {version}
 
 
+# Each blocked claim in the archive text, with the file and sentence that still gate it.
+# While the sentence is present, the archive text must keep the claim blocked.
+_ZENODO_BLOCKED_CLAIM_GATES = (
+    (
+        "Predictive EFIT/P-EFIT",
+        "README.md",
+        "evidence therefore remains fail closed for predictive EFIT/P-EFIT claims",
+    ),
+    (
+        "nonlinear Cyclone Base Case saturation",
+        "docs/validation.md",
+        "kept the saturated `chi_i` claim blocked",
+    ),
+    (
+        "external-code gyrokinetic agreement",
+        "README.md",
+        "Full quantitative GK claims still require external-code validation on identical inputs",
+    ),
+    (
+        "target-hardware real-time operation",
+        "README.md",
+        "unqualified local runs do not support hardware-in-the-loop real-time claims",
+    ),
+    ("plant deployment", "README.md", "not a certified ITER plant deployment"),
+)
+
+
+def test_zenodo_blocked_claims_cover_every_claim_the_documentation_still_gates() -> None:
+    """The archive text must not state narrower limits than the repository evidences."""
+    description = json.loads((ROOT / ".zenodo.json").read_text(encoding="utf-8"))["description"]
+    sentence = next(s for s in description.split(". ") if "remain blocked until matching evidence exists" in s)
+    gated = 0
+    for claim, source, gate in _ZENODO_BLOCKED_CLAIM_GATES:
+        document = " ".join((ROOT / source).read_text(encoding="utf-8").split())
+        if gate in document:
+            gated += 1
+            assert claim in sentence, f"{source} still gates {claim!r}"
+
+    assert gated >= 1
+
+
 # Canonical GNU AGPL-3.0 text, https://www.gnu.org/licenses/agpl-3.0.txt, read on 2026-09-29.
 FSF_AGPL_SHA256 = "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
 _FSF_NOTICE_PLACEHOLDER = (
