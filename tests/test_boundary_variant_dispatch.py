@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Boundary Variant Dispatch Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Ensure controller flows prefer the boundary-aware ``solve()`` API."""

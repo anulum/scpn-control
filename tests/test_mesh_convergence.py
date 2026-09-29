@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — GS Solver Mesh Convergence Regression
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """

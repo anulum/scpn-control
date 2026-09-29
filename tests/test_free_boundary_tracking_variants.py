@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Free-Boundary Tracking Variant Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Free-boundary tracking variant contracts for observer and sensor paths."""

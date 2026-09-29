@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — eqdsk psi_to_norm and to_config edge tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for GEqdsk.psi_to_norm (line 103) and to_config."""

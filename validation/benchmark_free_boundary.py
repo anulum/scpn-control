@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Free-Boundary Benchmark
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """
 Benchmark for free-boundary magnetic calculations.

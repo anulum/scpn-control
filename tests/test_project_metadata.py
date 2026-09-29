@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import subprocess
@@ -310,3 +311,82 @@ def test_zenodo_text_and_date_describe_the_recorded_version() -> None:
     assert f"v{version}" in metadata["notes"]
     for field in ("description", "notes"):
         assert set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", metadata[field])) <= {version}
+
+
+# Canonical GNU AGPL-3.0 text, https://www.gnu.org/licenses/agpl-3.0.txt, read on 2026-09-29.
+FSF_AGPL_SHA256 = "0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+_FSF_NOTICE_PLACEHOLDER = (
+    "    <one line to give the program's name and a brief idea of what it does.>\n"
+    "    Copyright (C) <year>  <name of author>\n"
+)
+_NOTICE_START = 'the "copyright" line and a pointer to where the full notice is found.\n\n'
+_NOTICE_END = "\n\n    This program is free software: you can redistribute it and/or modify\n"
+_SPDX_TAG = "SPDX-License-" + "Identifier:"
+LICENCE = "AGPL-3.0-or-later"
+
+
+def _split_license_notice() -> tuple[str, list[str]]:
+    """Return the LICENSE text with the FSF placeholder restored, and the project notice lines."""
+    text = (ROOT / "LICENSE").read_text(encoding="utf-8")
+    start = text.index(_NOTICE_START) + len(_NOTICE_START)
+    end = text.index(_NOTICE_END, start)
+    return text[:start] + _FSF_NOTICE_PLACEHOLDER + text[end + 1 :], text[start:end].splitlines()
+
+
+def test_root_license_is_the_standard_agpl_text_with_this_project_notice() -> None:
+    """Scanners must match the standard text; only the notice names this project."""
+    standard, notice = _split_license_notice()
+
+    assert hashlib.sha256(standard.encode("utf-8")).hexdigest() == FSF_AGPL_SHA256
+    assert notice[0].startswith("    SCPN Control — ")
+    for line in (
+        "© Concepts 1996–2026 Miroslav Šotek. All rights reserved.",
+        "© Code 2020–2026 Miroslav Šotek. All rights reserved.",
+        f"{_SPDX_TAG} {LICENCE}",
+    ):
+        assert f"    {line}" in notice
+    for other_project in ("Fusion", "Quantum", "Phase Orchestrator", "Studio"):
+        assert all(other_project not in line for line in notice)
+
+
+def test_licence_is_declared_identically_on_every_metadata_surface() -> None:
+    """LICENSE, LICENSES/, NOTICE and every package manifest state the same licence."""
+    project = cast("dict[str, Any]", _load_pyproject()["project"])
+    citation = cast("dict[str, Any]", yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8")))
+    zenodo = json.loads((ROOT / ".zenodo.json").read_text(encoding="utf-8"))
+    studio_web = json.loads((ROOT / "studio-web" / "package.json").read_text(encoding="utf-8"))
+    notice = (ROOT / "NOTICE.md").read_text(encoding="utf-8")
+    cargo_manifests = sorted(
+        [ROOT / "scpn-control-rs" / "Cargo.toml", ROOT / "scpn-control-rs" / "fuzz" / "Cargo.toml"]
+        + list((ROOT / "scpn-control-rs" / "crates").glob("*/Cargo.toml"))
+    )
+
+    assert (ROOT / "LICENSES" / f"{LICENCE}.txt").is_file()
+    assert [project["license"], citation["license"], zenodo["license"], studio_web["license"]] == [LICENCE] * 4
+    assert len(cargo_manifests) >= 3
+    for manifest in cargo_manifests:
+        cargo = tomllib.loads(manifest.read_text(encoding="utf-8"))
+        package = cast("dict[str, Any]", cargo["package"] if "package" in cargo else cargo["workspace"]["package"])
+        assert package["license"] == LICENCE, manifest
+    assert "© Concepts 1996–2026 Miroslav Šotek." in notice
+    assert "© Code 2020–2026 Miroslav Šotek." in notice
+
+
+def test_tracked_files_use_valid_spdx_lines_and_the_canonical_start_year() -> None:
+    """No tracked file may carry ``X | text`` SPDX expressions or the retired 1998 start year."""
+    listed = subprocess.run(["git", "ls-files", "-z"], cwd=ROOT, check=True, capture_output=True).stdout
+    piped_spdx = re.compile(re.escape(_SPDX_TAG) + r"[^\n|]*\|")
+    retired_year = re.compile("\u00a9 1998")
+    offenders: list[str] = []
+    for name in listed.decode("utf-8").split("\0"):
+        path = ROOT / name
+        if not name or not path.is_file():
+            continue
+        data = path.read_bytes()
+        if b"\0" in data:
+            continue
+        text = data.decode("utf-8", errors="replace")
+        if piped_spdx.search(text) or retired_year.search(text):
+            offenders.append(name)
+
+    assert offenders == []

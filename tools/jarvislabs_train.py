@@ -9,7 +9,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — JarvisLabs Remote PPO Training
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # Contact: www.anulum.li | protoscience@anulum.li
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────

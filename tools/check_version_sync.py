@@ -9,7 +9,7 @@
 
 # SCPN Control — Version sync guard
 # Asserts pyproject.toml, CITATION.cff, .zenodo.json, and docs/api.md share the same version.
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 
 from __future__ import annotations

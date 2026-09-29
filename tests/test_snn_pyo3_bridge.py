@@ -9,7 +9,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — SNN Controller PyO3 Bridge Tests
-# © 1998–2026 Miroslav Sotek. All rights reserved.
+# © 1996–2026 Miroslav Sotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """Tests for the Rust SNN controller exposed via PyO3."""
 

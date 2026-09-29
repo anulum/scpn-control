@@ -9,7 +9,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Boris Integrator PyO3 Bridge Tests
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """Tests for the Rust Boris particle integrator exposed via PyO3."""
 

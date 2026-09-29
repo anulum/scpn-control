@@ -11,7 +11,7 @@
 # Runs full CI preflight before allowing push.
 # Install: git config core.hooksPath .githooks
 # Skip once: git push --no-verify
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 
 set -euo pipefail

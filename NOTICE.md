@@ -1,6 +1,7 @@
 # NOTICE -- Licensing
 
-Copyright 1998-2026 Miroslav Sotek. All rights reserved.
+© Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+© Code 2020–2026 Miroslav Šotek. All rights reserved.
 Contact: www.anulum.li | protoscience@anulum.li
 
 ## License

@@ -84,6 +84,13 @@
 - `.zenodo.json` described v0.22.1 and gave 2026-07-03 as its publication date
   while recording version 0.23.0. The description, notes and date now match the
   0.23.0 release of 2026-07-17, and a metadata test ties them to the changelog.
+- The root `LICENSE` notice named SCPN Fusion Core with a 1998 start year. It
+  now names SCPN Control with the canonical concepts (1996) and code (2020)
+  years, the SPDX identifier and the commercial-licence route; the standard
+  AGPL-3.0 text is unchanged. `NOTICE.md` and 154 legacy file banners carried
+  the same 1998 start year and now read 1996. Metadata tests check the licence
+  text against the FSF original, the licence declared on every manifest, and
+  every tracked file for piped SPDX expressions or the retired start year.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor

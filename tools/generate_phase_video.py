@@ -9,7 +9,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Phase Sync Convergence Video Generator
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """

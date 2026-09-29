@@ -8,7 +8,7 @@
 
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — GS Solver Mesh Convergence Study
-# © 1998–2026 Miroslav Šotek. All rights reserved.
+# © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """
 Mesh convergence study for the Grad-Shafranov elliptic solver.
