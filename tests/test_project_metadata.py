@@ -286,7 +286,7 @@ def test_zenodo_relations_match_the_package_dependency_contract() -> None:
 
 
 def test_citation_doi_is_the_zenodo_concept_doi_shown_in_the_readme() -> None:
-    """Cite the concept DOI while the current version has no Zenodo archive."""
+    """Cite the concept DOI, which resolves to the latest archived version."""
     citation = cast("dict[str, Any]", yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8")))
     identifiers = cast("list[dict[str, str]]", citation["identifiers"])
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
@@ -297,6 +297,7 @@ def test_citation_doi_is_the_zenodo_concept_doi_shown_in_the_readme() -> None:
     assert f"https://doi.org/{ZENODO_CONCEPT_DOI}" in readme
     labels = {item["value"]: item["description"] for item in identifiers}
     assert labels["10.5281/zenodo.18821816"] == "Zenodo archive (v0.4.0)"
+    assert labels["10.5281/zenodo.23045316"] == "Zenodo archive (v0.23.0)"
 
 
 def test_zenodo_text_and_date_describe_the_recorded_version() -> None:

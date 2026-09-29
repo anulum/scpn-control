@@ -21,6 +21,9 @@ url: "https://www.anulum.li"
 doi: "10.5281/zenodo.18804939"
 identifiers:
   - type: doi
+    value: "10.5281/zenodo.23045316"
+    description: "Zenodo archive (v0.23.0)"
+  - type: doi
     value: "10.5281/zenodo.18821816"
     description: "Zenodo archive (v0.4.0)"
   - type: doi

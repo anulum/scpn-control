@@ -91,6 +91,9 @@
   the same 1998 start year and now read 1996. Metadata tests check the licence
   text against the FSF original, the licence declared on every manifest, and
   every tracked file for piped SPDX expressions or the retired start year.
+- v0.23.0 is archived on Zenodo as `10.5281/zenodo.23045316` (the GitHub tag
+  archive, published 2026-09-29), and `CITATION.cff` lists that version DOI.
+  The concept DOI `10.5281/zenodo.18804939` now resolves to it.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
