@@ -356,8 +356,7 @@ pub fn transport_step(solver: &mut TransportSolver, p_aux_mw: f64, dt: f64) -> F
             let solved = thomas_solve(&a, &b, &c, &d).map_err(|error| {
                 FusionError::ConfigError(format!("transport tridiagonal solve failed: {error}"))
             })?;
-            for i in 1..(n - 1) {
-                let val = solved[i];
+            for (i, &val) in solved.iter().enumerate().take(n - 1).skip(1) {
                 candidate.profiles.te[i] = val.clamp(EDGE_TEMPERATURE, MAX_TEMPERATURE);
                 candidate.profiles.ti[i] = candidate.profiles.te[i];
             }

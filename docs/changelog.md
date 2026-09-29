@@ -94,6 +94,13 @@
 - v0.23.0 is archived on Zenodo as `10.5281/zenodo.23045316` (the GitHub tag
   archive, published 2026-09-29), and `CITATION.cff` lists that version DOI.
   The concept DOI `10.5281/zenodo.18804939` now resolves to it.
+- Restored the CI gates on main. `docs/api.md` documents the relocated
+  `disruption_checkpoint_integrity` and `fault_injector` owner modules (including
+  `verified_checkpoint_snapshot`); the checkpoint-integrity tests import from their
+  owner module and cover the snapshot's copy, path-replacement and fail-closed
+  guarantees; `tests/test_fault_injector.py` covers the injector directly; the
+  transport smoothing loop iterates the solved profile instead of indexing it,
+  which Clippy 1.98 requires; and the capability manifest is regenerated.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor

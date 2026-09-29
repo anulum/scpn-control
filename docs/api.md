@@ -2270,9 +2270,11 @@ boundaries live in dedicated leaves re-exported by the owner module.
 
 ::: scpn_control.control.disruption_predictor.predict_disruption_risk_safe
 
-::: scpn_control.control.disruption_checkpoint.DisruptionCheckpointIntegrityError
+::: scpn_control.control.disruption_checkpoint_integrity.DisruptionCheckpointIntegrityError
 
-::: scpn_control.control.disruption_checkpoint.verify_checkpoint_integrity
+::: scpn_control.control.disruption_checkpoint_integrity.verify_checkpoint_integrity
+
+::: scpn_control.control.disruption_checkpoint_integrity.verified_checkpoint_snapshot
 
 ::: scpn_control.control.disruption_checkpoint.train_predictor
 
@@ -2624,6 +2626,10 @@ traceability registry.
 ### Fault-Tolerant Control (v0.16.0)
 
 ::: scpn_control.control.fault_tolerant_control.ReconfigurableController
+
+::: scpn_control.control.fault_injector.FaultType
+
+::: scpn_control.control.fault_injector.FaultInjector
 
 ### RZIp Model (v0.16.0)
 

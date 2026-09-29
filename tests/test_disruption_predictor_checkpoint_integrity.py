@@ -19,11 +19,12 @@ from pathlib import Path
 
 import pytest
 
-from scpn_control.control.disruption_predictor import (
+from scpn_control.control.disruption_checkpoint_integrity import (
     DisruptionCheckpointIntegrityError,
     _expected_checkpoint_digest,
     _is_hex,
     _sha256_file,
+    verified_checkpoint_snapshot,
     verify_checkpoint_integrity,
 )
 
@@ -144,3 +145,42 @@ def test_require_pin_accepts_a_sidecar_pinned_checkpoint(tmp_path: Path) -> None
     path, digest = _write_checkpoint(tmp_path)
     path.with_name(path.name + ".sha256").write_text(digest, encoding="utf-8")
     assert verify_checkpoint_integrity(path, require_pin=True) == digest
+
+
+def test_snapshot_yields_the_verified_bytes_and_digest(tmp_path: Path) -> None:
+    """The snapshot holds exactly the checkpoint bytes that produced the digest."""
+    path, digest = _write_checkpoint(tmp_path)
+    with verified_checkpoint_snapshot(path, digest) as (snapshot, actual):
+        assert actual == digest
+        assert snapshot.read() == _PAYLOAD
+
+
+def test_snapshot_is_immune_to_path_replacement_after_verification(tmp_path: Path) -> None:
+    """Replacing the file after verification cannot change the bytes being loaded."""
+    path, digest = _write_checkpoint(tmp_path)
+    with verified_checkpoint_snapshot(path, require_pin=False) as (snapshot, actual):
+        path.write_bytes(b"attacker-substituted-weights")
+        assert actual == digest
+        assert snapshot.read() == _PAYLOAD
+
+
+def test_snapshot_refuses_a_mismatching_pin_before_yielding(tmp_path: Path) -> None:
+    """A digest mismatch fails closed; the caller never receives the bytes."""
+    path, _ = _write_checkpoint(tmp_path)
+    entered = False
+    with (
+        pytest.raises(DisruptionCheckpointIntegrityError, match="does not match"),
+        verified_checkpoint_snapshot(path, "0" * 64),
+    ):
+        entered = True
+    assert entered is False
+
+
+def test_snapshot_require_pin_rejects_an_unpinned_checkpoint(tmp_path: Path) -> None:
+    """With ``require_pin`` an unpinned checkpoint is refused before it is read."""
+    path, _ = _write_checkpoint(tmp_path)
+    with (
+        pytest.raises(DisruptionCheckpointIntegrityError, match="require_pin"),
+        verified_checkpoint_snapshot(path, require_pin=True),
+    ):
+        pass
