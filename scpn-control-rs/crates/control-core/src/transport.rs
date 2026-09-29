@@ -870,6 +870,20 @@ mod tests {
     }
 
     #[test]
+    fn repeated_transport_steps_stay_admissible() {
+        // The benchmark advances one solver for many steps; by step 47 the CN
+        // solve pivots its identity row 0, which must still meet the rowwise
+        // tridiagonal backward-error bound.
+        let mut solver = TransportSolver::new();
+        for step in 0..500 {
+            transport_step(&mut solver, 20.0, 0.01)
+                .unwrap_or_else(|error| panic!("transport step {step} failed: {error:?}"));
+        }
+        assert!(solver.profiles.te.iter().all(|v| v.is_finite()));
+        assert!(solver.profiles.ti.iter().all(|v| v.is_finite()));
+    }
+
+    #[test]
     fn failed_transport_step_does_not_commit_partial_state() {
         let mut solver = TransportSolver::new();
         solver.profiles.te[10] = f64::NAN;

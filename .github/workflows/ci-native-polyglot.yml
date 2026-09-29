@@ -30,6 +30,14 @@ jobs:
         with:
           toolchain: 1.98.0
           components: rustfmt, clippy
+      # The PyO3 unit tests embed this interpreter; the BOUT grid refusal test
+      # passes real NumPy arrays, so NumPy must be importable here.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
+        with:
+          python-version: "3.12"
+      - name: Install embedded-interpreter NumPy
+        working-directory: .
+        run: pip install --require-hashes -r requirements/ci-deps.txt
       - name: Format check
         run: cargo fmt --check
       - name: Clippy

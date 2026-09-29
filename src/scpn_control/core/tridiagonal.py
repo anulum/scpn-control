@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Tridiagonal solver adapter.
 
-"""Validate compact tridiagonal systems and solve them with banded LAPACK.
+"""Validate compact tridiagonal systems and solve them with refined LAPACK.
 
 The four-array public contract is shared with the native CONTROL adapter.
 Numerical formulation and reference vectors are owned by SCPN-FUSION-CORE.
@@ -15,7 +15,7 @@ Numerical formulation and reference vectors are owned by SCPN-FUSION-CORE.
 from __future__ import annotations
 
 import numpy as np
-from scipy.linalg import solve_banded
+from scipy.linalg import lapack
 
 from scpn_control._typing import AnyFloatArray, FloatArray
 
@@ -85,7 +85,12 @@ def solve_tridiagonal(
     upper: AnyFloatArray,
     rhs: AnyFloatArray,
 ) -> FloatArray:
-    """Solve a finite real tridiagonal system with pivoted O(n) banded LAPACK.
+    """Solve a finite real tridiagonal system with pivoted, refined O(n) LAPACK.
+
+    The expert driver ``dgtsvx`` factors with partial pivoting and applies
+    LAPACK iterative refinement. Partial pivoting alone is only normwise
+    backward stable, so a row moved by a pivot (for example an identity
+    boundary row) can otherwise miss the rowwise bound checked here.
 
     Parameters
     ----------
@@ -106,7 +111,7 @@ def solve_tridiagonal(
     NonFiniteInputError
         An input is NaN or infinite.
     SingularFactorizationError
-        Banded factorisation finds a zero pivot.
+        Pivoted factorisation finds an exactly zero pivot.
     NumericalFailureError
         The solution is nonfinite or fails the scale-aware residual check.
     """
@@ -117,14 +122,15 @@ def solve_tridiagonal(
             raise SingularFactorizationError("tridiagonal factorisation is singular")
         result = right / diag
     else:
-        banded = np.zeros((3, n), dtype=np.float64)
-        banded[1] = diag
-        banded[0, 1:] = sup
-        banded[2, :-1] = sub
-        try:
-            result = np.asarray(solve_banded((1, 1), banded, right, check_finite=False), dtype=np.float64)
-        except np.linalg.LinAlgError as exc:
-            raise SingularFactorizationError("tridiagonal factorisation is singular") from exc
+        *_, solution, _rcond, _ferr, _berr, info = lapack.dgtsvx(sub, diag, sup, right.reshape(n, 1))
+        # INFO = n+1 only reports RCOND below machine precision; the refined
+        # solution exists and the rowwise check below remains the arbiter.
+        # INFO in 1..n is an exactly zero pivot. The wrapper derives every
+        # size argument from the validated vectors, so a negative INFO cannot
+        # occur; any other nonzero value still fails closed here.
+        if info not in (0, n + 1):
+            raise SingularFactorizationError("tridiagonal factorisation is singular")
+        result = np.asarray(solution[:, 0], dtype=np.float64)
     check_tridiagonal_result(sub, diag, sup, right, result)
     return result
 

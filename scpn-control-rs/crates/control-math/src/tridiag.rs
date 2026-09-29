@@ -8,7 +8,8 @@
 
 //! Pivoted tridiagonal LAPACK solve and the historical padded-array adapter.
 
-use lapack_sys::dgtsv_;
+use lapack_sys::dgtsvx_;
+use std::ffi::c_char;
 use thiserror::Error;
 
 /// Refusal categories shared with the Python and PyO3 CONTROL adapters.
@@ -28,11 +29,15 @@ pub enum TridiagonalError {
     NumericalFailure,
 }
 
-/// Solve a compact finite tridiagonal system with pivoted LAPACK `dgtsv`.
+/// Solve a compact finite tridiagonal system with pivoted LAPACK `dgtsvx`.
 ///
 /// `lower` and `upper` have length `n-1`; `diagonal` and `rhs` have length
-/// `n >= 1`. The inputs are not mutated. A successful result is finite and
-/// passes a rowwise scale-aware backward-error check.
+/// `n >= 1`. The inputs are not mutated. The expert driver factors with
+/// partial pivoting and applies LAPACK iterative refinement (`dgtrfs`):
+/// partial pivoting alone is only normwise backward stable, so a row that the
+/// pivot moves (for example an identity boundary row) can miss the rowwise
+/// bound. A successful result is finite and passes a rowwise scale-aware
+/// backward-error check.
 ///
 /// # Errors
 ///
@@ -70,26 +75,52 @@ pub fn solve_tridiagonal(
         }
         result[0] /= diagonal[0];
     } else {
-        let mut dl = lower.to_vec();
-        let mut d = diagonal.to_vec();
-        let mut du = upper.to_vec();
         let n_i32 = n as i32;
         let nrhs = 1_i32;
+        let fact = b'N' as c_char;
+        let trans = b'N' as c_char;
+        let mut dlf = vec![0.0; n - 1];
+        let mut df = vec![0.0; n];
+        let mut duf = vec![0.0; n - 1];
+        let mut du2 = vec![0.0; n - 2];
+        let mut ipiv = vec![0_i32; n];
+        let mut rcond = 0.0_f64;
+        let mut ferr = 0.0_f64;
+        let mut berr = 0.0_f64;
+        let mut work = vec![0.0; 3 * n];
+        let mut iwork = vec![0_i32; n];
         let mut info = 0_i32;
-        // LAPACK owns only these local mutable copies; input slices remain unchanged.
+        // FACT='N' reads the input slices; LAPACK writes only the local
+        // factor, workspace and solution buffers sized as `dgtsvx` requires.
         unsafe {
-            dgtsv_(
+            dgtsvx_(
+                &fact,
+                &trans,
                 &n_i32,
                 &nrhs,
-                dl.as_mut_ptr(),
-                d.as_mut_ptr(),
-                du.as_mut_ptr(),
+                lower.as_ptr(),
+                diagonal.as_ptr(),
+                upper.as_ptr(),
+                dlf.as_mut_ptr(),
+                df.as_mut_ptr(),
+                duf.as_mut_ptr(),
+                du2.as_mut_ptr(),
+                ipiv.as_mut_ptr(),
+                rhs.as_ptr(),
+                &n_i32,
                 result.as_mut_ptr(),
                 &n_i32,
+                &mut rcond,
+                &mut ferr,
+                &mut berr,
+                work.as_mut_ptr(),
+                iwork.as_mut_ptr(),
                 &mut info,
             );
         }
-        if info > 0 {
+        // INFO = n+1 only reports RCOND below machine precision; the refined
+        // solution exists and the rowwise check below remains the arbiter.
+        if info > 0 && info <= n_i32 {
             return Err(TridiagonalError::SingularFactorization);
         }
         if info < 0 {
@@ -210,6 +241,23 @@ mod tests {
                 assert!((value - 1.0).abs() < 1e-12);
             }
         }
+    }
+
+    #[test]
+    fn pivot_moved_identity_row_meets_rowwise_bound() {
+        // Partial pivoting swaps the identity boundary row below the dominant
+        // interior row; unrefined `dgtsv` leaves x[0] = 0.1 ± 1e-14, which
+        // misses the rowwise bound. Refinement restores the exact boundary.
+        let lower = [-100.0, 0.0];
+        let diagonal = [1.0, 80101.0, 1.0];
+        let upper = [0.0, -80000.0];
+        let rhs = [0.1, 50.0, 0.1];
+        let solution = solve_tridiagonal(&lower, &diagonal, &upper, &rhs)
+            .expect("refined pivoted solve meets the rowwise bound");
+        assert_eq!(solution[0], 0.1);
+        assert_eq!(solution[2], 0.1);
+        let middle = (50.0 + 100.0 * 0.1 + 80000.0 * 0.1) / 80101.0;
+        assert!((solution[1] - middle).abs() <= 4.0 * f64::EPSILON * middle);
     }
 
     #[test]

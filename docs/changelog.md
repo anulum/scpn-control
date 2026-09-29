@@ -101,6 +101,25 @@
   guarantees; `tests/test_fault_injector.py` covers the injector directly; the
   transport smoothing loop iterates the solved profile instead of indexing it,
   which Clippy 1.98 requires; and the capability manifest is regenerated.
+- The pivoted tridiagonal solve (Python and Rust) now uses the LAPACK expert
+  driver `dgtsvx`, whose iterative refinement lets every row meet the rowwise
+  backward-error check. Plain partial pivoting is only normwise backward
+  stable: after 47 transport steps the Crank-Nicolson pass pivoted its identity
+  row 0 and returned it with a rowwise error of 2.4e-12 against a 7.1e-13 bound,
+  so `transport_step` refused a valid system and the transport benchmark
+  aborted. A three-row reproduction and a 500-step transport run are now tests,
+  as are the result check's refusals, every premise of the dominant-CN
+  certificate, the empty-batch refusal and the JAX singleton path.
+- The Rust test lane installs the hash-locked NumPy runtime that the embedded
+  interpreter needs for the BOUT grid NumPy-input refusal test.
+- Regenerated inventories that earlier commits changed without refreshing: the
+  public claim ledger now binds the current lifecycle-registry digest, the
+  coverage-exception policy and its contract test accept the moved checkpoint
+  and JAX-solver entries plus the new tridiagonal JAX skip, the evidence-gap
+  matrix test
+  counts the checkpoint immutable-byte integrity leaf (73 entries, 72 blocked),
+  and the API contract registry classifies the relocated checkpoint-integrity
+  and fault-injector owners and the new Python and Rust tridiagonal surface.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
