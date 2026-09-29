@@ -81,6 +81,9 @@
   v0.17.0 archive; that record is v0.4.0. The top-level DOI is now the concept
   DOI `10.5281/zenodo.18804939`, which the README badge already uses, because
   no archive of the cited version exists.
+- `.zenodo.json` described v0.22.1 and gave 2026-07-03 as its publication date
+  while recording version 0.23.0. The description, notes and date now match the
+  0.23.0 release of 2026-07-17, and a metadata test ties them to the changelog.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor

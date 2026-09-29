@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
 import tomllib
@@ -295,3 +296,17 @@ def test_citation_doi_is_the_zenodo_concept_doi_shown_in_the_readme() -> None:
     assert f"https://doi.org/{ZENODO_CONCEPT_DOI}" in readme
     labels = {item["value"]: item["description"] for item in identifiers}
     assert labels["10.5281/zenodo.18821816"] == "Zenodo archive (v0.4.0)"
+
+
+def test_zenodo_text_and_date_describe_the_recorded_version() -> None:
+    """Archive text names only the recorded version and its changelog release date."""
+    metadata = json.loads((ROOT / ".zenodo.json").read_text(encoding="utf-8"))
+    version = cast("str", metadata["version"])
+    changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+    heading = re.search(rf"^## \[{re.escape(version)}\] - (\d{{4}}-\d{{2}}-\d{{2}})$", changelog, re.MULTILINE)
+
+    assert heading is not None
+    assert metadata["publication_date"] == heading.group(1)
+    assert f"v{version}" in metadata["notes"]
+    for field in ("description", "notes"):
+        assert set(re.findall(r"\bv(\d+\.\d+\.\d+)\b", metadata[field])) <= {version}
