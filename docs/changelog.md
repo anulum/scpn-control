@@ -120,6 +120,13 @@
   counts the checkpoint immutable-byte integrity leaf (73 entries, 72 blocked),
   and the API contract registry classifies the relocated checkpoint-integrity
   and fault-injector owners and the new Python and Rust tridiagonal surface.
+- The pitch architecture summary and the README tree state the generated
+  inventory again (207 modules, 66 Rust source files, 594 test files).
+- The symbolic-lane evidence report is regenerated after the licence banner
+  change altered its generator sources. In the recorded environment (Rust
+  backend, CPython 3.12.3, NumPy 2.2.6) every measured value reproduces
+  exactly; only `generator_sha256` and `payload_sha256` change, and the
+  lifecycle registry and public claim ledger rebind to the new report bytes.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
