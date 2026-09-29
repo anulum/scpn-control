@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tomllib
@@ -16,9 +17,11 @@ from pathlib import Path
 from typing import Any, cast
 
 import pytest
+import yaml
 from packaging.requirements import Requirement
 from packaging.version import Version
 
+from scpn_control.control.quantum_disruption_bridge import QUANTUM_BACKEND_OWNER
 from tools import check_version_sync
 from tools.ci_workflow_inventory import read_ci_workflow_source
 
@@ -202,3 +205,93 @@ def test_version_sync_guard_warns_on_missing_secondary_metadata(
     assert "WARN: could not extract version from CITATION.cff" in output
     assert "WARN: could not extract version from .zenodo.json" in output
     assert "README PyPI version badge file README.md does not exist" in output
+
+
+# Zenodo relation-type vocabulary, read from
+# https://zenodo.org/api/vocabularies/relationtypes on 2026-09-29 (34 entries).
+# Zenodo does not accept the DataCite relations ``isRelatedTo`` and
+# ``isAlternateIdentifier``; a release whose metadata names one is not archived.
+ZENODO_RELATION_TYPES = frozenset(
+    {
+        "cites",
+        "compiles",
+        "continues",
+        "describes",
+        "documents",
+        "hasmetadata",
+        "haspart",
+        "hasversion",
+        "iscitedby",
+        "iscompiledby",
+        "iscontinuedby",
+        "isderivedfrom",
+        "isdescribedby",
+        "isdocumentedby",
+        "isidenticalto",
+        "ismetadatafor",
+        "isnewversionof",
+        "isobsoletedby",
+        "isoriginalformof",
+        "ispartof",
+        "ispreviousversionof",
+        "ispublishedin",
+        "isreferencedby",
+        "isrequiredby",
+        "isreviewedby",
+        "issourceof",
+        "issupplementedby",
+        "issupplementto",
+        "isvariantformof",
+        "isversionof",
+        "obsoletes",
+        "references",
+        "requires",
+        "reviews",
+    }
+)
+ZENODO_CONCEPT_DOI = "10.5281/zenodo.18804939"
+
+
+def _zenodo_relations() -> dict[str, str]:
+    """Return the ``.zenodo.json`` related identifiers as ``identifier -> relation``."""
+    metadata = json.loads((ROOT / ".zenodo.json").read_text(encoding="utf-8"))
+    related = cast("list[dict[str, str]]", metadata["related_identifiers"])
+    return {item["identifier"]: item["relation"] for item in related}
+
+
+def test_zenodo_relations_are_in_the_zenodo_relation_vocabulary() -> None:
+    """Every archive relation must be one Zenodo accepts, compared case-insensitively."""
+    relations = _zenodo_relations()
+
+    assert len(relations) >= 1
+    rejected = sorted(r for r in relations.values() if r.lower() not in ZENODO_RELATION_TYPES)
+    assert rejected == []
+    assert len(ZENODO_RELATION_TYPES) == 34
+
+
+def test_zenodo_relations_match_the_package_dependency_contract() -> None:
+    """Sibling-project relations must describe links the package actually has."""
+    relations = _zenodo_relations()
+    pyproject = _load_pyproject()
+    project = cast("dict[str, Any]", pyproject["project"])
+    extras = cast("dict[str, list[str]]", project["optional-dependencies"])
+
+    assert relations["https://pypi.org/project/scpn-control/"] == "isVariantFormOf"
+    assert relations["https://github.com/anulum/scpn-fusion-core"] == "references"
+    assert "scpn-fusion>=4.0,<5.0" in extras["fusion"]
+    assert relations["https://github.com/anulum/scpn-quantum-control"] == "references"
+    assert QUANTUM_BACKEND_OWNER == "scpn-quantum-control"
+
+
+def test_citation_doi_is_the_zenodo_concept_doi_shown_in_the_readme() -> None:
+    """Cite the concept DOI while the current version has no Zenodo archive."""
+    citation = cast("dict[str, Any]", yaml.safe_load((ROOT / "CITATION.cff").read_text(encoding="utf-8")))
+    identifiers = cast("list[dict[str, str]]", citation["identifiers"])
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+
+    assert citation["doi"] == ZENODO_CONCEPT_DOI
+    concept = [item for item in identifiers if item["description"] == "Zenodo concept DOI (all versions)"]
+    assert [item["value"] for item in concept] == [ZENODO_CONCEPT_DOI]
+    assert f"https://doi.org/{ZENODO_CONCEPT_DOI}" in readme
+    labels = {item["value"]: item["description"] for item in identifiers}
+    assert labels["10.5281/zenodo.18821816"] == "Zenodo archive (v0.4.0)"

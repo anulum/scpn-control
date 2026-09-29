@@ -70,6 +70,17 @@
   commands to pass exact artifact paths, and made wheel/sdist builds
   byte-reproducible with pinned build backends, private-path validation, and
   installed-target validation.
+- The Zenodo archive metadata in `.zenodo.json` now uses relation types from
+  the Zenodo vocabulary: `isVariantFormOf` for the PyPI distribution and
+  `references` for scpn-fusion-core and scpn-quantum-control, in place of
+  `isAlternateIdentifier` and `isRelatedTo`, which Zenodo does not accept. The
+  latest Zenodo version is 0.4.0 (2026-03-01), whose record already uses
+  `references`. A metadata test pins every relation to the Zenodo
+  relation-type vocabulary.
+- `CITATION.cff` labelled the version DOI `10.5281/zenodo.18821816` as the
+  v0.17.0 archive; that record is v0.4.0. The top-level DOI is now the concept
+  DOI `10.5281/zenodo.18804939`, which the README badge already uses, because
+  no archive of the cited version exists.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
