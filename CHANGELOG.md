@@ -147,6 +147,10 @@
 - The Zenodo records of v0.3.3 and v0.4.0 list both MIT and Apache-2.0,
   matching the dual licence in their archived trees; they previously showed
   MIT only.
+- `REUSE.toml` gives files without their own header both canonical copyright
+  years, 1996–2026 (concepts) and 2020–2026 (code), as every source header
+  states; it previously gave only 1996–2026. A test binds the two entries to
+  the header years.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor

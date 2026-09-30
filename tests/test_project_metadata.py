@@ -432,3 +432,21 @@ def test_tracked_files_use_valid_spdx_lines_and_the_canonical_start_year() -> No
             offenders.append(name)
 
     assert offenders == []
+
+
+def test_reuse_blanket_copyright_states_both_canonical_header_years() -> None:
+    """Files without their own header receive the concepts and code years every header states."""
+    reuse_path = ROOT / "REUSE.toml"
+    text = reuse_path.read_text(encoding="utf-8")
+    concepts = re.search("© Concepts (\\d{4})–(\\d{4}) Miroslav Šotek", text)
+    code = re.search("© Code (\\d{4})–(\\d{4}) Miroslav Šotek", text)
+    assert concepts is not None
+    assert code is not None
+    blanket = tomllib.loads(text)["annotations"][0]
+
+    assert blanket["path"] == "**"
+    assert blanket["SPDX-License-Identifier"] == "AGPL-3.0-or-later"
+    assert blanket["SPDX-FileCopyrightText"] == [
+        f"{concepts[1]}-{concepts[2]} Miroslav Šotek <protoscience@anulum.li> (concepts)",
+        f"{code[1]}-{code[2]} Miroslav Šotek <protoscience@anulum.li> (code)",
+    ]
