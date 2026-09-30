@@ -136,6 +136,17 @@
   `subprocess` resolves `bash` to the WSL launcher (no distribution on the
   runner) and every refusal case passed without running the step; the release
   job itself runs on `ubuntu-latest`.
+- `FaultInjector` now applies every `FaultType` instead of silently returning
+  an unchanged copy for three of them: an open-circuit actuator outputs zero, a
+  stuck actuator locks at the value it carried on the first active call, and a
+  sensor-noise fault adds zero-mean Gaussian noise of standard deviation
+  `severity` from an optional `rng` (seed it for reproducible runs). Unknown
+  categories, a non-finite `fault_time` or `severity`, and a negative noise
+  severity are refused. The test that asserted the silent no-op now asserts
+  the noise.
+- The Zenodo records of v0.3.3 and v0.4.0 list both MIT and Apache-2.0,
+  matching the dual licence in their archived trees; they previously showed
+  MIT only.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
