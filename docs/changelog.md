@@ -151,6 +151,14 @@
   years, 1996–2026 (concepts) and 2020–2026 (code), as every source header
   states; it previously gave only 1996–2026. A test binds the two entries to
   the header years.
+- Studio web: the transitive `undici` and `markdown-it` are forced onto their
+  patched lines (14 Dependabot alerts: GHSA-w293-vg96-wgc3 and
+  GHSA-vp8m-p9jh-q5pm high, five further `undici` advisories, and
+  GHSA-253c-mchw-3w2r for `markdown-it`). The `undici` overrides were crossed:
+  jsdom 30.1 declares `^8.10.2` but was forced onto 7.x, and
+  `@module-federation/dts-plugin` 2.9 pins 7.29.0 but was forced onto 8.x. Each
+  consumer now receives the patched line of the major it declares (8.11.2 and
+  7.30.0), and typedoc receives `markdown-it` 14.3.2 within its `^14.3.0`.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
