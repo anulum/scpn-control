@@ -159,6 +159,11 @@
   `@module-federation/dts-plugin` 2.9 pins 7.29.0 but was forced onto 8.x. Each
   consumer now receives the patched line of the major it declares (8.11.2 and
   7.30.0), and typedoc receives `markdown-it` 14.3.2 within its `^14.3.0`.
+- Studio web: `brace-expansion` was pinned exactly to 5.0.9, which blocked the
+  Dependabot update for GHSA-q2hr-2g5m-vwhr. The override is now the range
+  `>=5.0.12 <6.0.0` within minimatch's `^5.0.8`, and the lockfile resolves
+  5.0.12. Two `minimumReleaseAgeExclude` entries that no longer resolve
+  (`undici@8.9.0`, `brace-expansion@5.0.9`) are removed.
 ### Changed
 
 - Added a deterministic review-only admission boundary for portable reactor
