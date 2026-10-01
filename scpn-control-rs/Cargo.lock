@@ -267,7 +267,7 @@ dependencies = [
  "approx",
  "control-types",
  "criterion",
- "lapack-sys",
+ "lapack-sys 0.15.0",
  "ndarray",
  "ndarray-linalg",
  "num-complex",
@@ -965,6 +965,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "lapack-sys"
+version = "0.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "314b879030845b68571809a6978e52d3b67ac5fba07e77b1b317b484092e2fb5"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "lax"
 version = "0.17.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -973,7 +982,7 @@ dependencies = [
  "cauchy",
  "intel-mkl-src",
  "katexit",
- "lapack-sys",
+ "lapack-sys 0.14.0",
  "num-traits",
  "thiserror 2.0.20",
 ]
