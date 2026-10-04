@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import pytest
 
-
 rust = pytest.importorskip("scpn_control_rs")
 
 

@@ -15,8 +15,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
 import json
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -24,9 +24,9 @@ import pytest
 
 from scpn_control._typing import FloatArray
 from scpn_control.control.federated_disruption import (
-    DifferentialPrivacyConfig,
     MACHINE_PROFILES,
     N_FEATURES,
+    DifferentialPrivacyConfig,
     FederatedConfig,
     FederatedServer,
     MachineClient,

@@ -9,8 +9,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -24,10 +24,10 @@ from scpn_control.control.digital_twin_online_update import (
     TwinObservation,
     TwinParameterPrior,
     artifact_payload_sha256,
-    bayesian_update_digital_twin,
-    digital_twin_update_evidence,
-    digital_twin_loss,
     assert_digital_twin_update_claim_admissible,
+    bayesian_update_digital_twin,
+    digital_twin_loss,
+    digital_twin_update_evidence,
     load_external_simulator_artifact,
     synthetic_online_update_benchmark,
     validate_external_simulator_artifact,

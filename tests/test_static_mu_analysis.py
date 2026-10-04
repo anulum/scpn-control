@@ -25,8 +25,8 @@ from scpn_control.control.static_mu_analysis import (
     compute_static_mu_upper_bound,
     design_riccati_state_feedback_with_static_mu_analysis,
     load_static_mu_analysis_claim_evidence,
-    static_mu_analysis_claim_evidence,
     save_static_mu_analysis_claim_evidence,
+    static_mu_analysis_claim_evidence,
 )
 
 

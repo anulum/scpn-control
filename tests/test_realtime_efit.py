@@ -18,8 +18,8 @@ import numpy as np
 import pytest
 
 from scpn_control.control.realtime_efit import (
-    EFITLiteClaimEvidence,
     MU0,
+    EFITLiteClaimEvidence,
     MagneticDiagnostics,
     RealtimeEFIT,
     ReconstructionResult,

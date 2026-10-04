@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from scpn_control.core.gk_eigenvalue import LinearGKResult, EigenMode
+from scpn_control.core.gk_eigenvalue import EigenMode, LinearGKResult
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput
 from scpn_control.core.gk_quasilinear import mixing_length_saturation
 from scpn_control.core.gk_tglf_native import (

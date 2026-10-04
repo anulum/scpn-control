@@ -20,39 +20,33 @@ import scpn_control._typing as _typing
 
 def test_float_array_is_float64_ndarray() -> None:
     """``FloatArray`` is the float64 ndarray specialisation used for outputs."""
-
     assert _typing.FloatArray == npt.NDArray[np.float64]
 
 
 def test_any_float_array_is_floating_ndarray() -> None:
     """``AnyFloatArray`` is the any-precision floating ndarray for inputs."""
-
     assert _typing.AnyFloatArray == npt.NDArray[np.floating[Any]]
 
 
 def test_any_complex_array_is_complexfloating_ndarray() -> None:
     """``AnyComplexArray`` is the any-precision complex ndarray for μ-analysis inputs."""
-
     assert _typing.AnyComplexArray == npt.NDArray[np.complexfloating[Any, Any]]
 
 
 def test_float_array_and_any_float_array_differ() -> None:
     """The output and input aliases are distinct types at module boundaries."""
-
     assert _typing.FloatArray != _typing.AnyFloatArray
     assert _typing.AnyComplexArray != _typing.AnyFloatArray
 
 
 def test_all_exports_sorted_and_complete() -> None:
     """``__all__`` lists all three aliases in sorted order."""
-
     assert _typing.__all__ == ["AnyComplexArray", "AnyFloatArray", "FloatArray"]
     assert _typing.__all__ == sorted(_typing.__all__)
 
 
 def test_float64_array_is_a_runtime_instance_of_ndarray() -> None:
     """A constructed float64 array is a concrete ndarray the alias describes."""
-
     array = np.zeros(3, dtype=np.float64)
     assert isinstance(array, np.ndarray)
     assert array.dtype == np.float64

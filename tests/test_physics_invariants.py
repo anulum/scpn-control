@@ -63,7 +63,7 @@ class TestEnergyConservation:
 
 class TestSugamaConservation:
     def test_particle_conservation(self):
-        """integral C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
+        """Integral C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
@@ -73,7 +73,7 @@ class TestSugamaConservation:
         assert abs(m0) < 1e-4, f"Particle moment = {m0}"
 
     def test_momentum_conservation(self):
-        """integral v_par C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
+        """Integral v_par C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
@@ -84,7 +84,7 @@ class TestSugamaConservation:
         assert abs(m1) < 1e-10, f"Momentum moment = {m1}"
 
     def test_energy_conservation(self):
-        """integral E C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
+        """Integral E C[f] dv ~ 0 (Gauss-Laguerre weighted)."""
         cfg = NonlinearGKConfig(**_FAST, collision_model="sugama", nu_collision=0.01)
         s = NonlinearGKSolver(cfg)
         state = s.init_state()
@@ -331,7 +331,7 @@ class TestKBMGrowth:
         s_es = NonlinearGKSolver(cfg_es)
         s_em = NonlinearGKSolver(cfg_em)
         # Same init seed
-        r_es = s_es.run(s_es.init_state(seed=99))
+        s_es.run(s_es.init_state(seed=99))
         r_em = s_em.run(s_em.init_state(seed=99))
         # A_par should exist in EM state
         assert r_em.final_state is not None
@@ -404,11 +404,7 @@ class TestNumericalMethods:
             # Create f = sin(θ) at each (kx, ky, vpar, mu)
             f_test = np.zeros((4, 4, ntheta, 4, 2), dtype=complex)
             f_test[:, :, :, :, :] = np.sin(s.theta)[None, None, :, None, None]
-            stream = s.parallel_streaming(f_test)
-            # The streaming includes v_par × b_dot_grad × df/dθ
-            # Check that df/dθ ≈ cos(θ) at the midplane
-            mid = ntheta // 2
-            # Derivative should be proportional to cos(θ[mid])
+            s.parallel_streaming(f_test)
             errors.append(ntheta)  # track resolution
         # Just verify it runs without error at all resolutions
         assert len(errors) == 3
@@ -599,7 +595,7 @@ class TestRegressionPins:
 
 class TestSymmetry:
     def test_phi_finite_all_kx(self):
-        """phi is finite at all kx modes (no divergence at high k)."""
+        """Phi is finite at all kx modes (no divergence at high k)."""
         cfg = NonlinearGKConfig(**_FAST)
         s = NonlinearGKSolver(cfg)
         state = s.init_state(amplitude=1e-3)
@@ -740,7 +736,7 @@ class TestThermodynamics:
         )
         s = NonlinearGKSolver(cfg)
         state = s.init_state(amplitude=1e-3)
-        phi = s.field_solve(state.f)
+        s.field_solve(state.f)
         # Reconstruct n_i and n_e from field solve
         n_i = np.sum(state.f[0], axis=(-2, -1)) * s.dvpar * s.dmu
         n_e = np.sum(state.f[1], axis=(-2, -1)) * s.dvpar * s.dmu
@@ -794,6 +790,7 @@ class TestCrossSolverConsistency:
         phi1 = r.phi_rms_t[-1]
         # In linear regime, phi should evolve (not stay constant)
         assert np.isfinite(phi1)
+        assert phi1 != phi0
 
     def test_flr_long_wavelength_limit(self):
         """At k_y→0: Γ₀→1 (Padé: 1/(1+b) → 1 when b→0)."""

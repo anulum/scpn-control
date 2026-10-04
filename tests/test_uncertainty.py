@@ -10,19 +10,18 @@ import pytest
 
 from scpn_control.core.uncertainty import (
     IPB98_CENTRAL,
+    PlasmaScenario,
     UQResult,
     assert_uq_calibrated_claim_admissible,
     bosch_hale_reactivity,
     compute_fusion_sensitivities,
     fusion_power_from_tau,
     ipb98_tau_e,
-    PlasmaScenario,
     quantify_full_chain,
     quantify_uncertainty,
     save_uq_claim_evidence,
     uq_claim_evidence,
 )
-
 
 # ITER-like baseline scenario
 ITER_SCENARIO = PlasmaScenario(

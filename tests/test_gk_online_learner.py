@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
 from numpy.typing import NDArray
 
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner, RetrainDecision
@@ -155,7 +154,7 @@ def test_retrain_with_existing_weights():
     # Second round with existing weights
     for inp, tgt in _random_samples(10, rng):
         learner.add_sample(inp, tgt)
-    result2 = learner.try_retrain(current_weights=weights)
+    learner.try_retrain(current_weights=weights)
     # May succeed or rollback; either way exercises the branch
     assert learner.generation >= 1
 

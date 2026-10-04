@@ -11,11 +11,11 @@ import numpy as np
 import pytest
 
 from scpn_control.core.blob_transport import (
-    BlobEvent,
-    BlobPopulation,
     BlobDetector,
     BlobDynamics,
     BlobEnsemble,
+    BlobEvent,
+    BlobPopulation,
     SOLBlobProfile,
 )
 

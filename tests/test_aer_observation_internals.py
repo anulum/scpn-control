@@ -6,7 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — AER Observation Internal Branch Tests
 """Branch coverage for the AER observation buffer, decode dispatch, feature
-normalisation modes, and integer validators."""
+normalisation modes, and integer validators.
+"""
 
 from __future__ import annotations
 

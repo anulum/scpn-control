@@ -18,8 +18,8 @@ from copy import deepcopy
 from typing import Any, cast
 
 import numpy as np
-from numpy.typing import NDArray
 import pytest
+from numpy.typing import NDArray
 
 
 def _control_features() -> NDArray[np.float64]:

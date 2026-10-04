@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for fusion_kernel.py profile_mode setup, Anderson mixing
-LinAlgError branch, and alpha normalisation guard."""
+LinAlgError branch, and alpha normalisation guard.
+"""
 
 from __future__ import annotations
 

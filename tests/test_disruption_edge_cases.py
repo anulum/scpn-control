@@ -34,7 +34,6 @@ from scpn_control.control.disruption_predictor import (
     run_fault_noise_campaign,
 )
 
-
 # ── Small window_size triggers the signal_window.size < 8 continue branch ──
 
 

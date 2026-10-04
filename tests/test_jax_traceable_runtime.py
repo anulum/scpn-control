@@ -9,10 +9,11 @@
 
 from __future__ import annotations
 
-import numpy as np
-import pytest
 import warnings
 from typing import cast
+
+import numpy as np
+import pytest
 
 from scpn_control.control.jax_traceable_runtime import (
     TraceableRuntimeSpec,
@@ -28,7 +29,6 @@ from scpn_control.control.jax_traceable_runtime import (
     run_traceable_control_loop,
     validate_traceable_backend_parity,
 )
-
 
 # ── Spec validation ──────────────────────────────────────────────────
 

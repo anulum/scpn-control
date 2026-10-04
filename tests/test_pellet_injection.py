@@ -82,7 +82,6 @@ def test_fueling_controller():
     params = PelletParams(4.0, 300.0)
     ctrl = PelletFuelingController(target_density=10.0, pellet_params=params)
 
-    rho = np.linspace(0, 1, 50)
     ne_low = np.ones(50) * 5.0
     Te = np.ones(50) * 5000.0
     V = 800.0

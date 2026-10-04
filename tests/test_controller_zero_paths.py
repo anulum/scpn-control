@@ -13,7 +13,8 @@
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for axis_count==0 (lines 504,519), action_count==0 (778,785),
 inj_count==0 (557), bitflip on empty array (804), and chunked antithetic
-odd-pass path (688)."""
+odd-pass path (688).
+"""
 
 from __future__ import annotations
 
@@ -117,7 +118,8 @@ class TestZeroAxes:
 class TestZeroActions:
     def test_step_no_actions_returns_defaults(self, tmp_path):
         """action_count==0 hits _decode_actions line 778 (returns {}),
-        but step() wraps with hardcoded dI keys → both 0.0."""
+        but step() wraps with hardcoded dI keys → both 0.0.
+        """
         readout_config = {
             "actions": [],
             "gains": [],

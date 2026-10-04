@@ -20,7 +20,6 @@ from scpn_control.scpn.formal_verification import (
     EventuallyFires,
     LTLFormula,
 )
-from scpn_control.scpn.structure import StochasticPetriNet
 from scpn_control.scpn.runtime_safety_certificate import (
     RUNTIME_SAFETY_CERTIFICATE_CLAIM_BOUNDARY,
     RUNTIME_SAFETY_CERTIFICATE_SCHEMA_VERSION,
@@ -36,6 +35,7 @@ from scpn_control.scpn.runtime_safety_certificate import (
     replay_runtime_safety_certificate,
     validate_runtime_safety_certificate_payload,
 )
+from scpn_control.scpn.structure import StochasticPetriNet
 
 
 def _disarm_net() -> StochasticPetriNet:

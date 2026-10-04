@@ -12,9 +12,9 @@ import pytest
 
 from scpn_control.control.capacitor_bank_state import CapacitorBank, CapacitorBankSpec, PulseSpec
 from scpn_control.control.fusion_neural_mpc import (
+    PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
     ModelPredictiveController,
     NeuralSurrogate,
-    PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
     PulsedShotMPCAdapter,
 )
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (

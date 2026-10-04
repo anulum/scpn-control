@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for ipb98y2_tau_e invalid tau (line 240) and
-ipb98y2_with_uncertainty non-finite variance (lines 323-324)."""
+ipb98y2_with_uncertainty non-finite variance (lines 323-324).
+"""
 
 from __future__ import annotations
 

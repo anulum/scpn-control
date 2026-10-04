@@ -202,7 +202,7 @@ class TestSimulateTearingModeBranches:
                 break
 
     def test_vde_disruption(self):
-        """vde mode with a seed that triggers disruption."""
+        """Vde mode with a seed that triggers disruption."""
         rng = np.random.default_rng(1)
         signal, label, ttd = simulate_tearing_mode(steps=2000, mode="vde", rng=rng)
         assert signal.size > 0
@@ -211,7 +211,7 @@ class TestSimulateTearingModeBranches:
             assert ttd >= 0
 
     def test_vde_safe(self):
-        """vde mode forced safe via short run."""
+        """Vde mode forced safe via short run."""
         for seed in range(50):
             rng = np.random.default_rng(seed)
             signal, label, ttd = simulate_tearing_mode(steps=600, mode="vde", rng=rng)

@@ -26,7 +26,6 @@ SCHEMA_VERSION = "scpn-control.differentiable-scenario-readiness.v1"
 
 def validate_differentiable_scenario_report(path: str | Path = DEFAULT_REPORT) -> dict[str, Any]:
     """Validate a persisted differentiable-scenario readiness report."""
-
     report_path = Path(path)
     errors: list[dict[str, object]] = []
     try:
@@ -265,7 +264,6 @@ def _nested_list(payload: dict[str, Any], parent: str, field: str) -> list[objec
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point for differentiable-scenario readiness validation."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("report", nargs="?", default=DEFAULT_REPORT)
     parser.add_argument("--json-out", action="store_true", help="print the validation result as JSON")

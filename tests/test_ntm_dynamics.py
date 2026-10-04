@@ -132,7 +132,7 @@ def test_polarization_threshold() -> None:
 
 
 def test_diamagnetic_stabilizes_small_islands() -> None:
-    """w < w_d → diamagnetic term dominates; dw/dt must be negative.
+    """W < w_d → diamagnetic term dominates; dw/dt must be negative.
 
     Sauter et al. 1997, Phys. Plasmas 4, 1654, Eq. 20:
       term_dia = -a4 * (w_d/w)² * (s_hat/s_hat_ref)

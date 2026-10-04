@@ -104,7 +104,6 @@ class TestEncodeWeightMatrixPacked:
 
     def test_statistical_fidelity(self):
         """Mean bit density ~ weight probability within tolerance."""
-        rng = np.random.default_rng(42)
         W = np.array([[0.3]])
         packed = _encode_weight_matrix_packed(W, bitstream_length=10000, seed=42)
         total_ones = 0

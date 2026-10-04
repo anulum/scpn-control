@@ -19,11 +19,11 @@ import numpy as np
 import pytest
 
 from scpn_control.core.integrated_transport_solver import (
-    TransportSolver,
     PhysicsError,
-    chang_hinton_chi_profile,
-    calculate_sauter_bootstrap_current_full,
+    TransportSolver,
     _load_gyro_bohm_coefficient,
+    calculate_sauter_bootstrap_current_full,
+    chang_hinton_chi_profile,
 )
 
 # ── Minimal config for fast tests ────────────────────────────────────
@@ -705,6 +705,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()
@@ -723,6 +724,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()
@@ -746,6 +748,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()
@@ -765,6 +768,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()
@@ -783,6 +787,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()
@@ -806,6 +811,7 @@ class TestExternalGKSolverFallback:
         ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
 
         from unittest.mock import MagicMock
+
         from scpn_control.core.gk_interface import GKOutput
 
         mock_solver = MagicMock()

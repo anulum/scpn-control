@@ -13,8 +13,8 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-import pytest
 import numpy as np
+import pytest
 
 from scpn_control.core.uncertainty import (
     PlasmaScenario,

@@ -28,7 +28,6 @@ from scpn_control.control.nengo_snn_wrapper import (
     nengo_available,
 )
 
-
 # ── nengo_available / config ─────────────────────────────────────────
 
 

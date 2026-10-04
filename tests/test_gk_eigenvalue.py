@@ -472,6 +472,7 @@ class TestElectromagneticKBMMTM:
         has_kbm = any(m.mode_type == "KBM" for m in result.modes)
         has_em = any(m.electromagnetic for m in result.modes)
         assert has_em
+        assert has_kbm
 
     def test_em_mtm_branch(self, cyclone_geometry, small_vgrid):
         """Low k_y + electron-direction mode + collisionality triggers MTM."""

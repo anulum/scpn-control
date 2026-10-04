@@ -30,7 +30,6 @@ from scpn_control.core._validators import (
     require_range,
 )
 
-
 # ── require_finite_float ─────────────────────────────────────────────
 
 

@@ -17,7 +17,6 @@ Regression tests for the transport validation benchmark.
 
 from __future__ import annotations
 
-
 from validation.benchmark_transport import (
     PURE_DIFFUSION_MAX_RELATIVE_ERROR,
     run_pure_diffusion_benchmark,

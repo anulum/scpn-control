@@ -31,7 +31,6 @@ from scpn_control.control.fusion_control_room import (
     run_control_room,
 )
 
-
 # ── helpers ──────────────────────────────────────────────────────────
 
 
@@ -589,8 +588,8 @@ class TestNeuralMPCVisualization:
 
 # ── director_interface: visualize + save_plot ────────────────────────
 
-from scpn_control.control.director_interface import DirectorInterface
 import scpn_control.control.neuro_cybernetic_controller as nc_mod
+from scpn_control.control.director_interface import DirectorInterface
 
 
 class _DirKernel:

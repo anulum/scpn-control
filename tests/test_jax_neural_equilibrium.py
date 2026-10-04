@@ -31,8 +31,8 @@ from scpn_control.core.jax_neural_equilibrium import (
     jax_neural_eq_predict,
     jax_neural_eq_predict_batched,
     jax_pca_inverse,
-    numpy_weights_to_jax,
     load_weights_as_jax,
+    numpy_weights_to_jax,
 )
 from scpn_control.core.neural_equilibrium import NeuralEqConfig, NeuralEquilibriumAccelerator
 

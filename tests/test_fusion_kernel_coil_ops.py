@@ -13,7 +13,8 @@
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for CoilSet ops: Green's function, mutual inductance,
 coil current optimization, free-boundary solve, interp_psi,
-and Rust multigrid fallback."""
+and Rust multigrid fallback.
+"""
 
 from __future__ import annotations
 

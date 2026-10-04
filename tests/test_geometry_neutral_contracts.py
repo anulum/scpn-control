@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from scpn_control.scpn.contracts import FeatureAxisSpec, ControlScales, ControlTargets, extract_features
+from scpn_control.scpn.contracts import ControlScales, ControlTargets, FeatureAxisSpec, extract_features
 from scpn_control.scpn.geometry_neutral_contracts import (
     ActuatorChannel,
     ActuatorSet,

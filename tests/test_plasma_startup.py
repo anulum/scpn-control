@@ -11,13 +11,13 @@ import numpy as np
 import pytest
 
 from scpn_control.core.plasma_startup import (
+    _E_IZ_EV,
     BurnThrough,
     PaschenBreakdown,
     StartupController,
     StartupPhase,
     StartupSequence,
     TownsendAvalanche,
-    _E_IZ_EV,
 )
 
 

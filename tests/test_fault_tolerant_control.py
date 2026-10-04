@@ -16,10 +16,10 @@ import pytest
 from numpy.typing import NDArray
 
 from scpn_control.control.fault_tolerant_control import (
-    FDIMonitor,
-    FaultReport,
     FaultInjector,
+    FaultReport,
     FaultType,
+    FDIMonitor,
     ReconfigurableController,
 )
 

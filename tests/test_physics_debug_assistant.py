@@ -24,8 +24,8 @@ from scpn_control.physics_debug import (
     build_guardrail_provider,
     build_local_provider,
     run_provider_quorum,
-    validate_physics_debug_report,
     validate_physics_debug_quorum_report,
+    validate_physics_debug_report,
 )
 
 
@@ -342,7 +342,6 @@ def test_physics_debug_neutralizes_prompt_injection_in_evidence_before_provider_
     )
 
     def transport(payload: dict[str, object]) -> dict[str, object]:
-        encoded = json.dumps(payload).casefold()
         user_content = payload["messages"][1]["content"]  # type: ignore[index]
         encoded_user_content = str(user_content).casefold()
         assert "ignore previous instructions" not in encoded_user_content

@@ -22,7 +22,6 @@ from scpn_control.core.stellarator_geometry import (
     w7x_config,
 )
 
-
 # ── W7-X preset ──────────────────────────────────────────────────────
 
 

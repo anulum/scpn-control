@@ -29,7 +29,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Final, Literal, Mapping, Sequence, cast
 
@@ -633,7 +633,7 @@ def run_campaign(reference_root: Path) -> dict[str, Any]:
 
     return build_campaign_report(
         lanes,
-        generated_at=datetime.now(timezone.utc).isoformat(),
+        generated_at=datetime.now(UTC).isoformat(),
         runtime_s=time.perf_counter() - t0,
     )
 

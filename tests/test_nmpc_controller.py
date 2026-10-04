@@ -395,7 +395,7 @@ def test_nmpc_accepts_casadi_qp_backend_configuration() -> None:
 
 
 def test_nmpc_acados_backend_fails_closed_without_runtime() -> None:
-    """acados deployment must not silently fall back to an internal solver."""
+    """Acados deployment must not silently fall back to an internal solver."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
     cfg.qp_backend = "acados"
     nmpc = NonlinearMPC(mock_tokamak_plant, cfg)
@@ -408,7 +408,7 @@ def test_nmpc_acados_backend_fails_closed_without_runtime() -> None:
 
 
 def test_nmpc_acados_backend_solves_through_runtime_boundary() -> None:
-    """acados backend should delegate the full OCP to an injected runtime."""
+    """Acados backend should delegate the full OCP to an injected runtime."""
     cfg = NMPCConfig(horizon=2, max_sqp_iter=1)
     cfg.qp_backend = "acados"
     cfg.P = 2.0 * np.eye(6)
@@ -614,7 +614,7 @@ def test_nmpc_acados_context_manager_closes_solver_after_exception() -> None:
 
 
 def test_nmpc_acados_context_manager_preserves_control_fault_when_free_fails() -> None:
-    """acados cleanup failures must not mask the controller fault being unwound."""
+    """Acados cleanup failures must not mask the controller fault being unwound."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
     cfg.qp_backend = "acados"
 
@@ -703,7 +703,7 @@ def test_nmpc_acados_backend_rejects_failed_solver_status() -> None:
 
 
 def test_nmpc_acados_backend_rejects_symbolic_runtime_dynamics_drift() -> None:
-    """acados state predictions must match the runtime plant before admission."""
+    """Acados state predictions must match the runtime plant before admission."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
     cfg.qp_backend = "acados"
     cfg.acados_dynamics_residual_tol = 1.0e-9
@@ -748,7 +748,7 @@ def test_nmpc_acados_backend_rejects_symbolic_runtime_dynamics_drift() -> None:
 
 
 def test_nmpc_acados_backend_rejects_terminal_state_violation() -> None:
-    """acados terminal state must satisfy the declared terminal admissible set."""
+    """Acados terminal state must satisfy the declared terminal admissible set."""
     cfg = NMPCConfig(horizon=1, max_sqp_iter=1)
     cfg.qp_backend = "acados"
     cfg.terminal_x_min = cfg.x_min.copy()
@@ -977,7 +977,6 @@ def test_nmpc_step_rejects_nonfinite_plant_output() -> None:
 
 def test_nmpc_uses_analytic_linearization_provider_without_plant_calls() -> None:
     """Analytic plant Jacobians avoid finite-difference plant evaluations."""
-
     plant_calls = {"count": 0}
 
     def plant(x: np.ndarray, u: np.ndarray) -> np.ndarray:
@@ -1079,7 +1078,6 @@ def test_nmpc_uses_jax_linearization_backend_when_configured(monkeypatch: pytest
 
 def test_nmpc_scipy_backend_enforces_terminal_state_set() -> None:
     """Terminal set constraints must enter the condensed QP, not only the cost."""
-
     A = np.eye(6)
     B = np.zeros((6, 3))
     B[0, 0] = 1.0
@@ -1110,7 +1108,6 @@ def test_nmpc_scipy_backend_enforces_terminal_state_set() -> None:
 
 def test_nmpc_terminal_set_requires_established_constrained_backend() -> None:
     """Coupled terminal constraints must fail closed without a capable solver."""
-
     cfg = NMPCConfig(horizon=1)
     cfg.terminal_x_min = cfg.x_min.copy()
     cfg.terminal_x_max = cfg.x_max.copy()

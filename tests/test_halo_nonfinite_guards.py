@@ -14,7 +14,8 @@
 """Regression tests for require_range low < min_allowed, high <= low,
 avalanche non-finite (435), momentum non-finite (455), relativistic
 loss non-finite (480), simulate loop non-finite guards (564, 569, 572, 578),
-and ensemble prevention path (719)."""
+and ensemble prevention path (719).
+"""
 
 from __future__ import annotations
 

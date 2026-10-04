@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for history/pulse validation (428, 430) and
-run_digital_twin with time_steps > 50 (337-338, 365)."""
+run_digital_twin with time_steps > 50 (337-338, 365).
+"""
 
 from __future__ import annotations
 
@@ -59,7 +60,8 @@ class TestRunDigitalTwinMovingAvg:
 
 class TestIdsPayloadConstruction:
     """The IDS conversion functions live in the optional io.imas_connector module
-    (absent on CI); inject deterministic fakes to exercise the wrapper glue."""
+    (absent on CI); inject deterministic fakes to exercise the wrapper glue.
+    """
 
     def test_run_digital_twin_ids_builds_summary_payload(self, monkeypatch: pytest.MonkeyPatch) -> None:
         import scpn_control.control.tokamak_digital_twin as dt

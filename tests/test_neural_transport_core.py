@@ -22,9 +22,9 @@ from scpn_control.core.neural_transport import (
     TransportFluxes,
     TransportInputs,
     _mlp_forward,
-    assert_neural_transport_quantitative_claim_admissible,
     _relu,
     _softplus,
+    assert_neural_transport_quantitative_claim_admissible,
     critical_gradient_model,
     cross_validate_neural_transport,
     neural_transport_claim_evidence,
@@ -32,7 +32,6 @@ from scpn_control.core.neural_transport import (
     save_neural_transport_claim_evidence,
 )
 from validation.validate_neural_transport_reference import canonical_artifact_sha256
-
 
 # ── Activation functions ────────────────────────────────────────────
 

@@ -16,14 +16,13 @@ import pytest
 from scpn_control.core.fusion_kernel import (
     ALPHA_FRACTION,
     CoilSet,
-    FusionKernelConfig,
     FusionKernel,
+    FusionKernelConfig,
     _select_x_point_index,
     dt_alpha_power_mw,
     dt_fusion_power_mw,
     neutron_wall_loading_mw_m2,
 )
-
 
 # ── helpers ──────────────────────────────────────────────────────────
 
@@ -681,6 +680,7 @@ class TestSolveEquilibrium:
         fk = FusionKernel(cfg)
         result = fk.solve_equilibrium()
         assert np.all(np.isfinite(fk.Psi))
+        assert result["solver_method"] == "jacobi"
 
     def test_newton_solver(self, tmp_path):
         cfg = _write_config(tmp_path / "newton.json", grid=(16, 16), method="newton", max_iter=30)

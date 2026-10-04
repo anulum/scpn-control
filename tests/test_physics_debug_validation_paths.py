@@ -39,7 +39,6 @@ from scpn_control.physics_debug import (
     validate_physics_debug_report,
 )
 
-
 # ── fixtures ──────────────────────────────────────────────────────────
 
 

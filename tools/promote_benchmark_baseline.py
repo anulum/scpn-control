@@ -16,7 +16,7 @@ import json
 import os
 import re
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping
 from uuid import uuid4
@@ -32,7 +32,7 @@ _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="microseconds").replace("+00:00", "Z")
+    return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _json_bytes(payload: Mapping[str, Any]) -> bytes:
@@ -242,7 +242,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--promotion-id", default="")
     args = parser.parse_args(argv)
-    promotion_id = args.promotion_id or datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+    promotion_id = args.promotion_id or datetime.now(UTC).strftime("%Y%m%dT%H%M%S.%fZ")
     try:
         receipt = promote(
             source_manifest=args.source_manifest,

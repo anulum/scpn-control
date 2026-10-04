@@ -15,7 +15,6 @@ from typing import Any, cast
 
 import pytest
 
-import scpn_control.scpn.artifact as artifact_module
 from scpn_control.scpn.artifact import (
     ActionReadout,
     Artifact,
@@ -45,27 +44,23 @@ JsonObject = dict[str, Any]
 
 def _object(value: object) -> JsonObject:
     """Return ``value`` as a JSON object after an assertion narrow."""
-
     assert isinstance(value, dict)
     return cast(JsonObject, value)
 
 
 def _array(value: object) -> list[object]:
     """Return ``value`` as a JSON array after an assertion narrow."""
-
     assert isinstance(value, list)
     return cast(list[object], value)
 
 
 def _payload(path: Path) -> JsonObject:
     """Load a JSON object payload from ``path``."""
-
     return _object(json.loads(path.read_text(encoding="utf-8")))
 
 
 def _compiled_artifact() -> Artifact:
     """Compile a controller artifact through the production compiler path."""
-
     net = StochasticPetriNet()
     for name in ("source", "guard", "sink"):
         net.add_place(name)
@@ -92,7 +87,6 @@ def _compiled_artifact() -> Artifact:
 
 def _packed_artifact() -> Artifact:
     """Return a packed artifact fixture that exercises both packed matrices."""
-
     return Artifact(
         meta=ArtifactMeta(
             artifact_version="1.0.0",
@@ -134,7 +128,6 @@ def _packed_artifact() -> Artifact:
 
 def test_artifact_json_schema_matches_saved_payload_contract(tmp_path: Path) -> None:
     """Schema required fields and closed objects match current saved payloads."""
-
     schema = get_artifact_json_schema()
     artifact = _compiled_artifact()
     artifact.meta.notes = "schema contract note"
@@ -172,7 +165,6 @@ def test_artifact_json_schema_matches_saved_payload_contract(tmp_path: Path) -> 
 
 def test_artifact_json_schema_matches_raw_and_compact_packed_payloads(tmp_path: Path) -> None:
     """Schema packed variants match raw and compact outputs from ``save_artifact``."""
-
     schema = get_artifact_json_schema()
     properties = _object(schema["properties"])
     packed_group = _object(_object(_object(properties["weights"])["properties"])["packed"])

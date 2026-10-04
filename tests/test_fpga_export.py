@@ -24,9 +24,9 @@ import pytest
 
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.fpga_export import (
-    FPGAConfig,
     HDL_EXPORT_EVIDENCE_LOCAL_ONLY,
     HDL_EXPORT_EVIDENCE_SYNTHESIS_QUALIFIED,
+    FPGAConfig,
     _leak_shift,
     assert_hdl_export_claim_admissible,
     compile_to_verilog,

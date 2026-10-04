@@ -31,10 +31,9 @@ import numpy as np
 import pytest
 
 from scpn_control.core.fusion_kernel import FusionKernel
-from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
 from scpn_control.phase.knm import KnmSpec
+from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step
 from scpn_control.phase.upde import UPDESystem
-
 
 # ── helpers ──────────────────────────────────────────────────────────
 

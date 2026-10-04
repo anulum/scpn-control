@@ -100,7 +100,7 @@ class TestBorisAdvance:
             assert rel_err < 1e-6, f"Speed changed by {rel_err:.2e} (should be conserved)"
 
     def test_rejects_invalid_dt(self) -> None:
-        """dt <= 0 should raise."""
+        """Dt <= 0 should raise."""
         particles = _seed(2)
         with pytest.raises(Exception):
             scpn_control_rs.py_advance_boris(particles, [0, 0, 0], [0, 0, 5], -1e-9, 10)

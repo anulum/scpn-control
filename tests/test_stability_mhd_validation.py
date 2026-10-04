@@ -7,7 +7,8 @@
 # SCPN Control — MHD Stability Validator Branch Tests.
 
 """Branch coverage for the MHD stability scalar/profile validators and the
-q-profile self-consistency checks."""
+q-profile self-consistency checks.
+"""
 
 from __future__ import annotations
 

@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for DisruptionTransformer forward validation, train_predictor
-save_plot path, and predict_disruption_risk_safe inference failure path."""
+save_plot path, and predict_disruption_risk_safe inference failure path.
+"""
 
 from __future__ import annotations
 

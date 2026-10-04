@@ -17,7 +17,7 @@ import re
 import sys
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Final, Literal, cast
 
@@ -643,10 +643,14 @@ def _validate_refresh_claim_boundary(
     _require_exact_keys(sealed_claim, set(registry_claim), context=f"{context}.refresh.claim_boundary")
     if sealed_claim == registry_claim:
         return
-    if any(
-        sealed_claim[field] != registry_claim[field]
-        for field in ("scientific_admission", "production_admission", "public_claim_allowed")
-    ) or sealed_claim["current_evidence"] is not True or registry_claim["current_evidence"] is not False:
+    if (
+        any(
+            sealed_claim[field] != registry_claim[field]
+            for field in ("scientific_admission", "production_admission", "public_claim_allowed")
+        )
+        or sealed_claim["current_evidence"] is not True
+        or registry_claim["current_evidence"] is not False
+    ):
         raise LifecycleRegistryError(f"refresh claim boundary drift for {artifact_path}")
     source_rationale = _require_string(sealed_claim["rationale"], f"{context}.refresh.claim_boundary.rationale")
     source_scope, separator, caveats = source_rationale.partition("; ")
@@ -804,7 +808,7 @@ def parse_datetime(value: str) -> datetime:
         raise ValueError("timestamp must be non-empty")
     if _FILENAME_TIMESTAMP_RE.fullmatch(stripped):
         parsed = datetime.strptime(stripped.removesuffix("Z"), "%Y%m%dT%H%M%S")
-        return parsed.replace(tzinfo=timezone.utc)
+        return parsed.replace(tzinfo=UTC)
     normalized = stripped.replace("Z", "+00:00")
     return _normalize_datetime(datetime.fromisoformat(normalized))
 
@@ -829,7 +833,9 @@ def _report_freshness(
     return ValidationReportFreshness(
         path=path,
         evidence_time=effective_time,
-        evidence_time_source="lifecycle_refresh" if lifecycle.refresh_evidence_time is not None else lifecycle.evidence_time_source,
+        evidence_time_source="lifecycle_refresh"
+        if lifecycle.refresh_evidence_time is not None
+        else lifecycle.evidence_time_source,
         age_days=age_days,
         stale=age_days > max_age_days,
         claim_boundary_present=True,
@@ -894,8 +900,8 @@ def _read_json_object(path: Path) -> dict[str, object]:
 
 def _normalize_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
-        return value.replace(tzinfo=timezone.utc)
-    return value.astimezone(timezone.utc)
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 def _repo_relative(path: Path) -> str:
@@ -927,7 +933,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fail-on-stale", action="store_true", help="Return non-zero when stale reports exist")
     args = parser.parse_args(argv)
 
-    as_of = parse_datetime(args.as_of) if args.as_of else datetime.now(tz=timezone.utc)
+    as_of = parse_datetime(args.as_of) if args.as_of else datetime.now(tz=UTC)
     try:
         matrix = build_validation_report_freshness_matrix(
             Path(args.reports_root),

@@ -23,7 +23,6 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "validation" / "control_resilience_campaign.py"
 SPEC = importlib.util.spec_from_file_location("control_resilience_campaign", MODULE_PATH)

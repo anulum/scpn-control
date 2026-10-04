@@ -24,7 +24,6 @@ from scpn_control.core.runaway_electrons import (
     synchrotron_energy_limit,
 )
 
-
 # ---------------------------------------------------------------------------
 # Existing tests (API-preserved, call-sites updated for new signatures)
 # ---------------------------------------------------------------------------
@@ -97,7 +96,7 @@ def test_mitigation_assessment() -> None:
 
 
 def test_coulomb_log_temperature() -> None:
-    """ln Λ increases with T_e (Wesson 2011, Eq. 2.12.4)."""
+    """Ln Λ increases with T_e (Wesson 2011, Eq. 2.12.4)."""
     ne_20 = 1.0
     ln_low = coulomb_log(ne_20, Te_keV=0.1)  # 100 eV
     ln_mid = coulomb_log(ne_20, Te_keV=1.0)  # 1 keV

@@ -16,6 +16,7 @@ import pytest
 from validation.validate_current_drive import (
     CURRENT_DRIVE_SCHEMA_VERSION,
     CurrentDriveValidationResult,
+    _rho_grid,
     build_evidence,
     critical_energy_rel_error,
     critical_energy_scaling_check,
@@ -28,7 +29,6 @@ from validation.validate_current_drive import (
     slowing_down_scaling_checks,
     validate_current_drive,
     validate_evidence_payload,
-    _rho_grid,
 )
 
 

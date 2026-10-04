@@ -22,31 +22,20 @@ Verification matrix:
 
 from __future__ import annotations
 
+import base64
 import json
 import math
 import os
 import tempfile
-import base64
 import zlib
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+import scpn_control.scpn.artifact_codec as artifact_codec_mod
 from scpn_control import __version__ as PACKAGE_VERSION
-from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.compiler import FusionCompiler, _HAS_SC_NEUROCORE
-from scpn_control.scpn.contracts import (
-    ActionSpec,
-    ControlAction,
-    ControlObservation,
-    ControlScales,
-    ControlTargets,
-    FeatureAxisSpec,
-    _clip01,
-    decode_actions,
-    extract_features,
-)
+from scpn_control.scpn import controller as controller_mod
 from scpn_control.scpn.artifact import (
     ARTIFACT_SCHEMA_VERSION,
     ArtifactValidationError,
@@ -58,10 +47,20 @@ from scpn_control.scpn.artifact import (
     load_artifact,
     save_artifact,
 )
+from scpn_control.scpn.compiler import _HAS_SC_NEUROCORE, FusionCompiler
+from scpn_control.scpn.contracts import (
+    ActionSpec,
+    ControlAction,
+    ControlObservation,
+    ControlScales,
+    ControlTargets,
+    FeatureAxisSpec,
+    _clip01,
+    decode_actions,
+    extract_features,
+)
 from scpn_control.scpn.controller import NeuroSymbolicController
-from scpn_control.scpn import controller as controller_mod
-import scpn_control.scpn.artifact_codec as artifact_codec_mod
-
+from scpn_control.scpn.structure import StochasticPetriNet
 
 # ── Fixture: 8-place controller net ─────────────────────────────────────────
 # 4 feature inputs (x_R_pos, x_R_neg, x_Z_pos, x_Z_neg)
@@ -811,7 +810,7 @@ class TestLevel2Primitives:
     @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_encode_mean_accuracy(self) -> None:
         """E[popcount(Encode(p))/L] ≈ p for a grid of probabilities."""
-        from sc_neurocore import generate_bernoulli_bitstream, RNG
+        from sc_neurocore import RNG, generate_bernoulli_bitstream
         from sc_neurocore.accel.vector_ops import pack_bitstream, vec_popcount
 
         L = 4096
@@ -825,7 +824,7 @@ class TestLevel2Primitives:
     @pytest.mark.skipif(not _HAS_SC_NEUROCORE, reason="sc_neurocore not installed")
     def test_and_product_accuracy(self) -> None:
         """E[AND(w, p)] ≈ w*p."""
-        from sc_neurocore import generate_bernoulli_bitstream, RNG
+        from sc_neurocore import RNG, generate_bernoulli_bitstream
         from sc_neurocore.accel.vector_ops import (
             pack_bitstream,
             vec_and,

@@ -20,11 +20,10 @@ import pytest
 
 from scpn_control.control.advanced_soc_fusion_learning import (
     CoupledSandpileReactor,
-    FusionAIAgent,
     FusionAI_Agent,
+    FusionAIAgent,
     run_advanced_learning_sim,
 )
-
 
 # ── CoupledSandpileReactor ───────────────────────────────────────────
 

@@ -14,7 +14,6 @@ from typing import Any
 
 import pytest
 
-import scpn_control.scpn.artifact as artifact_module
 import scpn_control.scpn.controller as controller_module
 from scpn_control.scpn.artifact import (
     ActionReadout,

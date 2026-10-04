@@ -19,11 +19,12 @@ import numpy as np
 import pytest
 
 import scpn_control.phase.kuramoto as kuramoto_module
+from scpn_control.phase.knm import OMEGA_N_16, KnmSpec, build_knm_paper27
 from scpn_control.phase.kuramoto import (
     GlobalPsiDriver,
     assert_kuramoto_runtime_claim_admissible,
-    kuramoto_sakaguchi_step,
     kuramoto_runtime_evidence,
+    kuramoto_sakaguchi_step,
     load_kuramoto_runtime_evidence,
     lyapunov_exponent,
     lyapunov_v,
@@ -31,11 +32,9 @@ from scpn_control.phase.kuramoto import (
     save_kuramoto_runtime_evidence,
     wrap_phase,
 )
-from scpn_control.phase.knm import KnmSpec, build_knm_paper27, OMEGA_N_16
-from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.lyapunov_guard import LyapunovGuard
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
-
+from scpn_control.phase.upde import UPDESystem
 
 # ── order_parameter ──────────────────────────────────────────────────
 
@@ -791,7 +790,6 @@ class TestLyapunovGuard:
         guard = LyapunovGuard(window=20, dt=0.01)
         rng = np.random.default_rng(42)
         theta = rng.uniform(-np.pi, np.pi, 50)
-        omega = np.zeros(50)
         psi = 0.5
         for _ in range(100):
             dth = 3.0 * np.sin(psi - theta)

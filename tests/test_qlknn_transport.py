@@ -26,10 +26,10 @@ import numpy as np
 import pytest
 
 from scpn_control.core.neural_transport import (
+    _DEFAULT_WEIGHTS_PATH,
     NeuralTransportModel,
     TransportFluxes,
     TransportInputs,
-    _DEFAULT_WEIGHTS_PATH,
     cross_validate_neural_transport,
 )
 

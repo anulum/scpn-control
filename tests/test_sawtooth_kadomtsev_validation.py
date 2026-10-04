@@ -107,7 +107,6 @@ def test_no_crash_when_q_above_one_everywhere() -> None:
 def test_crash_conservation_rejects_degenerate_mixing(monkeypatch) -> None:
     import validation.validate_sawtooth_kadomtsev as mod
 
-    rho = default_config().rho()
     monkeypatch.setattr(
         mod,
         "kadomtsev_crash",

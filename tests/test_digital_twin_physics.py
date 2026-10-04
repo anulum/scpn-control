@@ -18,8 +18,8 @@ import numpy as np
 from scpn_control.control.tokamak_digital_twin import (
     GRID_SIZE,
     Plasma2D,
-    run_digital_twin,
     TokamakTopology,
+    run_digital_twin,
 )
 
 

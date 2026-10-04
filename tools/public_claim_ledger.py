@@ -14,7 +14,7 @@ import argparse
 import hashlib
 import json
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
@@ -118,7 +118,7 @@ def build_public_claim_ledger(
     """Validate lifecycle metadata and return the admitted public-claim ledger."""
     matrix = build_validation_report_freshness_matrix(
         reports_root,
-        as_of=as_of or datetime.now(tz=timezone.utc),
+        as_of=as_of or datetime.now(tz=UTC),
         max_age_days=max_age_days,
         registry_path=registry_path,
     )

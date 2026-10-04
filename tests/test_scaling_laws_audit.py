@@ -13,7 +13,6 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-
 from scpn_control.core.scaling_laws import (
     compute_betan,
     greenwald_limit,

@@ -31,14 +31,12 @@ class CampaignInput:
 
 def sha256_json(payload: dict[str, Any]) -> str:
     """Return the SHA-256 digest of a canonical JSON payload."""
-
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def load_json(path: str | Path) -> dict[str, Any]:
     """Load a JSON object from *path*."""
-
     payload = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(payload, dict):
         raise ValueError(f"{path} must contain a JSON object")
@@ -47,7 +45,6 @@ def load_json(path: str | Path) -> dict[str, Any]:
 
 def safe_repo_reference(path_text: str, storage_root: Path) -> str:
     """Return a stable storage-relative reference for an internal data path."""
-
     path = Path(path_text)
     try:
         return path.resolve().relative_to(storage_root.resolve()).as_posix()
@@ -57,7 +54,6 @@ def safe_repo_reference(path_text: str, storage_root: Path) -> str:
 
 def finite_metric(report: dict[str, Any], key: str) -> float | None:
     """Read one optional finite metric from an evaluator report."""
-
     value = report.get("metrics", {}).get(key)
     if value is None:
         return None
@@ -69,7 +65,6 @@ def finite_metric(report: dict[str, Any], key: str) -> float | None:
 
 def mean(values: list[float]) -> float | None:
     """Return the arithmetic mean for a non-empty list, otherwise ``None``."""
-
     if not values:
         return None
     return float(sum(values) / len(values))
@@ -77,7 +72,6 @@ def mean(values: list[float]) -> float | None:
 
 def maximum(values: list[float]) -> float | None:
     """Return the maximum for a non-empty list, otherwise ``None``."""
-
     if not values:
         return None
     return float(max(values))
@@ -93,7 +87,6 @@ def _shot_id_from_report(report: dict[str, Any]) -> int:
 
 def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
     """Build a compact repository-publishable campaign evidence report."""
-
     candidate = load_json(inputs.candidate_report)
     evaluations = [load_json(path) for path in inputs.evaluation_reports]
     if not evaluations:
@@ -198,7 +191,6 @@ def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
 
 def write_campaign_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
     """Write campaign JSON and Markdown reports."""
-
     json_out.parent.mkdir(parents=True, exist_ok=True)
     json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     metrics = report["aggregate_metrics"]
@@ -261,7 +253,6 @@ def write_campaign_report(report: dict[str, Any], json_out: Path, markdown_out: 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-report", required=True, type=Path)
     parser.add_argument("--evaluation-report", required=True, action="append", type=Path)
@@ -273,7 +264,6 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     """Publish one campaign report from candidate and per-shot evidence."""
-
     args = parse_args()
     report = build_campaign_report(
         CampaignInput(

@@ -8,8 +8,8 @@
 
 from __future__ import annotations
 
-from dataclasses import asdict, replace
 import json
+from dataclasses import asdict, replace
 from types import SimpleNamespace
 
 import numpy as np

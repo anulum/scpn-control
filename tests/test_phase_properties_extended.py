@@ -20,14 +20,13 @@ import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
 
-from scpn_control.phase.knm import KnmSpec, build_knm_paper27
-from scpn_control.phase.upde import UPDESystem
 from scpn_control.phase.adaptive_knm import (
     AdaptiveKnmConfig,
     AdaptiveKnmEngine,
     DiagnosticSnapshot,
 )
-
+from scpn_control.phase.knm import KnmSpec, build_knm_paper27
+from scpn_control.phase.upde import UPDESystem
 
 # ── Strategies ────────────────────────────────────────────────────────
 

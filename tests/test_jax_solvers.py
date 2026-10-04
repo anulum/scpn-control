@@ -23,9 +23,9 @@ from __future__ import annotations
 
 import builtins
 import importlib.util
+from collections.abc import Sequence
 from pathlib import Path
 from types import ModuleType
-from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
@@ -251,6 +251,7 @@ class TestJaxParity:
         """JAX autodiff through Thomas solver should produce finite gradients."""
         import jax
         import jax.numpy as jnp
+
         from scpn_control.core.jax_solvers import _thomas_solve_jax_impl
 
         n = 16
@@ -271,6 +272,7 @@ class TestJaxParity:
         """JAX autodiff through full CN step."""
         import jax
         import jax.numpy as jnp
+
         from scpn_control.core.jax_solvers import _cn_step_jax
 
         n = 16

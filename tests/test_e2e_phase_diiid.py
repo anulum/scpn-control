@@ -20,12 +20,11 @@ End-to-end tests exercising the full RealtimeMonitor pipeline:
 
 from __future__ import annotations
 
-
 import numpy as np
 import pytest
+from mock_diiid import generate_mock_shot, save_mock_shot  # via pythonpath=["tests"]
 
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
-from mock_diiid import generate_mock_shot, save_mock_shot  # via pythonpath=["tests"]
 
 
 class TestMockDIIID:

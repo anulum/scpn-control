@@ -606,7 +606,6 @@ def test_close_legacy_path_without_lib_nulls_pointer() -> None:
 
 def test_packaged_solver_manifest_matches_source() -> None:
     """The shipped native solver source must match its package manifest."""
-
     source_path = Path(hpc_mod.__file__).resolve().parent / "solver.cpp"
     manifest_path = Path(hpc_mod.__file__).resolve().parent / "solver_manifest.json"
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -622,7 +621,6 @@ def test_packaged_solver_manifest_matches_source() -> None:
 
 def test_packaged_solver_artifacts_are_declared_in_package_data() -> None:
     """The wheel/sdist metadata must include the native source contract."""
-
     pyproject = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
     package_data = cast(list[str], pyproject["tool"]["setuptools"]["package-data"]["scpn_control.core"])
 
@@ -657,7 +655,6 @@ def _release_library_handle(handle: int) -> None:
 
 def test_compile_cpp_builds_and_loads_packaged_solver(monkeypatch: pytest.MonkeyPatch) -> None:
     """The opt-in native build path compiles and loads the shipped solver."""
-
     if shutil.which("g++") is None:
         pytest.skip("g++ is unavailable")
 

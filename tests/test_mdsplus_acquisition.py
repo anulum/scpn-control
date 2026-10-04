@@ -18,15 +18,14 @@ import numpy.typing as npt
 import pytest
 from click.testing import CliRunner
 
+import scpn_control.core.mdsplus_acquisition as mdsplus_acquisition
 from scpn_control.core.mdsplus_acquisition import (
     MDSplusSignalSpec,
     _validate_signal_specs,
     acquire_mdsplus_shot,
     load_mdsplus_acquisition_request,
 )
-import scpn_control.core.mdsplus_acquisition as mdsplus_acquisition
 from scpn_control.core.real_data_manifest import load_real_data_manifest
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 

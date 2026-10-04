@@ -6,7 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Controller log_path + passthrough feature dict tests
 """Regression tests for _build_feature_dict passthrough loop (lines 542-545),
-triggered only when log_path is not None."""
+triggered only when log_path is not None.
+"""
 
 from __future__ import annotations
 

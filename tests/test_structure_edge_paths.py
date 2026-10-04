@@ -13,7 +13,8 @@
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for structure.py: unknown node arc (130), inhibitor weight (150),
 strict validation (208), inhibitor compile guard (244), and verify methods
-when called on nets with specific patterns (492, 517, 546)."""
+when called on nets with specific patterns (492, 517, 546).
+"""
 
 from __future__ import annotations
 

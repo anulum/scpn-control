@@ -14,7 +14,8 @@
 """Regression tests for halo_re_physics.py validation guards: _as_non_negative_float
 negative value, _as_range low < min_allowed, _as_range high <= low,
 simulate dt > duration, simulate seed_re_fraction out of range,
-and dreicer edge cases for ratio > 200 and non-finite loss guards."""
+and dreicer edge cases for ratio > 200 and non-finite loss guards.
+"""
 
 from __future__ import annotations
 
@@ -55,7 +56,7 @@ class TestDreicerEdge:
         assert rate == 0.0
 
     def test_dreicer_negative_ratio(self):
-        """ratio <= 0 returns 0 (line 393-394)."""
+        """Ratio <= 0 returns 0 (line 393-394)."""
         model = RunawayElectronModel(n_e=1e20, T_e_keV=1.0, z_eff=2.0)
         rate = model._dreicer_rate(E=-1.0, T_e_keV=1.0)
         assert rate == 0.0

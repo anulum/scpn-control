@@ -25,7 +25,6 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 def _minimal_net() -> StochasticPetriNet:
     """Return a single-transition Petri net for artifact contract tests."""
-
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=1.0)
     net.add_place("sink", initial_tokens=0.0)
@@ -37,7 +36,6 @@ def _minimal_net() -> StochasticPetriNet:
 
 def _artifact_path(tmp_path: Path, *, firing_margin: float = 0.2, omit_transition_margin: bool = True) -> Path:
     """Compile and save a fractional artifact with a metadata firing margin."""
-
     compiled = FusionCompiler(bitstream_length=64, seed=1).compile(
         _minimal_net(),
         firing_mode="fractional",
@@ -58,7 +56,6 @@ def _artifact_path(tmp_path: Path, *, firing_margin: float = 0.2, omit_transitio
 
 def _mutate_payload(path: Path, tmp_path: Path, mutation: dict[str, Any]) -> Path:
     """Write a mutated copy of an artifact JSON payload."""
-
     payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     for dotted_path, value in mutation.items():
         target = payload
@@ -73,7 +70,6 @@ def _mutate_payload(path: Path, tmp_path: Path, mutation: dict[str, Any]) -> Pat
 
 def test_firing_margin_round_trips_and_drives_controller_defaults(tmp_path: Path) -> None:
     """Artifact metadata carries the default margin into controller runtime."""
-
     path = _artifact_path(tmp_path, firing_margin=0.2)
     payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     assert cast(dict[str, Any], payload["meta"])["firing_margin"] == 0.2
@@ -95,7 +91,6 @@ def test_firing_margin_round_trips_and_drives_controller_defaults(tmp_path: Path
 
 def test_legacy_artifact_without_firing_margin_loads_with_default(tmp_path: Path) -> None:
     """Older artifacts without metadata firing margins retain legacy behavior."""
-
     path = _artifact_path(tmp_path)
     legacy_path = _mutate_payload(path, tmp_path, {"meta.firing_margin": None})
     payload = cast(dict[str, Any], json.loads(legacy_path.read_text(encoding="utf-8")))
@@ -110,7 +105,6 @@ def test_legacy_artifact_without_firing_margin_loads_with_default(tmp_path: Path
 @pytest.mark.parametrize("bad_margin", [-0.1, float("nan"), True, "0.1"])
 def test_artifact_rejects_invalid_firing_margin(tmp_path: Path, bad_margin: object) -> None:
     """Artifact admission rejects non-finite or non-numeric firing margins."""
-
     path = _artifact_path(tmp_path)
     bad_path = _mutate_payload(path, tmp_path, {"meta.firing_margin": bad_margin})
 
@@ -121,7 +115,6 @@ def test_artifact_rejects_invalid_firing_margin(tmp_path: Path, bad_margin: obje
 @pytest.mark.parametrize("bad_margin", [-0.1, float("nan"), True])
 def test_compiler_rejects_invalid_firing_margin(bad_margin: float) -> None:
     """Compiler rejects invalid margins before artifact export."""
-
     with pytest.raises(ValueError, match="firing_margin"):
         FusionCompiler(bitstream_length=64, seed=1).compile(
             _minimal_net(),

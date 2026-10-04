@@ -17,7 +17,6 @@ Tests for the closed-loop disruption mitigation controller.
 
 from __future__ import annotations
 
-
 from scpn_control.control.spi_mitigation import DisruptionMitigationController, MitigationState
 
 

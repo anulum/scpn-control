@@ -15,9 +15,9 @@ import pytest
 import scpn_control.core.eped_pedestal as eped_pedestal
 from scpn_control.core.eped_pedestal import (
     EPEDConfig,
+    EpedPedestalModel,
     EPEDResult,
     EPEDValidationPoint,
-    EpedPedestalModel,
     PedestalProfileGenerator,
     _shaping_factor,
     eped1_predict,

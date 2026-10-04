@@ -15,6 +15,11 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.core.neoclassical import (
+    _ion_collision_freq,
+    _larmor_radius,
+    _sauter_L31,
+    _sauter_L32,
+    _sauter_L34,
     banana_plateau_chi,
     chang_hinton_chi,
     collisionality,
@@ -22,11 +27,6 @@ from scpn_control.core.neoclassical import (
     pfirsch_schluter_chi,
     plateau_chi,
     sauter_bootstrap,
-    _ion_collision_freq,
-    _larmor_radius,
-    _sauter_L31,
-    _sauter_L32,
-    _sauter_L34,
 )
 
 
@@ -250,18 +250,18 @@ def test_sauter_coefficients_physical_range():
 
 
 def test_collisionality_near_zero_Te():
-    """collisionality returns 0 when T_kev <= 0.01 (line 71 guard)."""
+    """Collisionality returns 0 when T_kev <= 0.01 (line 71 guard)."""
     assert collisionality(n_e_19=5.0, T_kev=0.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
     assert collisionality(n_e_19=5.0, T_kev=0.01, q=2.0, R=6.2, epsilon=0.1) == 0.0
 
 
 def test_collisionality_zero_epsilon():
-    """collisionality returns 0 when epsilon < 1e-6."""
+    """Collisionality returns 0 when epsilon < 1e-6."""
     assert collisionality(n_e_19=5.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.0) == 0.0
 
 
 def test_collisionality_zero_density():
-    """collisionality returns 0 when n_e_19 <= 0."""
+    """Collisionality returns 0 when n_e_19 <= 0."""
     assert collisionality(n_e_19=0.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
     assert collisionality(n_e_19=-1.0, T_kev=2.0, q=2.0, R=6.2, epsilon=0.1) == 0.0
 

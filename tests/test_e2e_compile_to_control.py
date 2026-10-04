@@ -15,7 +15,6 @@
 
 from __future__ import annotations
 
-
 import numpy as np
 
 from scpn_control.scpn.artifact import load_artifact, save_artifact

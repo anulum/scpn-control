@@ -29,7 +29,6 @@ from scpn_control.control.disruption_predictor import (
     simulate_tearing_mode,
 )
 
-
 # ── _require_int edge cases ──────────────────────────────────────────
 
 

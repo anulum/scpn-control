@@ -14,8 +14,8 @@ from __future__ import annotations
 import numpy as np
 
 from scpn_control.core.gk_corrector import CorrectionRecord, CorrectorConfig, GKCorrector
-from scpn_control.core.gk_ood_detector import OODResult
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner
+from scpn_control.core.gk_ood_detector import OODResult
 from scpn_control.core.gk_scheduler import GKScheduler, SchedulerConfig
 from scpn_control.core.gk_verification_report import VerificationReport
 

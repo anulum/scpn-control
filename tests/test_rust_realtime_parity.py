@@ -74,7 +74,7 @@ def _as_float(value: object) -> float:
 @pytest.fixture
 def shared_state() -> SharedState:
     """Build matching Python and Rust monitors from identical initial state."""
-    from scpn_control.phase.knm import OMEGA_N_16, build_knm_paper27
+    from scpn_control.phase.knm import build_knm_paper27
     from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
     rust_bindings = cast(_RustBindings, _scpn_control_rs)
@@ -86,10 +86,6 @@ def shared_state() -> SharedState:
     psi = 0.3
 
     spec = build_knm_paper27(L=L, zeta_uniform=zeta_val)
-    rng = np.random.default_rng(seed)
-    theta_layers = [rng.uniform(-np.pi, np.pi, N_per) for _ in range(L)]
-    omega_layers = [OMEGA_N_16[m % 16] + rng.normal(0, 0.2, N_per) for m in range(L)]
-
     # Python monitor
     py_mon = RealtimeMonitor.from_paper27(
         L=L,

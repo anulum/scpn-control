@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING, Any, cast
 # Warning-time requirement: τ_warning > τ_TQ + τ_mitigation ≈ 10–30 ms for
 # ITER; Lehnen et al. 2015, J. Nucl. Mater. 463, 39.
 #
-# Input features (locked-mode amplitude, P_rad fraction, q95, β_N, l_i,
-# Greenwald fraction): Rea et al. 2019, Nucl. Fusion 59, 096016, Table I.
+# Rea et al. 2019, Nucl. Fusion 59, 096016, Table I includes locked-mode
+# amplitude, P_rad, q95, beta_N, l_i and Greenwald fraction. This module's
+# heuristic does not consume those six features as that paper defines them.
 import numpy as np
 
 from scpn_control._typing import FloatArray

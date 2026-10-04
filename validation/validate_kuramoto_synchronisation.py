@@ -23,7 +23,8 @@ Validated published references:
   threshold the steady mean-field order parameter follows
   ``R∞(K) = sqrt(1 − Kc/K)`` for ``K ≥ Kc`` and ``R∞ = 0`` below.
 
-References:
+References
+----------
   Kuramoto Y. (1975) in *International Symposium on Mathematical Problems in
   Theoretical Physics*, Lect. Notes Phys. 39, 420.
   Sakaguchi H., Kuramoto Y. (1986) *Prog. Theor. Phys.* 76, 576.
@@ -44,7 +45,7 @@ import json
 import math
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any, Mapping, Sequence
 
 import numpy as np
@@ -325,7 +326,7 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:

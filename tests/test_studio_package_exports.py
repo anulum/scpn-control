@@ -7,7 +7,8 @@
 # SCPN Control — Studio package facade tests
 """Studio package facade contract: lazy export resolution, unknown-attribute
 rejection, dir() listing, export-map consistency, and the SDK-free import
-guarantee for the sealed-claim submodule."""
+guarantee for the sealed-claim submodule.
+"""
 
 from __future__ import annotations
 

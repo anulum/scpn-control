@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for load_or_train_predictor fallback paths, evaluate_predictor,
-and predict_disruption_risk_safe inference failure path."""
+and predict_disruption_risk_safe inference failure path.
+"""
 
 from __future__ import annotations
 

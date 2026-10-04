@@ -266,6 +266,7 @@ def test_controllers_registry_has_pid_and_hinf():
 def test_flight_sim_controller_factory():
     """get_flight_sim_controller synthesizes a valid controller."""
     import numpy as np
+
     from scpn_control.control.h_infinity_controller import get_flight_sim_controller
 
     ctrl = get_flight_sim_controller(response_gain=0.05, actuator_tau=0.06)
@@ -329,6 +330,7 @@ def test_flight_sim_controller_rejects_invalid_params():
 def test_hinf_episode_uses_flight_sim_controller(monkeypatch):
     """H-inf episode should use get_flight_sim_controller, not get_radial_robust_controller."""
     import numpy as np
+
     import validation.stress_test_campaign as mod
 
     class FakeIso:

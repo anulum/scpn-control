@@ -20,8 +20,8 @@ import numpy as np
 from scpn_control.control import solve_kernel
 from scpn_control.control.director_interface import DirectorInterface
 from scpn_control.control.fusion_control_room import run_control_room
-from scpn_control.control.fusion_optimal_control import OptimalController
 from scpn_control.control.fusion_neural_mpc import run_neural_mpc_simulation
+from scpn_control.control.fusion_optimal_control import OptimalController
 from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
 from scpn_control.control.tokamak_flight_sim import run_flight_sim
 

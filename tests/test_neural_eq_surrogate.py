@@ -101,7 +101,7 @@ class TestNeuralEquilibriumAccelerator:
         accel._input_std = std
 
         accel.pca.fit(Y)
-        Y_c = accel.pca.transform(Y)
+        accel.pca.transform(Y)
 
         layer_sizes = [12, 16, 8, 5]
         accel.mlp = SimpleMLP(layer_sizes, seed=0)

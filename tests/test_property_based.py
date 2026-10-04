@@ -16,12 +16,12 @@ from __future__ import annotations
 import json
 
 import numpy as np
-from hypothesis import HealthCheck, given, settings, strategies as st
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 from scpn_control.core.fusion_kernel import FusionKernel
 from scpn_control.core.integrated_transport_solver import TransportSolver
 from scpn_control.phase.kuramoto import kuramoto_sakaguchi_step, order_parameter
-
 
 # ── GS Solver Properties ─────────────────────────────────────────────
 

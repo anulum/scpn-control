@@ -17,7 +17,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-
 import pytest
 
 from scpn_control.core.neural_transport import (

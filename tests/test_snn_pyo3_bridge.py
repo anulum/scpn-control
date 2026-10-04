@@ -163,7 +163,7 @@ class TestRustCompatWrappers:
         assert cz < 0.0
 
     def test_repr(self) -> None:
-        from scpn_control.core._rust_compat import RustSnnPool, RustSnnController
+        from scpn_control.core._rust_compat import RustSnnController, RustSnnPool
 
         pool = RustSnnPool(n_neurons=30, gain=7.0)
         assert "30" in repr(pool)

@@ -31,7 +31,6 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 def _inhibitor_net() -> StochasticPetriNet:
     """Return a net whose guard place inhibits the output transition."""
-
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=1.0)
     net.add_place("guard", initial_tokens=1.0)
@@ -45,7 +44,6 @@ def _inhibitor_net() -> StochasticPetriNet:
 
 def _controller_net() -> StochasticPetriNet:
     """Return a non-inhibitor net that can be exported as a controller artifact."""
-
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=1.0)
     net.add_place("sink", initial_tokens=0.0)
@@ -57,7 +55,6 @@ def _controller_net() -> StochasticPetriNet:
 
 def _artifact() -> Artifact:
     """Compile and export a minimal non-inhibitor controller artifact."""
-
     compiled = FusionCompiler(bitstream_length=64, seed=5).compile(_controller_net())
     return cast(
         Artifact,
@@ -71,14 +68,12 @@ def _artifact() -> Artifact:
 
 def _write_artifact_payload(path: Path, artifact: Artifact) -> dict[str, Any]:
     """Save an artifact and return its JSON payload for mutation."""
-
     save_artifact(artifact, path)
     return cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
 
 
 def _set_payload_value(payload: dict[str, Any], dotted_path: str, value: object) -> None:
     """Set one dotted JSON payload path in place."""
-
     target: Any = payload
     parts = dotted_path.split(".")
     for part in parts[:-1]:
@@ -94,7 +89,6 @@ def _set_payload_value(payload: dict[str, Any], dotted_path: str, value: object)
 
 def test_structure_inhibitors_compile_but_artifact_export_fails_closed() -> None:
     """Inhibitor nets stay usable for structure analysis but not artifacts."""
-
     compiled = FusionCompiler(bitstream_length=64, seed=5).compile(_inhibitor_net(), allow_inhibitor=True)
 
     np.testing.assert_array_equal(compiled.W_in, np.array([[1.0, -1.0, 0.0]], dtype=np.float64))
@@ -108,7 +102,6 @@ def test_structure_inhibitors_compile_but_artifact_export_fails_closed() -> None
 
 def test_artifact_loader_rejects_negative_input_weights(tmp_path: Path) -> None:
     """Artifact admission rejects negative weights before controller runtime."""
-
     artifact_path = tmp_path / "negative-w-in.scpnctl.json"
     payload = _write_artifact_payload(artifact_path, _artifact())
     weights = cast(dict[str, Any], payload["weights"])
@@ -133,7 +126,6 @@ def test_artifact_loader_rejects_non_numeric_dense_weights(
     tmp_path: Path, dotted_path: str, value: object, match: str
 ) -> None:
     """Artifact admission rejects non-numeric dense weights before runtime."""
-
     artifact_path = tmp_path / "invalid-weight.scpnctl.json"
     payload = _write_artifact_payload(artifact_path, _artifact())
     _set_payload_value(payload, dotted_path, value)
@@ -152,7 +144,6 @@ def test_artifact_loader_rejects_non_numeric_dense_weights(
 )
 def test_save_artifact_rejects_direct_non_numeric_dense_weights(tmp_path: Path, matrix_name: str, match: str) -> None:
     """Save admission rejects direct bool weights in constructed artifacts."""
-
     artifact = _artifact()
     if matrix_name == "w_in":
         artifact.weights.w_in.data[0] = cast(float, True)
@@ -165,7 +156,6 @@ def test_save_artifact_rejects_direct_non_numeric_dense_weights(tmp_path: Path, 
 
 def test_controller_rejects_direct_negative_input_weight_artifact() -> None:
     """Directly constructed artifacts cannot bypass the inhibitor guard."""
-
     artifact = _artifact()
     artifact.weights.w_in.data[0] = -1.0
 
@@ -181,7 +171,6 @@ def test_controller_rejects_direct_negative_input_weight_artifact() -> None:
 
 def test_artifact_json_schema_declares_non_negative_weight_contract() -> None:
     """The public artifact schema rejects negative dense controller weights."""
-
     schema = get_artifact_json_schema()
     weight_item = cast(dict[str, Any], schema["definitions"]["weight_matrix"]["properties"]["data"]["items"])
 

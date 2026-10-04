@@ -125,12 +125,14 @@ def test_legacy_facade_preserves_bounded_access_and_persistence(tmp_path) -> Non
     """Every retained legacy symbol must warn and forward to the static owner."""
     from scpn_control.control.mu_synthesis import (
         MuSynthesisController,
-        StructuredUncertainty as LegacyStructuredUncertainty,
         assert_mu_synthesis_validated_claim_admissible,
         compute_mu_upper_bound,
         load_mu_synthesis_claim_evidence,
         mu_synthesis_claim_evidence,
         save_mu_synthesis_claim_evidence,
+    )
+    from scpn_control.control.mu_synthesis import (
+        StructuredUncertainty as LegacyStructuredUncertainty,
     )
 
     legacy_uncertainty = LegacyStructuredUncertainty(_uncertainty().blocks)
@@ -168,9 +170,11 @@ def test_legacy_facade_preserves_bounded_access_and_persistence(tmp_path) -> Non
         save_mu_synthesis_claim_evidence(evidence, path)
     with pytest.warns(DeprecationWarning, match="load_static_mu_analysis_claim_evidence"):
         assert load_mu_synthesis_claim_evidence(path) == evidence
-    with pytest.warns(DeprecationWarning, match="assert_static_mu_analysis"):
-        with pytest.raises(ValueError, match="validated static mu-analysis claim"):
-            assert_mu_synthesis_validated_claim_admissible(evidence)
+    with (
+        pytest.warns(DeprecationWarning, match="assert_static_mu_analysis"),
+        pytest.raises(ValueError, match="validated static mu-analysis claim"),
+    ):
+        assert_mu_synthesis_validated_claim_admissible(evidence)
 
     controller.mu_peak = 0.0
     with pytest.warns(DeprecationWarning, match="inverse_static_mu_upper_bound"):

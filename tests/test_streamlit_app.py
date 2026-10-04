@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 import pytest
+
 import streamlit_app
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,13 +22,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def test_streamlit_cloud_args_default_to_embedded_server() -> None:
     """Streamlit Cloud gets an embedded server when no app arguments are set."""
-
     assert streamlit_app.streamlit_cloud_args(()) == ["--embedded"]
 
 
 def test_streamlit_cloud_args_preserve_explicit_arguments() -> None:
     """Operator-supplied dashboard arguments are forwarded unchanged."""
-
     assert streamlit_app.streamlit_cloud_args(("--ws-url", "ws://example.invalid:8765")) == [
         "--ws-url",
         "ws://example.invalid:8765",
@@ -38,7 +37,6 @@ def test_streamlit_app_entrypoint_delegates_to_existing_ws_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The root entry point executes the existing dashboard script."""
-
     calls: list[tuple[str, str | None, list[str]]] = []
 
     def fake_run_path(path_name: str, *, run_name: str | None = None) -> dict[str, object]:
@@ -63,7 +61,6 @@ def test_streamlit_app_entrypoint_delegates_to_existing_ws_client(
 
 def test_streamlit_app_entrypoint_forwards_cli_args(monkeypatch: pytest.MonkeyPatch) -> None:
     """CLI arguments after the root script are forwarded when ``argv`` is omitted."""
-
     delegated_argv: list[str] = []
 
     def fake_run_path(_path_name: str, *, run_name: str | None = None) -> dict[str, object]:
@@ -81,7 +78,6 @@ def test_streamlit_app_entrypoint_forwards_cli_args(monkeypatch: pytest.MonkeyPa
 
 def test_readme_streamlit_cloud_entrypoint_exists() -> None:
     """The README Streamlit Cloud instruction references an existing file."""
-
     readme = (ROOT / "README.md").read_text(encoding="utf-8")
 
     assert "streamlit_app.py" in readme

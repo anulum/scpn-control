@@ -120,7 +120,6 @@ class _DummyKernel:
 
 def _default_run_kwargs() -> _RunKwargs:
     """Return deterministic simulation arguments used by repeated-call tests."""
-
     return {
         "config_file": "dummy.json",
         "shot_length": 18,
@@ -138,7 +137,6 @@ def _default_run_kwargs() -> _RunKwargs:
 
 def _runtime_kwargs_with(field: str, value: int) -> _RunKwargs:
     """Return runtime arguments with one invalid integer field overridden."""
-
     kwargs = _default_run_kwargs()
     if field == "shot_length":
         kwargs["shot_length"] = value
@@ -151,7 +149,6 @@ def _runtime_kwargs_with(field: str, value: int) -> _RunKwargs:
 
 def _controller_kwargs_with(field: str, value: float | int) -> _ControllerKwargs:
     """Return controller constructor arguments with one invalid field."""
-
     if field == "prediction_horizon":
         return {"prediction_horizon": int(value)}
     if field == "learning_rate":

@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for H-mode pedestal paths, neoclassical q-mismatch fallback,
-bootstrap current edge cases, and P_aux=0 numerical recovery."""
+bootstrap current edge cases, and P_aux=0 numerical recovery.
+"""
 
 from __future__ import annotations
 

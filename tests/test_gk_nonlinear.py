@@ -210,6 +210,7 @@ class TestLinearRecovery:
         phi1 = solver.phi_rms(state)
         # In linear regime, phi should evolve (grow or damp)
         assert np.isfinite(phi1)
+        assert phi1 != phi0
 
     def test_phi_rms_finite_throughout(self):
         solver = NonlinearGKSolver(_LINEAR_CFG)
@@ -265,6 +266,8 @@ class TestZonalFlows:
             state = solver._rk4_step(state, 0.02)
         zr1 = solver.zonal_rms(state)
         assert np.isfinite(zr1)
+        assert zr1 > 0.0
+        assert zr0 > 0.0
 
 
 # ── CBC benchmark ────────────────────────────────────────────────────

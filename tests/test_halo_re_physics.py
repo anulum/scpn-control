@@ -8,11 +8,10 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import numpy as np
 import pytest
-
-from dataclasses import replace
 
 from scpn_control.control.halo_re_physics import (
     DisruptionMitigationClaimEvidence,
@@ -20,16 +19,15 @@ from scpn_control.control.halo_re_physics import (
     HaloCurrentResult,
     RunawayElectronModel,
     RunawayElectronResult,
-    assert_disruption_mitigation_claim_admissible,
-    disruption_mitigation_claim_evidence,
-    run_disruption_ensemble,
-    save_disruption_mitigation_claim_evidence,
     _finite_nonnegative_or_none,
     _finite_positive_or_none,
     _finite_unit_interval,
     _non_empty_text,
+    assert_disruption_mitigation_claim_admissible,
+    disruption_mitigation_claim_evidence,
+    run_disruption_ensemble,
+    save_disruption_mitigation_claim_evidence,
 )
-
 
 # ─── HaloCurrentModel construction ────────────────────────────────────
 

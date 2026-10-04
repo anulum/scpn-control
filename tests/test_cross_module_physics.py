@@ -72,7 +72,6 @@ def test_bootstrap_drives_ntm_island_growth():
     rho_s = float(np.interp(2.0, q, rho))
     r_s = rho_s * _a  # m
 
-    B_pol = _B * (rho_s * _a / _R) / max(float(np.interp(rho_s, rho, q)), 0.1)
     # Typical Ohmic resistivity at mid-radius: Spitzer at T_e ~ 8 keV
     eta = 1.65e-9 * 1.5 * 17.0 / (8.0**1.5)  # Wesson 2011, Eq. 2.5.4
 
@@ -129,7 +128,6 @@ def test_ipb98_power_balance_iter_range():
 
     # Thermal energy: W_th = 3/2 * n_e * T_e * volume (rough estimate)
     # Use tau_E to reconstruct P_loss = W_th / tau_E and compare with input.
-    mu0 = 4.0 * np.pi * 1e-7
     E_charge = 1.602e-19
     vol = 2.0 * np.pi**2 * _R * _a**2 * _kappa  # toroidal volume [m^3], circular
     W_th = 1.5 * (_ne19 * 1e19) * (_Te * 1e3 * E_charge) * vol  # J

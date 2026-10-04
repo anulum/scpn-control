@@ -55,8 +55,8 @@ from scpn_control.scpn import (
     replay_runtime_safety_certificate,
     save_geometry_neutral_replay_evidence,
     save_geometry_neutral_replay_report,
-    validate_runtime_safety_certificate_payload,
     validate_geometry_neutral_report,
+    validate_runtime_safety_certificate_payload,
 )
 
 

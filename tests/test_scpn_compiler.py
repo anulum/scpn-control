@@ -31,9 +31,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
+from scpn_control.scpn.compiler import _HAS_SC_NEUROCORE, CompiledNet, FusionCompiler
 from scpn_control.scpn.structure import StochasticPetriNet
-from scpn_control.scpn.compiler import FusionCompiler, CompiledNet, _HAS_SC_NEUROCORE
-
 
 # ── Fixtures ─────────────────────────────────────────────────────────────────
 

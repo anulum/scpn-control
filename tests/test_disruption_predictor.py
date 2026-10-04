@@ -12,10 +12,10 @@ import numpy as np
 import pytest
 
 from scpn_control.control.disruption_predictor import (
-    simulate_tearing_mode,
+    apply_bit_flip_fault,
     build_disruption_feature_vector,
     predict_disruption_risk,
-    apply_bit_flip_fault,
+    simulate_tearing_mode,
 )
 
 
@@ -113,9 +113,9 @@ class TestApplyBitFlipFault:
 # --- New citation-backed tests ---
 
 from scpn_control.control.disruption_predictor import (  # noqa: E402 — appended block
-    disruption_warning_time,
     LOCKED_MODE_ALARM_THRESHOLD,
     TAU_WARNING_MIN_S,
+    disruption_warning_time,
 )
 
 

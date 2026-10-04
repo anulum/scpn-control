@@ -13,7 +13,6 @@ import pytest
 
 from scpn_control.core.tokamak_config import TokamakConfig
 
-
 _PRESET_R0 = {
     "iter": 6.2,
     "sparc": 1.85,

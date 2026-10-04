@@ -158,7 +158,6 @@ def test_current_diffusion_conserves_ip():
 
 def test_q_from_psi_singular_denom():
     """Singular flux gradients fall back to the neighbouring finite q value."""
-
     rho = np.linspace(0, 1, 50)
     # Flat psi near center means dpsi/drho ~ 0 at ρ=0
     psi = np.zeros(50)

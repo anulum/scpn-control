@@ -21,7 +21,6 @@ import json
 import math
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_DIR = ROOT / "validation" / "reference_data"
 

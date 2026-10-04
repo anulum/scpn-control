@@ -13,11 +13,10 @@
 # ──────────────────────────────────────────────────────────────────────
 from __future__ import annotations
 
-
 from scpn_control.core.uncertainty import (
+    PlasmaScenario,
     compute_fusion_sensitivities,
     fusion_power_from_tau,
-    PlasmaScenario,
 )
 
 

@@ -74,7 +74,7 @@ def test_vmap_matches_sequential(cbc_params):
 
     # Run single k_y calls through the same JAX path
     for i, mode in enumerate(result_batched.modes):
-        result_single = solve_linear_gk_jax(**cbc_params, n_ky_ion=1, n_theta=16)
+        solve_linear_gk_jax(**cbc_params, n_ky_ion=1, n_theta=16)
         # At least verify the batched result has the right shape
         assert np.isfinite(mode.gamma)
         assert np.isfinite(mode.omega_r)
@@ -191,8 +191,8 @@ def test_custom_species_and_geometry(cbc_params):
 
 def test_nonlinear_jax_gk_numpy_fallback():
     """JaxNonlinearGKSolver falls back to NumPy when _HAS_JAX=False."""
-    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     import scpn_control.core.jax_gk_nonlinear as nl_mod
+    from scpn_control.core.gk_nonlinear import NonlinearGKConfig
 
     cfg = NonlinearGKConfig(n_steps=2, save_interval=1)
 
@@ -219,9 +219,9 @@ def test_nonlinear_jax_gk_numpy_fallback():
 
 def test_nonlinear_jax_kinetic_electrons():
     """JAX solver with kinetic_electrons=True exercises the electron field solve."""
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
-    import scpn_control.core.jax_gk_nonlinear as nl_mod
 
     if not nl_mod.jax_available():
         pytest.skip("JAX not installed; strict JAX solver path required.")
@@ -253,9 +253,9 @@ def test_nonlinear_jax_kinetic_electrons():
 
 def test_nonlinear_jax_electromagnetic():
     """JAX solver with electromagnetic=True exercises Ampere solve and EM gradient drive."""
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
-    import scpn_control.core.jax_gk_nonlinear as nl_mod
 
     if not nl_mod.jax_available():
         pytest.skip("JAX not installed; strict JAX solver path required.")
@@ -325,9 +325,9 @@ def test_solve_eigenvalue_itg_vs_tem():
 
 def test_nonlinear_jax_kinetic_electrons_em():
     """JAX solver with both kinetic_electrons and electromagnetic."""
+    import scpn_control.core.jax_gk_nonlinear as nl_mod
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
-    import scpn_control.core.jax_gk_nonlinear as nl_mod
 
     if not nl_mod.jax_available():
         pytest.skip("JAX not installed; strict JAX solver path required.")

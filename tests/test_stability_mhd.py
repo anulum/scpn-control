@@ -13,13 +13,13 @@ import pytest
 
 from scpn_control.core.stability_mhd import (
     QProfile,
-    compute_q_profile,
-    mercier_stability,
     ballooning_stability,
+    compute_q_profile,
     kruskal_shafranov_stability,
-    troyon_beta_limit,
+    mercier_stability,
     ntm_stability,
     run_full_stability_check,
+    troyon_beta_limit,
 )
 
 

@@ -14,6 +14,7 @@ from dataclasses import replace
 
 import pytest
 
+from scpn_control.control import pulsed_scenario_scheduler as mif_contract
 from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     CapacitorBankTelemetry,
     PulsedPlasmaTelemetry,
@@ -21,7 +22,6 @@ from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     PulsedScenarioSpec,
     PulsedScenarioState,
 )
-from scpn_control.control import pulsed_scenario_scheduler as mif_contract
 
 
 def _spec() -> PulsedScenarioSpec:

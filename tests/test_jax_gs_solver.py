@@ -302,6 +302,7 @@ class TestGsAutodiff:
         """jax.grad w.r.t. beta_mix through the full solve."""
         import jax
         import jax.numpy as jnp
+
         from scpn_control.core.jax_gs_solver import _jax_gs_solve_impl
 
         R = jnp.linspace(R_MIN, R_MAX, NR)

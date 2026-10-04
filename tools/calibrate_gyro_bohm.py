@@ -55,7 +55,7 @@ import json
 import logging
 import sys
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -281,8 +281,6 @@ def predict_tau_e(shot: ShotRecord, c_gB: float) -> float:
     ne_avg = shot.ne19
     P_loss = shot.Ploss_MW
     Ip = shot.Ip_MA
-
-    m_i = A_ion * M_PROTON
 
     # ── IPB98(y,2) scaling structure ──
     # tau = C * Ip^0.93 * B^0.15 * n^0.41 * P^(-0.69)
@@ -518,7 +516,7 @@ def calibrate(
         "mape": round(float(mape * 100), 2),
         "mean_measured_tau_s": round(float(mean_tau), 6),
         "n_shots": n_shots,
-        "calibration_date": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "calibration_date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "method": "scipy.optimize.minimize_scalar (bounded, log-space)",
         "transport_model": (
             "IPB98(y,2) scaling structure with c_gB as effective prefactor "

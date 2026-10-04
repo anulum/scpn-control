@@ -22,7 +22,7 @@ import json
 import math
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -380,7 +380,7 @@ def generate_report(**kwargs: Any) -> dict[str, Any]:
     t0 = time.perf_counter()
     campaign = run_campaign(**kwargs)
     return {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "runtime_seconds": float(time.perf_counter() - t0),
         "scpn_pid_mpc_benchmark": campaign,
     }

@@ -13,19 +13,18 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from hypothesis import given, settings, assume
+from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 from hypothesis.extra.numpy import arrays
 
+from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.kuramoto import (
     kuramoto_sakaguchi_step,
-    order_parameter,
     lyapunov_v,
+    order_parameter,
     wrap_phase,
 )
-from scpn_control.phase.knm import KnmSpec, build_knm_paper27
 from scpn_control.phase.upde import UPDESystem
-
 
 # ── Strategies ───────────────────────────────────────────────────────
 

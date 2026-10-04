@@ -100,7 +100,6 @@ class Finding:
 
 def _git_ls_files(repo: Path) -> list[str]:
     """Return tracked paths in ``repo`` from Git's index."""
-
     completed = subprocess.run(
         ["git", "-C", str(repo), "ls-files"],
         check=True,
@@ -112,7 +111,6 @@ def _git_ls_files(repo: Path) -> list[str]:
 
 def _is_scanned_path(path: str) -> bool:
     """Return whether ``path`` is a tracked text file covered by the guard."""
-
     if path in SKIPPED_PATHS or any(path.startswith(prefix) for prefix in SKIPPED_PREFIXES):
         return False
     return Path(path).suffix in TEXT_SUFFIXES or path.startswith(".github/workflows/")
@@ -132,7 +130,6 @@ def iter_scanned_files(repo: Path) -> Iterable[Path]:
         Absolute paths for tracked files with text-like suffixes or workflow
         paths, excluding private and test fixtures.
     """
-
     for tracked_path in _git_ls_files(repo):
         if _is_scanned_path(tracked_path):
             yield repo / tracked_path
@@ -140,7 +137,6 @@ def iter_scanned_files(repo: Path) -> Iterable[Path]:
 
 def _line_number(text: str, offset: int) -> int:
     """Return the one-based line number for ``offset`` in ``text``."""
-
     return text.count("\n", 0, offset) + 1
 
 
@@ -148,7 +144,6 @@ def _append_regex_findings(
     findings: list[Finding], path: str, text: str, regex: re.Pattern[str], category: str
 ) -> None:
     """Append one finding per match of ``regex`` in ``text``."""
-
     for match in regex.finditer(text):
         findings.append(Finding(path, _line_number(text, match.start()), category, match.group(0).strip()))
 
@@ -169,7 +164,6 @@ def scan_text(path: str, text: str) -> list[Finding]:
         Findings for exact-width token regexes, fixed token-length checks,
         undersized token storage, and missing stateless-token override headers.
     """
-
     findings: list[Finding] = []
     _append_regex_findings(findings, path, text, TOKEN_PATTERN_RE, "brittle-ghs-regex")
     _append_regex_findings(findings, path, text, EXACT_LENGTH_RE, "fixed-token-length")
@@ -196,7 +190,6 @@ def scan_repository(repo: Path) -> list[Finding]:
     Files that cannot be decoded as UTF-8 are skipped so binary artifacts do not
     make the guard fail for reasons unrelated to token-format readiness.
     """
-
     findings: list[Finding] = []
     for path in iter_scanned_files(repo):
         try:
@@ -209,7 +202,6 @@ def scan_repository(repo: Path) -> list[Finding]:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the command-line token-format readiness guard."""
-
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)

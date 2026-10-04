@@ -13,10 +13,10 @@ import pytest
 
 try:
     from scpn_control.core.equilibrium_3d import (
-        FourierMode3D,
-        VMECStyleEquilibrium3D,
         ForceBalance3D,
         ForceBalanceResult,
+        FourierMode3D,
+        VMECStyleEquilibrium3D,
     )
 except ImportError:
     pytest.skip("equilibrium_3d not available in scpn-control", allow_module_level=True)

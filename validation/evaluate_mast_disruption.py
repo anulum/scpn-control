@@ -28,7 +28,7 @@ import argparse
 import dataclasses
 import hashlib
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -260,7 +260,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point: evaluate shots and write the JSON + Markdown report."""
     args = _parse_args(argv)
-    generated_at = args.generated_at or datetime.now(timezone.utc).isoformat()
+    generated_at = args.generated_at or datetime.now(UTC).isoformat()
     shots = load_shots(args.shots_dir)
     report = build_report(
         shots,

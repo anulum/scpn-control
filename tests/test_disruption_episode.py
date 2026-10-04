@@ -32,7 +32,6 @@ def _make_agent() -> FusionAIAgent:
 
 def _make_explorer() -> GlobalDesignExplorer:
     """Return the production design explorer used by disruption episodes."""
-
     return GlobalDesignExplorer("episode-test")
 
 

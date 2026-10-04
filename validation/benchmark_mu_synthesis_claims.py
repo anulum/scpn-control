@@ -17,6 +17,8 @@ from validation.benchmark_static_mu_analysis_claims import (
     JSON_REPORT,
     MARKDOWN_REPORT,
     REPORT_DIR,
+)
+from validation.benchmark_static_mu_analysis_claims import (
     main as _canonical_main,
 )
 

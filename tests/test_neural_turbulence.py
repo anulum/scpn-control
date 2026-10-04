@@ -15,16 +15,12 @@ import numpy as np
 import pytest
 
 from scpn_control.core.neural_turbulence import (
-    NeuralTurbulenceClaimEvidence,
     NeuralTransportTrainer,
+    NeuralTurbulenceClaimEvidence,
     QLKNNSurrogate,
     QLKNNTransportModel,
     TrainingDataGenerator,
     TransportInputNormalizer,
-    assert_neural_turbulence_quantitative_claim_admissible,
-    cross_validate_neural_turbulence,
-    neural_turbulence_claim_evidence,
-    save_neural_turbulence_claim_evidence,
     _finite_nonnegative,
     _finite_nonnegative_or_none,
     _finite_positive_or_none,
@@ -33,6 +29,10 @@ from scpn_control.core.neural_turbulence import (
     _profile_array,
     _unit_interval,
     _unit_interval_or_none,
+    assert_neural_turbulence_quantitative_claim_admissible,
+    cross_validate_neural_turbulence,
+    neural_turbulence_claim_evidence,
+    save_neural_turbulence_claim_evidence,
 )
 
 
@@ -132,7 +132,8 @@ def test_neural_transport_trainer_skips_clipping_for_small_gradients():
 def test_surrogate_pretrain_skips_clipping_for_small_gradients(monkeypatch):
     """A trivial zero pre-training set makes the input-layer weight gradient exactly zero
     (``X.T @ delta`` with ``X == 0``), so the pre-training gradient guard takes its no-clip
-    branch (arc 251->254). Weights stay finite throughout."""
+    branch (arc 251->254). Weights stay finite throughout.
+    """
     monkeypatch.setattr(
         TrainingDataGenerator,
         "generate_parameter_scan",

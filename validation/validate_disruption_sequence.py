@@ -36,7 +36,7 @@ import json
 import math
 import sys
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -208,7 +208,7 @@ def build_evidence(result: DisruptionSequenceValidationResult, *, target_id: str
     payload: dict[str, Any] = {
         "schema_version": DISRUPTION_SEQUENCE_SCHEMA_VERSION,
         "target_id": target_id.strip(),
-        "generated_utc": datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
+        "generated_utc": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
         "config": asdict(result.config),
         "phase_order": {
             "unmitigated_tq_duration_ms": result.unmitigated_tq_duration_ms,

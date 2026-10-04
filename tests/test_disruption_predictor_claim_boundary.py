@@ -15,8 +15,8 @@ from typing import Any, cast
 import numpy as np
 import pytest
 
-from scpn_control._typing import FloatArray
 import scpn_control.control.disruption_predictor as disruption_module
+from scpn_control._typing import FloatArray
 from scpn_control.control.disruption_predictor import (
     DISRUPTION_FEATURE_CONTRACT,
     DISRUPTION_HEURISTIC_SCORE_SOURCE,

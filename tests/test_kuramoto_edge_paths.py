@@ -12,7 +12,8 @@
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
 """Regression tests for GlobalPsiDriver unknown mode (line 84),
-upde.py psi_mode guards (86, 92), and eqdsk psi_to_norm (103)."""
+upde.py psi_mode guards (86, 92), and eqdsk psi_to_norm (103).
+"""
 
 from __future__ import annotations
 

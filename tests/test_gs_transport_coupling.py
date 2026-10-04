@@ -293,5 +293,6 @@ def test_run_to_steady_state_adaptive_still_works(solver: TransportSolver):
 
 def test_external_profile_mode_is_true(solver: TransportSolver):
     """TransportSolver must have external_profile_mode=True so that
-    solve_equilibrium uses the J_phi set by map_profiles_to_2d()."""
+    solve_equilibrium uses the J_phi set by map_profiles_to_2d().
+    """
     assert solver.external_profile_mode is True

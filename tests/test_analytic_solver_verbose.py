@@ -57,7 +57,7 @@ class TestVerboseLog:
 
 class TestDrGuard:
     def test_zero_dr_raises(self, tmp_path):
-        """dR <= 0 raises ValueError (line 107)."""
+        """DR <= 0 raises ValueError (line 107)."""
         cfg = tmp_path / "cfg.json"
         cfg.write_text("{}")
         solver = AnalyticEquilibriumSolver(str(cfg), kernel_factory=_BadDrKernel, verbose=False)

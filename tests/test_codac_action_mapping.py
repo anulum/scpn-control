@@ -22,19 +22,16 @@ class _MappingController:
 
     def step(self, _obs: ControlObservation, _k: int) -> Mapping[str, float]:
         """Return sparse controller actions for CODAC unpacking."""
-
         return {"dI_PF3": 125.0, "SPI_trigger": 1.0}
 
 
 def _interface() -> CODACInterface:
     """Return a CODAC interface bound to the mapping controller fixture."""
-
     return CODACInterface(CODACConfig(), _MappingController())
 
 
 def _nominal_pv_values() -> dict[str, float]:
     """Return a complete nominal hard-limit and external-interlock packet."""
-
     config = CODACConfig()
     values = {
         "Ip": 15.0,

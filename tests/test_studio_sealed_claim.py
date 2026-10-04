@@ -6,7 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Sealed safety-claim artefact tests
 """Sealed-claim artefact contract: real-certificate build, JCS float guard,
-deterministic rendering, digest-stable writing, and drift degradation."""
+deterministic rendering, digest-stable writing, and drift degradation.
+"""
 
 from __future__ import annotations
 

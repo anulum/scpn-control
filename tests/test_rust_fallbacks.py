@@ -23,7 +23,6 @@ from scpn_control.core._rust_compat import (
     _python_svd_optimal_correction,
 )
 
-
 # ─── SVD optimal correction fallback ──────────────────────────────────
 
 
