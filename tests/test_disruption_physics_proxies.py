@@ -36,7 +36,7 @@ def test_tearing_mode_and_risk_pipeline() -> None:
     risk = leaf.predict_disruption_risk(signal)
     assert 0.0 <= risk <= 1.0
     with pytest.raises((ValueError, TypeError)):
-        leaf.simulate_tearing_mode(10.5)  # type: ignore[arg-type]
+        leaf.simulate_tearing_mode(10.5)  # type: ignore[arg-type]  # refused input under test
 
 
 def test_tearing_modes_density_limit_and_vde() -> None:
@@ -92,7 +92,7 @@ def test_public_risk_rejects_unknown_or_null_toroidal_observables() -> None:
     with pytest.raises(ValueError, match="unknown"):
         owner.predict_disruption_risk(np.ones(8), {"toroidal_n1_amplitude": 0.8})
     with pytest.raises(ValueError, match="numeric"):
-        owner.predict_disruption_risk(np.ones(8), {"toroidal_n1_amp": None})  # type: ignore[dict-item]
+        owner.predict_disruption_risk(np.ones(8), {"toroidal_n1_amp": None})  # type: ignore[dict-item]  # refused input under test
 
 
 @pytest.mark.parametrize(
@@ -125,9 +125,9 @@ def test_public_warning_time_refuses_non_numeric_units(field: str, value: object
     """Boolean values cannot stand in for a risk threshold or sampling time."""
     with pytest.raises(ValueError, match="numeric"):
         if field == "risk_threshold":
-            owner.disruption_warning_time([0.1], risk_threshold=value)  # type: ignore[arg-type]
+            owner.disruption_warning_time([0.1], risk_threshold=value)  # type: ignore[arg-type]  # refused input under test
         else:
-            owner.disruption_warning_time([0.1], dt=value)  # type: ignore[arg-type]
+            owner.disruption_warning_time([0.1], dt=value)  # type: ignore[arg-type]  # refused input under test
 
 
 def test_ntm_mode_reaches_locking_threshold() -> None:
