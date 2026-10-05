@@ -17,6 +17,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from typing import Any
 
@@ -130,6 +131,7 @@ class IcePelletFuelingController:
         self.target_density = td
         self.controller = _build_fueling_controller()
         self.integrator = 0.0
+        self._last_step_index = -1
 
     def step(self, density: float, k: int, dt_s: float) -> tuple[float, float]:
         """Advance the hybrid PI/SNN fuelling controller one step.
@@ -139,18 +141,40 @@ class IcePelletFuelingController:
         density
             The measured plasma density (normalised units).
         k
-            The current step index.
+            A nonnegative integer step index, strictly greater than the last
+            admitted index.
         dt_s
-            Time step in seconds.
+            Finite, strictly positive time step in seconds.
 
         Returns
         -------
         tuple[float, float]
             The clipped fuelling command and the density-tracking error.
+
+        Raises
+        ------
+        ValueError
+            If density, step index, time interval or PI arithmetic is invalid.
+            Refused samples leave the PI integrator unchanged.
         """
-        error = self.target_density - float(density)
-        self.integrator += error * dt_s
-        self.integrator = float(np.clip(self.integrator, -0.5, 0.5))
+        measured_density = float(density)
+        interval_s = float(dt_s)
+        if not math.isfinite(measured_density) or measured_density < 0.0:
+            raise ValueError("density must be finite and >= 0")
+        if not math.isfinite(interval_s) or interval_s <= 0.0:
+            raise ValueError("dt_s must be finite and > 0")
+        if isinstance(k, (bool, np.bool_)) or not isinstance(k, (int, np.integer)) or k < 0:
+            raise ValueError("k must be a non-negative integer")
+        if k <= self._last_step_index:
+            raise ValueError("k must be strictly increasing")
+        error = self.target_density - measured_density
+        increment = error * interval_s
+        if not math.isfinite(increment):
+            raise ValueError("integrator increment must be finite")
+        next_integrator = float(np.clip(self.integrator + increment, -0.5, 0.5))
+        u_pi = 1.95 * error + 7.2 * next_integrator
+        if not math.isfinite(u_pi):
+            raise ValueError("PI command must be finite")
 
         # SNN pathway receives mapped pseudo-observation.
         obs: dict[str, float] = {
@@ -165,8 +189,9 @@ class IcePelletFuelingController:
         u_snn = 0.25 * snn_gate * u_snn_raw
 
         # PI path gives tight density convergence, SNN term perturbs/controls actuation.
-        u_pi = 1.95 * error + 7.2 * self.integrator
         command = float(np.clip(u_pi + u_snn, -2.0, 2.0))
+        self.integrator = next_integrator
+        self._last_step_index = int(k)
         return command, error
 
 
@@ -186,7 +211,7 @@ def simulate_iter_density_control(
     initial_density
         Density at the start of the run.
     steps
-        Number of simulation steps; must be at least 8.
+        Exact integer number of simulation steps; must be at least 8.
     dt_s
         Time step in seconds.
 
@@ -198,9 +223,11 @@ def simulate_iter_density_control(
     Raises
     ------
     ValueError
-        If ``steps`` is below 8 or ``target_density`` is non-positive.
+        If the step count, densities or time interval are invalid, or a
+        controller calculation exceeds finite numeric range.
     """
-    steps = int(steps)
+    if isinstance(steps, (bool, np.bool_)) or not isinstance(steps, (int, np.integer)):
+        raise ValueError("steps must be an integer >= 8")
     if steps < 8:
         raise ValueError("steps must be >= 8.")
     raw_dt_s = float(dt_s)

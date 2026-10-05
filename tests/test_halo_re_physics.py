@@ -5,35 +5,28 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Halo Runaway Physics Tests
-from __future__ import annotations
+"""Public halo and runaway model regression tests."""
 
-import json
-from dataclasses import replace
+from __future__ import annotations
 
 import numpy as np
 import pytest
 
 from scpn_control.control.halo_re_physics import (
-    DisruptionMitigationClaimEvidence,
     HaloCurrentModel,
     HaloCurrentResult,
     RunawayElectronModel,
     RunawayElectronResult,
-    _finite_nonnegative_or_none,
-    _finite_positive_or_none,
-    _finite_unit_interval,
-    _non_empty_text,
-    assert_disruption_mitigation_claim_admissible,
-    disruption_mitigation_claim_evidence,
-    run_disruption_ensemble,
-    save_disruption_mitigation_claim_evidence,
 )
 
 # ─── HaloCurrentModel construction ────────────────────────────────────
 
 
 class TestHaloCurrentConstruction:
-    def test_defaults(self):
+    """Validate halo circuit construction and input bounds."""
+
+    def test_defaults(self) -> None:
+        """Defaults."""
         m = HaloCurrentModel()
         assert m.Ip0 == pytest.approx(15e6, rel=1e-6)
         assert m.tpf == 2.0
@@ -41,21 +34,30 @@ class TestHaloCurrentConstruction:
         assert m.L_h > 0
         assert m.tau_h > 0
 
-    def test_rejects_negative_current(self):
+    def test_rejects_negative_current(self) -> None:
+        """Rejects negative current."""
         with pytest.raises(ValueError, match="plasma_current_ma"):
             HaloCurrentModel(plasma_current_ma=-1.0)
 
-    def test_rejects_zero_radius(self):
+    def test_rejects_zero_radius(self) -> None:
+        """Rejects zero radius."""
         with pytest.raises(ValueError, match="minor_radius_m"):
             HaloCurrentModel(minor_radius_m=0.0)
 
-    def test_rejects_contact_fraction_out_of_range(self):
+    def test_rejects_minor_radius_at_or_above_major_radius(self) -> None:
+        """Reject a plasma geometry that makes the circuit model invalid."""
+        with pytest.raises(ValueError, match="minor_radius_m must be smaller"):
+            HaloCurrentModel(minor_radius_m=6.2, major_radius_m=6.2)
+
+    def test_rejects_contact_fraction_out_of_range(self) -> None:
+        """Rejects contact fraction out of range."""
         with pytest.raises(ValueError, match="contact_fraction"):
             HaloCurrentModel(contact_fraction=0.0)
         with pytest.raises(ValueError, match="contact_fraction"):
             HaloCurrentModel(contact_fraction=1.5)
 
-    def test_rejects_nan(self):
+    def test_rejects_nan(self) -> None:
+        """Rejects nan."""
         with pytest.raises(ValueError):
             HaloCurrentModel(plasma_current_ma=float("nan"))
 
@@ -64,60 +66,82 @@ class TestHaloCurrentConstruction:
 
 
 class TestHaloSimulation:
+    """Validate time-resolved halo current and wall-force outputs."""
+
     @pytest.fixture()
     def result(self) -> HaloCurrentResult:
+        """Create a time-resolved halo current result."""
         m = HaloCurrentModel(plasma_current_ma=15.0, tpf=2.0, contact_fraction=0.3)
         return m.simulate(tau_cq_s=0.01, duration_s=0.05, dt_s=1e-4)
 
-    def test_result_type(self, result):
+    def test_result_type(self, result: HaloCurrentResult) -> None:
+        """Result type."""
         assert isinstance(result, HaloCurrentResult)
 
-    def test_time_vector_length(self, result):
+    def test_time_vector_length(self, result: HaloCurrentResult) -> None:
+        """Time vector length."""
         assert len(result.time_ms) >= 10
 
-    def test_halo_current_non_negative(self, result):
+    def test_halo_current_non_negative(self, result: HaloCurrentResult) -> None:
+        """Halo current non negative."""
         assert all(i >= 0.0 for i in result.halo_current_ma)
 
-    def test_plasma_current_decays(self, result):
+    def test_plasma_current_decays(self, result: HaloCurrentResult) -> None:
+        """Plasma current decays."""
         assert result.plasma_current_ma[0] > result.plasma_current_ma[-1]
 
-    def test_peak_halo_bounded_by_plasma(self, result):
+    def test_peak_halo_bounded_by_plasma(self, result: HaloCurrentResult) -> None:
+        """Peak halo bounded by plasma."""
         # Halo current cannot exceed initial plasma current
         assert result.peak_halo_ma <= 15.0
 
-    def test_peak_halo_positive(self, result):
+    def test_peak_halo_positive(self, result: HaloCurrentResult) -> None:
+        """Peak halo positive."""
         assert result.peak_halo_ma > 0.0
 
-    def test_tpf_product_positive(self, result):
+    def test_tpf_product_positive(self, result: HaloCurrentResult) -> None:
+        """Tpf product positive."""
         assert result.peak_tpf_product > 0.0
 
-    def test_wall_force_positive(self, result):
+    def test_wall_force_positive(self, result: HaloCurrentResult) -> None:
+        """Wall force positive."""
         assert result.wall_force_mn_m > 0.0
 
-    def test_faster_quench_higher_halo(self):
+    def test_faster_quench_higher_halo(self) -> None:
         """Faster current quench → larger dI_p/dt → higher halo peak."""
         m = HaloCurrentModel(plasma_current_ma=15.0)
         fast = m.simulate(tau_cq_s=0.005, duration_s=0.05, dt_s=1e-4)
         slow = m.simulate(tau_cq_s=0.020, duration_s=0.05, dt_s=1e-4)
         assert fast.peak_halo_ma > slow.peak_halo_ma
 
-    def test_higher_tpf_higher_product(self):
+    def test_higher_tpf_higher_product(self) -> None:
         """Higher TPF → higher TPF × I_h/I_p product."""
         low = HaloCurrentModel(tpf=1.5).simulate()
         high = HaloCurrentModel(tpf=2.5).simulate()
         assert high.peak_tpf_product > low.peak_tpf_product
 
-    def test_rejects_dt_larger_than_duration(self):
+    def test_rejects_dt_larger_than_duration(self) -> None:
+        """Rejects dt larger than duration."""
         m = HaloCurrentModel()
         with pytest.raises(ValueError, match="dt_s"):
             m.simulate(dt_s=1.0, duration_s=0.01)
+
+    def test_short_duration_does_not_run_past_requested_end(self) -> None:
+        """Keep halo simulation samples inside the requested duration."""
+        result = HaloCurrentModel().simulate(duration_s=0.01, dt_s=0.003)
+        assert len(result.time_ms) == 4
+        assert result.time_ms[-1] < 10.0
+        assert result.plasma_current_ma[-1] == pytest.approx(15.0 * 0.7**3 * 0.9)
 
 
 # ─── RunawayElectronModel construction ─────────────────────────────────
 
 
 class TestREConstruction:
-    def test_defaults(self):
+    """Validate runaway model construction and plasma inputs."""
+
+    def test_defaults(self) -> None:
+        """Defaults."""
         m = RunawayElectronModel()
         assert m.n_e_free == pytest.approx(1e20)
         assert m.T_e0 == pytest.approx(20.0)
@@ -126,11 +150,13 @@ class TestREConstruction:
         assert m.tau_coll > 0
         assert m.tau_av > 0
 
-    def test_rejects_negative_density(self):
+    def test_rejects_negative_density(self) -> None:
+        """Rejects negative density."""
         with pytest.raises(ValueError, match="n_e"):
             RunawayElectronModel(n_e=-1e20)
 
-    def test_rejects_z_eff_below_one(self):
+    def test_rejects_z_eff_below_one(self) -> None:
+        """Rejects z eff below one."""
         with pytest.raises(ValueError, match="z_eff"):
             RunawayElectronModel(z_eff=0.5)
 
@@ -139,16 +165,20 @@ class TestREConstruction:
 
 
 class TestDreicerField:
-    def test_dreicer_exceeds_critical(self):
+    """Check critical and Dreicer field relationships."""
+
+    def test_dreicer_exceeds_critical(self) -> None:
         """Connor-Hastie: E_D >> E_c always (Dreicer is thermal, critical is relativistic)."""
         m = RunawayElectronModel(n_e=1e20, T_e_keV=10.0)
         assert m.E_D > m.E_c
 
-    def test_dreicer_rate_zero_for_zero_field(self):
+    def test_dreicer_rate_zero_for_zero_field(self) -> None:
+        """Dreicer rate zero for zero field."""
         m = RunawayElectronModel()
         assert m._dreicer_rate(0.0, 10.0) == 0.0
 
-    def test_dreicer_rate_positive_for_strong_field(self):
+    def test_dreicer_rate_positive_for_strong_field(self) -> None:
+        """Dreicer rate positive for strong field."""
         m = RunawayElectronModel(n_e=1e20, T_e_keV=5.0)
         # E slightly below E_D should give nonzero rate
         E = m.E_D * 0.1
@@ -160,8 +190,11 @@ class TestDreicerField:
 
 
 class TestRESimulation:
+    """Validate time-resolved runaway current outputs."""
+
     @pytest.fixture()
     def result(self) -> RunawayElectronResult:
+        """Create a time-resolved runaway current result."""
         m = RunawayElectronModel(n_e=1e20, T_e_keV=20.0, z_eff=1.5)
         return m.simulate(
             plasma_current_ma=15.0,
@@ -171,28 +204,41 @@ class TestRESimulation:
             dt_s=1e-4,
         )
 
-    def test_result_type(self, result):
+    def test_result_type(self, result: RunawayElectronResult) -> None:
+        """Result type."""
         assert isinstance(result, RunawayElectronResult)
 
-    def test_re_current_non_negative(self, result):
+    def test_re_current_non_negative(self, result: RunawayElectronResult) -> None:
+        """Re current non negative."""
         assert all(i >= 0.0 for i in result.runaway_current_ma)
 
-    def test_peak_re_bounded_by_plasma(self, result):
+    def test_peak_re_bounded_by_plasma(self, result: RunawayElectronResult) -> None:
+        """Peak re bounded by plasma."""
         assert result.peak_re_current_ma <= 15.0
 
-    def test_avalanche_gain_finite(self, result):
+    def test_avalanche_gain_finite(self, result: RunawayElectronResult) -> None:
+        """Avalanche gain finite."""
         assert np.isfinite(result.avalanche_gain)
         assert result.avalanche_gain >= 0.0
 
-    def test_electric_field_positive(self, result):
+    def test_electric_field_positive(self, result: RunawayElectronResult) -> None:
+        """Electric field positive."""
         assert all(e >= 0.0 for e in result.electric_field_v_m)
+
+    def test_short_duration_does_not_run_past_requested_end(self) -> None:
+        """Keep runaway simulation samples inside the requested duration."""
+        result = RunawayElectronModel().simulate(duration_s=0.01, dt_s=0.003)
+        assert len(result.time_ms) == 4
+        assert result.time_ms[-1] < 10.0
 
 
 # ─── Neon mitigation ──────────────────────────────────────────────────
 
 
 class TestNeonMitigation:
-    def test_high_neon_suppresses_avalanche(self):
+    """Check impurity effects on runaway dynamics."""
+
+    def test_high_neon_suppresses_avalanche(self) -> None:
         """Heavy neon injection → avalanche deconfinement → lower RE peak."""
         base = RunawayElectronModel(n_e=1e20, T_e_keV=20.0, neon_mol=0.0)
         mitigated = RunawayElectronModel(n_e=1e20, T_e_keV=20.0, neon_mol=0.5)
@@ -202,12 +248,14 @@ class TestNeonMitigation:
 
         assert r_mit.peak_re_current_ma <= r_base.peak_re_current_ma
 
-    def test_neon_raises_total_density(self):
+    def test_neon_raises_total_density(self) -> None:
+        """Neon raises total density."""
         m0 = RunawayElectronModel(neon_mol=0.0)
         m1 = RunawayElectronModel(neon_mol=0.5)
         assert m1.n_e_tot > m0.n_e_tot
 
-    def test_neon_raises_critical_field(self):
+    def test_neon_raises_critical_field(self) -> None:
+        """Neon raises critical field."""
         m0 = RunawayElectronModel(neon_mol=0.0)
         m1 = RunawayElectronModel(neon_mol=0.5)
         assert m1.E_c > m0.E_c
@@ -217,16 +265,21 @@ class TestNeonMitigation:
 
 
 class TestRelativisticLosses:
-    def test_loss_zero_when_disabled(self):
+    """Check relativistic loss controls and zero-density behavior."""
+
+    def test_loss_zero_when_disabled(self) -> None:
+        """Loss zero when disabled."""
         m = RunawayElectronModel(enable_relativistic_losses=False)
         assert m._relativistic_loss_rate(E=100.0, n_re=1e18) == 0.0
 
-    def test_loss_positive_when_enabled(self):
+    def test_loss_positive_when_enabled(self) -> None:
+        """Loss positive when enabled."""
         m = RunawayElectronModel(enable_relativistic_losses=True)
         loss = m._relativistic_loss_rate(E=m.E_c * 5.0, n_re=1e18)
         assert loss > 0.0
 
-    def test_loss_zero_for_zero_re(self):
+    def test_loss_zero_for_zero_re(self) -> None:
+        """Loss zero for zero re."""
         m = RunawayElectronModel()
         assert m._relativistic_loss_rate(E=100.0, n_re=0.0) == 0.0
 
@@ -234,190 +287,63 @@ class TestRelativisticLosses:
 # ─── Disruption ensemble ──────────────────────────────────────────────
 
 
-class TestDisruptionEnsemble:
-    def test_basic_run(self):
-        report = run_disruption_ensemble(ensemble_runs=5, seed=42)
-        assert report.ensemble_runs == 5
-        assert 0.0 <= report.prevention_rate <= 1.0
-        assert len(report.per_run_details) == 5
-
-    def test_all_details_have_required_keys(self):
-        report = run_disruption_ensemble(ensemble_runs=3, seed=0)
-        for d in report.per_run_details:
-            assert "halo_peak_ma" in d
-            assert "re_peak_ma" in d
-            assert "prevented" in d
-            assert "tpf_product" in d
-
-    def test_rejects_zero_runs(self):
-        with pytest.raises(ValueError, match="ensemble_runs"):
-            run_disruption_ensemble(ensemble_runs=0)
-
-    def test_reproducibility(self):
-        r1 = run_disruption_ensemble(ensemble_runs=5, seed=123)
-        r2 = run_disruption_ensemble(ensemble_runs=5, seed=123)
-        assert r1.prevention_rate == r2.prevention_rate
-        assert r1.mean_halo_peak_ma == pytest.approx(r2.mean_halo_peak_ma)
-
-    def test_halo_peaks_finite(self):
-        report = run_disruption_ensemble(ensemble_runs=10, seed=42)
-        assert np.isfinite(report.mean_halo_peak_ma)
-        assert np.isfinite(report.p95_halo_peak_ma)
-        assert np.isfinite(report.mean_re_peak_ma)
-        assert np.isfinite(report.p95_re_peak_ma)
-
-    def test_claim_evidence_records_bounded_ensemble_boundary(self, tmp_path):
-        report = run_disruption_ensemble(ensemble_runs=4, seed=7)
-
-        evidence = disruption_mitigation_claim_evidence(
-            report,
-            source="synthetic_regression_reference",
-            source_id="tests/test_halo_re_physics.py::bounded_ensemble",
-            ensemble_seed=7,
-        )
-
-        assert isinstance(evidence, DisruptionMitigationClaimEvidence)
-        assert evidence.mitigation_claim_allowed is False
-        assert evidence.reference_source == "none"
-        assert evidence.ensemble_runs == 4
-        assert evidence.ensemble_seed == 7
-        assert evidence.prevention_rate == pytest.approx(report.prevention_rate)
-        assert evidence.mean_halo_peak_ma == pytest.approx(report.mean_halo_peak_ma)
-        assert evidence.p95_re_peak_ma == pytest.approx(report.p95_re_peak_ma)
-        with pytest.raises(ValueError, match="blocked without matched reference"):
-            assert_disruption_mitigation_claim_admissible(evidence)
-
-        out = tmp_path / "disruption_claim.json"
-        save_disruption_mitigation_claim_evidence(evidence, out)
-        payload = json.loads(out.read_text(encoding="utf-8"))
-        assert payload["claim_status"].startswith("bounded halo/runaway ensemble evidence only")
-
-    def test_reference_admission_requires_strict_disruption_artifact(self, tmp_path):
-        report = run_disruption_ensemble(ensemble_runs=4, seed=8)
-        artifact = tmp_path / "reference.json"
-        payload = {
-            "schema_version": "1.0",
-            "source": "documented_public_reference",
-            "model_id": "halo_runaway_disruption_mitigation",
-            "model_version": "test",
-            "reference_dataset_id": "bounded-disruption-reference",
-            "reference_artifact_sha256": "a" * 64,
-            "executed_at": "2026-05-31T00:00:00Z",
-            "reference_url": "https://example.invalid/disruption-reference",
-            "reference_case_count": 5,
-            "signal_window": {
-                "sample_count": 32,
-                "sample_period_s": 0.001,
-                "pre_disruption_duration_s": 0.05,
-                "current_quench_duration_ms": 12.0,
-                "thermal_quench_duration_ms": 1.0,
-            },
-            "mitigation_metadata": {
-                "neon_quantity_mol": 0.1,
-                "argon_quantity_mol": 0.01,
-                "xenon_quantity_mol": 0.0,
-                "total_impurity_mol": 0.11,
-                "mitigation_strength": 0.8,
-                "tbr_reference": 1.0,
-            },
-            "units": {
-                "time": "s",
-                "quench_time": "ms",
-                "current": "MA",
-                "energy": "MJ",
-                "impurity_inventory": "mol",
-                "risk": "1",
-                "tbr": "1",
-            },
-            "metrics": {
-                "risk_after_abs_error": 0.01,
-                "detection_lead_time_abs_error_ms": 2.0,
-                "halo_current_relative_error": 0.05,
-                "runaway_beam_relative_error": 0.04,
-                "tbr_abs_error": 0.02,
-            },
-            "tolerances": {
-                "risk_after_abs_error": 0.05,
-                "detection_lead_time_abs_error_ms": 5.0,
-                "halo_current_relative_error": 0.10,
-                "runaway_beam_relative_error": 0.10,
-                "tbr_abs_error": 0.05,
-            },
-        }
-        artifact.write_text(json.dumps(payload), encoding="utf-8")
-
-        evidence = disruption_mitigation_claim_evidence(
-            report,
-            source="documented_public_reference",
-            source_id="tests/test_halo_re_physics.py::reference_admission",
-            ensemble_seed=8,
-            reference_artifact_path=artifact,
-        )
-
-        assert evidence.mitigation_claim_allowed is True
-        assert evidence.reference_source == "documented_public_reference"
-        assert evidence.reference_case_count == 5
-        assert evidence.halo_current_relative_error == pytest.approx(0.05)
-        assert evidence.runaway_beam_relative_tolerance == pytest.approx(0.10)
-        assert assert_disruption_mitigation_claim_admissible(evidence) is evidence
-
-        payload["metrics"]["halo_current_relative_error"] = 0.50
-        artifact.write_text(json.dumps(payload), encoding="utf-8")
-        with pytest.raises(ValueError, match="failed strict validation"):
-            disruption_mitigation_claim_evidence(
-                report,
-                source="documented_public_reference",
-                source_id="tests/test_halo_re_physics.py::reference_admission",
-                ensemble_seed=8,
-                reference_artifact_path=artifact,
-            )
-
-
 # ─── Dreicer/avalanche NaN guard paths ───────────────────────────────
 
 
 class TestREGuardPaths:
-    def test_dreicer_rate_nan_field_returns_zero(self):
+    """Check non-finite numerical guard behavior."""
+
+    def test_dreicer_rate_nan_field_returns_zero(self) -> None:
+        """Dreicer rate nan field returns zero."""
         m = RunawayElectronModel()
         assert m._dreicer_rate(float("nan"), 10.0) == 0.0
 
-    def test_dreicer_rate_nan_temp_returns_zero(self):
+    def test_dreicer_rate_nan_temp_returns_zero(self) -> None:
+        """Dreicer rate nan temp returns zero."""
         m = RunawayElectronModel()
         assert m._dreicer_rate(1.0, float("nan")) == 0.0
 
-    def test_dreicer_rate_cold_plasma_returns_zero(self):
+    def test_dreicer_rate_cold_plasma_returns_zero(self) -> None:
+        """Dreicer rate cold plasma returns zero."""
         m = RunawayElectronModel()
         assert m._dreicer_rate(m.E_D * 0.1, 0.001) == 0.0
 
-    def test_avalanche_rate_nan_returns_zero(self):
+    def test_avalanche_rate_nan_returns_zero(self) -> None:
+        """Avalanche rate nan returns zero."""
         m = RunawayElectronModel()
         assert m._avalanche_rate(float("nan"), 1e15) == 0.0
 
-    def test_avalanche_rate_below_critical_returns_zero(self):
+    def test_avalanche_rate_below_critical_returns_zero(self) -> None:
+        """Avalanche rate below critical returns zero."""
         m = RunawayElectronModel()
         assert m._avalanche_rate(m.E_c * 0.5, 1e15) == 0.0
 
-    def test_avalanche_rate_zero_re_returns_zero(self):
+    def test_avalanche_rate_zero_re_returns_zero(self) -> None:
+        """Avalanche rate zero re returns zero."""
         m = RunawayElectronModel()
         assert m._avalanche_rate(m.E_c * 2.0, 0.0) == 0.0
 
-    def test_momentum_space_nan_returns_zero(self):
+    def test_momentum_space_nan_returns_zero(self) -> None:
+        """Momentum space nan returns zero."""
         m = RunawayElectronModel()
         assert m._momentum_space_growth(float("nan"), 1e15) == 0.0
 
-    def test_momentum_space_below_critical_returns_zero(self):
+    def test_momentum_space_below_critical_returns_zero(self) -> None:
+        """Momentum space below critical returns zero."""
         m = RunawayElectronModel()
         assert m._momentum_space_growth(m.E_c * 0.5, 1e15) == 0.0
 
-    def test_relativistic_loss_nan_returns_zero(self):
+    def test_relativistic_loss_nan_returns_zero(self) -> None:
+        """Relativistic loss nan returns zero."""
         m = RunawayElectronModel(enable_relativistic_losses=True)
         assert m._relativistic_loss_rate(E=float("nan"), n_re=1e15) == 0.0
 
-    def test_relativistic_loss_nan_nre_returns_zero(self):
+    def test_relativistic_loss_nan_nre_returns_zero(self) -> None:
+        """Relativistic loss nan nre returns zero."""
         m = RunawayElectronModel(enable_relativistic_losses=True)
         assert m._relativistic_loss_rate(E=100.0, n_re=float("nan")) == 0.0
 
-    def test_high_neon_deconfinement_factor(self):
+    def test_high_neon_deconfinement_factor(self) -> None:
         """neon_mol > 0.3 activates deconfinement suppression in avalanche."""
         m = RunawayElectronModel(neon_mol=0.5)
         rate = m._avalanche_rate(m.E_c * 3.0, 1e18)
@@ -426,7 +352,7 @@ class TestREGuardPaths:
         if rate_low > 0.0:
             assert rate < rate_low
 
-    def test_dreicer_rate_very_high_ratio_returns_zero(self):
+    def test_dreicer_rate_very_high_ratio_returns_zero(self) -> None:
         """Dreicer rate with ratio > 200 should return 0 (negligible generation)."""
         m = RunawayElectronModel(n_e=1e20, T_e_keV=0.1)
         rate = m._dreicer_rate(1e-10, 0.1)
@@ -436,103 +362,15 @@ class TestREGuardPaths:
 # ── Coverage completion: helpers, simulate guards, verbose, evidence ──
 
 
-def _bounded_evidence():
-    report = run_disruption_ensemble(ensemble_runs=4, seed=8)
-    evidence = disruption_mitigation_claim_evidence(
-        report,
-        source="documented_public_reference",
-        source_id="tests/test_halo_re_physics.py::bounded",
-        ensemble_seed=8,
-    )
-    return report, evidence
-
-
-def test_non_empty_text_rejects_blank_and_non_string():
-    with pytest.raises(ValueError, match="must be a non-empty string"):
-        _non_empty_text("field", "   ")
-    with pytest.raises(ValueError, match="must be a non-empty string"):
-        _non_empty_text("field", 5)
-
-
-def test_finite_nonnegative_or_none_handles_none_and_rejects_bad():
-    assert _finite_nonnegative_or_none("metric", None) is None
-    with pytest.raises(ValueError, match="finite and non-negative"):
-        _finite_nonnegative_or_none("metric", True)
-    with pytest.raises(ValueError, match="finite and non-negative"):
-        _finite_nonnegative_or_none("metric", -1.0)
-    with pytest.raises(ValueError, match="finite and non-negative"):
-        _finite_nonnegative_or_none("metric", float("nan"))
-
-
-def test_finite_positive_or_none_handles_none_and_rejects_bad():
-    assert _finite_positive_or_none("metric", None) is None
-    with pytest.raises(ValueError, match="finite and positive"):
-        _finite_positive_or_none("metric", "x")
-    with pytest.raises(ValueError, match="finite and positive"):
-        _finite_positive_or_none("metric", 0.0)
-
-
-def test_finite_unit_interval_rejects_out_of_range():
-    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
-        _finite_unit_interval("score", 1.5)
-    with pytest.raises(ValueError, match=r"finite in \[0, 1\]"):
-        _finite_unit_interval("score", float("nan"))
-
-
-def test_simulate_rejects_timestep_larger_than_duration():
+def test_simulate_rejects_timestep_larger_than_duration() -> None:
+    """Simulate rejects timestep larger than duration."""
     model = RunawayElectronModel()
     with pytest.raises(ValueError, match="must be <= duration_s"):
         model.simulate(duration_s=0.05, dt_s=0.1)
 
 
-def test_simulate_rejects_seed_fraction_out_of_range():
+def test_simulate_rejects_seed_fraction_out_of_range() -> None:
+    """Simulate rejects seed fraction out of range."""
     model = RunawayElectronModel()
     with pytest.raises(ValueError, match=r"seed_re_fraction must be in \(0, 1\]"):
         model.simulate(seed_re_fraction=2.0)
-
-
-def test_run_disruption_ensemble_verbose_logging():
-    report = run_disruption_ensemble(ensemble_runs=2, seed=3, verbose=True)
-    assert report.ensemble_runs == 2
-
-
-def test_claim_evidence_rejects_non_report_object():
-    with pytest.raises(ValueError, match="must be DisruptionMitigationReport"):
-        disruption_mitigation_claim_evidence(
-            {"not": "report"}, source="documented_public_reference", source_id="case", ensemble_seed=1
-        )
-
-
-def test_claim_evidence_rejects_non_positive_ensemble_runs():
-    report, _ = _bounded_evidence()
-    with pytest.raises(ValueError, match="ensemble_runs must be positive"):
-        disruption_mitigation_claim_evidence(
-            replace(report, ensemble_runs=0),
-            source="documented_public_reference",
-            source_id="case",
-            ensemble_seed=1,
-        )
-
-
-def test_claim_evidence_requires_present_mean_tpf_product():
-    report, _ = _bounded_evidence()
-    with pytest.raises(ValueError, match="mean_tpf_product must be present"):
-        disruption_mitigation_claim_evidence(
-            replace(report, mean_tpf_product=None),
-            source="documented_public_reference",
-            source_id="case",
-            ensemble_seed=1,
-        )
-
-
-def test_assert_admissible_rejects_non_evidence_and_bad_schema():
-    with pytest.raises(ValueError, match="must be DisruptionMitigationClaimEvidence"):
-        assert_disruption_mitigation_claim_admissible({"not": "evidence"})
-    _, evidence = _bounded_evidence()
-    with pytest.raises(ValueError, match="schema_version is unsupported"):
-        assert_disruption_mitigation_claim_admissible(replace(evidence, schema_version=999))
-
-
-def test_save_claim_evidence_rejects_non_evidence(tmp_path):
-    with pytest.raises(ValueError, match="must be DisruptionMitigationClaimEvidence"):
-        save_disruption_mitigation_claim_evidence({"not": "evidence"}, tmp_path / "x.json")

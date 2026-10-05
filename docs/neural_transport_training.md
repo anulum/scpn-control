@@ -26,7 +26,6 @@ descriptions or multi-GB tensors:
 - `zenodo_8017522`: QLKNN11D training set,
   [doi:10.5281/zenodo.8017522](https://doi.org/10.5281/zenodo.8017522).
 
-Each directory contains a Zenodo `record.json` and `files_manifest.json`.
 Each directory contains a `files_manifest.json` with source DOI, record digest,
 file sizes, Zenodo API download URLs, and MD5 checksums. Multi-GB NetCDF and
 HDF5 tensors remain deferred and must be pulled onto an admitted storage or GPU
@@ -40,6 +39,23 @@ The acquisition manifests are not validation evidence by themselves. Quantitativ
 neural-transport claims still require strict
 `scpn-control.neural-transport-reference.v1` artifacts for the trained weights,
 reference tensors, predictions, units, feature ordering, and error metrics.
+
+The inspector links each download URL to the manifest's numeric Zenodo DOI and
+decoded file key, rejects duplicate/unsafe keys, and checks selected local
+mirrors against SHA-256, advertised MD5 and byte size in one stream. Optional
+adjacent raw `record.json` bytes are SHA-256 checked when present; canonical
+directories omit that file, so their record digests remain declarations. No
+remote metadata, licence or downloaded tensor is authenticated by this check.
+Malformed UTF-8, duplicate/nonfinite JSON, supported read/path/depth failures
+and report-write failures refuse admission. See the
+[acquisition inspection contract](validation.md) for lookup and counter limits.
+
+The equilibrium campaign planner consumes this same inspector and refuses
+preparation on aggregate FAIL, including partial valid counters. Its GPU-hour
+ranges are planning assumptions; local byte verification and explicit remote
+operator attestation are separate storage states. Refer to the
+[campaign contract](validation.md) before preparing explicit output reports.
+This planning step does not fetch tensors or launch the transport training loop.
 
 - **File Format**: NetCDF or HDF5.
 - **Columns**: QLKNN10D uses 10 input features and transport-flux targets.

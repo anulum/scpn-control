@@ -7,7 +7,7 @@ target-hardware, and deployment evidence that still needs admission.
 | Claim | Evidence | Script | Result |
 |-------|----------|--------|--------|
 | GS solver converges | Solov'ev analytic benchmark | `test_p0_regression.py` | NRMSE < 1% |
-| GS solver accuracy | Mesh convergence study | `mesh_convergence_study.py` | 2nd Order ($O(h^2)$) |
+| Manufactured GS stencil accuracy | Independent Solov'ev-form Dirichlet SOR | `mesh_convergence_study.py` | Approximately second order for this fixture |
 | Transport scaling sanity | IPB98(y,2)-style scaling checks | validation tooling | Bounded regression evidence |
 | H-inf outperforms PID | Controller comparison | `controller_comparison.py` | 30% reward improvement |
 | PPO/RL research baseline | Seeded training and comparison reports | RL benchmark tooling | Bounded research evidence |
@@ -20,8 +20,10 @@ target-hardware, and deployment evidence that still needs admission.
 
 ### 1. Equilibrium Accuracy
 The Grad-Shafranov solver was benchmarked against the Solov'ev analytic solution.
-A mesh convergence study confirmed that the 5-point central difference stencil
-achieves the theoretical second-order spatial convergence rate.
+The separate mesh study uses its own row-vector SOR implementation on a
+manufactured polynomial with exact Dirichlet boundaries. Its grid-error ratios
+check approximately second-order spatial convergence for that stencil and
+fixture; it does not directly exercise the canonical FusionKernel solver.
 
 ### 2. Transport Fidelity
 The 1.5D transport solver includes regression checks against confinement-scaling

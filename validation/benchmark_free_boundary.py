@@ -10,11 +10,10 @@
 # SCPN Control — Free-Boundary Benchmark
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
-"""
-Benchmark for free-boundary magnetic calculations.
+"""Vacuum software diagnostics with solver-expression and off-axis field limits.
 
-Validates vacuum flux and field calculations against analytic solutions
-(Jackson Eq. 5.37, Helmholtz pairs).
+These local samples do not provide independent physical flux normalization,
+Helmholtz-axis agreement or a validated magnetic-null location.
 """
 
 from __future__ import annotations
@@ -33,22 +32,86 @@ from scpn_control.core.fusion_kernel import FusionKernel
 
 
 def jackson_psi(Rc: float, Zc: float, R: float, Z: float, I: float = 1.0) -> float:
-    """Jackson Eq. 5.37: Flux from a circular loop."""
+    """Evaluate the local clipped loop expression used for solver self-consistency.
+
+    Parameters
+    ----------
+    Rc, Zc : float
+        Source coil radial/vertical coordinates in the code's metre convention.
+    R, Z : float
+        Observation coordinates in that same convention. Physical-domain
+        validation is not performed by this function.
+    I : float, default 1.0
+        Coil current in the code's ampere convention, with mu0=4e-7*pi.
+
+    Returns
+    -------
+    float
+        Scalar raw Psi from the displayed expression. k2 is clipped to
+        [1e-9, 0.999999], so singular/axis limits are not exact evaluations.
+        The formula grouping matches the current vacuum-field implementation;
+        agreement is self-consistency, not an independent normalization check.
+
+    Raises
+    ------
+    TypeError, ValueError
+        Underlying arithmetic/special functions cannot consume supplied values.
+    FloatingPointError
+        Invalid floating operations under a caller's NumPy error policy.
+
+    Notes
+    -----
+    NumPy's global error policy governs warnings/errors. Invalid coordinates
+    can produce nonfinite values without a custom refusal. The historical
+    Jackson label is not byte-bound evidence that Wb/Wb-per-radian conventions
+    or a published analytic derivation have been independently verified.
+    """
     mu0 = 4e-7 * np.pi
     k2 = 4.0 * R * Rc / ((R + Rc) ** 2 + (Z - Zc) ** 2)
     k2 = np.clip(k2, 1e-9, 0.999999)
     K = ellipk(k2)
     E = ellipe(k2)
-    # Prefactor mu0 * I / pi * sqrt(R * Rc) / k * [ (1 - k^2/2) K - E ]
-    # Wait, the version in fusion_kernel uses a different grouping.
-    # We use the same formula as the code to check for consistency,
-    # but also verify it's the same as Jackson.
+    # Keep the solver's grouping for a self-consistency comparison.
     term = ((2.0 - k2) * K - 2.0 * E) / k2
     pre = mu0 * I / (2 * np.pi) * np.sqrt((R + Rc) ** 2 + (Z - Zc) ** 2)
     return float(pre * term)
 
 
 def run_free_boundary_benchmark() -> dict[str, Any]:
+    """Compute three fixed vacuum diagnostics with a real local FusionKernel.
+
+    Returns
+    -------
+    dict
+        single_coil calculated/reference/raw relative error and threshold flag;
+        helmholtz off-axis B_z/axis reference and legacy unconditional True
+        qualitative marker; x_point grid-gradient minimum and a Z-only flag.
+        This API retains its legacy diagnostic marker. main() reports that
+        unassessed Helmholtz field as pass=None with an explicit assessment.
+
+    Raises
+    ------
+    OSError
+        Temporary config allocation/write or cleanup fails. Initial config
+        writing precedes the cleanup try/finally and may leave a file on error.
+    RuntimeError, TypeError, ValueError
+        The defining kernel/config/numerical operations refuse execution.
+
+    Notes
+    -----
+    Each call creates three fresh kernels on a 65x65 grid, R=[0.5,2.5] m and
+    Z=[-1.5,1.5] m, with fixed 1e6 A coils and mu0=4e-7*pi. It writes/reuses a
+    uniquely allocated temporary config and removes it after the computation
+    try/finally. No persistent report is written and no plasma solve is run.
+    The single-coil reference uses the same formula grouping as the solver.
+    The Helmholtz sample is R=0.5, Z=0; its reference is on the unreachable
+    R=0 axis, so no same-point error or tolerance is evaluated. The reported
+    X-point is a whole-grid gradient-norm minimum, with only abs(Z)<0.1 checked;
+    it is not a saddle/null test and expected R=0 lies outside the grid.
+    These diagnostics establish no independent physical unit normalization,
+    analytic/external-code validation, topology or facility-control admission.
+    NumPy/runtime resources are shared; no timing or concurrency guarantee.
+    """
     results = {}
 
     # Setup a minimal kernel
@@ -101,17 +164,12 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
         kernel_h.Psi = psi_h
         kernel_h.compute_b_field()
 
-        # Sample B_z at center (R=0.5 is min grid R, we need R near 0)
-        # Our grid starts at R=0.5. Helmholtz formula is for R_obs=0.
-        # We check at R=0.5 and compare with analytic B_z(R=0.5, Z=0).
-        # Actually, let's just check the center point of our grid.
+        # The R=0.5 sample and the R=0 axis reference are different points.
         iz_mid = kernel_h.NZ // 2
         ir_min = 0  # R = 0.5
         bz_calc = kernel_h.B_Z[iz_mid, ir_min]
 
-        # Analytic B_z for loop at (Rc, Zc) at (R, Z):
-        # We use a known reference value for R=0.5 if R_helm=1.0, Z_helm=0.5.
-        # But easier: Helmholtz pair B_z(axis)
+        # Retain the axis reference as an unassessed diagnostic value.
         bz_ref_axis = mu0 * I_helm / R_helm * (8.0 / (5.0 * np.sqrt(5.0)))
 
         results["helmholtz"] = {
@@ -120,8 +178,7 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
             "pass": True,  # Qualitative check since grid doesn't reach R=0
         }
 
-        # 3. X-point location
-        # Two coils at +/- Z with opposite current -> X-point at center.
+        # 3. Antisymmetric coil preset and grid gradient-minimum diagnostic.
         cfg["coils"] = [
             {"name": "X1", "r": 1.0, "z": 1.0, "current": 1e6},
             {"name": "X2", "r": 1.0, "z": -1.0, "current": -1e6},
@@ -153,11 +210,42 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
 
 
 def main() -> None:
+    """Write caller-relative software reports with an unassessed off-axis field.
+
+    Returns
+    -------
+    None
+        Write validation/reports/free_boundary_benchmark.json and .md, then
+        print their directory. JSON changes only Helmholtz pass to None and
+        adds assessment=diagnostic_only_off_axis_sample; Markdown keeps N/A.
+
+    Raises
+    ------
+    RuntimeError, ValueError
+        Persistent output guard or defining diagnostics refuse execution.
+    OSError
+        Directory/report/config IO fails. Writes are sequential with the
+        platform text codec; partial output can remain without a transaction.
+
+    Notes
+    -----
+    There are no CLI parameters. Destinations resolve from the current working
+    directory, while campaign persistence scope uses this module's root.
+    Guarded persistent paths require a campaign ID; outside-root scratch paths
+    do not. ID presence/syntax is not authenticity or physical-reference proof;
+    actual recorded wrapper custody is a separate API. Legacy json.dump(indent=2)
+    retains its nonfinite convention. Shared output paths have no producer
+    locking or atomic replacement. Numeric diagnostics and flags other than
+    the unassessed Helmholtz report marker retain their original arithmetic.
+    No physical normalization, axis agreement or topology admission is granted.
+    """
     report_dir = Path("validation/reports")
     json_path = report_dir / "free_boundary_benchmark.json"
     markdown_path = report_dir / "free_boundary_benchmark.md"
     require_recorded_campaign(json_path, markdown_path, repository_root=Path(__file__).resolve().parents[1])
     res = run_free_boundary_benchmark()
+    res["helmholtz"]["pass"] = None
+    res["helmholtz"]["assessment"] = "diagnostic_only_off_axis_sample"
 
     report_dir.mkdir(parents=True, exist_ok=True)
 
@@ -165,7 +253,9 @@ def main() -> None:
         json.dump(res, f, indent=2)
 
     with markdown_path.open("w") as f:
-        f.write("# Free-Boundary Validation Benchmark\n\n")
+        f.write("# Free-Boundary Software Diagnostics\n\n")
+        f.write("Single-coil equality is solver-expression self-consistency. The off-axis Helmholtz sample is\n")
+        f.write("unassessed against its axis reference; the gradient minimum is not a validated magnetic null.\n\n")
         f.write("| Test | Metric | Result | Pass |\n")
         f.write("|------|--------|--------|------|\n")
         sc = res["single_coil"]

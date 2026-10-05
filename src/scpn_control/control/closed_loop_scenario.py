@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
+from numbers import Integral
 
 import numpy as np
 
@@ -122,11 +123,12 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 
 def _bounded_auxiliary_power(command_mw: float, bounds_mw: tuple[float, float]) -> float:
+    command = _finite_scalar("commanded_p_aux_mw", command_mw)
     lower = _finite_scalar("p_aux_bounds_mw[0]", bounds_mw[0], nonnegative=True)
     upper = _finite_scalar("p_aux_bounds_mw[1]", bounds_mw[1], nonnegative=True)
     if upper < lower:
         raise ValueError("p_aux_bounds_mw upper bound must be >= lower bound")
-    return float(np.clip(command_mw, lower, upper))
+    return float(np.clip(command, lower, upper))
 
 
 def _constant_schedule(config: ScenarioConfig) -> ScenarioSchedule:
@@ -192,8 +194,8 @@ def run_integrated_scenario_closed_loop(
     This is a deterministic repository wiring contract, not measured-discharge
     validation or facility-control evidence.
     """
-    if max_steps is not None and max_steps < 1:
-        raise ValueError("max_steps must be >= 1 when provided")
+    if max_steps is not None and (isinstance(max_steps, bool) or not isinstance(max_steps, Integral) or max_steps < 1):
+        raise ValueError("max_steps must be a positive integer when provided")
     loop_config = replace(config) if config is not None else _default_closed_loop_config(max_steps or 5)
     simulator = IntegratedScenarioSimulator(loop_config)
     initial_state = simulator.initialize()

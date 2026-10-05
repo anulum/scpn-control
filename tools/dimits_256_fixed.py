@@ -7,18 +7,58 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Dimits Shift at n_kx=256 with CFL Fix.
 
-"""n_kx=256 Dimits: R/L_Ti=3 vs 6.9, hyper=0.02 for faster time advancement."""
+"""Manual 256-kx drive comparison with hyper coefficient 0.02; not convergence admission."""
 
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
 
-def run(label: str, rlt: float) -> dict:
+def run(label: str, rlt: float) -> dict[str, Any]:
+    """Run one fixed 256-kx JAX experiment and return saved raw diagnostics.
+
+    Parameters
+    ----------
+    label : str
+        Copied console/report label, without physical-case authentication.
+    rlt : float
+        R_L_Ti and R_L_Te drive values; this runner adds no domain validation.
+        The display ratio is result.chi_i / max(rlt, 0.01).
+
+    Returns
+    -------
+    dict
+        Label, R_L_Ti, chi_i_gB (None if nonfinite), wall-clock elapsed_s,
+        the solver converged flag and phi_rms/Q_i/time lists. Empty histories
+        are returned unchanged. Histories retain native nonfinite values.
+
+    Raises
+    ------
+    RuntimeError
+        JAX is unavailable under the backend's unchanged no-fallback policy.
+    TypeError, ValueError
+        The defining config, grids or backend refuse the supplied drive.
+
+    Notes
+    -----
+    The fixed grid is (256, 16, 32, 16, 8), with 10000 steps, save interval
+    200, dt 0.05, CFL adaptation and hyper coefficient 0.02. Each call creates
+    a fresh solver with default initial-state seed 42. JAX chooses its configured
+    backend; device/runtime resources are shared. Timing brackets run(), while
+    saved time is solver code time. Printed late_growth is a fractional endpoint
+    difference per code time, not logarithmic growth; fewer than three
+    last-quarter samples, or a nonpositive first sample, suppress that
+    diagnostic. The converged flag only
+    tests for more than one finite flux sample. The kx print accesses the
+    current solver's private NumPy grid and is coupled to that implementation.
+    This function writes no file and admits no physical Dimits shift,
+    convergence, external-reference validation or facility-control evidence.
+    """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 
@@ -78,6 +118,33 @@ def run(label: str, rlt: float) -> dict:
 
 
 def main() -> None:
+    """Run both fixed drive cases and overwrite a caller-relative raw report.
+
+    Returns
+    -------
+    None
+        Print backend, case diagnostics and summaries; run() is called with
+        drives 3.0 and 6.9 before gpu_results/dimits_256_fixed.json is written.
+
+    Raises
+    ------
+    RuntimeError, TypeError, ValueError
+        The defining solver/config/backend refuses a case before report output.
+    OSError
+        Creating the output directory or writing its report fails.
+    IndexError
+        A case returns an empty history and the final comparison indexes it;
+        the raw report has already been written when this summary fails.
+
+    Notes
+    -----
+    There are no CLI parameters. Both experiments use the fixed 10000-step
+    grid and hyper coefficient declared by run(). Output uses the platform
+    text codec and legacy json.dumps(indent=2, default=str), retaining its
+    nonfinite-float convention. Existing output may be replaced without atomic
+    replacement, locking, campaign custody or an authenticated source digest.
+    Successful completion is not physical or asymptotic convergence admission.
+    """
     try:
         import jax
 

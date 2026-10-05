@@ -10,15 +10,13 @@
 
 from __future__ import annotations
 
-import json
-import logging
 from importlib.util import find_spec
 
 import numpy as np
 
 HAS_MPL = find_spec("matplotlib") is not None
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     # Type-check against the concrete Python base class. At runtime the Rust-backed
@@ -26,6 +24,8 @@ if TYPE_CHECKING:
     # Python FusionKernel attribute interface, so the Python class is the correct
     # static base for TransportSolver and avoids subclassing Any.
     from scpn_control.core.fusion_kernel import FusionKernel
+    from scpn_control.core.gk_interface import GKSolverBase
+    from scpn_control.core.gk_tglf_native import TGLFNativeSolver
 else:
     try:
         from scpn_control.core._rust_compat import FusionKernel
@@ -33,324 +33,100 @@ else:
         from scpn_control.core.fusion_kernel import FusionKernel
 
 from scpn_control._typing import AnyFloatArray, FloatArray
-from scpn_control.core.anomalous_transport import (
-    gk_flux_surface_transport,
-    gyro_bohm_chi_profile,
-)
-from scpn_control.core.aux_heating import aux_heating_source_profiles
+from scpn_control.core.adaptive_time_controller import AdaptiveTimeController as AdaptiveTimeController
+from scpn_control.core.aux_heating import aux_heating_source_profiles as aux_heating_source_profiles
 from scpn_control.core.momentum_transport import (
     MomentumTransportSolver,
-    intrinsic_rotation_torque,
-    nbi_torque,
+)
+from scpn_control.core.momentum_transport import (
+    intrinsic_rotation_torque as intrinsic_rotation_torque,
+)
+from scpn_control.core.momentum_transport import (
+    nbi_torque as nbi_torque,
 )
 from scpn_control.core.pedestal import PedestalProfile
-from scpn_control.core.plasma_power_terms import bremsstrahlung_power_density
-from scpn_control.core.radial_diffusion import build_cn_tridiag, explicit_diffusion_rhs, thomas_solve
-from scpn_control.core.runtime_sanitization import sanitize_with_fallback
-from scpn_control.core.species_evolution import evolve_multi_ion_species
+from scpn_control.core.plasma_power_terms import bremsstrahlung_power_density as bremsstrahlung_power_density
+from scpn_control.core.radial_diffusion import (
+    build_cn_tridiag as build_cn_tridiag,
+)
+from scpn_control.core.radial_diffusion import (
+    explicit_diffusion_rhs as explicit_diffusion_rhs,
+)
+from scpn_control.core.radial_diffusion import (
+    thomas_solve as thomas_solve,
+)
+from scpn_control.core.runtime_sanitization import sanitize_with_fallback as sanitize_with_fallback
+from scpn_control.core.species_evolution import SpeciesParticleBalance
+from scpn_control.core.species_evolution import evolve_multi_ion_species as evolve_multi_ion_species
+from scpn_control.core.transport_face_runtime import evolve_fluxes_impl
+from scpn_control.core.transport_flux import (
+    TransportFaceFlux,
+    TransportFaceGeometry,
+    TransportFluxBalance,
+)
+from scpn_control.core.transport_flux import (
+    advance_face_flux as advance_face_flux,
+)
 from scpn_control.core.transport_geometry import (
     canonical_radial_grid,
-    estimate_plasma_surface_area_m2,
     is_canonical_radial_grid,
-    rho_volume_element,
 )
-
-_logger = logging.getLogger(__name__)
-
-
-class PhysicsError(RuntimeError):
-    """Raised when a physics constraint is violated."""
-
-
-# ── Gyro-Bohm coefficient loader ─────────────────────────────────────
-
-_GYRO_BOHM_COEFF_PATH = (
-    Path(__file__).resolve().parents[3] / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
+from scpn_control.core.transport_geometry import (
+    rho_volume_element as rho_volume_element,
 )
-
-_GYRO_BOHM_DEFAULT = 0.1  # ITPA Transport DB, Nucl. Fusion 39, 2175 (1999)
-
-
-def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
-    scalar = float(value)
-    if not np.isfinite(scalar):
-        raise ValueError(f"{name} must be finite")
-    if positive and scalar <= 0.0:
-        raise ValueError(f"{name} must be positive")
-    if nonnegative and scalar < 0.0:
-        raise ValueError(f"{name} must be non-negative")
-    return scalar
-
-
-def _normalised_radius(rho: AnyFloatArray) -> FloatArray:
-    arr = np.asarray(rho, dtype=float)
-    if arr.ndim != 1 or arr.size < 2:
-        raise ValueError("rho must be a one-dimensional profile with at least two points")
-    if not np.all(np.isfinite(arr)):
-        raise ValueError("rho must contain only finite values")
-    if np.any(arr < 0.0) or np.any(arr > 1.0):
-        raise ValueError("rho must stay within the normalised interval [0, 1]")
-    if not np.isclose(arr[0], 0.0, rtol=0.0, atol=1.0e-12):
-        raise ValueError("rho must start at 0 for axis-to-edge transport profiles")
-    if not np.isclose(arr[-1], 1.0, rtol=0.0, atol=1.0e-12):
-        raise ValueError("rho must end at 1 for axis-to-edge transport profiles")
-    if np.any(np.diff(arr) <= 0.0):
-        raise ValueError("rho must be strictly increasing")
-    return arr
-
-
-def _profile_array(
-    name: str,
-    values: AnyFloatArray,
-    shape: tuple[int, ...],
-    *,
-    positive: bool = False,
-    nonnegative: bool = False,
-    allow_last_zero: bool = False,
-) -> FloatArray:
-    arr = np.asarray(values, dtype=float)
-    if arr.shape != shape:
-        raise ValueError(f"{name} must match the rho grid shape")
-    if not np.all(np.isfinite(arr)):
-        raise ValueError(f"{name} must contain only finite values")
-    if positive and allow_last_zero and (np.any(arr[:-1] <= 0.0) or arr[-1] < 0.0):
-        raise ValueError(f"{name} must be positive in the interior and non-negative at the boundary")
-    if positive and not allow_last_zero and np.any(arr <= 0.0):
-        raise ValueError(f"{name} must be positive everywhere")
-    if nonnegative and np.any(arr < 0.0):
-        raise ValueError(f"{name} must be non-negative everywhere")
-    return arr
-
-
-def _validate_tokamak_geometry(R0: float, a: float, B0: float) -> tuple[float, float, float]:
-    R0 = _finite_scalar("R0", R0, positive=True)
-    a = _finite_scalar("a", a, positive=True)
-    if a >= R0:
-        raise ValueError("a must be smaller than R0 for tokamak ordering")
-    B0 = _finite_scalar("B0", B0, positive=True)
-    return R0, a, B0
-
-
-def _load_gyro_bohm_coefficient(
-    path: Path | str | None = None,
-) -> float:
-    """Load the calibrated gyro-Bohm coefficient c_gB from JSON.
-
-    Parameters
-    ----------
-    path : Path or str, optional
-        Override path.  Defaults to the file shipped in
-        ``validation/reference_data/itpa/gyro_bohm_coefficients.json``.
-
-    Returns
-    -------
-    float
-        The calibrated c_gB value, or 0.1 if the file is not found.
-    """
-    p = Path(path) if path else _GYRO_BOHM_COEFF_PATH
-    try:
-        with open(p, encoding="utf-8") as f:
-            data = json.load(f)
-        c_gb_payload = data.get("c_gB")
-        scaling_payload = data.get("scaling_parameters")
-        if c_gb_payload is None and isinstance(scaling_payload, dict):
-            c_gb_payload = scaling_payload.get("c_gB_nominal")
-        if c_gb_payload is None:
-            raise KeyError("c_gB")
-        c_gB = _finite_scalar("c_gB", c_gb_payload, positive=True)
-        _logger.debug("Loaded c_gB = %.6f from %s", c_gB, p)
-        return c_gB
-    except (FileNotFoundError, KeyError, json.JSONDecodeError, TypeError) as exc:
-        _logger.warning(
-            "Could not load c_gB from %s (%s), using default %.4f",
-            p,
-            exc,
-            _GYRO_BOHM_DEFAULT,
-        )
-        return _GYRO_BOHM_DEFAULT
-
-
-def chang_hinton_chi_profile(
-    rho: AnyFloatArray,
-    T_i: AnyFloatArray,
-    n_e_19: AnyFloatArray,
-    q: AnyFloatArray,
-    R0: float,
-    a: float,
-    B0: float,
-    A_ion: float = 2.0,
-    Z_eff: float = 1.5,
-) -> FloatArray:
-    """
-    Chang-Hinton (1982) neoclassical ion thermal diffusivity profile [m²/s].
-
-    Parameters
-    ----------
-    rho : array  — normalised radius [0,1]
-    T_i : array  — ion temperature [keV]
-    n_e_19 : array  — electron density [10^19 m^-3]
-    q : array  — safety factor profile
-    R0 : float  — major radius [m]
-    a : float  — minor radius [m]
-    B0 : float  — toroidal field [T]
-    A_ion : float  — ion mass number (default 2 = deuterium)
-    Z_eff : float  — effective charge
-
-    Returns
-    -------
-    chi_nc : array  — neoclassical chi_i [m²/s]
-    """
-    rho = _normalised_radius(rho)
-    shape = rho.shape
-    T_i = _profile_array("T_i", T_i, shape, positive=True, allow_last_zero=True)
-    n_e_19 = _profile_array("n_e_19", n_e_19, shape, nonnegative=True)
-    q = _profile_array("q", q, shape, positive=True)
-    R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
-    A_ion = _finite_scalar("A_ion", A_ion, positive=True)
-    Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
-
-    # Fundamental constants (CODATA 2018)
-    e_charge = 1.602176634e-19  # C
-    eps0 = 8.8541878128e-12  # F/m
-    m_p = 1.67262192369e-27  # kg
-    m_i = A_ion * m_p
-
-    chi_nc = np.zeros_like(rho)
-    for i in range(len(rho)):
-        r = rho[i]
-        if r <= 0.0 or T_i[i] <= 0.0 or n_e_19[i] <= 0.0:
-            chi_nc[i] = 0.01
-            continue
-
-        epsilon = r * a / R0
-        if epsilon < 1e-6:
-            chi_nc[i] = 0.01
-            continue
-
-        T_J = T_i[i] * 1.602176634e-16  # keV -> J
-        v_ti = np.sqrt(2.0 * T_J / m_i)
-        rho_i = m_i * v_ti / (e_charge * B0)
-
-        # ion-ion collision frequency
-        n_e = n_e_19[i] * 1e19
-        ln_lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-        nu_ii = n_e * Z_eff**2 * e_charge**4 * ln_lambda / (12.0 * np.pi**1.5 * eps0**2 * m_i**0.5 * T_J**1.5)
-
-        eps32 = epsilon**1.5
-        nu_star = nu_ii * q[i] * R0 / (eps32 * v_ti)
-
-        alpha_sh = epsilon
-        # Chang & Hinton, Phys. Fluids 25, 1493 (1982), Eq. 10
-        chi_val = (
-            0.66
-            * (1.0 + 1.54 * alpha_sh)
-            * q[i] ** 2
-            * rho_i**2
-            * nu_ii
-            / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
-        )
-
-        chi_nc[i] = max(chi_val, 0.01) if np.isfinite(chi_val) else 0.01
-
-    return chi_nc
-
-
-def calculate_sauter_bootstrap_current_full(
-    rho: AnyFloatArray,
-    Te: AnyFloatArray,
-    Ti: AnyFloatArray,
-    ne: AnyFloatArray,
-    q: AnyFloatArray,
-    R0: float,
-    a: float,
-    B0: float,
-    Z_eff: float = 1.5,
-) -> FloatArray:
-    """Full Sauter bootstrap current model (Sauter et al., Phys. Plasmas 6, 1999).
-
-    Parameters
-    ----------
-    rho : array — normalised radius [0,1]
-    Te : array — electron temperature [keV]
-    Ti : array — ion temperature [keV]
-    ne : array — electron density [10^19 m^-3]
-    q : array — safety factor profile
-    R0 : float — major radius [m]
-    a : float — minor radius [m]
-    B0 : float — toroidal field [T]
-    Z_eff : float — effective charge
-
-    Returns
-    -------
-    j_bs : array — bootstrap current density [A/m^2]
-    """
-    rho = _normalised_radius(rho)
-    shape = rho.shape
-    Te = _profile_array("Te", Te, shape, positive=True, allow_last_zero=True)
-    Ti = _profile_array("Ti", Ti, shape, positive=True, allow_last_zero=True)
-    ne = _profile_array("ne", ne, shape, nonnegative=True)
-    q = _profile_array("q", q, shape, positive=True)
-    R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
-    Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
-    n = len(rho)
-    j_bs = np.zeros(n)
-    # Fundamental constants (CODATA 2018)
-    e_charge = 1.602176634e-19  # C
-    m_e = 9.1093837015e-31  # kg
-    eps0 = 8.8541878128e-12  # F/m
-
-    for i in range(1, n - 1):
-        eps = rho[i] * a / R0
-        if eps < 1e-6:
-            continue
-        if Te[i] <= 0.0 or Ti[i] <= 0.0 or ne[i] <= 0.0:
-            continue
-
-        # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eq. 13
-        f_t = 1.0 - (1.0 - eps) ** 2 / (np.sqrt(1.0 - eps**2) * (1.0 + 1.46 * np.sqrt(eps)))
-        f_t = max(0.0, min(f_t, 1.0))
-
-        # Electron thermal velocity
-        T_e_J = Te[i] * 1e3 * e_charge
-        v_te = np.sqrt(2.0 * T_e_J / m_e)
-
-        # Collision frequency
-        n_e = ne[i] * 1e19
-        ln_lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-        nu_ei = n_e * Z_eff * e_charge**4 * ln_lambda / (12.0 * np.pi**1.5 * eps0**2 * m_e**0.5 * T_e_J**1.5)
-
-        # Collisionality
-        nu_star_e = nu_ei * q[i] * R0 / (eps**1.5 * v_te) if v_te > 0 else 1e6
-
-        # Sauter et al., Phys. Plasmas 6, 2834 (1999), Eqs. 14a-14c
-        alpha_31 = 1.0 / (1.0 + 0.36 / Z_eff)
-        L31 = f_t * alpha_31 / (1.0 + alpha_31 * np.sqrt(nu_star_e) + 0.25 * nu_star_e * (1.0 - f_t) ** 2)
-
-        # Sauter L32 coefficient
-        L32 = f_t * (0.05 + 0.62 * Z_eff) / (Z_eff * (1.0 + 0.44 * Z_eff))
-        L32 /= 1.0 + 0.22 * np.sqrt(nu_star_e) + 0.19 * nu_star_e * (1.0 - f_t)
-
-        # Sauter L34 coefficient (ion contribution)
-        L34 = L31 * Ti[i] / Te[i]
-
-        # Gradients (central differences)
-        dr = (rho[i + 1] - rho[i - 1]) * a
-        if abs(dr) < 1e-12:
-            continue
-        dn_dr = (ne[i + 1] - ne[i - 1]) * 1e19 / dr
-        dTe_dr = (Te[i + 1] - Te[i - 1]) * 1e3 * e_charge / dr
-        dTi_dr = (Ti[i + 1] - Ti[i - 1]) * 1e3 * e_charge / dr
-
-        # Poloidal field
-        B_pol = B0 * eps / q[i]
-        if B_pol < 1e-10:
-            continue
-
-        # Bootstrap current
-        p_e = n_e * T_e_J
-        j_bs[i] = -(p_e / B_pol) * (L31 * dn_dr / n_e + L32 * dTe_dr / T_e_J + L34 * dTi_dr / (Ti[i] * 1e3 * e_charge))
-
-    return j_bs
+from scpn_control.core.transport_model_selection import (
+    _external_gk_transport_impl,
+    _gyro_bohm_chi_impl,
+    _legacy_bootstrap_current_approx_impl,
+    _tglf_native_transport_impl,
+    calculate_bootstrap_current_impl,
+    chang_hinton_chi_profile_impl,
+    inject_impurities_impl,
+    set_neoclassical_impl,
+    update_transport_model_impl,
+)
+from scpn_control.core.transport_neoclassical import (
+    _finite_scalar as _finite_scalar,
+)
+from scpn_control.core.transport_neoclassical import (
+    _load_gyro_bohm_coefficient as _load_gyro_bohm_coefficient,
+)
+from scpn_control.core.transport_neoclassical import (
+    _normalised_radius as _normalised_radius,
+)
+from scpn_control.core.transport_neoclassical import (
+    _profile_array as _profile_array,
+)
+from scpn_control.core.transport_neoclassical import (
+    _validate_tokamak_geometry as _validate_tokamak_geometry,
+)
+from scpn_control.core.transport_neoclassical import (
+    calculate_sauter_bootstrap_current_full as calculate_sauter_bootstrap_current_full,
+)
+from scpn_control.core.transport_neoclassical import (
+    chang_hinton_chi_profile as chang_hinton_chi_profile,
+)
+from scpn_control.core.transport_orchestration import (
+    _compute_confinement_time,
+    _map_profiles_to_2d,
+    _run_self_consistent,
+    _run_to_steady_state,
+)
+from scpn_control.core.transport_species_runtime import (
+    _compute_aux_heating_sources_impl,
+    _evolve_species_impl,
+    _rho_volume_element_impl,
+    ion_density_impl,
+)
+from scpn_control.core.transport_state import (
+    PhysicsError as PhysicsError,
+)
+from scpn_control.core.transport_state import (
+    ThermalEnergyBalance,
+    capture_evolution_state_impl,
+    restore_evolution_state_impl,
+)
+from scpn_control.core.transport_thermal_runtime import _sanitize_runtime_state_impl, evolve_profiles_impl
 
 
 class TransportSolver(FusionKernel):
@@ -366,6 +142,10 @@ class TransportSolver(FusionKernel):
     (Pütterich et al. 2010), and per-cell Bremsstrahlung.
     """
 
+    _gk_solver: GKSolverBase
+    _tglf_native_solver: TGLFNativeSolver
+    Pressure_2D: FloatArray
+
     def __init__(
         self,
         config_path: str | Path,
@@ -379,6 +159,13 @@ class TransportSolver(FusionKernel):
         allow_simplified_bootstrap_fallback: bool = False,
         allow_legacy_approximations: bool = False,
     ) -> None:
+        """Load equilibrium configuration and allocate radial profiles, species and step diagnostics.
+
+        Legacy approximation flags require the global opt-in. Species arrays
+        exist only in multi-ion mode; their densities use the electron profile
+        units of 10^19 m^-3. No equilibrium or transport convergence is implied
+        by initialization.
+        """
         super().__init__(config_path)
         dims = self.cfg["dimensions"]
         self.a = max(float(dims["R_max"] - dims["R_min"]) / 2.0, 1.0e-9)
@@ -426,7 +213,11 @@ class TransportSolver(FusionKernel):
 
         # Conservation diagnostics (updated each evolve_profiles call)
         self._last_conservation_error: float = 0.0
+        self._last_energy_balance: ThermalEnergyBalance | None = None
+        self._last_flux_balance: TransportFluxBalance | None = None
         self._last_particle_balance_error: float = 0.0
+        self._last_particle_balance: SpeciesParticleBalance | None = None
+        self._last_helium_pumped: FloatArray = np.zeros(self.nr)
 
         # ── Multi-ion species (P1.1) ──
         # Densities in 10^19 m^-3 (same units as ne)
@@ -449,7 +240,7 @@ class TransportSolver(FusionKernel):
         self.tau_He_factor: float = 5.0  # tau_He/tau_E ratio; ITER design basis, Reiter et al.
 
         # Particle diffusivity for species transport
-        self.D_species: float = 0.3  # m²/s, anomalous; Angioni et al., NF 47 (2007) 1326
+        self.D_species: float | AnyFloatArray = 0.3  # m²/s, anomalous; Angioni et al., NF 47 (2007) 1326
 
         # Z_eff tracking (updated every evolve step in multi-ion mode)
         self._Z_eff: float = 1.5
@@ -510,23 +301,7 @@ class TransportSolver(FusionKernel):
         When set, update_transport_model uses the Chang-Hinton formula instead
         of the constant chi_base = 0.5.
         """
-        R0, a, B0 = _validate_tokamak_geometry(R0, a, B0)
-        A_ion = _finite_scalar("A_ion", A_ion, positive=True)
-        Z_eff = _finite_scalar("Z_eff", Z_eff, positive=True)
-        q0 = _finite_scalar("q0", q0, positive=True)
-        q_edge = _finite_scalar("q_edge", q_edge, positive=True)
-        if q_edge < q0:
-            raise ValueError("q_edge must be greater than or equal to q0")
-        q_profile = q0 + (q_edge - q0) * self.rho**2
-        self.neoclassical_params = {
-            "R0": R0,
-            "a": a,
-            "B0": B0,
-            "A_ion": A_ion,
-            "Z_eff": Z_eff,
-            "q_profile": q_profile,
-        }
-        self._momentum_solver = MomentumTransportSolver(self.rho, R0, a, B0)
+        return set_neoclassical_impl(self, R0, a, B0, A_ion, Z_eff, q0, q_edge)
 
     def chang_hinton_chi_profile(self) -> FloatArray:
         """Backward-compatible Chang-Hinton profile helper.
@@ -535,35 +310,7 @@ class TransportSolver(FusionKernel):
         transport object. Keep the method as a thin adapter over the module
         function so those tests remain stable.
         """
-        rho = np.asarray(self.rho, dtype=np.float64)
-
-        t_i_raw = getattr(self, "t_i", None)
-        if t_i_raw is None:
-            t_i_raw = self.Ti
-        t_i = np.asarray(t_i_raw, dtype=np.float64)
-
-        n_e_raw = getattr(self, "n_e", None)
-        if n_e_raw is None:
-            n_e_raw = self.ne
-        n_e = np.asarray(n_e_raw, dtype=np.float64)
-        q_profile = np.asarray(
-            getattr(self, "q_profile", np.linspace(1.0, 3.0, len(rho))),
-            dtype=np.float64,
-        )
-
-        params = getattr(self, "neoclassical_params", None)
-        if not isinstance(params, dict):
-            params = {}
-        R0 = float(params.get("R0", 6.2))
-        a = float(params.get("a", 2.0))
-        B0 = float(params.get("B0", 5.3))
-        A_ion = float(params.get("A_ion", 2.0))
-        Z_eff = float(params.get("Z_eff", 1.5))
-
-        if q_profile.shape != rho.shape:
-            q_profile = np.linspace(1.0, 3.0, len(rho), dtype=np.float64)
-
-        return chang_hinton_chi_profile(rho, t_i, n_e, q_profile, R0, a, B0, A_ion=A_ion, Z_eff=Z_eff)
+        return chang_hinton_chi_profile_impl(self)
 
     def inject_impurities(self, flux_from_wall_per_sec: float, dt: float) -> None:
         """
@@ -571,52 +318,11 @@ class TransportSolver(FusionKernel):
 
         Simple diffusion model: Source at edge, diffuses inward.
         """
-        # Source at edge (last grid point)
-        # Flux is total particles. Volume of edge shell approx 20 m3.
-        # Delta_n = Flux * dt / Vol_edge
-        # Scaling factor adjusted for simulation stability
-        d_n_edge = (flux_from_wall_per_sec * dt) / 20.0 * 1e-18
-
-        # Add to edge
-        self.n_impurity[-1] += d_n_edge
-
-        # Diffuse inward (Explicit step)
-        D_imp = 1.0  # m2/s
-        new_imp = self.n_impurity.copy()
-
-        grad = np.gradient(self.n_impurity, self.drho)
-        flux = -D_imp * grad
-        div = np.gradient(flux, self.drho) / (self.rho + 1e-6)
-
-        new_imp += (-div) * dt
-
-        # Boundary
-        new_imp[0] = new_imp[1]  # Axis symmetry
-
-        np.maximum(0, new_imp, out=self.n_impurity)
+        return inject_impurities_impl(self, flux_from_wall_per_sec, dt)
 
     def _legacy_bootstrap_current_approx(self, R0: float, B_pol: AnyFloatArray) -> FloatArray:
         """Legacy approximate bootstrap-current closure (compatibility mode only)."""
-        # Legacy reduced-order closure retained only for compatibility mode.
-        dims = self.cfg["dimensions"]
-        R0 = 0.5 * (dims["R_max"] + dims["R_min"]) if R0 == 0.0 else R0
-        neo = self.neoclassical_params or {}
-        a = neo.get("a", 0.5 * (dims["R_max"] - dims["R_min"]))
-        f_trapped = 1.46 * np.sqrt(self.rho * a / (2 * R0))
-
-        P = self.ne * 1e19 * (self.Ti + self.Te) * 1.602e-16  # J/m3
-        dP_drho = np.gradient(P, self.drho)
-
-        # Wesson, "Tokamaks" 4th ed., Eq. 4.8.1: J_bs ~ -f_t / B_p * dp/dr
-        # Factor 1.2: Z_eff≈1.5 correction (Hirshman & Sigmar, NF 21, 1079, 1981)
-        B_pol = np.maximum(B_pol, 0.1)
-        BOOTSTRAP_ZEFF_CORRECTION = 1.2
-        J_bs = BOOTSTRAP_ZEFF_CORRECTION * (f_trapped / B_pol) * dP_drho / a
-
-        J_bs[0] = 0
-        J_bs[-1] = 0
-
-        return np.asarray(J_bs)
+        return _legacy_bootstrap_current_approx_impl(self, R0, B_pol)
 
     def calculate_bootstrap_current(self, R0: float, B_pol: AnyFloatArray) -> FloatArray:
         """Calculate bootstrap current using full Sauter closure by default.
@@ -624,25 +330,7 @@ class TransportSolver(FusionKernel):
         If neoclassical configuration is missing, this method fails closed unless
         ``allow_simplified_bootstrap_fallback=True`` was explicitly enabled.
         """
-        if hasattr(self, "neoclassical_params") and self.neoclassical_params is not None:
-            return calculate_sauter_bootstrap_current_full(
-                self.rho,
-                self.Te,
-                self.Ti,
-                self.ne,
-                self.neoclassical_params.get("q_profile", np.linspace(1, 4, len(self.rho))),
-                R0,
-                self.neoclassical_params.get("a", 2.0),
-                self.neoclassical_params.get("B0", 5.3),
-                self.neoclassical_params.get("Z_eff", 1.5),
-            )
-        if not (self.allow_simplified_bootstrap_fallback and self.allow_legacy_approximations):
-            raise RuntimeError(
-                "neoclassical transport configuration is required for bootstrap current; "
-                "set neoclassical parameters or explicitly enable "
-                "allow_simplified_bootstrap_fallback + allow_legacy_approximations for legacy behaviour"
-            )
-        return self._legacy_bootstrap_current_approx(R0, B_pol)
+        return calculate_bootstrap_current_impl(self, R0, B_pol)
 
     def _gyro_bohm_chi(self) -> FloatArray:
         """Gyro-Bohm anomalous transport diffusivity [m^2/s].
@@ -658,31 +346,7 @@ class TransportSolver(FusionKernel):
         the value in ``neoclassical_params['c_gB']`` if explicitly set,
         or to the module-level default (0.1) otherwise.
         """
-        if self.neoclassical_params is None:
-            if self.allow_constant_transport_fallback and self.allow_legacy_approximations:
-                return np.full_like(self.rho, 0.5)
-            raise RuntimeError(
-                "neoclassical transport configuration is required for gyro-Bohm transport; "
-                "set neoclassical parameters or explicitly enable "
-                "allow_constant_transport_fallback + allow_legacy_approximations for legacy behaviour"
-            )
-
-        p = self.neoclassical_params
-
-        # Load c_gB: explicit param > JSON file > default
-        c_gB = p["c_gB"] if "c_gB" in p else _load_gyro_bohm_coefficient()
-
-        return gyro_bohm_chi_profile(
-            self.rho,
-            self.Ti,
-            self.Te,
-            p["q_profile"],
-            p["R0"],
-            p["a"],
-            p["B0"],
-            p.get("A_ion", 2.0),
-            c_gB,
-        )
+        return _gyro_bohm_chi_impl(self)
 
     def _external_gk_transport(self, p: dict[str, Any]) -> FloatArray:
         """Run an external GK solver at each flux surface, return chi_i profile.
@@ -692,30 +356,7 @@ class TransportSolver(FusionKernel):
         output. Legacy gyro-Bohm fallback can be explicitly enabled by setting
         ``external_gk_allow_gyrobohm_fallback=True`` on construction.
         """
-        from scpn_control.core.gk_interface import GKSolverBase
-
-        solver: GKSolverBase | None = getattr(self, "_gk_solver", None)
-        if solver is None:
-            from scpn_control.core.gk_tglf import TGLFSolver
-
-            solver = TGLFSolver()
-            self._gk_solver = solver
-
-        chi_i_out, chi_e_out, D_e_out = gk_flux_surface_transport(
-            solver=solver,
-            rho=self.rho,
-            Te=self.Te,
-            Ti=self.Ti,
-            ne=self.ne,
-            params=p,
-            solver_label="external_gk",
-            catch_execution_errors=True,
-            allow_gyrobohm_fallback=self.external_gk_allow_gyrobohm_fallback and self.allow_legacy_approximations,
-            gyro_bohm_fallback=self._gyro_bohm_chi,
-        )
-        self.chi_e = chi_e_out
-        self.D_n = D_e_out
-        return chi_i_out
+        return _external_gk_transport_impl(self, p)
 
     def _tglf_native_transport(self, p: dict[str, Any]) -> FloatArray:
         """Run the native TGLF-equivalent solver at each flux surface.
@@ -725,28 +366,7 @@ class TransportSolver(FusionKernel):
         native-GK transport is unconverged. Legacy gyro-Bohm fallback can
         be explicitly enabled with ``tglf_native_allow_gyrobohm_fallback=True``.
         """
-        from scpn_control.core.gk_tglf_native import TGLFNativeConfig, TGLFNativeSolver
-
-        solver: TGLFNativeSolver | None = getattr(self, "_tglf_native_solver", None)
-        if solver is None:
-            solver = TGLFNativeSolver(TGLFNativeConfig(sat_model="SAT1", n_ky_ion=12, n_theta=32))
-            self._tglf_native_solver = solver
-
-        chi_i_out, chi_e_out, D_e_out = gk_flux_surface_transport(
-            solver=solver,
-            rho=self.rho,
-            Te=self.Te,
-            Ti=self.Ti,
-            ne=self.ne,
-            params=p,
-            solver_label="tglf_native",
-            catch_execution_errors=False,
-            allow_gyrobohm_fallback=self.tglf_native_allow_gyrobohm_fallback and self.allow_legacy_approximations,
-            gyro_bohm_fallback=self._gyro_bohm_chi,
-        )
-        self.chi_e = chi_e_out
-        self.D_n = D_e_out
-        return chi_i_out
+        return _tglf_native_transport_impl(self, p)
 
     def update_transport_model(self, P_aux: float) -> None:
         """
@@ -757,214 +377,65 @@ class TransportSolver(FusionKernel):
         - Gyro-Bohm anomalous transport (calibrated c_gB)
         - EPED-like pedestal model for H-mode boundary condition
 
+        Gyrokinetic, native TGLF and external GK modes retain their separately
+        computed electron diffusivity and D_n profile. Their ion diffusivity
+        receives the Chang-Hinton contribution; the legacy critical-gradient
+        estimate is not added on top of those turbulent channels. Other modes
+        retain the shared ion/electron estimate and D_n = 0.1*chi_e closure.
+        For native/external modes, an explicitly permitted cellwise gyro-Bohm
+        fallback defines chi_gB = max(raw_gyro_bohm, 0.01) per non-core
+        cell, then follows the three-channel composition: chi_i = chi_gB
+        + chi_nc, chi_e = chi_gB, D_n = 0.1*chi_gB, with no additional
+        critical-gradient term. Core/vacuum cells retain the driver floors
+        (0.01 in each returned channel before ion chi_nc is added). Both the
+        mode-specific fallback flag and allow_legacy_approximations are required.
+        External execution errors enter that fallback decision; native solver
+        exceptions propagate, while invalid/unconverged native results can
+        fall back. Selecting a mode alone does not prove backend success.
+
+        D_n is an electron-particle coefficient, possibly a fallback estimate;
+        the separate D_species scalar or radial profile controls D/T/He.
+        This method does not infer a
+        multispecies particle or heat-convection closure from D_n.
+
         Fails closed when neoclassical parameters are not configured, unless
         ``allow_constant_transport_fallback=True`` is explicitly enabled.
         """
-        self._ensure_valid_radial_grid()
-
-        # 1. Critical Gradient Model
-        grad_T = np.gradient(self.Ti, self.drho)
-        threshold = 2.0
-
-        # Base level transport from configured neoclassical + selected anomalous model.
-        if self.neoclassical_params is not None:
-            p = self.neoclassical_params
-            chi_nc = chang_hinton_chi_profile(
-                self.rho, self.Ti, self.ne, p["q_profile"], p["R0"], p["a"], p["B0"], p["A_ion"], p["Z_eff"]
-            )
-            transport_mode = getattr(self, "transport_model", "gyro_bohm")
-            if transport_mode == "gyrokinetic":
-                from scpn_control.core.gyrokinetic_transport import GyrokineticTransportModel
-
-                gk_model = GyrokineticTransportModel()
-                Te_gk = np.maximum(self.Te, 1e-6)
-                Ti_gk = np.maximum(self.Ti, 1e-6)
-                ne_gk = np.maximum(self.ne, 1e-6)
-                dTe_dr = np.gradient(Te_gk, self.rho * p["a"])
-                dTi_dr = np.gradient(Ti_gk, self.rho * p["a"])
-                dne_dr = np.gradient(ne_gk, self.rho * p["a"])
-                profiles_dict = {
-                    "R0": p["R0"],
-                    "a": p["a"],
-                    "B0": p["B0"],
-                    "q": p["q_profile"],
-                    "Te": Te_gk,
-                    "Ti": Ti_gk,
-                    "ne": ne_gk,
-                    "dTe_dr": dTe_dr,
-                    "dTi_dr": dTi_dr,
-                    "dne_dr": dne_dr,
-                    "Z_eff": p.get("Z_eff", 1.5),
-                }
-                chi_i_gk, chi_e_gk, D_e_gk = gk_model.evaluate_profile(self.rho, profiles_dict)
-                chi_gB = chi_i_gk  # Use for base ion chi
-                self.chi_e = chi_e_gk  # Update electron chi directly
-                self.D_n = D_e_gk  # Update particle diffusivity directly
-            elif transport_mode == "tglf_native":
-                chi_gB = self._tglf_native_transport(p)
-            elif transport_mode == "external_gk":
-                chi_gB = self._external_gk_transport(p)
-            else:
-                chi_gB = self._gyro_bohm_chi()
-            chi_base = chi_nc + chi_gB
-        else:
-            if not (self.allow_constant_transport_fallback and self.allow_legacy_approximations):
-                raise RuntimeError(
-                    "neoclassical transport configuration is required; "
-                    "set neoclassical parameters or explicitly enable "
-                    "allow_constant_transport_fallback + allow_legacy_approximations for legacy behaviour"
-                )
-            chi_base = np.full_like(self.rho, 0.5)
-
-        # Critical-gradient turbulent transport: chi_turb ~ c * max(0, |∇T| - ∇T_crit)
-        # c_turb=5.0 m²/s per keV/m: phenomenological fit to TGLF/GKW predictions
-        # for ITG-dominated transport (Dimits et al., Phys. Plasmas 7, 969, 2000)
-        C_TURB = 5.0  # m²/s per keV/m
-        chi_turb = C_TURB * np.maximum(0, -grad_T - threshold)
-
-        # H-mode detection from Martin et al. (2008) with low-density branch
-        # correction (Ryter et al. 2014), evaluated from the active discharge
-        # state and machine geometry.
-        is_H_mode = False
-        if self.neoclassical_params is not None:
-            from scpn_control.core.lh_transition import MartinThreshold
-
-            p = self.neoclassical_params
-            ne_19 = float(np.clip(np.nanmean(self.ne), 0.0, 1e4))
-            b_t = float(p.get("B0", 0.0))
-            a_m = float(p.get("a", 0.0))
-            r0_m = float(p.get("R0", 0.0))
-            kappa = float(p.get("kappa", 1.7))
-            s_m2 = float(
-                p.get(
-                    "surface_area_m2",
-                    estimate_plasma_surface_area_m2(r0_m, a_m, kappa),
-                )
-            )
-            i_p_ma = float(
-                p.get(
-                    "Ip_MA",
-                    self.cfg.get("physics", {}).get("plasma_current_target", 0.0),
-                )
-            )
-            p_lh_mw = MartinThreshold.power_threshold_with_low_density_branch_MW(
-                ne_19=ne_19,
-                B_T=b_t,
-                S_m2=s_m2,
-                I_p_MA=i_p_ma,
-                a_m=a_m,
-            )
-            is_H_mode = bool(P_aux > p_lh_mw)
-
-        if is_H_mode and self.neoclassical_params is not None:
-            try:
-                from scpn_control.core.eped_pedestal import EpedPedestalModel
-
-                p = self.neoclassical_params
-                eped = EpedPedestalModel(
-                    R0=p["R0"],
-                    a=p["a"],
-                    B0=p["B0"],
-                    Ip_MA=p.get("Ip_MA", 15.0),
-                    kappa=p.get("kappa", 1.7),
-                    A_ion=p.get("A_ion", 2.0),
-                    Z_eff=p.get("Z_eff", 1.5),
-                )
-                # Use current edge density for pedestal prediction
-                n_ped = max(float(self.ne[-5]), 1.0)
-                ped = eped.predict(n_ped)
-
-                # Apply pedestal: suppress transport inside pedestal region
-                ped_start = 1.0 - ped.Delta_ped
-                edge_mask = self.rho > ped_start
-                chi_turb[edge_mask] *= 0.05  # Strong transport barrier
-
-                # Set pedestal boundary conditions on profiles
-                ped_idx = np.searchsorted(self.rho, ped_start)
-                if ped_idx < len(self.Te):  # pragma: no branch - searchsorted<nr==len(Te) always; see #129
-                    self.Te[ped_idx:] = np.minimum(
-                        self.Te[ped_idx:], ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Te[ped_idx:]))
-                    )
-                    self.Ti[ped_idx:] = np.minimum(
-                        self.Ti[ped_idx:], ped.T_ped_keV * np.linspace(1.0, 0.1, len(self.Ti[ped_idx:]))
-                    )
-            except (ImportError, ValueError, IndexError, AttributeError):
-                edge_mask = self.rho > 0.9
-                chi_turb[edge_mask] *= 0.1
-
-        self.chi_e = chi_base + chi_turb
-        self.chi_i = chi_base + chi_turb
-        self.D_n[:] = 0.1 * self.chi_e
+        return update_transport_model_impl(self, P_aux)
 
     def _sanitize_runtime_state(self) -> int:
         """Keep runtime profiles and coefficients finite during transport stepping."""
-        recovered_total = 0
-
-        ti_fb = np.where(np.isfinite(self.Ti), self.Ti, 1.0)
-        self.Ti, n_ti = sanitize_with_fallback(self.Ti, ti_fb, floor=0.01, ceil=1e3)
-        recovered_total += n_ti
-
-        te_fb = np.where(np.isfinite(self.Te), self.Te, 1.0)
-        self.Te, n_te = sanitize_with_fallback(self.Te, te_fb, floor=0.01, ceil=1e3)
-        recovered_total += n_te
-
-        ne_fb = np.where(np.isfinite(self.ne), self.ne, 5.0)
-        self.ne, n_ne = sanitize_with_fallback(self.ne, ne_fb, floor=0.1, ceil=1e3)
-        recovered_total += n_ne
-
-        chi_i_fb = np.where(np.isfinite(self.chi_i), self.chi_i, 0.5)
-        self.chi_i, n_chi_i = sanitize_with_fallback(self.chi_i, chi_i_fb, floor=0.01, ceil=1e4)
-        recovered_total += n_chi_i
-
-        chi_e_fb = np.where(np.isfinite(self.chi_e), self.chi_e, 0.5)
-        self.chi_e, n_chi_e = sanitize_with_fallback(self.chi_e, chi_e_fb, floor=0.01, ceil=1e4)
-        recovered_total += n_chi_e
-
-        dn_fb = np.where(np.isfinite(self.D_n), self.D_n, 0.1)
-        self.D_n, n_dn = sanitize_with_fallback(self.D_n, dn_fb, floor=0.0, ceil=1e4)
-        recovered_total += n_dn
-
-        imp_fb = np.where(np.isfinite(self.n_impurity), self.n_impurity, 0.0)
-        self.n_impurity, n_imp = sanitize_with_fallback(self.n_impurity, imp_fb, floor=0.0, ceil=1e3)
-        recovered_total += n_imp
-
-        if self.n_D is not None:
-            n_d_fb = np.where(np.isfinite(self.n_D), self.n_D, 0.5)
-            self.n_D, n_d = sanitize_with_fallback(self.n_D, n_d_fb, floor=0.001, ceil=1e3)
-            recovered_total += n_d
-        if self.n_T is not None:
-            n_t_fb = np.where(np.isfinite(self.n_T), self.n_T, 0.5)
-            self.n_T, n_t = sanitize_with_fallback(self.n_T, n_t_fb, floor=0.001, ceil=1e3)
-            recovered_total += n_t
-        if self.n_He is not None:
-            n_he_fb = np.where(np.isfinite(self.n_He), self.n_He, 0.0)
-            self.n_He, n_he = sanitize_with_fallback(self.n_He, n_he_fb, floor=0.0, ceil=1e3)
-            recovered_total += n_he
-
-        return recovered_total
+        return _sanitize_runtime_state_impl(self)
 
     def _rho_volume_element(self) -> FloatArray:
         """Toroidal volume element per radial cell [m^3]."""
-        dims = self.cfg["dimensions"]
-        return rho_volume_element(self.rho, self.drho, dims["R_min"], dims["R_max"])
+        return _rho_volume_element_impl(self)
+
+    @property
+    def ion_density(self) -> FloatArray:
+        """Return thermal ion number density in units of 10^19 m^-3.
+
+        Multi-ion mode counts D, T, He and tungsten nuclei once each, assuming
+        they share Ti. Electron charge multiplicity does not multiply ion heat
+        capacity. Single-ion mode retains the ni = ne closure. The returned
+        array is independent of the mutable species state.
+
+        Raises
+        ------
+        ValueError
+            If a multi-ion species profile is absent.
+        """
+        return ion_density_impl(self)
 
     def _compute_aux_heating_sources(self, P_aux_MW: float) -> tuple[FloatArray, FloatArray]:
         """Return ion/electron auxiliary-heating sources in keV/s.
 
         The source is power-normalised against the radial cell volumes to ensure
         that reconstructed injected power matches ``P_aux_MW`` by construction.
+        Both outputs use electron density as reference capacity; the thermal
+        caller converts the ion rate to the actual ion capacity.
         """
-        dV = self._rho_volume_element()
-        s_heat_i, s_heat_e, balance = aux_heating_source_profiles(
-            P_aux_MW,
-            self.rho,
-            self.ne,
-            dV,
-            profile_width=self.aux_heating_profile_width,
-            electron_fraction=self.aux_heating_electron_fraction,
-        )
-        self._last_aux_heating_balance = balance
-        return s_heat_i, s_heat_e
+        return _compute_aux_heating_sources_impl(self, P_aux_MW)
 
     # ── Multi-ion helpers (P1.1) ────────────────────────────────────
 
@@ -972,41 +443,15 @@ class TransportSolver(FusionKernel):
         """Evolve D, T, He-ash densities for one time-step (explicit diffusion + sources).
 
         Uses internal sub-stepping to respect the CFL stability limit of the
-        explicit diffusion scheme:  dt_CFL = drho^2 / (2 * D_species).
+        explicit diffusion scheme: dt_CFL = 0.4 * (a * drho)^2 / max(D_species).
+        D_species may be a scalar or a finite nonnegative profile matching rho;
+        all three species share its arithmetic face coefficients.
 
         Returns (S_He_source, P_rad_line):
-          S_He_source — He-ash production rate [10^19 m^-3 / s]
-          P_rad_line  — line radiation power density from tungsten [keV / s per 10^19]
+          S_He_source — step-average He-ash production rate [10^19 m^-3 / s]
+          P_rad_line  — line radiation power density from tungsten [W/m^3]
         """
-        if not self.multi_ion or self.n_D is None or self.n_T is None or self.n_He is None:
-            self._last_particle_balance_error = 0.0
-            return np.zeros(self.nr), np.zeros(self.nr)
-
-        # He-ash pumping time (default tau_He_factor * tau_E, floored at 0.5 s)
-        tau_E = self.compute_confinement_time(1.0)  # rough estimate
-        tau_He = max(self.tau_He_factor * tau_E, 0.5)
-
-        result = evolve_multi_ion_species(
-            n_D=self.n_D,
-            n_T=self.n_T,
-            n_He=self.n_He,
-            Ti=self.Ti,
-            Te=self.Te,
-            n_impurity=self.n_impurity,
-            dV=self._rho_volume_element(),
-            drho=self.drho,
-            D_species=self.D_species,
-            tau_He=tau_He,
-            dt=dt,
-        )
-        self.n_D = result.n_D
-        self.n_T = result.n_T
-        self.n_He = result.n_He
-        self.ne = result.ne
-        self._Z_eff = result.Z_eff
-        self._last_particle_balance_error = result.particle_balance_error
-
-        return result.S_He, result.P_rad_line
+        return _evolve_species_impl(self, dt)
 
     # ── Main evolution (Crank-Nicolson) ──────────────────────────────
 
@@ -1016,12 +461,157 @@ class TransportSolver(FusionKernel):
         return float(self._last_conservation_error)
 
     @property
+    def last_energy_balance(self) -> ThermalEnergyBalance | None:
+        """Return an immutable snapshot from the most recent thermal assessment.
+
+        Every evolve_profiles call invalidates the previous record first. A
+        zero-time call or failure before assessment leaves None. Assessment is
+        recorded before the conservation exception, so rejected steps remain
+        inspectable. A caller retaining an older snapshot keeps its original
+        values; later solver changes cannot rewrite them.
+        """
+        return self._last_energy_balance
+
+    @property
+    def last_particle_balance(self) -> SpeciesParticleBalance | None:
+        """Return the immutable record of this attempt's completed species stage.
+
+        Every evolve_profiles call resets it, including invalid and zero-time
+        calls. A later thermal rejection retains an already completed species
+        record. Subsequent thermal sanitization or external profile mutation
+        cannot rewrite it; it is not a final thermal-state inventory certificate.
+        Single-ion mode has no species-stage record.
+        """
+        return self._last_particle_balance
+
+    @property
     def particle_balance_error(self) -> float:
         """Relative particle conservation error from the last evolution step.
 
         Only meaningful in multi-ion mode. Returns 0.0 otherwise.
         """
         return float(self._last_particle_balance_error)
+
+    @property
+    def last_flux_balance(self) -> TransportFluxBalance | None:
+        """Return the last dedicated face-flux step record, reset on every flux attempt.
+
+        Other evolution methods do not rewrite this historical stage snapshot.
+        It is not a certificate for subsequent profile changes.
+        """
+        return self._last_flux_balance
+
+    def evolve_fluxes(
+        self, dt: float, flux: TransportFaceFlux, *, geometry: TransportFaceGeometry | None = None
+    ) -> TransportFluxBalance:
+        """Advance multi-ion state with explicit signed physical face transport.
+
+        Parameters
+        ----------
+        dt : float
+            Finite nonnegative interval [s].
+        flux : TransportFaceFlux
+            Electron,D,T,He particle and electron/total-ion energy flux at
+            nr-1 physical minor-radius faces. Electron flux must be ambipolar.
+            The caller supplies species mapping and the total energy moment;
+            no automatic TGLF sampling or diffusion/pinch inference is made.
+        geometry : TransportFaceGeometry or None
+            Explicit cell volumes and face dV/dr for this stage. None selects
+            the existing circular-torus weights. Other transport operators are
+            not automatically converted to the supplied geometry.
+
+        Returns
+        -------
+        TransportFluxBalance
+            Measured particle and thermal inventories plus reservoir exchange.
+
+        Raises
+        ------
+        ValueError
+            Not in multi-ion mode, invalid input or a nonphysical candidate.
+            Profiles are unchanged on rejection; last_flux_balance is None.
+
+        Notes
+        -----
+        Defaults to the cylindrical volumes of the thermal/species solver. The
+        first and last faces exchange with core/edge reservoirs; the edge node
+        is held fixed and the zero-volume axis copies adjacent ion profiles.
+        This first-order frozen-flux stage supplies no diffusion, reactions,
+        radiation, pumping or exchange. Compose those stages explicitly and
+        avoid counting particle-associated energy or turbulent transport twice.
+        """
+        return evolve_fluxes_impl(self, dt, flux, geometry=geometry)
+
+    #: Instance attributes a single :meth:`evolve_profiles` call may mutate.
+    #: Richardson trials roll back exactly this set, so a new evolved quantity
+    #: must be added here or it will leak between trials.
+    EVOLUTION_STATE_FIELDS: ClassVar[tuple[str, ...]] = (
+        "Ti",
+        "Te",
+        "ne",
+        "n_D",
+        "n_T",
+        "n_He",
+        "n_impurity",
+        "omega_phi",
+        "J_phi",
+        "_Z_eff",
+        "_last_energy_balance",
+        "_last_particle_balance",
+        "_last_particle_balance_error",
+        "_last_conservation_error",
+        "_last_helium_pumped",
+        "_last_numerical_recovery_count",
+        "_last_flux_balance",
+        "_last_aux_heating_balance",
+    )
+
+    #: Snapshot key of the rotation profile the momentum sub-solver owns. The
+    #: sub-solver advances its own ``omega_phi`` and the step only rebinds the
+    #: outer attribute to the array it returned, so restoring the outer one
+    #: alone leaves the next step starting from the rotation of the discarded
+    #: trial.
+    MOMENTUM_ROTATION_KEY: ClassVar[str] = "_momentum_solver.omega_phi"
+
+    def capture_evolution_state(self) -> dict[str, Any]:
+        """Copy every quantity a transport step may mutate.
+
+        Arrays are copied, so the snapshot is independent of later in-place
+        writes. Attributes absent on this instance are omitted rather than
+        defaulted, and :meth:`restore_evolution_state` then leaves them alone.
+        The momentum sub-solver's rotation is captured under
+        :data:`MOMENTUM_ROTATION_KEY` when that sub-solver exists.
+
+        Returns
+        -------
+        dict[str, Any]
+            Snapshot consumable only by :meth:`restore_evolution_state`.
+        """
+        return capture_evolution_state_impl(self)
+
+    def restore_evolution_state(self, state: dict[str, Any]) -> None:
+        """Restore a snapshot taken by :meth:`capture_evolution_state`.
+
+        Arrays are copied back so the caller may restore the same snapshot more
+        than once, which a Richardson trial sequence does.
+
+        Parameters
+        ----------
+        state:
+            Snapshot from :meth:`capture_evolution_state` on this instance.
+
+        Raises
+        ------
+        KeyError
+            If the snapshot carries a name outside
+            :data:`EVOLUTION_STATE_FIELDS` and :data:`MOMENTUM_ROTATION_KEY`,
+            which would mean it came from a different contract and cannot be
+            trusted to be complete.
+        RuntimeError
+            If the snapshot holds a sub-solver rotation and this instance has
+            no momentum sub-solver to give it back to.
+        """
+        return restore_evolution_state_impl(self, state)
 
     def evolve_profiles(
         self,
@@ -1031,12 +621,42 @@ class TransportSolver(FusionKernel):
         ped_te: PedestalProfile | None = None,
         ped_ti: PedestalProfile | None = None,
     ) -> tuple[float, float]:
-        """Advance Ti by one time step using Crank-Nicolson implicit diffusion.
+        """Advance both temperatures with implicit diffusion and split exchange.
 
-        The scheme is unconditionally stable, allowing dt up to ~1.0 s
-        without NaN.  The full equation solved is:
+        For each channel, the conductive stage advances density-weighted storage:
 
-            (T^{n+1} - T^n)/dt = 0.5*[L_h(T^{n+1}) + L_h(T^n)] + S - Sink
+            (n1*T1 - n0*T0)/dt = 0.5*[G(n0*chi, T0) + G(n1*chi, T1)] + Q/H
+
+        Here G(k,T) = (1/a**2)/rho * d/drho(rho*k*dT/drho), with the
+        supported cylindrical quadrature; n is in 10**19 m**-3, T in keV,
+        chi in m**2/s, Q in W/m**3 and H = 1.5e19*e_keV_J. Subscript 0
+        denotes the captured incoming state; n1 is the completed species-stage
+        density and T1 is the pre-exchange CN solution. Multi-ion n_i counts
+        D, T, He and impurity nuclei once each; n_e follows ion charge.
+        Single-ion mode retains n_i = n_e. Completed channel densities must
+        be strictly positive; old zero density contributes zero initial heat.
+
+        chi is held fixed across this call, while conductive face weights use
+        their respective old/new densities. In temperature-rate form, the RHS
+        storage is (n0/n1)*T0 and Q/(H*n1) is in keV/s. Auxiliary power is
+        volume-normalized on the completed densities. Radiation uses incoming
+        temperatures and completed species/charge state. Helium pumping uses
+        actual integrated removed counts and incoming temperatures, yielding
+        step-average ion/electron heat sinks. These frozen source evaluations
+        and split exchange limit combined temporal accuracy to first order.
+
+        The pumping model removes mean thermal ion energy and that of two
+        accompanying electrons per He, assuming thermalized ash and local
+        quasineutral removal. It is not a velocity-selective pump, sheath,
+        flowing-plasma enthalpy or fast-alpha model. No separate particle heat
+        convection, pressure-work or fusion-product energy closure is supplied.
+        Discrete heat conservation does not validate these missing physics.
+
+        Internal exchange follows the conductive solve; pedestal overrides and
+        sanitization follow exchange. Boundary energy uses the old/new face
+        fluxes and edge capacities. Admission describes the final thermal state
+        and retains numerical recovery or unmodeled pedestal energy in its
+        residual. Large timesteps may require recovery or fail admission.
 
         Parameters
         ----------
@@ -1046,239 +666,24 @@ class TransportSolver(FusionKernel):
             Auxiliary heating power [MW].
         enforce_conservation : bool
             When True, raise :class:`PhysicsError` if the per-step energy
-            conservation error exceeds 1%.
+            conservation error of the final, postprocessed thermal state exceeds 1%.
         ped_te : PedestalProfile, optional
             Pedestal profile model for electron temperature.
         ped_ti : PedestalProfile, optional
             Pedestal profile model for ion temperature.
         """
-        if (not np.isfinite(dt)) or dt < 0.0:
-            raise ValueError(f"dt must be finite and >= 0, got {dt!r}")
-        if dt == 0.0:
-            return 0.0, 0.0
-        if not np.isfinite(P_aux):
-            raise ValueError(f"P_aux must be finite, got {P_aux!r}")
-
-        self._last_numerical_recovery_count = self._ensure_valid_radial_grid()
-        self._last_numerical_recovery_count += self._sanitize_runtime_state()
-        Ti_old = self.Ti.copy()
-        Te_old = self.Te.copy()
-        e_keV_J = 1.602176634e-16
-
-        # ── Multi-ion: evolve species and get radiation ──
-        if self.multi_ion:
-            _S_He, P_rad_line_Wm3 = self._evolve_species(dt)
-        else:
-            P_rad_line_Wm3 = np.zeros(self.nr)
-
-        # ── Sources (ion/electron channels) ──
-        S_heat_i, S_heat_e_aux = self._compute_aux_heating_sources(P_aux)
-
-        # ── Sinks (ion channel radiation) ──
-        if self.multi_ion:
-            ne_safe = np.maximum(self.ne, 0.1) * 1e19
-            S_rad_i = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5
-            S_rad_e = P_rad_line_Wm3 / (ne_safe * e_keV_J) * 0.5
-        else:
-            cooling_factor = 5.0
-            S_rad_total = cooling_factor * self.ne * self.n_impurity * np.sqrt(self.Te + 0.1)
-            S_rad_i = 0.5 * S_rad_total
-            S_rad_e = 0.5 * S_rad_total
-
-        net_source_i = S_heat_i - S_rad_i
-        net_source_i, n_src_i = sanitize_with_fallback(
-            net_source_i,
-            np.zeros_like(net_source_i),
-        )
-        self._last_numerical_recovery_count += n_src_i
-
-        # ── Ion temperature CN step ──
-        Lh_explicit = explicit_diffusion_rhs(self.Ti, self.chi_i, self.rho, self.drho, self.a)
-        Lh_explicit, n_lh_i = sanitize_with_fallback(
-            Lh_explicit,
-            np.zeros_like(Lh_explicit),
-        )
-        self._last_numerical_recovery_count += n_lh_i
-        rhs = self.Ti + 0.5 * dt * Lh_explicit + dt * net_source_i
-        rhs, n_rhs_i = sanitize_with_fallback(rhs, Ti_old, floor=0.01, ceil=1e3)
-        self._last_numerical_recovery_count += n_rhs_i
-        a, b, c = build_cn_tridiag(self.chi_i, dt, self.rho, self.drho, self.a)
-        new_Ti = thomas_solve(a, b, c, rhs)
-
-        new_Ti[0] = new_Ti[1]  # Neumann at core
-        new_Ti[-1] = 0.1  # Dirichlet at edge
-        self.Ti, n_ti_new = sanitize_with_fallback(new_Ti, Ti_old, floor=0.01, ceil=1e3)
-        self._last_numerical_recovery_count += n_ti_new
-
-        # ── Electron temperature (explicit channel, no Ti copy shortcut) ──
-        S_heat_e = S_heat_e_aux
-        P_brem = bremsstrahlung_power_density(self.ne, Te_old, self._Z_eff)
-        ne_safe_e = np.maximum(self.ne, 0.1) * 1e19
-        S_brem_e = P_brem / (ne_safe_e * e_keV_J)
-
-        # Braginskii 1965, §2.5 — electron-ion energy equilibration time
-        # tau_eq = 0.252 * Te_keV^1.5 / (ne_19 * Z_eff * ln_Lambda) [s]
-        ln_Lambda = 17.0  # Wesson, "Tokamaks" 4th ed., Ch. 14.5
-        Te_safe = np.maximum(Te_old, 0.01)
-        ne_safe_eq = np.maximum(self.ne, 0.1)
-        tau_eq = np.maximum(
-            0.252 * Te_safe**1.5 / (ne_safe_eq * self._Z_eff * ln_Lambda),
-            1e-4,
-        )
-        S_equil = (self.Ti - Te_old) / tau_eq
-
-        net_source_e = S_heat_e - S_rad_e - S_brem_e + S_equil
-        net_source_e, n_src_e = sanitize_with_fallback(
-            net_source_e,
-            np.zeros_like(net_source_e),
-        )
-        self._last_numerical_recovery_count += n_src_e
-
-        Lh_explicit_e = explicit_diffusion_rhs(Te_old, self.chi_e, self.rho, self.drho, self.a)
-        Lh_explicit_e, n_lh_e = sanitize_with_fallback(
-            Lh_explicit_e,
-            np.zeros_like(Lh_explicit_e),
-        )
-        self._last_numerical_recovery_count += n_lh_e
-        rhs_e = Te_old + 0.5 * dt * Lh_explicit_e + dt * net_source_e
-        rhs_e, n_rhs_e = sanitize_with_fallback(rhs_e, Te_old, floor=0.01, ceil=1e3)
-        self._last_numerical_recovery_count += n_rhs_e
-        a_e, b_e, c_e = build_cn_tridiag(self.chi_e, dt, self.rho, self.drho, self.a)
-        new_Te = thomas_solve(a_e, b_e, c_e, rhs_e)
-
-        new_Te[0] = new_Te[1]
-        new_Te[-1] = 0.08
-        self.Te, n_te_new = sanitize_with_fallback(new_Te, Te_old, floor=0.01, ceil=1e3)
-        self._last_numerical_recovery_count += n_te_new
-
-        # ── Pedestal Boundary Conditions ──
-        if ped_ti is not None:
-            # Apply pedestal from top (x_ped - 2*delta) to edge
-            rho_ped_top = ped_ti.p.x_ped - 2.0 * ped_ti.p.delta
-            mask = self.rho >= rho_ped_top
-            self.Ti[mask] = ped_ti.evaluate(self.rho[mask])
-
-        if ped_te is not None:
-            rho_ped_top = ped_te.p.x_ped - 2.0 * ped_te.p.delta
-            mask = self.rho >= rho_ped_top
-            self.Te[mask] = ped_te.evaluate(self.rho[mask])
-
-        # ── Energy conservation diagnostic (Improved) ──
-        dV = self._rho_volume_element()
-        ne_m3 = self.ne * 1e19
-
-        # W = 3/2 * (ne * Te + ni * Ti) * V. Assume ni = ne for energy calc.
-        # Non-finite profile inputs are handled explicitly below (the error is
-        # marked infinite), so the intermediate inf/nan arithmetic must not leak
-        # a RuntimeWarning into solver logs.
-        with np.errstate(invalid="ignore", over="ignore"):
-            W_before = 1.5 * np.sum(ne_m3 * (Te_old + Ti_old) * e_keV_J * dV)
-            W_after = 1.5 * np.sum(ne_m3 * (self.Te + self.Ti) * e_keV_J * dV)
-
-            # Source term integrated over volume
-            dW_source_total = dt * 1.5 * np.sum(ne_m3 * (net_source_i + net_source_e) * e_keV_J * dV)
-
-            dW_actual = W_after - W_before
-            self._last_conservation_error = abs(dW_actual - dW_source_total) / max(abs(W_before), 1e-10)
-
-        if not np.isfinite(self._last_conservation_error):
-            self._last_conservation_error = float("inf")
-
-        if self._last_conservation_error > 0.05:
-            _logger.debug("Energy balance error: %.4e", self._last_conservation_error)
-
-        if enforce_conservation and self._last_conservation_error > 0.01:
-            raise PhysicsError(
-                f"Energy conservation violated: relative error {self._last_conservation_error:.4e} > 1% threshold."
-            )
-
-        # No auxiliary heating safety (Legacy logic)
-        if P_aux <= 0.0:
-            mean_ti_old = float(np.mean(Ti_old))
-            mean_ti_new = float(np.mean(self.Ti))
-            mean_te_old = float(np.mean(Te_old))
-            mean_te_new = float(np.mean(self.Te))
-            if np.isfinite(mean_ti_old) and np.isfinite(mean_ti_new) and mean_ti_new > mean_ti_old:
-                scale = mean_ti_old / max(mean_ti_new, 1e-12)
-                self.Ti *= scale
-                self.Ti[0] = self.Ti[1]
-                self.Ti[-1] = 0.1
-                self.Ti = np.maximum(0.01, self.Ti)
-                self._last_numerical_recovery_count += 1
-            if np.isfinite(mean_te_old) and np.isfinite(mean_te_new) and mean_te_new > mean_te_old:
-                scale_e = mean_te_old / max(mean_te_new, 1e-12)
-                self.Te *= scale_e
-                self.Te[0] = self.Te[1]
-                self.Te[-1] = 0.08
-                self.Te = np.maximum(0.01, self.Te)
-                self._last_numerical_recovery_count += 1
-
-        self._last_numerical_recovery_count += self._sanitize_runtime_state()
-
-        # Momentum transport step (rotation profile evolution)
-        if self._momentum_solver is not None:
-            p = self.neoclassical_params
-            assert p is not None
-            dr = self.drho * p["a"]
-            grad_Ti = np.gradient(self.Ti, dr)
-            grad_ne = np.gradient(self.ne, dr)
-            T_intr = intrinsic_rotation_torque(grad_Ti, grad_ne, p["R0"], p["a"])
-            T_nbi = nbi_torque(np.zeros(self.nr), p["R0"], 1e6, 0.0)
-            self.omega_phi = self._momentum_solver.step(dt, self.chi_i, self.ne, self.Ti, T_nbi, T_intr)
-
-        avg_ti: float = np.mean(self.Ti).item()
-        core_ti: float = self.Ti[0].item()
-        return avg_ti, core_ti
+        return evolve_profiles_impl(self, dt, P_aux, enforce_conservation, ped_te, ped_ti)
 
     def map_profiles_to_2d(self) -> None:
         """Project the 1D radial profiles back onto the 2D Grad-Shafranov grid, including neoclassical bootstrap current."""
-        # 1. Get Flux Topology
-        idx_max = np.argmax(self.Psi)
-        iz_ax, ir_ax = np.unravel_index(idx_max, self.Psi.shape)
-        Psi_axis = self.Psi[iz_ax, ir_ax]
-        xp, psi_x = self.find_x_point(self.Psi)
-        Psi_edge = psi_x
-        if abs(Psi_edge - Psi_axis) < 1.0:
-            Psi_edge = np.min(self.Psi)
-
-        # 2. Calculate Rho for every 2D point
-        denom = Psi_edge - Psi_axis
-        if abs(denom) < 1e-9:
-            denom = 1e-9
-        Psi_norm = (self.Psi - Psi_axis) / denom
-        Psi_norm = np.clip(Psi_norm, 0, 1)
-        Rho_2D = np.sqrt(Psi_norm)
-
-        # 3. Calculate 1D Bootstrap Current
-        dims = self.cfg["dimensions"]
-        R0 = (dims["R_min"] + dims["R_max"]) / 2.0
-        I_target = self.cfg["physics"]["plasma_current_target"]
-        a_half = 0.5 * (dims["R_max"] - dims["R_min"])
-        B_pol_est = (1.256e-6 * I_target) / (2 * np.pi * a_half)
-        J_bs_1d = self.calculate_bootstrap_current(R0, B_pol_est)
-
-        # 4. Interpolate 1D profiles to 2D
-        self.Pressure_2D = np.interp(Rho_2D.flatten(), self.rho, self.ne * (self.Ti + self.Te))
-        self.Pressure_2D = self.Pressure_2D.reshape(self.Psi.shape)
-
-        J_bs_2D = np.interp(Rho_2D.flatten(), self.rho, J_bs_1d)
-        J_bs_2D = J_bs_2D.reshape(self.Psi.shape)
-
-        # 5. Update J_phi (Pressure driven + Bootstrap)
-        # J_phi = R p' + J_bs
-        self.J_phi = (self.Pressure_2D * self.RR) + J_bs_2D
-
-        # Normalize to target current
-        I_curr = np.sum(self.J_phi) * self.dR * self.dZ
-        if I_curr > 1e-9:
-            self.J_phi *= I_target / I_curr
+        return _map_profiles_to_2d(self)
 
     # ── Confinement time ───────────────────────────────────────────────
 
     def compute_confinement_time(self, P_loss_MW: float) -> float:
         """Compute the energy confinement time from stored energy.
 
-        τ_E = W_stored / P_loss, where W_stored = ∫ 3/2 n (Ti+Te) dV
+        τ_E = W_stored / P_loss, where W_stored = ∫ 3/2 (ni Ti + ne Te) dV
         and the volume element is estimated from the 1D radial profiles
         using cylindrical approximation.
 
@@ -1292,27 +697,7 @@ class TransportSolver(FusionKernel):
         float
             Energy confinement time [s].
         """
-        if P_loss_MW <= 0:
-            return float("inf")
-
-        # Stored energy: W = ∫ 3/2 n_e (T_i + T_e) dV
-        # In 1D with cylindrical approx: dV ≈ 2πR₀ · 2π · r · a² · dρ
-        # Units: n_e is in 10^19 m^-3, T in keV → W in MJ
-        e_keV = 1.602176634e-16  # J per keV
-        dims = self.cfg["dimensions"]
-        R0 = (dims["R_min"] + dims["R_max"]) / 2.0
-        a = (dims["R_max"] - dims["R_min"]) / 2.0
-
-        # Volume element per rho bin: dV = 2π R₀ · 2π ρ a² dρ
-        rho_mid = self.rho
-        dV = 2.0 * np.pi * R0 * 2.0 * np.pi * rho_mid * a**2 * self.drho
-
-        # Energy density: 3/2 * n_e * (Ti + Te) [10^19 m^-3 * keV]
-        energy_density = 1.5 * (self.ne * 1e19) * (self.Ti + self.Te) * e_keV
-        W_stored_J = float(np.sum(energy_density * dV))
-        W_stored_MW = W_stored_J / 1e6  # J → MJ → MW·s
-
-        return W_stored_MW / P_loss_MW
+        return _compute_confinement_time(self, P_loss_MW)
 
     # ── GS ↔ transport self-consistency loop ─────────────────────────
 
@@ -1361,68 +746,13 @@ class TransportSolver(FusionKernel):
             "n_outer_converged": int, "psi_residuals": list[float],
             "Ti_profile": ndarray, "ne_profile": ndarray,
             "converged": bool}``
+
+        Raises
+        ------
+        ValueError
+            If either iteration count is not positive.
         """
-        psi_residuals: list[float] = []
-        converged = False
-        n_outer_converged = 0
-
-        for outer in range(n_outer):
-            # Save Psi before this outer iteration
-            Psi_old = self.Psi.copy()
-            psi_old_norm = float(np.linalg.norm(Psi_old))
-            if psi_old_norm < 1e-30:
-                psi_old_norm = 1.0  # avoid division by zero on first call
-
-            # 1. Run n_inner transport steps
-            for _ in range(n_inner):
-                self.update_transport_model(P_aux)
-                self.evolve_profiles(dt, P_aux)
-
-            # 2. Project 1D profiles onto 2D GS grid (updates self.J_phi)
-            self.map_profiles_to_2d()
-
-            # 3. Re-solve Grad-Shafranov equilibrium
-            #    external_profile_mode=True ensures solve_equilibrium uses
-            #    the J_phi we just set (no internal source update).
-            self.solve_equilibrium()
-
-            # 4. Compute psi convergence metric
-            psi_residual = float(np.linalg.norm(self.Psi - Psi_old) / psi_old_norm)
-            psi_residuals.append(psi_residual)
-            n_outer_converged = outer + 1
-
-            _logger.info(
-                "GS-transport outer iter %d/%d: psi_residual=%.4e",
-                outer + 1,
-                n_outer,
-                psi_residual,
-            )
-
-            # 5. Convergence check
-            if psi_residual < psi_tol:
-                converged = True
-                _logger.info(
-                    "GS-transport converged after %d outer iterations (residual %.4e < tol %.4e).",
-                    outer + 1,
-                    psi_residual,
-                    psi_tol,
-                )
-                break
-
-        T_avg = float(np.mean(self.Ti))
-        T_core = float(self.Ti[0])
-        tau_e = self.compute_confinement_time(P_aux)
-
-        return {
-            "T_avg": T_avg,
-            "T_core": T_core,
-            "tau_e": tau_e,
-            "n_outer_converged": n_outer_converged,
-            "psi_residuals": psi_residuals,
-            "Ti_profile": self.Ti.copy(),
-            "ne_profile": self.ne.copy(),
-            "converged": converged,
-        }
+        return _run_self_consistent(self, P_aux, n_inner, n_outer, dt, psi_tol)
 
     # ── Fast one-shot transport path ──────────────────────────────────
 
@@ -1473,146 +803,15 @@ class TransportSolver(FusionKernel):
             ``dt_history``, ``error_history``.
             When self_consistent=True, returns the
             :meth:`run_self_consistent` dict instead.
+
+        Raises
+        ------
+        ValueError
+            If the selected mode has a nonpositive iteration count.
         """
-        # ── Self-consistent GS↔transport mode ──
-        if self_consistent:
-            return self.run_self_consistent(
-                P_aux=P_aux,
-                n_inner=sc_n_inner,
-                n_outer=sc_n_outer,
-                dt=dt,
-                psi_tol=sc_psi_tol,
-            )
-
-        if not adaptive:
-            for _ in range(n_steps):
-                self.update_transport_model(P_aux)
-                T_avg, T_core = self.evolve_profiles(dt, P_aux)
-
-            tau_e = self.compute_confinement_time(P_aux)
-            return {
-                "T_avg": float(T_avg),
-                "T_core": float(T_core),
-                "tau_e": tau_e,
-                "n_steps": n_steps,
-                "Ti_profile": self.Ti.copy(),
-                "ne_profile": self.ne.copy(),
-            }
-
-        # ── Adaptive time stepping ──
-        atc = AdaptiveTimeController(dt_init=dt, tol=tol)
-
-        for _step in range(n_steps):
-            self.update_transport_model(P_aux)
-            error = atc.estimate_error(self, P_aux)
-            atc.adapt_dt(error)
-
-            # Take the accepted step (full step already applied inside estimate_error)
-            T_avg = float(np.mean(self.Ti))
-            T_core = float(self.Ti[0])
-
-        tau_e = self.compute_confinement_time(P_aux)
-        return {
-            "T_avg": float(T_avg),
-            "T_core": float(T_core),
-            "tau_e": tau_e,
-            "n_steps": n_steps,
-            "Ti_profile": self.Ti.copy(),
-            "ne_profile": self.ne.copy(),
-            "dt_final": atc.dt,
-            "dt_history": atc.dt_history.copy(),
-            "error_history": atc.error_history.copy(),
-        }
-
-
-class AdaptiveTimeController:
-    """Richardson-extrapolation adaptive time controller for CN transport.
-
-    Compares one full CN step vs. two half-steps to estimate the local
-    truncation error, then uses a PI controller to adjust dt.
-
-    Parameters
-    ----------
-    dt_init : float — initial time step [s]
-    dt_min : float — minimum allowed dt
-    dt_max : float — maximum allowed dt
-    tol : float — target local error tolerance
-    safety : float — safety factor (< 1) for step adjustment
-    """
-
-    def __init__(
-        self,
-        dt_init: float = 0.01,
-        dt_min: float = 1e-5,
-        dt_max: float = 1.0,
-        tol: float = 1e-3,
-        safety: float = 0.9,
-    ):
-        self.dt = dt_init
-        self.dt_min = dt_min
-        self.dt_max = dt_max
-        self.tol = tol
-        self.safety = safety
-        self.p = 2  # CN is second-order
-
-        self.dt_history: list[float] = []
-        self.error_history: list[float] = []
-        self._err_prev: float = tol  # initialise for PI controller
-
-    def estimate_error(self, solver: "TransportSolver", P_aux: float) -> float:
-        """Estimate local error via Richardson extrapolation.
-
-        Takes one full CN step of size dt and two half-steps of size dt/2,
-        then compares.  The solver state is advanced by the *half-step*
-        result (more accurate).
-
-        Returns the estimated error norm.
-        """
-        Ti_save = solver.Ti.copy()
-        Te_save = solver.Te.copy()
-
-        # One full step
-        solver.Ti = Ti_save.copy()
-        solver.Te = Te_save.copy()
-        solver.evolve_profiles(self.dt, P_aux)
-        T_full = solver.Ti.copy()
-
-        # Two half steps
-        solver.Ti = Ti_save.copy()
-        solver.Te = Te_save.copy()
-        solver.evolve_profiles(self.dt / 2.0, P_aux)
-        solver.evolve_profiles(self.dt / 2.0, P_aux)
-        T_half = solver.Ti.copy()
-
-        # Richardson error estimate: ||T_full - T_half|| / (2^p - 1)
-        error: float = float(np.linalg.norm(T_full - T_half)) / (2**self.p - 1)
-        error = max(error, 1e-15)
-
-        # Accept the half-step result (more accurate)
-        solver.Ti = T_half
-        solver.Te = T_half.copy()
-
-        return error
-
-    def adapt_dt(self, error: float) -> None:
-        """Adjust dt using a PI controller.
-
-        dt *= min(2, safety * (tol/err)^(0.7/p) * (err_prev/err)^(0.4/p))
-        """
-        self.error_history.append(error)
-        self.dt_history.append(self.dt)
-
-        ratio_i = (self.tol / error) ** (0.7 / self.p)
-        ratio_p = (self._err_prev / error) ** (0.4 / self.p)
-        factor = self.safety * ratio_i * ratio_p
-        factor = min(factor, 2.0)
-        factor = max(factor, 0.1)  # don't shrink too aggressively
-
-        self.dt *= factor
-        self.dt = max(self.dt, self.dt_min)
-        self.dt = min(self.dt, self.dt_max)
-
-        self._err_prev = error
+        return _run_to_steady_state(
+            self, P_aux, n_steps, dt, adaptive, tol, self_consistent, sc_n_inner, sc_n_outer, sc_psi_tol
+        )
 
 
 # Backward-compatible public alias used by parity and bridge tests.

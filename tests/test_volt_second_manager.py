@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -35,7 +37,7 @@ from scpn_control.control.volt_second_manager import (
 )
 
 
-def _valid_reference_artifact() -> dict:
+def _valid_reference_artifact() -> dict[str, Any]:
     return {
         "source": "external_scenario_benchmark",
         "reference_dataset_id": "volt-second-scenario-fixture-v1",
@@ -70,6 +72,7 @@ def _valid_reference_artifact() -> dict:
 
 
 def test_flux_budget_accounts_inductive_resistive_and_ejima_terms() -> None:
+    """Inductive, resistive and startup terms preserve the bounded flux budget."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     ramp = np.linspace(0.0, 15.0, 6)
     ramp_flux = budget.resistive_flux_ramp(ramp, dt=2.0)
@@ -82,6 +85,7 @@ def test_flux_budget_accounts_inductive_resistive_and_ejima_terms() -> None:
 
 
 def test_scenario_analysis_and_monitor_preserve_flux_budget_contracts() -> None:
+    """Scenario totals and monitor consumption agree with their component terms."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(
         ramp_dur=80.0,
@@ -101,6 +105,7 @@ def test_scenario_analysis_and_monitor_preserve_flux_budget_contracts() -> None:
 
 
 def test_bootstrap_proxy_rejects_nonphysical_profiles() -> None:
+    """Profile and geometry admission precedes bootstrap-current estimation."""
     rho = np.linspace(0.0, 1.0, 5)
     ne = np.linspace(8.0, 4.0, 5)
     Te = np.linspace(12.0, 2.0, 5)
@@ -117,6 +122,7 @@ def test_bootstrap_proxy_rejects_nonphysical_profiles() -> None:
 
 
 def test_volt_second_optimizer_rejects_invalid_domains() -> None:
+    """Ramp planning preserves monotonic current and rejects invalid controls."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     optimizer = VoltSecondOptimizer(budget)
     ramp = optimizer.optimize_ramp(Ip_target_MA=15.0, t_ramp_max=80.0, n_segments=5)
@@ -127,7 +133,8 @@ def test_volt_second_optimizer_rejects_invalid_domains() -> None:
         optimizer.optimize_ramp(Ip_target_MA=15.0, t_ramp_max=0.0, n_segments=5)
 
 
-def test_volt_second_claim_evidence_records_bounded_boundary(tmp_path) -> None:
+def test_volt_second_claim_evidence_records_bounded_boundary(tmp_path: Path) -> None:
+    """Repository regression evidence stays bounded and persists deterministically."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(80.0, 400.0, 60.0, Ip_MA=15.0, I_bs_MA=4.0)
     evidence = volt_second_claim_evidence(
@@ -156,7 +163,8 @@ def test_volt_second_claim_evidence_records_bounded_boundary(tmp_path) -> None:
     assert persisted["claim_status"] == "bounded_volt_second_evidence"
 
 
-def test_volt_second_facility_claim_requires_reference_artifact() -> None:
+def test_volt_second_facility_claim_refuses_unbound_reference_metadata() -> None:
+    """Caller-declared reference metadata cannot admit a facility claim."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(80.0, 200.0, 60.0, Ip_MA=15.0, I_bs_MA=4.0)
     artifact = {
@@ -204,12 +212,17 @@ def test_volt_second_facility_claim_requires_reference_artifact() -> None:
         source_id="volt-second-scenario-fixture-v1",
         reference_artifact=artifact,
     )
-    assert evidence.facility_claim_allowed is True
-    assert assert_volt_second_facility_claim_admissible(evidence) is evidence
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status == "reference_metadata_unverified"
+    with pytest.raises(ValueError, match="independent reference"):
+        assert_volt_second_facility_claim_admissible(evidence)
 
     bad_artifact = dict(artifact)
-    bad_artifact["metrics"] = dict(artifact["metrics"])
-    bad_artifact["metrics"]["total_flux_relative_error"] = 0.5
+    metrics = artifact["metrics"]
+    assert isinstance(metrics, dict)
+    bad_metrics = dict(metrics)
+    bad_metrics["total_flux_relative_error"] = 0.5
+    bad_artifact["metrics"] = bad_metrics
     with pytest.raises(ValueError, match="total_flux_relative_error exceeds declared tolerance"):
         volt_second_claim_evidence(
             budget,
@@ -230,7 +243,8 @@ def test_volt_second_facility_claim_requires_reference_artifact() -> None:
 # ── Scalar / profile validation helpers ──────────────────────────────
 
 
-def test_finite_scalar_rejects_non_finite_and_negative():
+def test_finite_scalar_rejects_non_finite_and_negative() -> None:
+    """Numeric domains reject nonfinite and negative inputs."""
     with pytest.raises(ValueError, match="must be finite"):
         _finite_scalar("x", float("inf"))
     with pytest.raises(ValueError, match="must be nonnegative"):
@@ -238,12 +252,14 @@ def test_finite_scalar_rejects_non_finite_and_negative():
 
 
 @pytest.mark.parametrize("value", [True, 1.5, "3"])
-def test_positive_int_rejects_non_integers(value):
+def test_positive_int_rejects_non_integers(value: object) -> None:
+    """Segment counts require exact integers rather than coerced values."""
     with pytest.raises(ValueError, match="must be an integer"):
         _positive_int("n", value)
 
 
-def test_finite_profile_rejects_shape_and_value_violations():
+def test_finite_profile_rejects_shape_and_value_violations() -> None:
+    """Profile arrays must have valid dimensions and finite values."""
     with pytest.raises(ValueError, match="one-dimensional non-empty profile"):
         _finite_profile("p", np.ones((2, 2)))
     with pytest.raises(ValueError, match="one-dimensional non-empty profile"):
@@ -256,14 +272,16 @@ def test_finite_profile_rejects_shape_and_value_violations():
         _finite_profile("p", np.array([1.0, -1.0]), nonnegative=True)
 
 
-def test_strict_rho_rejects_too_short_and_out_of_interval():
+def test_strict_rho_rejects_too_short_and_out_of_interval() -> None:
+    """Radial grids require ordered points within the normalized interval."""
     with pytest.raises(ValueError, match="at least two points"):
         _strict_rho(np.array([0.5]))
     with pytest.raises(ValueError, match="normalised interval"):
         _strict_rho(np.array([0.0, 1.5]))
 
 
-def test_non_empty_text_rejects_blank_and_non_string():
+def test_non_empty_text_rejects_blank_and_non_string() -> None:
+    """Claim text fields must contain actual nonblank strings."""
     with pytest.raises(ValueError, match="must be a non-empty string"):
         _non_empty_text("field", "   ")
     with pytest.raises(ValueError, match="must be a non-empty string"):
@@ -271,28 +289,33 @@ def test_non_empty_text_rejects_blank_and_non_string():
 
 
 @pytest.mark.parametrize("value", [True, float("inf"), "x"])
-def test_positive_reference_scalar_rejects_non_numeric_or_non_finite(value):
+def test_positive_reference_scalar_rejects_non_numeric_or_non_finite(value: object) -> None:
+    """Reference tolerances reject nonnumeric and nonfinite values."""
     with pytest.raises(ValueError, match="finite and positive"):
         _positive_reference_scalar("metric", value)
 
 
-def test_positive_reference_scalar_rejects_non_positive():
+def test_positive_reference_scalar_rejects_non_positive() -> None:
+    """Reference tolerances must remain positive."""
     with pytest.raises(ValueError, match="finite and positive"):
         _positive_reference_scalar("metric", 0.0)
 
 
 @pytest.mark.parametrize("value", [True, float("nan"), "x"])
-def test_nonnegative_reference_scalar_rejects_non_numeric_or_non_finite(value):
+def test_nonnegative_reference_scalar_rejects_non_numeric_or_non_finite(value: object) -> None:
+    """Reference error values reject nonnumeric and nonfinite inputs."""
     with pytest.raises(ValueError, match="finite and nonnegative"):
         _nonnegative_reference_scalar("metric", value)
 
 
-def test_nonnegative_reference_scalar_rejects_negative():
+def test_nonnegative_reference_scalar_rejects_negative() -> None:
+    """Reference error values cannot be negative."""
     with pytest.raises(ValueError, match="finite and nonnegative"):
         _nonnegative_reference_scalar("metric", -1.0)
 
 
-def test_sha256_text_rejects_non_digest():
+def test_sha256_text_rejects_non_digest() -> None:
+    """Artifact identity requires a digest-shaped value."""
     with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
         _sha256_text("digest", "abc")
 
@@ -300,23 +323,27 @@ def test_sha256_text_rejects_non_digest():
 # ── Reference-artifact extraction rejection matrix ───────────────────
 
 
-def test_extract_reference_artifact_none_returns_inactive():
+def test_extract_reference_artifact_none_returns_inactive() -> None:
+    """Absent reference metadata remains inactive."""
     assert _extract_volt_second_reference_artifact(None) == (None, False)
 
 
-def test_extract_reference_artifact_rejects_non_dict():
+def test_extract_reference_artifact_rejects_non_dict() -> None:
+    """Reference metadata must use the declared mapping shape."""
     with pytest.raises(ValueError, match="must be a dictionary"):
         _extract_volt_second_reference_artifact(["not", "a", "dict"])
 
 
-def test_extract_reference_artifact_rejects_inadmissible_source():
+def test_extract_reference_artifact_rejects_inadmissible_source() -> None:
+    """Repository-only references cannot enter the external-source lane."""
     artifact = _valid_reference_artifact()
     artifact["source"] = "repository_volt_second_regression"  # bounded but not facility
     with pytest.raises(ValueError, match="source must be one of"):
         _extract_volt_second_reference_artifact(artifact)
 
 
-def test_extract_reference_artifact_rejects_bad_units():
+def test_extract_reference_artifact_rejects_bad_units() -> None:
+    """Declared reference units must match the volt-second contract."""
     artifact = _valid_reference_artifact()
     artifact["units"] = dict(artifact["units"])
     artifact["units"]["flux"] = "Wb"
@@ -325,14 +352,16 @@ def test_extract_reference_artifact_rejects_bad_units():
 
 
 @pytest.mark.parametrize("count", [0, -1, True])
-def test_extract_reference_artifact_rejects_bad_case_count(count):
+def test_extract_reference_artifact_rejects_bad_case_count(count: object) -> None:
+    """Reference case counts require a positive integer."""
     artifact = _valid_reference_artifact()
     artifact["reference_case_count"] = count
     with pytest.raises(ValueError, match="reference_case_count must be a positive integer"):
         _extract_volt_second_reference_artifact(artifact)
 
 
-def test_extract_reference_artifact_rejects_non_dict_metric_blocks():
+def test_extract_reference_artifact_rejects_non_dict_metric_blocks() -> None:
+    """Reference metrics and tolerances require mappings."""
     artifact = _valid_reference_artifact()
     artifact["metrics"] = "not a dict"
     with pytest.raises(ValueError, match="metrics and tolerances must be dictionaries"):
@@ -342,7 +371,8 @@ def test_extract_reference_artifact_rejects_non_dict_metric_blocks():
 # ── Claim-evidence and admission guards ──────────────────────────────
 
 
-def test_claim_evidence_rejects_inadmissible_source():
+def test_claim_evidence_rejects_inadmissible_source() -> None:
+    """Evidence construction refuses unknown source labels."""
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(80.0, 200.0, 60.0, Ip_MA=15.0, I_bs_MA=4.0)
     with pytest.raises(ValueError, match="source must be one of"):
@@ -361,11 +391,13 @@ def test_claim_evidence_rejects_inadmissible_source():
         )
 
 
-def test_assert_admissible_rejects_non_evidence_object():
+def test_assert_admissible_rejects_non_evidence_object() -> None:
+    """Facility admission refuses values outside the evidence schema."""
     with pytest.raises(ValueError, match="must be VoltSecondClaimEvidence"):
         assert_volt_second_facility_claim_admissible({"not": "evidence"})
 
 
-def test_save_claim_evidence_rejects_non_evidence_object(tmp_path):
+def test_save_claim_evidence_rejects_non_evidence_object(tmp_path: Path) -> None:
+    """Persistence refuses values outside the evidence schema."""
     with pytest.raises(ValueError, match="must be VoltSecondClaimEvidence"):
         save_volt_second_claim_evidence({"not": "evidence"}, tmp_path / "x.json")

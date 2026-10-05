@@ -11,10 +11,13 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
 
+from scpn_control._typing import FloatArray
 from scpn_control.control.static_mu_analysis import (
     RiccatiStateFeedbackController,
     StaticMuAnalysisClaimEvidence,
@@ -27,7 +30,7 @@ from scpn_control.control.static_mu_analysis import (
 )
 
 
-def _plant() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def _plant() -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
     return (
         np.array([[-1.4, 0.2], [-0.1, -0.9]], dtype=float),
         np.eye(2),
@@ -121,7 +124,7 @@ def test_legacy_module_is_a_warning_facade_with_no_iteration_claim() -> None:
     assert controller.analysis_result is not None
 
 
-def test_legacy_facade_preserves_bounded_access_and_persistence(tmp_path) -> None:
+def test_legacy_facade_preserves_bounded_access_and_persistence(tmp_path: Path) -> None:
     """Every retained legacy symbol must warn and forward to the static owner."""
     from scpn_control.control.mu_synthesis import (
         MuSynthesisController,
@@ -190,7 +193,7 @@ def test_legacy_facade_preserves_bounded_access_and_persistence(tmp_path) -> Non
         ({"gamma_bisect_tol": float("nan")}, "must be finite"),
     ],
 )
-def test_legacy_iteration_parameters_fail_closed(kwargs, message) -> None:
+def test_legacy_iteration_parameters_fail_closed(kwargs: dict[str, Any], message: str) -> None:
     """Deprecated inert controls must still reject invalid caller input."""
     from scpn_control.control.mu_synthesis import dk_iteration
 
@@ -200,20 +203,20 @@ def test_legacy_iteration_parameters_fail_closed(kwargs, message) -> None:
 
 def test_static_design_rejects_nonstable_returned_gain(monkeypatch: pytest.MonkeyPatch) -> None:
     """The public design must reject an unstable gain even after the CARE step."""
-    import scpn_control.control.static_mu_analysis as static_mu
-
     unstable_plant = (
         np.eye(2),
         np.eye(2),
         np.eye(2),
         np.zeros((2, 2)),
     )
-    monkeypatch.setattr(static_mu, "_riccati_state_feedback", lambda *_args: np.zeros((2, 2)))
+    from scpn_control.control import _static_mu_riccati
+
+    monkeypatch.setattr(_static_mu_riccati, "_riccati_state_feedback", lambda *_args: np.zeros((2, 2)))
     with pytest.raises(RuntimeError, match="finite stable closed loop"):
         design_riccati_state_feedback_with_static_mu_analysis(unstable_plant, _uncertainty())
 
 
-def test_deprecated_reference_validator_function_forwards(tmp_path) -> None:
+def test_deprecated_reference_validator_function_forwards(tmp_path: Path) -> None:
     """The historical Python validator symbol must warn and use the new owner."""
     from validation.validate_mu_synthesis_reference import validate_mu_synthesis_reference
 
@@ -223,7 +226,9 @@ def test_deprecated_reference_validator_function_forwards(tmp_path) -> None:
     assert report["reference_artifacts"] == 0
 
 
-def test_deprecated_benchmark_entrypoint_is_visible(monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+def test_deprecated_benchmark_entrypoint_is_visible(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
     """The historical script must print its replacement before forwarding."""
     import validation.benchmark_mu_synthesis_claims as legacy_benchmark
 

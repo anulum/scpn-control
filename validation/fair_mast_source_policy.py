@@ -30,7 +30,22 @@ FAIR_MAST_CITATION = "; ".join(FAIR_MAST_CITATIONS)
 
 
 def fair_mast_provenance() -> dict[str, str | list[str]]:
-    """Return a fresh JSON-ready FAIR-MAST provenance block."""
+    """Return a fresh JSON-ready declaration of the recorded source policy.
+
+    Returns
+    -------
+    dict
+        Licence identifier and URL, combined citation string, ordered citation
+        list and catalogue URL. Each call owns its dictionary and citation list.
+
+    Notes
+    -----
+    The function reads the module's policy constants without network or file
+    I/O. It adds no timestamp, digest, measurement or admission decision. The
+    catalogue's default licence has asset-specific exceptions; these fields do
+    not verify a particular asset's rights, origin or scientific suitability.
+    Mutating the returned values does not change the next returned block.
+    """
     return {
         "licence": FAIR_MAST_LICENCE,
         "licence_url": FAIR_MAST_LICENCE_URL,

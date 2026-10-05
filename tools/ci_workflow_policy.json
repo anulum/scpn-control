@@ -8,8 +8,12 @@
     "python-lint"
   ],
   "event_policy": {
-    "push_branches": ["main"],
-    "pull_request_branches": ["main"],
+    "push_branches": [
+      "main"
+    ],
+    "pull_request_branches": [
+      "main"
+    ],
     "permissions": {},
     "concurrency_group": "ci-${{ github.ref }}",
     "cancel_in_progress": true
@@ -27,70 +31,122 @@
       "workflow": ".github/workflows/ci-static-governance.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["capability-manifest-gate", "python-lint", "pre-commit", "commit-authorship"]
+      "jobs": [
+        "capability-manifest-gate",
+        "python-lint",
+        "pre-commit",
+        "commit-authorship"
+      ]
     },
     {
       "id": "python-quality",
       "workflow": ".github/workflows/ci-python-quality.yml",
       "caller_needs": [],
-      "secrets": ["CODECOV_TOKEN"],
-      "jobs": ["python-tests", "notebook-smoke", "tutorial-smoke", "rmse-gate", "e2e-diiid", "synthetic-diiid-reference", "jax-parity", "nengo-loihi"]
+      "secrets": [
+        "CODECOV_TOKEN"
+      ],
+      "jobs": [
+        "python-tests",
+        "notebook-smoke",
+        "tutorial-smoke",
+        "rmse-gate",
+        "e2e-diiid",
+        "synthetic-diiid-reference",
+        "jax-parity",
+        "nengo-loihi"
+      ]
     },
     {
       "id": "build-package",
       "workflow": ".github/workflows/ci-build-package.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["package-quality", "docs-build", "release-env-smoke"]
+      "jobs": [
+        "package-quality",
+        "docs-build",
+        "release-env-smoke"
+      ]
     },
     {
       "id": "native-polyglot",
       "workflow": ".github/workflows/ci-native-polyglot.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["rust-tests", "rust-python-interop", "lean-proofs"]
+      "jobs": [
+        "rust-tests",
+        "rust-python-interop",
+        "lean-proofs"
+      ]
     },
     {
       "id": "native-coverage",
       "workflow": ".github/workflows/ci-native-coverage.yml",
-      "caller_needs": ["python-quality", "native-polyglot"],
-      "secrets": ["CODECOV_TOKEN"],
-      "jobs": ["native-coverage-combine"]
+      "caller_needs": [
+        "python-quality",
+        "native-polyglot"
+      ],
+      "secrets": [
+        "CODECOV_TOKEN"
+      ],
+      "jobs": [
+        "native-coverage-combine"
+      ]
     },
     {
       "id": "evidence-reproducibility",
       "workflow": ".github/workflows/ci-evidence-reproducibility.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["data-manifest-gate", "release-evidence-gate", "evidence-inventory"]
+      "jobs": [
+        "data-manifest-gate",
+        "release-evidence-gate",
+        "evidence-inventory"
+      ]
     },
     {
       "id": "python-benchmark",
       "workflow": ".github/workflows/ci-python-benchmark.yml",
-      "caller_needs": ["python-quality"],
+      "caller_needs": [
+        "python-quality"
+      ],
       "secrets": [],
-      "jobs": ["python-benchmark"]
+      "jobs": [
+        "python-benchmark"
+      ]
     },
     {
       "id": "rust-benchmark",
       "workflow": ".github/workflows/ci-rust-benchmark.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["rust-benchmarks"]
+      "jobs": [
+        "rust-benchmarks"
+      ]
     },
     {
       "id": "security-supply-chain",
       "workflow": ".github/workflows/ci-security-supply-chain.yml",
       "caller_needs": [],
       "secrets": [],
-      "jobs": ["python-audit", "python-security", "rust-audit", "cargo-deny"]
+      "jobs": [
+        "python-audit",
+        "studio-web-audit",
+        "python-security",
+        "rust-audit",
+        "cargo-deny"
+      ]
     },
     {
       "id": "product-deployment",
       "workflow": ".github/workflows/ci-product-deployment.yml",
       "caller_needs": [],
-      "secrets": ["SCPN_CONTROL_STUDIO_DEPLOY_KEY", "SCPN_CONTROL_STUDIO_KNOWN_HOSTS"],
-      "jobs": ["studio-web"]
+      "secrets": [
+        "SCPN_CONTROL_STUDIO_DEPLOY_KEY",
+        "SCPN_CONTROL_STUDIO_KNOWN_HOSTS"
+      ],
+      "jobs": [
+        "studio-web"
+      ]
     }
   ],
   "job_order": [
@@ -100,6 +156,7 @@
     "tutorial-smoke",
     "package-quality",
     "python-audit",
+    "studio-web-audit",
     "data-manifest-gate",
     "capability-manifest-gate",
     "release-evidence-gate",
@@ -125,31 +182,107 @@
     "release-env-smoke"
   ],
   "dependency_graph": {
-    "rmse-gate": ["python-tests"],
-    "rust-python-interop": ["rust-tests"],
-    "native-coverage-combine": ["python-tests", "rust-python-interop"],
-    "python-benchmark": ["python-tests"],
-    "e2e-diiid": ["python-tests"],
-    "synthetic-diiid-reference": ["python-tests"]
+    "rmse-gate": [
+      "python-tests"
+    ],
+    "rust-python-interop": [
+      "rust-tests"
+    ],
+    "native-coverage-combine": [
+      "python-tests",
+      "rust-python-interop"
+    ],
+    "python-benchmark": [
+      "python-tests"
+    ],
+    "e2e-diiid": [
+      "python-tests"
+    ],
+    "synthetic-diiid-reference": [
+      "python-tests"
+    ]
   },
   "artifacts": [
-    {"name": "coverage-report", "producer": "python-tests", "consumers": []},
-    {"name": "coverage-data-python", "producer": "python-tests", "consumers": ["native-coverage-combine"]},
-    {"name": "executed-notebooks", "producer": "notebook-smoke", "consumers": []},
-    {"name": "python-dist", "producer": "package-quality", "consumers": []},
-    {"name": "data-manifest-report", "producer": "data-manifest-gate", "consumers": []},
-    {"name": "release-evidence-report", "producer": "release-evidence-gate", "consumers": []},
-    {"name": "bounded-reference-evidence", "producer": "rmse-gate", "consumers": []},
-    {"name": "coverage-data-rust", "producer": "rust-python-interop", "consumers": ["native-coverage-combine"]},
-    {"name": "coverage-report-combined", "producer": "native-coverage-combine", "consumers": []},
-    {"name": "bench-results", "producer": "rust-benchmarks", "consumers": []},
-    {"name": "python-bench-results", "producer": "python-benchmark", "consumers": []},
-    {"name": "e2e-diiid-results", "producer": "e2e-diiid", "consumers": []},
-    {"name": "bandit-report", "producer": "python-security", "consumers": []},
-    {"name": "evidence-inventory", "producer": "evidence-inventory", "consumers": []}
+    {
+      "name": "coverage-report",
+      "producer": "python-tests",
+      "consumers": []
+    },
+    {
+      "name": "coverage-data-python",
+      "producer": "python-tests",
+      "consumers": [
+        "native-coverage-combine"
+      ]
+    },
+    {
+      "name": "executed-notebooks",
+      "producer": "notebook-smoke",
+      "consumers": []
+    },
+    {
+      "name": "python-dist",
+      "producer": "package-quality",
+      "consumers": []
+    },
+    {
+      "name": "data-manifest-report",
+      "producer": "data-manifest-gate",
+      "consumers": []
+    },
+    {
+      "name": "release-evidence-report",
+      "producer": "release-evidence-gate",
+      "consumers": []
+    },
+    {
+      "name": "bounded-reference-evidence",
+      "producer": "rmse-gate",
+      "consumers": []
+    },
+    {
+      "name": "coverage-data-rust",
+      "producer": "rust-python-interop",
+      "consumers": [
+        "native-coverage-combine"
+      ]
+    },
+    {
+      "name": "coverage-report-combined",
+      "producer": "native-coverage-combine",
+      "consumers": []
+    },
+    {
+      "name": "bench-results",
+      "producer": "rust-benchmarks",
+      "consumers": []
+    },
+    {
+      "name": "python-bench-results",
+      "producer": "python-benchmark",
+      "consumers": []
+    },
+    {
+      "name": "e2e-diiid-results",
+      "producer": "e2e-diiid",
+      "consumers": []
+    },
+    {
+      "name": "bandit-report",
+      "producer": "python-security",
+      "consumers": []
+    },
+    {
+      "name": "evidence-inventory",
+      "producer": "evidence-inventory",
+      "consumers": []
+    }
   ],
   "conditional_steps": {
     "python-tests": [
+      "Install phase-video encoders (Linux)",
+      "Install phase-video encoders (macOS)",
+      "Install phase-video encoders (Windows)",
       "Install studio platform SDK (ubuntu 3.12 only)",
       "Install IMAS-Python and OMAS backends (ubuntu 3.12 only)",
       "Mypy (ubuntu 3.12 only)",
@@ -167,6 +300,8 @@
     ]
   },
   "step_output_consumers": {
-    "studio-web": ["studio-deploy-credentials.configured"]
+    "studio-web": [
+      "studio-deploy-credentials.configured"
+    ]
   }
 }

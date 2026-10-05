@@ -6,61 +6,35 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Detachment controller.
 
-"""Divertor detachment state estimation and impurity-seeding control utilities."""
+"""Radiation-front and steady-state detachment model utilities."""
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from enum import Enum, auto
 
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control.detachment_control_runtime import (
+    _T_BIFURCATION_EV,
+    _T_DETACHMENT_ONSET_EV,
+    _XPOINT_MARFE_THRESHOLD,
+    _finite_scalar,
+)
+from scpn_control.control.detachment_control_runtime import (
+    DetachmentController as DetachmentController,
+)
+from scpn_control.control.detachment_control_runtime import (
+    DetachmentState as DetachmentState,
+)
+from scpn_control.control.detachment_control_runtime import (
+    MultiImpuritySeeding as MultiImpuritySeeding,
+)
 from scpn_control.core.sol_model import TwoPointSOL
 
-# Detachment onset: T_div < 5 eV causes volumetric recombination and ion-neutral
-# friction, decoupling target from upstream conditions.
-# Stangeby 2000, "The Plasma Boundary of Magnetic Fusion Devices", Ch. 16.
-_T_DETACHMENT_ONSET_EV = 5.0  # [eV] — Stangeby 2000, Ch. 16
-
-# Two-point model parallel heat conduction:
-# q_∥ = κ₀ T_u^(7/2) / (7 L_∥)
-# where κ₀ = 2390 W m^-1 eV^(-7/2) (electron Spitzer conductivity).
-# Stangeby 2000, Eq. 5.69; Wesson 2004, §4.10.
-_KAPPA_0_SPITZER = 2390.0  # W m^-1 eV^(-7/2), Stangeby 2000, Eq. 5.67
-
-# Nitrogen seeding: typically 10^21–10^22 molecules/s for ITER divertor detachment.
-# Kallenbach et al. 2015, Nucl. Fusion 55, 053026, Table 2.
-_N2_SEEDING_RATE_ITER_MAX = 1e22  # molecules/s — Kallenbach et al. 2015
-
-# Thermal bifurcation threshold: below this target temperature the Greenwald-
-# Stangeby rollover causes a thermal collapse to the cold, detached branch.
-# Lipschultz et al. 1999, PPCF 41, A585 (thermal bifurcation in Alcator C-Mod).
-_T_BIFURCATION_EV = 30.0  # [eV] — Lipschultz et al. 1999
-
-# X-point MARFE onset: radiation front reaches > 80% of the field line length
-# from the divertor target toward the X-point.
-# Lipschultz et al. 1999, PPCF 41, A585.
-_XPOINT_MARFE_THRESHOLD = 0.8  # dimensionless front position
-
-
-def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
-    scalar = float(value)
-    if not math.isfinite(scalar):
-        raise ValueError(f"{name} must be finite")
-    if positive and scalar <= 0.0:
-        raise ValueError(f"{name} must be positive")
-    if nonnegative and scalar < 0.0:
-        raise ValueError(f"{name} must be non-negative")
-    return scalar
-
-
-def _unit_interval(name: str, value: float) -> float:
-    scalar = _finite_scalar(name, value, nonnegative=True)
-    if scalar > 1.0:
-        raise ValueError(f"{name} must be within [0, 1]")
-    return scalar
+# Stangeby 2000, Eq. 5.67: electron Spitzer conductivity in W m^-1 eV^(-7/2).
+_KAPPA_0_SPITZER = 2390.0
 
 
 def _ordered_nonnegative_array(name: str, values: AnyFloatArray) -> FloatArray:
@@ -74,15 +48,6 @@ def _ordered_nonnegative_array(name: str, values: AnyFloatArray) -> FloatArray:
     if np.any(np.diff(arr) <= 0.0):
         raise ValueError(f"{name} values must be strictly increasing")
     return arr
-
-
-class DetachmentState(Enum):
-    """Divertor detachment regime classification."""
-
-    ATTACHED = auto()
-    PARTIALLY_DETACHED = auto()
-    FULLY_DETACHED = auto()
-    XPOINT_MARFE = auto()
 
 
 class RadiationFrontModel:
@@ -162,96 +127,6 @@ def two_point_q_parallel(T_upstream_eV: float, L_parallel_m: float) -> float:
     if T_upstream_eV == 0.0:
         return 0.0
     return float(_KAPPA_0_SPITZER * T_upstream_eV**3.5 / (7.0 * L_parallel_m))
-
-
-class DetachmentController:
-    """PI controller driving divertor detachment via impurity seeding.
-
-    Target: T_div ≈ 3 eV (below the 5 eV onset, above the MARFE threshold).
-    Stangeby 2000, Ch. 16: T_div < 5 eV criterion for detachment onset.
-    Lipschultz et al. 1999, PPCF 41, A585: thermal bifurcation stability.
-
-    Nitrogen seeding rates up to 10^22 molecules/s for ITER.
-    Kallenbach et al. 2015, Nucl. Fusion 55, 053026.
-    """
-
-    def __init__(self, impurity: str = "N2", target_DOD: float = 3.0, target_T_t_eV: float = 3.0):
-        self.impurity = impurity
-        self.target_DOD = _finite_scalar("target_DOD", target_DOD, positive=True)
-        self.target_T_t = _finite_scalar("target_T_t_eV", target_T_t_eV, positive=True)
-
-        # PI gains [Pa m³/s per eV] — tuned for ITER divertor time scales (~0.1 s).
-        self.Kp = 50.0
-        self.Ki = 10.0
-
-        self.integral_e = 0.0
-        self.last_cmd = 0.0
-        self.state = DetachmentState.ATTACHED
-
-    def _determine_state(self, T_t: float, rho_front: float) -> DetachmentState:
-        """Classify divertor state.
-
-        T_t > 30 eV: attached (Lipschultz et al. 1999 bifurcation upper branch).
-        5 < T_t ≤ 30 eV: partially detached (below thermal bifurcation but above onset).
-        T_t ≤ 5 eV: fully detached (Stangeby 2000, Ch. 16).
-        rho_front > 0.8: X-point MARFE risk (Lipschultz et al. 1999, PPCF 41, A585).
-        """
-        T_t = _finite_scalar("T_t", T_t, positive=True)
-        rho_front = _unit_interval("rho_front", rho_front)
-        if rho_front > _XPOINT_MARFE_THRESHOLD:
-            return DetachmentState.XPOINT_MARFE
-        if T_t > _T_BIFURCATION_EV:
-            return DetachmentState.ATTACHED
-        if T_t > _T_DETACHMENT_ONSET_EV:
-            return DetachmentState.PARTIALLY_DETACHED
-        return DetachmentState.FULLY_DETACHED
-
-    def step(
-        self, T_t_measured: float, n_t_measured: float, P_rad_measured: float, rho_front: float, dt: float
-    ) -> float:
-        """Compute the impurity seeding-rate command for one control cycle.
-
-        PI control on the target-temperature error, with a hard seeding cutback
-        when the radiation front reaches the X-point (MARFE risk).
-
-        Parameters
-        ----------
-        T_t_measured
-            Measured divertor target temperature in eV; must be positive.
-        n_t_measured
-            Measured target density in 10¹⁹ m⁻³; must be positive.
-        P_rad_measured
-            Measured radiated power in MW; must be non-negative.
-        rho_front
-            Radiation-front position in [0, 1] (0 = target, 1 = X-point).
-        dt
-            Control time step in seconds; must be positive.
-
-        Returns
-        -------
-        float
-            The commanded impurity seeding rate (non-negative).
-        """
-        T_t_measured = _finite_scalar("T_t_measured", T_t_measured, positive=True)
-        _finite_scalar("n_t_measured", n_t_measured, positive=True)
-        _finite_scalar("P_rad_measured", P_rad_measured, nonnegative=True)
-        rho_front = _unit_interval("rho_front", rho_front)
-        dt = _finite_scalar("dt", dt, positive=True)
-        self.state = self._determine_state(T_t_measured, rho_front)
-
-        if self.state == DetachmentState.XPOINT_MARFE:
-            # Hard reduction to retreat radiation front from X-point.
-            # Lipschultz et al. 1999, PPCF 41, A585: slow ramp-back required.
-            self.last_cmd *= 0.5
-            self.integral_e *= 0.5
-            return self.last_cmd
-
-        error = T_t_measured - self.target_T_t
-        self.integral_e += error * dt
-        cmd = self.Kp * error + self.Ki * self.integral_e
-        cmd = max(0.0, float(cmd))
-        self.last_cmd = cmd
-        return cmd
 
 
 @dataclass
@@ -359,50 +234,3 @@ class DetachmentBifurcation:
             for sr in sr_scan
         ]
         return float(sr_scan[np.argmax(fluxes)])
-
-
-class MultiImpuritySeeding:
-    """Coordinator running one detachment controller per impurity species.
-
-    Parameters
-    ----------
-    impurities
-        Impurity species symbols to seed.
-    controllers
-        Per-impurity detachment controllers keyed by species symbol.
-    """
-
-    def __init__(self, impurities: list[str], controllers: dict[str, DetachmentController]):
-        self.impurities = impurities
-        self.controllers = controllers
-
-    def step(self, diagnostics: dict[str, float], dt: float) -> dict[str, float]:
-        """Compute per-impurity seeding rates from a diagnostics frame.
-
-        Parameters
-        ----------
-        diagnostics
-            Diagnostic values (``T_target_eV``, ``n_target_19``, ``P_rad_MW``,
-            ``rho_front``); defaults are used for absent keys.
-        dt
-            Control time step in seconds; must be positive.
-
-        Returns
-        -------
-        dict[str, float]
-            Seeding rate per impurity species (0.0 for species without a
-            controller).
-        """
-        dt = _finite_scalar("dt", dt, positive=True)
-        T_t = _finite_scalar("T_target_eV", diagnostics.get("T_target_eV", 20.0), positive=True)
-        n_t = _finite_scalar("n_target_19", diagnostics.get("n_target_19", 10.0), positive=True)
-        P_rad = _finite_scalar("P_rad_MW", diagnostics.get("P_rad_MW", 10.0), nonnegative=True)
-        rho_front = _unit_interval("rho_front", diagnostics.get("rho_front", 0.1))
-
-        rates: dict[str, float] = {}
-        for imp in self.impurities:
-            if imp in self.controllers:
-                rates[imp] = self.controllers[imp].step(T_t, n_t, P_rad, rho_front, dt)
-            else:
-                rates[imp] = 0.0
-        return rates

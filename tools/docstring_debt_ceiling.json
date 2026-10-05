@@ -1,0 +1,19 @@
+{
+  "total": 5513,
+  "scope": [
+    "tests",
+    "tools",
+    "validation"
+  ],
+  "by_code": {
+    "D100": 100,
+    "D101": 517,
+    "D102": 1927,
+    "D103": 2900,
+    "D200": 6,
+    "D205": 48,
+    "D400": 3,
+    "D401": 12
+  },
+  "note": "Measured ceiling. Lower it by documenting code; never raise it."
+}

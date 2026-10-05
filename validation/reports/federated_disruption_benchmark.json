@@ -1,6 +1,6 @@
 {
   "aggregation": "fedprox",
-  "claim_boundary": "Synthetic multi-facility benchmark only; no measured cross-facility disruption-validation claim is made by this artefact.",
+  "claim_boundary": "Synthetic in-process multi-facility benchmark only; no measured cross-facility validation, remote data isolation, or end-to-end differential-privacy claim is made by this artefact.",
   "evidence_kind": "synthetic_multi_facility",
   "feature_contract": [
     "Ip",

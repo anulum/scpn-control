@@ -9,9 +9,13 @@
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Any, Final, cast
+from typing import Final
+
+import pytest
+
+from examples.tutorial_03_ppo_rl_agent import main as tutorial_main
+from tools.rl_training_results import EvaluationStats, load_benchmark
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 BENCHMARK_PATH: Final = ROOT / "benchmarks" / "rl_vs_classical.json"
@@ -26,23 +30,19 @@ PUBLIC_SURFACES: Final = (
 STALE_REWARD_VALUES: Final = ("143.7", "58.1", "-912.3", "+-0.2")
 
 
-def _benchmark() -> dict[str, dict[str, float | int]]:
+def _benchmark() -> dict[str, EvaluationStats]:
     """Load the committed RL-vs-classical benchmark artifact."""
-
-    raw: Any = json.loads(BENCHMARK_PATH.read_text(encoding="utf-8"))
-    return cast(dict[str, dict[str, float | int]], raw)
+    return load_benchmark(BENCHMARK_PATH)
 
 
-def _mean_reward(report: dict[str, dict[str, float | int]], controller: str) -> str:
+def _mean_reward(report: dict[str, EvaluationStats], controller: str) -> str:
     """Return the one-decimal mean reward for ``controller``."""
-
     value = report[controller]["mean_reward"]
     return f"{float(value):.1f}"
 
 
-def _episode_count(report: dict[str, dict[str, float | int]]) -> int:
+def _episode_count(report: dict[str, EvaluationStats]) -> int:
     """Return the benchmark episode count shared by all controllers."""
-
     counts = {int(metrics["n_episodes"]) for metrics in report.values()}
     assert counts == {50}
     return counts.pop()
@@ -50,16 +50,14 @@ def _episode_count(report: dict[str, dict[str, float | int]]) -> int:
 
 def test_public_surfaces_do_not_repeat_stale_rl_reward_values() -> None:
     """Public surfaces must not reintroduce inflated historical PPO numbers."""
-
     for path in PUBLIC_SURFACES:
         text = path.read_text(encoding="utf-8")
         for stale_value in STALE_REWARD_VALUES:
             assert stale_value not in text, f"{path.relative_to(ROOT)} contains {stale_value}"
 
 
-def test_retained_public_rl_claims_match_committed_benchmark_artifact() -> None:
+def test_retained_public_rl_claims_match_committed_benchmark_artifact(capsys: pytest.CaptureFixture[str]) -> None:
     """Retained benchmark claims match the artifact and stay out of the evidence matrix."""
-
     report = _benchmark()
     ppo = _mean_reward(report, "PPO")
     mpc = _mean_reward(report, "MPC")
@@ -79,7 +77,9 @@ def test_retained_public_rl_claims_match_committed_benchmark_artifact() -> None:
     assert competitive_claim not in competitive_analysis
     assert "This page compares documented scope and evidence" in competitive_analysis
 
-    tutorial = (ROOT / "examples" / "tutorial_03_ppo_rl_agent.py").read_text(encoding="utf-8")
-    assert f"{{'PPO':>12s}}  {{'{ppo}':>8s}}  {{'0%':>10s}}" in tutorial
-    assert f"{{'MPC':>12s}}  {{'{mpc}':>8s}}  {{'0%':>10s}}" in tutorial
-    assert f"{{'PID':>12s}}  {{'{pid}':>8s}}  {{'0%':>10s}}" in tutorial
+    assert tutorial_main(["--episodes", "1"]) == 0
+    tutorial = capsys.readouterr().out
+    for name, stats in report.items():
+        expected = f"{name:>12s} {stats['mean_reward']:8.1f} {stats['disruption_rate'] * 100:3.0f}% ({stats['n_episodes']} episodes)"
+        assert expected in tutorial
+    assert "do not establish independent training" in tutorial

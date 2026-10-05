@@ -35,13 +35,11 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _normalise_text(text: str) -> str:
     """Collapse rendered Markdown or JSON text to single-space content."""
-
     return " ".join(text.split())
 
 
 def _claim_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     """Extract the disruption claim-boundary metadata from a model response."""
-
     claim_boundary = metadata.get("claim_boundary")
     assert isinstance(claim_boundary, dict)
     return cast(dict[str, Any], claim_boundary)
@@ -49,7 +47,6 @@ def _claim_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
 
 def test_feature_contract_matches_boundary_metadata() -> None:
     """Feature construction and metadata expose the same ordered contract."""
-
     features = build_disruption_feature_vector(
         np.array([0.1, 0.2, 0.5], dtype=np.float64),
         {"toroidal_n1_amp": 0.3, "toroidal_n2_amp": 0.1},
@@ -63,6 +60,16 @@ def test_feature_contract_matches_boundary_metadata() -> None:
     assert metadata["score_source"] == DISRUPTION_HEURISTIC_SCORE_SOURCE
     assert metadata["public_claim_allowed"] is False
     assert metadata["facility_roc_validated"] is False
+
+
+def test_heuristic_validation_provenance_resolves_to_synthetic_tests() -> None:
+    """The public heuristic must point to present, bounded validation evidence."""
+    boundary = disruption_risk_claim_boundary()
+    evidence_class, source_path = boundary.validation_provenance.split(":", maxsplit=1)
+
+    assert evidence_class == "synthetic_unit_tests"
+    assert source_path == "tests/test_disruption_predictor_pure.py"
+    assert (REPO_ROOT / source_path).is_file()
 
 
 def test_safe_fallback_metadata_carries_claim_boundary(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -89,7 +96,6 @@ def test_safe_fallback_metadata_carries_claim_boundary(monkeypatch: pytest.Monke
 
 def test_claim_boundary_rejects_facility_claim_widening() -> None:
     """Boundary construction fails if a caller widens the real-database claim."""
-
     boundary = disruption_risk_claim_boundary()
     with pytest.raises(ValueError, match="public_claim_allowed"):
         DisruptionRiskClaimBoundary(
@@ -117,7 +123,6 @@ def test_claim_boundary_rejects_facility_claim_widening() -> None:
 
 def test_claim_boundary_rejects_empty_contract_fields() -> None:
     """Boundary construction rejects empty identifiers and feature names."""
-
     boundary = disruption_risk_claim_boundary()
     with pytest.raises(ValueError, match="predictor_id"):
         DisruptionRiskClaimBoundary(
@@ -145,7 +150,6 @@ def test_claim_boundary_rejects_empty_contract_fields() -> None:
 
 def test_feature_builder_rejects_contract_length_mismatch(monkeypatch: pytest.MonkeyPatch) -> None:
     """Feature construction fails if the declared contract length is tampered."""
-
     import scpn_control.control.disruption_physics_proxies as proxies_module
     import scpn_control.control.disruption_risk_claims as claims_module
 
@@ -159,7 +163,6 @@ def test_feature_builder_rejects_contract_length_mismatch(monkeypatch: pytest.Mo
 
 def test_local_percentile_handles_edges_without_numpy_reductions() -> None:
     """Local percentile helper handles singleton, interpolation, and empty inputs."""
-
     assert _linear_percentile([2.0], 95.0) == 2.0
     assert _linear_percentile([4.0, 8.0], 0.0) == 4.0
     assert _linear_percentile([0.0, 10.0], 50.0) == 5.0
@@ -169,7 +172,6 @@ def test_local_percentile_handles_edges_without_numpy_reductions() -> None:
 
 def test_toroidal_perturbation_scales_observables() -> None:
     """Toroidal sigma-point perturbation scales every supplied observable."""
-
     perturbed = _perturb_toroidal_observables({"toroidal_n1_amp": 2.0, "toroidal_n2_amp": 1.0}, 1.0)
 
     assert perturbed is not None
@@ -211,7 +213,6 @@ def test_load_or_train_predictor_rejects_implicit_fallback(monkeypatch: pytest.M
 
 def test_public_surfaces_keep_disruption_predictor_boundary() -> None:
     """Docs and studio evidence retain the synthetic-only disruption boundary."""
-
     readme = _normalise_text((REPO_ROOT / "README.md").read_text(encoding="utf-8"))
     competitive = _normalise_text((REPO_ROOT / "docs" / "competitive_analysis.md").read_text(encoding="utf-8"))
     traceability = _normalise_text((REPO_ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8"))

@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — SOC reference validation tests
 
+"""Preserve seven original SOC public regression assertions and fixture values."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_soc_reference import validate_soc_reference
 
 
 def _valid_soc_reference_artifact() -> dict[str, object]:
+    """Supply original SOC engineering declarations without claiming measured or external artifact bytes."""
     return {
         "schema_version": "1.0",
         "source": "documented_public_reference",
@@ -72,6 +75,7 @@ def _valid_soc_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_soc_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     report = validate_soc_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -80,6 +84,7 @@ def test_strict_soc_gate_requires_reference_artifacts(tmp_path: Path) -> None:
 
 
 def test_soc_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     artifact = tmp_path / "soc_public_reference.json"
     artifact.write_text(json.dumps(_valid_soc_reference_artifact()), encoding="utf-8")
 
@@ -92,6 +97,7 @@ def test_soc_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
 
 
 def test_soc_gate_accepts_measured_turbulence_replay(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     payload = _valid_soc_reference_artifact()
     payload["source"] = "measured_turbulence_replay"
     payload.pop("reference_doi")
@@ -107,6 +113,7 @@ def test_soc_gate_accepts_measured_turbulence_replay(tmp_path: Path) -> None:
 
 
 def test_soc_gate_accepts_external_gyrokinetic_reference(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     payload = _valid_soc_reference_artifact()
     payload["source"] = "external_gyrokinetic_reference"
     payload.pop("reference_doi")
@@ -122,6 +129,7 @@ def test_soc_gate_accepts_external_gyrokinetic_reference(tmp_path: Path) -> None
 
 
 def test_soc_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     payload = _valid_soc_reference_artifact()
     payload["source"] = "synthetic"
     artifact = tmp_path / "synthetic_soc_reference.json"
@@ -134,6 +142,7 @@ def test_soc_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_soc_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     payload = _valid_soc_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["policy_action_accuracy_error"] = 0.3
@@ -147,6 +156,7 @@ def test_soc_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
 
 
 def test_soc_gate_rejects_missing_learning_metadata(tmp_path: Path) -> None:
+    """Exercise the original public SOC declaration acceptance or refusal regression."""
     payload = _valid_soc_reference_artifact()
     learning_metadata = cast(dict[str, object], payload["learning_metadata"])
     learning_metadata.pop("n_actions")

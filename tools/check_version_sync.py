@@ -12,8 +12,21 @@
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 
+"""Compare required local release text without querying external registries.
+
+The no-argument hook checks the repository containing this script; ``--repo``
+selects another root. The canonical version is the first matching double-quoted
+version assignment in pyproject.toml. CITATION.cff and .zenodo.json use their
+first matching version field. README badges/release examples, docs/api.md and
+version-named release notes must contain the declared literal strings. These
+are bounded text checks, not TOML/CFF/JSON schema validation, URL resolution,
+package publication evidence or agreement with a remote registry. Missing or
+unreadable required inputs fail; source files are never rewritten.
+"""
+
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -23,8 +36,12 @@ PROJECT_SLUG = "scpn-control"
 
 
 def _extract(path: Path, pattern: str) -> str | None:
-    """Extract the first regex capture group from a UTF-8 text file."""
+    """Read a required text carrier and return the first multiline regex capture.
 
+    Missing files or unmatched fields return None. Other filesystem errors and
+    invalid UTF-8 propagate; no structural or duplicate-field validation is
+    inferred from this first-match text probe.
+    """
     if not path.exists():
         return None
     text = path.read_text(encoding="utf-8")
@@ -32,27 +49,34 @@ def _extract(path: Path, pattern: str) -> str | None:
     return m.group(1) if m else None
 
 
-def _require_contains(path: Path, substring: str, label: str) -> str | None:
-    """Return an error message when ``path`` does not contain ``substring``."""
+def _require_contains(path: Path, substring: str, label: str, root: Path) -> str | None:
+    """Return a labelled missing-file or missing-literal error relative to root.
 
+    Reads strict UTF-8, performs a case-sensitive substring test and otherwise
+    returns None. Read/decoding failures propagate rather than imply agreement.
+    """
     if not path.exists():
-        return f"MISSING: {label} file {path.relative_to(ROOT).as_posix()} does not exist"
+        return f"MISSING: {label} file {path.relative_to(root).as_posix()} does not exist"
     if substring not in path.read_text(encoding="utf-8"):
         return f"MISMATCH: {label} missing {substring!r}"
     return None
 
 
-def _release_notes_path(version: str) -> Path:
-    """Return the expected release-notes path for a package version."""
+def _release_notes_path(version: str, root: Path) -> Path:
+    """Select docs/release_notes_v{version}.md under the supplied checkout root."""
+    return root / "docs" / f"release_notes_v{version}.md"
 
-    return ROOT / "docs" / f"release_notes_v{version}.md"
 
+def _metadata_badge_errors(version: str, root: Path) -> list[str]:
+    """Collect missing README and release-note literals without external requests.
 
-def _metadata_badge_errors(version: str) -> list[str]:
-    """Validate README badges and declarative public-release metadata."""
-
-    readme = ROOT / "README.md"
-    release_notes = _release_notes_path(version)
+    Checks four exact badge/link URLs, the package-version table and tag
+    example, plus release-note heading and three publication-boundary phrases.
+    Repeated errors for the same file remain separately labelled; counts are
+    failing checks rather than distinct files.
+    """
+    readme = root / "README.md"
+    release_notes = _release_notes_path(version, root)
     checks = [
         (readme, f"https://img.shields.io/pypi/v/{PROJECT_SLUG}", "README PyPI version badge"),
         (readme, f"https://img.shields.io/pypi/pyversions/{PROJECT_SLUG}", "README Python-version badge"),
@@ -65,46 +89,95 @@ def _metadata_badge_errors(version: str) -> list[str]:
         (release_notes, "external mutable state", "release-note external-state boundary"),
         (release_notes, "source-level release history", "release-note source-history boundary"),
     ]
-    return [error for path, substring, label in checks if (error := _require_contains(path, substring, label))]
+    return [error for path, substring, label in checks if (error := _require_contains(path, substring, label, root))]
 
 
-def main() -> int:
-    """Return success only when repository version and release metadata agree."""
+def _check(root: Path) -> int:
+    """Compare all required version and publication-boundary text in one root.
 
-    canonical = _extract(ROOT / "pyproject.toml", r'^version\s*=\s*"([^"]+)"')
+    Print each mismatch and return one on failure. Return zero only after
+    all local literal checks pass; errors cannot retire a required version.
+    Filesystem/decoding errors propagate to the public command boundary.
+    """
+    canonical = _extract(root / "pyproject.toml", r'^version\s*=\s*"([^"]+)"')
     if not canonical:
         print("FAIL: could not extract version from pyproject.toml")
         return 1
 
+    if canonical in {".", ".."} or "/" in canonical or "\\" in canonical:
+        print("FAIL: canonical version must be a safe filename component")
+        return 1
+
     versions = {
-        "CITATION.cff": _extract(ROOT / "CITATION.cff", r'^version:\s*"?([^"\s]+)"?'),
-        ".zenodo.json": _extract(ROOT / ".zenodo.json", r'"version":\s*"([^"]+)"'),
+        "CITATION.cff": _extract(root / "CITATION.cff", r'^version:\s*"?([^"\s]+)"?'),
+        ".zenodo.json": _extract(root / ".zenodo.json", r'"version":\s*"([^"]+)"'),
     }
 
-    errors = 0
     messages: list[str] = []
     for name, ver in versions.items():
         if ver is None:
-            print(f"WARN: could not extract version from {name}")
+            messages.append(f"MISSING: could not extract version from {name}")
         elif ver != canonical:
             messages.append(f"MISMATCH: {name} has {ver!r}, expected {canonical!r}")
 
-    if api_error := _require_contains(ROOT / "docs" / "api.md", canonical, "docs/api.md version marker"):
+    if api_error := _require_contains(root / "docs" / "api.md", canonical, "docs/api.md version marker", root):
         messages.append(api_error)
 
-    messages.extend(_metadata_badge_errors(canonical))
+    messages.extend(_metadata_badge_errors(canonical, root))
 
     errors = len(messages)
     if errors:
         for message in messages:
             print(message)
         print(f"\nCanonical version (pyproject.toml): {canonical}")
-        print(f"{errors} file(s) out of sync.")
+        print(f"{errors} check(s) out of sync.")
         return 1
 
     print(f"OK: all versions and release metadata = {canonical}")
     return 0
 
 
+def main(argv: list[str] | None = None) -> int:
+    """Run the local release-text guard against an explicit or owning checkout.
+
+    Parameters
+    ----------
+    argv
+        Arguments excluding the executable. None retains the historical
+        no-argument API. The script forwards process arguments explicitly.
+        --repo paths resolve against the caller's working directory.
+
+    Returns
+    -------
+    int
+        Zero only when all required local text checks pass; one for missing,
+        unreadable, undecodable or mismatched input, or a non-directory root.
+        Invalid command arguments exit two via argparse. No files are written
+        and no external registry state is admitted.
+
+    Examples
+    --------
+    Run the real owning checkout without exposing its progress output:
+
+    >>> import contextlib, io
+    >>> with contextlib.redirect_stdout(io.StringIO()):
+    ...     status = main()
+    >>> status
+    0
+    """
+    parser = argparse.ArgumentParser(description="Check local release version and metadata text.")
+    parser.add_argument("--repo", type=Path, default=ROOT, help="Checkout root; defaults to the script's repository.")
+    args = parser.parse_args([] if argv is None else argv)
+    root = args.repo.resolve()
+    if not root.is_dir():
+        print(f"FAIL: repository root is not a directory: {root}")
+        return 1
+    try:
+        return _check(root)
+    except (OSError, UnicodeError) as exc:
+        print(f"FAIL: required release metadata could not be read: {exc}")
+        return 1
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(main(sys.argv[1:]))

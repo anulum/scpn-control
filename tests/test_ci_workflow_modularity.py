@@ -153,16 +153,16 @@ def _redirect(root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
 def test_live_inventory_is_complete_unique_bounded_and_fail_closed(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Require the real ten-category, 29-job distributed graph to pass."""
+    """Require the real ten-category, 30-job distributed graph to pass."""
     policy = inventory.load_ci_workflow_policy()
     jobs = [job for category in policy["categories"] for job in category["jobs"]]
 
     assert len(policy["categories"]) == 10
-    assert len(jobs) == len(set(jobs)) == len(policy["job_order"]) == 29
+    assert len(jobs) == len(set(jobs)) == len(policy["job_order"]) == 30
     assert set(jobs) == set(policy["job_order"])
     assert modularity.audit_ci_workflow_modularity(policy) == []
     assert modularity.main() == 0
-    assert "29 jobs in 10 categories" in capsys.readouterr().out
+    assert "30 jobs in 10 categories" in capsys.readouterr().out
 
 
 def test_live_docs_and_release_locks_have_nonpublishing_ci_jobs() -> None:

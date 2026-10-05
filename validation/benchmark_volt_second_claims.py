@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Volt-second claim-admission benchmark
 
+"""Publish a fixed bounded model declaration through recorded output custody."""
+
 from __future__ import annotations
 
 import json
@@ -26,6 +28,40 @@ MARKDOWN_REPORT = REPORT_DIR / "volt_second_claims.md"
 
 
 def main() -> None:
+    """Write one fixed bounded volt-second accounting declaration and summary.
+
+    Returns
+    -------
+    None
+        Write volt_second_claims.json, volt_second_claims.md, then the same
+        JSON payload again in this module's reports directory. Outputs are
+        UTF-8 with final newlines, following the defining dataclass schema.
+
+    Raises
+    ------
+    RuntimeError
+        Persistent paths lack a recorded-campaign identifier.
+    ValueError
+        The identifier or defining budget/scenario/evidence inputs are refused.
+    OSError
+        Directory creation or a sequential write fails; earlier writes can
+        remain. Replacement is not atomic or a multi-file transaction.
+
+    Notes
+    -----
+    No CLI parameters are parsed. Fresh scalar budget state sets Phi_CS=120 V s,
+    plasma inductance 1.2 microhenry and resistance 0.08 microohm. The scenario
+    fixes ramp/flat/down durations 80/400/60 s, plasma current 15 MA and supplied
+    bootstrap current 4 MA. R0=6.2 m is passed to the defining evidence builder,
+    along with the actual computed ramp flux for its flat-top estimate.
+    This is scalar scenario accounting, not measured voltage integration,
+    current-profile evolution or central-solenoid commissioning. No external
+    reference is supplied and facility_claim_allowed remains False.
+    Reports expose defining-model flux in V s and timing in seconds. Calls
+    share fixed filenames without locks. The guard checks campaign ID syntax/
+    presence; the actual wrapper separately records custody. Neither supplies
+    authentic independent physical references or source authentication.
+    """
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     budget = FluxBudget(Phi_CS_Vs=120.0, L_plasma_uH=1.2, R_plasma_uOhm=0.08)
     report = ScenarioFluxAnalysis(budget).analyze(

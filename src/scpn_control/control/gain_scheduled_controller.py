@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Any
@@ -17,6 +18,15 @@ from typing import Any
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control.gain_scheduled_scenario import (
+    ScenarioSchedule as ScenarioSchedule,
+)
+from scpn_control.control.gain_scheduled_scenario import (
+    ScenarioWaveform as ScenarioWaveform,
+)
+from scpn_control.control.gain_scheduled_scenario import (
+    iter_baseline_schedule as iter_baseline_schedule,
+)
 
 # Gain scheduling: operating-point-indexed PID gains.
 # Theoretical basis:
@@ -32,6 +42,26 @@ _TAU_SWITCH: float = 0.5  # s
 
 # Minimum denominator guard for derivative term.
 _DT_EPS: float = 1e-6  # s
+
+
+def _finite_vector(name: str, value: AnyFloatArray, size: int | None = None) -> FloatArray:
+    """Return a finite vector with the expected state dimension."""
+    array = np.asarray(value, dtype=float)
+    if array.ndim != 1 or array.size == 0 or (size is not None and array.size != size):
+        raise ValueError(f"{name} must be a non-empty vector of the expected size")
+    if not np.all(np.isfinite(array)):
+        raise ValueError(f"{name} must be finite")
+    return array.copy()
+
+
+def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
+    """Return a finite scalar within its required domain."""
+    scalar = float(value)
+    if not math.isfinite(scalar):
+        raise ValueError(f"{name} must be finite")
+    if positive and scalar <= 0.0:
+        raise ValueError(f"{name} must be positive")
+    return scalar
 
 
 class OperatingRegime(Enum):
@@ -98,10 +128,17 @@ class RegimeDetector:
     ) -> OperatingRegime:
         """Classify regime from (state, dstate/dt, τ_E, p_disrupt).
 
-        state  = [I_p [MA], β_N, ...]
-        dstate = [dI_p/dt [MA/s], dβ_N/dt, ...]
+        ``state`` and ``dstate_dt`` must be finite, equal-length vectors;
+        ``tau_E`` must be positive and ``p_disrupt`` must be in [0, 1].
+        Invalid diagnostics do not advance the hysteresis history.
         """
-        dIp_dt = dstate_dt[0]
+        state = _finite_vector("state", state)
+        rate = _finite_vector("dstate_dt", dstate_dt, state.size)
+        tau_E = _finite_scalar("tau_E", tau_E, positive=True)
+        p_disrupt = _finite_scalar("p_disrupt", p_disrupt)
+        if not 0.0 <= p_disrupt <= 1.0:
+            raise ValueError("p_disrupt must be within [0, 1]")
+        dIp_dt = rate[0]
 
         if p_disrupt > self.thresholds["disruption_prob"]:
             new_reg = OperatingRegime.DISRUPTION_MITIGATION
@@ -138,15 +175,19 @@ class GainScheduledController:
     """
 
     def __init__(self, controllers: dict[OperatingRegime, RegimeController]) -> None:
-        self.controllers = controllers
+        if OperatingRegime.RAMP_UP not in controllers:
+            raise ValueError("RAMP_UP controller is required")
+        self.controllers = dict(controllers)
         self.current_regime = OperatingRegime.RAMP_UP
         self.prev_regime = OperatingRegime.RAMP_UP
 
-        self.Kp = self.controllers[self.current_regime].Kp.copy()
-        self.Ki = self.controllers[self.current_regime].Ki.copy()
-        self.Kd = self.controllers[self.current_regime].Kd.copy()
+        initial = self.controllers[self.current_regime]
+        x_ref = _finite_vector("x_ref", initial.x_ref)
+        self.Kp = _finite_vector("Kp", initial.Kp, x_ref.size)
+        self.Ki = _finite_vector("Ki", initial.Ki, x_ref.size)
+        self.Kd = _finite_vector("Kd", initial.Kd, x_ref.size)
 
-        self.integral_error = np.zeros_like(self.controllers[self.current_regime].x_ref)
+        self.integral_error = np.zeros_like(x_ref)
         self.prev_error = np.zeros_like(self.integral_error)
 
         self.switch_time = -1.0
@@ -159,124 +200,63 @@ class GainScheduledController:
         dt: float,
         detected_regime: OperatingRegime,
     ) -> FloatArray:
-        """Compute PID output with bumpless gain interpolation.
+        """Compute a finite PID candidate with atomic state publication.
 
         On regime switch: α = (t - t_switch) / τ_switch ∈ [0,1].
         Gains interpolated linearly: K(α) = (1-α) K_old + α K_new.
-        Walker et al. 2006, §3.2, Eq. (4).
+        Walker et al. 2006, §3.2, Eq. (4). Gain interpolation alone does
+        not establish a bumpless actuator output or facility qualification.
         """
-        if detected_regime != self.current_regime:
-            self.prev_regime = self.current_regime
-            self.current_regime = detected_regime
-            self.switch_time = t
+        x = _finite_vector("x", x, self.integral_error.size)
+        t = _finite_scalar("t", t)
+        dt = _finite_scalar("dt", dt, positive=True)
+        tau_switch = _finite_scalar("tau_switch", self.tau_switch, positive=True)
+        integral = _finite_vector("integral_error", self.integral_error, x.size)
+        prev_error = _finite_vector("prev_error", self.prev_error, x.size)
+        if detected_regime not in self.controllers:
+            raise ValueError("detected regime has no controller")
 
-            if detected_regime == OperatingRegime.DISRUPTION_MITIGATION:
-                self.integral_error.fill(0.0)
+        switching = detected_regime != self.current_regime
+        current_regime = detected_regime if switching else self.current_regime
+        prev_regime = self.current_regime if switching else self.prev_regime
+        switch_time = t if switching else self.switch_time
+        if switching and detected_regime == OperatingRegime.DISRUPTION_MITIGATION:
+            integral.fill(0.0)
 
-        if self.switch_time >= 0 and t - self.switch_time < self.tau_switch:
-            alpha = (t - self.switch_time) / self.tau_switch
-            ctrl_old = self.controllers[self.prev_regime]
-            ctrl_new = self.controllers[self.current_regime]
+        ctrl_new = self.controllers[current_regime]
+        x_ref_new = _finite_vector("x_ref", ctrl_new.x_ref, x.size)
+        kp_new = _finite_vector("Kp", ctrl_new.Kp, x.size)
+        ki_new = _finite_vector("Ki", ctrl_new.Ki, x.size)
+        kd_new = _finite_vector("Kd", ctrl_new.Kd, x.size)
+        with np.errstate(over="ignore", invalid="ignore", divide="ignore"):
+            if switch_time >= 0 and t - switch_time < tau_switch:
+                alpha = _finite_scalar("switch fraction", (t - switch_time) / tau_switch)
+                if not 0.0 <= alpha <= 1.0:
+                    raise ValueError("switch fraction must be within [0, 1]")
+                ctrl_old = self.controllers[prev_regime]
+                x_ref_old = _finite_vector("x_ref", ctrl_old.x_ref, x.size)
+                kp_old = _finite_vector("Kp", ctrl_old.Kp, x.size)
+                ki_old = _finite_vector("Ki", ctrl_old.Ki, x.size)
+                kd_old = _finite_vector("Kd", ctrl_old.Kd, x.size)
+                kp = (1 - alpha) * kp_old + alpha * kp_new
+                ki = (1 - alpha) * ki_old + alpha * ki_new
+                kd = (1 - alpha) * kd_old + alpha * kd_new
+                x_ref = (1 - alpha) * x_ref_old + alpha * x_ref_new
+            else:
+                kp, ki, kd, x_ref = kp_new, ki_new, kd_new, x_ref_new
+            kp = _finite_vector("Kp", kp, x.size)
+            ki = _finite_vector("Ki", ki, x.size)
+            kd = _finite_vector("Kd", kd, x.size)
+            x_ref = _finite_vector("x_ref", x_ref, x.size)
+            error = _finite_vector("error", x_ref - x, x.size)
+            integral = _finite_vector("integral_error", integral + error * dt, x.size)
+            derror = _finite_vector("derivative error", (error - prev_error) / max(dt, _DT_EPS), x.size)
+            output = _finite_vector("control output", kp * error + ki * integral + kd * derror, x.size)
 
-            self.Kp = (1 - alpha) * ctrl_old.Kp + alpha * ctrl_new.Kp
-            self.Ki = (1 - alpha) * ctrl_old.Ki + alpha * ctrl_new.Ki
-            self.Kd = (1 - alpha) * ctrl_old.Kd + alpha * ctrl_new.Kd
-            x_ref = (1 - alpha) * ctrl_old.x_ref + alpha * ctrl_new.x_ref
-        else:
-            ctrl_new = self.controllers[self.current_regime]
-            self.Kp = ctrl_new.Kp
-            self.Ki = ctrl_new.Ki
-            self.Kd = ctrl_new.Kd
-            x_ref = ctrl_new.x_ref
-
-        error = x_ref - x
-        self.integral_error += error * dt
-        derror = (error - self.prev_error) / max(dt, _DT_EPS)
-
-        u = self.Kp * error + self.Ki * self.integral_error + self.Kd * derror
+        self.current_regime = current_regime
+        self.prev_regime = prev_regime
+        self.switch_time = switch_time
+        self.Kp, self.Ki, self.Kd = kp, ki, kd
+        self.integral_error = integral
         self.prev_error = error
-
-        return np.asarray(u)
-
-
-class ScenarioWaveform:
-    """Piecewise-linear waveform for a single scenario variable."""
-
-    def __init__(self, name: str, times: AnyFloatArray, values: AnyFloatArray, interp_kind: str = "linear") -> None:
-        self.name = name
-        self.times = times
-        self.values = values
-        self.interp_kind = interp_kind
-
-    def __call__(self, t: float) -> float:
-        """Return the interpolated waveform value at time ``t`` in seconds."""
-        return float(np.interp(t, self.times, self.values))
-
-
-class ScenarioSchedule:
-    """Collection of waveforms defining a full discharge scenario."""
-
-    def __init__(self, waveforms: dict[str, ScenarioWaveform]) -> None:
-        self.waveforms = waveforms
-
-    def evaluate(self, t: float) -> dict[str, float]:
-        """Return all waveform values at time ``t``.
-
-        Parameters
-        ----------
-        t
-            Time in seconds.
-
-        Returns
-        -------
-        dict[str, float]
-            Each waveform name mapped to its interpolated value.
-        """
-        return {name: wf(t) for name, wf in self.waveforms.items()}
-
-    def duration(self) -> float:
-        """Return the scenario duration in seconds (latest waveform end time)."""
-        if not self.waveforms:
-            return 0.0
-        return float(max(wf.times[-1] for wf in self.waveforms.values()))
-
-    def validate(self) -> list[str]:
-        """Validate the schedule waveforms.
-
-        Returns
-        -------
-        list[str]
-            Error messages for any waveform with non-monotonic times; empty when
-            the schedule is valid.
-        """
-        errors = []
-        for name, wf in self.waveforms.items():
-            if not np.all(np.diff(wf.times) > 0):
-                errors.append(f"Waveform {name} has non-monotonic times.")
-        return errors
-
-
-def iter_baseline_schedule() -> ScenarioSchedule:
-    """Return the ITER 15 MA inductive scenario baseline waveform.
-
-    Timing and values follow ITER PCDH v3.1 (Polevoi et al. 2014,
-    ITER Report ITR-18-001, §4.1, Table 4-1):
-        t=0–10 s   : ramp-up  (I_p 0.5→5 MA)
-        t=10–30 s  : ramp-up  (I_p 5→10 MA, auxiliary heating on)
-        t=30–60 s  : ramp-up  (I_p 10→15 MA)
-        t=60–400 s : flat top (I_p = 15 MA, NBI 33 MW, ECCD 17 MW)
-        t=400–430 s: ramp-down start
-        t=430–480 s: ramp-down to 2 MA
-    """
-    times = np.array([0, 10, 30, 60, 400, 430, 480], dtype=float)
-    ip_vals = np.array([0.5, 5.0, 10.0, 15.0, 15.0, 10.0, 2.0])  # MA
-    p_nbi = np.array([0.0, 0.0, 10.0, 33.0, 33.0, 10.0, 0.0])  # MW
-    p_eccd = np.array([0.0, 0.0, 5.0, 17.0, 17.0, 5.0, 0.0])  # MW
-
-    return ScenarioSchedule(
-        {
-            "Ip": ScenarioWaveform("Ip", times, ip_vals),
-            "P_NBI": ScenarioWaveform("P_NBI", times, p_nbi),
-            "P_ECCD": ScenarioWaveform("P_ECCD", times, p_eccd),
-        }
-    )
+        return output

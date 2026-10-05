@@ -7,7 +7,12 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Coverage pragma reason checker.
 
-"""Fail closed when source ``pragma: no cover`` comments lack a reason."""
+"""Find lexical ``pragma: no cover`` exclusions lacking trailing reason text.
+
+The default CLI scans ``src/scpn_control`` relative to this script's repository.
+It does not parse Python comments, judge a reason's scientific validity, or
+certify coverage. Files are read as UTF-8 without changing sources or policy.
+"""
 
 from __future__ import annotations
 
@@ -21,11 +26,37 @@ from typing import Sequence
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_SOURCE_ROOT = REPO_ROOT / "src" / "scpn_control"
 PRAGMA_PATTERN = re.compile(r"pragma:\s*no cover(?P<tail>.*)$")
+REASON_PREFIX_PATTERN = re.compile(r"^[-:;.,#)\]\s–—]*")
 
 
 @dataclass(frozen=True)
 class CoveragePragmaViolation:
-    """A source line containing an unreasoned coverage exclusion."""
+    """Immutable diagnostic for one lexical exclusion without trailing text.
+
+    Parameters
+    ----------
+    path : str
+        Resolved POSIX path, relative to the repository when possible and
+        absolute otherwise. A diagnostic path does not establish containment.
+    line : int
+        One-based source line number, counted after ``str.splitlines``.
+    text : str
+        Entire matching source line with surrounding whitespace removed.
+
+    Attributes
+    ----------
+    path : str
+        Diagnostic filename, without filesystem validation by this class.
+    line : int
+        Source line number; construction does not validate its range.
+    text : str
+        Source text, without parsing or justification review.
+
+    Notes
+    -----
+    The fields are frozen after construction. Native dataclass initialization
+    rejects missing or unexpected arguments; supplied values are not coerced.
+    """
 
     path: str
     line: int
@@ -33,28 +64,95 @@ class CoveragePragmaViolation:
 
 
 def _is_reasoned(tail: str) -> bool:
-    """Return ``True`` when the text after the pragma contains an actual reason."""
-    reason = tail.strip()
-    if not reason:
-        return False
-    reason = reason.lstrip("-:;.,#) ]")
-    reason = reason.lstrip("–—")
-    return bool(reason.strip())
+    """Test for text remaining after leading whitespace and separators.
+
+    Parameters
+    ----------
+    tail : str
+        Same-line text following the matched exclusion marker.
+
+    Returns
+    -------
+    bool
+        Whether text remains after whitespace and ``-:;.,#) ]–—`` prefixes.
+        Mixed separators alone are insufficient; meaningfulness is not judged.
+    """
+    return bool(REASON_PREFIX_PATTERN.sub("", tail.strip()))
 
 
 def iter_python_files(paths: Sequence[Path]) -> list[Path]:
-    """Return sorted Python files under the provided paths."""
+    """Enumerate requested Python files and directory descendants.
+
+    Parameters
+    ----------
+    paths : Sequence[Path]
+        Files ending in case-sensitive ``.py`` or directories. Relative API
+        paths resolve through the caller's working directory. Directory search
+        uses native ``Path.rglob('*.py')`` and retains file targets only.
+
+    Returns
+    -------
+    list[Path]
+        Sorted paths in their supplied spelling. Overlapping requests retain
+        duplicates; an empty sequence or directory produces an empty list.
+
+    Raises
+    ------
+    FileNotFoundError
+        An explicitly requested path is absent or a broken symlink.
+    ValueError
+        An existing requested path is neither a Python file nor a directory.
+    OSError
+        Native filesystem operations fail. Enumeration is not an atomic
+        snapshot, and traversal follows the active interpreter's Path rules.
+    """
     files: list[Path] = []
     for path in paths:
+        if not path.exists():
+            raise FileNotFoundError(f"Coverage pragma scan path does not exist: {path}")
         if path.is_file() and path.suffix == ".py":
             files.append(path)
         elif path.is_dir():
             files.extend(child for child in path.rglob("*.py") if child.is_file())
+        else:
+            raise ValueError(f"Coverage pragma scan expects a Python file or directory: {path}")
     return sorted(files)
 
 
 def find_unreasoned_pragmas(paths: Sequence[Path]) -> list[CoveragePragmaViolation]:
-    """Find ``pragma: no cover`` comments without explanatory text."""
+    """Inspect requested UTF-8 Python files for lexical unreasoned markers.
+
+    Parameters
+    ----------
+    paths : Sequence[Path]
+        Paths accepted by :func:`iter_python_files`, relative to the caller's
+        working directory when not absolute. Sources are only read.
+
+    Returns
+    -------
+    list[CoveragePragmaViolation]
+        Diagnostics ordered by sorted file path and one-based line number.
+        Repeated files produce repeated diagnostics. Marker matching is
+        case-sensitive and searches whole lines, including strings/docstrings.
+        A separator-only suffix fails; remaining text is not reviewed.
+
+    Raises
+    ------
+    FileNotFoundError
+        A requested path is absent, or a file disappears before reading.
+    ValueError
+        A requested existing path is not a Python file or directory.
+    UnicodeDecodeError
+        A selected file cannot be decoded as UTF-8.
+    OSError
+        Native resolution, enumeration or reading fails.
+
+    Notes
+    -----
+    No reason ownership, coverage measurement, compiler variant, readiness,
+    containment or concurrent-edit guarantee is provided. Empty results apply
+    only to the files actually enumerated.
+    """
     violations: list[CoveragePragmaViolation] = []
     for path in iter_python_files(paths):
         resolved = path.resolve()
@@ -70,6 +168,19 @@ def find_unreasoned_pragmas(paths: Sequence[Path]) -> list[CoveragePragmaViolati
 
 
 def _resolve_paths(raw_paths: Sequence[str]) -> list[Path]:
+    """Resolve CLI spellings against this script's repository root.
+
+    Parameters
+    ----------
+    raw_paths : Sequence[str]
+        CLI path strings, without shell, environment or tilde expansion.
+
+    Returns
+    -------
+    list[Path]
+        Absolute spellings unchanged and relative spellings prefixed by
+        ``REPO_ROOT``. Filesystem existence is checked during enumeration.
+    """
     paths: list[Path] = []
     for raw in raw_paths:
         path = Path(raw)
@@ -78,7 +189,36 @@ def _resolve_paths(raw_paths: Sequence[str]) -> list[Path]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the coverage-pragma reason gate."""
+    """Run the local lexical exclusion-reason CLI.
+
+    Parameters
+    ----------
+    argv : list[str] or None, optional
+        Explicit argparse tokens, or process arguments when None. Positional
+        paths resolve against the script repository; omission selects its
+        ``src/scpn_control`` directory. ``--json`` changes output format only.
+
+    Returns
+    -------
+    int
+        Zero for no unreasoned markers in enumerated files; one for findings.
+        JSON contains ``unreasoned`` records with path, line and text fields.
+        Human output prints a summary and each diagnostic to standard output.
+
+    Raises
+    ------
+    SystemExit
+        Argparse help exits zero; invalid options exit two.
+    FileNotFoundError
+        A requested path or the default source directory is absent.
+    ValueError
+        A requested existing path is not a Python file or directory.
+    UnicodeDecodeError
+        A selected source is not UTF-8.
+    OSError
+        Native filesystem operations fail. These failures propagate before
+        a success summary or JSON is printed.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "paths",

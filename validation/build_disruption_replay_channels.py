@@ -35,18 +35,18 @@ Labels are added by the dataset builder.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
+import sys
 import tempfile
 from collections.abc import Sequence
-from io import BytesIO
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._npz import save_npz_arrays
 from validation.disruption_channel_recipes import (
     amperes_to_megamperes,
     dbdt_gauss_per_s,
@@ -54,35 +54,20 @@ from validation.disruption_channel_recipes import (
     n_mode_amplitude,
     per_1e19,
 )
-from validation.mast_dbdt_authority import (
-    GEOMETRY_KEYS as DBDT_GEOMETRY_KEYS,
-)
-from validation.mast_dbdt_authority import (
-    mast_dbdt_authority_spec,
-)
-from validation.mast_locked_mode_authority import mast_locked_mode_authority_spec
-from validation.mast_saddle_modal_authority import GEOMETRY_KEYS, mast_saddle_modal_authority_spec
-from validation.mast_source_object_manifest import array_value_sha256, canonical_json_sha256
+from validation.mast_replay_contracts._archive import inspect_replay_archive as _inspect_archive
+from validation.mast_replay_contracts._archive import inspect_replay_archive_bytes as _inspect_archive_bytes
+from validation.mast_replay_contracts._inputs import MEASURED_CHANNELS, channel_vectors, shot_identity, time_axis
+from validation.mast_replay_contracts._report import REPORT_SCHEMA as REPORT_SCHEMA
+from validation.mast_replay_contracts._report import _sha256_json as _sha256_json
+from validation.mast_replay_contracts._report import replay_report
 
-REPORT_SCHEMA = "scpn-control.mast-disruption-replay-channels.v2.0.0"
 REPLAY_MEMBER_DIGEST_KIND = "canonical-channel-values-sha256-v1"
 
-_MEASURED = (
-    "time_s",
-    "Ip_MA",
-    "BT_T",
-    "beta_N",
-    "q95",
-    "ne_1e19",
-    "n1_amp",
-    "n2_amp",
-    "locked_mode_amp",
-    "dBdt_gauss_per_s",
-    "vertical_position_m",
-)
+_MEASURED = MEASURED_CHANNELS
 
 
 def _interp(values: NDArray[np.float64], src: NDArray[np.float64], grid: NDArray[np.float64]) -> NDArray[np.float64]:
+    """Interpolate finite sorted samples; preserve the historical length fallback."""
     value = np.asarray(values, dtype=np.float64).ravel()
     time: NDArray[np.float64] = np.asarray(src, dtype=np.float64).ravel()
     # Some equilibrium channels (e.g. the magnetic-axis Z) carry their own coarser
@@ -127,10 +112,36 @@ def _peak_to_grid(
 def derive_replay_channels(
     mirror: dict[str, NDArray[Any]], *, locked_window: int = 201
 ) -> dict[str, NDArray[np.float64]]:
-    """Derive eleven compatibility channels from one native-resolution mirror."""
-    grid = np.asarray(mirror["summary.time"], dtype=np.float64)
-    t_eq = np.asarray(mirror["equilibrium.time"], dtype=np.float64)
-    t_saddle = np.asarray(mirror["magnetics.time_saddle"], dtype=np.float64)
+    """Derive eleven candidate vectors on the mirror's summary timebase.
+
+    ``mirror`` uses the acquisition's dotted NPZ keys. Summary current/density
+    use A and m^-3, equilibrium field/radius use T and m, and saddle fields
+    use T with coil angles in degrees. Summary, equilibrium and saddle clocks
+    must be finite, one-dimensional and strictly increasing; the summary
+    clock needs at least two samples. The Mirnov clock is truncated to the
+    selected first probe's length and checked by the derivative recipe.
+
+    Scalar equilibrium channels use linear interpolation with endpoint
+    clamping; a mismatched value/time length retains the historical uniform
+    time-grid assumption. Fast modal and derivative magnitudes use per-bin
+    peaks with interpolation across empty bins. The positive integer
+    ``locked_window`` defaults to 201 native saddle samples; the pure envelope
+    also permits even windows and refuses windows longer than the trace.
+
+    Return fresh aligned float64 vectors named by ``MEASURED_CHANNELS`` in
+    the dataset's ``CHANNEL_UNITS``. Inputs are unchanged and no files are
+    read or written. Missing keys raise ``KeyError``; invalid clocks, shapes,
+    recipes or final channel alignment raise ``ValueError``. Native array
+    conversion/extreme arithmetic errors propagate.
+
+    Historical missing-row replacement and final nonfinite-to-zero handling
+    are retained. Field/radius checks require a valid paired observation but
+    do not authenticate sign, geometry, timing or source quantity. This
+    routine grants no canonical physical, training or facility admission.
+    """
+    grid = time_axis(mirror["summary.time"], name="summary.time", minimum=2)
+    t_eq = time_axis(mirror["equilibrium.time"], name="equilibrium.time")
+    t_saddle = time_axis(mirror["magnetics.time_saddle"], name="magnetics.time_saddle")
     bphi_rmag = np.asarray(mirror["equilibrium.bphi_rmag"], dtype=np.float64)
     magnetic_axis_r = np.asarray(mirror["equilibrium.magnetic_axis_r"], dtype=np.float64)
     if (
@@ -174,11 +185,8 @@ def derive_replay_channels(
     }
     for name, array in channels.items():
         channels[name] = np.nan_to_num(np.asarray(array, dtype=np.float64), nan=0.0, posinf=0.0, neginf=0.0)
+    channel_vectors(channels, shot_id=1)
     return channels
-
-
-def _sha256_json(payload: dict[str, Any]) -> str:
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
 def _is_within(path: Path, directory: Path) -> bool:
@@ -190,86 +198,72 @@ def _is_within(path: Path, directory: Path) -> bool:
     return True
 
 
-def inspect_replay_archive(
-    path: Path,
-    *,
-    expected_shot_ids: Sequence[int] | None = None,
-) -> dict[str, Any]:
-    """Read once, reopen, and digest a replay archive through its byte surface."""
-    if not path.is_file():
-        raise ValueError(f"replay archive does not exist: {path}")
-    try:
-        raw = path.read_bytes()
-    except OSError as exc:
-        raise ValueError(f"cannot read replay archive: {exc}") from exc
-    return inspect_replay_archive_bytes(raw, path_name=path.name, expected_shot_ids=expected_shot_ids)
+def inspect_replay_archive(path: Path, *, expected_shot_ids: Sequence[int] | None = None) -> dict[str, Any]:
+    """Read one strict replay snapshot and return its original byte/value schema.
+
+    Positive sorted integer identities, exact unique members and finite aligned
+    floating vectors with increasing nonempty times are required. Optional
+    expected IDs compare directly. Authored ``ValueError`` refuses invalid/read
+    inputs. Symlinks are followed; no producer authentication or size bound.
+    """
+    return _inspect_archive(path, expected_shot_ids=expected_shot_ids)
 
 
 def inspect_replay_archive_bytes(
-    raw: bytes,
-    *,
-    path_name: str,
-    expected_shot_ids: Sequence[int] | None = None,
+    raw: bytes, *, path_name: str, expected_shot_ids: Sequence[int] | None = None
 ) -> dict[str, Any]:
-    """Validate and digest one immutable replay-archive byte snapshot."""
-    if not path_name:
-        raise ValueError("replay archive path_name must be non-empty")
-    try:
-        with np.load(BytesIO(raw), allow_pickle=False) as archive:
-            if "shot_ids" not in archive.files:
-                raise ValueError("replay archive must contain shot_ids")
-            identifiers = np.asarray(archive["shot_ids"])
-            if identifiers.ndim != 1 or identifiers.dtype.kind not in "iu":
-                raise ValueError("replay archive shot_ids must be a one-dimensional integer vector")
-            shot_ids = [int(value) for value in identifiers]
-            if any(shot_id <= 0 for shot_id in shot_ids) or shot_ids != sorted(set(shot_ids)):
-                raise ValueError("replay archive shot_ids must be unique, positive, and sorted")
-            if expected_shot_ids is not None and shot_ids != list(expected_shot_ids):
-                raise ValueError("replay archive shot_ids do not match the producer inventory")
-            expected_members = {"shot_ids"} | {f"{shot_id}:{channel}" for shot_id in shot_ids for channel in _MEASURED}
-            if set(archive.files) != expected_members:
-                raise ValueError("replay archive member inventory does not match its shot/channel schema")
-            shot_members: list[dict[str, Any]] = []
-            for shot_id in shot_ids:
-                channels: list[dict[str, str]] = []
-                sample_count: int | None = None
-                for channel in _MEASURED:
-                    array = np.asarray(archive[f"{shot_id}:{channel}"])
-                    if array.ndim != 1 or array.dtype.kind != "f" or not bool(np.all(np.isfinite(array))):
-                        raise ValueError(
-                            f"replay archive shot {shot_id} channel {channel} must be a finite float vector"
-                        )
-                    if sample_count is None:
-                        sample_count = int(array.shape[0])
-                    elif array.shape[0] != sample_count:
-                        raise ValueError(f"replay archive shot {shot_id} channel lengths differ")
-                    channels.append({"name": channel, "value_sha256": array_value_sha256(array)})
-                if sample_count is None or sample_count <= 0:
-                    raise ValueError(f"replay archive shot {shot_id} must contain samples")
-                shot_members.append(
-                    {
-                        "shot_id": shot_id,
-                        "n_samples": sample_count,
-                        "sha256": canonical_json_sha256({"shot_id": shot_id, "channels": channels}),
-                    }
-                )
-    except (OSError, KeyError, TypeError, ValueError) as exc:
-        raise ValueError(f"cannot validate replay archive: {exc}") from exc
-    return {
-        "path": path_name,
-        "file_sha256": hashlib.sha256(raw).hexdigest(),
-        "bytes": len(raw),
-        "shot_count": len(shot_members),
-        "member_digest_kind": REPLAY_MEMBER_DIGEST_KIND,
-        "shot_members": shot_members,
-    }
+    """Inspect immutable bytes with the same strict integer/clock schema.
+
+    ``path_name`` is a nonempty label, not a freshness/containment proof. Return
+    bindings cover raw bytes and canonical values, not physical provenance.
+    Authored ``ValueError`` refuses malformed/non-pickle-safe archives.
+    """
+    return _inspect_archive_bytes(raw, path_name=path_name, expected_shot_ids=expected_shot_ids)
 
 
 def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, locked_window: int = 201) -> dict[str, Any]:
-    """Derive replay channels for every mirror in ``material_dir`` into channels.npz."""
+    """Derive channels from local mirrors and publish an uncompressed archive.
+
+    Parameters
+    ----------
+    material_dir
+        Immutable directory containing ``shot_<integer>.npz`` mirrors. Shots
+        are visited in numeric identity order and loaded without pickling.
+    out_dir
+        Destination outside ``material_dir``. A temporary archive is reopened
+        and bound to its candidate values before exclusive publication as
+        ``channels.npz``; an existing archive is refused.
+    generated_at
+        Nonempty reproducibility label copied to the returned report. It is
+        not parsed as a clock reading or evidence of source freshness.
+    locked_window
+        Positive odd envelope-window length in native saddle samples.
+
+    Returns
+    -------
+    dict
+        Schema-versioned report with per-shot outcomes, archive byte/value
+        digests and explicit channel-authority blockers. Archive members use
+        ``<shot_id>:<channel>`` plus an int64 ``shot_ids`` vector. Failed mirror
+        reads or derivations are recorded and the remaining shots continue.
+        Scientific, training, facility and control admission remain false.
+
+    Raises
+    ------
+    ValueError
+        If metadata, directories, window or reopened archive are invalid, or
+        the archive already exists. Temporary files are removed on failure.
+    OSError
+        If file creation or exclusive publication fails.
+    """
     if not generated_at:
         raise ValueError("generated_at must be non-empty")
-    if locked_window <= 0 or locked_window % 2 == 0:
+    if (
+        not isinstance(locked_window, int)
+        or isinstance(locked_window, bool)
+        or locked_window <= 0
+        or locked_window % 2 == 0
+    ):
         raise ValueError("locked_window must be a positive odd integer")
     if not material_dir.is_dir():
         raise ValueError(f"material_dir is not a directory: {material_dir}")
@@ -278,14 +272,20 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
     payload: dict[str, NDArray[Any]] = {}
     shot_ids: list[int] = []
     records: list[dict[str, Any]] = []
-    shot_paths = sorted(material_dir.glob("shot_*.npz"), key=lambda path: int(path.stem.split("_")[1]))
+    try:
+        shot_paths = sorted(material_dir.glob("shot_*.npz"), key=lambda path: int(path.stem.split("_")[1]))
+        ids = [shot_identity(int(path.stem.split("_")[1])) for path in shot_paths]
+    except (ValueError, IndexError):
+        raise ValueError("material shot filenames must contain positive integer identities") from None
+    if len(ids) != len(set(ids)):
+        raise ValueError("material shot filenames must have unique numeric identities")
     for shot_path in shot_paths:
         shot_id = int(shot_path.stem.split("_")[1])
         try:
             with np.load(shot_path, allow_pickle=False) as mirror:
                 channels = derive_replay_channels({k: mirror[k] for k in mirror.files}, locked_window=locked_window)
-        except Exception as exc:  # noqa: BLE001 - record and continue over malformed mirrors
-            records.append({"shot_id": shot_id, "status": "failed", "error": f"{type(exc).__name__}: {exc}"})
+        except Exception:  # noqa: BLE001 - record and continue over malformed mirrors
+            records.append({"shot_id": shot_id, "status": "failed", "error": "mirror could not be read or derived"})
             continue
         shot_ids.append(shot_id)
         for name in _MEASURED:
@@ -300,10 +300,7 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
     with tempfile.NamedTemporaryFile(prefix=".channels.", suffix=".npz", dir=out_dir, delete=False) as handle:
         temporary_path = Path(handle.name)
     try:
-        np.savez(
-            temporary_path,
-            **payload,  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
-        )
+        save_npz_arrays(temporary_path, payload, allow_pickle=True)
         archive_binding = inspect_replay_archive(temporary_path, expected_shot_ids=shot_ids)
         try:
             os.link(temporary_path, npz_path)
@@ -313,71 +310,19 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
         temporary_path.unlink(missing_ok=True)
     archive_binding["path"] = npz_path.name
 
-    report: dict[str, Any] = {
-        "schema_version": REPORT_SCHEMA,
-        "synthetic": False,
-        "material_dir": material_dir.name,
-        "channels_npz": npz_path.name,
-        "channels_archive": archive_binding,
-        "channel_schema": list(_MEASURED),
-        "channel_authority": {
-            "BT_T": {
-                "source_key": "equilibrium.bphi_rmag",
-                "reference_radius_key": "equilibrium.magnetic_axis_r",
-                "canonical_binding_admissible": False,
-                "blocker": "toroidal_field_authority_incomplete",
-            },
-            "beta_N": {
-                "source_key": "equilibrium.beta_tor_normal",
-                "canonical_binding_admissible": False,
-                "blocker": "normalised_beta_authority_incomplete",
-            },
-            "n1_amp": {
-                "source_key": "magnetics.b_field_tor_probe_saddle_field",
-                "geometry_keys": list(GEOMETRY_KEYS),
-                "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
-                "canonical_binding_admissible": False,
-                "blocker": "saddle_modal_authority_incomplete",
-            },
-            "n2_amp": {
-                "source_key": "magnetics.b_field_tor_probe_saddle_field",
-                "geometry_keys": list(GEOMETRY_KEYS),
-                "authority_spec_sha256": mast_saddle_modal_authority_spec()["payload_sha256"],
-                "canonical_binding_admissible": False,
-                "blocker": "saddle_modal_authority_incomplete",
-            },
-            "locked_mode_amp": {
-                "source_key": "magnetics.b_field_tor_probe_saddle_field",
-                "geometry_keys": list(GEOMETRY_KEYS),
-                "authority_spec_sha256": mast_locked_mode_authority_spec()["payload_sha256"],
-                "canonical_binding_admissible": False,
-                "blocker": "locked_mode_authority_incomplete",
-            },
-            "dBdt_gauss_per_s": {
-                "source_key": "magnetics.b_field_pol_probe_cc_field",
-                "geometry_keys": list(DBDT_GEOMETRY_KEYS),
-                "authority_spec_sha256": mast_dbdt_authority_spec()["payload_sha256"],
-                "canonical_binding_admissible": False,
-                "blocker": "dbdt_authority_incomplete",
-            },
-        },
-        "claim_boundary": {
-            "scientific_validation": False,
-            "training_admission": False,
-            "facility_prediction": False,
-            "control_admission": False,
-        },
-        "locked_window": locked_window,
-        "n_derived": len(shot_ids),
-        "shots": records,
-        "generated_at": generated_at,
-        "payload_sha256": None,
-    }
-    report["payload_sha256"] = _sha256_json(report)
-    return report
+    return replay_report(
+        archive_binding,
+        records,
+        shot_ids,
+        material_name=material_dir.name,
+        archive_name=npz_path.name,
+        generated_at=generated_at,
+        locked_window=locked_window,
+    )
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the source-tree replay-channel command without reading material."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--material-dir", type=Path, required=True, help="Directory of shot_<id>.npz mirrors.")
     parser.add_argument("--out-dir", type=Path, required=True, help="Output directory for channels.npz.")
@@ -388,7 +333,26 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point: derive replay channels from the material set."""
+    """Run the source-tree replay command and write an exclusive v2 report.
+
+    ``argv=None`` reads process arguments. Required material/output/report
+    paths and a nonempty generated-at label are parsed with argparse; help
+    raises ``SystemExit(0)`` and parser errors ``SystemExit(2)``. The report
+    must lie outside the immutable material directory and differ from the
+    archive path. Existing reports and archives are refused.
+
+    Return ``0`` after archive and report publication, including an empty candidate
+    or per-shot failures; this is completion of candidate assembly, not
+    scientific admission. A report-write failure removes this command's
+    published archive and report when possible. Directory creation, reads,
+    publication and cleanup are sequential filesystem operations, not a
+    transaction or an authenticated snapshot. Concurrent path replacement
+    and cleanup failures are not controlled by this API.
+
+    Calling ``main`` directly preserves authored ``ValueError`` and native
+    I/O/conversion errors. The module command maps caught value/I/O/type/key
+    errors to a fixed stderr sentence and exit ``2`` without interpreter text.
+    """
     args = _parse_args(argv)
     archive_path = args.out_dir / "channels.npz"
     if _is_within(args.json_out, args.material_dir):
@@ -425,4 +389,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (ValueError, OSError, TypeError, KeyError):
+        print("Could not build MAST replay channels.", file=sys.stderr)
+        raise SystemExit(2) from None

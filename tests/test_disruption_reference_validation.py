@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Disruption reference validation tests
 
+"""Retain seven original public disruption declaration acceptance/refusal witnesses."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_disruption_reference import validate_disruption_referen
 
 
 def _valid_disruption_reference_artifact() -> dict[str, object]:
+    """Supply original engineering disruption declarations without authenticating physical reference bytes."""
     return {
         "schema_version": "1.0",
         "source": "documented_public_reference",
@@ -68,6 +71,7 @@ def _valid_disruption_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_disruption_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode retains the original empty-directory disruption refusal."""
     report = validate_disruption_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -76,6 +80,7 @@ def test_strict_disruption_gate_requires_reference_artifacts(tmp_path: Path) -> 
 
 
 def test_disruption_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """A declared DOI and original disruption metadata pass declaration inspection."""
     artifact = tmp_path / "disruption_public_reference.json"
     artifact.write_text(json.dumps(_valid_disruption_reference_artifact()), encoding="utf-8")
 
@@ -88,6 +93,7 @@ def test_disruption_gate_accepts_documented_public_reference(tmp_path: Path) -> 
 
 
 def test_disruption_gate_accepts_measured_campaign(tmp_path: Path) -> None:
+    """Measured campaign retains shot and nonblank diagnostic presence checks."""
     payload = _valid_disruption_reference_artifact()
     payload["source"] = "measured_disruption_campaign"
     payload.pop("reference_doi")
@@ -103,6 +109,7 @@ def test_disruption_gate_accepts_measured_campaign(tmp_path: Path) -> None:
 
 
 def test_disruption_gate_accepts_external_benchmark(tmp_path: Path) -> None:
+    """Original named JOREK and nonblank reference URI pass external declaration inspection."""
     payload = _valid_disruption_reference_artifact()
     payload["source"] = "external_benchmark"
     payload.pop("reference_doi")
@@ -118,6 +125,7 @@ def test_disruption_gate_accepts_external_benchmark(tmp_path: Path) -> None:
 
 
 def test_disruption_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Synthetic sources remain outside the original disruption reference membership."""
     payload = _valid_disruption_reference_artifact()
     payload["source"] = "synthetic"
     artifact = tmp_path / "synthetic_disruption_reference.json"
@@ -130,6 +138,7 @@ def test_disruption_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_disruption_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Declared halo error exceeding its bound produces the original field finding."""
     payload = _valid_disruption_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["halo_current_relative_error"] = 0.4
@@ -143,6 +152,7 @@ def test_disruption_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> Non
 
 
 def test_disruption_gate_rejects_missing_mitigation_metadata(tmp_path: Path) -> None:
+    """Missing original mitigation strength refuses the inventory metadata block."""
     payload = _valid_disruption_reference_artifact()
     mitigation_metadata = cast(dict[str, object], payload["mitigation_metadata"])
     mitigation_metadata.pop("mitigation_strength")

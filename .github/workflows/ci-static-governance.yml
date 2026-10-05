@@ -26,6 +26,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
+      - name: Install workflow policy dependencies
+        run: pip install --require-hashes -r requirements/ci-lint.txt
       - name: Validate capability manifest
         run: |
           python tools/capability_manifest.py --check
@@ -40,6 +42,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97  # v7
         with:
           python-version: "3.12"
@@ -47,12 +51,16 @@ jobs:
         run: pip install --require-hashes -r requirements/ci-lint.txt
       - name: Ruff check
         run: ruff check src/scpn_control/
+      - name: Ruff check (test, tool and validation surfaces)
+        run: ruff check --extend-ignore D tests/ tools/ validation/
       - name: Ruff format check
-        run: ruff format --check src/scpn_control/ tests/
+        run: ruff format --check src/scpn_control/ tests/ tools/ validation/
       - name: Scalar benchmark native docs and lint
         run: |
           ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
           ruff format --check validation/control_benchmark_suite.py
+      - name: Docstring debt ratchet
+        run: python tools/check_docstring_debt.py
       - name: Python lint scope contract
         run: python tools/check_python_lint_contract.py
       - name: Changelog mirror sync

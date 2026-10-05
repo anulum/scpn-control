@@ -26,9 +26,10 @@ Live capability counts come from
 - Added differentiable transport and equilibrium paths, a JAX
   Grad-Shafranov solver, neural-equilibrium and neural-transport facades, PPO
   training support, and reproducible controller comparisons.
-- The committed RL benchmark records PPO reward=121.1 vs MPC=59.4 vs PID=-911.2 over
-  50 episodes. This is repository simulation evidence, not a facility-control
-  result.
+- The retained historical RL benchmark records PPO reward=121.1 vs MPC=59.4 vs PID=-911.2 over
+  50 episodes. These values are not reproduced by the current reduced-order model
+  with the retained policy. See the [current stored-policy comparison](docs/benchmarks.md#stored-ppo-comparison-and-explicit-seed-recipe).
+  Neither comparison is a facility-control result.
 - Corrected the cylindrical Grad-Shafranov stencil and added analytic Solov'ev
   regression checks.
 

@@ -4,6 +4,12 @@
 
 ### Added
 
+- Added `tools/check_docstring_debt.py`, a counting ratchet that holds the
+  `tests/`, `tools/` and `validation/` docstring backlog at the measured
+  ceiling recorded in `tools/docstring_debt_ceiling.json`.
+  It counts findings rather than exempting named files, so a new undocumented
+  module raises the total and fails the gate, and it refuses to report a
+  clean result when its scope is missing, empty or unlintable.
 - Added a public-decoder-only admission boundary for the exact SPO 1.4.3
   Tokamak device-diagnostic review. CONTROL binds the published package,
   decoder source, sealed review, producer artefact, source documents,
@@ -21,12 +27,32 @@
 
 ### Changed
 
+- Forward actual PPO training seeds through the shell recipe, validate candidate
+  metrics before best selection, and refuse existing weights/reports. Add explicit
+  configuration-only plans and separate tutorial learning from default inference.
+  Retained seed-labelled artifacts do not establish independent training runs.
+- Bound H-infinity tuning to normalized DGKF plant synthesis. `tune_hinf`
+  returns only feasible plant-derived `gamma`; its former `n_trials` argument
+  and synthetic `bandwidth` output are removed. PID tuning now refuses when
+  Optuna is unavailable, uses the real two-channel `TokamakEnv` heating
+  contract and pairs noisy episode seeds across candidates.
+- Widened the Python lint gate from `src/scpn_control/` to also cover
+  `tests/`, `tools/` and `validation/` across all four gate surfaces and the
+  scope contract. Non-docstring rules are enforced there immediately; the
+  docstring backlog is held by the new ratchet.
 - Migrated semantic admission to public SPO 1.4.3. Historical handoffs retain
   their declared registry digest; new assessments use current registry custody
   and the actual released producer identity. Historical 1.3.1 assessment bytes
   remain preserved and explicitly refused by the current upstream decoder.
 
 ### Fixed
+- Made sampled sliding-mode vertical control reject invalid and overflowing
+  inputs before integral-state publication. The public gain and time helpers
+  now refuse invalid conditions, and documentation distinguishes their
+  idealized sign-law expressions from this smoothed, saturated runtime.
+- Kept `TokamakEnv` model steps and resets atomic when extreme finite inputs
+  overflow derived physics or noisy observations: invalid episodes now raise
+  instead of publishing nonfinite state or reward.
 - Kept the SC-NeuroCore packed stochastic forward path compatible with NumPy
   versions before 2.0 by selecting the existing vector-popcount implementation
   when `numpy.bitwise_count` is unavailable.
@@ -1998,14 +2024,16 @@
 ## [0.14.0] — 2026-03-10
 
 ### Added
-- **PPO 500K cloud training** on JarvisLabs RTX5000 (3 seeds x 500K timesteps)
+- Retained PPO 500K artifacts with three seed-labelled outputs; the legacy
+  recipe used seed 42 for every label, so independent seeds are unverified
 - PPO reward=121.1 beats MPC (59.4) and PID (-911.2), 0% disruption rate over
   50 benchmark episodes
-- Reproducible benchmark artifact records PPO mean reward 121.1 +/- 31.5 over
+  (historical artifact values; not reproduced by the current model/policy comparison)
+- Retained benchmark artifact records PPO mean reward 121.1 +/- 31.5 over
   50 episodes
 - Per-seed weights: `ppo_tokamak_seed{42,123,456}.zip`
 - Benchmark report: `benchmarks/rl_vs_classical.json`
-- Cloud training script: `tools/train_rl_upcloud.sh` (multi-seed, best-select)
+- Cloud training script: `tools/train_rl_upcloud.sh` (seed-labelled, best-select)
 - JarvisLabs automation: `tools/jarvislabs_train.py`
 
 ## [0.13.0] — 2026-03-10

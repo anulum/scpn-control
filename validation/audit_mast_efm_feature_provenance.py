@@ -6,193 +6,134 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MAST EFM feature-provenance audit
-"""Audit whether prepared MAST EFM bundles contain non-fallback feature sources."""
+"""Audit complete SHA-bound converted MAST feature channels without granting admission.
+
+PASS requires every selected shot to supply the actual producer's canonical
+Ip_MA, Bt_T and positive FF-prime RMS vectors. Alternative aliases are inventory
+hints, not admitted transformations. The original acquisition process and the
+supervised tensor corpus require their separate gates.
+"""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
-
-import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA, FALLBACK_FEATURES
+from validation.mast_efm_feature_audit_inputs import AUDIT_SCHEMA as AUDIT_SCHEMA
+from validation.mast_efm_feature_audit_inputs import FEATURE_CANDIDATES as FEATURE_CANDIDATES
+from validation.mast_efm_feature_audit_inputs import (
+    feature_status_for_shots,
+    inspect_reference_sources,
+    read_dataset_declaration,
+    reference_paths,
+)
+from validation.mast_efm_feature_audit_reporting import validate_audit_report as validate_audit_report
+from validation.mast_efm_feature_audit_reporting import write_report as write_report
+from validation.neural_equilibrium_campaign_inputs import canonical_campaign_digest
+from validation.neural_equilibrium_dataset_contracts import DATASET_SCHEMA as DATASET_SCHEMA
+from validation.neural_equilibrium_dataset_contracts import FALLBACK_FEATURES as FALLBACK_FEATURES
+from validation.neural_equilibrium_training_rendering import ensure_distinct_outputs
 
-AUDIT_SCHEMA = "scpn-control.mast-efm-feature-provenance-audit.v1"
 DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
 DEFAULT_STORAGE_ROOT = Path("/data/SCPN-CONTROL")
 DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.json"
 DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.md"
 
-FEATURE_CANDIDATES = {
-    "Ip_MA": ("Ip_MA", "plasma_current_MA", "plasma_current_A", "ip", "Ip", "current_A"),
-    "Bt_T": ("Bt_T", "bcentr_T", "b_tor_T", "toroidal_field_T", "Bt", "bcentr"),
-    "ffprime_scale": ("ffprime_scale", "ffprime_rms_T_rad", "ffprime", "ffprime_Wb_per_rad", "fpol", "fpol_profile"),
-}
-
-
-def _sha256_json(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _load_json_object(path: Path) -> dict[str, Any]:
-    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f"duplicate JSON key: {key}")
-            result[key] = value
-        return result
-
-    payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicates)
-    if not isinstance(payload, dict):
-        raise ValueError(f"{path} must contain a JSON object")
-    return payload
-
-
-def _safe_path(storage_root: Path, relative_path: str) -> Path:
-    path = (storage_root / relative_path).resolve()
-    root = storage_root.resolve()
-    try:
-        path.relative_to(root)
-    except ValueError as exc:
-        raise ValueError(f"reference path escapes storage root: {relative_path}") from exc
-    return path
-
-
-def _array_summary(path: Path) -> dict[str, Any]:
-    with np.load(path, allow_pickle=False) as payload:
-        keys = sorted(payload.files)
-        shapes = {key: [int(item) for item in np.asarray(payload[key]).shape] for key in keys}
-    return {"keys": keys, "shapes": shapes}
-
 
 def build_audit(dataset_report_path: Path, storage_root: Path) -> dict[str, Any]:
-    """Build the provenance audit from prepared MAST EFM reference bundles."""
+    """Verify producer declarations and captured reference bytes, then audit all-shot channel completeness.
 
-    dataset_report = _load_json_object(dataset_report_path)
-    if dataset_report.get("schema_version") != DATASET_SCHEMA:
-        raise ValueError("dataset report has unsupported schema_version")
-    references = dataset_report.get("reference_paths")
-    if not isinstance(references, list) or not references:
-        raise ValueError("dataset report must declare reference_paths")
-    shot_reports: list[dict[str, Any]] = []
-    all_keys: set[str] = set()
-    for reference in references:
-        if not isinstance(reference, str):
-            raise ValueError("reference_paths entries must be strings")
-        path = _safe_path(storage_root, reference)
-        if not path.is_file():
-            raise FileNotFoundError(f"reference bundle is missing: {path}")
-        summary = _array_summary(path)
-        all_keys.update(summary["keys"])
-        shot_reports.append(
-            {
-                "reference_path": reference,
-                "key_count": len(summary["keys"]),
-                "keys": summary["keys"],
-                "shapes": summary["shapes"],
-            }
-        )
-    feature_status: dict[str, dict[str, Any]] = {}
-    for feature in FALLBACK_FEATURES:
-        candidates = FEATURE_CANDIDATES[feature]
-        present = sorted(set(candidates) & all_keys)
-        feature_status[feature] = {
-            "status": "resolved" if present else "blocked",
-            "candidate_keys": list(candidates),
-            "present_keys": present,
-            "resolution": "direct public bundle key available"
-            if present
-            else "not present in converted public EFM bundles",
-        }
-    blocked = [feature for feature, entry in feature_status.items() if entry["status"] != "resolved"]
-    next_processing_steps = (
+    Missing supported channels yield a blocked report; malformed present channels
+    or stale byte/metadata bindings refuse. This checks converted source vectors,
+    not original measurements, target correctness or supervised tensor contents.
+    """
+    dataset_report, declaration_sha = read_dataset_declaration(dataset_report_path)
+    shots = inspect_reference_sources(dataset_report, storage_root)
+    status = feature_status_for_shots(shots)
+    blocked = [feature for feature, entry in status.items() if entry["status"] == "blocked"]
+    if set(blocked) != set(dataset_report["fallback_features"]):
+        raise ValueError("dataset fallback_features disagree with actual selected source channels")
+    steps = (
         [
-            "keep the converted public feature-source keys fixed while training and holdout evaluation are performed",
+            "keep converted channels and their byte bindings fixed during training and holdout evaluation",
             "rebuild the supervised dataset whenever converted reference bundles are regenerated",
         ]
         if not blocked
         else [
-            "inspect the original public MAST Level 1 EFM/Zarr metadata for plasma-current and toroidal-field channels",
-            "acquire or document public FF-prime/fpol provenance or keep ffprime_scale blocked",
-            "rebuild the supervised dataset after any non-fallback feature sources are admitted",
+            "inspect original metadata for missing canonical per-equilibrium source channels",
+            "admit any source aliases through the converter and rebuild the supervised dataset before training",
         ]
     )
     audit: dict[str, Any] = {
         "schema_version": AUDIT_SCHEMA,
         "status": "blocked" if blocked else "pass",
-        "dataset_report": str(dataset_report_path),
-        "storage_root": str(storage_root),
-        "reference_dataset_id": dataset_report.get("reference_dataset_id"),
-        "reference_count": len(shot_reports),
+        "dataset_report": str(dataset_report_path.resolve()),
+        "dataset_report_sha256": declaration_sha,
+        "dataset_payload_sha256": dataset_report["payload_sha256"],
+        "dataset_sha256": dataset_report["dataset_sha256"],
+        "dataset_path": dataset_report["dataset_path"],
+        "candidate_report": dataset_report["candidate_report"],
+        "storage_root": str(storage_root.resolve()),
+        "reference_dataset_id": dataset_report["reference_dataset_id"],
+        "reference_count": len(shots),
         "fallback_features": list(FALLBACK_FEATURES),
-        "feature_status": feature_status,
+        "feature_status": status,
         "blocked_features": blocked,
-        "all_reference_keys": sorted(all_keys),
-        "shots": shot_reports,
-        "next_processing_steps": next_processing_steps,
+        "all_reference_keys": sorted({key for shot in shots for key in shot["keys"]}),
+        "shots": shots,
+        "next_processing_steps": steps,
     }
-    audit["payload_sha256"] = _sha256_json({**audit, "payload_sha256": None})
-    return audit
+    audit["payload_sha256"] = canonical_campaign_digest(audit)
+    return validate_audit_report(audit)
 
 
-def write_report(audit: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
-    """Write JSON and Markdown audit reports."""
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse optional explicit arguments, retaining historical defaults and argparse help/usage exits.
 
-    json_out.parent.mkdir(parents=True, exist_ok=True)
-    json_out.write_text(json.dumps(audit, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    lines = [
-        "# MAST EFM Feature-Provenance Audit",
-        "",
-        f"Schema: `{audit['schema_version']}`",
-        f"Status: `{audit['status']}`",
-        f"Reference dataset: `{audit['reference_dataset_id']}`",
-        f"Reference bundles: {audit['reference_count']}",
-        "",
-        "## Fallback feature status",
-        "",
-        "| Feature | Status | Present keys | Resolution |",
-        "|---|---|---|---|",
-    ]
-    for feature, entry in audit["feature_status"].items():
-        present = ", ".join(f"`{key}`" for key in entry["present_keys"]) or "none"
-        lines.append(f"| `{feature}` | `{entry['status']}` | {present} | {entry['resolution']} |")
-    lines.extend(["", "## Available reference keys", ""])
-    lines.append(", ".join(f"`{key}`" for key in audit["all_reference_keys"]))
-    lines.extend(["", "## Next processing steps", ""])
-    lines.extend(f"- {item}" for item in audit["next_processing_steps"])
-    lines.append("")
-    markdown_out.parent.mkdir(parents=True, exist_ok=True)
-    markdown_out.write_text("\n".join(lines), encoding="utf-8")
-
-
-def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments."""
-
+    >>> parse_args(["--storage-root", "/tmp/selected-mast-source"]).storage_root
+    PosixPath('/tmp/selected-mast-source')
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
     parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
     parser.add_argument("--json-out", default=DEFAULT_JSON_OUT, type=Path)
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    """Run the feature-provenance audit."""
+def main(argv: Sequence[str] | None = None) -> int:
+    """Run real source inspection with success0, authored domain failure1 and argparse usage2.
 
-    args = parse_args()
-    audit = build_audit(args.dataset_report, args.storage_root)
-    write_report(audit, args.json_out, args.report_out)
+    Output aliases are refused before inspection/persistence. A blocked audit is
+    a completed inspection, not predictive admission, and therefore exits zero.
+    """
+    args = parse_args(argv)
+    try:
+        dataset, _ = read_dataset_declaration(args.dataset_report)
+        ensure_distinct_outputs(
+            [args.json_out, args.report_out],
+            protected=[
+                args.dataset_report,
+                *reference_paths(dataset, args.storage_root),
+                args.storage_root / dataset["dataset_path"],
+                args.storage_root / dataset["candidate_report"],
+            ],
+        )
+        audit = build_audit(args.dataset_report, args.storage_root)
+        write_report(audit, args.json_out, args.report_out)
+    except (OSError, ValueError, TypeError, RecursionError, RuntimeError) as exc:
+        print(f"FAIL: feature-provenance audit: {exc}", file=sys.stderr)
+        return 1
+    print(f"Feature-provenance audit: {audit['status']}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

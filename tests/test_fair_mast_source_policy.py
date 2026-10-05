@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import json
+
 from validation.fair_mast_source_policy import (
     FAIR_MAST_CATALOG_URL,
     FAIR_MAST_CITATION,
@@ -20,6 +22,7 @@ from validation.fair_mast_source_policy import (
 
 
 def test_fair_mast_policy_matches_official_licence_and_citations() -> None:
+    """Retain the catalogue's recorded licence and both ordered paper citations."""
     assert FAIR_MAST_LICENCE == "CC-BY-SA-4.0"
     assert FAIR_MAST_LICENCE_URL == "https://creativecommons.org/licenses/by-sa/4.0/"
     assert FAIR_MAST_CATALOG_URL == "https://mastapp.site/"
@@ -30,6 +33,7 @@ def test_fair_mast_policy_matches_official_licence_and_citations() -> None:
 
 
 def test_fair_mast_provenance_returns_an_independent_json_block() -> None:
+    """Keep caller edits isolated while preserving JSON-ready policy values."""
     first = fair_mast_provenance()
     second = fair_mast_provenance()
     assert first == {
@@ -41,3 +45,9 @@ def test_fair_mast_provenance_returns_an_independent_json_block() -> None:
     }
     assert first is not second
     assert first["citations"] is not second["citations"]
+    citations = first["citations"]
+    assert isinstance(citations, list)
+    citations.clear()
+    first["licence"] = "caller-specific-policy"
+    assert second == fair_mast_provenance()
+    assert json.loads(json.dumps(second, allow_nan=False)) == second

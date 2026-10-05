@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural transport reference validation tests
 
+"""Preserve original neural transport reference domain regressions through the public reader."""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +21,7 @@ from validation.validate_neural_transport_reference import (
 
 
 def _valid_qualikiz_reference_artifact() -> dict[str, object]:
+    """Supply engineering transport declarations with a consistent body hash, without physical reference evidence."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.neural-transport-reference.v1",
         "source": "documented_public_reference",
@@ -72,6 +75,7 @@ def _valid_qualikiz_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_neural_transport_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode refuses a directory without reference declarations."""
     report = validate_neural_transport_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -80,6 +84,7 @@ def test_strict_neural_transport_gate_requires_reference_artifacts(tmp_path: Pat
 
 
 def test_neural_transport_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Declared public citation and canonical transport metadata produce one passing entry."""
     artifact = tmp_path / "qualikiz_reference.json"
     artifact.write_text(json.dumps(_valid_qualikiz_reference_artifact()), encoding="utf-8")
 
@@ -92,6 +97,7 @@ def test_neural_transport_gate_accepts_documented_public_reference(tmp_path: Pat
 
 
 def test_neural_transport_gate_accepts_real_qualikiz_artifact(tmp_path: Path) -> None:
+    """An admitted lexical QuaLiKiz executable path replaces public citation provenance."""
     payload = _valid_qualikiz_reference_artifact()
     payload["source"] = "real_qualikiz"
     payload.pop("reference_doi")
@@ -107,6 +113,7 @@ def test_neural_transport_gate_accepts_real_qualikiz_artifact(tmp_path: Path) ->
 
 
 def test_neural_transport_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """A synthetic source remains outside the two admitted source codes."""
     payload = _valid_qualikiz_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -120,6 +127,7 @@ def test_neural_transport_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_neural_transport_gate_rejects_uri_binary_path(tmp_path: Path) -> None:
+    """A file URI cannot replace a declared absolute executable path."""
     payload = _valid_qualikiz_reference_artifact()
     payload["source"] = "real_qualikiz"
     payload.pop("reference_doi")
@@ -135,6 +143,7 @@ def test_neural_transport_gate_rejects_uri_binary_path(tmp_path: Path) -> None:
 
 
 def test_neural_transport_gate_rejects_traversing_binary_path(tmp_path: Path) -> None:
+    """A parent component is refused in an absolute QuaLiKiz executable declaration."""
     payload = _valid_qualikiz_reference_artifact()
     payload["source"] = "real_qualikiz"
     payload.pop("reference_doi")
@@ -150,6 +159,7 @@ def test_neural_transport_gate_rejects_traversing_binary_path(tmp_path: Path) ->
 
 
 def test_neural_transport_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """A recomputed body digest does not admit errors above their declared bound."""
     payload = _valid_qualikiz_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["chi_i_relative_mae"] = 0.20
@@ -164,6 +174,7 @@ def test_neural_transport_gate_rejects_metric_outside_tolerance(tmp_path: Path) 
 
 
 def test_neural_transport_gate_rejects_missing_feature_schema(tmp_path: Path) -> None:
+    """QLKNN input feature names retain their exact ten-dimensional ordering."""
     payload = _valid_qualikiz_reference_artifact()
     payload["feature_schema"] = ["R_LTi", "R_LTe"]
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -177,6 +188,7 @@ def test_neural_transport_gate_rejects_missing_feature_schema(tmp_path: Path) ->
 
 
 def test_neural_transport_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Changing a declared metric without updating the body hash yields a consistency finding."""
     payload = _valid_qualikiz_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["chi_i_rmse_m2_s"] = 0.21
@@ -190,6 +202,7 @@ def test_neural_transport_gate_rejects_tampered_payload_digest(tmp_path: Path) -
 
 
 def test_neural_transport_gate_rejects_missing_prediction_digest(tmp_path: Path) -> None:
+    """Prediction digest identity remains required even after engineering body resealing."""
     payload = _valid_qualikiz_reference_artifact()
     payload.pop("prediction_artifact_sha256")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -203,6 +216,7 @@ def test_neural_transport_gate_rejects_missing_prediction_digest(tmp_path: Path)
 
 
 def test_neural_transport_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Parent traversal remains refused in a relative artifact declaration."""
     payload = _valid_qualikiz_reference_artifact()
     payload["reference_artifact_uri"] = "../reference_targets.npz"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)

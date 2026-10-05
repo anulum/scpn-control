@@ -7,18 +7,82 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Sugama vs Krook Collision Comparison.
 
-"""3-way CBC comparison: Krook, Sugama (adiabatic), Sugama+kinetic electrons."""
+"""Report three fixed CBC cases using Krook and Sugama-like collisions.
+
+Adiabatic cases request JAX; the implicit kinetic-electron case uses NumPy.
+These switch both physics and backend, so they are not a paired performance
+benchmark. Importing this module runs no campaign.
+"""
 
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 
 
-def run(label: str, coll: str, ke: bool, implicit: bool, mr: float) -> dict:
+class CollisionComparisonResult(TypedDict):
+    """Carry requested switches and the producer's saved case diagnostics.
+
+    collision_model records the supplied name; only the exact string sugama
+    selects that model in the current backends, while other names take Krook.
+    chi_i_gB is normalized mean ion flux or None, not a calibrated physical
+    diffusivity. Histories and converged are copied without admission checks.
+    """
+
+    label: str
+    collision_model: str
+    kinetic_electrons: bool
+    implicit: bool
+    chi_i_gB: float | None
+    elapsed_s: float
+    converged: bool
+    phi_rms: list[float]
+    Q_i: list[float]
+    time: list[float]
+
+
+def run(label: str, coll: str, ke: bool, implicit: bool, mr: float) -> CollisionComparisonResult:
+    """Run one original 5,000-step fixed-grid collision comparison case.
+
+    Parameters
+    ----------
+    label
+        Display and returned name.
+    coll
+        Collision-model string passed unchanged to the solver configuration.
+        sugama selects the current simplified model; other names take Krook.
+    ke, implicit
+        Kinetic-electron switch and backend choice. implicit=True uses NumPy;
+        otherwise JAX is required without a fallback.
+    mr
+        Dimensionless electron/ion mass ratio.
+
+    Returns
+    -------
+    CollisionComparisonResult
+        Requested switches, scalar flux normalization, run() wall time,
+        producer flag and saved phi/ion-flux/normalized-time histories. Grid is
+        128 x 16 x 32 x 16 x 8; dt 0.05 is CFL-adaptive and samples save every 100 steps.
+
+    Raises
+    ------
+    RuntimeError
+        The requested JAX backend is unavailable.
+    Exception
+        Import, allocation and solver errors propagate. No process timeout or
+        scientific input/reference admission is supplied by this reporter.
+
+    Notes
+    -----
+    Timing excludes solver construction and includes work first triggered in
+    run(). Saved flux finiteness and converged do not prove finite final state
+    or nonlinear saturation. Nonfinite scalar chi becomes None; histories do
+    not receive the same filtering.
+    """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
 
     print(f"\n=== {label} ===", flush=True)
@@ -50,6 +114,7 @@ def run(label: str, coll: str, ke: bool, implicit: bool, mr: float) -> dict:
         implicit_electrons=implicit,
         mass_ratio_me_mi=mr,
     )
+    solver: NonlinearGKSolver | JaxNonlinearGKSolver
     if implicit:
         from scpn_control.core.gk_nonlinear import NonlinearGKSolver
 
@@ -82,6 +147,15 @@ def run(label: str, coll: str, ke: bool, implicit: bool, mr: float) -> dict:
 
 
 def main() -> None:
+    """Run the three original unequal-physics cases and overwrite cwd JSON.
+
+    Krook/adiabatic and Sugama/adiabatic request JAX; Sugama/kinetic uses
+    implicit NumPy. All use mass 1/400 and 5,000 steps. No CLI options are parsed.
+    After all calls return, gpu_results/sugama_comparison.json is overwritten
+    with default JSON nonfinite-number behavior. The subsequent scalar console
+    summary can raise on None after writing the report. Native and filesystem
+    errors propagate. This entrypoint may run a long NumPy campaign.
+    """
     try:
         import jax
 

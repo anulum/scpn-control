@@ -29,7 +29,9 @@ code with the production coefficient, agreement of the *scaling* (an exactly
 constant production/reference ratio across density, temperature, effective
 charge, and species mass) is genuine validation of the functional form, while
 the *value* of that ratio quantifies the bounded O(1) prefactor by which the
-production coefficient differs from each canonical convention.
+production coefficient differs from each canonical convention. This is a
+local structural comparison, not an externally supplied reference case or
+admission of a full conserving collision operator or quantitative damping.
 
 The energy-relaxation channel is cross-checked against the independent
 elastic-collision mean energy-transfer efficiency
@@ -47,10 +49,29 @@ References
   - Braginskii, *Reviews of Plasma Physics* 1 (1965) 205.
   - NRL Plasma Formulary (2019), collision frequencies.
   - Sugama & Watanabe, Phys. Plasmas 13 (2006) 012501.
+
+Input and execution contract
+----------------------------
+Masses are multiples of the proton mass (the historical ``mass_amu`` name),
+charges are multiples of elementary charge, temperatures are in keV and
+densities are in 10^19 m^-3. Scalar inputs are converted with ``float`` and
+must be finite; masses, temperatures, densities, effective charge and Coulomb
+logarithm must also be positive. Charge may be signed or zero; both rate
+normalisations use its fourth power. Invalid domains raise authored
+``ValueError``; native conversion and extreme floating arithmetic errors
+propagate. Positive finite inputs alone do not guarantee representable results.
+
+Functions allocate fresh results and do not mutate caller arrays, retain
+state, read data, write reports or establish a training/facility admission.
+The public API is this importable source-tree module; it has no CLI. The
+separate ``validate_gk_collision_independent`` producer owns its own CLI and
+report contract. Literature citations above motivate the retained equations;
+they do not identify a downloaded, checksum-bound external numerical case.
 """
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import numpy as np
@@ -68,6 +89,7 @@ _ELECTRON_AMU = _M_ELECTRON / _M_PROTON
 
 
 def _finite(name: str, value: float, *, positive: bool = False) -> float:
+    """Convert a scalar and refuse nonfinite or requested nonpositive domains."""
     scalar = float(value)
     if not np.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -81,9 +103,16 @@ def chandrasekhar_g(x: FloatArray) -> FloatArray:
 
     With ``erf'(x) = (2/sqrt(pi)) exp(-x^2)``. The removable singularity at
     ``x -> 0`` (where ``G(x) -> 2x / (3 sqrt(pi))``) is handled by a series
-    expansion so the function stays finite on the whole positive axis.
+    expansion. ``x`` is a finite, non-negative dimensionless speed ratio;
+    float64 conversion preserves arbitrary shape, including scalar and empty
+    arrays. The returned array is fresh and has that shape; zero maps to zero.
+    Negative or nonfinite elements raise authored ``ValueError`` before any
+    calculation. Conversion errors propagate; extreme finite inputs retain
+    NumPy's ordinary overflow/underflow behaviour.
     """
     x_arr = np.asarray(x, dtype=np.float64)
+    if not np.all(np.isfinite(x_arr)):
+        raise ValueError("chandrasekhar_g requires finite arguments")
     if np.any(x_arr < 0.0):
         raise ValueError("chandrasekhar_g requires non-negative arguments")
     small = x_arr < 1.0e-3
@@ -100,9 +129,15 @@ def deflection_shape(x: FloatArray) -> FloatArray:
 
     Returns ``[erf(x) - G(x)] / x^3`` — the dimensionless velocity dependence
     of ``nu_D(v)`` with ``x = v / v_th``. This is the quantity Maxwellian-
-    averaged to form the thermal deflection rate.
+    averaged to form the thermal deflection rate. ``x`` must contain finite,
+    strictly positive dimensionless speeds; scalar and empty arrays are
+    supported. A fresh float64 array preserves shape and caller bytes.
+    Nonfinite or nonpositive elements raise authored ``ValueError``;
+    conversion and extreme floating arithmetic retain native behaviour.
     """
     x_arr = np.asarray(x, dtype=np.float64)
+    if not np.all(np.isfinite(x_arr)):
+        raise ValueError("deflection_shape requires finite arguments")
     if np.any(x_arr <= 0.0):
         raise ValueError("deflection_shape requires strictly positive arguments")
     return np.asarray((erf(x_arr) - chandrasekhar_g(x_arr)) / x_arr**3, dtype=np.float64)
@@ -113,13 +148,19 @@ def maxwellian_deflection_average_factor(*, n_quad: int = 64, x_max: float = 10.
 
     Computes ``<[erf-G]/x^3> = int f(x) x^2 e^{-x^2} dx / int x^2 e^{-x^2} dx``
     by Gauss-Legendre quadrature on ``[0, x_max]``. The result is a pure number
-    (~1.3878) that is independent of any plasma parameter; the integrand's
-    Maxwellian weight makes the truncation error negligible for ``x_max >= 8``.
+    (~1.3878 at the defaults), independent of plasma parameters. ``n_quad``
+    must be a Python integer >= 2, excluding bool; ``x_max`` is finite and
+    positive. Invalid domains raise authored ``ValueError``. There is no upper
+    resource bound or adaptive error estimate. Truncation and resolution must
+    be assessed together; arbitrary admitted choices are not certified
+    converged. Very small/large finite limits may underflow the denominator or
+    overflow intermediate values, with native arithmetic errors propagated.
     """
     if not isinstance(n_quad, int) or isinstance(n_quad, bool) or n_quad < 2:
         raise ValueError("n_quad must be an integer >= 2")
     x_max = _finite("x_max", x_max, positive=True)
-    nodes, weights = leggauss(n_quad)
+    quadrature: Callable[[int], tuple[FloatArray, FloatArray]] = leggauss
+    nodes, weights = quadrature(n_quad)
     x = 0.5 * x_max * (nodes + 1.0)
     w = 0.5 * x_max * weights
     maxwellian = x * x * np.exp(-x * x)
@@ -140,6 +181,11 @@ def basic_collision_frequency(
 
     ``nu_hat = n q^4 lnL / (4 pi eps0^2 m^2 v_th^3)`` with ``v_th = sqrt(2T/m)``.
     This is the normalising rate of the velocity-dependent deflection frequency.
+    Inputs follow the module's mass, charge, keV, density and dimensionless
+    Coulomb-logarithm contract. The scalar return is in s^-1, without v_th/R
+    normalisation; either charge sign gives the same rate and zero gives zero.
+    Nonfinite/nonpositive domains raise authored ``ValueError`` as described
+    above; conversion and unrepresentable arithmetic propagate unchanged.
     """
     mass_amu = _finite("mass_amu", mass_amu, positive=True)
     charge_e = _finite("charge_e", charge_e)
@@ -170,7 +216,11 @@ def thermal_deflection_rate(
     ``<nu_D> = Z_eff * nu_hat * <[erf-G]/x^3>`` — the deflection frequency
     reconstructed from the velocity-dependent Fokker-Planck coefficient and a
     numerical Maxwellian average, sharing no code with the production closed
-    form.
+    form. Inputs follow the module contract, with positive dimensionless
+    ``z_eff`` and Python integer ``n_quad >= 2`` (not bool). Defaults use a
+    fixed speed limit of 10; the scalar return is in s^-1. Invalid domains
+    raise authored ``ValueError``; quadrature has no resource or error bound,
+    and conversion/extreme arithmetic errors propagate.
     """
     z_eff = _finite("z_eff", z_eff, positive=True)
     nu_hat = basic_collision_frequency(
@@ -196,7 +246,11 @@ def braginskii_collision_rate(
 
     ``1/tau = Z_eff * sqrt(2) n Z^4 e^4 lnL / (12 pi^{3/2} eps0^2 sqrt(m) T^{3/2})``.
     A second, closed-form independent anchor (no Chandrasekhar function, no
-    quadrature) for the deflection-rate prefactor.
+    quadrature) for the deflection-rate prefactor. Inputs follow the module
+    contract, including positive dimensionless ``z_eff`` and ``ln_lambda``.
+    The scalar return is in s^-1; signed/zero charge behaves as in
+    ``basic_collision_frequency``. Invalid domains raise authored
+    ``ValueError``; conversion and extreme arithmetic errors propagate.
     """
     mass_amu = _finite("mass_amu", mass_amu, positive=True)
     charge_e = _finite("charge_e", charge_e)
@@ -227,7 +281,11 @@ def elastic_energy_transfer_efficiency(mass_amu: float, field_mass_amu: float = 
     ``m_a`` collides elastically with a field particle of mass ``m_b``. This is
     the kinematic factor that suppresses ion energy relaxation against the light
     electron field by the mass ratio, derived independently of the production
-    energy-relaxation coefficient.
+    energy-relaxation coefficient. Both masses must be finite and positive
+    multiples of the proton mass; the default field mass is the electron to
+    proton mass ratio. The scalar return is dimensionless (0.5 for equal
+    representable masses). Invalid domains raise authored ``ValueError``;
+    conversion and extreme arithmetic errors propagate.
     """
     mass_amu = _finite("mass_amu", mass_amu, positive=True)
     field_mass_amu = _finite("field_mass_amu", field_mass_amu, positive=True)
@@ -236,7 +294,15 @@ def elastic_energy_transfer_efficiency(mass_amu: float, field_mass_amu: float = 
 
 @dataclass(frozen=True)
 class IndependentCollisionRates:
-    """Independent Fokker-Planck reference rates for a collision case [s^-1]."""
+    """Frozen observation of three rates and two dimensionless factors.
+
+    ``thermal_deflection_rate``, ``braginskii_rate`` and
+    ``energy_relaxation_rate`` are in s^-1. The elastic efficiency and
+    ``field_temperature_factor = sqrt(T_s/T_e)`` are dimensionless.
+    Direct construction does not validate fields or certify their provenance;
+    frozen prevents field reassignment. Use ``independent_collision_rates``
+    for the module's scalar input checks and calculations.
+    """
 
     thermal_deflection_rate: float  # Maxwellian-averaged <nu_D> [s^-1]
     braginskii_rate: float  # canonical 1/tau [s^-1]
@@ -263,7 +329,13 @@ def independent_collision_rates(
     relaxation rate applies the independent elastic energy-transfer efficiency
     (versus the electron field) and the field-temperature factor to the
     deflection rate — mirroring the *physics* of the production energy channel
-    without reusing its code.
+    without reusing its code. Inputs follow the module contract; ``n_e_19``
+    is density in 10^19 m^-3 and ``T_e_keV`` is a positive field temperature
+    in keV. ``n_quad`` follows the fixed quadrature contract. A fresh frozen
+    ``IndependentCollisionRates`` contains three rates in s^-1 and two
+    dimensionless factors. Invalid domains raise authored ``ValueError``;
+    conversion, resource and extreme arithmetic errors propagate. The result
+    carries no external-reference, conservation or quantitative-damping proof.
     """
     temperature_keV = _finite("temperature_keV", temperature_keV, positive=True)
     T_e_keV = _finite("T_e_keV", T_e_keV, positive=True)

@@ -7,18 +7,82 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Kinetic Electron Comparison.
 
-"""Kinetic electron benchmark: compare adiabatic vs kinetic at CBC."""
+"""Compare two fixed JAX CBC runs with adiabatic and kinetic electrons.
+
+The requested backend uses its available JAX device, without certifying GPU
+execution or silently selecting NumPy. Reports carry the solver's saved
+diagnostics and flags; they supply no physical or production admission.
+Importing this module runs no campaign.
+"""
 
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 
 
-def run_case(label: str, kinetic_e: bool, n_steps: int = 5000) -> dict:
+class KineticElectronResult(TypedDict):
+    """Describe one saved JAX case without authenticating solver convergence.
+
+    Scalar chi values become None when nonfinite; histories and late_growth
+    are not finite-filtered. chi_i_raw is the mean saved ion-flux quantity,
+    chi_i_gB divides it by R_L_Ti. Time lists use normalized solver time and
+    elapsed_s measures run() wall time, excluding construction.
+    """
+
+    label: str
+    kinetic_electrons: bool
+    chi_i_raw: float | None
+    chi_i_gB: float | None
+    late_growth: float
+    elapsed_s: float
+    converged: bool
+    phi_rms: list[float]
+    zonal_rms: list[float]
+    Q_i: list[float]
+    time: list[float]
+
+
+def run_case(label: str, kinetic_e: bool, n_steps: int = 5000) -> KineticElectronResult:
+    """Run a fresh fixed-grid CBC case with a selected electron response.
+
+    Parameters
+    ----------
+    label
+        Display and returned name; no configuration is inferred from it.
+    kinetic_e
+        Kinetic-electron switch; mass ratio remains1/400 in both cases.
+    n_steps
+        Requested iteration count, default 5,000. Histories save every 100 steps;
+        nominal dt 0.05 can decrease through CFL adaptation.
+
+    Returns
+    -------
+    KineticElectronResult
+        Scalar summaries and phi/zonal/ion-flux/time histories from the
+        128 x 16 x 32 x 16 x 8 JAX case. Late growth is an endpoint fractional change
+        over the last quarter of saved samples, not an exponential fit.
+
+    Raises
+    ------
+    RuntimeError
+        JAX is unavailable under the backend's default no-fallback contract.
+    IndexError
+        No samples were saved; this reporter indexes the first and last sample.
+    Exception
+        Import, allocation and backend errors propagate. No process timeout,
+        argument admission or physical calibration is supplied here.
+
+    Notes
+    -----
+    run() wall time includes JAX work triggered there. The producer's converged
+    flag concerns saved fluxes and is not proof of saturation or finite final
+    state. The ion-flux normalization is not an independent m^2/s measurement.
+    """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 
@@ -90,6 +154,15 @@ def run_case(label: str, kinetic_e: bool, n_steps: int = 5000) -> dict:
 
 
 def main() -> None:
+    """Run the original two 5,000-step cases and overwrite their cwd JSON report.
+
+    No CLI options are parsed. JAX device printing is best effort; both cases
+    still require JAX. Results overwrite gpu_results/kinetic_electron_comparison.json
+    after both calls return, using json.dumps with its default NaN/Infinity
+    behavior. The final console summary requires finite scalar chi and a saved
+    phi sample; None or empty histories can raise after the file was written.
+    Native and filesystem errors propagate; this is a long campaign entrypoint.
+    """
     try:
         import jax
 

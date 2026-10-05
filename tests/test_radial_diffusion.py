@@ -25,6 +25,8 @@ from scpn_control.core.radial_diffusion import (
 
 
 class TestThomasSolve:
+    """Tridiagonal solutions and finite-pivot recovery behavior."""
+
     def test_identity_system_returns_rhs(self) -> None:
         """The identity matrix returns the right-hand side unchanged."""
         n = 10
@@ -85,6 +87,8 @@ class TestThomasSolve:
 
 
 class TestExplicitDiffusionRhs:
+    """Cylindrical temperature gradients and zero-flux profiles."""
+
     def test_zero_gradient_gives_zero_operator(self) -> None:
         """A flat temperature profile produces a zero diffusion operator."""
         rho = np.linspace(0.0, 1.0, 21)
@@ -106,6 +110,8 @@ class TestExplicitDiffusionRhs:
 
 
 class TestBuildCnTridiag:
+    """Implicit diffusion matrix structure and real tridiagonal solutions."""
+
     def test_shapes_and_interior_positivity(self) -> None:
         """The assembly returns correctly shaped diagonals with a diagonally dominant main."""
         rho = np.linspace(0.0, 1.0, 21)
@@ -126,3 +132,50 @@ class TestBuildCnTridiag:
         x = thomas_solve(a, b, c, rhs)
         assert x.shape == rho.shape
         assert np.all(np.isfinite(x))
+
+
+@pytest.mark.parametrize("operation", ["explicit", "implicit"])
+@pytest.mark.parametrize(
+    "invalid",
+    [
+        np.zeros(5),
+        -np.ones(5),
+        np.full(5, np.nan),
+        np.full(5, np.inf),
+        np.ones(4),
+        np.ones((5, 1)),
+        np.ones(5, dtype=bool),
+        np.ones(5, dtype=complex),
+    ],
+)
+def test_density_contract_rejects_invalid_weights(operation: str, invalid: object) -> None:
+    """Both public operator entry points reject unusable thermal capacities."""
+    rho = np.linspace(0.0, 1.0, 5)
+    with pytest.raises(ValueError, match="density"):
+        if operation == "explicit":
+            explicit_diffusion_rhs(np.ones(5), np.ones(5), rho, 0.25, 2.0, density=np.asarray(invalid))
+        else:
+            build_cn_tridiag(np.ones(5), 0.01, rho, 0.25, 2.0, density=np.asarray(invalid))
+
+
+def test_closed_boundary_cn_conserves_density_weighted_heat() -> None:
+    """A real CN solve with insulated faces conserves nonuniform cell heat."""
+    rho = np.linspace(0.0, 1.0, 25)
+    dr = float(rho[1] - rho[0])
+    density = 2.0 + np.cos(np.pi * rho)
+    chi = 1.0 + rho**2
+    temperature = 2.0 + np.sin(np.pi * rho) ** 2
+    temperature[0], temperature[-1] = temperature[1], temperature[-2]
+    explicit = explicit_diffusion_rhs(temperature, chi, rho, dr, 2.0, density=density)
+    np.testing.assert_allclose(
+        explicit_diffusion_rhs(temperature, chi, rho, dr, 2.0, density=1e19 * density), explicit, rtol=1e-13, atol=1e-13
+    )
+    assert float(np.sum(density[1:-1] * rho[1:-1] * dr * explicit[1:-1])) == pytest.approx(0.0, abs=1e-13)
+    dt = 0.1
+    a, b, c = build_cn_tridiag(chi, dt, rho, dr, 2.0, density=density)
+    c[0], a[-1] = -1.0, -1.0
+    rhs = temperature + 0.5 * dt * explicit
+    rhs[0], rhs[-1] = 0.0, 0.0
+    final = thomas_solve(a, b, c, rhs)
+    change = float(np.sum(density[1:-1] * rho[1:-1] * dr * (final[1:-1] - temperature[1:-1])))
+    assert change == pytest.approx(0.0, abs=1e-13)

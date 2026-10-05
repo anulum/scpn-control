@@ -7,56 +7,51 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Current-drive reference artifact validator
 
-"""Validate persisted auxiliary current-drive reference artifacts."""
+"""Inspect local current-drive reference declarations without running a solver.
+
+The direct script and registered ``scpn-control validate-current-drive-reference``
+command call :func:`validate_current_drive_reference`. A directory contributes
+sorted, immediate ``*.json`` paths; a single file is inspected regardless of its
+suffix. Relative paths use the caller's working directory. Symlinks are followed
+and no reference-root containment, freshness or snapshot guarantee is provided.
+
+The default directory has no reference artefacts. Optional inspection therefore
+passes with zero entries; ``--require-reference-artifacts`` makes absence fail.
+The separate ``current_drive_claims.json`` corpus describes bounded analytic
+plumbing and does not satisfy this reference schema.
+
+UTF-8 JSON must have unique keys and finite floating-point values at every depth;
+nonzero decimal tokens rounded to binary64 zero are refused.
+Each artefact declares version ``1.0``, identity/provenance strings, exact unit
+labels, positive source metadata and a positive integer case count. Five declared
+non-negative errors must be at most their positive declared tolerances. No unit
+conversion, reference fetch, digest recomputation or metric recomputation occurs.
+A passing declaration is not external-code, experimental or facility admission.
+
+The reader API only reads local files and returns fresh report containers. Concurrent
+file edits can produce different observations; no shared cache, lock, FFI or
+actuation is involved. Public report persistence protects selected input aliases, creates parents and
+replaces unrelated output with sorted UTF8 JSON+LF; no atomic-write or durability guarantee.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import math
-import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeIs
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-_ALLOWED_SOURCES = {
-    "documented_public_reference",
-    "ray_tracing_benchmark",
-    "fokker_planck_benchmark",
-    "measured_deposition_replay",
-}
-_ALLOWED_EXTERNAL_CODES = {"TORBEAM", "GENRAY", "CQL3D", "NUBEAM", "TRANSP", "LUKE"}
-_REQUIRED_STR_FIELDS = (
-    "source",
-    "model_id",
-    "model_version",
-    "reference_dataset_id",
-    "reference_artifact_sha256",
-    "executed_at",
-)
-_REQUIRED_UNITS = {
-    "power": "W",
-    "current": "A",
-    "current_density": "A/m^2",
-    "density": "10^19 m^-3",
-    "temperature": "keV",
-    "rho": "1",
-    "time": "s",
-    "energy": "keV",
-}
-_REQUIRED_SOURCE_FIELDS = ("total_power_W", "rho_points", "rho_min", "rho_max")
-_MAXIMUM_ERROR_METRICS = (
-    "total_power_relative_error",
-    "total_current_relative_error",
-    "deposition_centroid_abs_error",
-    "peak_current_density_relative_error",
-    "nbi_slowing_down_relative_error",
-)
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
+
+from validation.current_drive_reference_contracts import _validate_artifact
+
+
+class _CurrentDriveArtifactRefusal(ValueError):
+    """Carry only authored refusals for ambiguous or non-finite JSON."""
 
 
 def validate_current_drive_reference(
@@ -64,8 +59,49 @@ def validate_current_drive_reference(
     *,
     require_reference_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Validate current-drive evidence against persisted reference artifacts."""
+    """Inspect schema and declared tolerances in local reference artefacts.
 
+    Parameters
+    ----------
+    artifact_root
+        File or directory to inspect, relative to the caller when not absolute.
+        Directories use sorted, non-recursive ``*.json`` discovery. Missing roots
+        and directories without matching files produce no candidates.
+    require_reference_artifacts
+        Refuse zero candidates. Otherwise an empty inspection returns ``pass``;
+        malformed candidates always fail, including in optional mode.
+
+    Returns
+    -------
+    dict[str, Any]
+        ``status`` is ``pass`` only when ``errors`` is empty. ``root`` preserves
+        the Path spelling; ``entries`` lists accepted declarations in discovery
+        order and ``reference_artifacts`` counts them even if another file fails.
+        Errors carry ``path``, ``field`` and an authored ``error`` string. Partial
+        entries in a failed report must not be treated as overall admission.
+
+    Notes
+    -----
+    The SHA-256 field is checked for 64 hex characters only. Date, URL, DOI and
+    diagnostic/reference URI fields are nonblank strings, not parsed or fetched.
+    Units are exact: W, A, A/m^2, 10^19 m^-3, keV, dimensionless rho, s and keV.
+    Source metadata requires positive total_power_W and rho_points, with
+    ``0 < rho_min < rho_max <= 1``; rho_points need not be integral. No profiles
+    or actual case records are inspected. All five metric/tolerance pairs use
+    inclusive ``metric <= tolerance``, without an inferred tolerance policy.
+    Expected file/decoding failures become report errors. Root discovery is a
+    pathlib observation and does not certify existence or readable contents.
+
+    Examples
+    --------
+    Inspect the actual persisted bounded corpus, which is not reference evidence:
+
+    >>> result = validate_current_drive_reference(ROOT / "validation/reports/current_drive_claims.json")
+    >>> result["status"], result["reference_artifacts"]
+    ('fail', 0)
+    >>> any(error["field"] == "schema_version" for error in result["errors"])
+    True
+    """
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
     report: dict[str, Any] = {
@@ -86,184 +122,101 @@ def validate_current_drive_reference(
 
     for path in paths:
         try:
-            with path.open(encoding="utf-8") as handle:
-                payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
+            payload = json.loads(
+                path.read_bytes().decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+                parse_constant=_reject_json_constant,
+                parse_float=_finite_json_float,
+            )
             entry = _validate_artifact(path, payload, errors)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except _CurrentDriveArtifactRefusal as exc:
             errors.append({"path": str(path), "field": "json", "error": str(exc)})
+            continue
+        except OSError:
+            errors.append({"path": str(path), "field": "json", "error": "could not read reference artifact"})
+            continue
+        except (ValueError, RecursionError):
+            errors.append(
+                {"path": str(path), "field": "json", "error": "reference artifact must contain valid UTF-8 JSON"}
+            )
             continue
         if entry is not None:
             entries.append(entry)
             report["reference_artifacts"] += 1
 
-    if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
-        errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no current-drive reference artifacts found"}
-        )
     if errors:
         report["status"] = "fail"
     return report
 
 
-def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
-    if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
-        return None
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
-    for field in _REQUIRED_STR_FIELDS:
-        if not _has_nonempty_str(payload, field):
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
-    digest = payload.get("reference_artifact_sha256")
-    if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append(
-            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
-        )
-    if payload.get("source") not in _ALLOWED_SOURCES:
-        errors.append(
-            {
-                "path": str(path),
-                "field": "source",
-                "error": "source must be documented_public_reference, ray_tracing_benchmark, fokker_planck_benchmark, or measured_deposition_replay",
-            }
-        )
-    _validate_source_provenance(path, payload, errors)
-    if not _valid_units(payload.get("units")):
-        errors.append({"path": str(path), "field": "units", "error": "units must declare current-drive contracts"})
-    if not _valid_source_metadata(payload.get("source_metadata")):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "source_metadata",
-                "error": "source_metadata must declare finite positive source and grid parameters",
-            }
-        )
-    count = payload.get("reference_case_count")
-    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        errors.append({"path": str(path), "field": "reference_case_count", "error": "field must be a positive integer"})
-    _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
-    if any(error["path"] == str(path) for error in errors):
-        return None
-    return {
-        "path": str(path),
-        "source": str(payload["source"]),
-        "model_id": str(payload["model_id"]),
-        "model_version": str(payload["model_version"]),
-        "reference_dataset_id": str(payload["reference_dataset_id"]),
-        "reference_case_count": int(payload["reference_case_count"]),
-    }
-
-
-def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
-    source = payload.get("source")
-    if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "reference",
-                "error": "documented public references require reference_url or reference_doi",
-            }
-        )
-    if source == "measured_deposition_replay":
-        if not _has_nonempty_str(payload, "shot_id"):
-            errors.append(
-                {"path": str(path), "field": "shot_id", "error": "measured deposition replays require shot_id"}
-            )
-        if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "diagnostic_uri",
-                    "error": "measured deposition replays require diagnostic_uri",
-                }
-            )
-    if source in {"ray_tracing_benchmark", "fokker_planck_benchmark"}:
-        external_code = payload.get("external_code")
-        if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "external_code",
-                    "error": "external_code must be TORBEAM, GENRAY, CQL3D, NUBEAM, TRANSP, or LUKE",
-                }
-            )
-        if not _has_nonempty_str(payload, "reference_artifact_uri"):
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "reference_artifact_uri",
-                    "error": "external benchmarks require reference_artifact_uri",
-                }
-            )
-
-
-def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
-    if not isinstance(metrics, dict):
-        errors.append({"path": str(path), "field": "metrics", "error": "metrics must be an object"})
-        return
-    if not isinstance(tolerances, dict):
-        errors.append({"path": str(path), "field": "tolerances", "error": "tolerances must be an object"})
-        return
-    for field in _MAXIMUM_ERROR_METRICS:
-        metric = metrics.get(field)
-        tolerance = tolerances.get(field)
-        if not _is_nonnegative_finite(metric):
-            errors.append({"path": str(path), "field": field, "error": "metric must be finite and non-negative"})
-            continue
-        if not _is_positive_finite(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "tolerance must be finite and positive"})
-            continue
-        if float(metric) > float(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "metric exceeds declared tolerance"})
-
-
-def _valid_source_metadata(value: object) -> bool:
-    if not isinstance(value, dict):
-        return False
-    if not all(_is_positive_finite(value.get(field)) for field in _REQUIRED_SOURCE_FIELDS):
-        return False
-    return (
-        float(value["rho_min"]) >= 0.0
-        and float(value["rho_max"]) <= 1.0
-        and float(value["rho_max"]) > float(value["rho_min"])
-    )
-
-
-def _valid_units(value: object) -> bool:
-    return isinstance(value, dict) and all(value.get(field) == unit for field, unit in _REQUIRED_UNITS.items())
-
-
-def _has_public_reference(payload: dict[str, object]) -> bool:
-    return any(_has_nonempty_str(payload, field) for field in ("reference_url", "reference_doi"))
-
-
-def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
-    value = payload.get(field)
-    return isinstance(value, str) and bool(value.strip())
-
-
-def _is_finite_number(value: object) -> TypeIs[float]:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
-
-
-def _is_nonnegative_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) >= 0.0
-
-
-def _is_positive_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) > 0.0
-
-
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject repeated keys at every decoded object depth without echoing key text."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise ValueError(f"duplicate JSON key: {key}")
+            raise _CurrentDriveArtifactRefusal("reference artifact contains duplicate JSON keys")
         out[key] = value
     return out
 
 
+def _reject_json_constant(value: str) -> object:
+    """Refuse JSON decoder extensions NaN and signed infinity at any depth."""
+    raise _CurrentDriveArtifactRefusal("reference artifact contains non-finite JSON numbers")
+
+
+def _finite_json_float(value: str) -> float:
+    """Refuse nonfinite and nonzero underflowed floating-point tokens before field validation."""
+    number = float(value)
+    if not math.isfinite(number):
+        raise _CurrentDriveArtifactRefusal("reference artifact contains non-finite JSON numbers")
+    if number == 0 and any(char in "123456789" for char in value.lower().partition("e")[0]):
+        raise _CurrentDriveArtifactRefusal("reference artifact contains underflowed JSON numbers")
+    return number
+
+
+def write_current_drive_reference_report(
+    report: dict[str, Any], output_path: str | Path, *, artifact_root: str | Path
+) -> None:
+    """Write sorted UTF8 JSON+LF while protecting root/immediate selected input aliases.
+
+    Direct, resolved, symlink and existing hardlink aliases raise ValueError
+    before writing. Other output may replace. IO/path/encoding/serialization
+    errors propagate. Checks are sequential without locks or a concurrent snapshot.
+    """
+    output = Path(output_path)
+    root = Path(artifact_root)
+    inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
+    for source in inputs:
+        if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+            raise ValueError("Current-drive reference report output must not overwrite selected input")
+    text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Inspect references through the stdlib CLI and optionally persist the report.
+
+    Parameters
+    ----------
+    argv
+        Options without the executable name; None reads process arguments.
+        --artifact-root overrides the script-root default reference directory;
+        --require-reference-artifacts refuses absence, --json-out prints the
+        report, and --output-json writes the same sorted, indented JSON plus LF.
+
+    Returns
+    -------
+    int
+        0 for a passing inspection, 1 for a failed inspection, or 2 when a report
+        destination cannot be written. Write refusal uses fixed stderr text and
+        precedes stdout emission. Text mode prints field refusals to stderr.
+
+    Raises
+    ------
+    SystemExit
+        ArgumentParser uses 0 for help and 2 for invalid arguments.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact-root",
@@ -283,9 +236,11 @@ def main(argv: list[str] | None = None) -> int:
         args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
     )
     if args.output_json:
-        output_path = Path(args.output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            write_current_drive_reference_report(report, args.output_json, artifact_root=args.artifact_root)
+        except (OSError, UnicodeError, ValueError, RuntimeError):
+            print("could not write current-drive reference report", file=sys.stderr)
+            return 2
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

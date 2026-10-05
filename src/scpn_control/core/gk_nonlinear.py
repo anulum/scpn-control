@@ -33,6 +33,7 @@ References
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -153,6 +154,12 @@ class NonlinearGKSolver:
     # ------------------------------------------------------------------
 
     def _setup_grids(self) -> None:
+        """Construct FFT, parallel and velocity grids without advancing the solver.
+
+        Native Gauss-Laguerre nodes and weights are float64 arrays of length
+        ``n_mu``. Their weighted integration absorbs the Maxwellian mu factor;
+        ``dmu`` remains the existing sentinel rather than a uniform-grid width.
+        """
         c = self.cfg
         # Perpendicular wavenumbers (FFT ordering)
         self.kx = 2 * np.pi * np.fft.fftfreq(c.n_kx, d=c.Lx / c.n_kx)
@@ -176,7 +183,8 @@ class NonlinearGKSolver:
         # so FM = exp(-0.5*v_par^2) / pi^1.5 (no exp(-mu)).
         from numpy.polynomial.laguerre import laggauss
 
-        nodes, weights = laggauss(c.n_mu)
+        quadrature: Callable[[int], tuple[NDArray[np.float64], NDArray[np.float64]]] = laggauss
+        nodes, weights = quadrature(c.n_mu)
         self.mu = nodes
         self.mu_weights = weights
         self.dmu = 1.0  # sentinel — use mu_weights for integration

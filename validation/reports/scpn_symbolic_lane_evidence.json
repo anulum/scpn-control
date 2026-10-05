@@ -8,7 +8,7 @@
     "python_implementation": "CPython",
     "python_version": "3.12.3",
     "numpy_version": "2.2.6",
-    "generator_sha256": "1a0132e98386a8d0bc60e9795b77bb9011258a01adf4ed0b97ac6d44108dcd22"
+    "generator_sha256": "d3dffb99d336630836c79cd83c9c98ec5934bb2dc8fcdcb46f957280b9fa303d"
   },
   "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
   "metric": "closed-loop tracking-error RMSE (e = -x)",
@@ -125,5 +125,5 @@
     "note": "Two independent signals: (1) a direct runtime firing trace shows the symbolic transitions actually fire (nonzero summed firing) while the neuromorphic baseline fires zero (its transitions are bypassed by delay); (2) removing the a_* drain saturates the readout places and the symbolic controller diverges. Together they are evidence that the transitions carry the control signal."
   },
   "claim": "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed max deviation ~10%), is load-bearing (its transitions fire at runtime AND it diverges without its drain), and beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over the neuromorphic readout.",
-  "payload_sha256": "a23bc858d27eb45c5be5aefa1938618e9ebec4451d0983417dafedb478fe6e5b"
+  "payload_sha256": "172ecc7c0cd1e5c4228da6d7a96a9b59a8d72cdc9d41273fcbd6202f29c41f64"
 }

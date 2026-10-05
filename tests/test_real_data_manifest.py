@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Real Data Manifest Tests
 
+"""Exercise real manifest declarations, local custody and public refusal behavior."""
+
 from __future__ import annotations
 
 import json
@@ -13,6 +15,7 @@ from collections.abc import Callable
 from copy import deepcopy
 from hashlib import sha256
 from pathlib import Path
+from typing import Any, cast
 
 import pytest
 
@@ -21,6 +24,7 @@ from scpn_control.core.real_data_manifest import (
     RealDataManifest,
     RealDataManifestError,
     load_real_data_manifest,
+    resolve_manifest_artifact,
     validate_real_data_manifest,
     verify_manifest_artifact,
 )
@@ -31,6 +35,7 @@ PayloadMutation = Callable[[dict[str, object]], object]
 
 
 def _real_payload() -> dict[str, object]:
+    """Build explicit real payload declarations for this test contract."""
     return {
         "schema_version": "1.0",
         "dataset_id": "diii-d-163303-control-replay",
@@ -67,6 +72,7 @@ def _real_payload() -> dict[str, object]:
 
 
 def _synthetic_payload() -> dict[str, object]:
+    """Build explicit synthetic payload declarations for this test contract."""
     return {
         "schema_version": "1.0",
         "dataset_id": "ci-mock-diiid-999999",
@@ -92,6 +98,7 @@ def _synthetic_payload() -> dict[str, object]:
 
 
 def test_real_manifest_accepts_physical_provenance() -> None:
+    """Real manifest accepts physical provenance."""
     manifest = validate_real_data_manifest(_real_payload())
 
     assert manifest.kind == "real"
@@ -104,6 +111,7 @@ def test_real_manifest_accepts_physical_provenance() -> None:
 
 
 def test_load_real_data_manifest_from_json(tmp_path: Path) -> None:
+    """Load real data manifest from json."""
     path = tmp_path / "real_manifest.json"
     path.write_text(json.dumps(_real_payload()), encoding="utf-8")
 
@@ -113,6 +121,7 @@ def test_load_real_data_manifest_from_json(tmp_path: Path) -> None:
 
 
 def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path: Path) -> None:
+    """Load real data manifest rejects duplicate keys."""
     path = tmp_path / "duplicate_manifest.json"
     path.write_text(
         '{"schema_version":"1.0","dataset_id":"first","dataset_id":"second"}',
@@ -124,6 +133,7 @@ def test_load_real_data_manifest_rejects_duplicate_keys(tmp_path: Path) -> None:
 
 
 def test_load_real_data_manifest_rejects_non_object_root(tmp_path: Path) -> None:
+    """Load real data manifest rejects non object root."""
     path = tmp_path / "array_manifest.json"
     path.write_text(json.dumps(["not", "a", "manifest"]), encoding="utf-8")
 
@@ -144,6 +154,7 @@ def test_load_real_data_manifest_rejects_non_object_root(tmp_path: Path) -> None
     ],
 )
 def test_manifest_rejects_malformed_top_level_provenance(mutation: PayloadMutation, message: str) -> None:
+    """Manifest rejects malformed top level provenance."""
     payload = _real_payload()
     mutation(payload)
 
@@ -152,6 +163,7 @@ def test_manifest_rejects_malformed_top_level_provenance(mutation: PayloadMutati
 
 
 def test_manifest_requires_mandatory_top_level_keys() -> None:
+    """Manifest requires mandatory top level keys."""
     payload = _real_payload()
     payload.pop("dataset_id")
 
@@ -168,6 +180,7 @@ def test_manifest_requires_mandatory_top_level_keys() -> None:
     ],
 )
 def test_manifest_rejects_malformed_optional_citations(citations: object, message: str) -> None:
+    """Manifest rejects malformed optional citations."""
     payload = _real_payload()
     payload["citations"] = citations
 
@@ -176,6 +189,7 @@ def test_manifest_rejects_malformed_optional_citations(citations: object, messag
 
 
 def test_manifest_rejects_non_object_signal() -> None:
+    """Manifest rejects non object signal."""
     payload = _real_payload()
     payload["signals"] = ["not an object"]
 
@@ -192,6 +206,7 @@ def test_manifest_rejects_non_object_signal() -> None:
     ],
 )
 def test_manifest_rejects_malformed_artifact_entries(artifacts: object, message: str) -> None:
+    """Manifest rejects malformed artifact entries."""
     payload = _real_payload()
     payload["artifacts"] = artifacts
     payload.pop("checksum_sha256")
@@ -201,6 +216,7 @@ def test_manifest_rejects_malformed_artifact_entries(artifacts: object, message:
 
 
 def test_real_manifest_rejects_synthetic_source_kind() -> None:
+    """Real manifest rejects synthetic source kind."""
     payload = _real_payload()
     payload["source"] = {
         "kind": "mock",
@@ -213,6 +229,7 @@ def test_real_manifest_rejects_synthetic_source_kind() -> None:
 
 
 def test_real_manifest_rejects_unknown_source_kind() -> None:
+    """Real manifest rejects unknown source kind."""
     payload = _real_payload()
     source = deepcopy(payload["source"])
     assert isinstance(source, dict)
@@ -225,6 +242,7 @@ def test_real_manifest_rejects_unknown_source_kind() -> None:
 
 @pytest.mark.parametrize(("key", "message"), [("retrieved_at", "retrieved_at"), ("licence", "licence")])
 def test_real_manifest_requires_experimental_provenance_fields(key: str, message: str) -> None:
+    """Real manifest requires experimental provenance fields."""
     payload = _real_payload()
     payload.pop(key)
 
@@ -233,6 +251,7 @@ def test_real_manifest_requires_experimental_provenance_fields(key: str, message
 
 
 def test_real_manifest_requires_checksum_and_licence() -> None:
+    """Real manifest requires checksum and licence."""
     payload = _real_payload()
     payload.pop("checksum_sha256")
 
@@ -241,6 +260,7 @@ def test_real_manifest_requires_checksum_and_licence() -> None:
 
 
 def test_real_manifest_rejects_arbitrary_units() -> None:
+    """Real manifest rejects arbitrary units."""
     payload = _real_payload()
     signals = payload["signals"]
     assert isinstance(signals, list)
@@ -253,6 +273,7 @@ def test_real_manifest_rejects_arbitrary_units() -> None:
 
 
 def test_synthetic_manifest_rejects_real_source_kind() -> None:
+    """Synthetic manifest rejects real source kind."""
     payload = _synthetic_payload()
     source = deepcopy(payload["source"])
     assert isinstance(source, dict)
@@ -264,6 +285,7 @@ def test_synthetic_manifest_rejects_real_source_kind() -> None:
 
 
 def test_synthetic_manifest_requires_integer_seed() -> None:
+    """Synthetic manifest requires integer seed."""
     payload = _synthetic_payload()
     payload["synthetic_seed"] = "7"
 
@@ -272,6 +294,7 @@ def test_synthetic_manifest_requires_integer_seed() -> None:
 
 
 def test_synthetic_manifest_requires_generator_metadata() -> None:
+    """Synthetic manifest requires generator metadata."""
     payload = _synthetic_payload()
     payload.pop("synthetic_generator")
 
@@ -280,6 +303,7 @@ def test_synthetic_manifest_requires_generator_metadata() -> None:
 
 
 def test_synthetic_manifest_accepts_ci_fixture_metadata() -> None:
+    """Synthetic manifest accepts ci fixture metadata."""
     manifest = validate_real_data_manifest(_synthetic_payload())
 
     assert manifest.kind == "synthetic"
@@ -295,6 +319,7 @@ def test_synthetic_manifest_accepts_ci_fixture_metadata() -> None:
     ],
 )
 def test_repository_reference_manifests_validate(filename: str, kind: str, source_kind: str) -> None:
+    """Repository reference manifests validate."""
     manifest = load_real_data_manifest(MANIFEST_DIR / filename)
 
     assert manifest.kind == kind
@@ -302,12 +327,14 @@ def test_repository_reference_manifests_validate(filename: str, kind: str, sourc
 
 
 def test_verify_manifest_artifact_ignores_remote_real_sources(tmp_path: Path) -> None:
+    """Verify manifest artifact ignores remote real sources."""
     manifest = validate_real_data_manifest(_real_payload())
 
     assert verify_manifest_artifact(manifest, manifest_path=tmp_path / "manifest.json") is None
 
 
 def test_verify_manifest_artifact_requires_checksum_for_local_source(tmp_path: Path) -> None:
+    """Verify manifest artifact requires checksum for local source."""
     manifest = RealDataManifest(
         schema_version="1.0",
         dataset_id="local-shot",
@@ -325,6 +352,7 @@ def test_verify_manifest_artifact_requires_checksum_for_local_source(tmp_path: P
 
 
 def test_repository_manifest_verifies_local_artifact_checksum() -> None:
+    """Repository manifest verifies local artifact checksum."""
     manifest = load_real_data_manifest(
         MANIFEST_DIR / "diiid_hmode_1p5MA.geqdsk.manifest.json",
         verify_artifact=True,
@@ -334,6 +362,7 @@ def test_repository_manifest_verifies_local_artifact_checksum() -> None:
 
 
 def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path: Path) -> None:
+    """Manifest artifact verification rejects checksum mismatch."""
     artefact = tmp_path / "shot.npz"
     artefact.write_bytes(b"not the recorded shot")
     manifest_path = tmp_path / "manifest.json"
@@ -351,6 +380,7 @@ def test_manifest_artifact_verification_rejects_checksum_mismatch(tmp_path: Path
 
 
 def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path: Path) -> None:
+    """Manifest artifact list verifies each local checksum."""
     artefact = tmp_path / "shot.npz"
     content = b"measured archive payload"
     artefact.write_bytes(content)
@@ -371,6 +401,7 @@ def test_manifest_artifact_list_verifies_each_local_checksum(tmp_path: Path) -> 
 
 
 def test_synthetic_manifest_single_local_artifact_verifies_checksum(tmp_path: Path) -> None:
+    """Synthetic manifest single local artifact verifies checksum."""
     artefact = tmp_path / "synthetic-shot.npz"
     content = b"synthetic archive payload"
     artefact.write_bytes(content)
@@ -399,6 +430,7 @@ def test_synthetic_manifest_single_local_artifact_verifies_checksum(tmp_path: Pa
 def test_manifest_artifact_verification_rejects_unresolvable_local_artifacts(
     tmp_path: Path, uri: str, message: str
 ) -> None:
+    """Manifest artifact verification rejects unresolvable local artifacts."""
     manifest = RealDataManifest(
         schema_version="1.0",
         dataset_id="local-shot",
@@ -417,6 +449,7 @@ def test_manifest_artifact_verification_rejects_unresolvable_local_artifacts(
 
 
 def test_manifest_artifact_list_rejects_checksum_mismatch(tmp_path: Path) -> None:
+    """Manifest artifact list rejects checksum mismatch."""
     artefact = tmp_path / "shot.npz"
     artefact.write_bytes(b"measured archive payload")
     payload = _real_payload()
@@ -473,3 +506,135 @@ def test_verify_manifest_artifact_skips_root_escaping_symlink(tmp_path: Path) ->
 
     with pytest.raises(RealDataManifestError, match="artifact file not found"):
         verify_manifest_artifact(manifest, manifest_path=manifest_path)
+
+
+@pytest.mark.parametrize("shot", [None, True, False, 1.25, [], {}])
+def test_public_manifest_refuses_nonidentity_shots(shot: object) -> None:
+    """Boolean/null/float/container shot declarations cannot become string identities."""
+    payload = _real_payload()
+    payload["shot"] = shot
+    with pytest.raises(RealDataManifestError, match="shot must be a string or integer"):
+        validate_real_data_manifest(payload)
+
+
+def test_public_manifest_accepts_integer_shot_and_null_optional_metadata() -> None:
+    """Integer identities normalize while null optional declarations remain unspecified."""
+    payload = _synthetic_payload()
+    payload.update(shot=42, citations=None, citation=None, checksum_sha256=None)
+    manifest = validate_real_data_manifest(payload)
+    assert manifest.shot == "42" and manifest.citations == () and manifest.citation is None
+
+
+@pytest.mark.parametrize("token", ["NaN", "Infinity", "-Infinity", "1e9999"])
+def test_public_loader_refuses_nonfinite_unknown_json_metadata(tmp_path: Path, token: str) -> None:
+    """Finite decoding includes nested metadata not interpreted by the schema."""
+    path = tmp_path / "m.json"
+    path.write_text(json.dumps(_synthetic_payload())[:-1] + ', "extra": {"number": ' + token + "}}")
+    with pytest.raises(RealDataManifestError, match="nonfinite JSON value"):
+        load_real_data_manifest(path)
+
+
+def test_public_loader_allows_finite_unknown_json_metadata(tmp_path: Path) -> None:
+    """Finite decimal extras do not acquire schema meaning or break valid declarations."""
+    path = tmp_path / "m.json"
+    payload = _synthetic_payload()
+    payload["extra"] = 1.25
+    path.write_text(json.dumps(payload))
+    assert load_real_data_manifest(path).kind == "synthetic"
+
+
+@pytest.mark.parametrize("kind", ["utf8", "json", "decoder-depth"])
+def test_public_loader_translates_decode_failures(tmp_path: Path, kind: str) -> None:
+    """Malformed UTF-8/JSON and decoder-depth errors use the public manifest error."""
+    depth = 10_000
+    contents = b"\xff" if kind == "utf8" else b"{"
+    if kind == "decoder-depth":
+        contents = b"[" * depth + b"]" * depth
+    path = tmp_path / "m.json"
+    path.write_bytes(contents)
+    with pytest.raises(RealDataManifestError, match="cannot load manifest"):
+        load_real_data_manifest(path)
+
+
+def test_public_loader_translates_missing_directory_and_null_paths(tmp_path: Path) -> None:
+    """Supported manifest file failures are domain errors consumable by the CLI."""
+    paths: list[str | Path] = [tmp_path / "missing", tmp_path, "bad\x00path"]
+    for path in paths:
+        with pytest.raises(RealDataManifestError, match="cannot load manifest"):
+            load_real_data_manifest(path)
+
+
+def test_public_loader_requires_literal_boolean_policy(tmp_path: Path) -> None:
+    """An integer verification policy is refused before opening a file."""
+    with pytest.raises(RealDataManifestError, match="verify_artifact must be a boolean"):
+        load_real_data_manifest(tmp_path / "missing", verify_artifact=cast(Any, 1))
+
+
+@pytest.mark.parametrize("kind", ["signal", "artifact", "checksum"])
+def test_public_manifest_refuses_ambiguous_custody(kind: str) -> None:
+    """Duplicate identities and malformed provided digests fail even for synthetic data."""
+    payload = _synthetic_payload()
+    if kind == "signal":
+        signals = payload["signals"]
+        assert isinstance(signals, list)
+        payload["signals"] = [signals[0], signals[0]]
+    elif kind == "artifact":
+        artifact = {"uri": "shot.bin", "checksum_sha256": "a" * 64}
+        payload["artifacts"] = [artifact, artifact]
+    else:
+        payload["checksum_sha256"] = "bad"
+    with pytest.raises(RealDataManifestError, match="duplicate|lowercase 64-hex"):
+        validate_real_data_manifest(payload)
+
+
+@pytest.mark.parametrize("uri", ["C:\\data.bin", "\\rooted.bin", "C:data.bin", "../a", "..\\a", "bad\x00uri"])
+def test_public_resolver_refuses_cross_platform_escapes(tmp_path: Path, uri: str) -> None:
+    """Drive/root/traversal/null references cannot be resolved as in-tree files."""
+    with pytest.raises(RealDataManifestError):
+        resolve_manifest_artifact(uri, manifest_path=tmp_path / "m.json")
+
+
+def test_public_resolver_uses_ordered_manifest_evidence_and_repository_roots(tmp_path: Path) -> None:
+    """Lookup uses real root markers and gives adjacent evidence precedence."""
+    repo = tmp_path / "repo"
+    manifests = repo / "evidence/manifests"
+    manifests.mkdir(parents=True)
+    (repo / ".git").mkdir()
+    manifest_path = manifests / "m.json"
+    file = repo / "archive.bin"
+    file.write_bytes(b"repo bytes")
+    assert resolve_manifest_artifact(file.name, manifest_path=manifest_path) == file
+    adjacent = manifests / file.name
+    adjacent.write_bytes(b"adjacent bytes")
+    assert resolve_manifest_artifact(file.name, manifest_path=manifest_path) == adjacent
+    loop = manifests / "loop"
+    loop.symlink_to(loop)
+    with pytest.raises(RealDataManifestError, match="cannot resolve artifact"):
+        resolve_manifest_artifact(loop.name, manifest_path=manifest_path)
+
+
+def test_public_verification_checks_empty_local_bytes(tmp_path: Path) -> None:
+    """The actual stream hash verifies empty artifacts without pretending measured arrays."""
+    path = tmp_path / "m.json"
+    artifact = tmp_path / "empty.bin"
+    artifact.write_bytes(b"")
+    payload = _synthetic_payload()
+    source = payload["source"]
+    assert isinstance(source, dict)
+    source["uri"] = artifact.name
+    payload["checksum_sha256"] = sha256(b"").hexdigest()
+    path.write_text(json.dumps(payload))
+    assert load_real_data_manifest(path, verify_artifact=True).kind == "synthetic"
+
+
+def test_public_mapping_api_refuses_nonobject_root() -> None:
+    """The mapping API also reports a runtime-invalid root as a manifest error."""
+    with pytest.raises(RealDataManifestError, match="manifest root must be a JSON object"):
+        validate_real_data_manifest(cast(Any, []))
+
+
+def test_public_resolver_handles_a_manifest_at_filesystem_root(tmp_path: Path) -> None:
+    """A root-level manifest has one lookup root and no ancestor-marker search."""
+    artifact = tmp_path / "owned.bin"
+    artifact.write_bytes(b"owned test bytes")
+    assert resolve_manifest_artifact(str(artifact.relative_to("/")), manifest_path="/m.json") == artifact

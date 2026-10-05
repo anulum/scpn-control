@@ -25,7 +25,7 @@ studio is independent.
 | `src/auth.ts` | Same-origin portal session loader for `GET /api/v1/auth/me` with `credentials: 'include'`; no local login or billing surface. |
 | `src/domain.ts` | The studio's verb/claim data + the honesty rendering rules. |
 | `src/ControlStudioPanel.tsx` | The exposed federated panel. |
-| `public/manifest.json` | The deployed schema-A capability manifest copied from `docs/_generated/studio_manifest.json`. |
+| `public/manifest.json` | The local schema-A capability manifest copied from `docs/_generated/studio_manifest.json` for the web build. |
 | `public/studio-feed.json` | The standalone panel feed rendered from `scpn_control.studio.feed`. |
 
 ## Develop
@@ -65,7 +65,7 @@ pnpm build       # vite build — emits dist/remoteEntry.js under the selected b
 pnpm dev         # standalone preview
 ```
 
-Refresh the deployed public manifest after changing the Python Studio manifest:
+Refresh the local public manifest after changing the Python Studio manifest:
 
 ```bash
 python tools/emit_studio_manifest.py
@@ -73,9 +73,24 @@ python tools/sync_studio_web_manifest.py
 python tools/sync_studio_web_manifest.py --check
 ```
 
+Sync preserves exact UTF-8 bytes, including newline style and `studio_version`;
+check mode validates both files without writing and refuses any byte drift.
+It rejects ambiguous/nonfinite JSON and verifies the CONTROL id and declared
+UI fields. This is separate from the emitter's decoded-object parity check,
+which ignores only the environment-specific version stamp.
+
+For caller-owned files, use `--source ./generated.json --destination ./web.json`;
+relative paths resolve from cwd, while defaults belong to the script repository.
+Sync returns 0 for equality/copy and 1 for invalid, unreadable, stale or
+unwritable carriers. Copying creates parents and directly overwrites the file;
+it does not promise an atomic transaction. The full CLI/error contract is in
+[the capability manifest documentation](../docs/capability_manifest.md).
+Neither local check validates SDK compatibility, executes verbs, checks remote
+availability or establishes a deployment.
+
 ## Next
 
-The Docs Pages workflow always publishes the reviewed bundle at the public
+The Docs Pages workflow is configured to publish the bundle at the declared
 manifest URL. The CI `studio-web` job can additionally deploy `dist/` to the
 provisioned sovereign SCPN Studio space when its SSH credentials are present.
 Keep `public/manifest.json` and `public/studio-feed.json` current before merge.

@@ -1,3 +1,4 @@
+
 # Disruption mitigation claim-admission benchmark
 
 - Ensemble runs: 24
@@ -11,4 +12,5 @@
 
 Claim boundary: this report records deterministic bounded ensemble
 evidence for the halo-current and runaway-electron mitigation model.
-It is not measured disruption-campaign or external-MHD validation.
+Reference metadata alone does not establish measured disruption-campaign
+or external-MHD validation; independent comparison is required.

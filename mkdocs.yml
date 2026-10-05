@@ -53,6 +53,7 @@ plugins:
         python:
           paths: [src]
           options:
+            docstring_style: numpy
             show_source: false
             show_root_heading: true
             show_root_full_path: false
@@ -85,6 +86,8 @@ nav:
     - Native C and Lean API: _generated/native_api_reference.md
     - Theory: theory.md
     - Gyrokinetic Transport: gyrokinetic_transport.md
+    - Signed TGLF Fluxes: tglf_flux.md
+    - Conservative Face Transport: transport_flux.md
     - Paper 27 Phase Dynamics: paper27_phase_dynamics.md
     - Paper 27 Reviewer Integration: REVIEWER_PAPER27_INTEGRATION.md
     - Architecture: architecture.md
@@ -130,6 +133,7 @@ nav:
   - Project:
     - JOSS Paper: joss_paper.md
     - Development: development.md
+    - Git Path Exposure: history_exposure.md
     - Capability Manifest: capability_manifest.md
     - Capability Snapshot: _generated/capability_snapshot.md
     - Release Notes v0.23.0: release_notes_v0.23.0.md

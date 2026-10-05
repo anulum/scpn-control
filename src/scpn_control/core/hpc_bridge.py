@@ -85,7 +85,7 @@ def _raise_for_native_status(operation: str, raw_status: int) -> None:
         raise NativeSolverError(operation, status)
 
 
-def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
+def _as_contiguous_f64(array: NDArray[np.floating[Any]]) -> NDArray[np.float64]:
     """Return ``array`` as C-contiguous ``float64`` with minimal copying."""
     if isinstance(array, np.ndarray) and array.dtype == np.float64 and array.flags.c_contiguous:
         return cast("NDArray[np.float64]", array)
@@ -93,11 +93,11 @@ def _as_contiguous_f64(array: NDArray[np.floating]) -> NDArray[np.float64]:
 
 
 def _require_c_contiguous_f64(
-    array: NDArray[np.floating],
+    array: NDArray[np.floating[Any]],
     expected_shape: tuple[int, int],
     name: str,
 ) -> NDArray[np.float64]:
-    """Validate that an output buffer can be written into without copying."""
+    """Validate a writable output buffer without copying caller-owned memory."""
     if not isinstance(array, np.ndarray):
         raise ValueError(f"{name} must be a numpy.ndarray")
     if array.dtype != np.float64:
@@ -106,6 +106,8 @@ def _require_c_contiguous_f64(
         raise ValueError(f"{name} must be C-contiguous")
     if tuple(array.shape) != tuple(expected_shape):
         raise ValueError(f"{name} shape mismatch: expected {expected_shape}, received {tuple(array.shape)}")
+    if not array.flags.writeable:
+        raise ValueError(f"{name} must be writable")
     return cast("NDArray[np.float64]", array)
 
 
@@ -649,7 +651,8 @@ class HPCBridge:
         Raises
         ------
         ValueError
-            An array has invalid dimensionality, shape, dtype, layout, or data.
+            An array has invalid dimensionality, shape, dtype, layout, or data,
+            or the output is read-only. Refusal precedes a native sweep.
         NativeSolverError
             The version 1 native ABI rejects the call.
         """
@@ -747,7 +750,8 @@ class HPCBridge:
         ----------
         j_phi, psi_out : numpy.ndarray
             Non-overlapping source and output arrays in C row-major
-            ``[nz][nr]`` order. ``psi_out`` is overwritten in place.
+            ``[nz][nr]`` order. ``psi_out`` must be writable and is overwritten
+            in place; a read-only source remains valid.
         max_iterations : int, default=1000
             Positive sweep cap.
         tolerance : float, default=1e-6
@@ -763,7 +767,8 @@ class HPCBridge:
         Raises
         ------
         ValueError
-            Array or convergence inputs violate the Python contract.
+            Array or convergence inputs violate the Python contract, including
+            a read-only output. Refusal precedes a native sweep.
         NativeSolverError
             The version 1 native ABI rejects the call.
         """

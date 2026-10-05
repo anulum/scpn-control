@@ -74,3 +74,13 @@ reason = "Licence texts and generated checksum manifests retain their normative 
 category = "exact-toolchain-selector"
 names = ["lean-toolchain"]
 reason = "The Lean toolchain selector is a single exact token and does not support comments."
+
+[[exemptions]]
+category = "captured-tglf-reference-data"
+paths = ["tests/data/tglf/default/out.tglf.scalar_saturation_parameters", "tests/data/tglf/default/input.tglf.gen", "tests/data/tglf/default/out.tglf.sum_flux_spectrum", "tests/data/tglf/default/input.tglf", "tests/data/tglf/default/out.tglf.eigenvalue_spectrum", "tests/data/tglf/default/out.tglf.gbflux", "tests/data/tglf/default/out.tglf.grid", "tests/data/tglf/default/out.tglf.ky_spectrum"]
+reason = "Captured GACODE input and numeric output retain their parser-native format; provenance.json records original and stored hashes and each file carries an SPDX licence sidecar."
+
+[[exemptions]]
+category = "tglf-reference-license-sidecars"
+paths = ["tests/data/tglf/default/out.tglf.scalar_saturation_parameters.license", "tests/data/tglf/default/input.tglf.gen.license", "tests/data/tglf/default/out.tglf.sum_flux_spectrum.license", "tests/data/tglf/default/input.tglf.license", "tests/data/tglf/default/out.tglf.eigenvalue_spectrum.license", "tests/data/tglf/default/out.tglf.gbflux.license", "tests/data/tglf/default/out.tglf.grid.license", "tests/data/tglf/default/out.tglf.ky_spectrum.license", "tests/data/tglf/default/provenance.json.license"]
+reason = "REUSE SPDX sidecars retain the upstream legal attribution for the captured TGLF fixtures; adding repository code ownership would misattribute these reference artifacts."

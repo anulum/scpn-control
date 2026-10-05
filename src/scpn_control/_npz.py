@@ -38,8 +38,14 @@ def _member_name(name: str) -> str:
     return f"{name}.npy"
 
 
-def save_npz_arrays(path: NpzPath, arrays: Mapping[str, ArrayLike]) -> None:
-    """Write named numeric arrays to an uncompressed NumPy ``.npz`` archive.
+def save_npz_arrays(
+    path: NpzPath,
+    arrays: Mapping[str, ArrayLike],
+    *,
+    compressed: bool = False,
+    allow_pickle: bool = False,
+) -> None:
+    """Write named arrays to a NumPy ``.npz`` archive.
 
     Parameters
     ----------
@@ -48,18 +54,27 @@ def save_npz_arrays(path: NpzPath, arrays: Mapping[str, ArrayLike]) -> None:
     arrays : Mapping[str, ArrayLike]
         Named arrays to store. Keys become member names in the archive and must
         be simple file-name components.
+    compressed : bool
+        Use ZIP deflate when true; the default stores uncompressed members.
+    allow_pickle : bool
+        Permit object-array serialization when true. The default rejects arrays
+        that require pickling. This option is separate from the array names, so
+        an array named ``allow_pickle`` remains an ordinary archive member.
 
     Raises
     ------
     ValueError
-        If an array name is empty, path-like, or an array requires pickling.
+        If an array name is empty or path-like, or an array requires pickling
+        while ``allow_pickle`` is false. The destination is written directly;
+        a failure may leave a partial archive.
     """
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(destination, mode="w", compression=zipfile.ZIP_STORED, allowZip64=True) as archive:
+    compression = zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED
+    with zipfile.ZipFile(destination, mode="w", compression=compression, allowZip64=True) as archive:
         for name, value in arrays.items():
             with archive.open(_member_name(name), mode="w", force_zip64=True) as member:
-                np.save(member, np.asanyarray(value), allow_pickle=False)
+                np.save(member, np.asanyarray(value), allow_pickle=allow_pickle)
 
 
 def load_npz_capped(path: NpzPath, *, max_decompressed_bytes: int = _MAX_NPZ_DECOMPRESSED_BYTES) -> NpzFile:

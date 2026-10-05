@@ -6,25 +6,67 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Physics Traceability Report Generator
-"""Generate public bounded-claim physics traceability reports."""
+"""Render local physics traceability metadata with a bounded claim display.
+
+The diagnostic API can render FAIL reports. The CLI and strict API mode refuse
+invalid registries before writing. Neither a valid registry nor byte-fresh
+Markdown authenticates scientific references, host/facility state or controls.
+
+Examples
+--------
+>>> from tempfile import TemporaryDirectory
+>>> with TemporaryDirectory() as directory:
+...     diagnostic = generate_physics_traceability_markdown(Path(directory) / "missing.json")
+>>> "- Status: fail" in diagnostic
+True
+"""
 
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from validation.report_output_paths import checked_report_destination
 from validation.validate_physics_traceability import validate_physics_traceability
 
 
-def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
-    """Generate a public Markdown report from the checked traceability registry."""
+def generate_physics_traceability_markdown(registry_path: str | Path, *, require_valid_registry: bool = False) -> str:
+    """Render one validator result as deterministic Markdown.
+
+    Parameters
+    ----------
+    registry_path : str or Path
+        Passed to the defining validator; its root/path rules apply unchanged.
+    require_valid_registry : bool, optional
+        Default false permits diagnostic rendering of FAIL. True raises
+        ValueError on failed validation; nonboolean values also raise ValueError.
+
+    Returns
+    -------
+    str
+        Newline-terminated summary, tracker counts, metadata table, component
+        actions and findings. Tables escape pipes and collapse whitespace.
+        Invalid/nonlist actions have no action lines. Full-fidelity flag display
+        is allowed only on PASS with a literal true declaration; all FAIL
+        components display blocked, though raw report counts remain visible.
+
+    Notes
+    -----
+    Diagnostic entries are observed declarations, not admitted scientific
+    evidence. No source/reference execution, provenance or remote issue check.
+    The canonical valid registry yields the same bytes as before this remedy.
+    """
+    if not isinstance(require_valid_registry, bool):
+        raise ValueError("require_valid_registry must be boolean")
     report = validate_physics_traceability(registry_path)
+    if require_valid_registry and report["status"] != "pass":
+        raise ValueError("physics traceability registry failed validation")
     lines = [
         "# Physics Traceability and Bounded Claims",
         "",
@@ -90,7 +132,7 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
         ]
     )
     for entry in sorted(_entries(report), key=lambda item: str(item["component"])):
-        claim_status = "allowed" if entry["public_claim_allowed"] else "blocked"
+        claim_status = "allowed" if report["status"] == "pass" and entry["public_claim_allowed"] is True else "blocked"
         lines.extend(
             [
                 f"### {entry['component']}",
@@ -103,8 +145,10 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
                 "- Claim admission requirements:",
             ]
         )
-        for action in entry["claim_admission_requirements"]:
-            lines.append(f"  - {action}")
+        actions = entry.get("claim_admission_requirements")
+        if isinstance(actions, list):
+            for action in actions:
+                lines.append(f"  - {action}")
         lines.append("")
     if report["errors"]:
         lines.extend(["## Validation Errors", ""])
@@ -115,6 +159,11 @@ def generate_physics_traceability_markdown(registry_path: str | Path) -> str:
 
 
 def _entries(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return dictionary-entry summaries from the validator report.
+
+    A nonlist legacy diagnostic shape returns empty. Normal validator entries
+    retain invalid field values for diagnostic display, not claim admission.
+    """
     entries = report.get("entries")
     if not isinstance(entries, list):
         return []
@@ -122,6 +171,10 @@ def _entries(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _external_validation_trackers(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return validator-accepted tracker dictionaries or an empty legacy diagnostic list.
+
+    This formatter does not independently contact or authenticate remote issues.
+    """
     trackers = report.get("external_validation_trackers")
     if not isinstance(trackers, list):
         return []
@@ -129,15 +182,18 @@ def _external_validation_trackers(report: dict[str, Any]) -> list[dict[str, Any]
 
 
 def _tracker_by_issue(report: dict[str, Any]) -> dict[int, dict[str, Any]]:
-    trackers: dict[int, dict[str, Any]] = {}
-    for tracker in _external_validation_trackers(report):
-        issue = tracker.get("issue")
-        if isinstance(issue, int):
-            trackers[issue] = tracker
-    return trackers
+    """Index inspected tracker declarations by integer issue number.
+
+    Normal validator output has unique nonboolean positive integers.
+    """
+    return {cast(int, tracker["issue"]): tracker for tracker in _external_validation_trackers(report)}
 
 
 def _tracker_ownership_counts(report: dict[str, Any]) -> dict[int, int]:
+    """Count declared integer entry links for the inspected tracker table.
+
+    Counts include diagnostic entries; they do not establish issue ownership.
+    """
     counts: dict[int, int] = {issue: 0 for issue in _tracker_by_issue(report)}
     for entry in _entries(report):
         issue = entry.get("external_validation_tracker_issue")
@@ -147,6 +203,10 @@ def _tracker_ownership_counts(report: dict[str, Any]) -> dict[int, int]:
 
 
 def _tracker_status_counts(report: dict[str, Any]) -> dict[int, dict[str, int]]:
+    """Count string fidelity declarations grouped by integer issue links.
+
+    Nonstring diagnostic statuses are skipped; no physical classification is inferred.
+    """
     counts: dict[int, dict[str, int]] = {issue: {} for issue in _tracker_by_issue(report)}
     for entry in _entries(report):
         issue = entry.get("external_validation_tracker_issue")
@@ -159,6 +219,10 @@ def _tracker_status_counts(report: dict[str, Any]) -> dict[int, dict[str, int]]:
 
 
 def _format_status_counts(counts: dict[str, int]) -> str:
+    """Render known nonzero fidelity counts in fixed severity/vocabulary order.
+
+    Empty/unknown-only counts return empty, retaining the existing tracker layout.
+    """
     ordered_statuses = (
         "external_dependency_blocked",
         "validation_gap",
@@ -173,6 +237,10 @@ def _format_status_counts(counts: dict[str, int]) -> str:
 
 
 def _tracker_link(entry: dict[str, Any], report: dict[str, Any]) -> str:
+    """Render an inspected issue link or an empty table cell when no tracker matches.
+
+    Existence in this local metadata list is not a remote issue-state check.
+    """
     issue = entry.get("external_validation_tracker_issue")
     tracker = _tracker_by_issue(report).get(issue) if isinstance(issue, int) else None
     if tracker is None:
@@ -181,6 +249,10 @@ def _tracker_link(entry: dict[str, Any], report: dict[str, Any]) -> str:
 
 
 def _tracker_line(entry: dict[str, Any], report: dict[str, Any]) -> str:
+    """Render local tracker title/link or the literal none for unmatched metadata.
+
+    No live ownership, completion or authority is inferred.
+    """
     issue = entry.get("external_validation_tracker_issue")
     tracker = _tracker_by_issue(report).get(issue) if isinstance(issue, int) else None
     if tracker is None:
@@ -189,6 +261,10 @@ def _tracker_line(entry: dict[str, Any], report: dict[str, Any]) -> str:
 
 
 def _source_marker_coverage(report: dict[str, Any]) -> str:
+    """Render integer marker counters as covered/total or zero/zero for legacy malformed shapes.
+
+    The defining validator supplies actual scan findings separately.
+    """
     coverage = report.get("source_marker_coverage")
     if not isinstance(coverage, dict):
         return "0/0"
@@ -200,17 +276,52 @@ def _source_marker_coverage(report: dict[str, Any]) -> str:
 
 
 def _join_list(value: object) -> str:
+    """Join list elements as diagnostic text or return empty for nonlist fields.
+
+    This display helper does not validate physical content or provenance.
+    """
     if not isinstance(value, list):
         return ""
     return "; ".join(str(item) for item in value if isinstance(item, str) and item.strip())
 
 
 def _markdown_cell(value: str) -> str:
+    """Escape table pipes and collapse whitespace in one display cell.
+
+    Formatting changes text presentation rather than evidence admission.
+    """
     return " ".join(value.replace("|", "\\|").split())
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point for Markdown traceability report generation."""
+    """Run the standalone generator with strict source validation before any output write.
+
+    Parameters
+    ----------
+    argv : list of str or None
+        argparse tokens; None reads process arguments. Defaults select the
+        canonical source-tree registry and Markdown report, independent of cwd.
+
+    Returns
+    -------
+    int
+        0 after writing valid Markdown, or 1 after reporting an invalid registry
+        or supported IO/path failure to stderr. Successful output is UTF-8 with
+        a trailing newline; missing parent directories are created.
+
+    Raises
+    ------
+    SystemExit
+        argparse help or argument refusal.
+
+    Notes
+    -----
+    The selected registry and its resolved or existing hard-link aliases
+    cannot be output destinations. Other registry-evidence paths are outside
+    this destination check. Validation and writing are sequential; partial
+    writes remain possible. Generating the report establishes no authenticated
+    custody or publication.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--registry",
@@ -224,10 +335,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    markdown = generate_physics_traceability_markdown(args.registry)
-    output_path = Path(args.output_md)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(markdown, encoding="utf-8")
+    try:
+        markdown = generate_physics_traceability_markdown(args.registry, require_valid_registry=True)
+        output_path = checked_report_destination(args.output_md, inputs=[args.registry])
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(markdown, encoding="utf-8")
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"Physics traceability report refused: {exc}", file=sys.stderr)
+        return 1
     return 0
 
 

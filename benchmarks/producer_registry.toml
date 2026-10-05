@@ -61,6 +61,7 @@ recorded_guard = [
   "validation/benchmark_volt_second_claims.py",
   "validation/code_to_code_benchmark.py",
   "validation/control_benchmark_suite.py",
+  "validation/free_boundary_tracking_acceptance.py",
   "validation/scpn_pid_mpc_benchmark.py",
   "scpn-control-rs/crates/control-control/examples/bench_capacitor_bank_energy.rs",
   "scpn-control-rs/crates/control-control/examples/bench_multi_shot_campaign.rs",
@@ -82,6 +83,7 @@ stdout_or_build_product = [
   "scpn-control-rs/benches/bench_kuramoto.rs",
   "scpn-control-rs/benches/bench_lif.rs",
   "scpn-control-rs/benches/bench_transport.rs",
+  "scpn-control-rs/crates/control-control/examples/bench_pid.rs",
   "scpn-control-rs/crates/control-control/examples/bench_pulsed_scenario_scheduler.rs",
   "scpn-control-rs/crates/control-python/src/bin/transport_bench.rs",
   "tools/benchmark_full_stack.py",
@@ -90,6 +92,9 @@ stdout_or_build_product = [
 # Infrastructure owns custody or baseline state rather than producing a timed
 # measurement itself.
 custody_infrastructure = [
+  # Pure baseline/policy/verdict inspection; no measurement or output writer.
+  "tools/benchmark_gate_policy.py",
+  "tools/benchmark_gate_verdict.py",
   "tools/promote_benchmark_baseline.py",
   "tools/run_recorded_benchmark.py",
 ]

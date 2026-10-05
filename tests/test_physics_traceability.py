@@ -6,17 +6,33 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Physics Traceability Gate Tests
 
+"""Exercise the physics traceability registry and generated report gates."""
+
 from __future__ import annotations
 
+import doctest
 import json
+import os
+import shutil
+import subprocess
+import sys
 from pathlib import Path
+from typing import Any, cast
 
+import pytest
+
+from validation import validate_physics_traceability as trace_module
 from validation.validate_physics_traceability import main, validate_physics_traceability
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def _registry_with_header(entries: list[dict[str, object]]) -> dict[str, object]:
+    """Wrap original schema fixtures with required headers and disabled marker enforcement.
+
+    Declared test-only domains and references establish schema policy, not new
+    scientific, facility or measured evidence.
+    """
     return {
         "spdx_license_id": "AGPL-3.0-or-later",
         "commercial_license": "available",
@@ -32,6 +48,7 @@ def _registry_with_header(entries: list[dict[str, object]]) -> dict[str, object]
 
 
 def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
+    """Validate the live registry, including every approximation-marked source."""
     report = validate_physics_traceability(ROOT / "validation" / "physics_traceability.json")
 
     assert report["status"] == "pass"
@@ -86,7 +103,6 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     )
     assert ood_entry["covered_source_paths"] == ["src/scpn_control/core/gk_ood_detector.py"]
     dedicated_core_paths = {
-        "transport solver neoclassical and source-term approximation contract": "src/scpn_control/core/integrated_transport_solver.py",
         "reduced gyrokinetic transport closure contract": "src/scpn_control/core/gyrokinetic_transport.py",
         "momentum transport and torque-balance approximation contract": "src/scpn_control/core/momentum_transport.py",
         "EPED pedestal and peeling-ballooning approximation contract": "src/scpn_control/core/eped_pedestal.py",
@@ -112,6 +128,18 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     for component, source_path in dedicated_core_paths.items():
         entry = next(item for item in report["entries"] if item["component"] == component)
         assert entry["covered_source_paths"] == [source_path]
+    transport_entry = next(
+        item
+        for item in report["entries"]
+        if item["component"] == "transport solver neoclassical and source-term approximation contract"
+    )
+    assert transport_entry["covered_source_paths"] == sorted(
+        [
+            "src/scpn_control/core/integrated_transport_solver.py",
+            "src/scpn_control/core/transport_model_selection.py",
+            "src/scpn_control/core/transport_orchestration.py",
+        ]
+    )
     core_entry = next(
         entry
         for entry in report["entries"]
@@ -137,7 +165,17 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     realtime_efit_entry = next(
         entry for entry in report["entries"] if entry["component"] == "real-time EFIT-lite equilibrium reconstruction"
     )
-    assert realtime_efit_entry["covered_source_paths"] == ["src/scpn_control/control/realtime_efit.py"]
+    assert realtime_efit_entry["covered_source_paths"] == sorted(
+        [
+            "src/scpn_control/control/realtime_efit.py",
+            "src/scpn_control/control/realtime_efit_contracts.py",
+            "src/scpn_control/control/realtime_efit_claims.py",
+            "src/scpn_control/control/realtime_efit_diagnostics.py",
+            "src/scpn_control/control/realtime_efit_solver.py",
+            "src/scpn_control/control/realtime_efit_runtime.py",
+            "src/scpn_control/control/realtime_efit_topology.py",
+        ]
+    )
     kinetic_efit_entry = next(
         entry for entry in report["entries"] if entry["component"] == "kinetic EFIT pressure and q-profile coupling"
     )
@@ -147,7 +185,29 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
         for entry in report["entries"]
         if entry["component"] == "halo current and runaway electron disruption model"
     )
-    assert halo_entry["covered_source_paths"] == ["src/scpn_control/control/halo_re_physics.py"]
+    assert halo_entry["covered_source_paths"] == [
+        "src/scpn_control/control/_disruption_claims.py",
+        "src/scpn_control/control/_disruption_ensemble.py",
+        "src/scpn_control/control/_halo_current_model.py",
+        "src/scpn_control/control/_runaway_electron_model.py",
+        "src/scpn_control/control/halo_re_physics.py",
+    ]
+    federated_entry = next(
+        entry for entry in report["entries"] if entry["component"] == "federated disruption prediction"
+    )
+    assert federated_entry["covered_source_paths"] == sorted(
+        [
+            "src/scpn_control/control/federated_disruption.py",
+            "src/scpn_control/control/_federated_model.py",
+            "src/scpn_control/control/_federated_privacy.py",
+            "src/scpn_control/control/_federated_clients.py",
+            "src/scpn_control/control/_federated_server.py",
+            "src/scpn_control/control/_federated_config.py",
+            "src/scpn_control/control/_federated_benchmark.py",
+            "src/scpn_control/control/_federated_state.py",
+            "src/scpn_control/control/_federated_aggregation.py",
+        ]
+    )
     free_boundary_entry = next(
         entry for entry in report["entries"] if entry["component"] == "direct free-boundary tracking controller"
     )
@@ -159,7 +219,12 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     disruption_contract_entry = next(
         entry for entry in report["entries"] if entry["component"] == "disruption mitigation contract layer"
     )
-    assert disruption_contract_entry["covered_source_paths"] == ["src/scpn_control/control/disruption_contracts.py"]
+    assert disruption_contract_entry["covered_source_paths"] == [
+        "src/scpn_control/control/_disruption_episode_physics.py",
+        "src/scpn_control/control/_disruption_episode_runtime.py",
+        "src/scpn_control/control/_disruption_shot_replay.py",
+        "src/scpn_control/control/disruption_contracts.py",
+    ]
     digital_twin_entry = next(
         entry
         for entry in report["entries"]
@@ -177,7 +242,15 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
     volt_second_entry = next(
         entry for entry in report["entries"] if entry["component"] == "volt-second budget and flux-consumption manager"
     )
-    assert volt_second_entry["covered_source_paths"] == ["src/scpn_control/control/volt_second_manager.py"]
+    assert volt_second_entry["covered_source_paths"] == sorted(
+        [
+            "src/scpn_control/control/volt_second_manager.py",
+            "src/scpn_control/control/volt_second_core.py",
+            "src/scpn_control/control/volt_second_claims.py",
+            "src/scpn_control/control/volt_second_profiles.py",
+            "src/scpn_control/control/volt_second_runtime.py",
+        ]
+    )
     kuramoto_entry = next(
         entry for entry in report["entries"] if entry["component"] == "Kuramoto-Sakaguchi phase synchronisation runtime"
     )
@@ -228,6 +301,7 @@ def test_repository_physics_traceability_records_open_fidelity_gaps() -> None:
 
 
 def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:
+    """Verify traceability rejects unbounded gap claim."""
     registry = _registry_with_header(
         [
             {
@@ -256,6 +330,7 @@ def test_traceability_rejects_unbounded_gap_claim(tmp_path: Path) -> None:
 
 
 def test_traceability_rejects_synthetic_only_fidelity_status(tmp_path: Path) -> None:
+    """Verify traceability rejects synthetic only fidelity status."""
     registry = _registry_with_header(
         [
             {
@@ -284,6 +359,7 @@ def test_traceability_rejects_synthetic_only_fidelity_status(tmp_path: Path) -> 
 
 
 def test_traceability_rejects_missing_contract_fields(tmp_path: Path) -> None:
+    """Verify traceability rejects missing contract fields."""
     registry = _registry_with_header(
         [
             {
@@ -312,6 +388,7 @@ def test_traceability_rejects_missing_contract_fields(tmp_path: Path) -> None:
 
 
 def test_traceability_rejects_missing_json_header_metadata(tmp_path: Path) -> None:
+    """Verify traceability rejects missing json header metadata."""
     registry = {
         "schema_version": "1.1",
         "entries": [
@@ -342,6 +419,7 @@ def test_traceability_rejects_missing_json_header_metadata(tmp_path: Path) -> No
 
 
 def test_traceability_rejects_unresolved_module_or_evidence_paths(tmp_path: Path) -> None:
+    """Verify traceability rejects unresolved module or evidence paths."""
     registry = _registry_with_header(
         [
             {
@@ -372,6 +450,7 @@ def test_traceability_rejects_unresolved_module_or_evidence_paths(tmp_path: Path
 
 
 def test_traceability_rejects_missing_source_marker_coverage(tmp_path: Path) -> None:
+    """Verify traceability rejects missing source marker coverage."""
     registry = _registry_with_header(
         [
             {
@@ -402,6 +481,7 @@ def test_traceability_rejects_missing_source_marker_coverage(tmp_path: Path) -> 
 
 
 def test_traceability_rejects_source_coverage_outside_module_scope(tmp_path: Path) -> None:
+    """Verify traceability rejects source coverage outside module scope."""
     registry = _registry_with_header(
         [
             {
@@ -431,6 +511,7 @@ def test_traceability_rejects_source_coverage_outside_module_scope(tmp_path: Pat
 
 
 def test_traceability_main_writes_json_report(tmp_path: Path) -> None:
+    """Verify traceability main writes json report."""
     output = tmp_path / "physics_traceability_report.json"
 
     exit_code = main(
@@ -449,6 +530,10 @@ def test_traceability_main_writes_json_report(tmp_path: Path) -> None:
 
 
 def _minimal_tracker_registry() -> dict[str, object]:
+    """Build the original ROADMAP-based metadata fixture for tracker refusal rules.
+
+    Its reference_validated flag is a test declaration, not physical admission.
+    """
     return {
         "schema_version": "1.1",
         "spdx_license_id": "AGPL-3.0-or-later",
@@ -476,7 +561,17 @@ def _minimal_tracker_registry() -> dict[str, object]:
     }
 
 
+def _first_registry_entry(registry: dict[str, object]) -> dict[str, object]:
+    """Return the mutable fixture entry with its container type checked."""
+    entries = registry["entries"]
+    assert isinstance(entries, list)
+    entry = entries[0]
+    assert isinstance(entry, dict)
+    return cast(dict[str, object], entry)
+
+
 def test_traceability_rejects_duplicate_external_validation_tracker_issue(tmp_path: Path) -> None:
+    """Verify traceability rejects duplicate external validation tracker issue."""
     registry = _minimal_tracker_registry()
     registry["external_validation_trackers"] = [
         {
@@ -502,6 +597,7 @@ def test_traceability_rejects_duplicate_external_validation_tracker_issue(tmp_pa
 
 
 def test_traceability_rejects_external_validation_tracker_url_issue_mismatch(tmp_path: Path) -> None:
+    """Verify traceability rejects external validation tracker url issue mismatch."""
     registry = _minimal_tracker_registry()
     registry["external_validation_trackers"] = [
         {
@@ -521,6 +617,7 @@ def test_traceability_rejects_external_validation_tracker_url_issue_mismatch(tmp
 
 
 def test_external_validation_trackers_are_linked_from_roadmap_and_report() -> None:
+    """Verify external validation trackers are linked from roadmap and report."""
     report = validate_physics_traceability(ROOT / "validation" / "physics_traceability.json")
     roadmap = (ROOT / "ROADMAP.md").read_text(encoding="utf-8")
     generated_report = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
@@ -549,6 +646,7 @@ def test_roadmap_does_not_embed_live_traceability_inventory_counts() -> None:
 
 
 def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path) -> None:
+    """Verify traceability requires trackers when fidelity gaps remain."""
     registry = _registry_with_header(
         [
             {
@@ -576,9 +674,11 @@ def test_traceability_requires_trackers_when_fidelity_gaps_remain(tmp_path: Path
 
 
 def test_traceability_rejects_open_entry_without_tracker_issue(tmp_path: Path) -> None:
+    """Verify traceability rejects open entry without tracker issue."""
     registry = _minimal_tracker_registry()
-    registry["entries"][0]["fidelity_status"] = "validation_gap"
-    registry["entries"][0]["public_claim_allowed"] = False
+    entry = _first_registry_entry(registry)
+    entry["fidelity_status"] = "validation_gap"
+    entry["public_claim_allowed"] = False
     registry["external_validation_trackers"] = [
         {
             "title": "tracker",
@@ -597,10 +697,12 @@ def test_traceability_rejects_open_entry_without_tracker_issue(tmp_path: Path) -
 
 
 def test_traceability_rejects_unknown_entry_tracker_issue(tmp_path: Path) -> None:
+    """Verify traceability rejects unknown entry tracker issue."""
     registry = _minimal_tracker_registry()
-    registry["entries"][0]["fidelity_status"] = "validation_gap"
-    registry["entries"][0]["public_claim_allowed"] = False
-    registry["entries"][0]["external_validation_tracker_issue"] = 99
+    entry = _first_registry_entry(registry)
+    entry["fidelity_status"] = "validation_gap"
+    entry["public_claim_allowed"] = False
+    entry["external_validation_tracker_issue"] = 99
     registry["external_validation_trackers"] = [
         {
             "title": "tracker",
@@ -619,3 +721,305 @@ def test_traceability_rejects_unknown_entry_tracker_issue(tmp_path: Path) -> Non
         error["field"] == "external_validation_tracker_issue" and "must exist" in error["error"]
         for error in report["errors"]
     )
+
+
+@pytest.fixture
+def local_traceability_repository(tmp_path: Path) -> tuple[Path, dict[str, Any]]:
+    """Copy real defining source/evidence bytes into an isolated declared registry root.
+
+    The single historical bounded entry retains its no-public-claim boundary.
+    The copied files establish local path/marker/schema behavior only; neither
+    the copy nor later metadata mutations establish new scientific evidence.
+    """
+    base: dict[str, Any] = json.loads((ROOT / "validation/physics_traceability.json").read_text())
+    entry = next(e for e in base["entries"] if e["component"] == "linear gyrokinetic cross-code agreement")
+    base["entries"] = [entry]
+    repo = tmp_path / "repository"
+    for name in {entry["module_path"], *entry["evidence_paths"], *entry["covered_source_paths"]}:
+        original = ROOT / name
+        target = repo / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if original.is_dir():
+            shutil.copytree(original, target, ignore=shutil.ignore_patterns("__pycache__"), dirs_exist_ok=True)
+        else:
+            shutil.copy2(original, target)
+    (repo / "validation").mkdir(exist_ok=True)
+    path = repo / "validation/physics_traceability.json"
+    path.write_text(json.dumps(base), encoding="utf-8")
+    return path, base
+
+
+def _write_local_registry(path: Path, payload: dict[str, Any]) -> None:
+    """Persist independent modified declaration bytes without invoking private production helpers."""
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("spdx_license_id", []),
+        ("spdx_license_id", "wrong"),
+        ("file", None),
+        ("schema_version", "old"),
+        ("entries", []),
+        ("entries", "bad"),
+        ("enforce_source_marker_coverage", "false"),
+        ("enforce_source_marker_coverage", None),
+        ("external_validation_trackers", None),
+    ],
+)
+def test_public_registry_header_and_container_refusals(
+    local_traceability_repository: tuple[Path, dict[str, Any]], field: str, value: object
+) -> None:
+    """Refuse bad header/container/enforcement declarations through the public validator."""
+    path, payload = local_traceability_repository
+    payload[field] = value
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and any(e["field"] == field for e in report["errors"])
+
+
+@pytest.mark.parametrize(
+    "field,value,expected",
+    [
+        ("fidelity_status", [], "fidelity_status"),
+        ("fidelity_status", None, "fidelity_status"),
+        ("module_path", None, "module_path"),
+        ("equation_contract", 1, "equation_contract"),
+        ("model_references", "bad", "model_references"),
+        ("claim_admission_requirements", None, "claim_admission_requirements"),
+        ("evidence_paths", [], "evidence_paths"),
+        ("evidence_paths", [None], "evidence_paths"),
+        ("covered_source_paths", "bad", "covered_source_paths"),
+        ("covered_source_paths", ["missing.py"], "covered_source_paths"),
+        ("public_claim_allowed", "true", "public_claim_allowed"),
+        ("external_validation_tracker_issue", True, "external_validation_tracker_issue"),
+        ("external_validation_tracker_issue", "47", "external_validation_tracker_issue"),
+    ],
+)
+def test_public_entry_domain_refusals(
+    local_traceability_repository: tuple[Path, dict[str, Any]], field: str, value: object, expected: str
+) -> None:
+    """Keep invalid entry diagnostics/counts visible without type-membership crashes."""
+    path, payload = local_traceability_repository
+    payload["entries"][0][field] = value
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and report["total"] == 1 and len(report["entries"]) == 1
+    assert any(e["field"] == expected for e in report["errors"])
+
+
+@pytest.mark.parametrize(
+    "field,value,expected",
+    [
+        ("title", None, "title"),
+        ("scope", "", "scope"),
+        ("issue", True, "issue"),
+        ("issue", 0, "issue"),
+        ("issue", "47", "issue"),
+        ("issue", [], "issue"),
+        ("url", None, "url"),
+        ("url", "https://github.com/anulum/scpn-control/issues/46", "url"),
+    ],
+)
+def test_invalid_tracker_is_not_returned_as_validated_metadata(
+    local_traceability_repository: tuple[Path, dict[str, Any]], field: str, value: object, expected: str
+) -> None:
+    """Refuse invalid/boolean/mismatched tracker records from the returned valid list."""
+    path, payload = local_traceability_repository
+    tracker = next(t for t in payload["external_validation_trackers"] if t["issue"] == 47)
+    tracker[field] = value
+    payload["external_validation_trackers"] = [tracker]
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and report["external_validation_trackers"] == []
+    assert report["external_validation_tracker_count"] == 0 and any(e["field"] == expected for e in report["errors"])
+
+
+def test_duplicate_and_nondictionary_tracker_and_entry_observations(
+    local_traceability_repository: tuple[Path, dict[str, Any]],
+) -> None:
+    """Count raw entry declarations while retaining only the first valid tracker record."""
+    path, payload = local_traceability_repository
+    tracker = next(t for t in payload["external_validation_trackers"] if t["issue"] == 47)
+    payload["external_validation_trackers"] = [None, tracker, dict(tracker)]
+    payload["entries"].append(None)
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and report["total"] == 2 and len(report["entries"]) == 1
+    assert report["external_validation_trackers"] == [tracker]
+    assert {"entry", "external_validation_trackers", "issue"} <= {e["field"] for e in report["errors"]}
+
+
+@pytest.mark.parametrize(
+    "contents",
+    [
+        "[]",
+        "{",
+        '{"extra":NaN}',
+        '{"extra":Infinity}',
+        '{"extra":-Infinity}',
+        '{"extra":1e400}',
+        '{"x":1,"x":2}',
+        '{"extra":{"x":1,"x":2}}',
+        "[" * 1200 + "0" + "]" * 1200,
+    ],
+)
+def test_actual_registry_decode_refusals(tmp_path: Path, contents: str) -> None:
+    """Reject malformed/nonfinite/duplicate/deep actual UTF-8 declarations without mocks."""
+    path = tmp_path / "registry.json"
+    path.write_text(contents)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and report["entries"] == []
+    assert report["errors"][0]["field"] in {"json", "root"}
+
+
+def test_actual_registry_read_and_invalid_path_refusals(tmp_path: Path) -> None:
+    """Refuse actual missing/directory/invalid-UTF8/null/loop registry inputs."""
+    invalid = tmp_path / "invalid.json"
+    invalid.write_bytes(b"\xff")
+    loop = tmp_path / "loop.json"
+    loop.symlink_to(loop.name)
+    for path in [tmp_path / "missing", tmp_path, invalid, Path("bad\0registry"), loop]:
+        report = validate_physics_traceability(path)
+        assert report["status"] == "fail" and report["errors"][0]["field"] == "json"
+
+
+@pytest.mark.parametrize("kind", ["absolute", "traversal", "symlink", "null", "loop"])
+def test_repository_path_containment_refusals(
+    local_traceability_repository: tuple[Path, dict[str, Any]], kind: str
+) -> None:
+    """Refuse real external/escaping/null/loop paths as module, evidence and covered source."""
+    path, payload = local_traceability_repository
+    repo = path.parent.parent
+    external = repo.parent / "external.md"
+    shutil.copy2(ROOT / "ROADMAP.md", external)
+    link = repo / "link.md"
+    if kind == "absolute":
+        value = str(external)
+    elif kind == "traversal":
+        value = "../external.md"
+    elif kind == "null":
+        value = "bad\0path"
+    elif kind == "loop":
+        link.symlink_to(link.name)
+        value = "link.md"
+    else:
+        link.symlink_to(external)
+        value = "link.md"
+    payload["entries"][0].update(module_path=value, evidence_paths=[value], covered_source_paths=[value])
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and report["resolved_module_paths"] == 0
+    assert {"module_path", "evidence_paths", "covered_source_paths"} <= {e["field"] for e in report["errors"]}
+
+
+def test_absolute_contained_paths_and_real_module_scope_refusals(
+    local_traceability_repository: tuple[Path, dict[str, Any]],
+) -> None:
+    """Admit canonical in-root absolute paths and refuse covered paths outside a file module."""
+    path, payload = local_traceability_repository
+    repo = path.parent.parent
+    entry = payload["entries"][0]
+    entry["module_path"] = str(repo / entry["module_path"])
+    entry["evidence_paths"] = [str(repo / p) for p in entry["evidence_paths"]]
+    entry["covered_source_paths"] = [entry["module_path"]]
+    _write_local_registry(path, payload)
+    assert validate_physics_traceability(path)["status"] == "pass"
+    other = repo / "other.py"
+    shutil.copy2(ROOT / "src/scpn_control/core/gk_species.py", other)
+    entry["covered_source_paths"] = ["other.py"]
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and any("outside module_path scope" in e["error"] for e in report["errors"])
+
+
+@pytest.mark.parametrize("kind", ["invalid_utf8", "directory", "escaping_symlink"])
+def test_actual_source_marker_scan_failures(
+    local_traceability_repository: tuple[Path, dict[str, Any]], kind: str
+) -> None:
+    """Make actual scan read/decode/containment failures visible without ignored bytes."""
+    path, _ = local_traceability_repository
+    source = path.parent.parent / "src/scpn_control/broken.py"
+    if kind == "invalid_utf8":
+        source.write_bytes(b"\xff approximation")
+    elif kind == "directory":
+        source.mkdir()
+    else:
+        external = path.parent.parent.parent / "external.py"
+        shutil.copy2(ROOT / "src/scpn_control/core/gk_species.py", external)
+        source.symlink_to(external)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "fail" and any(e["field"] == "source_marker_coverage" for e in report["errors"])
+
+
+def test_optional_coverage_fields_and_empty_source_root(
+    local_traceability_repository: tuple[Path, dict[str, Any]],
+) -> None:
+    """Observe absent optional coverage/enforcement and copied roots with no Python markers."""
+    path, payload = local_traceability_repository
+    payload.pop("enforce_source_marker_coverage")
+    payload["entries"][0].pop("covered_source_paths")
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "pass" and report["entries"][0]["covered_source_paths"] == []
+    shutil.rmtree(path.parent.parent / "src")
+    payload["entries"][0].update(module_path="validation", evidence_paths=["validation"], covered_source_paths=None)
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "pass" and report["source_marker_coverage"] == {"total": 0, "covered": 0, "missing": []}
+
+
+def test_standalone_registry_main_text_json_output_and_path_refusals(
+    local_traceability_repository: tuple[Path, dict[str, Any]], capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Exercise actual persisted CLI report bytes and supported output IO/null failures."""
+    path, _ = local_traceability_repository
+    output = path.parent / "output/report.json"
+    assert main(["--registry", str(path), "--output-json", str(output), "--json-out"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert json.loads(output.read_text()) == report and output.read_bytes().endswith(b"\n")
+    for value in [str(path.parent), str(path / "child"), "bad\0output"]:
+        assert main(["--registry", str(path), "--output-json", value, "--json-out"]) == 1
+        assert json.loads(capsys.readouterr().out)["errors"][-1]["field"] == "output_json"
+    assert main(["--registry", str(path.parent / "missing")]) == 1
+    text = capsys.readouterr()
+    assert "total=0" in text.out and "ERROR" in text.err
+
+
+def test_standard_library_registry_cli_from_other_cwd_without_site(
+    local_traceability_repository: tuple[Path, dict[str, Any]], tmp_path: Path
+) -> None:
+    """Run the actual source CLI without installed dependencies or PYTHONPATH."""
+    path, _ = local_traceability_repository
+    c = subprocess.run(
+        [
+            sys.executable,
+            "-S",
+            str(ROOT / "validation/validate_physics_traceability.py"),
+            "--registry",
+            str(path),
+            "--json-out",
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ, PYTHONPATH="", PYTHONDONTWRITEBYTECODE="1"),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert c.returncode == 0 and c.stderr == "" and json.loads(c.stdout)["status"] == "pass"
+
+
+def test_defining_registry_native_examples_execute() -> None:
+    """Execute real native read-refusal examples without private calls or fabricated physics."""
+    result = doctest.testmod(trace_module, raise_on_error=True)
+    assert result.failed == 0 and result.attempted >= 2
+
+
+def test_finite_extra_json_metadata_is_allowed(local_traceability_repository: tuple[Path, dict[str, Any]]) -> None:
+    """Retain legal finite decimal metadata without implying measured scientific validation."""
+    path, payload = local_traceability_repository
+    payload["extra"] = {"decimal": 12.5, "nested": [-0.5, 1e-300]}
+    _write_local_registry(path, payload)
+    report = validate_physics_traceability(path)
+    assert report["status"] == "pass" and report["public_claim_blocked"] == 1

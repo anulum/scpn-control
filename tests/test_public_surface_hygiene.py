@@ -9,12 +9,19 @@
 
 from __future__ import annotations
 
+import doctest
+import os
+import pydoc
+import shutil
+import stat
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 from _pytest.capture import CaptureFixture
 
+from tools import check_public_surface_hygiene as guard
 from tools.check_public_surface_hygiene import Finding, iter_scanned_files, main, scan_repository, scan_text
 
 
@@ -424,25 +431,21 @@ def _git(repo: Path, *args: str) -> None:
 
 
 def _tracked_repo(tmp_path: Path) -> Path:
-    """Create a temporary Git repository with one initial commit."""
+    """Index an actual maintained guide in a private repository without making commits."""
     repo = tmp_path / "repo"
     repo.mkdir()
     _git(repo, "init")
-    _git(repo, "config", "user.email", "test@example.invalid")
-    _git(repo, "config", "user.name", "Test User")
-    (repo / "README.md").write_text("ready\n", encoding="utf-8")
+    shutil.copy2(guard.REPO_ROOT / "docs/development.md", repo / "README.md")
     _git(repo, "add", "README.md")
-    _git(repo, "commit", "-m", "init")
     return repo
 
 
 def _track(repo: Path, relative_path: str, content: bytes) -> None:
-    """Write and track ``relative_path`` in ``repo``."""
+    """Write and index the requested worktree payload without a commit."""
     path = repo / relative_path
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(content)
     _git(repo, "add", relative_path)
-    _git(repo, "commit", "-m", f"add {relative_path}")
 
 
 def test_iter_scanned_files_skips_internal_and_guard_fixture_paths(tmp_path: Path) -> None:
@@ -544,6 +547,173 @@ def test_main_fails_and_prints_findings(tmp_path: Path, capsys: CaptureFixture[s
 
 
 def test_module_entrypoint_uses_main() -> None:
-    """The module keeps the standard ``python file.py`` entrypoint."""
-    script = Path("tools/check_public_surface_hygiene.py")
-    assert script.read_text(encoding="utf-8").rstrip().endswith("raise SystemExit(main())")
+    """The real stdlib-only script exposes argparse help without importing package dependencies."""
+    result = _cli(guard.REPO_ROOT, "--help")
+    assert result.returncode == 0 and result.stderr == "" and "--repo" in result.stdout
+
+
+def _cli(
+    repo: Path, *args: str, cwd: Path | None = None, env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    """Run the actual source command with caller-controlled directory and executable environment."""
+    return subprocess.run(
+        [
+            sys.executable,
+            "-S",
+            str(guard.REPO_ROOT / "tools/check_public_surface_hygiene.py"),
+            "--repo",
+            str(repo),
+            *args,
+        ],
+        cwd=cwd,
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=15,
+    )
+
+
+@pytest.mark.parametrize("filename", ["docs/release\nnotes.md", "docs/résumé.md", "docs/a\tb.md"])
+def test_actual_index_path_spellings_reach_api_and_cli(tmp_path: Path, filename: str) -> None:
+    """Git-quoted Unicode, newline and tab paths cannot hide claims in real copied documentation."""
+    repo = _tracked_repo(tmp_path)
+    content = (guard.REPO_ROOT / "docs/development.md").read_bytes() + b"\nGroundbreaking control claim.\n"
+    _track(repo, filename, content)
+    assert repo / filename in list(iter_scanned_files(repo))
+    findings = scan_repository(repo)
+    assert len(findings) == 1 and findings[0].path == filename and findings[0].category == "groundbreaking"
+    result = _cli(repo)
+    assert result.returncode == 1 and result.stderr == "" and "groundbreaking" in result.stdout
+
+
+def test_index_selection_reads_unstaged_worktree_bytes(tmp_path: Path) -> None:
+    """A real index excludes untracked declarations and reads later worktree bytes rather than its staged blob."""
+    repo = _tracked_repo(tmp_path)
+    content = (guard.REPO_ROOT / "docs/development.md").read_bytes()
+    _track(repo, "docs/guide.md", content)
+    (repo / "docs/guide.md").write_bytes(content + b"\nGroundbreaking control claim.\n")
+    (repo / "docs/untracked.md").write_bytes(content + b"\nRevolutionary claim.\n")
+    findings = scan_repository(repo)
+    assert [(f.path, f.category) for f in findings] == [("docs/guide.md", "groundbreaking")]
+    result = _cli(repo)
+    assert result.returncode == 1 and "guide.md" in result.stdout and "untracked.md" not in result.stdout
+
+
+def test_relative_subdirectory_is_its_actual_git_scope(tmp_path: Path) -> None:
+    """The API preserves relative spelling while Git subdirectory enumeration confines the selected index scope."""
+    repo = _tracked_repo(tmp_path)
+    _track(repo, "docs/guide.md", (guard.REPO_ROOT / "docs/development.md").read_bytes())
+    _track(repo, "outside.md", b"Groundbreaking control claim.\n")
+    assert scan_repository(repo / "docs") == []
+    relative = Path(os.path.relpath(repo / "docs", Path.cwd()))
+    assert list(iter_scanned_files(relative)) == [relative / "guide.md"]
+    assert scan_repository(relative) == []
+    result = _cli(Path("docs"), cwd=repo)
+    assert result.returncode == 0 and result.stderr == "" and "inspected tracked UTF-8" in result.stdout
+
+
+def test_indexed_symlink_reads_actual_external_target(tmp_path: Path) -> None:
+    """Indexed symlinks follow actual regular-file targets without claiming repository containment."""
+    repo = _tracked_repo(tmp_path)
+    target = tmp_path / "outside-guide.md"
+    target.write_bytes((guard.REPO_ROOT / "docs/development.md").read_bytes() + b"\nGroundbreaking control claim.\n")
+    link = repo / "docs/linked.md"
+    link.parent.mkdir()
+    link.symlink_to(target)
+    _git(repo, "add", "--", "docs/linked.md")
+    findings = scan_repository(repo)
+    assert len(findings) == 1 and findings[0].path == "docs/linked.md" and findings[0].category == "groundbreaking"
+    result = _cli(repo)
+    assert result.returncode == 1 and result.stderr == "" and "docs/linked.md" in result.stdout
+
+
+def test_non_repository_and_missing_git_have_authored_refusals(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """Actual Git exit and executable lookup failures return fixed public refusals without interpreter text."""
+    with pytest.raises(guard.PublicSurfaceScanError, match="^could not enumerate tracked public files$"):
+        scan_repository(tmp_path)
+    assert main(["--repo", str(tmp_path)]) == 2
+    assert capsys.readouterr().out == "FAIL: could not enumerate tracked public files\n"
+    result = _cli(tmp_path)
+    assert result.returncode == 2 and result.stderr == ""
+    assert result.stdout == "FAIL: could not enumerate tracked public files\n"
+    repo = _tracked_repo(tmp_path)
+    empty_path = tmp_path / "no_executables"
+    empty_path.mkdir()
+    result = _cli(repo, env=dict(os.environ, PATH=str(empty_path)))
+    assert (
+        result.returncode == 2
+        and result.stderr == ""
+        and result.stdout == "FAIL: could not enumerate tracked public files\n"
+    )
+
+
+def test_actual_read_denial_refuses_api_and_cli(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """A tracked regular file with denied read permissions aborts inspection without partial success or an OS traceback."""
+    repo = _tracked_repo(tmp_path)
+    target = repo / "README.md"
+    mode = stat.S_IMODE(target.stat().st_mode)
+    target.chmod(0)
+    try:
+        with pytest.raises(guard.PublicSurfaceScanError, match="^could not read tracked public text$"):
+            scan_repository(repo)
+        assert main(["--repo", str(repo)]) == 2
+        assert capsys.readouterr().out == "FAIL: could not read tracked public text\n"
+        result = _cli(repo)
+        assert (
+            result.returncode == 2
+            and result.stderr == ""
+            and result.stdout == "FAIL: could not read tracked public text\n"
+        )
+    finally:
+        target.chmod(mode)
+
+
+def test_actual_parent_search_denial_is_an_inspection_refusal(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """An indexed file inside a genuinely inaccessible directory cannot produce success or leak a stat traceback."""
+    repo = _tracked_repo(tmp_path)
+    _track(repo, "docs/guide.md", (guard.REPO_ROOT / "docs/development.md").read_bytes())
+    parent = repo / "docs"
+    mode = stat.S_IMODE(parent.stat().st_mode)
+    parent.chmod(0)
+    try:
+        with pytest.raises(guard.PublicSurfaceScanError, match="^could not inspect tracked public path$"):
+            scan_repository(repo)
+        assert main(["--repo", str(repo)]) == 2
+        assert capsys.readouterr().out == "FAIL: could not inspect tracked public path\n"
+        result = _cli(repo)
+        assert (
+            result.returncode == 2
+            and result.stderr == ""
+            and result.stdout == "FAIL: could not inspect tracked public path\n"
+        )
+    finally:
+        parent.chmod(mode)
+
+
+def test_looping_root_is_fixed_cli_resolution_refusal(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """A real root symlink loop is refused by both command entrypoints before Git runs."""
+    root = tmp_path / "loop"
+    root.symlink_to(root)
+    assert main(["--repo", str(root)]) == 2
+    assert capsys.readouterr().out == "FAIL: could not resolve public surface repository\n"
+    result = _cli(root)
+    assert (
+        result.returncode == 2
+        and result.stderr == ""
+        and result.stdout == "FAIL: could not resolve public surface repository\n"
+    )
+
+
+def test_native_actual_document_example_and_rendering(tmp_path: Path) -> None:
+    """Execute native documentation against the actual maintained guide and render the owning module with pydoc."""
+    result = doctest.testmod(guard)
+    assert result.failed == 0 and result.attempted == 2
+    html = pydoc.HTMLDoc().docmodule(guard)
+    (tmp_path / "public_surface_hygiene.html").write_text(html, encoding="utf-8")
+    assert "scan_repository" in html and "scan_text" in html and "PublicSurfaceScanError" in html
+
+
+@pytest.mark.parametrize("path", ["validation/physics_traceability.json", "docs/physics_traceability.md"])
+def test_actual_traceability_artifacts_keep_review_paths_private(path: str) -> None:
+    """The real public registry and generated report expose public evidence references without private audit paths."""
+    assert scan_text(path, (guard.REPO_ROOT / path).read_text(encoding="utf-8")) == []

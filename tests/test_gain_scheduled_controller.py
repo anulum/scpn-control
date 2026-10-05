@@ -6,9 +6,12 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Gain scheduled controller tests.
 
+"""Exercise public regime switching and baseline scenario behavior."""
+
 from __future__ import annotations
 
 import numpy as np
+import pytest
 
 from scpn_control.control.gain_scheduled_controller import (
     GainScheduledController,
@@ -20,7 +23,8 @@ from scpn_control.control.gain_scheduled_controller import (
 )
 
 
-def test_regime_detection():
+def test_regime_detection() -> None:
+    """Sustained diagnostic regimes pass through the hysteresis filter."""
     detector = RegimeDetector()
     state = np.zeros(2)
 
@@ -48,7 +52,8 @@ def test_regime_detection():
     assert reg == OperatingRegime.DISRUPTION_MITIGATION
 
 
-def test_bumpless_transfer():
+def test_bumpless_transfer() -> None:
+    """Gains interpolate over the declared switch interval."""
     controllers = {
         OperatingRegime.RAMP_UP: RegimeController(
             OperatingRegime.RAMP_UP,
@@ -90,7 +95,8 @@ def test_bumpless_transfer():
     assert u3[0] == 1.0
 
 
-def test_scenario_waveforms():
+def test_scenario_waveforms() -> None:
+    """The waveform interpolates and holds endpoint values."""
     times = np.array([0, 10, 20])
     values = np.array([0.0, 10.0, 10.0])
     wf = ScenarioWaveform("test", times, values)
@@ -101,7 +107,8 @@ def test_scenario_waveforms():
     assert wf(15.0) == 10.0
 
 
-def test_iter_baseline_schedule():
+def test_iter_baseline_schedule() -> None:
+    """The declared baseline has usable current and heating waveforms."""
     sched = iter_baseline_schedule()
     errors = sched.validate()
     assert len(errors) == 0
@@ -116,7 +123,7 @@ def test_iter_baseline_schedule():
     assert val_455["Ip"] == 6.0
 
 
-def test_gain_schedule_interpolates():
+def test_gain_schedule_interpolates() -> None:
     """Gains vary smoothly between operating points during bumpless transfer.
 
     Rugh & Shamma 2000, Automatica 36, 1401, §3: gain-scheduled controllers
@@ -165,8 +172,8 @@ def test_gain_schedule_interpolates():
     assert np.isclose(kp_samples[-1], float(Kp_flat[0]), atol=1e-9)
 
 
-def test_ramp_down_detection():
-    """Exercise gain_scheduled_controller.py line 102: dIp_dt < -ramp_rate -> RAMP_DOWN."""
+def test_ramp_down_detection() -> None:
+    """A sustained negative current slope selects ramp-down."""
     detector = RegimeDetector()
     state = np.zeros(2)
     dstate = np.array([-0.2, 0.0])  # dIp/dt = -0.2 < -0.1
@@ -175,8 +182,8 @@ def test_ramp_down_detection():
     assert reg == OperatingRegime.RAMP_DOWN
 
 
-def test_disruption_resets_integral():
-    """Exercise gain_scheduled_controller.py line 165: disruption zeros integral_error."""
+def test_disruption_resets_integral() -> None:
+    """Entering disruption mitigation clears accumulated integral error."""
     controllers = {
         OperatingRegime.RAMP_UP: RegimeController(
             OperatingRegime.RAMP_UP,
@@ -209,20 +216,15 @@ def test_disruption_resets_integral():
     assert np.all(gsc.integral_error == 0.0)
 
 
-def test_empty_scenario_duration():
-    """Exercise gain_scheduled_controller.py line 217: empty waveforms -> duration 0."""
+def test_empty_scenario_duration() -> None:
+    """An empty schedule reports zero duration."""
     from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
 
     sched = ScenarioSchedule({})
     assert sched.duration() == 0.0
 
 
-def test_scenario_validate_non_monotonic():
-    """Exercise gain_scheduled_controller.py line 224: non-monotonic times error."""
-    from scpn_control.control.gain_scheduled_controller import ScenarioSchedule
-
-    wf = ScenarioWaveform("bad", np.array([0.0, 5.0, 3.0]), np.array([1.0, 2.0, 3.0]))
-    sched = ScenarioSchedule({"bad": wf})
-    errors = sched.validate()
-    assert len(errors) > 0
-    assert "non-monotonic" in errors[0]
+def test_scenario_validate_non_monotonic() -> None:
+    """A decreasing knot is rejected before a schedule can be built."""
+    with pytest.raises(ValueError, match="strictly increasing"):
+        ScenarioWaveform("bad", np.array([0.0, 5.0, 3.0]), np.array([1.0, 2.0, 3.0]))

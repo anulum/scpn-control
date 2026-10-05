@@ -47,3 +47,16 @@ def test_h_infinity_entries_declare_same_normalized_realization(monkeypatch: pyt
         assert rust_entry["note"] == "same normalized 2-state DGKF realization"
     else:
         assert rust_entry["status"].startswith("unavailable")
+
+
+def test_pid_latency_row_names_the_measured_python_backend() -> None:
+    """The measured PID row must identify the actual canonical Python runtime."""
+    module = _load_benchmark()
+    entries = module._pid_entries(iterations=4, warmup=2)
+    python_entry = next(entry for entry in entries if entry["backend"] == "python")
+    assert python_entry["name"] == "PID"
+    assert python_entry["status"] == "measured"
+    assert python_entry["note"] == "canonical Python PID fallback"
+    assert python_entry["stats"]["n"] == 4
+    assert python_entry["stats"]["p50_us"] > 0.0
+    assert all(entry["backend"] != "numpy" for entry in entries if entry["name"] == "PID")

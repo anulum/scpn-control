@@ -6,16 +6,43 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Benchmark Full Stack.
 
+"""Print three independent local Rust timing probes, without closed-loop or physics admission.
+
+Requires NumPy, the Python controller/compiler stack and a real importable
+``scpn_control_rs`` extension at import time. No build/install/fallback occurs.
+Run from the checkout to select caller-relative ``iter_config.json``; other
+working directories may fail that solver probe while subsequent probes continue.
+The module is classified as stdout-only in the benchmark producer registry.
+No JSON evidence, comparison baseline or facility permission is produced.
+"""
+
 import time
+
 import numpy as np
 import scpn_control_rs as rs
+
 from scpn_control.scpn.compiler import FusionCompiler
-from scpn_control.scpn.contracts import ControlTargets, ControlScales
+from scpn_control.scpn.contracts import ControlScales, ControlTargets
 from scpn_control.scpn.controller import NeuroSymbolicController
 from scpn_control.scpn.structure import StochasticPetriNet
 
 
-def benchmark_full_stack():
+def benchmark_full_stack() -> None:
+    """Print solver wall time, average controller tick latency and a single oscillator call latency.
+
+    The Rust equilibrium probe uses caller-relative iter_config.json, prints
+    returned iterations/residual and does not assert convergence. Its Exception
+    is printed and subsequent probes continue; compiler/controller/oscillator
+    failures propagate. The three probes exchange no solved state or feedback.
+    Controller observations are fixed synthetic values, with ten warmup ticks
+    and 1000 sequential measured ticks using explicit Rust backend/seed42.
+    One Kuramoto call uses 800 phases and frequencies from NumPy's global RNG;
+    the printed L16/N50 label describes their count, not a multilayer topology.
+    Timings use perf_counter, include Python/native call overhead and have no
+    statistical/error bars, scientific validation or controlled regression claim.
+    Each call creates fresh in-memory solver/net/controller state and consumes
+    global random draws; no artifact is saved, external service or actuator used.
+    """
     print("SCPN-CONTROL: Full-Stack Physics Benchmark")
     print("-" * 50)
 
@@ -46,15 +73,19 @@ def benchmark_full_stack():
 
     # Minimal readout config
     readout = {
-        "action_names": ["ctrl"],
-        "pos_places": [net._place_idx["x_R_pos"]],
-        "neg_places": [net._place_idx["x_R_neg"]],
+        "actions": [
+            {
+                "name": "ctrl",
+                "pos_place": net.place_names.index("x_R_pos"),
+                "neg_place": net.place_names.index("x_R_neg"),
+            }
+        ],
         "gains": [1.0],
         "abs_max": [10.0],
         "slew_per_s": [100.0],
     }
     # Dummy injection mapping R_axis_m -> x_R_pos
-    injections = [{"place_id": net._place_idx["x_R_pos"], "source": "R_axis_m", "scale": 1.0, "offset": 0.0}]
+    injections = [{"place_id": net.place_names.index("x_R_pos"), "source": "R_axis_m", "scale": 1.0, "offset": 0.0}]
 
     artifact = compiled_net.export_artifact(
         name="benchmark_artifact", readout_config=readout, injection_config=injections

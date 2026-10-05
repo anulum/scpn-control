@@ -7,18 +7,82 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Kinetic Electron Dual Test.
 
-"""Test both kinetic electron modes on GPU: implicit (A) and reduced mass (B)."""
+"""Compare fixed explicit-JAX and implicit-NumPy kinetic-electron cases.
+
+JAX selects its available device; this script does not require or certify a
+GPU. The two cases use different electron masses, step counts and backends,
+so their elapsed times are not a paired backend performance comparison.
+Importing this module creates no solver and runs no campaign.
+"""
 
 from __future__ import annotations
 
 import json
 import time
 from pathlib import Path
+from typing import TypedDict
 
 import numpy as np
 
 
-def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: int) -> dict:
+class KineticDualResult(TypedDict):
+    """Carry one case's scalar summary and saved code-unit histories.
+
+    chi_i_gB is the producer's mean ion flux divided by R_L_Ti, with nonfinite
+    scalar values replaced by None. History arrays are copied without finite
+    filtering. converged is the solver's flag, not a saturation or facility
+    validation verdict; elapsed_s times run(), excluding construction.
+    """
+
+    label: str
+    chi_i_gB: float | None
+    elapsed_s: float
+    converged: bool
+    phi_rms: list[float]
+    Q_i: list[float]
+    time: list[float]
+
+
+def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: int) -> KineticDualResult:
+    """Run one fresh fixed-grid CBC case and print its saved diagnostics.
+
+    Parameters
+    ----------
+    label
+        Display and returned case name; it does not change the configuration.
+    ke, implicit
+        Kinetic-electron switch and backend selection. implicit=True selects
+        NonlinearGKSolver with its implicit-electron configuration; otherwise
+        JaxNonlinearGKSolver is requested without a NumPy fallback.
+    mass_ratio
+        Dimensionless electron/ion mass ratio passed to NonlinearGKConfig.
+    n_steps
+        Requested solver iterations; histories save every 100 iterations and
+        may end earlier on nonfinite state. No input validation is added here.
+
+    Returns
+    -------
+    KineticDualResult
+        Fresh-run summary, phi RMS, ion-flux and normalized solver-time lists.
+        Grid is128 x 16 x 32 x 16 x 8 with two species; nominal dt 0.05 is CFL-adaptive,
+        so neither sample times nor elapsed_s are a fixed physical duration.
+
+    Raises
+    ------
+    RuntimeError
+        The JAX backend is unavailable under its default no-fallback contract.
+    Exception
+        Backend import, allocation or solver errors propagate. The case may
+        allocate large arrays and does not supply a process timeout.
+
+    Notes
+    -----
+    Timing includes work in run(), including JAX work first triggered there.
+    chi_i_gB is a code-normalized quantity, not an independently calibrated
+    m^2/s measurement. Late growth is a last-quarter endpoint fractional
+    change per saved solver-time span, not a fitted exponential growth rate.
+    The returned flag and finite saved traces do not certify the final state.
+    """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 
@@ -51,6 +115,7 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
         mass_ratio_me_mi=mass_ratio,
     )
     # Implicit electrons use NumPy solver (JAX doesn't have the tridiag solve)
+    solver: NonlinearGKSolver | JaxNonlinearGKSolver
     if implicit:
         from scpn_control.core.gk_nonlinear import NonlinearGKSolver
 
@@ -85,6 +150,15 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
 
 
 def main() -> None:
+    """Run the two original unequal-work cases and overwrite their cwd report.
+
+    Explicit JAX uses mass 1/25 and 5,000 steps; implicit NumPy uses mass 1/400 and
+    200 steps. JAX device printing is best effort, while the explicit case
+    still requires JAX. No CLI options are parsed. Results are written to
+    gpu_results/kinetic_e_dual.json relative to the caller's cwd only after
+    both cases return. JSON histories may contain nonstandard NaN/Infinity;
+    native and filesystem errors propagate. This is a long campaign entrypoint.
+    """
     try:
         import jax
 

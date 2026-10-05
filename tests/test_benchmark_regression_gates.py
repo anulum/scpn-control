@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Tests for benchmark regression admission gates.
 
+"""Historical persisted-gate unit cases and canonical corpus metadata admission tests."""
+
 from __future__ import annotations
 
 import hashlib
@@ -24,6 +26,7 @@ from validation.validate_benchmark_regression_gates import (
 
 
 def _write_json(path: Path, payload: object) -> str:
+    """Write caller-owned JSON bytes and return their exact file digest."""
     path.parent.mkdir(parents=True, exist_ok=True)
     data = json.dumps(payload, indent=2, sort_keys=True).encode("utf-8")
     path.write_bytes(data)
@@ -32,13 +35,13 @@ def _write_json(path: Path, payload: object) -> str:
 
 def _self_digest_payload(payload: dict[str, object], field: str = "payload_sha256") -> dict[str, object]:
     """Return ``payload`` with a canonical self-digest field."""
-
     unsigned = {key: value for key, value in payload.items() if key != field}
     encoded = json.dumps(unsigned, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
     return {**unsigned, field: hashlib.sha256(encoded).hexdigest()}
 
 
 def _report() -> dict[str, object]:
+    """Provide the historical small latency metadata fixture, without claiming a benchmark run."""
     return {
         "claim_status": "local evidence only; not a real-time control-loop guarantee",
         "runtime_metadata": {"machine": "x86_64", "platform": "Linux"},
@@ -48,6 +51,7 @@ def _report() -> dict[str, object]:
 
 
 def _manifest(report_sha256: str, **entry_overrides: object) -> dict[str, object]:
+    """Build the historical gate-schema fixture and apply explicit entry mutations."""
     entry: dict[str, object] = {
         "benchmark_id": "transport.p95_ms",
         "report_uri": "report.json",
@@ -75,6 +79,7 @@ def _manifest(report_sha256: str, **entry_overrides: object) -> dict[str, object
 
 
 def test_benchmark_regression_gate_admits_complete_manifest(tmp_path: Path) -> None:
+    """All required local metadata admits the historical fixture in manifest order."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256))
@@ -89,6 +94,7 @@ def test_benchmark_regression_gate_admits_complete_manifest(tmp_path: Path) -> N
 def test_benchmark_regression_gate_rejects_duplicate_json_keys(
     tmp_path: Path,
 ) -> None:
+    """Ambiguous manifest keys refuse admission before selecting a schema value."""
     manifest = tmp_path / "manifest.json"
     manifest.write_text(
         '{"schema_version":"' + SCHEMA_VERSION + '","schema_version":"' + SCHEMA_VERSION + '"}',
@@ -104,6 +110,7 @@ def test_benchmark_regression_gate_rejects_duplicate_json_keys(
 def test_benchmark_regression_gate_rejects_report_digest_mismatch(
     tmp_path: Path,
 ) -> None:
+    """A referenced report whose raw bytes differ from its declared digest refuses all gates."""
     _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest("0" * 64))
@@ -117,6 +124,7 @@ def test_benchmark_regression_gate_rejects_report_digest_mismatch(
 def test_benchmark_regression_gate_rejects_embedded_self_digest_mismatch(
     tmp_path: Path,
 ) -> None:
+    """Matching file custody does not excuse an inconsistent canonical self-digest."""
     report = _self_digest_payload(_report())
     report["p95_ms"] = 3.6
     report_sha256 = _write_json(tmp_path / "report.json", report)
@@ -132,6 +140,7 @@ def test_benchmark_regression_gate_rejects_embedded_self_digest_mismatch(
 def test_benchmark_regression_gate_rejects_invalid_embedded_self_digest(
     tmp_path: Path,
 ) -> None:
+    """Malformed nested optional self-digests are reported at their exact metadata path."""
     report = {**_report(), "samples": [{"payload_sha256": "z" * 64}]}
     report_sha256 = _write_json(tmp_path / "report.json", report)
     manifest = tmp_path / "manifest.json"
@@ -146,6 +155,7 @@ def test_benchmark_regression_gate_rejects_invalid_embedded_self_digest(
 def test_benchmark_regression_gate_rejects_malformed_report_json(
     tmp_path: Path,
 ) -> None:
+    """A checksummed malformed report refuses structured metadata admission."""
     report = tmp_path / "report.json"
     report.write_text("{", encoding="utf-8")
     manifest = tmp_path / "manifest.json"
@@ -160,6 +170,7 @@ def test_benchmark_regression_gate_rejects_malformed_report_json(
 def test_benchmark_regression_gate_rejects_non_object_report(
     tmp_path: Path,
 ) -> None:
+    """A checksummed array does not qualify as a report object."""
     report_sha256 = _write_json(tmp_path / "report.json", ["not", "an", "object"])
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256))
@@ -173,6 +184,7 @@ def test_benchmark_regression_gate_rejects_non_object_report(
 def test_benchmark_regression_gate_rejects_threshold_regression(
     tmp_path: Path,
 ) -> None:
+    """An observed metric above the declared upper limit refuses admission."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256, max_threshold=3.0))
@@ -186,6 +198,7 @@ def test_benchmark_regression_gate_rejects_threshold_regression(
 def test_benchmark_regression_gate_rejects_metric_replay_mismatch(
     tmp_path: Path,
 ) -> None:
+    """An entry value differing from the referenced metric refuses admission."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256, observed=3.0))
@@ -199,6 +212,7 @@ def test_benchmark_regression_gate_rejects_metric_replay_mismatch(
 def test_benchmark_regression_gate_rejects_unsafe_report_uri(
     tmp_path: Path,
 ) -> None:
+    """Parent traversal is refused before a report can be selected."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256, report_uri="../report.json"))
@@ -211,14 +225,12 @@ def test_benchmark_regression_gate_rejects_unsafe_report_uri(
 
 def test_report_path_rejects_escape_after_resolution(tmp_path: Path) -> None:
     """The report resolver rejects unsafe paths before touching the filesystem."""
-
     with pytest.raises(ValueError, match="unsafe report path escapes report root"):
         _report_path("file:/tmp/report.json", tmp_path)
 
 
 def test_report_path_rejects_symlink_escape_after_resolution(tmp_path: Path) -> None:
     """The report resolver rejects paths that resolve outside the report root."""
-
     outside = tmp_path.parent / f"{tmp_path.name}-outside"
     outside.mkdir()
     link = tmp_path / "linked"
@@ -230,7 +242,6 @@ def test_report_path_rejects_symlink_escape_after_resolution(tmp_path: Path) -> 
 
 def test_value_at_path_rejects_empty_segments() -> None:
     """Dotted report paths must not contain empty path segments."""
-
     with pytest.raises(KeyError):
         _value_at_path({}, "")
 
@@ -238,6 +249,7 @@ def test_value_at_path_rejects_empty_segments() -> None:
 def test_benchmark_regression_gate_rejects_missing_report(
     tmp_path: Path,
 ) -> None:
+    """Absent referenced bytes refuse admission without inventing timing evidence."""
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest("0" * 64))
 
@@ -250,6 +262,7 @@ def test_benchmark_regression_gate_rejects_missing_report(
 def test_benchmark_regression_gate_rejects_invalid_entry_schema(
     tmp_path: Path,
 ) -> None:
+    """Status, units, numeric fields and counters are each checked before report inspection."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(
@@ -279,6 +292,7 @@ def test_benchmark_regression_gate_rejects_invalid_entry_schema(
 def test_benchmark_regression_gate_rejects_nonfinite_observed_metric(
     tmp_path: Path,
 ) -> None:
+    """Nonstandard Infinity tokens refuse JSON decoding before metric selection."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256, observed=float("inf")))
@@ -286,12 +300,13 @@ def test_benchmark_regression_gate_rejects_nonfinite_observed_metric(
     result = validate_benchmark_regression_gates(manifest)
 
     assert result.status == "fail"
-    assert any("observed must be finite" in error for error in result.errors)
+    assert any("nonfinite JSON token" in error for error in result.errors)
 
 
 def test_benchmark_regression_gate_rejects_report_path_and_type_mismatches(
     tmp_path: Path,
 ) -> None:
+    """Referenced metrics, sample counts, claim strings and context have required types."""
     report = {
         "claim_status": 7,
         "runtime_metadata": [],
@@ -315,6 +330,7 @@ def test_benchmark_regression_gate_rejects_report_path_and_type_mismatches(
 def test_benchmark_regression_gate_rejects_missing_dotted_paths(
     tmp_path: Path,
 ) -> None:
+    """Missing or malformed literal metadata paths refuse admission with ordered diagnostics."""
     report = {"runtime_metadata": {"machine": "", "rt_kernel": ""}, "claim_status": "local evidence only"}
     report_sha256 = _write_json(tmp_path / "report.json", report)
     manifest = tmp_path / "manifest.json"
@@ -342,6 +358,7 @@ def test_benchmark_regression_gate_rejects_missing_dotted_paths(
 def test_benchmark_regression_gate_rejects_sample_count_below_minimum(
     tmp_path: Path,
 ) -> None:
+    """A matching counter below the declared minimum refuses admission."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, _manifest(report_sha256, min_sample_count=6))
@@ -355,6 +372,7 @@ def test_benchmark_regression_gate_rejects_sample_count_below_minimum(
 def test_benchmark_regression_gate_rejects_hardware_context_without_identity(
     tmp_path: Path,
 ) -> None:
+    """Hardware metadata needs nonblank machine and platform-or-kernel strings."""
     report = {**_report(), "runtime_metadata": {"machine": "", "platform": "", "rt_kernel": ""}}
     report_sha256 = _write_json(tmp_path / "report.json", report)
     manifest = tmp_path / "manifest.json"
@@ -370,6 +388,7 @@ def test_benchmark_regression_gate_rejects_hardware_context_without_identity(
 def test_benchmark_regression_gate_rejects_overclaimed_report(
     tmp_path: Path,
 ) -> None:
+    """A report without the required literal qualification refuses local metadata admission."""
     report = _report()
     report["claim_status"] = "hardware-in-the-loop real-time guarantee"
     report_sha256 = _write_json(tmp_path / "report.json", report)
@@ -385,6 +404,7 @@ def test_benchmark_regression_gate_rejects_overclaimed_report(
 def test_benchmark_regression_gate_rejects_duplicate_benchmark_id(
     tmp_path: Path,
 ) -> None:
+    """Repeated ids refuse the whole manifest rather than admit duplicate gates."""
     report_sha256 = _write_json(tmp_path / "report.json", _report())
     manifest_payload = _manifest(report_sha256)
     entries = manifest_payload["entries"]
@@ -402,6 +422,7 @@ def test_benchmark_regression_gate_rejects_duplicate_benchmark_id(
 def test_benchmark_regression_gate_rejects_bad_manifest_shape(
     tmp_path: Path,
 ) -> None:
+    """Wrong version, boundary and entry shape refuse the complete gate set."""
     manifest = tmp_path / "manifest.json"
     _write_json(
         manifest,
@@ -427,6 +448,7 @@ def test_benchmark_regression_gate_rejects_bad_manifest_shape(
 def test_benchmark_regression_gate_rejects_empty_entries(
     tmp_path: Path,
 ) -> None:
+    """An empty persisted gate set cannot pass vacuously."""
     manifest = tmp_path / "manifest.json"
     _write_json(
         manifest,
@@ -446,6 +468,7 @@ def test_benchmark_regression_gate_rejects_empty_entries(
 
 
 def test_repository_benchmark_regression_manifest_is_admitted() -> None:
+    """The actual canonical historical corpus satisfies all four persisted metadata gates."""
     result = validate_benchmark_regression_gates()
 
     assert result.status == "pass"
@@ -461,6 +484,7 @@ def test_benchmark_regression_gate_cli_returns_nonzero_for_invalid_manifest(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """The public argv API prints a structured failure and returns one for invalid metadata."""
     manifest = tmp_path / "manifest.json"
     _write_json(manifest, {"schema_version": "wrong"})
 

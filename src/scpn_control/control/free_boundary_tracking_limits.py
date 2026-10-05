@@ -17,6 +17,7 @@ in sibling leaves.
 
 from __future__ import annotations
 
+from numbers import Integral
 from typing import Any, cast
 
 import numpy as np
@@ -83,16 +84,15 @@ def resolve_nonnegative_int(
     default: int,
     name: str,
 ) -> int:
-    """Resolve a non-negative integer from cfg/override/default."""
+    """Resolve an integer step count without coercing booleans, text or floats."""
     raw_value = (
         default
         if override_value is None and cfg_value is None
         else (cfg_value if override_value is None else override_value)
     )
-    value = int(raw_value)
-    if value < 0:
-        raise ValueError(f"{name} must be >= 0.")
-    return value
+    if isinstance(raw_value, bool) or not isinstance(raw_value, Integral) or raw_value < 0:
+        raise ValueError(f"{name} must be a non-negative integer.")
+    return int(raw_value)
 
 
 def resolve_nonnegative_float(
@@ -196,4 +196,4 @@ def resolve_fallback_currents(
         raise ValueError("free_boundary_tracking.fallback_currents must be finite.")
     if np.any(np.abs(values) - coil_current_limits > 1e-12):
         raise ValueError("free_boundary_tracking.fallback_currents must respect CoilSet.current_limits.")
-    return cast(FloatArray, values.copy())
+    return values.copy()

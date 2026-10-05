@@ -113,6 +113,7 @@ class GKSpecies:
     is_adiabatic: bool = False
 
     def __post_init__(self) -> None:
+        """Require positive mass, temperature and density, nonzero charge and finite signed gradients."""
         _require_positive("mass_amu", self.mass_amu)
         _require_nonzero("charge_e", self.charge_e)
         _require_positive("temperature_keV", self.temperature_keV)
@@ -135,7 +136,7 @@ class GKSpecies:
     def larmor_radius(self) -> float:
         """rho_s = m v_th / (|q| B) — requires B to be set externally.
 
-        Returns rho_s / B for later scaling.
+        Returns the coefficient rho_s * B [m*T]; divide by B [T] for rho_s [m].
         """
         return self.mass_kg * self.thermal_speed / (abs(self.charge_e) * _E_CHARGE)
 
@@ -208,6 +209,7 @@ class VelocityGrid:
     n_lambda: int = 24
 
     def __post_init__(self) -> None:
+        """Build original energy and pitch Gauss-Legendre quadrature for integer counts of at least two."""
         self.n_energy = _require_positive_int("n_energy", self.n_energy, minimum=2)
         self.n_lambda = _require_positive_int("n_lambda", self.n_lambda, minimum=2)
         # Gauss-Legendre on [0, E_max] for energy (E_max ~ 6 T)
@@ -289,7 +291,7 @@ def collision_frequencies(
 ) -> tuple[float, float]:
     """Compute deflection and energy-diffusion collision frequencies.
 
-    Returns (nu_D, nu_E) normalised to v_th / R.
+    Returns (nu_D, nu_E) in s^-1; no v_th / R normalisation is applied.
 
     Bounded Sugama-style test-particle coefficients:
       nu_D is the pitch-angle deflection rate.
@@ -324,23 +326,27 @@ def collision_frequencies(
 
 
 def _require_finite(field: str, value: float) -> None:
+    """Require a finite scalar before applying physical-domain constraints."""
     if not np.isfinite(value):
         raise ValueError(f"{field} must be finite")
 
 
 def _require_positive_int(field: str, value: int, *, minimum: int = 1) -> int:
+    """Require a nonboolean integer at or above the declared minimum grid size."""
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise ValueError(f"{field} must be an integer >= {minimum}")
     return value
 
 
 def _require_positive(field: str, value: float) -> None:
+    """Require a finite strictly positive physical parameter."""
     _require_finite(field, value)
     if value <= 0.0:
         raise ValueError(f"{field} must be positive")
 
 
 def _require_nonzero(field: str, value: float) -> None:
+    """Require a finite nonzero signed charge."""
     _require_finite(field, value)
     if value == 0.0:
         raise ValueError(f"{field} must be non-zero")
@@ -351,6 +357,7 @@ def _require_lambda_grid(
     lam: NDArray[np.float64],
     B_ratio: float,
 ) -> tuple[int, NDArray[np.float64], float]:
+    """Validate grid size, shape, finite ordered pitch values and the local trapped-passing boundary."""
     n_lambda = _require_positive_int("n_lambda", n_lambda, minimum=2)
     _require_positive("B_ratio", B_ratio)
     lam_arr = np.asarray(lam, dtype=np.float64)

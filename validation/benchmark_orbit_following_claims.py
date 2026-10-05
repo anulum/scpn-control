@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Orbit-following claim-admission benchmark
 
+"""Publish a fixed bounded model declaration through recorded output custody."""
+
 from __future__ import annotations
 
 import json
@@ -17,13 +19,46 @@ import numpy as np
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.orbit_following import EnsembleResult, first_orbit_loss, orbit_following_claim_evidence
 
-
 REPORT_DIR = Path(__file__).resolve().parent / "reports"
 JSON_REPORT = REPORT_DIR / "orbit_following_claims.json"
 MARKDOWN_REPORT = REPORT_DIR / "orbit_following_claims.md"
 
 
 def main() -> None:
+    """Write a bounded orbit declaration using a loss estimate and fixed count fixture.
+
+    Returns
+    -------
+    None
+        Write orbit_following_claims.json then orbit_following_claims.md in
+        this module's reports directory, UTF-8 with final newlines. JSON uses
+        the defining evidence schema, including the declared ensemble counts.
+
+    Raises
+    ------
+    RuntimeError
+        Persistent paths lack a recorded-campaign identifier.
+    ValueError
+        The identifier or defining geometry/loss/ensemble evidence is refused.
+    OSError
+        Creating the output directory or a sequential write fails. Partial
+        earlier output can remain; there is no atomic multi-file replacement.
+
+    Notes
+    -----
+    No CLI parameters are parsed. first_orbit_loss uses R0=6.2 m, a=2 m,
+    B0=5.3 T, Ip=15 MA and its default alpha birth energy. The separate declared
+    width inputs q=2, rho_L=0.05 m and epsilon=0.25 give the defining banana
+    estimate. A fresh fixed EnsembleResult declares loss fraction 0.2,
+    six passing/two trapped/two lost particles, zero 50-point heating profile
+    and zero driven current. No Monte Carlo trajectories, collision dynamics
+    or particle classification are executed to obtain those fixture counts.
+    Provenance names geometry/birth/Stix/wall fixtures without authenticating
+    their source bytes. No reference is supplied; external_orbit_claim_allowed
+    remains False. Calls share fixed filenames without locks. The guard checks
+    campaign ID syntax/presence; actual recorded wrapper custody is distinct
+    from external orbit-code validation or a scientific reference witness.
+    """
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     loss = first_orbit_loss(R0=6.2, a=2.0, B0=5.3, Ip_MA=15.0)
     ensemble = EnsembleResult(

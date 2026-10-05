@@ -13,6 +13,10 @@ import json
 import os
 import platform
 import shutil
+import subprocess
+import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
@@ -34,7 +38,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 def _begin(records: Path, output: Path, campaign_id: str) -> BenchmarkRun:
     return BenchmarkRun.begin(
-        repository_root=REPO_ROOT,
+        repository_root=records.parent,
         records_root=records,
         family="controller-latency",
         outputs=[BenchmarkOutput("report", output)],
@@ -67,7 +71,9 @@ def test_two_runs_preserve_legacy_and_both_immutable_reports(tmp_path: Path) -> 
     assert first_manifest["artifacts"][0]["sha256"] != second_manifest["artifacts"][0]["sha256"]
     assert len(first_manifest["legacy_inputs"]) == 1
     assert len(second_manifest["legacy_inputs"]) == 1
-    assert Path(first_manifest["legacy_inputs"][0]["archived_path"]).read_text(encoding="utf-8") == '{"generation":0}\n'
+    assert (tmp_path / first_manifest["legacy_inputs"][0]["archived_path"]).read_text(
+        encoding="utf-8"
+    ) == '{"generation":0}\n'
 
     latest, selected = load_verified_latest(records, "controller-latency")
     assert latest["schema_version"] == LATEST_SCHEMA
@@ -81,10 +87,12 @@ def test_campaign_collision_fails_before_output_changes(tmp_path: Path) -> None:
     output = tmp_path / "report.json"
     output.write_text("original", encoding="utf-8")
     records = tmp_path / "records"
-    _begin(records, output, "fixed-campaign")
+    first = _begin(records, output, "fixed-campaign")
 
     with pytest.raises(FileExistsError):
         _begin(records, output, "fixed-campaign")
+    assert not output.exists()
+    first.finish(exit_code=1)
     assert output.read_text(encoding="utf-8") == "original"
 
 
@@ -94,6 +102,7 @@ def test_failed_run_is_preserved_without_advancing_latest(tmp_path: Path) -> Non
     output.write_text("first", encoding="utf-8")
     records = tmp_path / "records"
     first = _begin(records, output, "successful-run")
+    output.write_text("first", encoding="utf-8")
     first.finish(exit_code=0)
 
     failed = _begin(records, output, "failed-run")
@@ -112,6 +121,7 @@ def test_latest_loader_rejects_manifest_tampering(tmp_path: Path) -> None:
     output.write_text("result", encoding="utf-8")
     records = tmp_path / "records"
     run = _begin(records, output, "tamper-target")
+    output.write_text("result", encoding="utf-8")
     manifest = run.finish(exit_code=0)
     manifest.write_text("{}\n", encoding="utf-8")
 
@@ -155,19 +165,22 @@ def test_directory_artifact_is_copied_and_digest_bound(tmp_path: Path) -> None:
     (output / "cpu.json").write_text("cpu", encoding="utf-8")
     records = tmp_path / "records"
     run = BenchmarkRun.begin(
-        repository_root=REPO_ROOT,
+        repository_root=tmp_path,
         records_root=records,
         family="jax-parity",
         outputs=[BenchmarkOutput("parity-artifacts", output)],
         command=["python", "validation/benchmark_jax_gk_parity.py"],
         campaign_id="directory-run",
     )
+    output.mkdir()
     (output / "gpu.json").write_text("gpu", encoding="utf-8")
 
     manifest = json.loads(run.finish(exit_code=0).read_text(encoding="utf-8"))
-    immutable = Path(manifest["artifacts"][0]["immutable_path"])
+    immutable = tmp_path / manifest["artifacts"][0]["immutable_path"]
     assert manifest["artifacts"][0]["kind"] == "directory"
-    assert {path.name for path in immutable.iterdir()} == {"cpu.json", "gpu.json"}
+    assert {path.name for path in immutable.iterdir()} == {"gpu.json"}
+    archived = tmp_path / manifest["legacy_inputs"][0]["archived_path"]
+    assert (archived / "cpu.json").read_text() == "cpu"
 
 
 def test_invalid_identifiers_and_duplicate_roles_fail_before_execution(tmp_path: Path) -> None:
@@ -176,7 +189,7 @@ def test_invalid_identifiers_and_duplicate_roles_fail_before_execution(tmp_path:
         BenchmarkOutput("bad role", tmp_path / "report.json")
     with pytest.raises(ValueError, match="benchmark family"):
         BenchmarkRun.begin(
-            repository_root=REPO_ROOT,
+            repository_root=tmp_path,
             records_root=tmp_path / "records",
             family="bad family",
             outputs=[],
@@ -184,7 +197,7 @@ def test_invalid_identifiers_and_duplicate_roles_fail_before_execution(tmp_path:
         )
     with pytest.raises(ValueError, match="roles must be unique"):
         BenchmarkRun.begin(
-            repository_root=REPO_ROOT,
+            repository_root=tmp_path,
             records_root=tmp_path / "records",
             family="duplicate-role",
             outputs=[BenchmarkOutput("report", tmp_path / "a"), BenchmarkOutput("report", tmp_path / "b")],
@@ -208,7 +221,7 @@ def test_campaign_guard_accepts_valid_id_and_rejects_malformed_id(
 
 def test_directory_artifacts_reject_symlinks(tmp_path: Path) -> None:
     """Directory digests cannot hide mutable content behind a symlink."""
-    output = tmp_path / "artifacts"
+    output = tmp_path / "artifact-output"
     output.mkdir()
     target = tmp_path / "target.json"
     target.write_text("target", encoding="utf-8")
@@ -216,7 +229,7 @@ def test_directory_artifacts_reject_symlinks(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="cannot contain symlinks"):
         BenchmarkRun.begin(
-            repository_root=REPO_ROOT,
+            repository_root=tmp_path,
             records_root=tmp_path / "records",
             family="symlink-rejection",
             outputs=[BenchmarkOutput("directory", output)],
@@ -256,6 +269,7 @@ def test_latest_loader_rejects_schema_escape_and_inadmissible_manifest(tmp_path:
     output.write_text("result", encoding="utf-8")
     records = tmp_path / "records"
     run = _begin(records, output, "latest-validation")
+    output.write_text("result", encoding="utf-8")
     manifest_path = run.finish(exit_code=0)
     latest_path = records / "latest" / "controller-latency.json"
     original_latest = latest_path.read_bytes()
@@ -417,10 +431,277 @@ def test_concurrent_legacy_copy_races_reuse_digest_identical_objects(
 
     monkeypatch.setattr(shutil, "copytree", _raced_copytree)
     BenchmarkRun.begin(
-        repository_root=REPO_ROOT,
+        repository_root=tmp_path,
         records_root=directory_records,
         family="directory-race",
         outputs=[BenchmarkOutput("directory", directory_output)],
         command=["producer"],
         campaign_id="directory-race",
     )
+
+
+def test_noop_run_cannot_promote_preexisting_report(tmp_path: Path) -> None:
+    """A zero exit code must not certify bytes left by an earlier invocation."""
+    output = tmp_path / "report.json"
+    output.write_text('{"result":1}\n', encoding="utf-8")
+    records = tmp_path / "records"
+    run = _begin(records, output, "noop-stale")
+    manifest = json.loads(run.finish(exit_code=0).read_text())
+    assert manifest["status"] == "failed"
+    assert not (records / "latest/controller-latency.json").exists()
+    archived = tmp_path / manifest["legacy_inputs"][0]["archived_path"]
+    assert archived.read_text() == '{"result":1}\n'
+
+
+def test_mixed_new_and_stale_outputs_do_not_advance_latest(tmp_path: Path) -> None:
+    """Every declared output needs current-invocation custody, not just one."""
+    report = tmp_path / "report.json"
+    summary = tmp_path / "summary.md"
+    report.write_text("old report", encoding="utf-8")
+    summary.write_text("old summary", encoding="utf-8")
+    records = tmp_path / "records"
+    run = BenchmarkRun.begin(
+        repository_root=tmp_path,
+        records_root=records,
+        family="mixed-output",
+        outputs=[BenchmarkOutput("report", report), BenchmarkOutput("summary", summary)],
+        command=["documented-test-producer"],
+        campaign_id="mixed-stale",
+    )
+    report.write_text("new report", encoding="utf-8")
+    manifest = json.loads(run.finish(exit_code=0).read_text())
+    assert manifest["status"] == "failed"
+    assert not (records / "latest/mixed-output.json").exists()
+
+
+def test_identical_new_report_is_fresh_despite_unchanged_digest(tmp_path: Path) -> None:
+    """Deterministic rewrites are valid; byte inequality is not freshness."""
+    output = tmp_path / "report.json"
+    output.write_text("deterministic result", encoding="utf-8")
+    records = tmp_path / "records"
+    run = _begin(records, output, "identical-new")
+    output.write_text("deterministic result", encoding="utf-8")
+    manifest = json.loads(run.finish(exit_code=0).read_text())
+    assert manifest["status"] == "succeeded"
+    assert manifest["legacy_inputs"][0]["sha256"] == manifest["artifacts"][0]["sha256"]
+    assert load_verified_latest(records, "controller-latency")[0]["campaign_id"] == run.campaign_id
+
+
+def test_dependency_locks_and_external_output_paths_are_recorded(tmp_path: Path) -> None:
+    """Preserve declared dependency bytes and absolute external output custody."""
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    (repository / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    output = tmp_path / "external.json"
+    run = BenchmarkRun.begin(
+        repository_root=repository,
+        records_root=repository / "records",
+        family="dependency-custody",
+        outputs=[BenchmarkOutput("report", output)],
+        command=["producer"],
+        campaign_id="dependency-run",
+    )
+    output.write_text("result", encoding="utf-8")
+    manifest = json.loads(run.finish(exit_code=0).read_text())
+    assert manifest["dependency_locks"] == ["uv.lock"]
+    assert len(manifest["dependency_lock_sha256"]) == 64
+    assert manifest["artifacts"][0]["source_path"] == str(output)
+
+
+def test_symlink_destination_is_refused_before_displacement(tmp_path: Path) -> None:
+    """Reject aliased output ownership without touching the original target."""
+    target = tmp_path / "target.json"
+    target.write_text("original", encoding="utf-8")
+    output = tmp_path / "output.json"
+    output.symlink_to(target)
+    with pytest.raises(ValueError, match="cannot be symlinks"):
+        _begin(tmp_path / "records", output, "symlink-output")
+    assert output.is_symlink() and target.read_text() == "original"
+
+
+def test_custody_directory_cannot_be_declared_as_producer_output(tmp_path: Path) -> None:
+    """A producer cannot displace its own immutable records directory."""
+    with pytest.raises(ValueError, match="overlap the records root"):
+        _begin(tmp_path / "records", tmp_path / "records/output", "custody-overlap")
+
+
+def test_symlink_created_during_invocation_keeps_reservation_for_recovery(tmp_path: Path) -> None:
+    """An unsealable result cannot release ownership or advance latest."""
+    output = tmp_path / "output.json"
+    run = _begin(tmp_path / "records", output, "unsafe-output")
+    target = tmp_path / "target.json"
+    target.write_text("unowned data", encoding="utf-8")
+    output.symlink_to(target)
+    with pytest.raises(ValueError, match="cannot be symlinks"):
+        run.finish(exit_code=0)
+    assert run.output_lease.marker.exists()
+    assert not (tmp_path / "records/latest/controller-latency.json").exists()
+    output.unlink()
+    assert json.loads(run.finish(exit_code=1).read_text())["status"] == "failed"
+    assert not run.output_lease.marker.exists()
+    assert target.read_text() == "unowned data"
+
+
+@contextmanager
+def _deny_output_removal(path: Path) -> Iterator[None]:
+    """Keep reads available while the OS refuses source deletion and rename."""
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+        create = kernel.CreateFileW
+        create.argtypes = (
+            wintypes.LPCWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.LPVOID,
+            wintypes.DWORD,
+            wintypes.DWORD,
+            wintypes.HANDLE,
+        )
+        create.restype = wintypes.HANDLE
+        close = kernel.CloseHandle
+        close.argtypes = (wintypes.HANDLE,)
+        close.restype = wintypes.BOOL
+        # GENERIC_READ; share read/write but not delete; OPEN_EXISTING.
+        handle = create(str(path), 0x80000000, 3, None, 3, 0x80, None)
+        if handle == ctypes.c_void_p(-1).value:
+            raise ctypes.WinError(ctypes.get_last_error())
+        try:
+            yield
+        finally:
+            if not close(handle):
+                raise ctypes.WinError(ctypes.get_last_error())
+    else:
+        mode = path.parent.stat().st_mode
+        path.parent.chmod(0o555)
+        try:
+            yield
+        finally:
+            path.parent.chmod(mode)
+
+
+def test_failed_second_displacement_restores_first_output(tmp_path: Path) -> None:
+    """An actual filesystem denial must roll back earlier successful moves."""
+    first = tmp_path / "first.json"
+    second = tmp_path / "protected/second.json"
+    second.parent.mkdir()
+    first.write_text("first original", encoding="utf-8")
+    second.write_text("second original", encoding="utf-8")
+    records = tmp_path / "records"
+    outputs = [BenchmarkOutput("first", first), BenchmarkOutput("second", second)]
+    with _deny_output_removal(second), pytest.raises(PermissionError):
+        BenchmarkRun.begin(
+            repository_root=tmp_path,
+            records_root=records,
+            family="rollback",
+            outputs=outputs,
+            command=["producer"],
+            campaign_id="failed-displacement",
+        )
+    assert first.read_text() == "first original"
+    assert second.read_text() == "second original"
+    run_directory = records / "runs/rollback/failed-displacement"
+    assert not (run_directory / "prior-output/first").exists()
+    assert not (run_directory / "manifest.json").exists()
+    assert not (records / "latest/rollback.json").exists()
+    assert not list((tmp_path / "artifacts/benchmarks/output-leases").glob("*.json"))
+    # The released namespaces must remain usable by a subsequent real run.
+    retry = BenchmarkRun.begin(
+        repository_root=tmp_path,
+        records_root=records,
+        family="rollback",
+        outputs=outputs,
+        command=["producer"],
+        campaign_id="retry-displacement",
+    )
+    first.write_text("new first", encoding="utf-8")
+    second.write_text("new second", encoding="utf-8")
+    assert json.loads(retry.finish(exit_code=0).read_text())["status"] == "succeeded"
+
+
+def test_observed_snapshot_creation_detects_changed_source(tmp_path: Path) -> None:
+    """A runtime file observer mutating output cannot replace verified latest."""
+    script = """
+import json
+import sys
+from pathlib import Path
+from scpn_control.benchmark_records import BenchmarkOutput, BenchmarkRun, load_verified_latest
+root = Path(sys.argv[1])
+output = root / "report.json"
+def begin(campaign):
+    "Reserve a public campaign for the filesystem-observer test."
+    return BenchmarkRun.begin(repository_root=root, records_root=root / "records",
+        family="source-stability", outputs=[BenchmarkOutput("report", output)],
+        command=["producer"], campaign_id=campaign)
+first = begin("stable")
+output.write_text("stable original")
+first.finish(exit_code=0)
+run = begin("unstable")
+output.write_text("fresh producer result")
+snapshot = run.run_directory / "artifacts/report.json"
+observed = []
+def observe_creation(event, args):
+    "Change real source bytes when immutable snapshot creation is observed."
+    if event == "open" and args[0] == str(snapshot) and not observed:
+        observed.append(event)
+        output.write_text("changed by a filesystem observer")
+sys.addaudithook(observe_creation)
+try:
+    run.finish(exit_code=0)
+except RuntimeError as error:
+    assert "changed while being sealed" in str(error)
+else:
+    raise AssertionError("mutated source was sealed successfully")
+assert observed == ["open"]
+assert snapshot.read_text() == "fresh producer result"
+assert output.read_text() == "changed by a filesystem observer"
+assert run.output_lease.marker.exists()
+assert not (run.run_directory / "manifest.json").exists()
+assert load_verified_latest(root / "records", "source-stability")[0]["campaign_id"] == "stable"
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path)],
+        env=dict(os.environ, PYTHONPATH=str(REPO_ROOT / "src")),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("recreate", [False, True])
+def test_relative_output_stays_bound_when_working_directory_changes(tmp_path: Path, recreate: bool) -> None:
+    """Changing cwd cannot redirect a reserved output or its recovery path."""
+    first, second = tmp_path / "first", tmp_path / "second"
+    first.mkdir()
+    second.mkdir()
+    (first / "result.json").write_text("original first", encoding="utf-8")
+    (second / "result.json").write_text("unowned second", encoding="utf-8")
+    previous = Path.cwd()
+    try:
+        os.chdir(first)
+        run = BenchmarkRun.begin(
+            repository_root=Path("."),
+            records_root=Path("records"),
+            family="cwd-bound",
+            outputs=[BenchmarkOutput("report", Path("result.json"))],
+            command=["producer"],
+            campaign_id="cwd-change",
+        )
+        if recreate:
+            (first / "result.json").write_text("fresh first", encoding="utf-8")
+        os.chdir(second)
+        manifest = json.loads(run.finish(exit_code=0).read_text())
+    finally:
+        os.chdir(previous)
+    assert manifest["status"] == ("succeeded" if recreate else "failed")
+    assert (second / "result.json").read_text() == "unowned second"
+    assert (first / "result.json").read_text() == ("fresh first" if recreate else "original first")
+    if recreate:
+        artifact = first / manifest["artifacts"][0]["immutable_path"]
+        assert artifact.read_text() == "fresh first"
+    else:
+        assert not (first / "records/latest/cwd-bound.json").exists()
+    assert not run.output_lease.marker.exists()

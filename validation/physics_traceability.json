@@ -45,7 +45,7 @@
     },
     {
       "component": "federated disruption prediction",
-      "equation_contract": "FedAvg/FedProx disruption classifiers must federate per-facility client updates without centralising raw arrays, validate the shared eight-feature disruption contract, clip and noise facility model deltas under a declared Gaussian differential-privacy budget, and preserve a serialisable privacy ledger.",
+      "equation_contract": "FedAvg/FedProx disruption classifiers aggregate finite shape-checked updates from distinct configured facilities with positive integer sample counts and the server learning rate, validate the shared eight-feature contract, clip and noise facility model deltas, and preserve a versioned replay state with a nominal Gaussian ledger. In-process array ingestion and returned facility metrics do not establish remote data isolation or end-to-end differential privacy.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "McMahan et al. 2017 Communication-Efficient Learning of Deep Networks from Decentralized Data",
@@ -53,21 +53,35 @@
         "Dwork and Roth 2014 Algorithmic Foundations of Differential Privacy",
         "Abadi et al. 2016 Deep Learning with Differential Privacy"
       ],
-      "module_path": "src/scpn_control/control/federated_disruption.py",
+      "module_path": "src/scpn_control/control",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
         "Supply measured multi-facility disruption shot databases with immutable provenance manifests before claiming cross-facility predictive validation",
-        "Run the same federation and differential-privacy contracts against those measured facility datasets before deployment claims"
+        "Run the same federation against those measured facility datasets before deployment claims",
+        "Establish a threat model, remote data boundary, complete output accounting, and an independently reviewed privacy proof before claiming end-to-end differential privacy"
       ],
       "unit_contract": "Eight disruption features use declared tokamak control variables: Ip, beta_N, q95, n/n_GW, li, dBp/dt, locked-mode amplitude, and n=1 RMS; labels are binary disruption indicators.",
       "validation_evidence": [
-        "tests/test_federated_disruption.py module-specific federation, array-ingestion, DP-ledger, and benchmark contract tests",
+        "tests/test_federated_disruption.py module-specific federation, array-ingestion, noise-ledger, and benchmark checks; tests/test_federated_round_atomicity.py public failed-round rollback; tests/test_federated_state_contract.py replay and malformed-state rejection; tests/test_federated_client_contract.py distinct facility and learning-rate checks; tests/test_federated_aggregation_contract.py update and numerical guards; tests/test_federated_privacy_contract.py clipping and nominal-accounting guards",
         "validation/benchmark_federated_disruption.py deterministic synthetic multi-facility benchmark",
         "validation/reports/federated_disruption_benchmark.json synthetic report with explicit claim boundary"
       ],
       "evidence_paths": [
         "src/scpn_control/control/federated_disruption.py",
+        "src/scpn_control/control/_federated_model.py",
+        "src/scpn_control/control/_federated_privacy.py",
+        "src/scpn_control/control/_federated_clients.py",
+        "src/scpn_control/control/_federated_server.py",
+        "src/scpn_control/control/_federated_config.py",
+        "src/scpn_control/control/_federated_benchmark.py",
+        "src/scpn_control/control/_federated_state.py",
+        "src/scpn_control/control/_federated_aggregation.py",
         "tests/test_federated_disruption.py",
+        "tests/test_federated_round_atomicity.py",
+        "tests/test_federated_state_contract.py",
+        "tests/test_federated_client_contract.py",
+        "tests/test_federated_aggregation_contract.py",
+        "tests/test_federated_privacy_contract.py",
         "validation/benchmark_federated_disruption.py",
         "validation/reports/federated_disruption_benchmark.json",
         "validation/reports/federated_disruption_benchmark.md",
@@ -75,9 +89,17 @@
         "docs/validation.md"
       ],
       "covered_source_paths": [
-        "src/scpn_control/control/federated_disruption.py"
+        "src/scpn_control/control/federated_disruption.py",
+        "src/scpn_control/control/_federated_model.py",
+        "src/scpn_control/control/_federated_privacy.py",
+        "src/scpn_control/control/_federated_clients.py",
+        "src/scpn_control/control/_federated_server.py",
+        "src/scpn_control/control/_federated_config.py",
+        "src/scpn_control/control/_federated_benchmark.py",
+        "src/scpn_control/control/_federated_state.py",
+        "src/scpn_control/control/_federated_aggregation.py"
       ],
-      "validity_domain": "Synthetic multi-facility federation and facility-level DP accounting evidence only; no measured cross-facility disruption database validation claim.",
+      "validity_domain": "Synthetic in-process multi-facility federation and nominal Gaussian update-noise evidence only; no measured cross-facility disruption database validation, remote data isolation, or end-to-end differential-privacy claim.",
       "external_validation_tracker_issue": 52
     },
     {
@@ -260,7 +282,7 @@
         "tests/test_jax_gk_solver.py local-dispersion parity, stiffness, fail-closed, and bounded chi_i-profile closure checks",
         "tests/test_jax_gk_parity_validation.py schema-versioned artifact digest, case-parameter digest, mode-spectrum, and required case/backend admission checks",
         "validation/benchmark_jax_gk_parity.py strict persisted multi-case backend parity artifact producer",
-        "validation/validate_jax_gk_parity.py strict persisted backend parity artifact gate with named case and backend coverage requirements",
+        "validation/validate_jax_gk_parity.py persisted declaration gate with finite JSON/numeric refusal, digest/drift/ordered-spectrum checks and named case/backend coverage; no device authentication or solver replay",
         "source-level native local-dispersion parity contract",
         "validation/reports/jax_gk_parity/cyclone_base_case_cpu_cpu.json CPU parity artifact with canonical payload digest",
         "validation/reports/jax_gk_parity/tem_kinetic_electron_cpu_cpu.json CPU parity artifact with kinetic-electron TEM mode-spectrum contract",
@@ -546,17 +568,17 @@
     },
     {
       "component": "real-time EFIT-lite equilibrium reconstruction",
-      "equation_contract": "Real-time equilibrium reconstruction claims must declare the Grad-Shafranov forward solve (fixed-boundary five-point Delta-star operator with polynomial p-prime and FF-prime source profiles), the least-squares response-function inverse (Tikhonov-regularised weighted least-squares over the p-prime/FF-prime basis with an outer Picard loop over the normalised-flux geometry, reporting the measured chi-squared, iteration count, and plasma current recovered from the fitted flux rather than forced), the optional free-boundary mode (per-coil toroidal Green's-function flux columns with a von Hagenow free-space boundary condition and a joint coil-current least-squares fit), diagnostic response interpolation, macroscopic-shape extraction from the boundary contour, diagnostic provenance, matched-reference source, psi/Ip/q95/beta_pol/li tolerances, and facility-claim admission status.",
+      "equation_contract": "Real-time equilibrium reconstruction claims must declare the Grad-Shafranov forward solve (fixed-boundary five-point Delta-star operator with polynomial p-prime and FF-prime source profiles), the least-squares response-function inverse (Tikhonov-regularised weighted least-squares over the p-prime/FF-prime basis with an outer Picard loop over the normalised-flux geometry, reporting the measured chi-squared, iteration count, Picard termination status and final relative flux change, and plasma current recovered from the fitted flux rather than forced), the optional free-boundary mode (per-coil toroidal Green's-function flux columns with a von Hagenow free-space boundary condition and a joint coil-current least-squares fit), diagnostic response interpolation, macroscopic-shape extraction from the boundary contour, a bounded local quadratic X-point saddle estimate with no separatrix certification, finite inverse configuration and diagnostic weights, diagnostic provenance, caller-declared reference labels and psi/Ip/q95/beta_pol/li comparisons, and a fail-closed facility-claim status until independent source bytes and a fixed comparison convention are verified.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Lao et al. 1985 EFIT equilibrium reconstruction",
         "Strait et al. 2019 real-time EFIT workflow references",
         "Repository GEQDSK and magnetic-diagnostic validation contracts"
       ],
-      "module_path": "src/scpn_control/control/realtime_efit.py",
+      "module_path": "src/scpn_control/control",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
-        "Validate reconstructed psi, Ip, q95, beta_pol, and li against matched EFIT or P-EFIT equilibria before facility claims",
+        "Bind independently obtained EFIT or P-EFIT source bytes and shot/time/diagnostic provenance by digest, then compare reconstructed psi, Ip, q95, beta_pol, and li with fixed conventions and tolerances before facility claims",
         "Replace synthetic diagnostic-response evidence with measured flux-loop, B-probe, and Rogowski artefacts when facility data are available"
       ],
       "unit_contract": "SI metres, webers per radian, tesla, amperes, pascals per weber, FF-prime units, and dimensionless q95, beta_pol, li, elongation, and triangularity.",
@@ -564,29 +586,47 @@
         "tests/test_realtime_efit.py fixed-boundary and free-boundary least-squares inverse closure (psi, coil-current, and recovered-Ip recovery) and diagnostic reconstruction checks",
         "tests/test_kinetic_efit.py kinetic EFIT integration checks",
         "tests/test_validate_real_shots_equilibrium.py GEQDSK source residual checks",
-        "tests/test_realtime_efit.py claim-evidence provenance, matched-reference admission, and invalid-reference checks",
+        "tests/test_realtime_efit_claim_source.py public self-reference and forged-facility refusal; tests/test_realtime_efit_convergence.py Picard termination status; tests/test_realtime_efit.py bounded evidence and invalid-reference checks",
         "validation/benchmark_efit_lite_claims.py bounded synthetic EFIT-lite claim-admission benchmark",
-        "validation/reports/efit_lite_claims.json bounded synthetic EFIT-lite claim report"
+        "validation/reports/efit_lite_claims.json bounded synthetic EFIT-lite claim report",
+        "tests/test_realtime_efit_topology.py local flux-saddle estimate and refusal of flat, elliptic, malformed, and unrepresentable fields",
+        "tests/test_realtime_efit_parameters.py public inverse configuration, nonfinite observation, and derived-weight refusal"
       ],
       "evidence_paths": [
         "src/scpn_control/control/realtime_efit.py",
+        "src/scpn_control/control/realtime_efit_contracts.py",
+        "src/scpn_control/control/realtime_efit_claims.py",
+        "src/scpn_control/control/realtime_efit_diagnostics.py",
+        "src/scpn_control/control/realtime_efit_solver.py",
+        "src/scpn_control/control/realtime_efit_runtime.py",
         "tests/test_realtime_efit.py",
+        "tests/test_realtime_efit_claim_source.py",
+        "tests/test_realtime_efit_convergence.py",
         "tests/test_kinetic_efit.py",
         "tests/test_validate_real_shots_equilibrium.py",
         "validation/benchmark_efit_lite_claims.py",
         "validation/reports/efit_lite_claims.json",
         "validation/reports/efit_lite_claims.md",
-        "docs/benchmarks.md"
+        "docs/benchmarks.md",
+        "src/scpn_control/control/realtime_efit_topology.py",
+        "tests/test_realtime_efit_topology.py",
+        "tests/test_realtime_efit_parameters.py"
       ],
       "covered_source_paths": [
-        "src/scpn_control/control/realtime_efit.py"
+        "src/scpn_control/control/realtime_efit.py",
+        "src/scpn_control/control/realtime_efit_contracts.py",
+        "src/scpn_control/control/realtime_efit_claims.py",
+        "src/scpn_control/control/realtime_efit_diagnostics.py",
+        "src/scpn_control/control/realtime_efit_solver.py",
+        "src/scpn_control/control/realtime_efit_runtime.py",
+        "src/scpn_control/control/realtime_efit_topology.py"
       ],
-      "validity_domain": "Fixed-boundary and free-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; closure-validated against synthetic diagnostics only; not a substitute for facility-grade EFIT or P-EFIT validation unless matched reference evidence passes the strict admission gate.",
+      "validity_domain": "Fixed-boundary and free-boundary EFIT-lite regression and real-time control prototyping plus bounded claim-admission evidence; closure-validated against synthetic diagnostics only; not a substitute for facility-grade EFIT or P-EFIT validation while independent byte-pinned matched references and fixed comparison conventions are unavailable.",
       "external_validation_tracker_issue": 48
     },
     {
       "component": "disruption-risk heuristic baseline",
-      "equation_contract": "predict_disruption_risk claims must declare that the score is a deterministic fixed-weight logistic combination of thermal-quench and toroidal-asymmetry features (n=1,2,3 mode amplitudes) with a hand-chosen logit bias, not a model trained or fitted on a real disruption database, and must declare the feature vector contract and the synthetic sanity-check provenance.",
+      "equation_contract": "predict_disruption_risk claims must declare that the score is a deterministic fixed-weight logistic combination of signal and caller-supplied toroidal-asymmetry features (n=1,2,3 mode amplitudes) with a hand-chosen logit bias and no diagnostic-source verification; it is not a model trained or fitted on a real disruption database. Synthetic unit tests are the only admitted validation evidence; the blocked MAST campaign01 real-shot evaluation of this heuristic reports AUC 0.535 and FPR 0.607 at threshold 0.65, so no shot-level or facility ROC claim is admitted.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Hand-chosen fixed-weight logistic heuristic over toroidal-asymmetry observables",
@@ -601,12 +641,15 @@
       "unit_contract": "Dimensionless risk in [0, 1]; mode amplitudes and asymmetry features dimensionless; logit bias dimensionless.",
       "validation_evidence": [
         "tests/test_disruption_predictor.py heuristic feature-vector and bounded-output checks",
-        "tests/test_disruption_predictor_claim_boundary.py machine-readable claim-boundary and public-surface checks",
-        "validation/reports/disruption_replay_pipeline_benchmark.md synthetic sanity-check provenance"
+        "tests/test_disruption_predictor_pure.py synthetic feature, bounded-output, monotonicity and determinism checks",
+        "tests/test_disruption_predictor_claim_boundary.py machine-readable claim-boundary and public-surface checks"
       ],
       "evidence_paths": [
         "src/scpn_control/control/disruption_predictor.py",
+        "src/scpn_control/control/disruption_risk_claims.py",
+        "src/scpn_control/control/disruption_physics_proxies.py",
         "tests/test_disruption_predictor.py",
+        "tests/test_disruption_predictor_pure.py",
         "tests/test_disruption_predictor_claim_boundary.py"
       ],
       "covered_source_paths": [
@@ -654,27 +697,28 @@
     },
     {
       "component": "halo current and runaway electron disruption model",
-      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, ensemble uncertainty assumptions, ITER-limit summaries, strict disruption-reference admission, and claim status.",
+      "equation_contract": "Post-disruption claims must declare the halo L/R circuit, contact fraction, toroidal peaking factor, current-quench waveform, Connor-Hastie primary generation, Rosenbluth-Putvinski avalanche generation, ensemble uncertainty assumptions, ITER-limit summaries, fail-closed disruption-reference admission, and claim status.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Fitzpatrick 2002 halo current and error-field interaction",
         "Connor and Hastie 1975 runaway electron generation",
         "Rosenbluth and Putvinski 1997 avalanche generation"
       ],
-      "module_path": "src/scpn_control/control/halo_re_physics.py",
+      "module_path": "src/scpn_control/control",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
         "Validate halo current and runaway-current envelopes against measured disruption databases before mitigation claims",
         "Attach wall-contact geometry and impurity-radiation evidence before extrapolating beyond the declared ensemble domain",
-        "Persist ensemble seed, run count, halo/runaway P95 metrics, toroidal-peaking-factor summary, reference source, tolerances, errors, and admission status before promoted mitigation claims"
+        "Persist ensemble seed, run count, halo/runaway P95 metrics, toroidal-peaking-factor summary, reference source, tolerances, errors, and admission status before promoted mitigation claims",
+        "Independently recompute comparison metrics from source data and bind them to the ensemble before admitting mitigation claims"
       ],
       "unit_contract": "SI amperes, mega-amperes, seconds, milliseconds, ohms, henries, metres, volts per metre, rates per second, and meganewtons per metre.",
       "validation_evidence": [
-        "tests/test_halo_re_physics.py halo-current, runaway-electron, ensemble, fail-closed claim evidence, and strict reference-admission regression checks",
+        "tests/test_halo_re_physics.py model and time-boundary tests; tests/test_disruption_ensemble.py deterministic ensemble and metadata-rejection tests; tests/test_disruption_claim_independence.py public forged-claim rejection",
         "tests/test_halo_nonfinite_guards.py non-finite guard checks",
         "tests/test_halo_validation_paths.py validation-path guard checks",
         "validation/benchmark_disruption_mitigation_claims.py deterministic bounded halo/runaway claim-admission benchmark",
-        "validation/validate_disruption_reference.py strict disruption reference artifact gate",
+        "validation/validate_disruption_reference.py provenance and declared-metric metadata validator; it does not independently recompute comparisons",
         "validation/validate_runaway_electron.py validates the Connor-Hastie critical and Dreicer fields, the collision and avalanche time constants, the impurity-aware critical field, and the Rosenbluth-Putvinski avalanche growth rate (threshold, linearity, and RMP deconfinement) against exact closed forms, with tamper-evident sealed evidence",
         "tests/test_runaway_electron_validation.py critical-field, Dreicer, avalanche-rate, threshold, linearity, scaling, and evidence-seal checks",
         "validation/validate_halo_current.py validates the Fitzpatrick halo L/R circuit (halo resistance, halo inductance, mutual inductance, and L/R time constant), the halo-resistance scaling laws, the electromagnetic wall force and toroidal-peaking product, and the fast-circuit quasi-static tracking limit against exact closed forms, with tamper-evident sealed evidence",
@@ -699,9 +743,19 @@
         "validation/validate_halo_current.py",
         "validation/reports/halo_current.json",
         "validation/reports/halo_current.md",
-        "tests/test_halo_current_validation.py"
+        "tests/test_halo_current_validation.py",
+        "src/scpn_control/control/_disruption_claims.py",
+        "src/scpn_control/control/_disruption_ensemble.py",
+        "src/scpn_control/control/_halo_current_model.py",
+        "src/scpn_control/control/_runaway_electron_model.py",
+        "tests/test_disruption_claim_independence.py",
+        "tests/test_disruption_ensemble.py"
       ],
       "covered_source_paths": [
+        "src/scpn_control/control/_disruption_claims.py",
+        "src/scpn_control/control/_disruption_ensemble.py",
+        "src/scpn_control/control/_halo_current_model.py",
+        "src/scpn_control/control/_runaway_electron_model.py",
         "src/scpn_control/control/halo_re_physics.py"
       ],
       "evidence": [
@@ -712,10 +766,46 @@
         "validation/validate_halo_current.py schema-versioned digest-bound Fitzpatrick halo L/R circuit, scaling-law, wall-force, TPF, and quasi-static-tracking validator",
         "validation/reports/halo_current.json sealed exact-closed-form halo-circuit and quasi-static evidence",
         "validation/reports/halo_current.md human-readable halo-circuit, load, and quasi-static-tracking summary",
-        "tests/test_halo_current_validation.py halo-circuit, scaling, wall-force, TPF, quasi-static, configuration-guard, and tamper checks"
+        "tests/test_halo_current_validation.py halo-circuit, scaling, wall-force, TPF, quasi-static, configuration-guard, and tamper checks",
+        "The static reference metadata validator is insufficient for admission; the public claim builder, assertion, and saver reject unverified promotion"
       ],
       "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence, with the production Connor-Hastie critical and Dreicer fields, collision and avalanche time constants, impurity-aware critical field, Rosenbluth-Putvinski avalanche growth rate, and the Fitzpatrick halo L/R circuit (halo resistance, inductance, mutual inductance, time constant, scaling laws, wall force, toroidal-peaking product, and fast-circuit quasi-static tracking) now validated against their exact closed forms to machine precision; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 52
+    },
+    {
+      "component": "NMPC configuration and RTI evidence contract",
+      "equation_contract": "The six-state, three-input nonlinear MPC configuration declares finite state/input bounds, positive-definite costs, slew limits, backend choice, and a finite RTI residual tolerance. A DARE terminal weight or 10Q fallback alone does not prove recursive feasibility or facility safety.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Felici et al. 2011 real-time tokamak model predictive control",
+        "Diehl et al. 2005 real-time iteration scheme"
+      ],
+      "module_path": "src/scpn_control/control",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Validate closed-loop feasibility and stability against independently sourced plasma trajectories before facility claims",
+        "Measure RTI timing on the declared isolated target hardware with solver and actuator admission evidence"
+      ],
+      "unit_contract": "State vector uses MA, dimensionless beta and q, keV, and 10^19 m^-3; inputs use MW, MA, and 10^20 s^-1; RTI latency uses milliseconds.",
+      "validation_evidence": [
+        "tests/test_nmpc_controller.py public solver and RTI behavior",
+        "tests/test_nmpc_claim_source.py bounded RTI admission and state-atomicity checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/nmpc_types.py",
+        "src/scpn_control/control/nmpc_controller.py",
+        "tests/test_nmpc_controller.py",
+        "tests/test_nmpc_claim_source.py",
+        "docs/api.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/nmpc_types.py"
+      ],
+      "evidence": [
+        "Local review established finite RTI tolerance and fail-closed solver admission; hardware and external plant evidence remain absent"
+      ],
+      "validity_domain": "Bounded software configuration and RTI result records for the declared six-state tokamak model; no recursive-feasibility, plant, hardware, or facility certification.",
+      "external_validation_tracker_issue": 51
     },
     {
       "component": "direct free-boundary tracking controller",
@@ -730,23 +820,30 @@
       "module_path": "src/scpn_control/control/free_boundary_tracking.py",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
-        "Attach strict documented public, measured-replay, or external equilibrium benchmark artifacts before facility-control claims",
+        "Independently verify documented public, measured-replay, or external equilibrium reference bytes and replayed metrics before facility-control claims",
         "Attach actuator, latency, and sensor-calibration evidence for the target device before deployment claims"
       ],
       "unit_contract": "SI coil currents, metres, webers per radian, seconds, amperes per second, objective-space residuals, and dimensionless supervisor gains.",
       "validation_evidence": [
         "tests/test_free_boundary_tracking.py controller, disturbance-observer, and controller-to-claim pipeline checks",
-        "tests/test_free_boundary_tracking_claims.py fail-closed claim-evidence validation, reference-artifact admission, and persistence checks",
+        "tests/test_free_boundary_tracking_claims.py bounded claim-evidence validation, caller-declared reference refusal, and persistence checks",
+        "tests/test_free_boundary_tracking_control_law.py finite coil-correction and solver-failure checks",
+        "tests/test_free_boundary_tracking_control_law_diagnostics.py response, mask, and headroom checks",
+        "tests/test_free_boundary_tracking_control_law_admission.py malformed coil-correction refusal checks",
         "tests/test_free_boundary_tracking_variants.py actuator, observer, latency, and supervisor edge-path checks",
         "tests/test_free_boundary_tracking_acceptance.py deterministic acceptance campaign",
-        "validation/validate_free_boundary_reference.py strict free-boundary reference artifact gate",
-        "validation/benchmark_free_boundary_tracking_claims.py bounded claim-admission benchmark"
+        "validation/validate_free_boundary_reference.py reference metadata validator",
+        "validation/benchmark_free_boundary_tracking_claims.py bounded claim benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/control/free_boundary_tracking.py",
         "src/scpn_control/control/free_boundary_tracking_claims.py",
+        "src/scpn_control/control/free_boundary_tracking_control_law.py",
         "tests/test_free_boundary_tracking.py",
         "tests/test_free_boundary_tracking_claims.py",
+        "tests/test_free_boundary_tracking_control_law.py",
+        "tests/test_free_boundary_tracking_control_law_diagnostics.py",
+        "tests/test_free_boundary_tracking_control_law_admission.py",
         "tests/test_free_boundary_tracking_variants.py",
         "tests/test_free_boundary_tracking_acceptance.py",
         "validation/free_boundary_tracking_acceptance.py",
@@ -758,7 +855,7 @@
       "covered_source_paths": [
         "src/scpn_control/control/free_boundary_tracking.py"
       ],
-      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression plus fail-closed claim-admission evidence; not commissioned facility-control validation unless strict reference artifacts pass declared tolerances.",
+      "validity_domain": "Kernel-in-the-loop deterministic free-boundary tracking regression plus bounded claim evidence. Caller-declared reference digests and metrics do not establish artifact-byte provenance or replay validity; facility-control admission remains blocked pending independent reference verification and device-specific evidence.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -896,14 +993,14 @@
     },
     {
       "component": "disruption mitigation contract layer",
-      "equation_contract": "Disruption-contract claims must declare synthetic disruption signal generation, toroidal-mode amplitudes, mitigation-cocktail coupling, impurity transport response, halo/runaway post-disruption response, TBR equivalence scaling, and RL action bias assumptions.",
+      "equation_contract": "Disruption-contract claims must declare synthetic disruption signal generation, toroidal-mode amplitudes, mitigation-cocktail coupling, impurity transport response, halo/runaway post-disruption response, TBR equivalence scaling, and RL action bias assumptions. Proxy inputs and derived results require finite numeric admission. Labelled-shot replay uses a deterministic SPI decision and requires a Boolean label with a coherent integer disruption index and at least one sample after the predictor window.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Pautasso et al. 2017 disruption current-quench constraints",
         "Riccardo et al. 2010 halo-current rise-time references",
         "Abdou et al. 2015 blanket neutronics calibration references"
       ],
-      "module_path": "src/scpn_control/control/disruption_contracts.py",
+      "module_path": "src/scpn_control/control",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
         "Replace synthetic disruption signals with measured labelled disruption windows before predictive claims",
@@ -917,6 +1014,9 @@
         "validation/validate_disruption_reference.py strict disruption reference artifact gate"
       ],
       "evidence_paths": [
+        "src/scpn_control/control/_disruption_episode_physics.py",
+        "src/scpn_control/control/_disruption_episode_runtime.py",
+        "src/scpn_control/control/_disruption_shot_replay.py",
         "src/scpn_control/control/disruption_contracts.py",
         "tests/test_disruption_contracts.py",
         "tests/test_disruption_contracts_pure.py",
@@ -925,14 +1025,45 @@
         "docs/validation.md"
       ],
       "covered_source_paths": [
+        "src/scpn_control/control/_disruption_episode_physics.py",
+        "src/scpn_control/control/_disruption_episode_runtime.py",
+        "src/scpn_control/control/_disruption_shot_replay.py",
         "src/scpn_control/control/disruption_contracts.py"
       ],
       "validity_domain": "Contract-level disruption-mitigation scenario regression; not measured-shot disruption prediction or mitigation qualification.",
       "external_validation_tracker_issue": 52
     },
     {
+      "component": "disruption per-window risk-series scorer",
+      "equation_contract": "Fixed-weight disruption scoring uses a dBdt history window ending before the scored sample, clipped n=1/n=2 toroidal amplitudes, and an n=3 amplitude approximated as 0.4*n=2. Finite one-dimensional equal-length channels, a complete window and at least one scored sample are required; derived asymmetry and predictor risk must remain finite.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Repository per-window disruption risk-scoring convention shared with disruption_contracts.run_real_shot_replay",
+        "n=3 toroidal amplitude bounded approximation 0.4 * n=2 (no dedicated n=3 diagnostic channel)"
+      ],
+      "module_path": "src/scpn_control/control/_disruption_risk_series.py",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Replace the n=3-from-n=2 bounded approximation with a measured n=3 toroidal diagnostic channel when available",
+        "Validate the fixed-weight scoring convention against measured labelled disruption windows before any predictive claim"
+      ],
+      "unit_contract": "dBdt in gauss per second, dimensionless toroidal mode amplitudes clipped to [0, 10], and dimensionless risk in [0, 1].",
+      "validation_evidence": [
+        "tests/test_disruption_roc.py scorer and real-shot replay consistency checks"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/_disruption_risk_series.py",
+        "tests/test_disruption_roc.py"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/_disruption_risk_series.py"
+      ],
+      "validity_domain": "Internal fixed-weight disruption risk scoring with an approximated n=3 toroidal channel; not a facility-validated disruption-prediction claim.",
+      "external_validation_tracker_issue": 52
+    },
+    {
       "component": "disruption ROC scoring and warning-time core",
-      "equation_contract": "Disruption ROC-core claims must declare the per-window risk-scoring convention (the dBdt signal window plus n=1/n=2 toroidal observables with the n=3 amplitude as a bounded 0.4*n=2 approximation and a toroidal-amplitude clip), the endpoint-forced FPR-sorted trapezoidal AUC assembly, and the warning-time convention that an alarm on a disruptive shot is a true positive only if it fires strictly before the labelled disruption sample.",
+      "equation_contract": "Disruption ROC-core claims must declare the per-window risk-scoring convention (the dBdt signal window plus n=1/n=2 toroidal observables with the n=3 amplitude as a bounded 0.4*n=2 approximation and a toroidal-amplitude clip), the endpoint-forced FPR-sorted trapezoidal AUC assembly over a cohort with both labels, and the warning-time convention that an alarm on a disruptive shot is a true positive only if it fires strictly before the labelled disruption sample.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Repository per-window disruption risk-scoring convention shared with disruption_contracts.run_real_shot_replay",
@@ -950,6 +1081,7 @@
         "tests/test_disruption_roc.py ROC, scoring, and warning-time unit checks"
       ],
       "evidence_paths": [
+        "src/scpn_control/control/_disruption_risk_series.py",
         "src/scpn_control/control/disruption_roc.py",
         "tests/test_disruption_roc.py"
       ],
@@ -1180,10 +1312,10 @@
         "ITER Physics Basis 1999 flat-top flux-budget references",
         "Repository fail-closed volt-second claim-admission contract"
       ],
-      "module_path": "src/scpn_control/control/volt_second_manager.py",
+      "module_path": "src/scpn_control/control",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
-        "Attach strict documented public, measured loop-voltage replay, or external scenario benchmark artifacts before scenario-duration claims",
+        "Bind independent byte-pinned reference artifacts, source/shot/time provenance, and recomputed comparison metrics before scenario-duration or facility claims",
         "Replace bootstrap-current proxy with neoclassical or transport-solver evidence before facility extrapolation"
       ],
       "unit_contract": "SI webers, volt-seconds, henries, ohms, amperes, mega-amperes, seconds, metres, normalised profile radius, and dimensionless Ejima coefficient.",
@@ -1204,10 +1336,18 @@
         "validation/validate_volt_second.py",
         "validation/reports/volt_second.json",
         "validation/reports/volt_second.md",
-        "tests/test_volt_second_validation.py"
+        "tests/test_volt_second_validation.py",
+        "src/scpn_control/control/volt_second_core.py",
+        "src/scpn_control/control/volt_second_claims.py",
+        "src/scpn_control/control/volt_second_profiles.py",
+        "src/scpn_control/control/volt_second_runtime.py"
       ],
       "covered_source_paths": [
-        "src/scpn_control/control/volt_second_manager.py"
+        "src/scpn_control/control/volt_second_manager.py",
+        "src/scpn_control/control/volt_second_core.py",
+        "src/scpn_control/control/volt_second_claims.py",
+        "src/scpn_control/control/volt_second_profiles.py",
+        "src/scpn_control/control/volt_second_runtime.py"
       ],
       "evidence": [
         "validation/validate_volt_second.py schema-versioned digest-bound inductive, Ejima, resistive, flat-top-closure, decomposition, integrator, optimiser, and scaling validator",
@@ -1215,7 +1355,7 @@
         "validation/reports/volt_second.md human-readable flux-relation, optimiser, and margin summary",
         "tests/test_volt_second_validation.py flux-relation, decomposition, integrator, optimiser, scaling, configuration-guard, and tamper checks"
       ],
-      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence, with the production inductive flux, Ejima startup flux, resistive ramp integral, flat-top budget closure, scenario flux decomposition, consumption integrator, linear ramp optimiser, and inductive/Ejima scaling laws now validated against their exact closed forms to machine precision; not a validated pulse-design or central-solenoid commissioning model unless strict reference artifacts pass declared tolerances.",
+      "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence, with the production inductive flux, Ejima startup flux, resistive ramp integral, flat-top budget closure, scenario flux decomposition, consumption integrator, linear ramp optimiser, and inductive/Ejima scaling laws now validated against their exact closed forms to machine precision; not a validated pulse-design or central-solenoid commissioning model while the current structural reference validator has no independent byte-pinned source and recomputed metrics.",
       "external_validation_tracker_issue": 51
     },
     {
@@ -1230,7 +1370,7 @@
         "Abramowitz and Stegun 1965 Bessel functions",
         "repository integrated transport solver contract"
       ],
-      "module_path": "src/scpn_control/core/integrated_transport_solver.py",
+      "module_path": "src/scpn_control/core",
       "public_claim_allowed": false,
       "claim_admission_requirements": [
         "Validate radial transport profiles against a measured discharge or published integrated-modelling benchmark",
@@ -1260,10 +1400,14 @@
         "validation/reports/code_to_code_benchmark.md",
         "tests/test_code_to_code_benchmark.py",
         "docs/physics_methods.md",
-        "docs/validation.md"
+        "docs/validation.md",
+        "src/scpn_control/core/transport_model_selection.py",
+        "src/scpn_control/core/transport_orchestration.py"
       ],
       "covered_source_paths": [
-        "src/scpn_control/core/integrated_transport_solver.py"
+        "src/scpn_control/core/integrated_transport_solver.py",
+        "src/scpn_control/core/transport_model_selection.py",
+        "src/scpn_control/core/transport_orchestration.py"
       ],
       "evidence": [
         "validation/validate_transport_diffusion.py schema-versioned digest-bound diffusion-operator, Crank-Nicolson, and Python/Rust Thomas-parity validator",
@@ -1854,7 +1998,7 @@
     },
     {
       "component": "two-point scrape-off-layer divertor model contract",
-      "equation_contract": "Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-H\u00e4rm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation.",
+      "equation_contract": "Two-point SOL claims must declare the connection length L_par = pi q95 R0, the parallel heat-flux mapping with the poloidal-to-total field ratio, the Spitzer-Härm upstream conduction integral q_par = kappa_0 T_u^{7/2}/(7/2 L_par), the upstream-target pressure balance n_u T_u = 2 n_t T_t, the Eich heat-flux-width regression exponents, the divertor peak-heat-flux geometry, the sheath heat-transmission target temperature, the detachment-onset criterion, and exclusion of full edge-transport facility validation.",
       "fidelity_status": "bounded_model",
       "model_references": [
         "Stangeby 2000 two-point model and sheath heat transmission",
@@ -1870,8 +2014,9 @@
       "unit_contract": "SI metres, megawatts, density in 10^19 m^-3, temperature in eV, heat flux in MW/m^2, connection length in metres, and dimensionless inverse aspect ratio, safety factor, and radiated fraction.",
       "validation_evidence": [
         "tests/test_sol_model.py two-point, Eich, peak-heat-flux, and detachment checks",
-        "validation/validate_sol_two_point.py validates the connection length, parallel-flux mapping, Spitzer-H\u00e4rm upstream conduction integral, pressure balance, Eich regression exponents, peak target heat flux, and the detachment density boundary against exact closed forms, with tamper-evident sealed evidence",
-        "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, peak-flux, detachment-boundary, and evidence-seal checks"
+        "validation/validate_sol_two_point.py checks connection length, parallel-flux mapping, conduction, pressure balance, Eich scaling, peak flux and detachment against shared production algebra/constants, without independent numerical/physical/facility/safety/training admission",
+        "complete v1 finite/boolean/shape/arithmetic/strict-gate validation plus a non-authenticating self-digest",
+        "tests/test_sol_two_point_validation.py retained numerical/evidence/CLI checks and tests/sol_two_point_contracts/ real domain, resealed-contradiction, custody and entry-point contracts"
       ],
       "evidence_paths": [
         "src/scpn_control/core/sol_model.py",
@@ -1891,7 +2036,7 @@
         "validation/reports/sol_two_point.md human-readable conduction, scaling, and detachment summary",
         "tests/test_sol_two_point_validation.py conduction, pressure-balance, Eich-exponent, detachment-boundary, and tamper checks"
       ],
-      "validity_domain": "Analytic two-point SOL and divertor regression with the production model now validated to satisfy the connection length, parallel-flux mapping, Spitzer-H\u00e4rm upstream conduction integral, upstream-target pressure balance, Eich regression exponents, peak-heat-flux geometry, and the sheath-limited detachment density boundary to machine precision; not facility-validated edge-transport or divertor-heat-load evidence until measured probe-campaign or documented public artifacts pass declared tolerances.",
+      "validity_domain": "Analytic two-point SOL and divertor regression with the production model now validated to satisfy the connection length, parallel-flux mapping, Spitzer-Härm upstream conduction integral, upstream-target pressure balance, Eich regression exponents, peak-heat-flux geometry, and the sheath-limited detachment density boundary to machine precision; not facility-validated edge-transport or divertor-heat-load evidence until measured probe-campaign or documented public artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 49
     },
     {
@@ -2018,10 +2163,10 @@
     },
     {
       "component": "Fusion-kernel reduced-order phase-sync leaf",
-      "equation_contract": "Reduced-order Paper-27 / \u03b6\u00b7sin(\u03a8\u2212\u03b8) phase-reduction and multi-step Lyapunov helpers extracted from FusionKernel must declare the phase-reduction approximation, Kuramoto coupling assumptions, and that they are not a full plasma-phase control law until facility phase-control validation is complete.",
+      "equation_contract": "Reduced-order Paper-27 / ζ·sin(Ψ−θ) phase-reduction and multi-step Lyapunov helpers extracted from FusionKernel must declare the phase-reduction approximation, Kuramoto coupling assumptions, and that they are not a full plasma-phase control law until facility phase-control validation is complete.",
       "fidelity_status": "validation_gap",
       "model_references": [
-        "Paper-27 phase reduction / \u03b6\u00b7sin(\u03a8\u2212\u03b8) references",
+        "Paper-27 phase reduction / ζ·sin(Ψ−θ) references",
         "Kuramoto-Sakaguchi mean-field synchronisation literature",
         "Repository FusionKernel dual-home phase-sync contract"
       ],
@@ -2440,6 +2585,39 @@
         "tests/test_mu_structured_singular_value_validation.py exact-identity, sandwich, tamper, and unknown-schema checks"
       ],
       "validity_domain": "Static continuous-time state-feedback analysis plus fail-closed claim-admission evidence for repository benchmark plants, with the D-scaled mu upper bound now validated against exact closed-form structured-singular-value identities (full block, diagonal plant, rank-one plant, and the spectral sandwich); D-scaling invariance is recorded as a diagnostic only. Not full frequency-dependent D-K synthesis and not facility hardware validation unless strict reference artifacts pass declared tolerances.",
+      "external_validation_tracker_issue": 51
+    },
+    {
+      "component": "sampled sliding-mode vertical correction",
+      "equation_contract": "The software uses s=e+c de/dt, sat(s)=s/(|s|+0.01), a sampled v update and bounded output. The ideal continuous-time sign-law gain screen and time expression do not certify finite-time convergence after smoothing, sampling or saturation; the model force coefficient uses K_vs=-n mu0 Ip^2/(4 pi R0) with F=-K_vs Z.",
+      "fidelity_status": "bounded_model",
+      "model_references": [
+        "Moreno and Osorio 2012 strict Lyapunov analysis of the ideal super-twisting algorithm",
+        "Repository sliding-mode vertical software equations and synthetic double-integrator example"
+      ],
+      "module_path": "src/scpn_control/control/sliding_mode_vertical.py",
+      "public_claim_allowed": false,
+      "claim_admission_requirements": [
+        "Supply a proved or independently validated bound for this exact sampled, smoothed and saturated implementation",
+        "Bind a calibrated actuator-unit conversion, disturbance bounds and higher-fidelity or facility replay before vertical-control claims"
+      ],
+      "unit_contract": "Position error e in metres, derivative in metres per second, c in seconds and fixed boundary thickness 0.01 in metres when using vertical position; output units are caller-defined, with no coil-voltage or force calibration.",
+      "validation_evidence": [
+        "tests/test_sliding_mode_vertical_contract.py finite admission, rollback and idealized-gain refusal",
+        "tests/test_sliding_mode_vertical.py synthetic double-integrator and disturbance checks",
+        "examples/tutorial_07_advanced_controllers.py synthetic public execution"
+      ],
+      "evidence_paths": [
+        "src/scpn_control/control/sliding_mode_vertical.py",
+        "tests/test_sliding_mode_vertical.py",
+        "tests/test_sliding_mode_vertical_contract.py",
+        "examples/tutorial_07_advanced_controllers.py",
+        "docs/learning/control_theory_primer.md"
+      ],
+      "covered_source_paths": [
+        "src/scpn_control/control/sliding_mode_vertical.py"
+      ],
+      "validity_domain": "Synthetic bounded-controller prototyping and numerical failure admission only; no finite-time or facility vertical-stability guarantee.",
       "external_validation_tracker_issue": 51
     },
     {

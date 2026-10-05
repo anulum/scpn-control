@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Current-drive claim-admission benchmark
 
+"""Publish one fixed bounded software claim declaration through recorded output custody."""
+
 from __future__ import annotations
 
 import json
@@ -30,6 +32,41 @@ MARKDOWN_REPORT = REPORT_DIR / "current_drive_claims.md"
 
 
 def main() -> None:
+    """Write a bounded current-drive declaration for three fixed model sources.
+
+    Returns
+    -------
+    None
+        Write current_drive_claims.json, then current_drive_claims.md, then
+        the same JSON payload again in this module's reports directory. UTF-8
+        outputs have final newlines; the JSON uses the defining dataclass schema.
+
+    Raises
+    ------
+    RuntimeError
+        Persistent destinations lack the required recorded-campaign identifier.
+    ValueError
+        A supplied identifier or defining source/profile input is refused.
+    OSError
+        Directory creation or a sequential write fails; prior writes may remain.
+        Output replacement is neither atomic nor a multi-file transaction.
+
+    Notes
+    -----
+    No CLI parameters are parsed. Each call creates a fresh mix with a=2 m and
+    80 rho=r/a points from 0 to 1. ne_19=7-2*rho**2 is in 1e19 m^-3; Te=12-
+    6*rho**1.5 and Ti=10-5*rho**1.4 are keV. ECCD/LHCD/NBI powers are 8/3/14 MW
+    with declared radial centres/widths; NBI beam energy is 1000 keV. Delegated
+    profiles are grid-normalised and report total power in W, total current in
+    A and peak current density in A/m^2. These bounded deposition formulae are
+    not ray-traced, Fokker-Planck or facility-reference transport. No external
+    reference is supplied; external_claim_allowed remains False.
+    The fixed source labels do not authenticate evidence. The destination
+    guard checks campaign identifier presence/syntax; the actual wrapper
+    separately preserves custody. Shared filenames have no producer locks.
+    There is no time evolution, performance timing or independent solver
+    comparison. All source/scientific arithmetic remains in the defining APIs.
+    """
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     rho = np.linspace(0.0, 1.0, 80)
     ne = 7.0 - 2.0 * rho**2

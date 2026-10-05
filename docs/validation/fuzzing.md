@@ -81,8 +81,29 @@ SHA-256 of every seed (with a per-target aggregate digest), and the list of any
 reproducer artefacts. The embedded triage verdict admits a campaign only when
 **every** requested target ran and **no** target crashed, timed out, leaked, or
 produced an artefact; a missing target is itself a fail-closed failure. The
-report carries `production_claim_allowed: false` — fuzzing is a robustness gate,
-not a performance or correctness certification.
+report carries `production_claim_allowed: false`. Triage requires a nonempty,
+unique selection of registered targets and exactly one corresponding record
+per target. Every record needs a positive nonboolean executed-unit count,
+positive finite duration, nonnegative integer rate/RSS, the correct surface
+label, zero exit and no reproducer. Empty selections, duplicate or extra records
+and missing execution statistics fail even when the native exit is zero.
+
+The manifest binds the tracked seed files. Existing working-corpus names and
+additional evolved inputs are retained; their complete bytes are not bound by
+that manifest. Campaign version commands must succeed with nonempty output and
+exactly one nonempty Rust host line. Unavailable metadata refuses before the
+native build; build-only still requests just a build. These observations do
+not authenticate binary/source identity or the dated hosted toolchain pin.
+Report digests bind submitted JSON, and triage validates
+submitted records; these checks do not certify scientific correctness or
+production readiness.
+
+CLI target selection and positive `--max-total-time` / `--rss-limit-mb` limits
+are checked before Cargo, including in build-only mode. Compilation is outside
+the libFuzzer time limit. Explicit report paths resolve from the caller's
+working directory, create missing parents and overwrite existing destinations.
+See the [campaign API contract](../api.md#native-fuzz-campaign-evidence) for
+record validation and the limits of the observations.
 
 Reproducer artefacts (`crash-*`, `leak-*`, `timeout-*`, `oom-*`, `slow-unit-*`)
 are written under `scpn-control-rs/fuzz/artifacts/<target>/` and uploaded by the

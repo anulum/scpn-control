@@ -5,21 +5,58 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Stress Test Oscillators.
+"""Measure repeated native phase-kernel calls across the fixed capacity sweep."""
 
+import sys
 import time
-import numpy as np
-import scpn_control_rs as rs
-from scpn_control.phase.plasma_knm import plasma_omega
+
+try:
+    import numpy as np
+
+    from scpn_control.phase.plasma_knm import plasma_omega
+except Exception:
+    if __name__ != "__main__":
+        raise
+    print("Oscillator capacity benchmark dependencies are unavailable.", file=sys.stderr)
+    raise SystemExit(1) from None
 
 
-def stress_test():
+def stress_test() -> None:
+    """Print mean native-call latency for eleven fixed 16-layer allocations.
+
+    Returns
+    -------
+    None
+        Print oscillator counts, mean milliseconds per call and their reciprocal
+        in calls per second; retain no report or result value.
+
+    Raises
+    ------
+    ImportError
+        The optional scpn_control_rs extension cannot be imported.
+
+    Notes
+    -----
+    Consume the process-global NumPy RNG for one coupling matrix and new phases
+    at each size. The sizes are 10, 50, 100, 256, 512, 1024, 2048, 4096, 8192,
+    16384 and 32768 oscillators per layer. Use plasma_omega(16), dt=0.001,
+    zero phase lags, zeta=0.5, driver=0.3 and PAC gain=1.
+
+    Perform five untimed warm-up calls, then 50 timed calls below size 8192
+    and ten at larger sizes. Each call receives the same arrays; discard the
+    returned tick. Stop when the measured reciprocal latency falls below ten
+    calls per second. Host load, random inputs and the installed native build
+    affect the table; the output alone supplies no physical-control admission.
+    """
+    import scpn_control_rs as rs
+
     print("SCPN-CONTROL: Oscillator Capacity Stress Test (16 Layers)")
     print("-" * 60)
     print(f"{'Osc/Layer':>10} | {'Total Osc':>10} | {'Latency (ms)':>15} | {'Max Freq (Hz)':>15}")
     print("-" * 60)
 
     L = 16
-    # Sweep N_per from 10 to 65536
+    # The fixed sweep ends at 32768 oscillators per layer.
     # Using powers of 2 for clean scaling
     n_per_sweep = [10, 50, 100, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768]
 
@@ -68,4 +105,11 @@ def stress_test():
 
 
 if __name__ == "__main__":
-    stress_test()
+    try:
+        stress_test()
+    except ImportError:
+        print("Oscillator capacity benchmark dependencies are unavailable.", file=sys.stderr)
+        raise SystemExit(1) from None
+    except Exception:
+        print("Oscillator capacity benchmark failed.", file=sys.stderr)
+        raise SystemExit(1) from None

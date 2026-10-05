@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK cross-code evidence validation tests
 
+"""Preserve original schema/scalar refusal assertions using author-declared external-code metadata."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,7 @@ from validation.validate_gk_crosscode import validate_gk_crosscode_evidence
 
 
 def _valid_gene_report() -> dict[str, object]:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.gk-crosscode.v1",
         "case": "cyclone_base",
@@ -40,6 +43,7 @@ def _valid_gene_report() -> dict[str, object]:
 
 
 def _payload_sha256(payload: object) -> str:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     import hashlib
 
     digest_payload = payload
@@ -50,6 +54,7 @@ def _payload_sha256(payload: object) -> str:
 
 
 def test_strict_crosscode_gate_requires_real_external_run(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     report = validate_gk_crosscode_evidence(tmp_path, require_external_runs=True)
 
     assert report["status"] == "fail"
@@ -58,6 +63,7 @@ def test_strict_crosscode_gate_requires_real_external_run(tmp_path: Path) -> Non
 
 
 def test_crosscode_gate_accepts_real_binary_evidence(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     evidence = tmp_path / "gene_cbc.json"
     evidence.write_text(json.dumps(_valid_gene_report()), encoding="utf-8")
 
@@ -71,6 +77,7 @@ def test_crosscode_gate_accepts_real_binary_evidence(tmp_path: Path) -> None:
 
 
 def test_crosscode_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["native_gamma_max_cs_over_a"] = 0.20
     evidence = tmp_path / "gene_cbc.json"
@@ -83,6 +90,7 @@ def test_crosscode_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
 
 
 def test_crosscode_gate_rejects_missing_output_digest(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["external_output_sha256"] = ""
     evidence = tmp_path / "gene_cbc.json"
@@ -95,6 +103,7 @@ def test_crosscode_gate_rejects_missing_output_digest(tmp_path: Path) -> None:
 
 
 def test_crosscode_gate_rejects_missing_binary_provenance(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["binary_path"] = ""
     evidence = tmp_path / "gene_cbc.json"
@@ -107,6 +116,7 @@ def test_crosscode_gate_rejects_missing_binary_provenance(tmp_path: Path) -> Non
 
 
 def test_crosscode_gate_rejects_uri_binary_provenance(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["binary_path"] = "file:///opt/gene/bin/gene"
     payload["payload_sha256"] = _payload_sha256(payload)
@@ -120,6 +130,7 @@ def test_crosscode_gate_rejects_uri_binary_provenance(tmp_path: Path) -> None:
 
 
 def test_crosscode_gate_rejects_unadmitted_binary_root(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["binary_path"] = "/tmp/gene"
     payload["payload_sha256"] = _payload_sha256(payload)
@@ -133,6 +144,7 @@ def test_crosscode_gate_rejects_unadmitted_binary_root(tmp_path: Path) -> None:
 
 
 def test_crosscode_gate_rejects_out_of_tolerance_evidence(tmp_path: Path) -> None:
+    """Exercise or construct original declared-GK metadata; no actual binary execution is authenticated."""
     payload = _valid_gene_report()
     payload["native_gamma_max_cs_over_a"] = 0.35
     payload["payload_sha256"] = _payload_sha256(payload)

@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK species reference validation tests
 
+"""Preserve original public species regression assertions and the legacy bootstrap contract."""
+
 from __future__ import annotations
 
 import json
@@ -21,7 +23,8 @@ ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_CASES = ROOT / "validation" / "reference_data" / "gk_species" / "species_collision_reference_cases.json"
 
 
-def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch) -> None:
+def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify the original public source-bootstrap function preserves source precedence."""
     repo_src = str(Path(gk_species_ref.__file__).resolve().parents[1] / "src")
     monkeypatch.setattr(sys, "path", [entry for entry in sys.path if entry != repo_src])
 
@@ -31,6 +34,7 @@ def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch) -> Non
 
 
 def test_repository_species_reference_cases_pass() -> None:
+    """Compare all four actual species and operator reference cases with bounded claims."""
     report = validate_gk_species_reference(REFERENCE_CASES)
 
     assert report["status"] == "pass"
@@ -65,6 +69,7 @@ def test_repository_species_reference_cases_pass() -> None:
 
 
 def test_species_reference_gate_rejects_missing_required_case(tmp_path: Path) -> None:
+    """Refuse missing required species identities through the persisted reader."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"] = [payload["cases"][0]]
     path = tmp_path / "species_collision_reference_cases.json"
@@ -78,6 +83,7 @@ def test_species_reference_gate_rejects_missing_required_case(tmp_path: Path) ->
 
 
 def test_species_reference_gate_rejects_duplicate_case_name(tmp_path: Path) -> None:
+    """Refuse duplicate names without admitting repeated reference cases."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"][1] = payload["cases"][0]
     path = tmp_path / "species_collision_reference_cases.json"
@@ -90,6 +96,7 @@ def test_species_reference_gate_rejects_duplicate_case_name(tmp_path: Path) -> N
 
 
 def test_species_reference_gate_rejects_collision_drift(tmp_path: Path) -> None:
+    """Detect actual collision-frequency reference drift."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"][0]["expected"]["nu_D_s^-1"] *= 2.0
     path = tmp_path / "species_collision_reference_cases.json"
@@ -102,6 +109,7 @@ def test_species_reference_gate_rejects_collision_drift(tmp_path: Path) -> None:
 
 
 def test_species_reference_gate_rejects_diamagnetic_drive_drift(tmp_path: Path) -> None:
+    """Detect actual diamagnetic-drive reference sign drift."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"][1]["expected"]["omega_star_pressure"] *= -1.0
     path = tmp_path / "species_collision_reference_cases.json"
@@ -114,6 +122,7 @@ def test_species_reference_gate_rejects_diamagnetic_drive_drift(tmp_path: Path) 
 
 
 def test_species_reference_gate_rejects_bessel_drift(tmp_path: Path) -> None:
+    """Detect actual Bessel reference disagreement."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["operator_checks"]["bessel_j0"][2]["expected"] = 0.5
     path = tmp_path / "species_collision_reference_cases.json"
@@ -126,6 +135,7 @@ def test_species_reference_gate_rejects_bessel_drift(tmp_path: Path) -> None:
 
 
 def test_species_reference_gate_rejects_velocity_grid_drift(tmp_path: Path) -> None:
+    """Detect actual velocity-grid quadrature reference disagreement."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["operator_checks"]["velocity_grid"]["lambda_weight_sum"] = 0.75
     path = tmp_path / "species_collision_reference_cases.json"
@@ -140,6 +150,7 @@ def test_species_reference_gate_rejects_velocity_grid_drift(tmp_path: Path) -> N
 def test_species_reference_gate_rejects_pitch_angle_operator_drift(
     tmp_path: Path,
 ) -> None:
+    """Detect actual pitch-angle sparsity reference disagreement."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["operator_checks"]["pitch_angle_operator"]["tridiagonal_nonzero_entries"] = 7
     path = tmp_path / "species_collision_reference_cases.json"
@@ -155,6 +166,7 @@ def test_species_reference_gate_rejects_pitch_angle_operator_drift(
 
 
 def test_species_reference_report_digest_rejects_tampering() -> None:
+    """Refuse a persisted report whose numerical body no longer matches its digest."""
     report = validate_gk_species_reference(REFERENCE_CASES)
     report["entries"][0]["max_relative_error"] = 1.0
 

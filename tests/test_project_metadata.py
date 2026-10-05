@@ -190,22 +190,22 @@ def test_version_sync_guard_reports_metadata_drift(
     assert "docs/api.md version marker missing '1.2.3'" in output
     assert "README Python-version badge" in output
     assert "release-note heading file docs/release_notes_v1.2.3.md does not exist" in output
-    assert "file(s) out of sync" in output
+    assert "check(s) out of sync" in output
 
 
-def test_version_sync_guard_warns_on_missing_secondary_metadata(
+def test_version_sync_guard_refuses_missing_secondary_metadata(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """Missing optional metadata warns but missing badges still fail the guard."""
+    """Missing required secondary versions and badges fail the release-text guard."""
     (tmp_path / "pyproject.toml").write_text('[project]\nversion = "1.2.3"\n', encoding="utf-8")
     monkeypatch.setattr(check_version_sync, "ROOT", tmp_path)
 
     assert check_version_sync.main() == 1
     output = capsys.readouterr().out
-    assert "WARN: could not extract version from CITATION.cff" in output
-    assert "WARN: could not extract version from .zenodo.json" in output
+    assert "MISSING: could not extract version from CITATION.cff" in output
+    assert "MISSING: could not extract version from .zenodo.json" in output
     assert "README PyPI version badge file README.md does not exist" in output
 
 
@@ -450,3 +450,43 @@ def test_reuse_blanket_copyright_states_both_canonical_header_years() -> None:
         f"{concepts[1]}-{concepts[2]} Miroslav Šotek <protoscience@anulum.li> (concepts)",
         f"{code[1]}-{code[2]} Miroslav Šotek <protoscience@anulum.li> (code)",
     ]
+
+
+def test_mast_optional_runtime_is_locked_and_installed_in_full_test_lane() -> None:
+    """Real Zarr conversion has declared dependencies and a hash-pinned matrix installer."""
+    project = _load_pyproject()["project"]
+    extras = project["optional-dependencies"]
+    declared = {req.name: req for text in extras["mast-data"] for req in [Requirement(text)]}
+    assert set(declared) == {"xarray", "zarr"}
+    assert Version("2.18.7") in declared["zarr"].specifier
+    assert Version("3.0.0") not in declared["zarr"].specifier
+    assert set(extras["mast-data"]) <= set(extras["all"])
+    assert set(extras["mast-data"]) <= set(extras["dev"])
+    lock = tomllib.loads((ROOT / "uv.lock").read_text(encoding="utf-8"))
+    project_lock = next(item for item in lock["package"] if item["name"] == project["name"])
+    for extra in ("mast-data", "mast-acquisition"):
+        runtime = {req.name: req for text in extras[extra] for req in [Requirement(text)]}
+        dependencies = project_lock["optional-dependencies"][extra]
+        assert {item["name"] for item in dependencies} == set(runtime)
+        for name, req in runtime.items():
+            versions: list[Version] = []
+            for dependency in dependencies:
+                if dependency["name"] != name:
+                    continue
+                records = [
+                    item
+                    for item in lock["package"]
+                    if item["name"] == name
+                    and ("version" not in dependency or item["version"] == dependency["version"])
+                    and ("source" not in dependency or item["source"] == dependency["source"])
+                ]
+                assert records
+                versions.extend(Version(item["version"]) for item in records)
+            assert versions and all(version in req.specifier for version in versions)
+    pinned = (ROOT / "requirements/ci-mast.txt").read_text(encoding="utf-8")
+    for name, req in declared.items():
+        version = re.search(rf"^{name}==([^\s]+)", pinned, re.MULTILINE)
+        assert version is not None
+        assert Version(version[1]) in req.specifier
+    assert "--hash=sha256:" in pinned
+    assert "pip install --require-hashes -r requirements/ci-mast.txt" in read_ci_workflow_source()

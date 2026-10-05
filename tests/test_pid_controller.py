@@ -97,6 +97,41 @@ def test_rejects_non_finite_error() -> None:
         pid.step(math.inf)
 
 
+@pytest.mark.parametrize("bounded", [False, True])
+def test_finite_inputs_cannot_overflow_pid_state(bounded: bool) -> None:
+    """A derivative overflow must refuse before changing controller state."""
+    pid = PIDController(kp=0.0, ki=0.0, kd=0.0)
+    if bounded:
+        pid.with_output_limits(-1.0, 1.0)
+    pid.step(-1e308)
+    before = vars(pid).copy()
+    with pytest.raises(ValueError, match="pid arithmetic must remain finite"):
+        pid.step(1e308)
+    assert vars(pid) == before
+    assert pid.step(0.0) == 0.0
+
+
+def test_finite_gain_product_overflow_is_atomic() -> None:
+    """A finite gain and input must not publish infinite output."""
+    pid = PIDController(kp=1e308, ki=0.0, kd=0.0)
+    before = vars(pid).copy()
+    with pytest.raises(ValueError, match="pid arithmetic must remain finite"):
+        pid.step(2.0)
+    assert vars(pid) == before
+    assert pid.step(0.0) == 0.0
+
+
+def test_finite_integral_sum_overflow_is_atomic() -> None:
+    """An overflowing accumulator must leave the prior step recoverable."""
+    pid = PIDController(kp=0.0, ki=0.0, kd=0.0)
+    pid.step(1e308)
+    before = vars(pid).copy()
+    with pytest.raises(ValueError, match="pid arithmetic must remain finite"):
+        pid.step(1e308)
+    assert vars(pid) == before
+    assert pid.step(0.0) == 0.0
+
+
 def test_output_limit_validation() -> None:
     with pytest.raises(ValueError, match="output limits must be finite"):
         PIDController(kp=1.0, ki=0.0, kd=0.0).with_output_limits(math.nan, 1.0)

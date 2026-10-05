@@ -46,8 +46,31 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-mast.txt
+          # Real phase-video tests need Matplotlib and Pillow before the matrix Test step.
+          pip install --require-hashes -r requirements/ci-viz.txt
           # Build the immutable LIF contract with the hash-pinned setuptools from ci-test.
           pip install --require-hashes --no-build-isolation -r requirements/ci-neuro.txt
+          pip install --require-hashes -r requirements/ci-rl.txt
+      - name: Verify RL planning entry point
+        env:
+          CUDA_VISIBLE_DEVICES: ""
+        run: python tools/train_rl_tokamak.py --ci --seed 123 --dry-run
+      - name: Install phase-video encoders (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ffmpeg
+      - name: Install phase-video encoders (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ffmpeg
+      - name: Install phase-video encoders (Windows)
+        if: runner.os == 'Windows'
+        run: choco install ffmpeg --version=9.0.2 --yes --no-progress
+      - name: Verify phase-video encoders
+        run: |
+          ffmpeg -version
+          ffprobe -version
       - name: Install studio platform SDK (ubuntu 3.12 only)
         # The studio vertical (scpn_control.studio) consumes the published
         # scpn-studio-platform SDK; install it on the job that runs mypy + the

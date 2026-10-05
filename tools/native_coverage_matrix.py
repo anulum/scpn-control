@@ -21,7 +21,7 @@ from typing import Final, Sequence
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from tools.ci_workflow_inventory import load_ci_workflow_policy, read_ci_workflow_source
+from tools.native_coverage_contracts._workflow import _threshold100, _workflow_checks
 
 REPO_ROOT: Final = Path(__file__).resolve().parents[1]
 DEFAULT_WORKFLOW: Final = REPO_ROOT / "tools" / "ci_workflow_policy.json"
@@ -34,7 +34,17 @@ DEFAULT_DOCS: Final = (
 
 @dataclass(frozen=True)
 class NativeCoverageFinding:
-    """A missing native coverage matrix contract."""
+    """One declaration or readable-input failure.
+
+    Attributes
+    ----------
+    path : str
+        Repository-relative or selected external input path.
+    check : str
+        Stable declaration category for callers.
+    detail : str
+        Authored diagnostic; caught interpreter exception text is not exposed.
+    """
 
     path: str
     check: str
@@ -43,17 +53,21 @@ class NativeCoverageFinding:
 
 @dataclass(frozen=True)
 class NativeCoverageMatrix:
-    """Validation result for the native coverage matrix."""
+    """Unchecked immutable collection of local declaration findings.
+
+    Empty findings yield a passing declaration verdict. This data object does
+    not authenticate a producer, prove hosted execution or measure coverage.
+    """
 
     findings: tuple[NativeCoverageFinding, ...]
 
     @property
     def passed(self) -> bool:
-        """Return whether every required matrix contract is present."""
+        """Return whether the collection contains no declaration findings."""
         return not self.findings
 
     def to_jsonable(self) -> dict[str, object]:
-        """Return a stable JSON representation."""
+        """Return a fresh v1 JSON-shaped dictionary without IO or self-sealing."""
         return {
             "schema_version": "scpn-control.native-coverage-matrix.v1",
             "passed": self.passed,
@@ -92,13 +106,14 @@ def validate_native_coverage_matrix(
     pyproject_path: Path = DEFAULT_PYPROJECT,
     docs_paths: Sequence[Path] = DEFAULT_DOCS,
 ) -> NativeCoverageMatrix:
-    """Validate that native-dependent coverage is collected and combined.
+    """Inspect native coverage collection/combination declarations without running CI.
 
     Parameters
     ----------
     workflow_path
-        Optional monolithic workflow fixture. The live default reads the
-        distributed executable inventory and its versioned dependency policy.
+        Optional monolithic YAML workflow or distributed JSON policy. A policy's
+        paths resolve from its parent directory's parent (the repository root).
+        The live default reads the physical reusable workflows and coordinator.
     pyproject_path
         Project metadata file carrying the coverage threshold.
     docs_paths
@@ -107,90 +122,74 @@ def validate_native_coverage_matrix(
     Returns
     -------
     NativeCoverageMatrix
-        Findings for missing workflow, coverage, or documentation contracts.
+        Findings for malformed inputs, executable-step/dependency/artifact gaps,
+        a parsed threshold other than numeric 100, or absent public prose.
+        No files are written and no shell or hosted workflow is executed.
     """
     findings: list[NativeCoverageFinding] = []
-    distributed = workflow_path is None
-    workflow_contract_path = DEFAULT_WORKFLOW if distributed else workflow_path
-    assert workflow_contract_path is not None
-    workflow = read_ci_workflow_source() if distributed else workflow_contract_path.read_text(encoding="utf-8")
-    pyproject = pyproject_path.read_text(encoding="utf-8")
-    docs = "\n".join(path.read_text(encoding="utf-8") for path in docs_paths)
-
-    _add_if_missing(
-        findings,
-        path=workflow_contract_path,
-        check="python coverage data artifact",
-        detail="Python coverage job must upload artifacts/coverage/python/.coverage.python.",
-        ok=_contains_all(workflow, ("coverage-data-python", "artifacts/coverage/python/.coverage.python")),
-    )
-    _add_if_missing(
-        findings,
-        path=workflow_contract_path,
-        check="rust-present coverage data artifact",
-        detail="Rust interop job must run parity tests with COVERAGE_FILE=.coverage.rust and upload the data file.",
-        ok=_contains_all(
-            workflow,
-            (
-                "COVERAGE_FILE=.coverage.rust",
-                "tests/test_aer_observation_rust_parity.py",
-                "tests/test_boris_pyo3_bridge.py",
-                "tests/test_capacitor_bank_state_pyo3.py",
-                "tests/test_controller_advanced_paths.py",
-                "tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py",
-                "tests/test_multi_shot_campaign.py",
-                "tests/test_multi_shot_campaign_pyo3.py",
-                "tests/test_pyo3_control_bridge.py",
-                "tests/test_rust_compat_wrapper.py",
-                "tests/test_rust_python_parity.py",
-                "tests/test_rust_realtime_parity.py",
-                "tests/test_snn_pyo3_bridge.py",
-                "coverage-data-rust",
-                "artifacts/coverage/rust/.coverage.rust",
-            ),
-        ),
-    )
-    _add_if_missing(
-        findings,
-        path=workflow_contract_path,
-        check="combined coverage job",
-        detail="CI must combine Python and Rust-present coverage data and gate the merged report.",
-        ok=_contains_all(
-            workflow,
-            (
-                "native-coverage-combine:",
-                "python -m coverage combine --keep artifacts/coverage/python artifacts/coverage/rust",
-                "python -m coverage report --fail-under=100",
-                "coverage-report-combined",
-            ),
-        )
-        and (
-            (
-                load_ci_workflow_policy()["dependency_graph"].get("native-coverage-combine")
-                == ["python-tests", "rust-python-interop"]
-                and next(
-                    category
-                    for category in load_ci_workflow_policy()["categories"]
-                    if category["id"] == "native-coverage"
-                )["caller_needs"]
-                == ["python-quality", "native-polyglot"]
+    contract_path = DEFAULT_WORKFLOW if workflow_path is None else workflow_path
+    distributed = contract_path.suffix.lower() == ".json"
+    verdicts = (False, False, False)
+    try:
+        workflow = "" if distributed else contract_path.read_text(encoding="utf-8")
+        verdicts = _workflow_checks(workflow, policy_path=contract_path if distributed else None)
+    except (OSError, UnicodeError, ValueError, KeyError, TypeError):
+        findings.append(
+            NativeCoverageFinding(
+                _relative(contract_path),
+                "workflow input",
+                "Workflow source or ownership declarations are unreadable or malformed.",
             )
-            if distributed
-            else "needs: [python-tests, rust-python-interop]" in workflow
+        )
+    checks = (
+        (
+            "python coverage data artifact",
+            "Python collection, saved coverage data and pinned upload must belong to one enabled producer job.",
+        ),
+        (
+            "rust-present coverage data artifact",
+            "Rust-present collection must execute all required test owners and save/upload its coverage data.",
+        ),
+        (
+            "combined coverage job",
+            "Enabled dependency/download/guard/merge/XML/100-percent gate/upload steps must be ordered and wired.",
         ),
     )
+    for (check, detail), passed in zip(checks, verdicts, strict=True):
+        _add_if_missing(findings, path=contract_path, check=check, detail=detail, ok=passed)
+    threshold = False
+    try:
+        threshold = _threshold100(pyproject_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, ValueError):
+        findings.append(
+            NativeCoverageFinding(
+                _relative(pyproject_path),
+                "threshold input",
+                "Coverage threshold input is unreadable or malformed TOML.",
+            )
+        )
     _add_if_missing(
         findings,
         path=pyproject_path,
         check="coverage threshold",
-        detail="pyproject.toml must keep the coverage gate at fail_under = 100.",
-        ok="fail_under = 100" in pyproject,
+        detail="Parsed tool.coverage.report.fail_under must be numeric 100.",
+        ok=threshold,
     )
+    docs = ""
+    for path in docs_paths:
+        try:
+            docs += path.read_text(encoding="utf-8") + "\n"
+        except (OSError, UnicodeError):
+            findings.append(
+                NativeCoverageFinding(
+                    _relative(path), "documentation input", "Documentation input is unreadable UTF-8."
+                )
+            )
     _add_if_missing(
         findings,
-        path=docs_paths[0],
+        path=docs_paths[0] if docs_paths else DEFAULT_DOCS[0],
         check="public docs",
-        detail="Validation/development docs must show the coverage-combine workflow and guard entrypoint.",
+        detail="Public docs must name the direct guard, artifacts, combine command and v1 schema.",
         ok=_contains_all(
             docs,
             (
@@ -206,9 +205,14 @@ def validate_native_coverage_matrix(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the native coverage matrix guard."""
+    """Print v1 JSON or authored diagnostics; return 0 for declarations or 1 for findings.
+
+    argparse retains help exit 0 and malformed-argument exit 2. Selected input
+    IO, YAML/TOML and shell-declaration failures become findings; empty docs
+    fail the public-documentation check. No input is rewritten.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--workflow", type=Path, help="optional monolithic CI workflow fixture")
+    parser.add_argument("--workflow", type=Path, help="optional monolithic YAML workflow or distributed JSON policy")
     parser.add_argument("--pyproject", default=str(DEFAULT_PYPROJECT), help="pyproject.toml path")
     parser.add_argument(
         "--docs",

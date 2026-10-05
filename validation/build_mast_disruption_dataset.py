@@ -27,39 +27,31 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
+import sys
 from pathlib import Path
 from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._npz import save_npz_arrays
 from scpn_control.core.real_data_manifest import validate_real_data_manifest
 from validation.fair_mast_source_policy import fair_mast_provenance
+from validation.mast_disruption_shot_label import SHOT_LABEL_RECORD_SCHEMA as SHOT_LABEL_RECORD_SCHEMA
 from validation.mast_disruption_shot_label import (
-    SHOT_LABEL_RECORD_SCHEMA,
     ProgrammeClass,
     derive_ip_quench_proxy,
     ip_quench_proxy_algorithm,
 )
+from validation.mast_replay_contracts._archive import read_replay_archive_bytes
+from validation.mast_replay_contracts._inputs import MEASURED_CHANNELS as MEASURED_CHANNELS
+from validation.mast_replay_contracts._inputs import channel_vectors, shot_identity
+from validation.mast_replay_contracts._report import DATASET_SCHEMA as DATASET_SCHEMA
+from validation.mast_replay_contracts._report import _sha256_json as _sha256_json
+from validation.mast_replay_contracts._report import dataset_report
+from validation.report_output_paths import checked_report_destination
 
-DATASET_SCHEMA = "scpn-control.mast-disruption-supervised-dataset.v2.0.0"
-
-# The eleven measured channels the acquisition must supply per shot; the three
-# label channels (is_disruption, disruption_time_idx, disruption_type) are derived
-# here from Ip and appended to the written NPZ.
-MEASURED_CHANNELS: tuple[str, ...] = (
-    "time_s",
-    "Ip_MA",
-    "BT_T",
-    "beta_N",
-    "q95",
-    "ne_1e19",
-    "n1_amp",
-    "n2_amp",
-    "locked_mode_amp",
-    "dBdt_gauss_per_s",
-    "vertical_position_m",
-)
 CHANNEL_UNITS: dict[str, str] = {
     "time_s": "s",
     "Ip_MA": "MA",
@@ -73,12 +65,6 @@ CHANNEL_UNITS: dict[str, str] = {
     "dBdt_gauss_per_s": "G/s",
     "vertical_position_m": "m",
 }
-
-
-def _sha256_json(payload: dict[str, Any]) -> str:
-    """Canonical SHA-256 of a JSON payload (sorted keys, no whitespace)."""
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
 
 
 def _sha256_file(path: Path) -> str:
@@ -97,7 +83,7 @@ def derive_ip_quench_label(
     drop_fraction: float = 0.8,
     quench_window_ms: float = 5.0,
 ) -> tuple[bool, int, str]:
-    """Derive a disruption label from a plasma-current trace.
+    """Return the legacy tuple projection of an uncalibrated Ip-proxy label.
 
     A shot is disruptive when, after the last near-flat-top sample, the current
     terminally collapses below ``(1 - drop_fraction)`` of its flat-top maximum
@@ -105,7 +91,18 @@ def derive_ip_quench_label(
     the initial current ramp (also below the collapse threshold) is ignored.
     Returns ``(is_disruption, onset_index, disruption_type)`` with ``onset_index``
     ``-1`` for a non-disruptive shot, implementing the algorithm documented by the
-    feature-source audit's ``LABEL_ALGORITHM``.
+    feature-source audit's ``LABEL_ALGORITHM``. ``ip`` uses MA and ``time_s``
+    seconds; both must be finite nonempty aligned 1-D vectors, with time strictly
+    increasing. The detector uses absolute current, so either current sign
+    is supported. Defaults are ``drop_fraction=0.8`` and ``quench_window_ms=5.0``;
+    the former must lie strictly within (0, 1), the latter be finite/positive.
+
+    No current gives an ambiguous ``no_current`` classification, while no
+    collapse or a slow rampdown gives a non-disruptive result. The tuple omits
+    the full record's authority/ambiguity detail. Input arrays are unchanged;
+    invalid domains raise ``ShotLabelRecordError`` (a ``ValueError`` subtype),
+    and array conversion errors propagate. There is no I/O or independent
+    facility outcome, calibrated probability or thermal-quench inference.
     """
     result = derive_ip_quench_proxy(
         np.asarray(ip, dtype=np.float64),
@@ -118,17 +115,8 @@ def derive_ip_quench_label(
 
 
 def _validate_channels(shot_id: int, channels: dict[str, NDArray[np.float64]]) -> int:
-    missing = [c for c in MEASURED_CHANNELS if c not in channels]
-    if missing:
-        raise ValueError(f"shot {shot_id}: missing measured channels {missing}.")
-    n_samples = int(np.asarray(channels["time_s"]).shape[0])
-    for name in MEASURED_CHANNELS:
-        array = np.asarray(channels[name], dtype=np.float64)
-        if array.ndim != 1 or array.shape[0] != n_samples:
-            raise ValueError(f"shot {shot_id}: channel {name!r} must be 1-D with {n_samples} samples.")
-        if not bool(np.all(np.isfinite(array))):
-            raise ValueError(f"shot {shot_id}: channel {name!r} must be finite.")
-    return n_samples
+    """Validate aligned finite candidate vectors and their chronological clock."""
+    return channel_vectors(channels, shot_id=shot_id)
 
 
 def build_shot_npz(
@@ -140,7 +128,46 @@ def build_shot_npz(
     quench_window_ms: float,
     programme_class: ProgrammeClass = "unknown",
 ) -> dict[str, Any]:
-    """Label one shot, write its ``.npz``, and return a checksummed record."""
+    """Label one measured shot and write its uncompressed replay archive.
+
+    Parameters
+    ----------
+    shot_id
+        Positive Python integer excluding bool, within signed int64, embedded
+        in the label record and output name.
+    channels
+        Eleven measured vectors named by ``MEASURED_CHANNELS``. They must be
+        finite, one-dimensional and share the ``time_s`` sample count; values
+        are normalised to float64 using the units in ``CHANNEL_UNITS``.
+        The nonempty time vector must be strictly increasing. Extra mapping
+        keys are ignored. Caller arrays remain unchanged.
+    out_dir
+        Directory created as needed for ``shot_<shot_id>.npz``. An existing
+        archive at that path is overwritten.
+    drop_fraction
+        Fractional current decrease used by the Ip-proxy label detector.
+    quench_window_ms
+        Maximum current-quench interval in milliseconds.
+    programme_class
+        Programme classification carried by the label record, not inferred
+        from the measured channels.
+
+    Returns
+    -------
+    dict
+        Shot identity, relative archive path, archive SHA-256, sample count and
+        explicit proxy-label metadata. The archive stores measured vectors and
+        scalar legacy labels plus the canonical label-record JSON string.
+
+    Raises
+    ------
+    ValueError
+        If a measured vector or the proxy-label inputs are invalid.
+    OSError
+        If directory creation or archive writing fails. Output publication is
+        direct and may leave a partial file.
+    """
+    shot_id = shot_identity(shot_id)
     _validate_channels(shot_id, channels)
     ip = np.asarray(channels["Ip_MA"], dtype=np.float64)
     time_s = np.asarray(channels["time_s"], dtype=np.float64)
@@ -162,7 +189,7 @@ def build_shot_npz(
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / f"shot_{shot_id}.npz"
-    np.savez(npz_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
+    save_npz_arrays(npz_path, payload, allow_pickle=True)
     return {
         "shot_id": shot_id,
         "npz": npz_path.name,
@@ -181,6 +208,7 @@ def _build_manifest(
     dataset_id: str,
     retrieved_at: str,
 ) -> dict[str, Any]:
+    """Validate local candidate provenance declarations without authenticating sources."""
     manifest: dict[str, Any] = {
         "schema_version": "1.0",
         "dataset_id": dataset_id,
@@ -218,13 +246,53 @@ def build_dataset(
     drop_fraction: float = 0.8,
     quench_window_ms: float = 5.0,
 ) -> dict[str, Any]:
-    """Build the labelled dataset: write NPZ, checksum, manifest, and report.
+    """Write candidate shot archives/manifest and return a blocked v2 report.
 
-    ``shots`` is a list of ``{"shot_id": int, "channels": {channel: array}}`` with
-    the eleven measured channels. Writes each shot's ``.npz`` and the
-    ``synthetic:false`` manifest into ``out_dir`` and returns the dataset report
-    (``status:"blocked"``).
+    ``shots`` is a nonempty list of mappings with a distinct positive Python
+    signed-int64 ``shot_id`` and eleven finite aligned channel vectors. An
+    optional ``programme_class`` is passed through to the proxy record;
+    ``unknown`` is the default. All IDs, vectors and proxy-label domains are
+    checked before the first write. Caller arrays are unchanged.
+
+    ``dataset_id`` is a single ASCII filename identifier beginning with an
+    alphanumeric character and containing only letters/digits/dot/underscore/
+    hyphen. ``retrieved_at`` must be nonempty; this label and ``generated_at``
+    are copied without timestamp parsing. Label defaults and units match
+    ``derive_ip_quench_label``. The returned dataset digest hashes the sorted
+    shot-file checksums; the report payload has its own canonical body digest.
+
+    Files are written directly into ``out_dir`` and existing shot/manifest
+    files may be overwritten. Later I/O/manifest failures can leave partial
+    output; batch preflight is not a filesystem transaction. This API does
+    not enforce the CLI's selected-source/report path protections. Invalid
+    domains raise authored ``ValueError`` or its proxy/manifest subtypes;
+    missing keys and native I/O/conversion errors propagate.
+
+    No report file is written here. Return status remains ``blocked``,
+    ``admission_ready=False`` and ``independent_label_count=0``: all labels use
+    input-feature-derived ``ip_proxy`` authority, never facility ground truth.
     """
+    if not isinstance(dataset_id, str) or re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", dataset_id) is None:
+        raise ValueError("dataset_id must be a nonempty single filename identifier")
+    if not shots:
+        raise ValueError("dataset requires at least one shot")
+    if not isinstance(retrieved_at, str) or not retrieved_at.strip():
+        raise ValueError("retrieved_at must be a nonempty acquisition label")
+    identities = []
+    for shot in shots:
+        identity = shot_identity(shot["shot_id"])
+        if identity in identities:
+            raise ValueError("dataset shot identities must be unique")
+        identities.append(identity)
+        channel_vectors(shot["channels"], shot_id=identity)
+        derive_ip_quench_proxy(
+            np.asarray(shot["channels"]["Ip_MA"], dtype=np.float64),
+            np.asarray(shot["channels"]["time_s"], dtype=np.float64),
+            shot_id=identity,
+            programme_class=cast(ProgrammeClass, shot.get("programme_class", "unknown")),
+            drop_fraction=drop_fraction,
+            quench_window_ms=quench_window_ms,
+        )
     records = [
         build_shot_npz(
             int(shot["shot_id"]),
@@ -247,45 +315,24 @@ def build_dataset(
         drop_fraction=drop_fraction,
         quench_window_ms=quench_window_ms,
     )
-    report: dict[str, Any] = {
-        "schema_version": DATASET_SCHEMA,
-        "status": "blocked",
-        "admission_ready": False,
-        "blocked_reason": (
-            "all labels have ip_proxy authority derived from an input feature; "
-            "they are uncalibrated and are not independent facility ground truth"
-        ),
-        "dataset_id": dataset_id,
-        "synthetic": False,
-        "manifest": manifest_path.name,
-        "dataset_sha256": dataset_fingerprint,
-        "n_shots": len(records),
-        "n_disruptive": sum(r["label"] for r in records),
-        "n_ambiguous": sum(r["label_record"]["outcome"] == "ambiguous" for r in records),
-        "channel_schema": [*MEASURED_CHANNELS, "is_disruption", "disruption_time_idx", "disruption_type"],
-        "metadata_schema": {"shot_label_record_json": SHOT_LABEL_RECORD_SCHEMA},
-        "label_authority_counts": {"ip_proxy": len(records)},
-        "independent_label_count": 0,
-        "label_algorithm": label_algorithm,
-        "shots": records,
-        "generated_at": generated_at,
-        "payload_sha256": None,
-    }
-    report["payload_sha256"] = _sha256_json(report)
-    return report
+    return dataset_report(
+        records,
+        dataset_id=dataset_id,
+        manifest_name=manifest_path.name,
+        dataset_fingerprint=dataset_fingerprint,
+        label_algorithm=label_algorithm,
+        generated_at=generated_at,
+    )
 
 
 def _load_shots(path: Path) -> list[dict[str, Any]]:
-    with np.load(path, allow_pickle=False) as data:
-        shot_ids = [int(s) for s in np.atleast_1d(data["shot_ids"])]
-        shots: list[dict[str, Any]] = []
-        for shot_id in shot_ids:
-            channels = {name: np.asarray(data[f"{shot_id}:{name}"], dtype=np.float64) for name in MEASURED_CHANNELS}
-            shots.append({"shot_id": shot_id, "channels": channels})
+    """Decode one local snapshot; retain exact-integral float-ID compatibility."""
+    shots, _ = read_replay_archive_bytes(path.read_bytes(), path_name=path.name, integral_float_compatibility=True)
     return shots
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the maintained source-tree dataset command arguments."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--channels-npz", type=Path, required=True, help="Extracted per-shot channel arrays.")
     parser.add_argument("--dataset-id", type=str, required=True, help="Dataset identifier.")
@@ -299,9 +346,35 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point: build the labelled dataset and write the report."""
+    """Run the local source-tree dataset command and publish its blocked report.
+
+    ``argv=None`` reads process arguments; argparse help/parser exits are 0/2.
+    The source NPZ snapshot is decoded without pickle. Exact unique members,
+    sorted positive int64 IDs (including historical exact-integral floats),
+    eleven finite floating vectors and increasing nonempty clocks are required.
+
+    Before candidate writes, report/artifact paths are checked against the
+    selected NPZ, this module and current contract helper sources using direct,
+    resolved, symbolic and existing hardlink identity. Checks are sequential,
+    not a race-proof snapshot or protection of every dependency. Outputs are
+    direct writes, can overwrite unrelated existing destinations, and have
+    no rollback after a later I/O failure.
+
+    Return ``0`` when candidate files and JSON report are written, even though
+    scientific admission remains blocked. Direct calls propagate input/path,
+    decode and native I/O errors. The module command maps caught value/I/O/
+    type/key errors to fixed stderr and exit ``2`` without internal exception text.
+    """
     args = _parse_args(argv)
     shots = _load_shots(args.channels_npz)
+    outputs = [
+        args.out_dir / f"{args.dataset_id}.manifest.json",
+        *(args.out_dir / f"shot_{shot['shot_id']}.npz" for shot in shots),
+    ]
+    sources = [args.channels_npz, Path(__file__), *Path(__file__).parent.joinpath("mast_replay_contracts").glob("*.py")]
+    checked_report_destination(args.json_out, inputs=[*sources, *outputs])
+    for destination in outputs:
+        checked_report_destination(destination, inputs=sources)
     report = build_dataset(
         shots,
         dataset_id=args.dataset_id,
@@ -318,4 +391,8 @@ def main(argv: list[str] | None = None) -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (ValueError, OSError, TypeError, KeyError):
+        print("Could not build the MAST candidate dataset.", file=sys.stderr)
+        raise SystemExit(2) from None

@@ -106,6 +106,57 @@ requirements were requested and passed.
 therefore preserve the launch-time scheduler, affinity, governor, heartbeat,
 and PREEMPT_RT assumptions that governed the campaign.
 
+## Persisted admission-probe reports
+
+`validation.validate_runtime_admission_evidence.validate_runtime_admission_evidence`
+reads reports from `benchmarks/bench_runtime_admission.py`. Its default input is
+the historical `runtime_admission_release_20260605T000000Z.json` local regression
+report. Reading that file does not inspect the current host or authorize an
+execution campaign. The top-level `scpn-control validate` command invokes the
+reader by default; its runtime summary is one of several release declarations.
+
+```bash
+python validation/validate_runtime_admission_evidence.py --report report.json --json-out
+scpn-control validate --runtime-admission-report report.json --json-out
+```
+
+The frozen result records reader status/findings, exact input-byte SHA-256,
+declared payload SHA-256, evidence class, production flag, probe status,
+error-list count and positive sample count. `as_dict()` returns a fresh mapping.
+Wrong-type declarations become `None` in typed string/boolean result fields;
+invalid strings remain visible on FAIL. Read/decode failures have no digest;
+decoded objects, including empty or schema-invalid objects, retain their byte
+digest. Empty objects fail required fields.
+
+The reader checks schema `scpn-control.runtime-admission-benchmark.v1`, a command
+containing `bench_runtime_admission.py`, and a canonical self-digest computed
+from sorted compact JSON with `payload_sha256` blank. Extra fields enter that
+digest but are otherwise unvalidated. Duplicate keys and nonfinite floating
+JSON tokens at all depths fail. A self-digest detects stale edits; an edited
+and resealed report is not producer authentication.
+
+Affinity must be a nonempty list of nonnegative integer CPU IDs, excluding
+booleans. Start/end load arrays contain three finite nonnegative numbers;
+platform, Python version and isolation method are nonempty strings. Samples
+are positive integers. Six latency fields are finite/nonnegative; min, median,
+p95, p99 and max are monotonic, with mean inside min/max. CPU existence or
+uniqueness, actual isolation, sample recomputation, latency ceilings, timestamp
+freshness and host qualification are not verified here.
+
+Classes are `local_regression` or `production_benchmark`, with boolean
+production flags and nonempty-string error/warning elements. A failed local
+probe needs explanatory errors and a false production flag; reader PASS still
+grants no production timing. Production-shaped declarations need claim true,
+probe PASS and empty errors, but are not independently qualified host evidence.
+A probe PASS requires empty errors in either class.
+
+The standalone command uses only the standard library, follows caller-relative
+paths and symlinks, prints JSON/text to stdout and writes no report. Its exit
+codes are 0/1 for PASS/findings and 2 for argparse errors. It imposes no filesystem
+containment or input size/depth budget. The root command runs its other enabled
+gates too; explicitly skipping them is a scoped reader check, not release
+admission. Neither command starts a physical control loop through this reader.
+
 ## Runtime admission role in deployments
 
 This document defines what must pass before code moves from local execution to campaign-grade orchestration.

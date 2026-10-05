@@ -17,7 +17,7 @@ authors:
 affiliations:
   - name: ANULUM CH & LI
     index: 1
-date: 17 March 2026
+date: 23 September 2026
 bibliography: references.bib
 ---
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
@@ -53,8 +53,9 @@ feedback with static $\mu$ analysis, NMPC, SNN, safe RL, sliding-mode,
 gain-scheduled, fault-tolerant),
 disruption prediction with SPI mitigation, and a
 companion Rust backend (5 crates, PyO3 bindings) with a reproducible
-benchmark reporting a ~5 µs P50 native integrated control cycle on the CI
-runner (2.85 µs on the local workstation).
+dated June 2026 loopback-UDP benchmark reporting a 5.62 µs P50 native
+integrated control cycle on the CI runner (2.85 µs on the local workstation).
+These figures describe the benchmark proxy, not a fielded PCS cycle.
 
 The nonlinear gyrokinetic solver implements the Cyclone Base Case
 configuration [@dimits2000], Rosenbluth-Hinton zonal-flow damping, kinetic
@@ -67,8 +68,9 @@ nonlinear CBC agreement until a longer, reverified convergence campaign is
 complete.
 
 The codebase comprises a Python package and 5 Rust crates with broad Python
-module tests, a 100% local package-coverage gate configured consistently for
-CI, and a multi-workflow CI matrix.
+module tests, a 100% package-coverage threshold in the project and CI
+configuration, and a multi-workflow CI matrix. The configured threshold does
+not by itself establish coverage for a particular release revision.
 
 # Statement of Need
 
@@ -86,8 +88,7 @@ This paper evaluates four connected `scpn-control` capabilities:
 1. **Five-tier gyrokinetic transport** — spanning critical-gradient models
    ($\sim\mu$s), a QLKNN-style neural-transport facade with a compact MLP
    loader and analytic critical-gradient fallback, a native linear GK
-   eigenvalue solver (approximately 0.3 s per flux surface in the recorded
-   repository context) [@dimits2000; @miller1998],
+   eigenvalue solver [@dimits2000; @miller1998],
    a native TGLF-equivalent model with SAT0/SAT1/SAT2 spectral saturation
    [@staebler2007; @staebler2017; @maeyama2015], and a nonlinear $\delta f$
    gyrokinetic solver with dealiased E$\times$B bracket, ballooning connection
@@ -115,12 +116,13 @@ This paper evaluates four connected `scpn-control` capabilities:
    no external dependencies.
 
 4. **8-layer plasma phase dynamics** — a Kuramoto-Sakaguchi multi-layer
-   UPDE engine [@kuramoto1975; @sotek2026knm] encoding experimentally
-   grounded interactions (drift-wave/zonal-flow, NTM/bootstrap-current,
-   ELM/pedestal), with GK-driven adaptive $K_{nm}$ coupling and Lyapunov
+   UPDE engine [@kuramoto1975; @sotek2026knm] modelling named interactions
+   (drift-wave/zonal-flow, NTM/bootstrap-current, ELM/pedestal), with
+   GK-driven adaptive $K_{nm}$ coupling and Lyapunov
    stability monitoring. The monitor is a research-prototype advisory guard
    with warm-up and consecutive-window fail-open intervals, not a replacement
-   for an independent facility safety interlock.
+   for an independent facility safety interlock. The $K_{nm}$ parameters are
+   not established as experimentally calibrated reactor couplings.
 
 # Implementation
 
@@ -146,8 +148,8 @@ The Python package is organised into four layers:
       [@rosenbluth1998], Sugama collision operator [@sugama2006] with
       particle/momentum/energy conservation, optional kinetic electrons
       (semi-implicit backward-Euler for electron parallel streaming),
-      RK4 with CFL-adaptive dt, JAX-accelerated variant with the recorded
-      bounded local GPU speedup described above.
+      RK4 with CFL-adaptive dt, and a JAX GPU variant without a portable
+      speedup or facility-timing claim.
     - *External GK*: TGLF [@staebler2007], GENE [@jenko2000], GS2
       [@kotschenreuther1995], CGYRO [@candy2003], QuaLiKiz [@bourdelle2007]
       via subprocess with automatic input deck generation and output parsing.
@@ -170,9 +172,11 @@ The Python package is organised into four layers:
 
 The Rust backend (`scpn-control-rs`, 5 crates, ndarray 0.16, rand 0.9)
 provides PyO3 bindings for performance-critical paths. Its reproducible
-benchmark reports a ~5 µs P50 native integrated control cycle on the CI runner
-(2.85 µs locally); production runtime claims remain subject to runtime-admission
-evidence.
+dated June 2026 loopback-UDP benchmark reports a 5.62 µs P50 native
+integrated control cycle on the CI runner (2.85 µs locally); production
+runtime claims remain subject to runtime-admission evidence. The source
+artefacts are `validation/reports/native_handoff_comparison.json` and
+`validation/reports/native_handoff_comparison.local.json`.
 
 # Validation
 
@@ -190,27 +194,30 @@ Repository validation evidence includes:
   supercritical scan machinery and zonal-flow damping, but the full Dimits-gap
   claim remains a revalidation target after the kinetic-electron and
   Gauss-Laguerre quadrature changes.
-- **Sugama collision operator**: pitch-angle scattering with energy-dependent
-  collision rate ($\nu(v) \propto v^{-3}$) and conservation corrections.
-  Verified: $\int C[f]\,dv < 3\times10^{-8}$ (particles),
-  $\int v_\parallel C[f]\,dv < 10^{-23}$ (momentum),
-  $\int E\,C[f]\,dv < 2\times10^{-8}$ (energy). At low collisionality
-  ($\nu = 0.01$), Sugama and Krook agree on the low-collisionality collision
-  response in the verified operator tests; saturated nonlinear $\chi_i$ remains
-  part of the CBC revalidation target.
+- **Sugama-style collision operator**: pitch-angle scattering with an
+  energy-dependent collision rate ($\nu(v) \propto v^{-3}$) and conservation
+  corrections. On the repository's small synthetic operator case at
+  $\nu = 0.01$, the regression tests require absolute Gauss-Laguerre-weighted
+  particle, parallel-momentum and energy moments below $10^{-4}$, $10^{-10}$
+  and $10^{-3}$, respectively. The public collision dispatch produces a
+  different result from the Krook closure on its tested state; low-collisionality
+  equivalence is not established. Saturated nonlinear $\chi_i$ remains part of
+  the CBC revalidation target.
 - **SPARC/ITER equilibria**: regression-gated against CFS SPARCPublic GEQDSK
   files and ITER design parameters; this is not independent same-case
   experimental reconstruction evidence.
 - **DIII-D disruption fixtures**: synthetic scenarios covering multiple
   disruption classes; they are CI plumbing rather than measured-shot evidence.
-- **IMAS round-trip**: real `omas` ODS for equilibrium and core_profiles IDS.
+- **IMAS round-trip**: equilibrium and core_profiles data are round-tripped
+  through real `omas` ODS objects when the optional OMAS dependency is present.
 - **IPB98(y,2)**: ITPA 20-tokamak H-mode confinement database [@ipb1999].
 
 The test suite comprises Python module tests and Rust workspace tests across
 CI jobs (Python 3.11–3.13 on Linux, Python 3.12 on Windows and macOS, Rust
 stable, JAX parity, CodeQL security analysis, OpenSSF Scorecard). The local and CI coverage
-configuration currently enforces a 100% package-coverage gate while publishing
-XML coverage artefacts. Physics equations cite their source papers, and named
+configuration specifies a 100% package-coverage gate and XML coverage
+artefacts; the exact revision must pass that gate before release. Physics
+equations cite their source papers, and named
 integration tests exercise cross-module chains such as bootstrap→NTM,
 EPED→Troyon, L-H→EPED, and runaway→SPI.
 

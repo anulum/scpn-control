@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import io
+import shutil
 import subprocess
 import tarfile
 import zipfile
@@ -25,6 +26,7 @@ EPOCH = 1_787_886_522
 
 
 def _write_sdist(path: Path, *, mtime: int, member_name: str = "demo/module.py") -> None:
+    """Write a real gzip tar fixture containing a directory and a regular payload."""
     with tarfile.open(path, "w:gz") as archive:
         directory = tarfile.TarInfo("demo")
         directory.type = tarfile.DIRTYPE
@@ -44,6 +46,7 @@ def _write_wheel(
     license_expression: str = "AGPL-3.0-or-later",
     entry_points: str | None = None,
 ) -> None:
+    """Write a physical wheel fixture with the selected module and declaration bytes."""
     with zipfile.ZipFile(path, "w") as archive:
         archive.writestr("demo/__init__.py", "")
         archive.writestr("demo/cli.py", "def main():\n    return 0\n")
@@ -180,7 +183,7 @@ def test_source_date_epoch_precedence_and_git_fallback(monkeypatch: pytest.Monke
 
     monkeypatch.delenv("SOURCE_DATE_EPOCH")
     monkeypatch.setattr(
-        build_release_artifacts.subprocess,
+        subprocess,
         "run",
         lambda *args, **kwargs: SimpleNamespace(stdout="99\n"),
     )
@@ -190,7 +193,7 @@ def test_source_date_epoch_precedence_and_git_fallback(monkeypatch: pytest.Monke
 def test_source_date_epoch_requires_git(monkeypatch: pytest.MonkeyPatch) -> None:
     """The implicit epoch route fails explicitly when Git is unavailable."""
     monkeypatch.delenv("SOURCE_DATE_EPOCH", raising=False)
-    monkeypatch.setattr(build_release_artifacts.shutil, "which", lambda command: None)
+    monkeypatch.setattr(shutil, "which", lambda command: None)
 
     with pytest.raises(RuntimeError, match="git is required"):
         build_release_artifacts._source_date_epoch(None)
@@ -208,7 +211,7 @@ def test_build_release_artifacts_rejects_stale_and_missing_outputs(
         build_release_artifacts.build_release_artifacts(stale, epoch=EPOCH)
 
     monkeypatch.setattr(
-        build_release_artifacts.subprocess,
+        subprocess,
         "run",
         lambda *args, **kwargs: subprocess.CompletedProcess(args[0], 0),
     )
@@ -226,6 +229,7 @@ def test_build_release_artifacts_constructs_and_validates_outputs(
     outdir = tmp_path / ("sdist" if sdist_only else "both")
 
     def fake_build(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[list[str]]:
+        """Retain the original simulated frontend fixture, separate from real-build qualification."""
         destination = Path(command[command.index("--outdir") + 1])
         _write_sdist(destination / "demo.tar.gz", mtime=1)
         if "--sdist" not in command:
@@ -233,7 +237,7 @@ def test_build_release_artifacts_constructs_and_validates_outputs(
         assert kwargs["env"]  # PATH and the pinned epoch are forwarded.
         return subprocess.CompletedProcess(command, 0)
 
-    monkeypatch.setattr(build_release_artifacts.subprocess, "run", fake_build)
+    monkeypatch.setattr(subprocess, "run", fake_build)
     summaries = build_release_artifacts.build_release_artifacts(
         outdir,
         epoch=EPOCH,

@@ -1,0 +1,9 @@
+{
+  "https://github.com/anulum/sc-neurocore/archive/248e88a827acfe9be0d654855ae9d3b7d2dcd527.tar.gz": {
+    "name": "sc-neurocore",
+    "version": "3.16.0",
+    "sha256": "9d1f1c32f13f6a4d9a442067371f1f9ff0df353361f9b6abdf01edbfeac87ccc",
+    "metadata_file": "pyproject.toml",
+    "metadata_sha256": "78f294b5f7420cef23b39b3b7cec08e3aef572e98616cc70c7bbfc77c56c92db"
+  }
+}

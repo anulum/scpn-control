@@ -15,7 +15,6 @@ REPO_ROOT="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 readonly REPO_ROOT
 readonly SUBMISSIONS_DIR="${SCRIPT_DIR}/submissions"
 readonly VERIFY_PREFIX="${TMPDIR:-/tmp}/scpn-control-papers."
-readonly SOURCE_DATE_EPOCH=1787386155
 
 require_command() {
     local command_name="$1"
@@ -67,6 +66,7 @@ build_submission() {
     local source_dir="$1"
     local package_name
     local scratch_dir
+    local SOURCE_DATE_EPOCH
 
     package_name="$(basename -- "${source_dir}")"
     scratch_dir="${VERIFY_ROOT}/${package_name}"
@@ -85,6 +85,7 @@ build_submission() {
     done
     cffconvert --validate -i "${source_dir}/CITATION.cff" >/dev/null
     jq empty "${source_dir}/submission_metadata.json"
+    SOURCE_DATE_EPOCH="$(jq -er '.source_date_epoch | select(type == "number" and . > 0)' "${source_dir}/submission_metadata.json")"
     python "${SCRIPT_DIR}/evidence_pins.py" \
         --repo-root "${REPO_ROOT}" "${source_dir}/submission_metadata.json"
 
@@ -92,11 +93,20 @@ build_submission() {
         cd -- "${scratch_dir}"
         export SOURCE_DATE_EPOCH FORCE_SOURCE_DATE=1
         if [[ -f manuscript.md ]]; then
+            local raw_pdf="manuscript.pdf"
+            if [[ -f pdf_metadata.py ]]; then
+                raw_pdf="manuscript.raw.pdf"
+            fi
             pandoc manuscript.md --from=markdown --citeproc \
                 --bibliography=references.bib \
                 --metadata=author:"Miroslav Šotek" \
                 --include-in-header=reproducible_pdf.tex \
-                --pdf-engine=pdflatex --output=manuscript.pdf
+                --pdf-engine=pdflatex --output="${raw_pdf}"
+            if [[ -f pdf_metadata.py ]]; then
+                python pdf_metadata.py "${raw_pdf}" manuscript.pdf
+                cmp -- manuscript.pdf "${source_dir}/manuscript.pdf"
+                qpdf --check manuscript.pdf >/dev/null
+            fi
         elif [[ -f manuscript.tex ]]; then
             pdflatex -interaction=nonstopmode -halt-on-error manuscript.tex >pass1.log
             bibtex manuscript >bibtex.log
@@ -121,7 +131,7 @@ main() {
     local found=0
     local tracked_auxiliaries
 
-    for command_name in bibtex cffconvert cmp git jq pandoc pdffonts pdflatex pdftotext python rg; do
+    for command_name in bibtex cffconvert cmp git jq pandoc pdffonts pdflatex pdftotext python qpdf rg; do
         require_command "${command_name}"
     done
 

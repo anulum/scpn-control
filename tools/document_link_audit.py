@@ -6,7 +6,29 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Deterministic local and governed external document-link audit.
 
-"""Audit public documentation links without exposing private operational paths."""
+"""Inspect indexed documentation links and optionally recorded HTTP availability.
+
+The local CLI reads filenames from the selected Git index and current bytes from
+disk. It checks supported relative links, Markdown anchors and navigation using
+the policy's suffix and exclusion lists. Existing untracked targets fail under
+the default policy. Unindexed sources, fenced/inline code, absolute local paths,
+unknown URL schemes and the bodies of remote pages are outside that inspection.
+The regex extractors are not complete Markdown, HTML, TeX or YAML parsers.
+
+Only ``--external`` sends HTTP requests. The CLI screens extracted URL strings,
+then performs sequential HEAD requests, with GET fallback for 403/405/501 and
+bounded retries/cache reuse. DNS resolution is not checked against private
+addresses. urllib follows redirects before their final URL is screened; this
+tool is not a network sandbox. Direct ``audit_external`` callers must supply
+their own screened URL sequence. HTTP success does not validate cited content.
+
+Reports contain UTC timestamps, tool/policy hashes and sorted path/URL-set
+hashes; those set hashes do not bind source contents. Report writes replace the
+selected path through a same-directory temporary file without fsync or signing.
+Local findings, permanent HTTP failures and observed redirect-policy failures
+give CLI status one. Restricted/transient HTTP results alone give status zero.
+Argparse, Git, decoding and IO failures retain their native failure behavior.
+"""
 
 from __future__ import annotations
 
@@ -51,7 +73,11 @@ _SECRET_NAME_RE = re.compile(r"[^a-z0-9]+")
 
 @dataclass(frozen=True, order=True)
 class LinkRef:
-    """One extracted link and its public source location."""
+    """A source-relative filename, one-based line, decoded target and parser kind.
+
+    Ordering follows these four fields. Construction does not validate paths or
+    URLs; extraction unescapes HTML entities and removes angle wrappers.
+    """
 
     source: str
     line: int
@@ -61,7 +87,11 @@ class LinkRef:
 
 @dataclass(frozen=True, order=True)
 class Finding:
-    """One deterministic local-link or URL-policy failure."""
+    """A source, line, displayed target and authored local/policy failure reason.
+
+    URL credential fields are redacted by the policy checker when it constructs
+    a finding. The dataclass constructor itself does not redact supplied text.
+    """
 
     source: str
     line: int
@@ -71,7 +101,14 @@ class Finding:
 
 @dataclass(frozen=True)
 class ExternalResult:
-    """One bounded external crawl outcome."""
+    """One HTTP/cache observation without remote-content validation.
+
+    ``attempts`` counts outer retries, so a HEAD/GET pair is one attempt.
+    ``checked_at`` is the original UTC observation, including on cache reuse.
+    Status/final URL may be absent after request or redirect-policy failure.
+    ``cached`` records reuse; stored classifications and timestamps are trusted
+    cache fields rather than authenticated measurements.
+    """
 
     url: str
     classification: str
@@ -85,7 +122,13 @@ class ExternalResult:
 
 @dataclass(frozen=True)
 class Policy:
-    """Validated link-audit policy."""
+    """Converted TOML settings and the SHA-256 of their original policy bytes.
+
+    Suffix/prefix/glob selectors control indexed source discovery. Boolean
+    settings use Python conversion; loading does not validate ranges, types or
+    cross-field consistency beyond those conversions. External time values are
+    seconds, cache TTLs are seconds and the URL cap counts the supplied sequence.
+    """
 
     source_sha256: str
     include_suffixes: tuple[str, ...]
@@ -110,10 +153,11 @@ class Policy:
 
 
 class UnsafeExternalTarget(RuntimeError):
-    """Raised before crawling or recording a non-public redirect target."""
+    """Raised when an already followed final URL violates the string policy."""
 
 
 def _read_policy(path: Path) -> Policy:
+    """Read exact policy bytes and convert declared sections without range checks."""
     source_bytes = path.read_bytes()
     payload = tomllib.loads(source_bytes.decode("utf-8"))
     scan = payload["scan"]
@@ -144,6 +188,7 @@ def _read_policy(path: Path) -> Policy:
 
 
 def _tracked_paths(root: Path) -> tuple[Path, ...]:
+    """Read NUL-delimited Git index names in its native order without fetching."""
     result = subprocess.run(  # noqa: S603
         ["git", "ls-files", "-z"],
         cwd=root,
@@ -154,6 +199,7 @@ def _tracked_paths(root: Path) -> tuple[Path, ...]:
 
 
 def _is_public_source(relative: str, policy: Policy) -> bool:
+    """Apply case-sensitive exclusions and a lowercase filename-suffix selector."""
     if relative.startswith(policy.exclude_prefixes):
         return False
     if any(fnmatch.fnmatch(relative, pattern) for pattern in policy.exclude_globs):
@@ -162,22 +208,34 @@ def _is_public_source(relative: str, policy: Policy) -> bool:
 
 
 def public_sources(root: Path, policy: Policy) -> tuple[Path, ...]:
-    """Return deterministic tracked public text sources covered by the audit."""
+    """Select indexed source names without reading contents or testing existence.
+
+    ``root`` supplies Git's working directory. A subdirectory may restrict Git's
+    enumeration; use the actual worktree root for repository-wide inspection.
+    The Git environment, including an alternate index, determines membership.
+    Results retain Git's order. Git errors propagate; sources may be missing on
+    disk and can fail later when extracted. No ignored/untracked walk occurs.
+    """
     return tuple(path for path in _tracked_paths(root) if _is_public_source(path.relative_to(root).as_posix(), policy))
 
 
 def _prose(text: str) -> str:
+    """Mask supported fences and remove inline code while retaining line counts."""
+
     def blank(match: re.Match[str]) -> str:
+        """Replace a matched fence with the same number of newline characters."""
         return "\n" * match.group(0).count("\n")
 
     return _INLINE_CODE_RE.sub("", _FENCE_RE.sub(blank, text))
 
 
 def _line(text: str, offset: int) -> int:
+    """Convert a character offset to its one-based line in the inspected text."""
     return text.count("\n", 0, offset) + 1
 
 
 def _clean_target(raw: str, *, trim_prose_punctuation: bool = False) -> str:
+    """Unescape a target and optionally trim trailing prose delimiters."""
     target = html.unescape(raw.strip())
     if target.startswith("<") and target.endswith(">"):
         target = target[1:-1]
@@ -192,6 +250,7 @@ def _clean_target(raw: str, *, trim_prose_punctuation: bool = False) -> str:
 def _append_matches(
     refs: set[LinkRef], source: str, text: str, pattern: re.Pattern[str], kind: str, group: int | str
 ) -> None:
+    """Add deduplicated regex matches with line and parser-kind provenance."""
     for match in pattern.finditer(text):
         target = _clean_target(match.group(group), trim_prose_punctuation=kind == "external")
         if target:
@@ -202,6 +261,7 @@ def _mask_matches(text: str, pattern: re.Pattern[str]) -> str:
     """Blank structured matches without changing offsets or line numbers."""
 
     def blank(match: re.Match[str]) -> str:
+        """Retain each matched character position, replacing non-newlines by spaces."""
         return re.sub(r"[^\n]", " ", match.group(0))
 
     return pattern.sub(blank, text)
@@ -224,7 +284,16 @@ def _mkdocs_nav_text(text: str) -> str:
 
 
 def extract_links(path: Path, root: Path) -> tuple[LinkRef, ...]:
-    """Extract local and external references from one tracked public source."""
+    """Read one UTF-8 text file beneath ``root`` and extract supported references.
+
+    The API does not require index membership or apply policy source selectors.
+    Markdown/reference, HTML, TeX and restricted submission-metadata patterns
+    depend on suffix/path; MkDocs navigation is read only from ``mkdocs.yml``.
+    Plain HTTP URLs are also collected. Supported code spans/fences are omitted.
+    Results are deduplicated and sorted by source/line/target/kind; a URL can have
+    both a structured and plain-URL reference. Filesystem, decoding and path
+    relativity errors propagate. No target is opened or requested here.
+    """
     relative = path.relative_to(root).as_posix()
     original = path.read_text(encoding="utf-8", errors="strict")
     text = _prose(original)
@@ -249,10 +318,12 @@ def extract_links(path: Path, root: Path) -> tuple[LinkRef, ...]:
 
 
 def _normalise_secret_name(name: str) -> str:
+    """Lowercase a query key and collapse non-alphanumeric separators."""
     return _SECRET_NAME_RE.sub("_", name.lower()).strip("_")
 
 
 def _redact_url(url: str, policy: Policy) -> str:
+    """Replace user-info and configured secret-query values in a displayed URL."""
     parts = urlsplit(url)
     host = parts.hostname or ""
     try:
@@ -271,6 +342,7 @@ def _redact_url(url: str, policy: Policy) -> str:
 
 
 def _url_policy_finding(ref: LinkRef, policy: Policy) -> Finding | None:
+    """Check allowed URL strings for literal private hosts and secret fields."""
     parts = urlsplit(ref.target)
     if parts.scheme.lower() not in policy.allowed_schemes:
         return None
@@ -303,12 +375,14 @@ def _url_policy_finding(ref: LinkRef, policy: Policy) -> Finding | None:
 
 
 def _slug(text: str) -> str:
+    """Derive the local heading slug without resolving renderer-specific plugins."""
     value = re.sub(r"<[^>]+>", "", text).strip().lower()
     value = re.sub(r"[^\w\- ]", "", value, flags=re.UNICODE)
     return re.sub(r"\s", "-", value).strip("-")
 
 
 def _markdown_anchors(path: Path) -> frozenset[str]:
+    """Collect supported ATX headings with duplicate suffixes beginning at one."""
     anchors: set[str] = set()
     counts: dict[str, int] = {}
     for line in _prose(path.read_text(encoding="utf-8")).splitlines():
@@ -323,6 +397,7 @@ def _markdown_anchors(path: Path) -> frozenset[str]:
 
 
 def _resolve_source_target(ref: LinkRef, root: Path) -> tuple[Path, str]:
+    """Decode a relative path/fragment, using docs-root nav and TeX suffix probes."""
     parts = urlsplit(ref.target)
     fragment = unquote(parts.fragment)
     raw_path = unquote(parts.path)
@@ -340,7 +415,19 @@ def _resolve_source_target(ref: LinkRef, root: Path) -> tuple[Path, str]:
 
 
 def audit_local(root: Path, policy: Policy) -> tuple[tuple[Finding, ...], tuple[LinkRef, ...]]:
-    """Validate tracked local targets, anchors, and non-secret external URLs."""
+    """Inspect current disk bytes for the selected indexed documentation graph.
+
+    Return sorted unique findings and the concatenated extracted reference
+    sequence. Relative targets are resolved through symlinks and refused if
+    missing, outside ``root`` or untracked when required. Only Markdown heading
+    fragments are checked; directory targets need not be tracked. Every selected
+    docs Markdown page needs a target in the supported MkDocs nav block.
+
+    Allowed HTTP strings receive literal-host/credential checks without network
+    access. Ignored/unknown schemes, network-relative URLs and absolute local
+    paths are skipped. Git, text, parsing and IO errors propagate. Enumeration,
+    file reads and target checks are sequential observations, not a snapshot.
+    """
     tracked = {path.resolve() for path in _tracked_paths(root)}
     sources = public_sources(root, policy)
     refs = tuple(ref for path in sources for ref in extract_links(path, root))
@@ -387,7 +474,16 @@ def audit_local(root: Path, policy: Policy) -> tuple[tuple[Finding, ...], tuple[
 
 
 def audit_site(site_dir: Path, base_path: str = "") -> tuple[Finding, ...]:
-    """Validate rendered HTML links inside a generated MkDocs site tree."""
+    """Check existing HTML href/src targets within ``site_dir`` without Git.
+
+    A root-relative URL beneath ``base_path`` maps to the site root; other base
+    paths are skipped. Directories and extensionless absent targets resolve to
+    ``index.html``. External/contact URLs and anchor-only links are skipped;
+    target fragments and remote contents are not checked. Missing or escaping
+    resolved targets yield sorted findings. A missing/empty site tree yields no
+    findings, so callers must separately establish that a build produced it.
+    File-read and decoding errors propagate; no files or network are modified.
+    """
     findings: set[Finding] = set()
     site_root = site_dir.resolve()
     for source in sorted(site_dir.rglob("*.html")):
@@ -429,6 +525,7 @@ def audit_site(site_dir: Path, base_path: str = "") -> tuple[Finding, ...]:
 
 
 def _external_urls(refs: Iterable[LinkRef], policy: Policy) -> tuple[str, ...]:
+    """Sort unique allowed, string-policy-screened HTTP URLs without fragments."""
     urls: set[str] = set()
     for ref in refs:
         parts = urlsplit(ref.target)
@@ -439,6 +536,7 @@ def _external_urls(refs: Iterable[LinkRef], policy: Policy) -> tuple[str, ...]:
 
 
 def _classify_http(code: int, policy: Policy) -> str:
+    """Map status to reachability, restriction, retry or permanent failure."""
     if 200 <= code < 400:
         return "reachable"
     if code in policy.restricted_statuses:
@@ -451,6 +549,7 @@ def _classify_http(code: int, policy: Policy) -> str:
 
 
 def _request_once(url: str, policy: Policy, method: str) -> tuple[int, str]:
+    """Request headers/one ranged byte and screen the already followed final URL."""
     headers = {"User-Agent": policy.user_agent, "Accept": "text/html,application/json;q=0.9,*/*;q=0.1"}
     if method == "GET":
         headers["Range"] = "bytes=0-0"
@@ -469,6 +568,7 @@ def _request_once(url: str, policy: Policy, method: str) -> tuple[int, str]:
 
 
 def _check_external(url: str, policy: Policy) -> ExternalResult:
+    """Observe one supplied URL through bounded retry and authored failure text."""
     checked_at = datetime.now(UTC).isoformat()
     attempts = 0
     last_detail = ""
@@ -482,8 +582,8 @@ def _check_external(url: str, policy: Policy) -> ExternalResult:
             if classification != "transient" or attempt == policy.retries:
                 return ExternalResult(url, classification, status, attempts, checked_at, final_url, "HTTP response")
             last_detail = f"transient HTTP {status}"
-        except (TimeoutError, URLError, OSError) as exc:
-            last_detail = f"{type(exc).__name__}: {exc}"
+        except (TimeoutError, URLError, OSError):
+            last_detail = "Public URL request failed."
             if attempt == policy.retries:
                 return ExternalResult(url, "transient", None, attempts, checked_at, None, last_detail)
         except UnsafeExternalTarget:
@@ -501,10 +601,12 @@ def _check_external(url: str, policy: Policy) -> ExternalResult:
 
 
 def _tool_sha256() -> str:
+    """Hash the current defining module bytes, including documentation."""
     return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
 
 
 def _load_cache(path: Path, policy: Policy) -> dict[str, dict[str, Any]]:
+    """Accept matching schema/tool/policy records without source-content binding."""
     if not path.exists():
         return {}
     try:
@@ -520,6 +622,7 @@ def _load_cache(path: Path, policy: Policy) -> dict[str, dict[str, Any]]:
 
 
 def _cached_result(item: dict[str, Any], now: datetime, policy: Policy) -> ExternalResult | None:
+    """Convert an unexpired cache row; original timestamps and classifications remain."""
     try:
         checked = datetime.fromisoformat(str(item["checked_at"]))
         classification = str(item["classification"])
@@ -541,7 +644,20 @@ def _cached_result(item: dict[str, Any], now: datetime, policy: Policy) -> Exter
 
 
 def audit_external(urls: Sequence[str], policy: Policy, cache_path: Path) -> tuple[ExternalResult, ...]:
-    """Check bounded public URLs with per-host delay and TTL cache reuse."""
+    """Observe a caller-screened URL sequence using HTTP or a matching TTL cache.
+
+    More than ``policy.max_urls`` raises ``ValueError`` before cache/network
+    work. The supplied sequence is not filtered, deduplicated or URL-screened
+    here; the CLI does that separately. Requests run sequentially with delay per
+    literal netloc and configured request/retry timeouts. This is not a whole
+    campaign deadline. Fresh matching cache rows avoid requests, retain their
+    original timestamps and set ``cached=True``. Future timestamps are accepted.
+
+    Results preserve input order. The function does not write ``cache_path``;
+    CLI report writing is separate. Native cache conversion/JSON-shape failures
+    outside the implemented catches propagate. Cache data is not authenticated,
+    and HTTP observations do not establish correctness of cited content.
+    """
     if len(urls) > policy.max_urls:
         raise ValueError(f"external URL count {len(urls)} exceeds policy maximum {policy.max_urls}")
     cache = _load_cache(cache_path, policy)
@@ -563,6 +679,7 @@ def audit_external(urls: Sequence[str], policy: Policy, cache_path: Path) -> tup
 
 
 def _digest_lines(values: Iterable[str]) -> str:
+    """Hash newline-joined sorted values, retaining any supplied duplicates."""
     payload = "\n".join(sorted(values)).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
 
@@ -576,6 +693,7 @@ def _write_report(
     findings: Sequence[Finding],
     external_results: Sequence[ExternalResult],
 ) -> None:
+    """Replace a report via a same-directory temporary file without fsync/signing."""
     payload = {
         "schema_version": SCHEMA,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -599,6 +717,7 @@ def _write_report(
 
 
 def _parser() -> argparse.ArgumentParser:
+    """Declare local inspection, optional HTTP/cache and explicit report destinations."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     parser.add_argument("--policy", type=Path, default=DEFAULT_POLICY)
@@ -611,6 +730,7 @@ def _parser() -> argparse.ArgumentParser:
 
 
 def _mkdocs_base_path(root: Path) -> str:
+    """Extract the single-line site_url path, or an empty prefix when absent."""
     mkdocs = root / "mkdocs.yml"
     if not mkdocs.exists():
         return ""
@@ -619,7 +739,20 @@ def _mkdocs_base_path(root: Path) -> str:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run deterministic local checks and optional bounded external crawling."""
+    """Inspect the selected graph and optionally write reports or observe URLs.
+
+    Default root/policy are script-relative; explicit relative paths and report,
+    cache or site paths resolve from caller cwd. Policy defaults do not follow a
+    replaced root. ``--list-external`` prints screened unique URLs without HTTP.
+    ``--external`` reads/writes its cache; ``--json-out`` writes an additional
+    report unless it is the same resolved destination. Reports may overwrite
+    existing files and are written even when findings produce status one.
+
+    Return zero for no local/permanent/redirect-policy findings, including a
+    restricted or transient-only HTTP campaign; otherwise return one. Native
+    argparse/Git/text/IO errors propagate rather than producing a success report.
+    A site tree must be produced/verified independently before ``--site-dir``.
+    """
     args = _parser().parse_args(argv)
     root = args.root.resolve()
     policy_path = args.policy.resolve()

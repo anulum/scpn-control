@@ -23,9 +23,10 @@ The driver:
 * fails closed: the campaign is only admitted when every requested target ran
   and no target crashed, timed out, leaked, or produced an artefact.
 
-The pure-logic helpers (`seed_corpus_manifest`, `parse_libfuzzer_stats`,
-`collect_crash_artifacts`, `triage`, `assemble_report`) carry no subprocess or
-filesystem-execution side effects so they can be unit-tested directly.
+The seed and artefact helpers read the filesystem; they do not run children.
+Triage checks submitted run records, not their authenticity or the executed
+binary. The seed manifest hashes tracked inputs, not the evolving working
+corpus. A successful verdict supplies no scientific or production admission.
 """
 
 from __future__ import annotations
@@ -33,6 +34,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import platform
 import subprocess
 import sys
@@ -67,7 +69,30 @@ ARTEFACT_PREFIXES = ("crash-", "leak-", "timeout-", "oom-", "slow-unit-")
 
 @dataclass(frozen=True)
 class TargetRun:
-    """Outcome of a single libFuzzer target run."""
+    """Record one native target outcome for campaign triage.
+
+    Parameters
+    ----------
+    name, surface
+        Target identifier and its exact FUZZ_TARGETS description.
+    duration_s
+        Elapsed seconds including any implicit compilation. Triage requires a
+        positive finite value.
+    exit_code
+        Native process status; zero is required for admission.
+    executed_units
+        Parsed native iteration count; triage requires a positive integer.
+    average_exec_per_sec, peak_rss_mb
+        Nonnegative integer summary values. Missing or malformed summaries
+        parse to zero; these two fields alone do not prove execution.
+    artefacts
+        Observed reproducer filenames. Any entry refuses admission.
+
+    Notes
+    -----
+    Construction stores supplied values without runtime validation. Triage
+    validates the record. A record is not proof of a binary or source hash.
+    """
 
     name: str
     surface: str
@@ -80,21 +105,60 @@ class TargetRun:
 
     @property
     def crashed(self) -> bool:
+        """Return whether the process failed or a reproducer was recorded.
+
+        Zero executed units and malformed statistics are checked by triage;
+        they do not by themselves change this process-outcome property.
+        """
         return self.exit_code != 0 or bool(self.artefacts)
 
 
 def sha256_file(path: Path) -> str:
-    """Return the hex SHA-256 of a file's bytes."""
+    """Hash the complete bytes of one file.
+
+    Parameters
+    ----------
+    path
+        File opened through Path.read_bytes, following normal filesystem links.
+
+    Returns
+    -------
+    str
+        Lowercase hexadecimal SHA-256.
+
+    Raises
+    ------
+    OSError
+        Reading the file fails. No path or size admission is performed.
+    """
     digest = hashlib.sha256()
     digest.update(path.read_bytes())
     return digest.hexdigest()
 
 
 def seed_corpus_manifest(seeds_root: Path, targets: list[str]) -> dict[str, Any]:
-    """Hash the tracked seed corpus for each target.
+    """Describe and hash the supplied tracked seed directories.
 
-    The aggregate digest is the SHA-256 of the sorted ``name:filehash`` lines so
-    that adding, removing, or mutating any seed changes the bound evidence.
+    Parameters
+    ----------
+    seeds_root
+        Parent of the per-target seed directories.
+    targets
+        Directory names to inspect. Callers must supply registered targets;
+        this helper does not restrict names or authenticate Git membership.
+
+    Returns
+    -------
+    dict[str, Any]
+        Per-target file digests, seed_count, total_bytes and aggregate_sha256.
+        The aggregate hashes sorted name:digest lines. Missing directories
+        produce zero counts and the empty-input digest. Links follow ordinary
+        Path semantics. The evolving working corpus is not included.
+
+    Raises
+    ------
+    OSError
+        Directory inspection, byte reading or stat fails.
     """
     manifest: dict[str, Any] = {}
     for target in targets:
@@ -118,7 +182,21 @@ def seed_corpus_manifest(seeds_root: Path, targets: list[str]) -> dict[str, Any]
 
 
 def parse_libfuzzer_stats(stdout: str) -> dict[str, int]:
-    """Extract the ``stat::`` summary printed by ``-print_final_stats=1``."""
+    """Read the three supported native final-summary counters.
+
+    Parameters
+    ----------
+    stdout
+        Combined standard output and standard error text.
+
+    Returns
+    -------
+    dict[str, int]
+        executed_units, average_exec_per_sec and peak_rss_mb. Missing or
+        malformed values become zero; the last matching line wins. Parsing
+        preserves signed integers. Triage separately checks admissible values;
+        a parsed summary does not prove source identity or native success.
+    """
     wanted = {
         "stat::number_of_executed_units": "executed_units",
         "stat::average_exec_per_sec": "average_exec_per_sec",
@@ -138,7 +216,27 @@ def parse_libfuzzer_stats(stdout: str) -> dict[str, int]:
 
 
 def collect_crash_artifacts(artifacts_root: Path, target: str) -> list[str]:
-    """List libFuzzer reproducer artefacts for a target, if any."""
+    """List immediate reproducer filenames for one target.
+
+    Parameters
+    ----------
+    artifacts_root
+        Parent of the per-target artefact directories.
+    target
+        Target directory name, validated by the owning run entrypoint.
+
+    Returns
+    -------
+    list[str]
+        Sorted regular-file names beginning with ARTEFACT_PREFIXES. A missing
+        directory gives an empty list. Nested files and ordinary corpus names
+        are excluded; contents are not hashed and links follow Path semantics.
+
+    Raises
+    ------
+    OSError
+        Filesystem inspection fails.
+    """
     target_dir = artifacts_root / target
     if not target_dir.is_dir():
         return []
@@ -150,18 +248,73 @@ def collect_crash_artifacts(artifacts_root: Path, target: str) -> list[str]:
 
 
 def triage(runs: list[TargetRun], requested: list[str]) -> tuple[bool, list[str]]:
-    """Fail closed: admit the campaign only with complete, crash-free evidence."""
+    """Validate a nonempty campaign's submitted native run records.
+
+    Parameters
+    ----------
+    runs
+        TargetRun records to examine; names must occur exactly once, match
+        requested targets and carry their registered surface descriptions.
+    requested
+        Nonempty, unique registered target identifiers.
+
+    Returns
+    -------
+    tuple[bool, list[str]]
+        Passed flag and accumulated failures in inspection order. Every target
+        needs a run with positive executed_units, positive finite duration_s,
+        nonnegative integer rate/RSS, zero exit and no reproducer artefacts.
+        Empty, duplicate, unknown, extra or incomplete evidence fails closed.
+        Counts exclude booleans. No subprocess is run and metadata, binaries,
+        seed contents, source identity and sanitiser status are not certified.
+    """
     failures: list[str] = []
+    if not requested:
+        failures.append("no targets requested (empty-campaign fail-closed)")
+    if len(set(requested)) != len(requested):
+        failures.append("duplicate requested targets")
+    for target in requested:
+        if target not in FUZZ_TARGETS:
+            failures.append(f"{target}: unknown requested target")
     ran = {run.name for run in runs}
+    if len(ran) != len(runs):
+        failures.append("duplicate target run evidence")
     for target in requested:
         if target not in ran:
             failures.append(f"{target}: no run evidence recorded (missing-evidence fail-closed)")
     for run in runs:
+        if run.name not in requested:
+            failures.append(f"{run.name}: unrequested target run evidence")
+        if run.name not in FUZZ_TARGETS or run.surface != FUZZ_TARGETS[run.name]:
+            failures.append(f"{run.name}: unknown or mismatched target surface")
+        if type(run.executed_units) is not int or run.executed_units <= 0:
+            failures.append(f"{run.name}: no positive executed-unit evidence")
+        if not _valid_duration(run.duration_s):
+            failures.append(f"{run.name}: run duration must be positive and finite")
+        if any(type(value) is not int or value < 0 for value in (run.average_exec_per_sec, run.peak_rss_mb)):
+            failures.append(f"{run.name}: invalid nonnegative run statistics")
         if run.exit_code != 0:
             failures.append(f"{run.name}: non-zero libFuzzer exit code {run.exit_code}")
         if run.artefacts:
             failures.append(f"{run.name}: reproducer artefacts present: {', '.join(run.artefacts)}")
     return (not failures, failures)
+
+
+def _valid_duration(value: float) -> bool:
+    """Check an elapsed-second value without accepting booleans or overflow."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return math.isfinite(value) and value > 0.0
+    except OverflowError:
+        return False
+
+
+def _validate_limits(max_total_time_s: int, rss_limit_mb: int) -> None:
+    """Reject noninteger, boolean or nonpositive native resource limits."""
+    for name, value in (("max_total_time_s", max_total_time_s), ("rss_limit_mb", rss_limit_mb)):
+        if type(value) is not int or value <= 0:
+            raise ValueError(f"{name} must be a positive integer")
 
 
 def assemble_report(
@@ -176,7 +329,37 @@ def assemble_report(
     evidence_class: str,
     generated_utc: str,
 ) -> dict[str, Any]:
-    """Assemble the campaign evidence document and embedded triage verdict."""
+    """Build a JSON-compatible report from caller-supplied evidence.
+
+    Parameters
+    ----------
+    runs, requested
+        Records and target selection passed to triage.
+    seeds
+        Seed metadata, normally returned by seed_corpus_manifest.
+    toolchain
+        Supplied Rust and cargo-fuzz version strings.
+    target_triple, sanitizer
+        Reported compilation host and sanitiser description.
+    max_total_time_s
+        Reported libFuzzer time limit in seconds, excluding compilation.
+    evidence_class, generated_utc
+        Caller-supplied label and UTC timestamp text.
+
+    Returns
+    -------
+    dict[str, Any]
+        Version-one report, submitted targets, triage verdict and digest of
+        sorted compact JSON before payload_sha256 is added. Host platform and
+        Python version are observed locally; other provenance is carried
+        without authentication. production_claim_allowed is always false.
+
+    Notes
+    -----
+    This function does not rerun targets, validate source bindings or sanitiser
+    settings, or inspect seed files. Its digest binds the submitted payload;
+    it is not a producer signature or a correctness certificate.
+    """
     passed, failures = triage(runs, requested)
     payload: dict[str, Any] = {
         "schema_version": SCHEMA_VERSION,
@@ -206,6 +389,7 @@ def assemble_report(
 
 
 def _payload_digest(payload: dict[str, Any]) -> str:
+    """Hash sorted compact JSON without adding or removing payload fields."""
     serialised = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     return hashlib.sha256(serialised).hexdigest()
 
@@ -214,23 +398,77 @@ def _payload_digest(payload: dict[str, Any]) -> str:
 
 
 def _run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """Wait for a native argv without a shell and return its captured text.
+
+    The child inherits this environment. No Python timeout is supplied; native
+    libFuzzer limits do not bound compilation or a child that ignores them.
+    Launch and cwd errors propagate as OSError.
+    """
     return subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
 
 
 def toolchain_metadata() -> tuple[dict[str, str], str]:
-    """Record the nightly Rust toolchain, cargo-fuzz version, and target triple."""
-    rustc = _run(["rustup", "run", "nightly", "rustc", "--version"]).stdout.strip()
-    cargo_fuzz = _run(["cargo", "fuzz", "--version"]).stdout.strip()
-    host = _run(["rustup", "run", "nightly", "rustc", "-vV"]).stdout
-    triple = ""
-    for line in host.splitlines():
-        if line.startswith("host:"):
-            triple = line.split(":", 1)[1].strip()
+    """Read versions and the host triple from three native commands.
+
+    Returns
+    -------
+    tuple[dict[str, str], str]
+        rustup nightly rustc --version, cargo fuzz --version and rustc -vV
+        observations from successful commands with nonempty output and one
+        nonempty host line. This does not qualify the pinned hosted toolchain.
+
+    Raises
+    ------
+    OSError
+        Starting a version command fails. No build is requested.
+    RuntimeError
+        A version command fails, produces empty output or omits its host.
+    """
+    rustc = _toolchain_output(["rustup", "run", "nightly", "rustc", "--version"], "Rust compiler version")
+    cargo_fuzz = _toolchain_output(["cargo", "fuzz", "--version"], "cargo-fuzz version")
+    host = _toolchain_output(["rustup", "run", "nightly", "rustc", "-vV"], "Rust compiler host")
+    triples = [line.split(":", 1)[1].strip() for line in host.splitlines() if line.startswith("host:")]
+    if len(triples) != 1 or not triples[0]:
+        raise RuntimeError("Rust compiler host metadata is missing or ambiguous")
     toolchain = {"rustc": rustc, "cargo_fuzz": cargo_fuzz}
-    return toolchain, triple or "unknown"
+    return toolchain, triples[0]
+
+
+def _toolchain_output(cmd: list[str], observation: str) -> str:
+    """Require successful, nonempty output from one real version command.
+
+    Parameters
+    ----------
+    cmd
+        Native argv passed unchanged to _run, without requesting a build.
+    observation
+        Authored name of the observation used in a failure message.
+
+    Returns
+    -------
+    str
+        Stripped standard output from a zero-status native command.
+
+    Raises
+    ------
+    OSError
+        Native launch fails.
+    RuntimeError
+        The native status is nonzero or standard output is empty.
+    """
+    result = _run(cmd)
+    if result.returncode != 0 or not result.stdout.strip():
+        raise RuntimeError(f"{observation} command failed or produced no output")
+    return result.stdout.strip()
 
 
 def _seed_corpus(target: str) -> None:
+    """Copy absent tracked seed names into the existing working corpus.
+
+    Existing destination names and additional evolved corpus inputs are kept.
+    Their bytes are not authenticated against the tracked seed manifest.
+    Filesystem errors propagate; this helper does not execute the fuzzer.
+    """
     corpus_dir = CORPUS_ROOT / target
     corpus_dir.mkdir(parents=True, exist_ok=True)
     seed_dir = SEEDS_ROOT / target
@@ -243,7 +481,40 @@ def _seed_corpus(target: str) -> None:
 
 
 def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetRun:
-    """Build (implicitly) and run one fuzz target for a bounded wall-clock time."""
+    """Run one registered target with positive native resource limits.
+
+    Parameters
+    ----------
+    target
+        Identifier in FUZZ_TARGETS.
+    max_total_time_s, rss_limit_mb
+        Positive integer libFuzzer limits, in seconds and megabytes. Booleans
+        and nonintegers are refused before creating a corpus or native child.
+
+    Returns
+    -------
+    TargetRun
+        Native status, elapsed seconds, parsed summary and currently observed
+        reproducer names. cargo +nightly fuzz run can implicitly compile; the
+        libFuzzer limit does not include build time. Existing corpus and
+        artefacts are reused. Missing statistics parse to zero and triage
+        refuses a zero executed-unit count.
+
+    Raises
+    ------
+    ValueError
+        The target or resource limits are invalid.
+    OSError
+        Corpus inspection, seed copying or native launch fails.
+
+    Notes
+    -----
+    This executes Rust harnesses directly, not their Python FFI entrypoints.
+    No binary/source provenance or scientific correctness is established.
+    """
+    if target not in FUZZ_TARGETS:
+        raise ValueError("unknown fuzz target")
+    _validate_limits(max_total_time_s, rss_limit_mb)
     _seed_corpus(target)
     cmd = [
         "cargo",
@@ -275,12 +546,33 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
 
 
 def build_all() -> int:
-    """Build every fuzz target so a compile break fails fast and cheaply."""
+    """Invoke cargo +nightly fuzz build for every harness.
+
+    Returns
+    -------
+    int
+        Native cargo status. A successful build does not execute a campaign.
+
+    Raises
+    ------
+    OSError
+        Cargo cannot be started or RUST_ROOT cannot be entered.
+
+    Notes
+    -----
+    Compilation is not bounded by the per-target libFuzzer time setting.
+    """
     proc = subprocess.run(["cargo", "+nightly", "fuzz", "build"], cwd=RUST_ROOT, check=False)
     return proc.returncode
 
 
 def _markdown(report: dict[str, Any]) -> str:
+    """Render the supplied report metadata, target rows and triage failures.
+
+    Values are not escaped for Markdown. The report must have the structure
+    produced by assemble_report; malformed structures raise native key/type
+    errors. This formats in memory and does not write files.
+    """
     lines = [
         "<!-- SPDX-License-Identifier: AGPL-3.0-or-later -->",
         "<!-- Commercial license available -->",
@@ -323,6 +615,39 @@ def _markdown(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Build selected campaign harnesses, execute them and report triage.
+
+    Parameters
+    ----------
+    argv
+        CLI arguments; None reads sys.argv. Targets must be nonempty, unique
+        and registered, with positive time and RSS limits. Invalid selection
+        refuses before build or corpus work, including in build-only mode.
+
+    Returns
+    -------
+    int
+        Zero for a successful build-only request or an admitted run report;
+        the native build status on build failure; one for failed triage or
+        unavailable campaign toolchain metadata, which refuses before build.
+        Build-only runs no targets and emits no campaign evidence.
+
+    Raises
+    ------
+    SystemExit
+        Argument parsing displays help or refuses invalid selection with two.
+    OSError
+        Native launch or filesystem/report writing fails.
+
+    Notes
+    -----
+    Roots resolve from this script, while output paths resolve from the caller
+    cwd. Explicit outputs create parents and overwrite existing paths; output
+    aliases and protected destinations are not validated here. Version-only
+    observations and report hashes do not authenticate executed sources.
+    The default campaign is 300 seconds for each of five targets, plus build
+    time. This command is separate from the fast Python preflight wrapper.
+    """
     parser = argparse.ArgumentParser(description="Run the scpn-control-rs libFuzzer campaign.")
     parser.add_argument(
         "--targets",
@@ -345,6 +670,23 @@ def main(argv: list[str] | None = None) -> int:
     unknown = [t for t in args.targets if t not in FUZZ_TARGETS]
     if unknown:
         parser.error(f"unknown fuzz target(s): {', '.join(unknown)}")
+    if not args.targets:
+        parser.error("at least one fuzz target is required")
+    if len(set(args.targets)) != len(args.targets):
+        parser.error("duplicate fuzz targets are not allowed")
+    if args.max_total_time <= 0:
+        parser.error("--max-total-time must be a positive integer")
+    if args.rss_limit_mb <= 0:
+        parser.error("--rss-limit-mb must be a positive integer")
+
+    toolchain: dict[str, str] = {}
+    triple = ""
+    if not args.build_only:
+        try:
+            toolchain, triple = toolchain_metadata()
+        except (OSError, RuntimeError):
+            print("fuzz toolchain metadata failed", file=sys.stderr)
+            return 1
 
     build_rc = build_all()
     if build_rc != 0:
@@ -354,7 +696,6 @@ def main(argv: list[str] | None = None) -> int:
         print("fuzz targets built successfully (build-only)")
         return 0
 
-    toolchain, triple = toolchain_metadata()
     runs = [run_target(t, args.max_total_time, args.rss_limit_mb) for t in args.targets]
     report = assemble_report(
         runs=runs,

@@ -8,8 +8,6 @@
 
 """Tests for Hardware-in-the-Loop test harness."""
 
-import copy
-import json
 import logging
 
 import numpy as np
@@ -26,45 +24,49 @@ from scpn_control.control.hil_harness import (
     HILControlLoop,
     SensorInterface,
     SNNNeuronConfig,
-    assert_hil_replay_evidence_admissible,
-    hil_replay_evidence,
-    load_hil_replay_evidence,
     run_hil_benchmark,
-    save_hil_replay_evidence,
 )
 
 
 class TestSensorInterface:
-    def test_adc_quantization(self):
+    """Exercise sensor interface behavior."""
+
+    def test_adc_quantization(self) -> None:
+        """Check adc quantization."""
         sensor = SensorInterface(adc=ADCConfig(resolution_bits=12))
         reading = sensor.read_adc(0.5)
         assert isinstance(reading, float)
         # 12-bit in ±1.5V → LSB ~0.73 mV
         assert abs(reading - 0.5) < 0.01  # within ~10 LSBs (noise)
 
-    def test_adc_clamps_range(self):
+    def test_adc_clamps_range(self) -> None:
+        """Check adc clamps range."""
         sensor = SensorInterface()
         # Beyond range should clamp
         reading = sensor.read_adc(10.0)  # way above ±1.5V
         assert reading <= 1.5 + 0.01
 
-    def test_dac_slew_rate(self):
+    def test_dac_slew_rate(self) -> None:
+        """Check dac slew rate."""
         sensor = SensorInterface(dac=DACConfig(slew_rate_v_per_us=50.0))
         # Large step should be slew-limited
         out = sensor.write_dac(10.0, dt_us=0.1)
         assert out < 10.0  # can't reach 10V in 0.1 us at 50V/us
 
-    def test_magnetic_probe(self):
+    def test_magnetic_probe(self) -> None:
+        """Check magnetic probe."""
         sensor = SensorInterface(rng_seed=42)
         B = sensor.read_magnetic_probe(5.3)
         assert abs(B - 5.3) < 0.5  # reasonable noise level
 
-    def test_coil_current(self):
+    def test_coil_current(self) -> None:
+        """Check coil current."""
         sensor = SensorInterface()
         I = sensor.write_coil_current(25.0, dt_us=1000.0)
         assert abs(I - 25.0) < 5.0  # slew-limited approach
 
-    def test_adc_deterministic_with_seed(self):
+    def test_adc_deterministic_with_seed(self) -> None:
+        """Check adc deterministic with seed."""
         s1 = SensorInterface(rng_seed=42)
         s2 = SensorInterface(rng_seed=42)
         r1 = s1.read_adc(0.5)
@@ -73,7 +75,10 @@ class TestSensorInterface:
 
 
 class TestHILControlLoop:
-    def test_basic_loop(self):
+    """Exercise h i l control loop behavior."""
+
+    def test_basic_loop(self) -> None:
+        """Check basic loop."""
         loop = HILControlLoop(target_rate_hz=1000.0)
         loop.set_controller(lambda err, _: -0.5 * err)
         metrics = loop.run(iterations=100, setpoint=0.0)
@@ -81,7 +86,7 @@ class TestHILControlLoop:
         assert metrics.iterations == 100
         assert len(metrics.measured_dt_us) == 100
 
-    def test_sub_ms_latency(self):
+    def test_sub_ms_latency(self) -> None:
         """Core requirement: P95 loop latency < 1 ms."""
         loop = HILControlLoop(target_rate_hz=1000.0)
         loop.set_controller(lambda err, _: -0.5 * err)
@@ -90,15 +95,17 @@ class TestHILControlLoop:
         assert metrics.p95_latency_us < 1000.0
         assert metrics.sub_ms_achieved
 
-    def test_no_controller_raises(self):
+    def test_no_controller_raises(self) -> None:
+        """Check no controller raises."""
         loop = HILControlLoop()
         with pytest.raises(RuntimeError, match="No controller"):
             loop.run(iterations=10)
 
-    def test_pid_controller_stabilises(self):
+    def test_pid_controller_stabilises(self) -> None:
+        """Check pid controller stabilises."""
         state = {"i": 0.0, "prev": 0.0}
 
-        def pid(err, _):
+        def pid(err: float, _: SensorInterface) -> float:
             state["i"] += err
             d = err - state["prev"]
             state["prev"] = err
@@ -107,14 +114,15 @@ class TestHILControlLoop:
         loop = HILControlLoop(target_rate_hz=1000.0)
         loop.set_controller(pid)
 
-        def plant(s, cmd):
+        def plant(s: float, cmd: float) -> float:
             return s + cmd * 0.001  # integrator
 
         metrics = loop.run(iterations=200, plant_fn=plant, initial_state=1.0, setpoint=0.0)
         assert metrics.iterations == 200
         assert metrics.mean_latency_us > 0.0
 
-    def test_jitter_measured(self):
+    def test_jitter_measured(self) -> None:
+        """Check jitter measured."""
         loop = HILControlLoop()
         loop.set_controller(lambda err, _: -err)
         metrics = loop.run(iterations=200)
@@ -123,7 +131,10 @@ class TestHILControlLoop:
 
 
 class TestFPGASNNExport:
-    def test_register_map_generation(self):
+    """Exercise f p g a s n n export behavior."""
+
+    def test_register_map_generation(self) -> None:
+        """Check register map generation."""
         exporter = FPGASNNExport(n_neurons=50, n_channels=2)
         reg_map = exporter.generate_register_map()
         assert isinstance(reg_map, FPGARegisterMap)
@@ -132,7 +143,8 @@ class TestFPGASNNExport:
         assert len(reg_map.input_ports) == 2
         assert len(reg_map.output_ports) == 2
 
-    def test_verilog_header(self):
+    def test_verilog_header(self) -> None:
+        """Check verilog header."""
         exporter = FPGASNNExport(n_neurons=10, n_channels=2, clock_mhz=100.0)
         reg_map = exporter.generate_register_map()
         verilog = exporter.export_verilog_header(reg_map)
@@ -142,7 +154,8 @@ class TestFPGASNNExport:
         assert "v_mem" in verilog
         assert "endmodule" in verilog
 
-    def test_neuron_configs(self):
+    def test_neuron_configs(self) -> None:
+        """Check neuron configs."""
         exporter = FPGASNNExport(n_neurons=5, n_channels=1)
         reg_map = exporter.generate_register_map(v_threshold=0.4, tau_mem_us=20000.0)
         for neuron in reg_map.neurons:
@@ -150,127 +163,54 @@ class TestFPGASNNExport:
             assert neuron.v_threshold == 0.4
             assert neuron.tau_mem_us == 20000.0
 
-    def test_clock_frequency(self):
+    def test_clock_frequency(self) -> None:
+        """Check clock frequency."""
         exporter = FPGASNNExport(clock_mhz=200.0)
         reg_map = exporter.generate_register_map()
         assert reg_map.clock_hz == 200_000_000
 
 
 class TestHILBenchmark:
-    def test_full_benchmark(self):
+    """Exercise h i l benchmark behavior."""
+
+    def test_full_benchmark(self) -> None:
+        """Check full benchmark."""
         result = run_hil_benchmark(iterations=200, verbose=False)
         assert isinstance(result, HILBenchmarkResult)
         assert result.total_loop_latency_us > 0.0
         assert result.passes_sub_ms
 
-    def test_benchmark_with_fpga_export(self):
+    def test_benchmark_with_fpga_export(self) -> None:
+        """Check benchmark with fpga export."""
         result = run_hil_benchmark(iterations=100, include_fpga_export=True)
         assert result.fpga_register_map is not None
         assert result.fpga_register_map.n_neurons > 0
 
-    def test_benchmark_without_fpga(self):
+    def test_benchmark_without_fpga(self) -> None:
+        """Check benchmark without fpga."""
         result = run_hil_benchmark(iterations=100, include_fpga_export=False)
         assert result.fpga_register_map is None
 
-    def test_latency_budget_decomposition(self):
+    def test_latency_budget_decomposition(self) -> None:
+        """Check latency budget decomposition."""
         result = run_hil_benchmark(iterations=100)
         total = result.sensor_latency_us + result.controller_latency_us + result.actuator_latency_us
         assert abs(total - result.total_loop_latency_us) < 0.1
 
-    def test_sub_ms_p95(self):
+    def test_sub_ms_p95(self) -> None:
         """The key deliverable: demonstrate sub-ms control loop latency."""
         result = run_hil_benchmark(iterations=1000)
         assert result.passes_sub_ms
-
-
-class TestHILReplayEvidence:
-    @staticmethod
-    def _metrics(
-        *,
-        overrun_count: int = 0,
-        target_dt_us: float = 1000.0,
-        max_latency_us: float = 40.0,
-    ) -> ControlLoopMetrics:
-        return ControlLoopMetrics(
-            iterations=10,
-            target_dt_us=target_dt_us,
-            measured_dt_us=[10.0, 12.0, 15.0, 18.0, 20.0, 22.0, 25.0, 30.0, 35.0, 40.0],
-            p50_latency_us=21.0,
-            p95_latency_us=37.75,
-            p99_latency_us=39.55,
-            max_latency_us=max_latency_us,
-            min_latency_us=10.0,
-            mean_latency_us=22.7,
-            jitter_std_us=9.117,
-            overrun_count=overrun_count,
-            overrun_fraction=overrun_count / 10,
-            sub_ms_achieved=True,
-        )
-
-    def test_local_replay_evidence_round_trips_and_rejects_tampering(self, tmp_path):
-        evidence = hil_replay_evidence(
-            self._metrics(),
-            controller_id="tests.test_hil_harness.pid-vde",
-            generated_at="2026-05-24T00:00:00Z",
-        )
-        assert evidence["admission"]["deployment_claim_allowed"] is False
-        assert evidence["admission"]["claim_status"] == "bounded_local_hil_replay_only"
-        assert_hil_replay_evidence_admissible(evidence)
-
-        path = save_hil_replay_evidence(evidence, tmp_path / "hil_replay_evidence.json")
-        assert load_hil_replay_evidence(path) == evidence
-
-        tampered = json.loads(path.read_text(encoding="utf-8"))
-        tampered["timing"]["p95_latency_us"] = 1.0
-        path.write_text(json.dumps(tampered, sort_keys=True), encoding="utf-8")
-        with pytest.raises(ValueError, match="payload_sha256"):
-            load_hil_replay_evidence(path)
-
-    def test_deployment_claim_requires_qualified_target_hardware(self):
-        with pytest.raises(ValueError, match="target_hardware"):
-            hil_replay_evidence(
-                self._metrics(),
-                controller_id="pid-vde",
-                deployment_claim_allowed=True,
-                generated_at="2026-05-24T00:00:00Z",
-            )
-
-    def test_deployment_claim_rejects_runtime_safety_events(self):
-        with pytest.raises(ValueError, match="backpressure"):
-            hil_replay_evidence(
-                self._metrics(),
-                controller_id="pid-vde",
-                target_hardware_id="jetson-orin-lab-01",
-                target_hardware_class="jetson-orin-preempt-rt",
-                rt_kernel="linux-rt-6.8.0-lab",
-                backpressure_events=1,
-                deployment_claim_allowed=True,
-                generated_at="2026-05-24T00:00:00Z",
-            )
-
-    def test_deployment_claim_accepts_consistent_target_hardware_contract(self):
-        evidence = hil_replay_evidence(
-            self._metrics(),
-            controller_id="pid-vde",
-            target_hardware_id="jetson-orin-lab-01",
-            target_hardware_class="jetson-orin-preempt-rt",
-            rt_kernel="linux-rt-6.8.0-lab",
-            deployment_claim_allowed=True,
-            generated_at="2026-05-24T00:00:00Z",
-        )
-        admitted = assert_hil_replay_evidence_admissible(
-            evidence,
-            require_target_hardware=True,
-        )
-        assert admitted["admission"]["claim_status"] == "qualified_target_hardware_deployment_evidence"
-        assert admitted["timing"]["max_latency_us"] <= admitted["timing"]["target_dt_us"]
 
 
 # ── HILDemoRunner ──────────────────────────────────────────────────
 
 
 class TestHILDemoRunner:
-    def test_q16_roundtrip(self):
+    """Exercise h i l demo runner behavior."""
+
+    def test_q16_roundtrip(self) -> None:
+        """Check q16 roundtrip."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         for val in [0.0, 0.5, -0.5, 1.0, -1.0, 0.123]:
@@ -278,7 +218,8 @@ class TestHILDemoRunner:
             decoded = HILDemoRunner.q16_16_to_float(encoded)
             assert abs(decoded - val) < 1e-4
 
-    def test_step_returns_output(self):
+    def test_step_returns_output(self) -> None:
+        """Check step returns output."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
@@ -286,7 +227,8 @@ class TestHILDemoRunner:
         assert out.shape == (2,)
         assert runner.total_steps == 1
 
-    def test_run_episode_no_faults(self):
+    def test_run_episode_no_faults(self) -> None:
+        """Check run episode no faults."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
@@ -294,7 +236,8 @@ class TestHILDemoRunner:
         assert report["total_steps"] == 50
         assert report["tmr_mismatches"] == 0
 
-    def test_run_episode_with_faults(self):
+    def test_run_episode_with_faults(self) -> None:
+        """Check run episode with faults."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner(n_neurons=4, n_inputs=4, n_outputs=4)
@@ -302,7 +245,8 @@ class TestHILDemoRunner:
         assert report["total_steps"] == 200
         assert report["tmr_mismatch_rate"] >= 0.0
 
-    def test_inject_bitflip(self):
+    def test_inject_bitflip(self) -> None:
+        """Check inject bitflip."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
@@ -313,7 +257,8 @@ class TestHILDemoRunner:
         assert runner.tmr_copies[1][0] == 0.5
         assert runner.tmr_copies[2][0] == 0.5
 
-    def test_report_keys(self):
+    def test_report_keys(self) -> None:
+        """Check report keys."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner()
@@ -333,7 +278,8 @@ class TestHILDemoRunner:
         ):
             assert key in report
 
-    def test_tmr_vote_corrects_single_fault(self):
+    def test_tmr_vote_corrects_single_fault(self) -> None:
+        """Check tmr vote corrects single fault."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         runner = HILDemoRunner(n_neurons=4, n_inputs=2, n_outputs=2)
@@ -349,7 +295,10 @@ class TestHILDemoRunner:
 
 
 class TestRunHILBenchmarkDetailed:
-    def test_returns_expected_keys(self):
+    """Exercise run h i l benchmark detailed behavior."""
+
+    def test_returns_expected_keys(self) -> None:
+        """Check returns expected keys."""
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
 
         result = run_hil_benchmark_detailed(n_steps=100)
@@ -357,7 +306,8 @@ class TestRunHILBenchmarkDetailed:
             assert key in result
         assert result["n_steps"] == 100
 
-    def test_stage_breakdown_positive(self):
+    def test_stage_breakdown_positive(self) -> None:
+        """Check stage breakdown positive."""
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
 
         result = run_hil_benchmark_detailed(n_steps=200)
@@ -366,7 +316,8 @@ class TestRunHILBenchmarkDetailed:
         assert sb["controller_step_mean_us"] >= 0.0
         assert sb["actuator_command_mean_us"] >= 0.0
 
-    def test_mean_bounded_by_max(self):
+    def test_mean_bounded_by_max(self) -> None:
+        """Check mean bounded by max."""
         from scpn_control.control.hil_harness import run_hil_benchmark_detailed
 
         result = run_hil_benchmark_detailed(n_steps=100)
@@ -375,7 +326,10 @@ class TestRunHILBenchmarkDetailed:
 
 
 class TestHILBenchmarkVerbose:
-    def test_verbose_prints_output(self, caplog):
+    """Exercise h i l benchmark verbose behavior."""
+
+    def test_verbose_prints_output(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Check verbose prints output."""
         with caplog.at_level(logging.INFO, logger="scpn_control.control.hil_harness"):
             run_hil_benchmark(iterations=50, verbose=True)
         assert "HIL Benchmark Results" in caplog.text
@@ -384,7 +338,8 @@ class TestHILBenchmarkVerbose:
         assert "Overruns" in caplog.text
         assert "Sub-ms" in caplog.text
 
-    def test_verbose_with_fpga(self, caplog):
+    def test_verbose_with_fpga(self, caplog: pytest.LogCaptureFixture) -> None:
+        """Check verbose with fpga."""
         with caplog.at_level(logging.INFO, logger="scpn_control.control.hil_harness"):
             run_hil_benchmark(iterations=50, verbose=True, include_fpga_export=True)
         assert "FPGA neurons" in caplog.text
@@ -392,7 +347,10 @@ class TestHILBenchmarkVerbose:
 
 
 class TestHILDemoRunnerWeights:
-    def test_load_weights_from_controller(self):
+    """Exercise h i l demo runner weights behavior."""
+
+    def test_load_weights_from_controller(self) -> None:
+        """Check load weights from controller."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         class _MockController:
@@ -404,7 +362,8 @@ class TestHILDemoRunnerWeights:
         np.testing.assert_allclose(runner.weights, _MockController.weights)
         np.testing.assert_allclose(runner.output_weights, _MockController.output_weights)
 
-    def test_load_weights_no_output_weights(self):
+    def test_load_weights_no_output_weights(self) -> None:
+        """Check load weights no output weights."""
         from scpn_control.control.hil_harness import HILDemoRunner
 
         class _MockCtrlNoOutput:
@@ -415,221 +374,6 @@ class TestHILDemoRunnerWeights:
         np.testing.assert_allclose(runner.weights, _MockCtrlNoOutput.weights)
         # output_weights should remain zeros
         assert np.all(runner.output_weights == 0.0)
-
-
-# ── Validator-helper, timing-payload and replay-admission branch contracts ────
-
-
-def _full_metrics(**overrides):
-    base = dict(
-        iterations=10,
-        target_dt_us=1000.0,
-        measured_dt_us=[10.0] * 10,
-        p50_latency_us=21.0,
-        p95_latency_us=37.75,
-        p99_latency_us=39.55,
-        max_latency_us=40.0,
-        min_latency_us=10.0,
-        mean_latency_us=22.7,
-        jitter_std_us=9.117,
-        overrun_count=0,
-        overrun_fraction=0.0,
-        sub_ms_achieved=True,
-    )
-    base.update(overrides)
-    return ControlLoopMetrics(**base)
-
-
-def _local_evidence():
-    return hil_replay_evidence(
-        _full_metrics(),
-        controller_id="tests.pid-vde",
-        generated_at="2026-05-24T00:00:00Z",
-    )
-
-
-def _qualified_evidence():
-    return hil_replay_evidence(
-        _full_metrics(),
-        controller_id="tests.pid-vde",
-        target_hardware_id="jetson-orin-lab-01",
-        target_hardware_class="jetson-orin-preempt-rt",
-        rt_kernel="linux-rt-6.8.0-lab",
-        deployment_claim_allowed=True,
-        generated_at="2026-05-24T00:00:00Z",
-    )
-
-
-def _reseal(payload):
-    payload["replay_digest"] = hil._sha256_json(
-        {
-            "controller_id": payload["controller_id"],
-            "target_hardware": payload["target_hardware"],
-            "timing": payload["timing"],
-            "safety_events": payload["safety_events"],
-            "admission": payload["admission"],
-        }
-    )
-    payload["payload_sha256"] = hil._sha256_json({k: v for k, v in payload.items() if k != "payload_sha256"})
-    return payload
-
-
-def test_utc_now_iso_is_z_suffixed():
-    assert hil._utc_now_iso().endswith("Z")
-
-
-def test_reject_duplicate_json_keys():
-    with pytest.raises(ValueError, match="duplicate JSON key"):
-        hil._reject_duplicate_json_keys([("a", 1), ("a", 2)])
-
-
-def test_require_mapping_rejects_non_mapping():
-    with pytest.raises(ValueError, match="must be an object"):
-        hil._require_mapping([], "field")
-
-
-@pytest.mark.parametrize(
-    ("fn_name", "args", "match"),
-    [
-        ("_require_non_empty_text", ("  ", "field"), "non-empty string"),
-        ("_require_positive_int", (0, "field"), "positive integer"),
-        ("_require_non_negative_int", (-1, "field"), "non-negative integer"),
-    ],
-)
-def test_scalar_validators_reject(fn_name, args, match):
-    with pytest.raises(ValueError, match=match):
-        getattr(hil, fn_name)(*args)
-
-
-@pytest.mark.parametrize(
-    ("value", "kwargs", "match"),
-    [
-        (True, {}, "finite float"),
-        ("not-a-number", {}, "finite float"),
-        (float("inf"), {}, "must be finite"),
-        (0.0, {"positive": True}, "must be positive"),
-        (-1.0, {}, "must be non-negative"),
-    ],
-)
-def test_require_finite_float_rejects(value, kwargs, match):
-    with pytest.raises(ValueError, match=match):
-        hil._require_finite_float(value, "field", **kwargs)
-
-
-@pytest.mark.parametrize("bad", ["unknown-rig", "placeholder-node"])
-def test_require_qualified_hardware_rejects_placeholders(bad):
-    with pytest.raises(ValueError, match="must not be a placeholder"):
-        hil._require_qualified_hardware(bad, "field")
-
-
-def test_control_metrics_from_benchmark_result():
-    metrics = _full_metrics()
-    result = HILBenchmarkResult(
-        control_metrics=metrics,
-        sensor_latency_us=1.0,
-        controller_latency_us=2.0,
-        actuator_latency_us=3.0,
-        total_loop_latency_us=6.0,
-        passes_sub_ms=True,
-        passes_1khz=True,
-        fpga_register_map=None,
-    )
-    assert hil._control_metrics_from_evidence_source(result) is metrics
-
-
-def test_control_metrics_from_evidence_source_rejects_bad_type():
-    with pytest.raises(TypeError, match="ControlLoopMetrics or HILBenchmarkResult"):
-        hil._control_metrics_from_evidence_source(object())  # type: ignore[arg-type]
-
-
-@pytest.mark.parametrize(
-    ("overrides", "match"),
-    [
-        ({"overrun_count": 20, "overrun_fraction": 2.0}, "overrun_count cannot exceed"),
-        ({"overrun_count": 2, "overrun_fraction": 0.0}, "overrun_fraction must equal"),
-        ({"p50_latency_us": 38.0}, "latency percentiles must satisfy"),
-        ({"mean_latency_us": 9999.0}, "mean latency must lie within"),
-        ({"sub_ms_achieved": False}, "sub_ms_achieved must match"),
-    ],
-)
-def test_hil_timing_payload_rejects(overrides, match):
-    with pytest.raises(ValueError, match=match):
-        hil._hil_timing_payload(_full_metrics(**overrides))
-
-
-def test_admissible_rejects_non_hex_payload_digest():
-    payload = _local_evidence()
-    payload["payload_sha256"] = "not-a-digest"
-    with pytest.raises(ValueError, match="payload_sha256 must be a lowercase SHA-256"):
-        assert_hil_replay_evidence_admissible(payload)
-
-
-@pytest.mark.parametrize(
-    ("mutate", "match"),
-    [
-        (lambda p: p.__setitem__("schema_version", "bad"), "schema_version"),
-        (lambda p: p.__setitem__("evidence_boundary", "bad"), "evidence boundary"),
-        (lambda p: p["timing"].__setitem__("p50_latency_us", 38.0), "latency percentiles"),
-        (lambda p: p["timing"].__setitem__("mean_latency_us", 9999.0), "mean latency"),
-        (lambda p: p["timing"].__setitem__("overrun_count", 20), "overrun_count cannot exceed"),
-        (
-            lambda p: (p["timing"].__setitem__("overrun_count", 2), p["timing"].__setitem__("overrun_fraction", 0.0)),
-            "overrun_fraction must equal",
-        ),
-        (lambda p: p["timing"].__setitem__("sub_ms_achieved", "yes"), "sub_ms_achieved must be boolean"),
-        (lambda p: p["timing"].__setitem__("sub_ms_achieved", False), "sub_ms_achieved must match"),
-        (lambda p: p["target_hardware"].__setitem__("target_rate_hz", 999.0), "target_rate_hz must match"),
-        (lambda p: p["admission"].__setitem__("deployment_claim_allowed", "yes"), "deployment_claim_allowed must be"),
-        (lambda p: p["admission"].__setitem__("claim_status", "wrong"), "claim_status is inconsistent"),
-    ],
-)
-def test_admissible_rejects_resealed_mutation(mutate, match):
-    payload = copy.deepcopy(_local_evidence())
-    mutate(payload)
-    _reseal(payload)
-    with pytest.raises(ValueError, match=match):
-        assert_hil_replay_evidence_admissible(payload)
-
-
-@pytest.mark.parametrize(
-    ("mutate", "match"),
-    [
-        (
-            lambda p: (p["timing"].__setitem__("overrun_count", 3), p["timing"].__setitem__("overrun_fraction", 0.3)),
-            "must have zero overruns",
-        ),
-        (lambda p: p["timing"].__setitem__("max_latency_us", 5000.0), "must meet max latency target"),
-        (lambda p: p["safety_events"].__setitem__("interlock_events", 1), "zero interlock events"),
-    ],
-)
-def test_qualified_admissible_rejects(mutate, match):
-    payload = copy.deepcopy(_qualified_evidence())
-    mutate(payload)
-    _reseal(payload)
-    with pytest.raises(ValueError, match=match):
-        assert_hil_replay_evidence_admissible(payload, require_target_hardware=True)
-
-
-def test_admissible_requires_qualified_hardware_when_demanded():
-    payload = _local_evidence()
-    with pytest.raises(ValueError, match="qualified target hardware evidence is required"):
-        assert_hil_replay_evidence_admissible(payload, require_target_hardware=True)
-
-
-def test_admissible_rejects_non_hex_replay_digest():
-    payload = _local_evidence()
-    payload["replay_digest"] = "not-a-digest"
-    payload["payload_sha256"] = hil._sha256_json({k: v for k, v in payload.items() if k != "payload_sha256"})
-    with pytest.raises(ValueError, match="replay_digest must be a lowercase SHA-256"):
-        assert_hil_replay_evidence_admissible(payload)
-
-
-def test_admissible_rejects_replay_digest_mismatch():
-    payload = _local_evidence()
-    payload["replay_digest"] = "a" * 64
-    payload["payload_sha256"] = hil._sha256_json({k: v for k, v in payload.items() if k != "payload_sha256"})
-    with pytest.raises(ValueError, match="replay_digest does not match"):
-        assert_hil_replay_evidence_admissible(payload)
 
 
 def test_run_hil_benchmark_verbose_without_fpga_export() -> None:

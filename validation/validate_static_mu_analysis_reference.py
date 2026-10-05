@@ -5,55 +5,25 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Static structured-mu reference artifact validator
+# SCPN Control — Static mu-analysis reference artifact validator
 
-"""Validate persisted static mu-analysis reference artifacts.
-
-The version-1 artifact schema retains ``robustness_margin`` as the serialized
-name for the reciprocal zero-frequency upper bound. It is not interpreted as a
-frequency-domain robust-stability margin.
-"""
+"""Validate persisted Static mu-analysis reference artifacts."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import math
-import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeIs
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-_ALLOWED_SOURCES = {"documented_public_reference", "external_mu_toolbox_benchmark", "measured_control_replay"}
-_ALLOWED_EXTERNAL_CODES = {"MATLAB_MU_TOOLBOX", "ROBUST_CONTROL_TOOLBOX", "SLICOT", "JULIA_ROBUSTANDOPTIMALCONTROL"}
-_REQUIRED_STR_FIELDS = (
-    "source",
-    "model_id",
-    "model_version",
-    "reference_dataset_id",
-    "reference_artifact_sha256",
-    "executed_at",
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from validation.static_mu_reference_contracts import (
+    _validate_artifact,
 )
-_REQUIRED_UNITS = {
-    "mu": "1",
-    "robustness_margin": "1",
-    "controller_gain": "1",
-    "d_scaling": "1",
-    "spectral_abscissa": "s^-1",
-}
-_REQUIRED_PLANT_FIELDS = ("state_dimension", "control_dimension", "output_dimension", "uncertainty_total_size")
-_MAXIMUM_ERROR_METRICS = (
-    "mu_upper_bound_relative_error",
-    "robustness_margin_abs_error",
-    "controller_gain_relative_error",
-    "d_scaling_relative_error",
-    "closed_loop_spectral_abscissa_abs_error",
-)
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def validate_static_mu_analysis_reference(
@@ -61,7 +31,32 @@ def validate_static_mu_analysis_reference(
     *,
     require_reference_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Validate static mu-analysis evidence against persisted reference artifacts."""
+    """Read selected JSON declarations and report schema, source, unit and declared-tolerance findings.
+
+    Directories select immediate sorted *.json files; a regular file selects
+    itself regardless of suffix. Missing/nonfile roots select nothing: optional
+    mode passes with zero entries, required mode fails. Each file is read once.
+    Unsupported JSON/UTF8, duplicate keys and IO failures become authored json
+    findings; valid declarations return only identity/count metadata. Reads are
+    sequential observations, not a coherent directory snapshot.
+
+    Schema1.0 retains six identities, one exact format-only reference SHA,
+    original source/provenance text presence and approved external code names.
+    Four plant dimensions and case count are positive uncapped nonboolean ints.
+    Five units and five finite nonnegative declared errors within positive
+    inclusive bounds remain. Reference bytes are not fetched or authenticated.
+    Historical robustness_margin means the reciprocal zero-frequency upper
+    bound, not a frequency-domain stability margin. No controller design,
+    D-K iteration, frequency sweep or validated physical claim occurs here.
+
+    Examples
+    --------
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as directory:
+    ...     report = validate_static_mu_analysis_reference(directory, require_reference_artifacts=True)
+    >>> report["status"], report["reference_artifacts"], report["errors"][0]["field"]
+    ('fail', 0, 'artifact_root')
+    """
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
     report: dict[str, Any] = {
@@ -77,202 +72,103 @@ def validate_static_mu_analysis_reference(
 
     if require_reference_artifacts and not paths:
         errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no static mu-analysis reference artifacts found"}
+            {"path": str(root), "field": "artifact_root", "error": "no Static mu-analysis reference artifacts found"}
         )
 
     for path in paths:
         try:
-            with path.open(encoding="utf-8") as handle:
-                payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
+            payload = json.loads(
+                path.read_bytes().decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+                parse_float=_decode_json_float,
+            )
             entry = _validate_artifact(path, payload, errors)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
-            errors.append({"path": str(path), "field": "json", "error": str(exc)})
+        except (OSError, ValueError):
+            errors.append(
+                {"path": str(path), "field": "json", "error": "artifact must be readable UTF-8 JSON with unique keys"}
+            )
             continue
         if entry is not None:
             entries.append(entry)
             report["reference_artifacts"] += 1
 
-    if require_reference_artifacts and report["reference_artifacts"] == 0 and not errors:
-        errors.append(
-            {"path": str(root), "field": "artifact_root", "error": "no static mu-analysis reference artifacts found"}
-        )
     if errors:
         report["status"] = "fail"
     return report
 
 
-def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
-    if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
-        return None
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
-    for field in _REQUIRED_STR_FIELDS:
-        if not _has_nonempty_str(payload, field):
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
-    digest = payload.get("reference_artifact_sha256")
-    if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append(
-            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
-        )
-    if payload.get("source") not in _ALLOWED_SOURCES:
-        errors.append(
-            {
-                "path": str(path),
-                "field": "source",
-                "error": "source must be documented_public_reference, external_mu_toolbox_benchmark, or measured_control_replay",
-            }
-        )
-    _validate_source_provenance(path, payload, errors)
-    if not _valid_units(payload.get("units")):
-        errors.append({"path": str(path), "field": "units", "error": "units must declare mu-analysis contracts"})
-    if not _valid_plant_metadata(payload.get("plant_metadata")):
-        errors.append(
-            {"path": str(path), "field": "plant_metadata", "error": "plant_metadata must declare positive dimensions"}
-        )
-    count = payload.get("reference_case_count")
-    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        errors.append({"path": str(path), "field": "reference_case_count", "error": "field must be a positive integer"})
-    _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
-    if any(error["path"] == str(path) for error in errors):
-        return None
-    return {
-        "path": str(path),
-        "source": str(payload["source"]),
-        "model_id": str(payload["model_id"]),
-        "model_version": str(payload["model_version"]),
-        "reference_dataset_id": str(payload["reference_dataset_id"]),
-        "reference_case_count": int(payload["reference_case_count"]),
-    }
-
-
-def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
-    source = payload.get("source")
-    if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "reference",
-                "error": "documented public references require reference_url or reference_doi",
-            }
-        )
-    if source == "measured_control_replay":
-        if not _has_nonempty_str(payload, "shot_id"):
-            errors.append({"path": str(path), "field": "shot_id", "error": "measured control replays require shot_id"})
-        if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "diagnostic_uri",
-                    "error": "measured control replays require diagnostic_uri",
-                }
-            )
-    if source == "external_mu_toolbox_benchmark":
-        external_code = payload.get("external_code")
-        if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "external_code",
-                    "error": "external_code must identify an approved mu-analysis backend",
-                }
-            )
-        if not _has_nonempty_str(payload, "reference_artifact_uri"):
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "reference_artifact_uri",
-                    "error": "external benchmarks require reference_artifact_uri",
-                }
-            )
-
-
-def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
-    if not isinstance(metrics, dict):
-        errors.append({"path": str(path), "field": "metrics", "error": "metrics must be an object"})
-        return
-    if not isinstance(tolerances, dict):
-        errors.append({"path": str(path), "field": "tolerances", "error": "tolerances must be an object"})
-        return
-    for field in _MAXIMUM_ERROR_METRICS:
-        metric = metrics.get(field)
-        tolerance = tolerances.get(field)
-        if not _is_nonnegative_finite(metric):
-            errors.append({"path": str(path), "field": field, "error": "metric must be finite and non-negative"})
-            continue
-        if not _is_positive_finite(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "tolerance must be finite and positive"})
-            continue
-        if float(metric) > float(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "metric exceeds declared tolerance"})
-
-
-def _valid_plant_metadata(value: object) -> bool:
-    if not isinstance(value, dict):
-        return False
-    return all(
-        isinstance(v := value.get(field), int) and not isinstance(v, bool) and v > 0 for field in _REQUIRED_PLANT_FIELDS
-    )
-
-
-def _valid_units(value: object) -> bool:
-    return isinstance(value, dict) and all(value.get(field) == unit for field, unit in _REQUIRED_UNITS.items())
-
-
-def _has_public_reference(payload: dict[str, object]) -> bool:
-    return any(_has_nonempty_str(payload, field) for field in ("reference_url", "reference_doi"))
-
-
-def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
-    value = payload.get(field)
-    return isinstance(value, str) and bool(value.strip())
-
-
-def _is_finite_number(value: object) -> TypeIs[float]:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
-
-
-def _is_nonnegative_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) >= 0.0
-
-
-def _is_positive_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) > 0.0
-
-
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Decode JSON objects while refusing duplicate keys, including in nested objects."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise ValueError(f"duplicate JSON key: {key}")
+            raise ValueError("artifact JSON contains duplicate keys")
         out[key] = value
     return out
 
 
+def _decode_json_float(token: str) -> float:
+    """Decode a JSON float while refusing nonzero decimal tokens that collapse to binary64 zero."""
+    number = float(token)
+    if number == 0 and any(char in "123456789" for char in token.lower().partition("e")[0]):
+        raise ValueError("artifact JSON number is not representable")
+    return number
+
+
+def write_static_mu_analysis_reference_report(
+    report: dict[str, Any], output_path: str | Path, *, artifact_root: str | Path
+) -> None:
+    """Write sorted UTF8 JSON, creating parents while protecting selected input aliases.
+
+    Direct, resolved, symbolic and existing hard-link aliases of the supplied
+    root or its immediate JSON inputs raise ValueError before any write. Other
+    existing output is replaced. IO/path-resolution/encoding/serialization errors propagate.
+    Discovery is a fresh sequential observation, without locking or transactional
+    coupling to prior validation. Concurrent pathname changes remain outside it.
+    """
+    output = Path(output_path)
+    root = Path(artifact_root)
+    inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
+    for source in inputs:
+        if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+            raise ValueError("Static mu-analysis reference report output must not overwrite selected input")
+    text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
-    """Run static mu-analysis reference validation from the command line."""
+    """Return zero for declaration pass, one for findings or supported inspection/write failure.
+
+    Paths are caller-relative; absent root uses the canonical reference folder.
+    JSON mode prints the report, text mode prints summary/stdout and findings/
+    stderr. Operational refusal uses fixed authored stderr with no exception
+    details. Parser help/usage retain exits0/2; this CLI authenticates no Static mu-analysis physics.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact-root",
         default=str(ROOT / "validation" / "reports" / "static_mu_analysis_reference"),
-        help="Directory or JSON artifact containing persisted static mu-analysis reference evidence",
+        help="Directory or JSON artifact containing persisted Static mu-analysis reference evidence",
     )
     parser.add_argument(
         "--require-reference-artifacts",
         action="store_true",
-        help="Fail if no static mu-analysis reference artifacts are present",
+        help="Fail if no Static mu-analysis reference artifacts are present",
     )
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_static_mu_analysis_reference(
-        args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
-    )
-    if args.output_json:
-        output_path = Path(args.output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        report = validate_static_mu_analysis_reference(
+            args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
+        )
+        if args.output_json:
+            write_static_mu_analysis_reference_report(report, args.output_json, artifact_root=args.artifact_root)
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        print("Static mu-analysis reference FAILED: could not inspect artifacts or write report", file=sys.stderr)
+        return 1
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

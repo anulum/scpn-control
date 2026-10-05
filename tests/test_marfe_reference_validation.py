@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MARFE reference validation tests
 
+"""Preserve original persisted MARFE declaration behavior through the public reader."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_marfe_reference import canonical_artifact_sha256, valid
 
 
 def _valid_marfe_reference_artifact() -> dict[str, object]:
+    """Build original metadata only; no measured MARFE reference bytes are supplied."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.marfe-reference.v1",
         "source": "measured_marfe_campaign",
@@ -66,6 +69,7 @@ def _valid_marfe_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_marfe_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     report = validate_marfe_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -74,6 +78,7 @@ def test_strict_marfe_gate_requires_reference_artifacts(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_accepts_measured_campaign(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     artifact = tmp_path / "jet_marfe_reference.json"
     artifact.write_text(json.dumps(_valid_marfe_reference_artifact()), encoding="utf-8")
 
@@ -85,6 +90,7 @@ def test_marfe_gate_accepts_measured_campaign(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     payload["source"] = "documented_public_reference"
     payload.pop("machine")
@@ -101,6 +107,7 @@ def test_marfe_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -114,6 +121,7 @@ def test_marfe_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     payload.pop("shot_id")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -127,6 +135,7 @@ def test_marfe_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -
 
 
 def test_marfe_gate_rejects_nonmonotone_temperature_scan(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     payload["temperature_scan_eV"] = [20.0, 100.0, 50.0]
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -140,6 +149,7 @@ def test_marfe_gate_rejects_nonmonotone_temperature_scan(tmp_path: Path) -> None
 
 
 def test_marfe_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["density_limit_relative_error"] = 0.3
@@ -154,6 +164,7 @@ def test_marfe_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     power_balance = cast(dict[str, object], payload["power_balance"])
     power_balance["q_perp_W_m2"] = 2.0e5
@@ -167,6 +178,7 @@ def test_marfe_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
 
 
 def test_marfe_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Retain original persisted MARFE declaration behavior through the public reader."""
     payload = _valid_marfe_reference_artifact()
     payload["radiation_curve_uri"] = "../radiation_curve_w.json"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)

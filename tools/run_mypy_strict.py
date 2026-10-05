@@ -7,11 +7,11 @@
 # SCPN Control — Strict mypy gate with per-module debt accounting
 """Enforce the configured mypy gate and ratchet strict-typing debt downward.
 
-The repository migrates to ``[tool.mypy] strict = true`` module by module. Two
-contracts are checked here:
+The repository already enables ``[tool.mypy] strict = true``. Two contracts are
+checked here:
 
 1. **Hard gate** — ``python -m mypy`` with the repository configuration (which
-   applies the per-module strict overlays in ``pyproject.toml``) must report no
+   checks source and validation targets with ``pyproject.toml``) must report no
    errors. Any failure here is a release blocker.
 2. **Debt ratchet** — ``python -m mypy --strict src/scpn_control/`` is run as an
    advisory probe over the whole package. Its per-module error counts are
@@ -59,7 +59,6 @@ def file_to_module(path: str) -> str:
     str
         The import path, for example ``scpn_control.core.current_drive``.
     """
-
     normalised = path.replace("\\", "/")
     if normalised.startswith("src/"):
         normalised = normalised[len("src/") :]
@@ -80,7 +79,6 @@ def parse_module_error_counts(output: str) -> dict[str, int]:
         Mapping of dotted module import path to the number of error lines
         attributed to it. Modules with no errors are omitted.
     """
-
     counts: dict[str, int] = {}
     for match in _ERROR_LINE.finditer(output):
         module = file_to_module(match.group("path"))
@@ -109,7 +107,6 @@ def parse_total_errors(output: str) -> int:
         If the output contains neither a recognised summary nor any error line,
         which signals that the mypy invocation itself did not run as expected.
     """
-
     summary = _SUMMARY.search(output)
     if summary is not None:
         return int(summary.group("count"))
@@ -141,7 +138,6 @@ class StrictDebtLedger:
 
     def to_dict(self) -> dict[str, object]:
         """Return the JSON-serialisable representation of the ledger."""
-
         return {
             "schema": LEDGER_SCHEMA,
             "mypy_version": self.mypy_version,
@@ -153,24 +149,40 @@ class StrictDebtLedger:
     def from_dict(cls, payload: dict[str, object]) -> StrictDebtLedger:
         """Build a ledger from its JSON representation.
 
+        Counts are nonnegative integers, excluding booleans, and their sum must
+        equal ``total``. Module labels are nonempty strings. An omitted version
+        remains the legacy empty string; a present version must be a string.
+        Unknown fields are ignored. Direct construction remains unchecked.
+
         Raises
         ------
         ValueError
-            If the schema marker is absent or unrecognised.
+            If the schema, counts, labels, version or count sum is invalid.
         """
-
         if payload.get("schema") != LEDGER_SCHEMA:
-            raise ValueError(f"unexpected ledger schema: {payload.get('schema')!r}")
+            raise ValueError("unexpected strict-debt ledger schema")
         per_module = payload.get("per_module", {})
         if not isinstance(per_module, dict):
             raise ValueError("ledger per_module must be an object")
         total = payload.get("total")
-        if not isinstance(total, int):
-            raise ValueError("ledger total must be an integer")
+        if isinstance(total, bool) or not isinstance(total, int) or total < 0:
+            raise ValueError("ledger total must be a nonnegative integer")
+        version = payload.get("mypy_version", "")
+        if not isinstance(version, str):
+            raise ValueError("ledger mypy_version must be a string")
+        counts: dict[str, int] = {}
+        for module, count in per_module.items():
+            if not isinstance(module, str) or not module.strip():
+                raise ValueError("ledger module labels must be nonempty strings")
+            if isinstance(count, bool) or not isinstance(count, int) or count < 0:
+                raise ValueError("ledger module counts must be nonnegative integers")
+            counts[module] = count
+        if sum(counts.values()) != total:
+            raise ValueError("ledger total must equal the sum of module counts")
         return cls(
-            mypy_version=str(payload.get("mypy_version", "")),
+            mypy_version=version,
             total=total,
-            per_module={str(k): int(v) for k, v in per_module.items()},
+            per_module=counts,
         )
 
 
@@ -197,7 +209,6 @@ class RatchetResult:
     @property
     def ok(self) -> bool:
         """Return whether the ratchet holds (no regressions, total not risen)."""
-
         return not self.regressions and self.total_delta <= 0
 
 
@@ -222,7 +233,6 @@ def evaluate_ratchet(
     RatchetResult
         The regressions, improvements, and total delta versus the baseline.
     """
-
     regressions: dict[str, tuple[int, int]] = {}
     improvements: dict[str, tuple[int, int]] = {}
     for module, current in current_modules.items():
@@ -241,8 +251,11 @@ def evaluate_ratchet(
 
 
 def _mypy_version() -> str:
-    """Return the mypy version string, or ``"unknown"`` if it cannot be read."""
+    """Return stripped native stdout, or ``unknown`` for empty stdout; launch errors propagate.
 
+    This optional provenance observation does not validate the version format or
+    native exit status. A ledger version string is not a toolchain certificate.
+    """
     result = subprocess.run(
         [sys.executable, "-m", "mypy", "--version"],
         cwd=REPO_ROOT,
@@ -260,7 +273,6 @@ def run_configured_mypy() -> tuple[int, str]:
     tuple[int, str]
         The process return code and its combined stdout/stderr.
     """
-
     result = subprocess.run(
         [sys.executable, "-m", "mypy"],
         cwd=REPO_ROOT,
@@ -276,35 +288,63 @@ def run_strict_probe() -> str:
     Returns
     -------
     str
-        The combined stdout/stderr of the probe. The return code is ignored
-        because debt is expected during the migration; only the parsed counts
-        matter.
-    """
+        The combined stdout/stderr of the probe. Codes zero and one represent a
+        clean check or reported typing errors; other codes refuse the probe.
 
+    Raises
+    ------
+    RuntimeError
+        If mypy exits outside its clean/error statuses.
+    OSError
+        If the native Python process cannot be launched.
+    """
     result = subprocess.run(
         [sys.executable, "-m", "mypy", "--strict", SOURCE_TARGET],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
     )
+    if result.returncode not in (0, 1):
+        raise RuntimeError("strict mypy probe did not complete")
     return result.stdout + result.stderr
 
 
-def load_ledger(path: Path = LEDGER_PATH) -> StrictDebtLedger:
-    """Load the committed strict-debt ledger from disk."""
+def _unique_ledger_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Reject duplicate keys in each persisted JSON object before counts are decoded."""
+    result: dict[str, object] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("strict-debt ledger contains duplicate object keys")
+        result[key] = value
+    return result
 
-    return StrictDebtLedger.from_dict(json.loads(path.read_text()))
+
+def load_ledger(path: Path = LEDGER_PATH) -> StrictDebtLedger:
+    """Read UTF-8 JSON and validate its object root, unique keys and ledger counts.
+
+    File/decode errors propagate. Invalid JSON or ledger values raise ValueError;
+    direct dictionary construction cannot recover duplicate-key provenance.
+    """
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_ledger_object)
+    except ValueError:
+        raise ValueError("strict-debt ledger JSON could not be decoded") from None
+    if not isinstance(payload, dict):
+        raise ValueError("strict-debt ledger must be an object")
+    return StrictDebtLedger.from_dict(payload)
 
 
 def write_ledger(ledger: StrictDebtLedger, path: Path = LEDGER_PATH) -> None:
-    """Persist the ledger as formatted JSON with a trailing newline."""
+    """Write formatted UTF-8 JSON without creating parents or validating direct constructors.
 
-    path.write_text(json.dumps(ledger.to_dict(), indent=2) + "\n")
+    The write is not atomic. The caller owns path selection and concurrent-file
+    coordination; IO/decode/serialization errors propagate.
+    """
+    path.write_text(json.dumps(ledger.to_dict(), indent=2) + "\n", encoding="utf-8")
 
 
 def _report_debt(total: int, modules: dict[str, int], *, top: int = 10) -> None:
     """Print the current strict debt and the worst-offending modules."""
-
     print(f"[mypy-strict] remaining strict debt: {total} errors across {len(modules)} modules")
     worst = sorted(modules.items(), key=lambda item: (-item[1], item[0]))[:top]
     for module, count in worst:
@@ -317,15 +357,16 @@ def main(argv: list[str] | None = None) -> int:
     Parameters
     ----------
     argv
-        Optional argument vector; defaults to ``sys.argv`` when ``None``.
+        Optional argument vector; defaults to ``sys.argv[1:]`` when ``None``.
 
     Returns
     -------
     int
-        ``0`` on success, non-zero when the configured gate fails or the strict
-        debt ratchet detects a regression.
+        Zero for accepted debt/update, one for debt regression, two for a
+        probe/count/ledger failure and three for a refused update increase.
+        Configured-check failures retain the native process status. Argument
+        parsing may raise SystemExit before any native check.
     """
-
     parser = argparse.ArgumentParser(description="Strict mypy gate with per-module debt accounting.")
     parser.add_argument(
         "--update-baseline",
@@ -346,7 +387,11 @@ def main(argv: list[str] | None = None) -> int:
 
     if not args.skip_configured_gate:
         print("[mypy-strict] running configured gate: python -m mypy")
-        rc, output = run_configured_mypy()
+        try:
+            rc, output = run_configured_mypy()
+        except OSError:
+            print("[mypy-strict] FAILED: configured mypy process could not be launched.", file=sys.stderr)
+            return 2
         if rc != 0:
             sys.stdout.write(output)
             print("[mypy-strict] FAILED: configured mypy gate reported errors.", file=sys.stderr)
@@ -354,35 +399,49 @@ def main(argv: list[str] | None = None) -> int:
         print("[mypy-strict] configured gate clean.")
 
     print("[mypy-strict] running strict probe: python -m mypy --strict " + SOURCE_TARGET)
-    probe = run_strict_probe()
+    try:
+        probe = run_strict_probe()
+    except (OSError, RuntimeError):
+        print("[mypy-strict] FAILED: strict mypy probe did not complete.", file=sys.stderr)
+        return 2
     try:
         current_total = parse_total_errors(probe)
-    except ValueError as exc:
-        sys.stdout.write(probe)
-        print(f"[mypy-strict] FAILED: {exc}", file=sys.stderr)
+    except ValueError:
+        print("[mypy-strict] FAILED: strict mypy output could not be counted.", file=sys.stderr)
         return 2
     current_modules = parse_module_error_counts(probe)
+    if current_total != sum(current_modules.values()):
+        print("[mypy-strict] FAILED: strict mypy total disagrees with module counts.", file=sys.stderr)
+        return 2
 
     if args.update_baseline:
-        new_ledger = StrictDebtLedger(
-            mypy_version=_mypy_version(),
-            total=current_total,
-            per_module=current_modules,
-        )
-        if LEDGER_PATH.exists() and not args.allow_baseline_increase:
-            existing = load_ledger(LEDGER_PATH)
-            if current_total > existing.total:
+        if LEDGER_PATH.exists():
+            try:
+                existing = load_ledger(LEDGER_PATH)
+            except (OSError, UnicodeError, ValueError):
+                print("[mypy-strict] FAILED: strict-debt ledger could not be read.", file=sys.stderr)
+                return 2
+            if current_total > existing.total and not args.allow_baseline_increase:
                 print(
                     f"[mypy-strict] REFUSED: strict debt {current_total} exceeds recorded "
                     f"{existing.total}; pass --allow-baseline-increase to accept new debt.",
                     file=sys.stderr,
                 )
                 return 3
-        write_ledger(new_ledger, LEDGER_PATH)
+        try:
+            new_ledger = StrictDebtLedger(mypy_version=_mypy_version(), total=current_total, per_module=current_modules)
+            write_ledger(new_ledger, LEDGER_PATH)
+        except (OSError, UnicodeError, ValueError):
+            print("[mypy-strict] FAILED: strict-debt ledger could not be written.", file=sys.stderr)
+            return 2
         print(f"[mypy-strict] baseline updated: total {current_total} errors recorded.")
         return 0
 
-    ledger = load_ledger(LEDGER_PATH)
+    try:
+        ledger = load_ledger(LEDGER_PATH)
+    except (OSError, UnicodeError, ValueError):
+        print("[mypy-strict] FAILED: strict-debt ledger could not be read.", file=sys.stderr)
+        return 2
     result = evaluate_ratchet(current_total, current_modules, ledger)
     _report_debt(current_total, current_modules)
 
@@ -393,10 +452,10 @@ def main(argv: list[str] | None = None) -> int:
         )
 
     if not result.ok:
-        if result.regressions:
-            print("[mypy-strict] FAILED: strict debt regressed in these modules:", file=sys.stderr)
-            for module, (recorded, current) in sorted(result.regressions.items()):
-                print(f"[mypy-strict]   {module}: {recorded} -> {current}", file=sys.stderr)
+        # Coherent ledger/current sums make a total increase imply a module increase.
+        print("[mypy-strict] FAILED: strict debt regressed in these modules:", file=sys.stderr)
+        for module, (recorded, current) in sorted(result.regressions.items()):
+            print(f"[mypy-strict]   {module}: {recorded} -> {current}", file=sys.stderr)
         if result.total_delta > 0:
             print(
                 f"[mypy-strict] FAILED: total strict debt rose by {result.total_delta} "

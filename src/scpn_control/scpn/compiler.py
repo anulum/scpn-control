@@ -528,26 +528,33 @@ class FusionCompiler:
 
         Parameters
         ----------
-        net : compiled ``StochasticPetriNet``.
-        firing_mode : ``"binary"`` (default) or ``"fractional"``.
-        firing_margin : margin for fractional firing (ignored in binary mode).
-        allow_inhibitor : enable inhibitor arc compilation.
+        net : StochasticPetriNet
+            Structure to compile, compiling its matrices first when required.
+        firing_mode : str, default "binary"
+            Either binary or fractional transition firing.
+        firing_margin : float, default 0.05
+            Margin for fractional firing; ignored in binary mode.
+        allow_inhibitor : bool, default False
+            Enable inhibitor arc compilation.
             This is not a controller-artifact runtime contract; artifact export
             rejects negative inhibitor weights until topology serialization
             carries inhibitor arcs explicitly.
-        validate_topology : run topology diagnostics during compile.
-        strict_topology : raise if topology diagnostics detect issues.
-        exact_current_lif_binding : explicit digest- and commit-bound SC-NeuroCore
-            profile for the persistent exact-current execution mode. The mode
+        validate_topology : bool, default False
+            Run topology diagnostics during structure compilation.
+        strict_topology : bool, default False
+            Raise when topology diagnostics detect issues.
+        exact_current_lif_binding : ExactCurrentLIFProfileBinding or None
+            Explicit digest- and commit-bound SC-NeuroCore profile for the
+            persistent exact-current execution mode. The mode
             does not alter ``lif_fire`` or reinterpret Petri-net thresholds.
-        exact_current_lif_shot_id : initial explicit shot identifier for the
-            stateful runtime.
+        exact_current_lif_shot_id : str, default "shot-0"
+            Initial explicit shot identifier for the stateful runtime.
 
-        Steps:
-            1. Extract dense W_in (nT x nP) and W_out (nP x nT).
-            2. Create one LIF neuron per transition (pure threshold comparator).
-            3. Pre-encode weight matrices as packed uint64 bitstreams.
-            4. Return ``CompiledNet`` with all artifacts.
+        Returns
+        -------
+        CompiledNet
+            Dense matrices, transition neurons, packed weight bitstreams and
+            runtime artifacts for the selected firing mode.
         """
         if firing_mode not in ("binary", "fractional"):
             raise ValueError(f"firing_mode must be 'binary' or 'fractional', got '{firing_mode}'")

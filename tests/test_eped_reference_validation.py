@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — EPED reference validation tests
 
+"""Exercise persisted EPED declarations through actual public reader and CLI/report boundaries."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_eped_reference import canonical_artifact_sha256, valida
 
 
 def _valid_eped_reference_artifact() -> dict[str, object]:
+    """Build original metadata carrier with canonical hash; no genuine EPED evidence is supplied."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.eped-reference.v1",
         "source": "measured_pedestal_database",
@@ -64,6 +67,7 @@ def _valid_eped_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_eped_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     report = validate_eped_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -72,6 +76,7 @@ def test_strict_eped_gate_requires_reference_artifacts(tmp_path: Path) -> None:
 
 
 def test_eped_gate_accepts_measured_pedestal_database(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     artifact = tmp_path / "diiid_eped_reference.json"
     artifact.write_text(json.dumps(_valid_eped_reference_artifact()), encoding="utf-8")
 
@@ -83,6 +88,7 @@ def test_eped_gate_accepts_measured_pedestal_database(tmp_path: Path) -> None:
 
 
 def test_eped_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     payload["source"] = "documented_public_reference"
     payload.pop("machine")
@@ -99,6 +105,7 @@ def test_eped_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
 
 
 def test_eped_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -112,6 +119,7 @@ def test_eped_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_eped_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     payload.pop("shot_id")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -125,6 +133,7 @@ def test_eped_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) ->
 
 
 def test_eped_gate_rejects_nonmonotone_rho_grid(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     payload["rho_grid"] = [0.82, 0.94, 0.91, 1.0]
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -138,6 +147,7 @@ def test_eped_gate_rejects_nonmonotone_rho_grid(tmp_path: Path) -> None:
 
 
 def test_eped_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["pedestal_height_relative_error"] = 0.2
@@ -152,6 +162,7 @@ def test_eped_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
 
 
 def test_eped_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["bootstrap_current_relative_error"] = 0.04
@@ -165,6 +176,7 @@ def test_eped_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
 
 
 def test_eped_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Preserve the original EPED declared-reference behavior through the public reader."""
     payload = _valid_eped_reference_artifact()
     payload["bootstrap_current_uri"] = "../bootstrap_current.npz"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)

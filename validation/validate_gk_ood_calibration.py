@@ -7,291 +7,166 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK OOD calibration artifact validator
 
-"""Validate persisted gyrokinetic OOD calibration campaign artifacts."""
+"""Inspect local declared OOD campaigns, bind bytes and protect inputs; run no fitting or external scientific operation."""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-_EXPECTED_FEATURE_SCHEMA = [
-    "R_L_Ti",
-    "R_L_Te",
-    "R_L_ne",
-    "q",
-    "s_hat",
-    "alpha_MHD",
-    "Te_Ti",
-    "Z_eff",
-    "nu_star",
-    "beta_e",
-]
-_ALLOWED_SOURCES = {"published_gk_campaign", "real_external_gk_campaign", "facility_gk_campaign"}
-_REQUIRED_STR_FIELDS = ("campaign_id", "source", "evaluated_at")
-_THRESHOLD_FIELDS = ("mahalanobis", "soft_sigma", "ensemble_disagreement")
-_ACCEPTANCE_FIELDS = (
-    "false_positive_rate",
-    "false_negative_rate",
-    "max_false_positive_rate",
-    "max_false_negative_rate",
-    "ood_recall",
-    "min_ood_recall",
-)
-_REPORT_SCHEMA = "scpn-control.gk-ood-calibration-report.v2"
-_ARTIFACT_SCHEMA = "scpn-control.gk-ood-calibration-artifact.v2"
-_BLOCKED_REASON = "Requires persisted published, external-code, or facility GK OOD calibration artifacts."
+from validation.gk_ood_reference_contracts import _finalise_report, _new_report, _validate_artifact
+from validation.gk_ood_reference_domains import _portable_path
+
+
+class _OODDeclarationRefusal(ValueError):
+    """Carry only an authored duplicate/nonfinite/nonzero-underflow decoder finding."""
 
 
 def validate_gk_ood_calibration(
-    artifact_root: str | Path,
-    *,
-    require_campaign_artifacts: bool = False,
+    artifact_root: str | Path, *, require_campaign_artifacts: bool = False
 ) -> dict[str, Any]:
-    """Validate OOD calibration artifacts and deployment acceptance metrics."""
+    """Inspect captured declaration bytes and original inclusive author acceptance comparisons.
+
+    Select sorted immediate JSON files for a directory, any regular file itself,
+    or zero for missing/nonfile roots. Optional absence passes; required refuses.
+    Duplicate campaign IDs refuse after the first accepted declaration. Fixed
+    IO/UTF8/JSON/duplicate/nonfinite/nonzero-underflow findings expose no decoder
+    exception or duplicate member names. Reads are sequential, not a snapshot.
+
+    Keep original v2 shape/hash algorithm. Accepted campaign metadata sets the
+    original deployment_calibration_admitted flag; it does not install thresholds,
+    authenticate source/covariance/run provenance or recompute held-out metrics.
+    Full GK envelope remains false; no physical/facility/control action is admitted.
+
+    Examples
+    --------
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as directory:
+    ...     optional = validate_gk_ood_calibration(directory)
+    ...     required = validate_gk_ood_calibration(directory, require_campaign_artifacts=True)
+    >>> optional["status"], optional["campaign_artifacts"], required["status"]
+    ('pass', 0, 'fail')
+    """
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
     report = _new_report(root, require_campaign_artifacts=require_campaign_artifacts)
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
-
     if require_campaign_artifacts and not paths:
-        errors.append({"path": _portable_path(root), "field": "artifact_root", "error": "no GK OOD calibration artifacts found"})
-
+        errors.append(
+            {"path": _portable_path(root), "field": "artifact_root", "error": "no GK OOD calibration artifacts found"}
+        )
     seen_campaigns: set[str] = set()
     for path in paths:
         try:
-            raw_payload = path.read_text(encoding="utf-8")
-            payload = json.loads(raw_payload, object_pairs_hook=_reject_duplicate_json_keys)
+            raw_payload = path.read_bytes()
+            payload = json.loads(
+                raw_payload.decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+                parse_constant=_reject_nonfinite_json_constant,
+                parse_float=_parse_finite_json_float,
+            )
             entry = _validate_artifact(path, raw_payload, payload, errors)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except _OODDeclarationRefusal as exc:
             errors.append({"path": _portable_path(path), "field": "json", "error": str(exc)})
+            continue
+        except OSError:
+            errors.append(
+                {"path": _portable_path(path), "field": "json", "error": "could not read OOD campaign declaration"}
+            )
+            continue
+        except UnicodeError:
+            errors.append(
+                {"path": _portable_path(path), "field": "json", "error": "OOD campaign declaration is not UTF-8"}
+            )
+            continue
+        except (ValueError, RecursionError):
+            errors.append(
+                {"path": _portable_path(path), "field": "json", "error": "OOD campaign declaration is not valid JSON"}
+            )
             continue
         if entry is not None:
             campaign_id = str(entry["campaign_id"])
             if campaign_id in seen_campaigns:
-                errors.append({"path": _portable_path(path), "field": "campaign_id", "error": f"duplicate campaign_id: {campaign_id}"})
+                errors.append(
+                    {
+                        "path": _portable_path(path),
+                        "field": "campaign_id",
+                        "error": f"duplicate campaign_id: {campaign_id}",
+                    }
+                )
                 continue
             seen_campaigns.add(campaign_id)
             entries.append(entry)
             report["campaign_artifacts"] += 1
-
-    if require_campaign_artifacts and report["campaign_artifacts"] == 0 and not errors:
-        errors.append({"path": _portable_path(root), "field": "artifact_root", "error": "no GK OOD calibration artifacts found"})
     if errors:
         report["status"] = "fail"
     return _finalise_report(report)
 
 
-def _validate_artifact(
-    path: Path,
-    raw_payload: str,
-    payload: object,
-    errors: list[dict[str, object]],
-) -> dict[str, object] | None:
-    if not isinstance(payload, dict):
-        errors.append({"path": _portable_path(path), "field": "root", "error": "artifact root must be an object"})
-        return None
-    if payload.get("schema_version") != _ARTIFACT_SCHEMA:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "schema_version",
-                "error": f"schema_version must be '{_ARTIFACT_SCHEMA}'",
-            }
-        )
-    for field in _REQUIRED_STR_FIELDS:
-        if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a non-empty string"})
-    if payload.get("source") not in _ALLOWED_SOURCES:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "source",
-                "error": "source must identify published, external GK, or facility campaign evidence",
-            }
-        )
-    if payload.get("feature_schema") != _EXPECTED_FEATURE_SCHEMA:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "feature_schema",
-                "error": "feature_schema must match the declared 10D GK OOD vector",
-            }
-        )
-    _validate_training_distribution(path, payload.get("training_distribution"), errors)
-    _validate_numeric_object(path, payload.get("thresholds"), _THRESHOLD_FIELDS, "thresholds", errors)
-    _validate_mahalanobis_metric(path, payload.get("mahalanobis_metric"), errors)
-    _validate_numeric_object(path, payload.get("acceptance"), _ACCEPTANCE_FIELDS, "acceptance", errors)
-    if any(error["path"] == _portable_path(path) for error in errors):
-        return None
-
-    acceptance = payload["acceptance"]
-    false_positive_rate = float(acceptance["false_positive_rate"])
-    false_negative_rate = float(acceptance["false_negative_rate"])
-    max_false_positive_rate = float(acceptance["max_false_positive_rate"])
-    max_false_negative_rate = float(acceptance["max_false_negative_rate"])
-    ood_recall = float(acceptance["ood_recall"])
-    min_ood_recall = float(acceptance["min_ood_recall"])
-
-    if false_positive_rate > max_false_positive_rate:
-        errors.append(
-            {"path": _portable_path(path), "field": "false_positive_rate", "error": "false positive rate exceeds acceptance bound"}
-        )
-    if false_negative_rate > max_false_negative_rate:
-        errors.append(
-            {"path": _portable_path(path), "field": "false_negative_rate", "error": "false negative rate exceeds acceptance bound"}
-        )
-    if ood_recall < min_ood_recall:
-        errors.append({"path": _portable_path(path), "field": "ood_recall", "error": "OOD recall below acceptance bound"})
-    if any(error["path"] == _portable_path(path) for error in errors):
-        return None
-
-    return {
-        "path": _portable_path(path),
-        "schema_version": str(payload["schema_version"]),
-        "campaign_id": str(payload["campaign_id"]),
-        "source": str(payload["source"]),
-        "artifact_sha256": hashlib.sha256(raw_payload.encode("utf-8")).hexdigest(),
-        "canonical_payload_sha256": _json_sha256(payload),
-        "mahalanobis_metric": {
-            "calibration_method": str(payload["mahalanobis_metric"]["calibration_method"]),
-            "covariance_inverse_sha256": str(payload["mahalanobis_metric"]["covariance_inverse_sha256"]),
-            "positive_definite": bool(payload["mahalanobis_metric"]["positive_definite"]),
-        },
-        "false_positive_rate": false_positive_rate,
-        "false_negative_rate": false_negative_rate,
-        "ood_recall": ood_recall,
-    }
-
-
-def _validate_training_distribution(path: Path, payload: object, errors: list[dict[str, object]]) -> None:
-    if not isinstance(payload, dict):
-        errors.append(
-            {"path": _portable_path(path), "field": "training_distribution", "error": "training_distribution must be an object"}
-        )
-        return
-    if not isinstance(payload.get("dataset_id"), str) or not str(payload.get("dataset_id")).strip():
-        errors.append({"path": _portable_path(path), "field": "dataset_id", "error": "dataset_id must be a non-empty string"})
-    sample_count = payload.get("sample_count")
-    if isinstance(sample_count, bool) or not isinstance(sample_count, int) or sample_count <= 0:
-        errors.append({"path": _portable_path(path), "field": "sample_count", "error": "sample_count must be a positive integer"})
-    for field in ("mean", "std"):
-        values = payload.get(field)
-        if (
-            not isinstance(values, list)
-            or len(values) != len(_EXPECTED_FEATURE_SCHEMA)
-            or not all(_is_number(value) for value in values)
-        ):
-            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a numeric 10-element array"})
-
-
-def _validate_numeric_object(
-    path: Path,
-    payload: object,
-    fields: tuple[str, ...],
-    parent: str,
-    errors: list[dict[str, object]],
-) -> None:
-    if not isinstance(payload, dict):
-        errors.append({"path": _portable_path(path), "field": parent, "error": f"{parent} must be an object"})
-        return
-    for field in fields:
-        value = payload.get(field)
-        if not _is_number(value):
-            errors.append({"path": _portable_path(path), "field": field, "error": "field must be numeric"})
-
-
-def _validate_mahalanobis_metric(path: Path, payload: object, errors: list[dict[str, object]]) -> None:
-    if not isinstance(payload, dict):
-        errors.append({"path": _portable_path(path), "field": "mahalanobis_metric", "error": "mahalanobis_metric must be an object"})
-        return
-    if not isinstance(payload.get("calibration_method"), str) or not str(payload.get("calibration_method")).strip():
-        errors.append({"path": _portable_path(path), "field": "calibration_method", "error": "field must be a non-empty string"})
-    covariance_sha = payload.get("covariance_inverse_sha256")
-    if not isinstance(covariance_sha, str) or len(covariance_sha) != 64 or not _is_hex(covariance_sha):
-        errors.append(
-            {"path": _portable_path(path), "field": "covariance_inverse_sha256", "error": "field must be a SHA-256 hex digest"}
-        )
-    if payload.get("positive_definite") is not True:
-        errors.append({"path": _portable_path(path), "field": "positive_definite", "error": "metric must be positive definite"})
-    if payload.get("feature_order") != _EXPECTED_FEATURE_SCHEMA:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "feature_order",
-                "error": "feature_order must match the declared 10D GK OOD vector",
-            }
-        )
-
-
-def _is_number(value: object) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float)
-
-
-def _is_hex(value: str) -> bool:
-    return all(character in "0123456789abcdefABCDEF" for character in value)
-
-
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Preserve decoded key order and refuse duplicates without exposing member names."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise ValueError(f"duplicate JSON key: {key}")
+            raise _OODDeclarationRefusal("OOD campaign declaration contains duplicate JSON keys")
         out[key] = value
     return out
 
 
-def _new_report(root: Path, *, require_campaign_artifacts: bool) -> dict[str, Any]:
-    return {
-        "schema_version": _REPORT_SCHEMA,
-        "status": "pass",
-        "root": _portable_path(root),
-        "payload_sha256": None,
-        "campaign_artifacts": 0,
-        "require_campaign_artifacts": bool(require_campaign_artifacts),
-        "public_claims": {
-            "deployment_calibration_admitted": False,
-            "full_gk_operating_envelope_admitted": False,
-            "blocked_reason": _BLOCKED_REASON,
-        },
-        "feature_schema": list(_EXPECTED_FEATURE_SCHEMA),
-        "entries": [],
-        "errors": [],
-    }
+def _reject_nonfinite_json_constant(token: str) -> None:
+    """Refuse nonstandard NaN and signed infinity decoder extensions at every depth."""
+    raise _OODDeclarationRefusal("OOD campaign declaration contains non-finite JSON numbers")
 
 
-def _portable_path(path: Path) -> str:
-    try:
-        return str(path.resolve().relative_to(ROOT))
-    except ValueError:
-        return path.as_posix()
+def _parse_finite_json_float(token: str) -> float:
+    """Refuse decimal overflow and nonzero binary64 underflow before altering declared values."""
+    value = float(token)
+    if not math.isfinite(value):
+        raise _OODDeclarationRefusal("OOD campaign declaration contains non-finite JSON numbers")
+    if value == 0.0 and any(char in "123456789" for char in token.lower().split("e", 1)[0]):
+        raise _OODDeclarationRefusal("OOD campaign declaration contains underflowed JSON numbers")
+    return value
 
 
-def _json_sha256(payload: object) -> str:
-    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+def write_gk_ood_calibration_report(
+    report: dict[str, Any], output_path: str | Path, *, artifact_root: str | Path
+) -> None:
+    """Persist sorted UTF8 JSON+LF while refusing root/immediate selected direct/resolved/hardlink aliases.
 
-
-def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
-    admitted = report["status"] == "pass" and report["campaign_artifacts"] > 0
-    report["public_claims"]["deployment_calibration_admitted"] = admitted
-    payload = dict(report)
-    payload["payload_sha256"] = None
-    report["payload_sha256"] = _json_sha256(payload)
-    return report
+    Aliases raise ValueError before writing. Other destinations may replace;
+    parent creation and path/IO/encoding/serialization failures propagate.
+    Sequential checks provide no pathname lock against concurrent replacement.
+    No calibration/source evidence is resealed or installed.
+    """
+    output = Path(output_path)
+    root = Path(artifact_root)
+    inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
+    for source in inputs:
+        if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+            raise ValueError("GK OOD calibration report output must not overwrite selected input")
+    text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    """Inspect local declarations with protected output; findings/fixed operational refusal return one.
+
+    Original caller-relative flags/default root and summary/JSON output remain.
+    Parser help0/usage2 and optional absence0 persist. No fit, download, covariance
+    recomputation, external run or physical/control deployment occurs.
+    """
+    parser = argparse.ArgumentParser(description="Validate persisted gyrokinetic OOD calibration campaign artifacts.")
     parser.add_argument(
         "--artifact-root",
         default=str(ROOT / "validation" / "reports" / "gk_ood_calibration"),
@@ -303,12 +178,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-json", help="Write JSON report to this path")
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
-
-    report = validate_gk_ood_calibration(args.artifact_root, require_campaign_artifacts=args.require_campaign_artifacts)
-    if args.output_json:
-        output_path = Path(args.output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        report = validate_gk_ood_calibration(
+            args.artifact_root, require_campaign_artifacts=args.require_campaign_artifacts
+        )
+        if args.output_json:
+            write_gk_ood_calibration_report(report, args.output_json, artifact_root=args.artifact_root)
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        print("GK OOD calibration FAILED: could not inspect campaigns or write report", file=sys.stderr)
+        return 1
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

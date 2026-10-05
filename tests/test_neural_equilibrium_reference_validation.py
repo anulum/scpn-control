@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural equilibrium reference validation tests
 
+"""Preserve original declaration-schema regressions; fixture acceptance is not executed/authenticated physics."""
+
 from __future__ import annotations
 
 import json
@@ -19,6 +21,7 @@ from validation.validate_neural_equilibrium_reference import (
 
 
 def _valid_pefit_reference_artifact() -> dict[str, object]:
+    """Return original schema-valid fabricated declarations; no P-EFIT executable or reference arrays are read."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.neural-equilibrium-reference.v1",
         "source": "real_pefit",
@@ -61,6 +64,7 @@ def _valid_pefit_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_neural_equilibrium_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode fails an empty actual directory and retains both scientific claim flags false."""
     report = validate_neural_equilibrium_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -78,6 +82,7 @@ def test_strict_neural_equilibrium_gate_requires_reference_artifacts(tmp_path: P
 
 
 def test_neural_equilibrium_gate_accepts_real_pefit_artifact(tmp_path: Path) -> None:
+    """The original declared P-EFIT schema fixture passes metadata checks without executing its claimed binary."""
     artifact = tmp_path / "sparc_pefit_reference.json"
     artifact.write_text(json.dumps(_valid_pefit_reference_artifact()), encoding="utf-8")
 
@@ -93,6 +98,7 @@ def test_neural_equilibrium_gate_accepts_real_pefit_artifact(tmp_path: Path) -> 
 
 
 def test_neural_equilibrium_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """The original nonblank public-reference declaration fixture passes lexical metadata checks without a fetch."""
     payload = _valid_pefit_reference_artifact()
     payload["source"] = "documented_public_reference"
     payload.pop("binary_path")
@@ -108,6 +114,7 @@ def test_neural_equilibrium_gate_accepts_documented_public_reference(tmp_path: P
 
 
 def test_neural_equilibrium_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """An explicitly synthetic source label cannot pass the declared reference-source contract."""
     payload = _valid_pefit_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -121,6 +128,7 @@ def test_neural_equilibrium_gate_rejects_synthetic_source(tmp_path: Path) -> Non
 
 
 def test_neural_equilibrium_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """A declared q-profile error exceeding its declared tolerance fails the actual persisted JSON validator."""
     payload = _valid_pefit_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["q_profile_rmse"] = 0.05
@@ -135,6 +143,7 @@ def test_neural_equilibrium_gate_rejects_metric_outside_tolerance(tmp_path: Path
 
 
 def test_neural_equilibrium_gate_rejects_missing_unit_contract(tmp_path: Path) -> None:
+    """Partial unit declarations cannot pass the required four-field unit contract."""
     payload = _valid_pefit_reference_artifact()
     payload["units"] = {"psi": "Wb/rad", "pressure": "Pa"}
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -148,6 +157,7 @@ def test_neural_equilibrium_gate_rejects_missing_unit_contract(tmp_path: Path) -
 
 
 def test_neural_equilibrium_gate_rejects_relative_pefit_binary(tmp_path: Path) -> None:
+    """The declared P-EFIT binary requires the admitted absolute-path spelling contract."""
     payload = _valid_pefit_reference_artifact()
     payload["binary_path"] = "pefit"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -161,6 +171,7 @@ def test_neural_equilibrium_gate_rejects_relative_pefit_binary(tmp_path: Path) -
 
 
 def test_neural_equilibrium_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Changing a declared error without recomputing its consistency checksum is refused."""
     payload = _valid_pefit_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["psi_rmse_Wb"] = 3.0e-4
@@ -174,6 +185,7 @@ def test_neural_equilibrium_gate_rejects_tampered_payload_digest(tmp_path: Path)
 
 
 def test_neural_equilibrium_gate_rejects_missing_prediction_digest(tmp_path: Path) -> None:
+    """Missing declared prediction checksum is reported through the public validator."""
     payload = _valid_pefit_reference_artifact()
     payload.pop("prediction_artifact_sha256")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -187,6 +199,7 @@ def test_neural_equilibrium_gate_rejects_missing_prediction_digest(tmp_path: Pat
 
 
 def test_neural_equilibrium_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Parent traversal in a declared relative reference URI is refused before admission of metadata."""
     payload = _valid_pefit_reference_artifact()
     payload["reference_artifact_uri"] = "../reference_equilibria.npz"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -200,6 +213,7 @@ def test_neural_equilibrium_gate_rejects_traversing_artifact_uri(tmp_path: Path)
 
 
 def test_neural_equilibrium_gate_rejects_duplicate_reference_set(tmp_path: Path) -> None:
+    """Two persisted declarations with one model/weight/dataset identity cannot count twice."""
     payload = _valid_pefit_reference_artifact()
     for index in range(2):
         artifact = tmp_path / f"duplicate_reference_{index}.json"

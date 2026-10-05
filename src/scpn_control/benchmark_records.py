@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
+from scpn_control.benchmark_output_lease import BenchmarkOutputLease
+
 RUN_SCHEMA = "scpn-control.benchmark-run.v1"
 LATEST_SCHEMA = "scpn-control.benchmark-latest.v1"
 CAMPAIGN_ENV = "SCPN_BENCHMARK_CAMPAIGN_ID"
@@ -307,6 +309,8 @@ class BenchmarkRun:
     evidence_class: str
     measurement: Mapping[str, Any]
     legacy: tuple[Mapping[str, Any], ...]
+    output_lease: BenchmarkOutputLease
+    displaced_outputs: tuple[tuple[Path, Path], ...]
 
     @classmethod
     def begin(
@@ -321,7 +325,14 @@ class BenchmarkRun:
         evidence_class: str = "local_regression",
         measurement: Mapping[str, Any] | None = None,
     ) -> BenchmarkRun:
-        """Reserve an immutable run and preserve existing output bytes.
+        """Reserve destinations and displace old outputs after verified archival.
+
+        Producers must recreate every declared file or directory. Existing bytes
+        remain in the legacy archive and the run's ``prior-output`` directory.
+        Missing destinations are restored after a failed finalisation. Overlapping
+        recorded campaigns refuse before any destination is changed. Relative
+        destinations are resolved against the current directory once at begin;
+        later working-directory changes cannot redirect custody or recovery.
 
         Raises
         ------
@@ -339,64 +350,130 @@ class BenchmarkRun:
         if len(set(roles)) != len(roles):
             raise ValueError("benchmark output roles must be unique")
 
+        if any(output.path.is_symlink() for output in normalised_outputs):
+            raise ValueError("benchmark outputs cannot be symlinks")
+
+        normalised_outputs = tuple(BenchmarkOutput(output.role, output.path.resolve()) for output in normalised_outputs)
         run_directory = custody / "runs" / run_family / run_id
         run_directory.mkdir(parents=True, exist_ok=False)
-        legacy_entries: list[Mapping[str, Any]] = []
-        for output in normalised_outputs:
-            if not output.path.exists():
-                continue
-            digest = _sha256_path(output.path)
-            suffix = (output.path.suffix or ".bin") if output.path.is_file() else ""
-            legacy_path = custody / "legacy" / digest / f"{output.role}{suffix}"
-            if not legacy_path.exists():
-                legacy_path.parent.mkdir(parents=True, exist_ok=True)
-                if output.path.is_dir():
-                    try:
-                        shutil.copytree(output.path, legacy_path)
-                    except FileExistsError:
-                        pass
-                else:
-                    try:
-                        _copy_file_exclusive(output.path, legacy_path)
-                    except FileExistsError:
-                        pass
-            if _sha256_path(legacy_path) != digest:
-                raise RuntimeError(f"legacy benchmark digest mismatch at {legacy_path}")
-            legacy_entries.append(
-                {
-                    "role": output.role,
-                    "source_path": _display_path(output.path, root),
-                    "archived_path": _display_path(legacy_path, root),
-                    "sha256": digest,
-                }
+        if any(
+            custody.is_relative_to(output.path.resolve()) or output.path.resolve().is_relative_to(custody)
+            for output in normalised_outputs
+        ):
+            raise ValueError("benchmark outputs must not overlap the records root")
+        lease = BenchmarkOutputLease.acquire(root, [output.path for output in normalised_outputs], run_directory)
+        displaced: list[tuple[Path, Path]] = []
+        try:
+            _write_exclusive(
+                run_directory / "invocation.json",
+                _json_bytes(
+                    {
+                        "protocol": "reserved-empty-destination.v1",
+                        "campaign_id": run_id,
+                        "benchmark_family": run_family,
+                        "reservation_id": lease.marker.stem,
+                        "command": list(redact_command(command)),
+                        "outputs": [
+                            {
+                                "role": output.role,
+                                "path": str(output.path.resolve()),
+                                "prior_output": str(run_directory / "prior-output" / output.role),
+                            }
+                            for output in normalised_outputs
+                        ],
+                    }
+                ),
+            )
+            legacy_entries: list[Mapping[str, Any]] = []
+            for output in normalised_outputs:
+                if not output.path.exists():
+                    continue
+                digest = _sha256_path(output.path)
+                suffix = (output.path.suffix or ".bin") if output.path.is_file() else ""
+                legacy_path = custody / "legacy" / digest / f"{output.role}{suffix}"
+                if not legacy_path.exists():
+                    legacy_path.parent.mkdir(parents=True, exist_ok=True)
+                    if output.path.is_dir():
+                        try:
+                            shutil.copytree(output.path, legacy_path)
+                        except FileExistsError:
+                            pass
+                    else:
+                        try:
+                            _copy_file_exclusive(output.path, legacy_path)
+                        except FileExistsError:
+                            pass
+                if _sha256_path(legacy_path) != digest:
+                    raise RuntimeError(f"legacy benchmark digest mismatch at {legacy_path}")
+                legacy_entries.append(
+                    {
+                        "role": output.role,
+                        "source_path": _display_path(output.path, root),
+                        "archived_path": _display_path(legacy_path, root),
+                        "sha256": digest,
+                    }
+                )
+
+            lock_digest, lock_paths = _dependency_lock_digest(root)
+            run = cls(
+                repository_root=root,
+                records_root=custody,
+                family=run_family,
+                campaign_id=run_id,
+                run_directory=run_directory,
+                outputs=normalised_outputs,
+                command=tuple(redact_command(command)),
+                started_utc=_utc_now(),
+                source_commit=_git_commit(root),
+                dependency_lock_sha256=lock_digest,
+                dependency_locks=tuple(lock_paths),
+                host_start=_host_context(),
+                evidence_class=evidence_class,
+                measurement=dict(measurement or {}),
+                legacy=tuple(legacy_entries),
+                output_lease=lease,
+                displaced_outputs=(),
             )
 
-        lock_digest, lock_paths = _dependency_lock_digest(root)
-        return cls(
-            repository_root=root,
-            records_root=custody,
-            family=run_family,
-            campaign_id=run_id,
-            run_directory=run_directory,
-            outputs=normalised_outputs,
-            command=tuple(redact_command(command)),
-            started_utc=_utc_now(),
-            source_commit=_git_commit(root),
-            dependency_lock_sha256=lock_digest,
-            dependency_locks=tuple(lock_paths),
-            host_start=_host_context(),
-            evidence_class=evidence_class,
-            measurement=dict(measurement or {}),
-            legacy=tuple(legacy_entries),
-        )
+            try:
+                for output in normalised_outputs:
+                    if output.path.exists():
+                        destination = run_directory / "prior-output" / output.role
+                        destination.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.move(str(output.path), destination)
+                        displaced.append((output.path, destination))
+            except BaseException:
+                while displaced:
+                    original, saved = displaced[-1]
+                    if original.exists() or original.is_symlink():
+                        raise RuntimeError(f"benchmark recovery destination is occupied: {original}")
+                    shutil.move(str(saved), original)
+                    displaced.pop()
+                raise
+            run.displaced_outputs = tuple(displaced)
+            return run
+        except BaseException:
+            if not displaced:
+                lease.release()
+            raise
 
     def finish(self, *, exit_code: int) -> Path:
         """Seal output artifacts and return the immutable manifest path.
 
-        A zero exit code with every declared output present is successful.
+        A zero exit code with every reserved destination recreated is successful.
         Failed or incomplete runs remain preserved but cannot update the
         digest-bound latest index.
         """
+        manifest_path = self._seal(exit_code=exit_code)
+        for original, saved in self.displaced_outputs:
+            if not original.exists():
+                original.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(saved), original)
+        self.output_lease.release()
+        return manifest_path
+
+    def _seal(self, *, exit_code: int) -> Path:
+        """Snapshot fresh outputs while the invocation still owns its destinations."""
         manifest_path = self.run_directory / "manifest.json"
         if manifest_path.exists():
             raise FileExistsError(f"benchmark run is already finalised: {manifest_path}")
@@ -404,23 +481,28 @@ class BenchmarkRun:
         artifact_entries: list[dict[str, Any]] = []
         missing_roles: list[str] = []
         for output in self.outputs:
+            if output.path.is_symlink():
+                raise ValueError("benchmark outputs cannot be symlinks")
             if not output.path.exists():
                 missing_roles.append(output.role)
                 continue
+            source_digest = _sha256_path(output.path)
             suffix = (output.path.suffix or ".bin") if output.path.is_file() else ""
             immutable_path = self.run_directory / "artifacts" / f"{output.role}{suffix}"
             if output.path.is_dir():
                 shutil.copytree(output.path, immutable_path)
             else:
                 _write_exclusive(immutable_path, output.path.read_bytes())
+            if _sha256_path(immutable_path) != source_digest or _sha256_path(output.path) != source_digest:
+                raise RuntimeError("benchmark output changed while being sealed")
             artifact_entries.append(
                 {
                     "role": output.role,
                     "kind": "directory" if output.path.is_dir() else "file",
                     "source_path": _display_path(output.path, self.repository_root),
                     "immutable_path": _display_path(immutable_path, self.repository_root),
-                    "size_bytes": _path_size(output.path),
-                    "sha256": _sha256_path(output.path),
+                    "size_bytes": _path_size(immutable_path),
+                    "sha256": _sha256_path(immutable_path),
                 }
             )
 
@@ -445,6 +527,10 @@ class BenchmarkRun:
             "artifacts": artifact_entries,
             "missing_output_roles": missing_roles,
             "legacy_inputs": list(self.legacy),
+            "output_custody": {
+                "protocol": "reserved-empty-destination.v1",
+                "reservation_id": self.output_lease.marker.stem,
+            },
         }
         unsigned = _json_bytes(manifest)
         manifest["payload_sha256"] = _sha256_bytes(unsigned)

@@ -5,17 +5,31 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Release Evidence Validation
-"""Validate top-level release evidence reports before publication."""
+"""Check declarations in a top-level release report before publication.
+
+This reader hashes the exact input bytes and checks mandatory gate summaries.
+It does not reopen referenced artifacts, recompute their digests or metrics,
+authenticate a producer, run solvers, or grant facility/control readiness.
+Even a passing declaration may describe local regression with failed realtime
+admission; its production claim flag must remain false. Extra fields are
+accepted, but duplicate keys and nonfinite floating tokens at any depth fail.
+
+Run ``python validation/validate_release_evidence.py REPORT --json-out`` or the
+registered ``scpn-control validate-release-evidence REPORT --json-out``. The
+standalone reader uses only the standard library and prints rather than writes
+reports. Paths are caller-relative and symlinks are followed; no size/depth
+budget or filesystem containment is supplied by this reader.
+"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
-
+from typing import Any, TypeGuard
 
 RELEASE_EVIDENCE_SCHEMA_VERSION = "scpn-control.release-evidence-admission.v1"
 REQUIRED_GATES = (
@@ -34,7 +48,21 @@ RUNTIME_ADMISSION_EVIDENCE_CLASSES = frozenset({"local_regression", "production_
 
 @dataclass(frozen=True)
 class ReleaseEvidenceAdmission:
-    """Strict validation result for a top-level release evidence report."""
+    """Frozen result of declaration checks on one local report.
+
+    Attributes
+    ----------
+    status : str
+        ``pass`` exactly when no declaration or read findings were collected.
+    errors : tuple[str, ...]
+        Findings in deterministic gate/check order; no exception traceback.
+    report_sha256 : str or None
+        SHA-256 of exact input bytes after successful JSON-object decoding;
+        ``None`` on read/decode failure. This does not authenticate those bytes.
+    admitted_gates : tuple[str, ...]
+        Required gates declaring ``status=pass``, in the required gate order.
+        A gate can appear here while field findings make overall status fail.
+    """
 
     status: str
     errors: tuple[str, ...]
@@ -43,6 +71,7 @@ class ReleaseEvidenceAdmission:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Refuse shadowed JSON keys in every object before field inspection."""
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
@@ -51,27 +80,50 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
+def _parse_json_float(token: str) -> float:
+    """Refuse nonfinite constants and overflowing exponents at any JSON depth."""
+    value = float(token)
+    if not math.isfinite(value):
+        raise ValueError(f"nonfinite JSON number: {token}")
+    return value
+
+
 def _load_report(path: str | Path) -> tuple[dict[str, Any], str]:
+    """Read UTF-8 JSON once, refuse invalid objects, and hash the same exact bytes."""
     blob = Path(path).read_bytes()
-    payload = json.loads(blob.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys)
+    payload = json.loads(
+        blob.decode("utf-8"),
+        object_pairs_hook=_reject_duplicate_keys,
+        parse_float=_parse_json_float,
+        parse_constant=_parse_json_float,
+    )
     if not isinstance(payload, dict):
         raise ValueError("release evidence report root must be a JSON object")
     return payload, hashlib.sha256(blob).hexdigest()
 
 
 def _positive_int(value: object) -> bool:
+    """Recognise a positive JSON integer while refusing booleans and floats."""
     return not isinstance(value, bool) and isinstance(value, int) and value > 0
 
 
 def _non_negative_int(value: object) -> bool:
+    """Recognise a nonnegative JSON integer while refusing booleans and floats."""
     return not isinstance(value, bool) and isinstance(value, int) and value >= 0
 
 
 def _sha256_hex(value: object) -> bool:
+    """Check lowercase SHA-256 spelling without opening or hashing any referenced object."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
+def _string_list(value: object) -> TypeGuard[list[str]]:
+    """Recognise a JSON list containing only strings before set comparisons."""
+    return isinstance(value, list) and all(isinstance(item, str) for item in value)
+
+
 def _require_pass_gate(payload: dict[str, Any], gate: str, errors: list[str]) -> dict[str, Any]:
+    """Collect object/status findings and keep a valid object for remaining checks."""
     section = payload.get(gate)
     if not isinstance(section, dict):
         errors.append(f"{gate} must be an object")
@@ -83,12 +135,41 @@ def _require_pass_gate(payload: dict[str, Any], gate: str, errors: list[str]) ->
 
 
 def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
-    """Validate the JSON report emitted by ``scpn-control validate --json-out``."""
+    """Inspect mandatory declarations in a ``scpn-control validate`` report.
 
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        Local UTF-8 JSON file, resolved by the caller's working directory.
+
+    Returns
+    -------
+    ReleaseEvidenceAdmission
+        Structured read/JSON/type/domain findings and exact report-byte digest.
+        Missing or malformed required sections fail; unrelated extra fields are
+        not validated beyond duplicate/nonfinite JSON rejection. Manifest
+        coverage counts must be nonnegative integers, equal, and missing empty.
+        Declared JAX lists must cover all three cases on both CPU and GPU.
+        Local runtime ``admission_status=fail`` is permitted with no production
+        claim; production runtime summaries must declare pass and zero errors.
+        Digests and AOT case labels are syntax, not proof/artifact verification.
+
+    Examples
+    --------
+    Invalid bytes produce a refusal without relying on a reference corpus.
+
+    >>> import tempfile
+    >>> with tempfile.TemporaryDirectory() as directory:
+    ...     report = Path(directory) / "invalid.json"
+    ...     _ = report.write_text("[]", encoding="utf-8")
+    ...     result = validate_release_evidence(report)
+    >>> result.status, result.report_sha256, result.admitted_gates
+    ('fail', None, ())
+    """
     errors: list[str] = []
     try:
         payload, report_sha256 = _load_report(path)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError, RecursionError) as exc:
         return ReleaseEvidenceAdmission(
             status="fail",
             errors=(str(exc),),
@@ -114,24 +195,36 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
         artifact_coverage = data_manifests.get("artifact_coverage")
         if not isinstance(artifact_coverage, dict):
             errors.append("data_manifests.artifact_coverage must be an object")
-        elif artifact_coverage.get("expected") != artifact_coverage.get("covered"):
-            errors.append("data_manifests.artifact_coverage must cover every expected artifact")
+        else:
+            expected = artifact_coverage.get("expected")
+            covered = artifact_coverage.get("covered")
+            if not _non_negative_int(expected) or not _non_negative_int(covered):
+                errors.append("data_manifests.artifact_coverage counts must be non-negative integers")
+            elif expected != covered:
+                errors.append("data_manifests.artifact_coverage must cover every expected artifact")
+            if artifact_coverage.get("missing") != []:
+                errors.append("data_manifests.artifact_coverage.missing must be empty")
 
     parity = _require_pass_gate(payload, "jax_gk_parity", errors)
     if parity:
         if not _positive_int(parity.get("parity_artifacts")):
             errors.append("jax_gk_parity.parity_artifacts must be a positive integer")
-        cases = set(parity.get("required_cases", ()))
-        backends = set(parity.get("required_backends", ()))
-        if not REQUIRED_JAX_CASES.issubset(cases):
+        cases = parity.get("required_cases")
+        backends = parity.get("required_backends")
+        if not _string_list(cases) or not REQUIRED_JAX_CASES.issubset(cases):
             errors.append("jax_gk_parity.required_cases must include the release CPU/GPU campaign cases")
-        if not REQUIRED_JAX_BACKENDS.issubset(backends):
+        if not _string_list(backends) or not REQUIRED_JAX_BACKENDS.issubset(backends):
             errors.append("jax_gk_parity.required_backends must include cpu and gpu")
         entries = parity.get("entries")
         if not isinstance(entries, list):
             errors.append("jax_gk_parity.entries must be a list")
+        elif not all(
+            isinstance(entry, dict) and isinstance(entry.get("case"), str) and isinstance(entry.get("backend"), str)
+            for entry in entries
+        ):
+            errors.append("jax_gk_parity.entries must contain objects with string case and backend")
         else:
-            observed_pairs = {(entry.get("case"), entry.get("backend")) for entry in entries if isinstance(entry, dict)}
+            observed_pairs = {(entry["case"], entry["backend"]) for entry in entries}
             missing_pairs = {
                 (case, backend)
                 for case in REQUIRED_JAX_CASES
@@ -149,14 +242,18 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
             errors.append("physics_traceability.open_fidelity_gaps must be a non-negative integer")
         if not _non_negative_int(traceability.get("public_claim_blocked")):
             errors.append("physics_traceability.public_claim_blocked must be a non-negative integer")
-        if traceability.get("public_claim_blocked", 0) < traceability.get("open_fidelity_gaps", 0):
+        if (
+            _non_negative_int(traceability.get("public_claim_blocked"))
+            and _non_negative_int(traceability.get("open_fidelity_gaps"))
+            and traceability["public_claim_blocked"] < traceability["open_fidelity_gaps"]
+        ):
             errors.append("physics_traceability must block every open fidelity gap from public claims")
 
     multi_shot = _require_pass_gate(payload, "multi_shot_campaign", errors)
     if multi_shot:
         admitted_surfaces = multi_shot.get("admitted_surfaces")
-        if not isinstance(admitted_surfaces, list):
-            errors.append("multi_shot_campaign.admitted_surfaces must be a list")
+        if not _string_list(admitted_surfaces):
+            errors.append("multi_shot_campaign.admitted_surfaces must be a list of strings")
         elif set(admitted_surfaces) != {"python", "pyo3", "rust"}:
             errors.append("multi_shot_campaign.admitted_surfaces must include python, pyo3, and rust")
         if multi_shot.get("pyo3_status") != "ok":
@@ -185,7 +282,7 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
         if not _sha256_hex(runtime_admission.get("payload_sha256")):
             errors.append("runtime_admission.payload_sha256 must be a SHA-256 hex digest")
         evidence_class = runtime_admission.get("benchmark_evidence_class")
-        if evidence_class not in RUNTIME_ADMISSION_EVIDENCE_CLASSES:
+        if not isinstance(evidence_class, str) or evidence_class not in RUNTIME_ADMISSION_EVIDENCE_CLASSES:
             errors.append("runtime_admission.benchmark_evidence_class must be a recognised evidence class")
         production_claim_allowed = runtime_admission.get("production_claim_allowed")
         if not isinstance(production_claim_allowed, bool):
@@ -195,7 +292,7 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
         elif evidence_class == "production_benchmark" and production_claim_allowed is not True:
             errors.append("production runtime admission evidence must allow production benchmark claims")
         admission_status = runtime_admission.get("admission_status")
-        if admission_status not in {"pass", "fail"}:
+        if not isinstance(admission_status, str) or admission_status not in {"pass", "fail"}:
             errors.append("runtime_admission.admission_status must be 'pass' or 'fail'")
         elif evidence_class == "production_benchmark" and admission_status != "pass":
             errors.append("production runtime admission evidence must pass strict runtime admission")
@@ -221,7 +318,7 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
         if not _sha256_hex(native_formal.get("report_sha256")):
             errors.append("native_formal_certificate.report_sha256 must be a SHA-256 hex digest")
         evidence_class = native_formal.get("benchmark_evidence_class")
-        if evidence_class not in NATIVE_FORMAL_EVIDENCE_CLASSES:
+        if not isinstance(evidence_class, str) or evidence_class not in NATIVE_FORMAL_EVIDENCE_CLASSES:
             errors.append("native_formal_certificate.benchmark_evidence_class must be a recognised evidence class")
         production_claim_allowed = native_formal.get("production_claim_allowed")
         if not isinstance(production_claim_allowed, bool):
@@ -246,6 +343,20 @@ def validate_release_evidence(path: str | Path) -> ReleaseEvidenceAdmission:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Print admission JSON or text; return zero for pass and one for findings.
+
+    Parameters
+    ----------
+    argv : list[str] or None
+        Argparse arguments: required local report and optional ``--json-out``.
+        ``None`` reads process arguments. Parser errors retain SystemExit(2).
+
+    Returns
+    -------
+    int
+        Admission exit code. Findings and byte digest are printed to stdout;
+        no output artifact is written and no upstream validation is executed.
+    """
     parser = argparse.ArgumentParser(description="Validate top-level SCPN-CONTROL release evidence")
     parser.add_argument("report", type=Path)
     parser.add_argument("--json-out", action="store_true")

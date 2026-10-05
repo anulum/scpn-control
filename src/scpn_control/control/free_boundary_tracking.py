@@ -32,8 +32,10 @@ from typing import Any, Callable, cast
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.control import free_boundary_response_identification as _fb_response
 from scpn_control.control import free_boundary_tracking_control_law as _fb_law
 from scpn_control.control import free_boundary_tracking_limits as _fb_limits
+from scpn_control.control import free_boundary_tracking_metrics as _fb_metrics
 from scpn_control.control import free_boundary_tracking_observation as _fb_obs
 from scpn_control.control.state_estimator import ExtendedKalmanFilter
 from scpn_control.control.tokamak_flight_sim import FirstOrderActuator
@@ -265,7 +267,7 @@ class FreeBoundaryTrackingController:
         self._measurement_latency_buffer: deque[FloatArray] = deque()
         self._last_delayed_measurement: FloatArray | None = None
 
-        self.response_matrix = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
+        self.response_matrix: FloatArray = np.zeros((self.target_vector.size, self.n_coils), dtype=np.float64)
         self.response_rank = 0
         self.response_condition_number = float("inf")
         self.response_max_singular_value = 0.0
@@ -489,7 +491,7 @@ class FreeBoundaryTrackingController:
     def _apply_measurement_latency(self, measurement: FloatArray, *, record: bool) -> FloatArray:
         measured = np.asarray(measurement, dtype=np.float64).reshape(-1)
         if (not record) or self.measurement_latency_steps < 1:
-            return cast(FloatArray, measured.copy())
+            return measured.copy()
         self._measurement_latency_buffer.append(measured.copy())
         max_buffer = self.measurement_latency_steps + 1
         while len(self._measurement_latency_buffer) > max_buffer:
@@ -509,64 +511,92 @@ class FreeBoundaryTrackingController:
             if update_state:
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
                 self._last_delayed_measurement = delayed.copy()
-            return cast(FloatArray, delayed.copy())
+            return delayed.copy()
         if self._last_delayed_measurement is None:
             delta = np.zeros_like(delayed, dtype=np.float64)
         else:
-            delta = np.asarray(delayed - self._last_delayed_measurement, dtype=np.float64)
+            with np.errstate(over="ignore", invalid="ignore"):
+                delta = np.asarray(delayed - self._last_delayed_measurement, dtype=np.float64)
         latency_projection_ready = bool(np.linalg.norm(delta) > 1.0e-12)
         if update_state:
             self._last_delayed_measurement = delayed.copy()
         if (not allow_compensation) or self.latency_compensation_gain <= 0.0:
             if update_state:
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
-            return cast(FloatArray, delayed.copy())
+            return delayed.copy()
         if not latency_projection_ready:
             if update_state:  # pragma: no branch - update_state always True here; see #129
                 self.objective_rate_estimate = np.zeros_like(self.target_vector, dtype=np.float64)
-            return cast(FloatArray, delayed.copy())
+            return delayed.copy()
         if (
             not update_state
         ):  # pragma: no cover - latency projection without state mutation (response-identification path)
-            predicted = delayed + prediction_horizon * delta
+            with np.errstate(over="ignore", invalid="ignore"):
+                predicted = delayed + prediction_horizon * delta
             return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
-        updated = (1.0 - self.latency_compensation_gain) * self.objective_rate_estimate
-        updated = np.asarray(updated + self.latency_compensation_gain * delta, dtype=np.float64)
+        with np.errstate(over="ignore", invalid="ignore"):
+            updated = (1.0 - self.latency_compensation_gain) * self.objective_rate_estimate
+            updated = np.asarray(updated + self.latency_compensation_gain * delta, dtype=np.float64)
         if np.isfinite(self.latency_rate_max_abs):
             updated = np.clip(updated, -self.latency_rate_max_abs, self.latency_rate_max_abs)
         self.objective_rate_estimate = cast(FloatArray, np.asarray(updated, dtype=np.float64))
-        predicted = delayed + prediction_horizon * self.objective_rate_estimate
+        with np.errstate(over="ignore", invalid="ignore"):
+            predicted = delayed + prediction_horizon * self.objective_rate_estimate
         return cast(FloatArray, np.asarray(predicted, dtype=np.float64))
 
     def _observe_snapshot(self, *, apply_latency: bool = True) -> _ObservationSnapshot:
-        true_observation = self._observe_true_objectives()
-        measured_observation = cast(
-            FloatArray,
-            np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64),
+        """Admit finite observations and restore observer state on failure."""
+        width = int(self.target_vector.size)
+        true_observation = _fb_obs.require_finite_observation(self._observe_true_objectives(), width=width, name="true")
+        with np.errstate(over="ignore", invalid="ignore"):
+            measured_observation = np.asarray(true_observation + self._current_measurement_offset(), dtype=np.float64)
+        measured_observation = _fb_obs.require_finite_observation(measured_observation, width=width, name="measured")
+
+        estimator = self.state_estimator
+        estimator_snapshot = None if estimator is None else (estimator.x.copy(), estimator.P.copy(), estimator.H.copy())
+        latency_snapshot = tuple(value.copy() for value in self._measurement_latency_buffer) if apply_latency else None
+        rate_snapshot = self.objective_rate_estimate.copy() if apply_latency else None
+        last_snapshot = (
+            (None if self._last_delayed_measurement is None else self._last_delayed_measurement.copy())
+            if apply_latency
+            else None
         )
 
-        # ── Optional EKF Refinement ──
-        if self.state_estimator is not None:
-            # Predict step (assuming control_dt_s as time step)
-            self.state_estimator.predict(self.control_dt_s)
+        try:
+            if estimator is not None:
+                estimator.predict(self.control_dt_s)
+                z_ekf = self._map_observation_to_ekf(measured_observation)
+                if z_ekf is not None:
+                    estimator.update(z_ekf)
+                    measured_observation = self._map_ekf_to_observation(measured_observation, estimator.estimate())
+                    measured_observation = _fb_obs.require_finite_observation(
+                        measured_observation, width=width, name="estimated"
+                    )
 
-            # Map measured observation to EKF measurement vector [R, Z, Ip, Te]
-            # Since the observation vector format can vary, we only update
-            # if we can find R, Z from x_point_position objective.
-            z_ekf = self._map_observation_to_ekf(measured_observation)
-            if z_ekf is not None:
-                self.state_estimator.update(z_ekf)
-                # Refine the measured observation with EKF state estimate
-                measured_observation = self._map_ekf_to_observation(
-                    measured_observation, self.state_estimator.estimate()
-                )
+            delayed_observation = _fb_obs.require_finite_observation(
+                self._apply_measurement_latency(measured_observation, record=apply_latency),
+                width=width,
+                name="delayed",
+            )
+            effective_observation = _fb_obs.require_finite_observation(
+                self._predict_current_objectives(
+                    delayed_observation,
+                    allow_compensation=apply_latency,
+                    update_state=apply_latency,
+                ),
+                width=width,
+                name="effective",
+            )
+        except Exception:
+            if estimator is not None and estimator_snapshot is not None:
+                estimator.x, estimator.P, estimator.H = estimator_snapshot
+            if latency_snapshot is not None and rate_snapshot is not None:
+                self._measurement_latency_buffer.clear()
+                self._measurement_latency_buffer.extend(latency_snapshot)
+                self.objective_rate_estimate = rate_snapshot
+                self._last_delayed_measurement = last_snapshot
+            raise
 
-        delayed_observation = self._apply_measurement_latency(measured_observation, record=apply_latency)
-        effective_observation = self._predict_current_objectives(
-            delayed_observation,
-            allow_compensation=apply_latency,
-            update_state=apply_latency,
-        )
         return _ObservationSnapshot(
             true=true_observation,
             measured=measured_observation,
@@ -632,6 +662,12 @@ class FreeBoundaryTrackingController:
 
         raise AttributeError("kernel must define solve() or solve_free_boundary() for free-boundary tracking.")
 
+    def _solve_reported_converged_state(self, *, operation: str = "tracking") -> None:
+        """Refuse observations and actuation after a reported failed solve."""
+        result = self._solve_free_boundary_state()
+        if result.get("converged") is not True:
+            raise RuntimeError(f"free-boundary {operation} requires a converged solve")
+
     def _observe_true_objectives(self) -> FloatArray:
         observed: list[float] = []
         for block in self.objective_blocks:
@@ -683,42 +719,51 @@ class FreeBoundaryTrackingController:
         if not np.isfinite(p) or p <= 0.0:
             raise ValueError("perturbation must be finite and > 0.")
 
-        self._solve_free_boundary_state()
         original_currents = self.coils.currents.copy()
         actuator_snapshot = self._snapshot_actuator_states()
-        for idx in range(self.n_coils):
-            hi = float(self.coil_current_limits[idx])
-            plus = original_currents.copy()
-            minus = original_currents.copy()
-            plus[idx] = float(np.clip(original_currents[idx] + p, -hi, hi))
-            minus[idx] = float(np.clip(original_currents[idx] - p, -hi, hi))
-            denom = plus[idx] - minus[idx]
-            if abs(denom) < 1e-12:  # pragma: no cover - degenerate coil with ~zero actuation range
-                self.response_matrix[:, idx] = 0.0
-                continue
+        estimator = self.state_estimator
+        estimator_snapshot = None if estimator is None else (estimator.x.copy(), estimator.P.copy(), estimator.H.copy())
 
-            self.coils.currents = plus
-            self._solve_free_boundary_state()
-            obs_plus = self._observe_snapshot(apply_latency=False).effective
+        def apply_currents(currents: FloatArray) -> None:
+            self.coils.currents = currents.copy()
 
-            self.coils.currents = minus
-            self._solve_free_boundary_state()
-            obs_minus = self._observe_snapshot(apply_latency=False).effective
+        def solve_identification_state() -> None:
+            self._solve_reported_converged_state(operation="response identification")
 
-            self.response_matrix[:, idx] = (obs_plus - obs_minus) / denom
+        try:
+            solve_identification_state()
+            candidate = _fb_response.identify_coil_response(
+                original_currents=original_currents,
+                current_limits=self.coil_current_limits,
+                perturbation=p,
+                n_observations=int(self.target_vector.size),
+                set_currents=apply_currents,
+                solve=solve_identification_state,
+                observe=lambda: self._observe_snapshot(apply_latency=False).effective,
+            )
+            apply_currents(original_currents)
+            solve_identification_state()
+        except Exception as error:
+            apply_currents(original_currents)
+            try:
+                solve_identification_state()
+            except Exception as recovery_error:
+                error.add_note(f"baseline free-boundary recovery solve failed: {recovery_error}")
+            raise
+        finally:
+            self.coils.currents = original_currents
+            self._restore_actuator_states(actuator_snapshot)
+            if estimator is not None and estimator_snapshot is not None:
+                estimator.x, estimator.P, estimator.H = estimator_snapshot
+            self._sync_config_currents()
 
-        self.coils.currents = original_currents
-        self._restore_actuator_states(actuator_snapshot)
-        self._solve_free_boundary_state()
-        self._update_response_diagnostics()
-        return self.response_matrix.copy()
-
-    def _update_response_diagnostics(self) -> None:
-        diagnostics = _fb_law.compute_response_diagnostics(self.response_matrix)
+        diagnostics = _fb_law.compute_response_diagnostics(candidate)
+        self.response_matrix = candidate
         self.response_rank = diagnostics.rank
         self.response_condition_number = diagnostics.condition_number
         self.response_max_singular_value = diagnostics.max_singular_value
         self.response_degenerate = diagnostics.degenerate
+        return self.response_matrix.copy()
 
     def _build_control_activation_mask(self, metrics: dict[str, Any]) -> FloatArray:
         return _fb_law.build_control_activation_mask(
@@ -796,7 +841,7 @@ class FreeBoundaryTrackingController:
         if self.fallback_currents is not None:
             max_abs_actuator_lag = self._apply_fallback_currents()
             fallback_active = True
-        self._solve_free_boundary_state()
+        self._solve_reported_converged_state()
         metrics_after = self.evaluate_objectives(self._observe_objectives())
         true_metrics_after = self.evaluate_objectives(self._observe_true_objectives())
         if not fallback_active:
@@ -822,59 +867,13 @@ class FreeBoundaryTrackingController:
         dict[str, Any]
             Tracking-error norms and shape diagnostics (RMS, max abs, X-point).
         """
-        obs = np.asarray(observation, dtype=np.float64).reshape(-1)
-        error = self.target_vector - obs
-        metrics: dict[str, Any] = {
-            "tracking_error_norm": float(np.linalg.norm(error)),
-            "control_error_norm": 0.0,
-            "shape_rms": None,
-            "shape_max_abs": None,
-            "x_point_position_error": None,
-            "x_point_flux_error": None,
-            "divertor_rms": None,
-            "divertor_max_abs": None,
-            "active_control_rows": 0,
-        }
-
-        for block in self.objective_blocks:
-            block_error = error[block.start : block.stop]
-            if block.name == "shape_flux":
-                metrics["shape_rms"] = float(np.sqrt(np.mean(block_error**2)))
-                metrics["shape_max_abs"] = float(np.max(np.abs(block_error)))
-            elif block.name == "x_point_position":
-                metrics["x_point_position_error"] = float(np.linalg.norm(block_error))
-            elif block.name == "x_point_flux":
-                metrics["x_point_flux_error"] = float(abs(block_error[0]))
-            elif block.name == "divertor_flux":
-                metrics["divertor_rms"] = float(np.sqrt(np.mean(block_error**2)))
-                metrics["divertor_max_abs"] = float(np.max(np.abs(block_error)))
-
-        checks: dict[str, bool] = {}
-        if "shape_rms" in self.objective_tolerances and metrics["shape_rms"] is not None:
-            checks["shape_rms"] = bool(metrics["shape_rms"] <= self.objective_tolerances["shape_rms"])
-        if "shape_max_abs" in self.objective_tolerances and metrics["shape_max_abs"] is not None:
-            checks["shape_max_abs"] = bool(metrics["shape_max_abs"] <= self.objective_tolerances["shape_max_abs"])
-        if "x_point_position" in self.objective_tolerances and metrics["x_point_position_error"] is not None:
-            checks["x_point_position"] = bool(
-                metrics["x_point_position_error"] <= self.objective_tolerances["x_point_position"]
-            )
-        if "x_point_flux" in self.objective_tolerances and metrics["x_point_flux_error"] is not None:
-            checks["x_point_flux"] = bool(metrics["x_point_flux_error"] <= self.objective_tolerances["x_point_flux"])
-        if "divertor_rms" in self.objective_tolerances and metrics["divertor_rms"] is not None:
-            checks["divertor_rms"] = bool(metrics["divertor_rms"] <= self.objective_tolerances["divertor_rms"])
-        if "divertor_max_abs" in self.objective_tolerances and metrics["divertor_max_abs"] is not None:
-            checks["divertor_max_abs"] = bool(
-                metrics["divertor_max_abs"] <= self.objective_tolerances["divertor_max_abs"]
-            )
-        metrics["objective_checks"] = checks
-        metrics["objective_convergence_active"] = bool(checks)
-        metrics["objective_converged"] = all(checks.values()) if checks else True
-        metrics["objective_tolerances"] = self.objective_tolerances.copy()
-        control_mask = self._build_control_activation_mask(metrics)
-        control_error = control_mask * self.control_objective_weights * error
-        metrics["control_error_norm"] = float(np.linalg.norm(control_error))
-        metrics["active_control_rows"] = int(np.count_nonzero(np.abs(control_error) > 1.0e-12))
-        return metrics
+        return _fb_metrics.evaluate_objective_metrics(
+            observation,
+            target_vector=self.target_vector,
+            objective_blocks=self.objective_blocks,
+            objective_tolerances=self.objective_tolerances,
+            control_objective_weights=self.control_objective_weights,
+        )
 
     def evaluate_supervisor(
         self,
@@ -970,7 +969,7 @@ class FreeBoundaryTrackingController:
         self._reset_measurement_offsets()
         self._reset_latency_estimator()
         self._sync_actuators_from_coils()
-        self._solve_free_boundary_state()
+        self._solve_reported_converged_state()
         initial_snapshot = self._observe_snapshot()
         last_metrics = self.evaluate_objectives(initial_snapshot.effective)
         last_true_metrics = self.evaluate_objectives(initial_snapshot.true)
@@ -983,7 +982,7 @@ class FreeBoundaryTrackingController:
 
     def _observe_and_plan_step_correction(self, step: int) -> _ShotStepRecord:
         """Solve, optionally refresh the response, observe, and plan a coil correction."""
-        self._solve_free_boundary_state()
+        self._solve_reported_converged_state()
         if step % self.response_refresh_steps == 0:
             self.identify_response_matrix()
 
@@ -1074,7 +1073,7 @@ class FreeBoundaryTrackingController:
             max_abs_actuator_lag = (
                 float(np.max(np.abs(commanded_currents - applied_currents))) if applied_currents.size > 0 else 0.0
             )
-            self._solve_free_boundary_state()
+            self._solve_reported_converged_state()
             observation_snapshot_after = self._observe_snapshot(apply_latency=False)
             observation_after = observation_snapshot_after.effective
             true_observation_after = observation_snapshot_after.true
@@ -1136,12 +1135,29 @@ class FreeBoundaryTrackingController:
         record = self._observe_and_plan_step_correction(step)
         baseline_currents = self.coils.currents.copy()
         actuator_snapshot = self._snapshot_actuator_states()
-        self._apply_gain_search_or_recover(
-            record,
-            gain_value=gain_value,
-            baseline_currents=baseline_currents,
-            actuator_snapshot=actuator_snapshot,
-        )
+        estimator = self.state_estimator
+        estimator_snapshot = None if estimator is None else (estimator.x.copy(), estimator.P.copy(), estimator.H.copy())
+        try:
+            self._apply_gain_search_or_recover(
+                record,
+                gain_value=gain_value,
+                baseline_currents=baseline_currents,
+                actuator_snapshot=actuator_snapshot,
+            )
+        except Exception as error:
+            self.coils.currents = baseline_currents.copy()
+            self._restore_actuator_states(actuator_snapshot)
+            try:
+                self._solve_reported_converged_state()
+            except Exception as recovery_error:
+                error.add_note(f"baseline free-boundary recovery solve failed: {recovery_error}")
+            finally:
+                self.coils.currents = baseline_currents.copy()
+                self._restore_actuator_states(actuator_snapshot)
+                self._sync_config_currents()
+                if estimator is not None and estimator_snapshot is not None:
+                    estimator.x, estimator.P, estimator.H = estimator_snapshot
+            raise
         return record
 
     def _record_tracking_shot_step(self, step: int, record: _ShotStepRecord) -> None:

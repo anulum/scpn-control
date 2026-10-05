@@ -7,7 +7,19 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Native Formal Certificate Evidence Validation
 
-"""Validate native AOT certificate benchmark evidence before admission."""
+"""Inspect native AOT benchmark declarations without running a proof engine.
+
+Read one UTF-8 object and hash those exact bytes. The reader checks benchmark
+context, AOT case counts, certificate identifier/schema/digest spelling and a
+positive finite p99 threshold. It does not reopen certificates, authenticate a
+producer, rerun SMT, inspect the host or grant physical/control qualification.
+Recorded p99 is an across-run summary, not a per-tick timing guarantee.
+
+Caller-relative paths and symlinks are followed. Extra JSON metadata is ignored
+except duplicate/nonfinite floating-token refusal; there is no containment or
+input size/depth budget. The standalone standard-library CLI emits the result
+as JSON; root validate and tracker53 consume the same public reader.
+"""
 
 from __future__ import annotations
 
@@ -19,7 +31,6 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TypeAlias, cast
-
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "validation" / "reports" / "native_formal_aot_certificate_admission_20260604T103219Z.json"
@@ -40,7 +51,29 @@ JSONMapping: TypeAlias = dict[str, JSONValue]
 
 @dataclass(frozen=True)
 class NativeFormalCertificateEvidenceResult:
-    """Strict admission result for native formal AOT certificate evidence."""
+    """Frozen findings and declared AOT benchmark metadata.
+
+    Attributes
+    ----------
+    status : str
+        pass when all reader checks succeed, otherwise fail.
+    admitted_cases : tuple[str, ...]
+        Sorted case labels whose AOT summary checks pass, even when global
+        context/schema or digest instability makes overall status fail.
+    certificate_assumption_sha256 : str or None
+        One distinct syntactically valid digest observed across AOT summaries,
+        including rejected summaries. None when zero or multiple are observed.
+    benchmark_evidence_class : str or None
+        Declared class string, including unknown values on FAIL.
+    production_claim_allowed : bool
+        Declared literal boolean, preserved on FAIL; other types become false.
+        This is not host or controller qualification.
+    errors : tuple[str, ...]
+        Ordered read/context/argument/case/stability findings.
+    report_sha256 : str or None
+        Digest of exact decoded JSON-object bytes; read/decode/root-type error
+        yields None. Hashes establish byte identity, not producer authenticity.
+    """
 
     status: str
     admitted_cases: tuple[str, ...]
@@ -51,6 +84,7 @@ class NativeFormalCertificateEvidenceResult:
     report_sha256: str | None
 
     def as_dict(self) -> JSONMapping:
+        """Return all fields plus result schema and fresh mutable finding/case lists."""
         return {
             "schema_version": RESULT_SCHEMA_VERSION,
             "status": self.status,
@@ -64,6 +98,7 @@ class NativeFormalCertificateEvidenceResult:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, JSONValue]]) -> JSONMapping:
+    """Refuse key shadowing at every JSON depth, including extra metadata."""
     out: JSONMapping = {}
     for key, value in pairs:
         if key in out:
@@ -72,50 +107,67 @@ def _reject_duplicate_keys(pairs: list[tuple[str, JSONValue]]) -> JSONMapping:
     return out
 
 
-def _load_json(path: Path) -> JSONMapping:
+def _load_json(path: Path) -> tuple[JSONMapping, str]:
+    """Read once, decode a UTF-8 object and hash the same exact bytes."""
     try:
-        with path.open("r", encoding="utf-8") as fh:
-            payload = json.load(fh, object_pairs_hook=_reject_duplicate_keys)
+        blob = path.read_bytes()
+        payload = json.loads(
+            blob.decode("utf-8"),
+            object_pairs_hook=_reject_duplicate_keys,
+            parse_float=_parse_json_float,
+            parse_constant=_parse_json_float,
+        )
     except json.JSONDecodeError as exc:
         raise ValueError(f"{path}: malformed JSON: {exc}") from exc
     if not isinstance(payload, dict):
         raise ValueError(f"{path}: root must be a JSON object")
-    return cast(JSONMapping, payload)
+    return cast(JSONMapping, payload), hashlib.sha256(blob).hexdigest()
 
 
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as fh:
-        for chunk in iter(lambda: fh.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+def _parse_json_float(token: str) -> float:
+    """Refuse nonfinite JSON constants/exponents, including unrelated metadata."""
+    value = float(token)
+    if not math.isfinite(value):
+        raise ValueError(f"nonfinite JSON number: {token}")
+    return value
 
 
 def _is_finite_number(value: JSONValue) -> bool:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
+    """Recognise finite integer/float declarations without bool coercion or overflow."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except OverflowError:
+        return False
 
 
 def _is_non_negative_int(value: JSONValue) -> bool:
+    """Recognise nonnegative integer declarations, excluding booleans."""
     return not isinstance(value, bool) and isinstance(value, int) and value >= 0
 
 
 def _is_sha256(value: object) -> bool:
+    """Check lowercase SHA-256 spelling without authenticating a certificate."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _mapping(value: JSONValue) -> JSONMapping | None:
+    """Select a JSON object without converting other JSON shapes."""
     if isinstance(value, dict):
         return value
     return None
 
 
 def _string_list(value: JSONValue) -> list[str] | None:
+    """Select a nonempty list of nonempty strings; whitespace strings are retained."""
     if isinstance(value, list) and value and all(isinstance(item, str) and item for item in value):
         return cast(list[str], value)
     return None
 
 
 def _int_list(value: JSONValue) -> list[int] | None:
+    """Select a nonempty list of nonnegative integers with booleans refused."""
     if (
         isinstance(value, list)
         and value
@@ -126,10 +178,20 @@ def _int_list(value: JSONValue) -> list[int] | None:
 
 
 def _non_empty_string(value: JSONValue) -> bool:
+    """Recognise text containing at least one non-whitespace character."""
     return isinstance(value, str) and bool(value.strip())
 
 
 def _validate_benchmark_context(payload: JSONMapping, errors: list[str]) -> tuple[str | None, bool]:
+    """Check required context declarations and production-class metadata boundaries.
+
+    Integer CPU lists need not be unique, online or mutually compatible. String
+    loads/governors/isolation are not independently verified. runtime_versions
+    needs a nonempty object but its contents remain unchecked. Production
+    requires explicit isolation text, boolean heavy-job declaration and literal
+    workspace_dirty=false; true heavy-job declarations are not rejected here.
+    The returned production boolean is declared metadata, even on FAIL.
+    """
     context = _mapping(payload.get("benchmark_context"))
     if context is None:
         errors.append("benchmark_context must be an object")
@@ -192,6 +254,8 @@ def _validate_benchmark_context(payload: JSONMapping, errors: list[str]) -> tupl
             errors.append("production benchmark evidence must declare whether other heavy jobs were running")
         if payload.get("workspace_dirty") is True:
             errors.append("production benchmark evidence must not come from a dirty workspace")
+        elif payload.get("workspace_dirty") is not False:
+            errors.append("production benchmark evidence must declare workspace_dirty=false")
         if not production_claim_allowed_bool:
             errors.append("production benchmark evidence must set production_claim_allowed=true")
 
@@ -204,6 +268,14 @@ def _validate_summary_case(
     *,
     max_aot_p99_cycle_us: float,
 ) -> tuple[str | None, str | None, list[str]]:
+    """Inspect counts, certificate spellings and declared p99 for one AOT label.
+
+    Non-AOT labels return no admission or findings after the caller checks object
+    shape. AOT generated/submitted/checked counts must agree and be positive;
+    drops/failures must be zero and certificate count must equal positive runs.
+    Return any valid digest even with other case findings. Other latency fields,
+    execution rows and certificate bytes are not checked or recomputed.
+    """
     errors: list[str] = []
     if ":aot_certificate:" not in name:
         return None, None, errors
@@ -276,14 +348,43 @@ def validate_native_formal_certificate_evidence(
     *,
     max_aot_p99_cycle_us: float = DEFAULT_MAX_AOT_P99_CYCLE_US,
 ) -> NativeFormalCertificateEvidenceResult:
-    """Validate a native formal benchmark report for AOT certificate admission."""
+    """Inspect one persisted benchmark report through the public metadata API.
 
+    Parameters
+    ----------
+    report_path : str or Path
+        Caller-relative path or historical repository default. Read-only; no
+        report, benchmark, certificate or proof artifact is generated.
+    max_aot_p99_cycle_us : float
+        Positive finite non-boolean numeric bound for each AOT avg_cycle_us.p99.
+        Ill-typed/nonfinite/overflowing values return structured FAIL before
+        evaluating case limits, with empty cases and no observed digest.
+
+    Returns
+    -------
+    NativeFormalCertificateEvidenceResult
+        Supported read, UTF-8, JSON, duplicate/nonfinite, recursion, schema,
+        context, count and threshold refusals become findings. Case-level
+        admitted labels and a single observed digest may remain on global FAIL.
+        PASS admits declarations, not authenticity or certified control.
+
+    Examples
+    --------
+    Empty metadata cannot establish an AOT certificate:
+
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as directory:
+    ...     path = Path(directory) / 'empty.json'
+    ...     _ = path.write_text('{}', encoding='utf-8')
+    ...     result = validate_native_formal_certificate_evidence(path)
+    ...     (result.status, result.admitted_cases)
+    ('fail', ())
+    """
     path = Path(report_path)
     errors: list[str] = []
     try:
-        report_sha256 = _sha256_file(path)
-        payload = _load_json(path)
-    except (OSError, ValueError) as exc:
+        payload, report_sha256 = _load_json(path)
+    except (OSError, ValueError, RecursionError) as exc:
         return NativeFormalCertificateEvidenceResult("fail", (), None, None, False, (str(exc),), None)
 
     if payload.get("schema") != BENCHMARK_SCHEMA_VERSION:
@@ -293,6 +394,9 @@ def validate_native_formal_certificate_evidence(
 
     if not _is_finite_number(cast(JSONValue, max_aot_p99_cycle_us)) or max_aot_p99_cycle_us <= 0.0:
         errors.append("max_aot_p99_cycle_us must be positive and finite")
+        return NativeFormalCertificateEvidenceResult(
+            "fail", (), None, benchmark_evidence_class, production_claim_allowed, tuple(errors), report_sha256
+        )
 
     summaries = _mapping(payload.get("summaries"))
     if summaries is None:
@@ -336,6 +440,13 @@ def validate_native_formal_certificate_evidence(
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the read-only standard-library CLI and emit complete JSON findings.
+
+    argv excludes the executable; None reads process arguments. The positional
+    report defaults to the absolute historical repository path. Return zero on
+    reader PASS, one on refusal. Argparse errors exit two. No report is written
+    and no proof, benchmark or native loop is launched.
+    """
     parser = argparse.ArgumentParser(description="Validate native AOT formal-certificate benchmark evidence.")
     parser.add_argument(
         "report",

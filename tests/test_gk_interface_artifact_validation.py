@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — External GK interface artifact validation tests
 
+"""Retain original interface source/URI/hash/duplicate declaration fixtures and real public assertions."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,7 @@ from validation.validate_gk_interface_artifacts import canonical_artifact_sha256
 
 
 def _valid_real_executable_artifact() -> dict[str, object]:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.gk-interface-artifact.v1",
         "interface_code": "GENE",
@@ -43,6 +46,7 @@ def _valid_real_executable_artifact() -> dict[str, object]:
 
 
 def test_strict_gk_interface_gate_requires_real_artifacts(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     report = validate_gk_interface_artifacts(tmp_path, require_interface_artifacts=True)
 
     assert report["status"] == "fail"
@@ -58,6 +62,7 @@ def test_strict_gk_interface_gate_requires_real_artifacts(tmp_path: Path) -> Non
 
 
 def test_gk_interface_gate_accepts_real_executable_artifact(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     artifact = tmp_path / "gene_cbc_parser.json"
     artifact.write_text(json.dumps(_valid_real_executable_artifact()), encoding="utf-8")
 
@@ -73,6 +78,7 @@ def test_gk_interface_gate_accepts_real_executable_artifact(tmp_path: Path) -> N
 
 
 def test_gk_interface_gate_accepts_documented_public_reference_artifact(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["interface_code"] = "QuaLiKiz"
     payload["source"] = "documented_public_reference"
@@ -89,6 +95,7 @@ def test_gk_interface_gate_accepts_documented_public_reference_artifact(tmp_path
 
 
 def test_gk_interface_gate_rejects_mock_source(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["source"] = "mock_subprocess"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -102,6 +109,7 @@ def test_gk_interface_gate_rejects_mock_source(tmp_path: Path) -> None:
 
 
 def test_gk_interface_gate_rejects_missing_hash_provenance(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["output_artifact_sha256"] = "not-a-hash"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -115,6 +123,7 @@ def test_gk_interface_gate_rejects_missing_hash_provenance(tmp_path: Path) -> No
 
 
 def test_gk_interface_gate_rejects_relative_binary_path(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["binary_path"] = "gene"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -128,6 +137,7 @@ def test_gk_interface_gate_rejects_relative_binary_path(tmp_path: Path) -> None:
 
 
 def test_gk_interface_gate_rejects_mutable_binary_root(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["binary_path"] = "/tmp/gene"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -141,6 +151,7 @@ def test_gk_interface_gate_rejects_mutable_binary_root(tmp_path: Path) -> None:
 
 
 def test_gk_interface_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["chi_i_m2_s"] = 2.4
     artifact = tmp_path / "tampered_transport.json"
@@ -153,6 +164,7 @@ def test_gk_interface_gate_rejects_tampered_payload_digest(tmp_path: Path) -> No
 
 
 def test_gk_interface_gate_rejects_missing_parsed_output_digest(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload.pop("parsed_output_sha256")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -166,6 +178,7 @@ def test_gk_interface_gate_rejects_missing_parsed_output_digest(tmp_path: Path) 
 
 
 def test_gk_interface_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     payload["parsed_output_uri"] = "../parsed_output.json"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -179,6 +192,7 @@ def test_gk_interface_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> No
 
 
 def test_gk_interface_gate_rejects_duplicate_code_run_id(tmp_path: Path) -> None:
+    """Exercise original public interface declaration acceptance/refusal without changing assertions."""
     payload = _valid_real_executable_artifact()
     for index in range(2):
         artifact = tmp_path / f"duplicate_gene_{index}.json"

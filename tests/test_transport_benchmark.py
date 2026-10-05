@@ -11,9 +11,7 @@
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""
-Regression tests for the transport validation benchmark.
-"""
+"""Regression tests for the transport validation benchmark."""
 
 from __future__ import annotations
 
@@ -24,15 +22,13 @@ from validation.benchmark_transport import (
 )
 
 
-def test_transport_pure_diffusion():
-    """Verify that pure diffusion matches analytic solution trend."""
-    # We use a loose threshold due to 1.5D vs 1D cylindrical discrepancies
-    # found during validation.
+def test_transport_pure_diffusion() -> None:
+    """The ion channel matches its half-power cylindrical diffusion reference."""
     result = run_pure_diffusion_benchmark(nr=50)
     assert result["max_relative_error"] < PURE_DIFFUSION_MAX_RELATIVE_ERROR
 
 
-def test_transport_threshold():
+def test_transport_threshold() -> None:
     """Verify that the transport model respects critical gradients."""
     result = run_threshold_benchmark()
     assert result["pass"]

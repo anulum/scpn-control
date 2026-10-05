@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-09-05"
-expected_total = 379
-expected_sha256 = "aafdf6179cde71402bb9ef5322c9b6a82d954bbd976e712dfb81743a28b91d84"
+expected_total = 365
+expected_sha256 = "bad9b705e7be487fa980cc6066e0a79527891f5fd2cc79921caabec90e04e208"
 
 [[rules]]
 id = "spo-installation-boundary"
@@ -208,6 +208,26 @@ execution_lane = "baseline or named optional-owner lane"
 status = "explicit-environment-blocker"
 removal_condition = "Remove when the package is installed in a named executing lane or the optional feature is retired."
 workflow_evidence = "python-tests:"
+
+[[rules]]
+id = "tglf-external-runtime"
+pattern = "SCPN_TGLF_BINARY must name an actual configured GACODE launcher"
+last_review = "2026-09-23"
+external_dependency = "configured GACODE launcher and its runtime environment"
+execution_lane = "manual focused tests with an actual configured GACODE launcher"
+status = "explicit-environment-blocker"
+removal_condition = "Remove when a maintained named CI lane runs these exact provider tests with recorded GACODE provenance, or the provider tests are retired."
+workflow_evidence = ""
+
+[[rules]]
+id = "extended-floating-range"
+pattern = "extended precision is needed to supply a nonzero value below binary64|longdouble has no wider finite range on this platform"
+last_review = "2026-09-23"
+external_dependency = "host NumPy longdouble with finite range wider than binary64"
+execution_lane = "manual focused tests on a verified wider-longdouble host"
+status = "explicit-environment-blocker"
+removal_condition = "Remove when a named CI lane executes these exact range tests on a verified wider-longdouble host, or the variant is no longer supported."
+workflow_evidence = ""
 
 [[rules]]
 id = "intrinsic-control-flow"

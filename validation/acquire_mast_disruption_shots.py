@@ -18,9 +18,10 @@ the source hierarchy and available xarray metadata separately, binds each array'
 exact values, binds the derived-file bytes, and declares the lossy container
 boundary instead of calling NPZ a raw native object.
 
-Labels are deliberately not assigned here (the DEFUSE HDF5 labels return HTTP 403
-and the DEFUSE shot ids do not intersect the level2 shot range); consumers derive
-the Ip current-quench label. Heavy arrays stay off any code repository under a
+Labels are deliberately not assigned here. The manifest retains the historical
+DEFUSE access/shot-range policy; this routine does not establish current DEFUSE
+availability or independent labels. Consumers derive the Ip current-quench label.
+Heavy arrays stay off any code repository under a
 shared datasets root. Requires the optional FAIR-MAST stack (``zarr``, ``s3fs``,
 ``xarray``, ``fsspec``) and network access; it is an out-of-band tool.
 """
@@ -28,208 +29,84 @@ shared datasets root. Requires the optional FAIR-MAST stack (``zarr``, ``s3fs``,
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import math
-import urllib.error
-import urllib.request
-from collections.abc import Mapping
-from dataclasses import dataclass
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
-import numpy as np
-from numpy.typing import NDArray
-
-from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
+from scpn_control._npz import save_npz_arrays
+from validation.fair_mast_source_policy import FAIR_MAST_LICENCE as FAIR_MAST_LICENCE
+from validation.fair_mast_source_policy import fair_mast_provenance as fair_mast_provenance
+from validation.mast_replay_contracts import (
+    _acquisition_arrays,
+    _acquisition_report,
+    _acquisition_selection,
+    _acquisition_source,
+)
+from validation.mast_replay_contracts._acquisition_arrays import GROUP_VARIABLES as GROUP_VARIABLES
+from validation.mast_replay_contracts._acquisition_arrays import _json_metadata_value as _json_metadata_value
+from validation.mast_replay_contracts._acquisition_arrays import _open_group as _open_group
+from validation.mast_replay_contracts._acquisition_arrays import _shot_summary as _shot_summary
+from validation.mast_replay_contracts._acquisition_arrays import _source_array_metadata as _source_array_metadata
+from validation.mast_replay_contracts._acquisition_arrays import mirror_shot as mirror_shot
+from validation.mast_replay_contracts._acquisition_report import acquisition_report
+from validation.mast_replay_contracts._acquisition_selection import MAX_REQUESTED_SHOTS as MAX_REQUESTED_SHOTS
+from validation.mast_replay_contracts._acquisition_selection import parse_shots as parse_shots
+from validation.mast_replay_contracts._acquisition_source import BUCKET as BUCKET
+from validation.mast_replay_contracts._acquisition_source import CACHE_GENERATION_SCHEMA as CACHE_GENERATION_SCHEMA
+from validation.mast_replay_contracts._acquisition_source import ENDPOINT_URL as ENDPOINT_URL
+from validation.mast_replay_contracts._acquisition_source import SourceGenerationError as SourceGenerationError
+from validation.mast_replay_contracts._acquisition_source import SourceGenerationPin as SourceGenerationPin
+from validation.mast_replay_contracts._acquisition_source import _new_cache_namespace as _new_cache_namespace
+from validation.mast_replay_contracts._acquisition_source import _same_source_generation as _same_source_generation
+from validation.mast_replay_contracts._acquisition_source import decode_source_generation as decode_source_generation
+from validation.mast_replay_contracts._acquisition_source import read_source_generation as read_source_generation
+from validation.mast_replay_contracts._inputs import shot_identity
+from validation.mast_source_object_manifest import SOURCE_GENERATION_DIGEST_KIND as SOURCE_GENERATION_DIGEST_KIND
+from validation.mast_source_object_manifest import SOURCE_GENERATION_SCHEMA as SOURCE_GENERATION_SCHEMA
 from validation.mast_source_object_manifest import (
-    SOURCE_GENERATION_DIGEST_KIND,
-    SOURCE_GENERATION_SCHEMA,
     SOURCE_OBJECT_MANIFEST_SCHEMA,
     build_derived_npz_artifact,
-    canonical_json_sha256,
     finalise_source_object_manifest,
     validate_source_object_manifest,
 )
+from validation.report_output_paths import checked_report_destination
 
-# Injection seams so the S3/Zarr I/O can be stubbed in offline tests.
 FilesystemFactory = Callable[[Path], Any]
 GroupOpener = Callable[[Any, int, str], Any]
 
 MANIFEST_SCHEMA = SOURCE_OBJECT_MANIFEST_SCHEMA
-ENDPOINT_URL = "https://s3.echo.stfc.ac.uk"
-BUCKET = "mast"
-CACHE_GENERATION_SCHEMA = "scpn-control.fair-mast-cache-generation.v1.0.0"
-_MAX_ROOT_METADATA_BYTES = 16 << 20
-_SOURCE_METADATA_TIMEOUT_S = 30.0
-
-
-class SourceGenerationError(ValueError):
-    """Raised when a FAIR-MAST source generation cannot be pinned safely."""
-
-
-@dataclass(frozen=True)
-class SourceGenerationPin:
-    """Exact upstream root-metadata identity for one FAIR-MAST shot."""
-
-    source_uri: str
-    sha256: str
-    byte_count: int
-    etag: str | None
-    last_modified: str | None
-
-    def to_dict(self) -> dict[str, Any]:
-        """Return the manifest-bound source-generation record."""
-        return {
-            "schema_version": SOURCE_GENERATION_SCHEMA,
-            "digest_kind": SOURCE_GENERATION_DIGEST_KIND,
-            "source_uri": self.source_uri,
-            "metadata_path": "zarr.json",
-            "sha256": self.sha256,
-            "bytes": self.byte_count,
-            "zarr_format": 3,
-            "consolidated_metadata_kind": "inline",
-            "etag": self.etag,
-            "last_modified": self.last_modified,
-        }
 
 
 GenerationReader = Callable[[int], SourceGenerationPin]
 
 
-def _object_without_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-    result: dict[str, Any] = {}
-    for key, value in pairs:
-        if key in result:
-            raise SourceGenerationError(f"duplicate JSON key {key!r} in root metadata")
-        result[key] = value
-    return result
-
-
-def read_source_generation(shot_id: int) -> SourceGenerationPin:
-    """Read exact root ``zarr.json`` bytes outside simplecache and pin them."""
-    if not isinstance(shot_id, int) or isinstance(shot_id, bool) or shot_id <= 0:
-        raise SourceGenerationError("shot_id must be a positive integer")
-    source_uri = f"s3://{BUCKET}/level2/shots/{shot_id}.zarr"
-    url = f"{ENDPOINT_URL}/{BUCKET}/level2/shots/{shot_id}.zarr/zarr.json"
-    request = urllib.request.Request(
-        url,
-        headers={"Accept": "application/json", "User-Agent": "SCPN-CONTROL-FAIR-MAST-acquisition/1"},
-    )
-    try:
-        # The URL has a fixed HTTPS origin and a validated positive-integer path component.
-        with urllib.request.urlopen(  # nosec B310
-            request, timeout=_SOURCE_METADATA_TIMEOUT_S
-        ) as response:
-            raw = response.read(_MAX_ROOT_METADATA_BYTES + 1)
-            etag = response.headers.get("ETag")
-            last_modified = response.headers.get("Last-Modified")
-    except (OSError, urllib.error.URLError) as exc:
-        raise SourceGenerationError(f"cannot read upstream root metadata for shot {shot_id}: {exc}") from exc
-    if len(raw) > _MAX_ROOT_METADATA_BYTES:
-        raise SourceGenerationError(
-            f"upstream root metadata for shot {shot_id} exceeds {_MAX_ROOT_METADATA_BYTES} bytes"
-        )
-    try:
-        metadata = json.loads(raw, object_pairs_hook=_object_without_duplicate_keys)
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-        raise SourceGenerationError(f"invalid upstream root metadata for shot {shot_id}: {exc}") from exc
-    if not isinstance(metadata, Mapping) or metadata.get("zarr_format") != 3:
-        raise SourceGenerationError(f"shot {shot_id} root metadata is not Zarr format 3")
-    consolidated = metadata.get("consolidated_metadata")
-    if not isinstance(consolidated, Mapping) or consolidated.get("kind") != "inline":
-        raise SourceGenerationError(f"shot {shot_id} root metadata is not inline consolidated metadata")
-    return SourceGenerationPin(
-        source_uri=source_uri,
-        sha256=hashlib.sha256(raw).hexdigest(),
-        byte_count=len(raw),
-        etag=etag,
-        last_modified=last_modified,
-    )
-
-
-def _new_cache_namespace(
-    cache_dir: Path,
-    *,
-    shot_id: int,
-    generated_at: str,
-    retrieved_at: str,
-    source_generation: SourceGenerationPin,
-) -> tuple[Path, dict[str, Any]]:
-    descriptor: dict[str, Any] = {
-        "schema_version": CACHE_GENERATION_SCHEMA,
-        "shot_id": shot_id,
-        "generated_at": generated_at,
-        "retrieved_at": retrieved_at,
-        "source_generation_sha256": source_generation.sha256,
-    }
-    namespace_id = canonical_json_sha256(descriptor)
-    relative_path = Path("runs") / namespace_id
-    namespace = cache_dir / relative_path
-    try:
-        namespace.mkdir(parents=True, exist_ok=False)
-    except FileExistsError as exc:
-        raise SourceGenerationError(
-            f"isolated cache namespace {relative_path.as_posix()!r} already exists; refusing cross-run cache reuse"
-        ) from exc
-    return namespace, {
-        **descriptor,
-        "namespace_id": namespace_id,
-        "relative_path": relative_path.as_posix(),
-        "existing_cache_reused": False,
-        "pre_and_post_source_generation_match": True,
-    }
-
-
-def _same_source_generation(left: SourceGenerationPin, right: SourceGenerationPin) -> bool:
-    """Compare immutable content identity, excluding advisory HTTP headers."""
-    return left.source_uri == right.source_uri and left.sha256 == right.sha256 and left.byte_count == right.byte_count
-
-
-# Native-resolution variables mirrored per group. Geometry (phi/r/z) accompanies
-# each probe array so consumers can perform toroidal-mode decomposition. Units are
-# recorded in the manifest and follow the FAIR-MAST level2 convention.
-GROUP_VARIABLES: dict[str, tuple[str, ...]] = {
-    "summary": ("time", "ip", "line_average_n_e", "greenwald_density"),
-    "equilibrium": (
-        "time",
-        "q95",
-        "q_axis",
-        "beta_tor_normal",
-        "beta_tor",
-        "bphi_rmag",
-        "bvac_rmag",
-        "minor_radius",
-        "magnetic_axis_r",
-        "magnetic_axis_z",
-        "z",
-        "x_point_z",
-        "wmhd",
-        "volume",
-        "triangularity_upper",
-        "triangularity_lower",
-        "vloop_dynamic",
-    ),
-    "interferometer": ("time", "n_e_line"),
-    "magnetics": (
-        "time_saddle",
-        "time_mirnov",
-        "b_field_tor_probe_saddle_field",
-        "b_field_tor_probe_saddle_m_phi",
-        "b_field_tor_probe_saddle_u_phi",
-        "b_field_tor_probe_saddle_l_phi",
-        "b_field_tor_probe_cc_field",
-        "b_field_tor_probe_cc_phi",
-        "b_field_pol_probe_cc_field",
-        "b_field_pol_probe_cc_phi",
-        "b_field_pol_probe_cc_r",
-        "b_field_pol_probe_cc_z",
-    ),
-}
-
-
 def make_filesystem(cache_dir: Path) -> Any:
-    """Build the anonymous FAIR-MAST S3 cache filesystem (proven access pattern)."""
+    """Create a simplecache filesystem targeting anonymous FAIR-MAST S3.
+
+    Parameters
+    ----------
+    cache_dir : Path
+        Directory created as needed; fsspec stores downloaded cache objects here.
+
+    Returns
+    -------
+    fsspec filesystem
+        S3-backed simplecache with the fixed HTTPS endpoint and no shared S3
+        instance cache. Filesystem/connection lifecycle follows fsspec.
+
+    Raises
+    ------
+    ImportError
+        fsspec or its optional S3 provider is unavailable.
+    OSError, ValueError
+        Cache creation or native filesystem configuration fails.
+
+    Notes
+    -----
+    This API configures a filesystem; it does not establish source availability,
+    Zarr-v3 support, metadata validity or original acquisition provenance.
+    """
     import fsspec
 
     cache_dir.mkdir(parents=True, exist_ok=True)
@@ -239,88 +116,6 @@ def make_filesystem(cache_dir: Path) -> Any:
         target_protocol="s3",
         target_options={"anon": True, "endpoint_url": ENDPOINT_URL, "skip_instance_cache": True},
     )
-
-
-def _open_group(fs: Any, shot_id: int, group: str) -> Any:
-    import xarray as xr
-
-    store = fs.get_mapper(f"s3://{BUCKET}/level2/shots/{shot_id}.zarr")
-    return xr.open_zarr(store, group=group, consolidated=True)
-
-
-def mirror_shot(
-    fs: Any,
-    shot_id: int,
-    *,
-    open_group: GroupOpener = _open_group,
-    metadata_out: dict[str, dict[str, Any]] | None = None,
-) -> dict[str, NDArray[Any]]:
-    """Read selected source-resolution values and optional source metadata."""
-    payload: dict[str, NDArray[Any]] = {}
-    for group, variables in GROUP_VARIABLES.items():
-        dataset = open_group(fs, shot_id, group)
-        for variable in variables:
-            if variable in dataset.variables:
-                archive_key = f"{group}.{variable}"
-                source_array = dataset[variable]
-                payload[archive_key] = np.asarray(source_array.values)
-                if metadata_out is not None:
-                    metadata_out[archive_key] = _source_array_metadata(source_array)
-    if not any(key.startswith("magnetics.b_field_tor_probe_saddle_field") for key in payload):
-        raise ValueError(f"shot {shot_id}: no toroidal saddle array present.")
-    return payload
-
-
-def _json_metadata_value(value: Any) -> Any:
-    """Convert source metadata to deterministic JSON without silent stringification."""
-    if value is None or isinstance(value, (str, bool, int)):
-        return value
-    if isinstance(value, float):
-        if math.isfinite(value):
-            return value
-        return {"non_finite_float": str(value)}
-    if isinstance(value, np.generic):
-        return _json_metadata_value(value.item())
-    if isinstance(value, np.ndarray):
-        return [_json_metadata_value(item) for item in value.tolist()]
-    if isinstance(value, bytes):
-        return {"bytes_hex": value.hex()}
-    if isinstance(value, Mapping):
-        return {
-            str(key): _json_metadata_value(item) for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
-        }
-    if isinstance(value, (list, tuple)):
-        return [_json_metadata_value(item) for item in value]
-    raise TypeError(f"unsupported source metadata type: {type(value).__module__}.{type(value).__qualname__}")
-
-
-def _source_array_metadata(source_array: Any) -> dict[str, Any]:
-    """Capture xarray structure without inventing absent physical metadata."""
-    dimensions = [str(dimension) for dimension in getattr(source_array, "dims", ())]
-    attributes = _json_metadata_value(dict(getattr(source_array, "attrs", {})))
-    units = attributes.get("units") if isinstance(attributes.get("units"), str) else None
-    time_dimensions = [dimension for dimension in dimensions if "time" in dimension.casefold()]
-    chunks = getattr(source_array, "chunks", None)
-    return {
-        "dimensions": dimensions,
-        "units": units,
-        "timebase": {"kind": "source_dimension", "dimensions": time_dimensions} if time_dimensions else None,
-        "source_attributes": attributes,
-        "source_chunks": [list(chunk_sizes) for chunk_sizes in chunks] if chunks is not None else None,
-        "metadata_status": "source_xarray",
-    }
-
-
-def _shot_summary(payload: dict[str, NDArray[Any]]) -> dict[str, Any]:
-    ip = payload.get("summary.ip")
-    ip_max_ka = float(np.nanmax(np.abs(np.asarray(ip, dtype=np.float64))) / 1e3) if ip is not None else None
-    saddle = payload["magnetics.b_field_tor_probe_saddle_field"]
-    return {
-        "ip_max_ka": ip_max_ka,
-        "saddle_channels": int(np.asarray(saddle).shape[0]),
-        "saddle_samples": int(np.asarray(saddle).shape[1]),
-        "variables": sorted(payload),
-    }
 
 
 def acquire(
@@ -334,17 +129,97 @@ def acquire(
     open_group: GroupOpener | None = None,
     read_generation: GenerationReader | None = None,
 ) -> dict[str, Any]:
-    """Mirror every shot to ``out_dir`` and return a schema-versioned manifest."""
-    if not generated_at.strip() or not retrieved_at.strip():
+    """Acquire source-resolution signals into compressed per-shot NPZ mirrors.
+
+    Parameters
+    ----------
+    shot_ids
+        Nonempty sequence of at most 100000 unique positive int64 identities,
+        copied/checked in the supplied order before filesystem mutation. This
+        routine assigns no disruption labels or programme classifications.
+    out_dir
+        Output directory, created as needed. Successfully acquired shots write
+        ``shot_<id>.npz`` directly and overwrite an existing same-shot archive.
+    cache_dir
+        Parent of unique empty per-shot cache namespaces; namespaces may not
+        be reused across acquisition labels.
+    generated_at, retrieved_at
+        Nonempty reproducibility labels retained in cache and manifest records,
+        not live-clock or independent source-validity evidence.
+    make_fs
+        Optional filesystem factory for each cache namespace. The default
+        uses anonymous FAIR-MAST S3 access through the native cache filesystem.
+    open_group
+        Optional opener for the selected xarray groups. The default opens
+        consolidated FAIR-MAST Zarr groups on the filesystem.
+    read_generation
+        Optional source-generation reader. Exact root-metadata identity is
+        compared before and after each shot; the default reads uncached remote
+        ``zarr.json`` bytes.
+
+    Returns
+    -------
+    dict
+        Finalized source-object manifest with complete, partial or empty status,
+        per-shot source/value/file bindings and retained source metadata. Arrays
+        keep native sample resolution and flattened ``<group>.<variable>`` names;
+        the compressed NPZ is a derived container, not the native Zarr source.
+
+    Raises
+    ------
+    ValueError
+        If shot selection, reproducibility labels or final artifact/manifest bindings are
+        invalid. Source-generation/read failures are recorded per shot and
+        acquisition continues; post-read export/manifest failures propagate.
+    OSError
+        If output creation or writing fails; direct publication may leave a
+        partial archive.
+
+    Notes
+    -----
+    Root identity is checked before/after each shot; root equality is not a
+    chunk snapshot or independent provenance proof. Supplied native adapters are
+    caller-controlled declarations. Selected arrays reject object dtype and
+    require a nonempty 2D saddle array before NPZ publication; no sample resampling
+    or numerical calibration is performed. A selected archive cannot alias these
+    acquisition source owners; path checks do not prevent concurrent
+    replacement or protect every dependency. Existing unrelated shot files are
+    overwritten directly. Failed-shot records retain authored source-generation
+    refusals; other caught failures use a fixed sentence without exception text.
+    Failed-shot records and isolated caches remain; later
+    export/manifest failures can leave earlier files and namespaces in place.
+    """
+    if (
+        not isinstance(generated_at, str)
+        or not isinstance(retrieved_at, str)
+        or not generated_at.strip()
+        or not retrieved_at.strip()
+    ):
         raise ValueError("generated_at and retrieved_at must be non-empty reproducibility labels")
+    requested = [shot_identity(value) for value in shot_ids]
+    if not requested or len(requested) > MAX_REQUESTED_SHOTS:
+        raise ValueError("shot_ids must contain between 1 and 100000 shot identities")
+    if len(set(requested)) != len(requested):
+        raise ValueError("shot_ids must be unique")
+    source_files = [
+        Path(__file__),
+        Path(_acquisition_arrays.__file__),
+        Path(_acquisition_source.__file__),
+        Path(_acquisition_report.__file__),
+        Path(_acquisition_selection.__file__),
+    ]
+    for shot_id in requested:
+        checked_report_destination(out_dir / f"shot_{shot_id}.npz", inputs=source_files)
     make_fs = make_fs if make_fs is not None else make_filesystem
     open_group = open_group if open_group is not None else _open_group
     read_generation = read_generation if read_generation is not None else read_source_generation
     out_dir.mkdir(parents=True, exist_ok=True)
     records: list[dict[str, Any]] = []
-    for shot_id in shot_ids:
+    for shot_id in requested:
         try:
             generation_before = read_generation(shot_id)
+            if generation_before.source_uri != f"s3://{BUCKET}/level2/shots/{shot_id}.zarr":
+                raise SourceGenerationError("source generation does not identify the requested shot")
             namespace, cache_generation = _new_cache_namespace(
                 cache_dir,
                 shot_id=shot_id,
@@ -355,6 +230,7 @@ def acquire(
             fs = make_fs(namespace)
             source_metadata: dict[str, dict[str, Any]] = {}
             payload = mirror_shot(fs, shot_id, open_group=open_group, metadata_out=source_metadata)
+            summary = _shot_summary(payload)
             generation_after = read_generation(shot_id)
             if not _same_source_generation(generation_before, generation_after):
                 raise SourceGenerationError(f"upstream root metadata changed while shot {shot_id} was being acquired")
@@ -364,12 +240,16 @@ def acquire(
                     "shot_id": shot_id,
                     "status": "failed",
                     "programme_class": "unknown",
-                    "error": f"{type(exc).__name__}: {exc}",
+                    "error": (
+                        str(exc)
+                        if isinstance(exc, SourceGenerationError)
+                        else "Could not acquire the requested MAST shot."
+                    ),
                 }
             )
             continue
         shot_path = out_dir / f"shot_{shot_id}.npz"
-        np.savez_compressed(shot_path, **payload)  # type: ignore[arg-type]  # numpy savez stub: **kwds ArrayLike splat vs allow_pickle bool
+        save_npz_arrays(shot_path, payload, compressed=True, allow_pickle=False)
         artifact = build_derived_npz_artifact(
             local_path=shot_path.name,
             artifact_path=shot_path,
@@ -384,75 +264,23 @@ def acquire(
             "programme_class": "unknown",
             "artifacts": [artifact],
             "cache_generation": cache_generation,
-            "summary": _shot_summary(payload),
+            "summary": summary,
         }
         records.append(record)
 
-    acquired = [r for r in records if r["status"] == "acquired"]
-    failed = [r for r in records if r["status"] == "failed"]
-    status = "empty" if not acquired else ("partial" if failed else "complete")
-    manifest: dict[str, Any] = {
-        "schema_version": SOURCE_OBJECT_MANIFEST_SCHEMA,
-        "manifest_kind": "source_object_inventory",
-        "machine": "MAST",
-        "campaign": "FAIR-MAST level2 disruption material",
-        "status": status,
-        "synthetic": False,
-        "consumers": ["SCPN-CONTROL", "SCPN-FUSION-CORE", "MIF-CORE"],
-        "source": {
-            "bucket": f"s3://{BUCKET}",
-            "endpoint": ENDPOINT_URL,
-            "access": "anonymous",
-            "format": "zarr_v3_level2",
-            "path_template": f"s3://{BUCKET}/level2/shots/{{shot_id}}.zarr",
-        },
-        "licence_spdx": FAIR_MAST_LICENCE,
-        **fair_mast_provenance(),
-        "fidelity": {
-            "sample_values": "selected source-resolution values; no resampling",
-            "native_source": "remote FAIR-MAST Zarr v3",
-            "local_cache": "derived NPZ; not a native/raw object",
-            "source_hierarchy": "preserved in manifest, flattened in NPZ archive keys",
-            "source_metadata": "preserved in manifest when exposed by xarray",
-            "source_chunking": "recorded when exposed; not preserved in NPZ",
-            "source_generation": "exact root zarr.json bytes checked before and after acquisition",
-        },
-        "cache_policy": {
-            "schema_version": CACHE_GENERATION_SCHEMA,
-            "strategy": "unique empty namespace per shot and acquisition label",
-            "persistent_cross_run_reuse": False,
-            "generation_identity": SOURCE_GENERATION_DIGEST_KIND,
-            "pre_and_post_generation_check": True,
-        },
-        "group_variables": {group: list(variables) for group, variables in GROUP_VARIABLES.items()},
-        "label_policy": (
-            "labels not assigned; DEFUSE HDF5 labels are HTTP 403 and its shot ids do "
-            "not intersect the level2 range, so consumers derive the Ip current-quench label"
-        ),
-        "retrieved_at": retrieved_at,
-        "n_acquired": len(acquired),
-        "n_requested": len(shot_ids),
-        "total_bytes": sum(int(r["artifacts"][0]["bytes"]) for r in acquired),
-        "shots": records,
-        "generated_at": generated_at,
-    }
+    manifest = acquisition_report(
+        records, requested_count=len(requested), generated_at=generated_at, retrieved_at=retrieved_at
+    )
     finalised = finalise_source_object_manifest(manifest)
     validate_source_object_manifest(finalised, artifact_root=out_dir)
     return finalised
 
 
-def _parse_shots(text: str) -> list[int]:
-    out: list[int] = []
-    for token in text.replace(",", " ").split():
-        if "-" in token:
-            lo, hi = token.split("-", 1)
-            out.extend(range(int(lo), int(hi) + 1))
-        else:
-            out.append(int(token))
-    return out
+_parse_shots = parse_shots
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse required shot selection, destinations and reproducibility labels."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shots", type=str, required=True, help="Shot ids/ranges, e.g. '30419-30424 29876'.")
     parser.add_argument("--out-dir", type=Path, required=True, help="Shared datasets directory for shot_<id>.npz.")
@@ -464,10 +292,51 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point: mirror the shot list and write the material manifest."""
+    """Acquire selected shots and write a source-object declaration report.
+
+    Parameters
+    ----------
+    argv : list of str or None
+        CLI arguments, or the process arguments when None. Shots, destinations
+        and both nonempty reproducibility labels are required.
+
+    Returns
+    -------
+    int
+        Zero for a complete acquisition report; one for a partial/empty report.
+        Completion here does not admit data for scientific training.
+
+    Raises
+    ------
+    SystemExit
+        Native argparse help or argument handling, with status0 or2.
+    ValueError, OSError, TypeError
+        Invalid selection/labels/output aliases or propagated I/O/manifest errors.
+
+    Notes
+    -----
+    Report output cannot alias these acquisition owners or a selected shot NPZ.
+    Checks precede acquisition and are sequential, without a path lock. Report
+    write is direct and may leave partial output; successful shot archives/caches
+    are retained on subsequent errors. The source module command maps caught
+    value/I/O/type errors to authored stderr and exit2 without interpreter text.
+    A report's fixed synthetic=False field is a declaration, not authentication.
+    """
     args = _parse_args(argv)
+    shots = parse_shots(args.shots)
+    source_files = [
+        Path(__file__),
+        Path(_acquisition_arrays.__file__),
+        Path(_acquisition_source.__file__),
+        Path(_acquisition_report.__file__),
+        Path(_acquisition_selection.__file__),
+    ]
+    checked_report_destination(
+        args.manifest_out,
+        inputs=[*source_files, *[args.out_dir / f"shot_{shot_id}.npz" for shot_id in shots]],
+    )
     manifest = acquire(
-        _parse_shots(args.shots),
+        shots,
         out_dir=args.out_dir,
         cache_dir=args.cache_dir,
         generated_at=args.generated_at,
@@ -477,8 +346,12 @@ def main(argv: list[str] | None = None) -> int:
     args.manifest_out.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     mb = manifest["total_bytes"] / 1e6
     print(f"acquired {manifest['n_acquired']}/{manifest['n_requested']} shots ({mb:.1f} MB) -> {args.out_dir}")
-    return 0
+    return 0 if manifest["status"] == "complete" else 1
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (ValueError, OSError, TypeError):
+        print("Could not acquire MAST disruption shots.", file=sys.stderr)
+        raise SystemExit(2) from None

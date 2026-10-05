@@ -44,12 +44,9 @@ References
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
 import sys
-from dataclasses import dataclass
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -57,59 +54,60 @@ import numpy as np
 
 from scpn_control.control.rzip_model import RZIPModel
 from scpn_control.core.vessel_model import VesselElement, VesselModel
+from validation import rzip_vertical_evidence as _evidence
+from validation.rzip_vertical_models import (
+    RzipValidationResult as RzipValidationResult,
+)
+from validation.rzip_vertical_models import (
+    ScalingCheck as ScalingCheck,
+)
+from validation.rzip_vertical_models import (
+    VerticalConfig as VerticalConfig,
+)
+from validation.rzip_vertical_models import (
+    WallStabilisation as WallStabilisation,
+)
+from validation.rzip_vertical_models import (
+    _negative_float,
+    _positive_float,
+)
 
-RZIP_VERTICAL_STABILITY_SCHEMA_VERSION = "scpn-control.rzip-vertical-stability-validation.v1"
-
-_MU_0 = 4.0e-7 * math.pi
-
-
-@dataclass(frozen=True)
-class VerticalConfig:
-    """Geometry, current, and inertia for the rigid vertical stability model."""
-
-    r0: float
-    a: float
-    kappa: float
-    ip_ma: float
-    b0: float
-    m_eff_kg: float
-
-    def __post_init__(self) -> None:
-        _positive_float("r0", self.r0)
-        _positive_float("a", self.a)
-        _positive_float("kappa", self.kappa)
-        _positive_float("ip_ma", self.ip_ma)
-        _positive_float("b0", self.b0)
-        _positive_float("m_eff_kg", self.m_eff_kg)
-        if self.a >= self.r0:
-            raise ValueError("a must be smaller than r0 for tokamak ordering")
-
-    def curvature_spring(self, n_index: float) -> float:
-        """Destabilising spring constant ``K = n mu_0 Ip^2 / (4 pi R_0)`` [N/m]."""
-        ip_amps = self.ip_ma * 1.0e6
-        return n_index * _MU_0 * ip_amps**2 / (4.0 * math.pi * self.r0)
+RZIP_VERTICAL_STABILITY_SCHEMA_VERSION = _evidence.SCHEMA_VERSION
 
 
 def default_config() -> VerticalConfig:
-    """ITER-like single-null geometry with a declared rigid vertical inertia."""
+    """Return the declared R0=1.7 m, a=0.5 m, Ip=1 MA, inertia=2 kg reference.
+
+    The frozen geometry is a local rigid-model case, without a calibrated
+    facility identity or a reconstructed separatrix.
+    """
     return VerticalConfig(r0=1.7, a=0.5, kappa=1.8, ip_ma=1.0, b0=2.0, m_eff_kg=2.0)
 
 
 def analytic_no_wall_growth_rate(config: VerticalConfig, n_index: float) -> float:
-    """Exact no-wall growth rate ``sqrt(-K/M_eff)`` for an unstable index ``n < 0``."""
-    if n_index >= 0.0:
-        raise ValueError("growth-rate closed form requires a destabilising index (n_index < 0)")
+    """Return the exact no-wall growth rate ``sqrt(-K/M_eff)`` in s^-1.
+
+    ``config`` carries metre/MA/tesla/kg geometry and inertia. ``n_index`` must
+    be a finite negative number; booleans, text, overflow and other signs raise
+    ValueError. This reference reads configuration without mutating model state.
+    """
+    n_index = _negative_float("destabilising index", n_index)
     return math.sqrt(-config.curvature_spring(n_index) / config.m_eff_kg)
 
 
 def analytic_no_wall_frequency(config: VerticalConfig, n_index: float) -> float:
-    """Exact no-wall oscillation frequency ``sqrt(K/M_eff)`` for a stable ``n > 0``."""
-    if n_index <= 0.0:
-        raise ValueError("oscillation closed form requires a stabilising index (n_index > 0)")
+    """Return the exact no-wall angular frequency ``sqrt(K/M_eff)`` in rad/s.
+
+    ``config`` carries metre/MA/tesla/kg geometry and inertia. ``n_index`` must
+    be a finite positive number; booleans, text, overflow and other signs raise
+    ValueError. This reference reads configuration without mutating model state.
+    """
+    n_index = _positive_float("stabilising index", n_index)
     return math.sqrt(config.curvature_spring(n_index) / config.m_eff_kg)
 
 
 def _build_no_wall(config: VerticalConfig, n_index: float) -> RZIPModel:
+    """Construct the declared rigid plant with no wall or active coils."""
     return RZIPModel(
         config.r0,
         config.a,
@@ -139,21 +137,17 @@ def no_wall_frequency_rel_error(config: VerticalConfig, n_index: float) -> float
 
 
 def no_wall_growth_time_consistency(config: VerticalConfig, n_index: float) -> float:
-    """Relative mismatch of ``growth_time_ms * growth_rate`` against the 1000 ms/s identity."""
+    """Return relative mismatch of growth-time times growth-rate against 1000 ms/s.
+
+    ``n_index`` must be finite and negative; other domains raise ValueError.
+    Stable or marginal modes have no finite exponential growth-time reference.
+    The geometry is read without mutation and the result is dimensionless.
+    """
+    n_index = _negative_float("destabilising index", n_index)
     model = _build_no_wall(config, n_index)
     gamma = model.vertical_growth_rate()
     growth_time_ms = model.vertical_growth_time()
     return abs(growth_time_ms * gamma - 1000.0) / 1000.0
-
-
-@dataclass(frozen=True)
-class ScalingCheck:
-    """One exact-scaling-law observation."""
-
-    name: str
-    measured_ratio: float
-    expected_ratio: float
-    rel_error: float
 
 
 def scaling_checks(config: VerticalConfig) -> tuple[ScalingCheck, ...]:
@@ -181,18 +175,15 @@ def scaling_checks(config: VerticalConfig) -> tuple[ScalingCheck, ...]:
     )
 
 
-@dataclass(frozen=True)
-class WallStabilisation:
-    """Resistive-wall stabilisation of the rigid vertical mode."""
-
-    no_wall_growth_rate: float
-    with_wall_growth_rate: float
-    wall_slows_growth: bool
-    with_wall_finite: bool
-
-
 def wall_stabilisation(config: VerticalConfig, n_index: float = -1.0) -> WallStabilisation:
-    """Compare the growth rate with and without a passive up/down conducting wall."""
+    """Compare growth in s^-1 with and without two passive conducting wall loops.
+
+    ``n_index`` must be finite and negative; other domains raise ValueError.
+    Both models use the supplied metre/MA/tesla/kg configuration. The frozen
+    comparison carries finite/slower-growth declarations without modifying it.
+    This local circuit comparison establishes no facility-control admission.
+    """
+    n_index = _negative_float("destabilising index", n_index)
     no_wall = _build_no_wall(config, n_index).vertical_growth_rate()
     elements = [
         VesselElement(R=config.r0, Z=1.4 * config.a, resistance=1e-4, cross_section=0.01, inductance=2e-6),
@@ -216,31 +207,6 @@ def wall_stabilisation(config: VerticalConfig, n_index: float = -1.0) -> WallSta
     )
 
 
-@dataclass(frozen=True)
-class RzipValidationResult:
-    """Outcome of the RZIP rigid vertical stability validation."""
-
-    config: VerticalConfig
-    unstable_indices: tuple[float, ...]
-    stable_indices: tuple[float, ...]
-    max_growth_rel_error: float
-    max_frequency_rel_error: float
-    max_growth_time_rel_error: float
-    marginal_growth_rate: float
-    scaling: tuple[ScalingCheck, ...]
-    max_scaling_rel_error: float
-    wall: WallStabilisation
-    exact_tol: float
-    marginal_tol: float
-    growth_passed: bool
-    frequency_passed: bool
-    growth_time_passed: bool
-    marginal_passed: bool
-    scaling_passed: bool
-    wall_passed: bool
-    passed: bool
-
-
 def validate_rzip_vertical_stability(
     *,
     config: VerticalConfig | None = None,
@@ -255,8 +221,20 @@ def validate_rzip_vertical_stability(
     and exact scaling laws must hold to ``exact_tol``; the marginal index must give
     a growth rate below ``marginal_tol``; and a passive wall must reduce the growth
     rate below the no-wall value.
+
+    ``config=None`` selects the default rigid model. Index sequences must be
+    nonempty with finite negative unstable and positive stable values. Tolerances
+    are finite positive numbers: ``exact_tol`` bounds relative errors and
+    ``marginal_tol`` bounds growth in s^-1. Invalid configuration, scalar domains
+    or empty sequences raise ValueError before evaluating the model. The returned
+    immutable result can report failure; this call writes no files and does not
+    authenticate measurements or establish facility-control admission.
     """
-    config = config or default_config()
+    config = default_config() if config is None else config
+    if not isinstance(config, VerticalConfig):
+        raise ValueError("config must be VerticalConfig")
+    exact_tol = _positive_float("exact_tol", exact_tol)
+    marginal_tol = _positive_float("marginal_tol", marginal_tol)
     unstable = tuple(_negative_float("unstable index", n) for n in unstable_indices)
     stable = tuple(_positive_float("stable index", n) for n in stable_indices)
     if not unstable or not stable:
@@ -304,168 +282,72 @@ def validate_rzip_vertical_stability(
 
 
 def build_evidence(result: RzipValidationResult, *, target_id: str) -> dict[str, Any]:
-    """Build a tamper-evident, schema-versioned validation evidence payload."""
-    if not target_id.strip():
-        raise ValueError("target_id must be non-empty")
-    payload: dict[str, Any] = {
-        "schema_version": RZIP_VERTICAL_STABILITY_SCHEMA_VERSION,
-        "generated_utc": _utc_now(),
-        "target_id": target_id,
-        "config": {
-            "r0": result.config.r0,
-            "a": result.config.a,
-            "kappa": result.config.kappa,
-            "ip_ma": result.config.ip_ma,
-            "b0": result.config.b0,
-            "m_eff_kg": result.config.m_eff_kg,
-        },
-        "unstable_indices": list(result.unstable_indices),
-        "stable_indices": list(result.stable_indices),
-        "exact_tol": result.exact_tol,
-        "marginal_tol": result.marginal_tol,
-        "max_growth_rel_error": result.max_growth_rel_error,
-        "max_frequency_rel_error": result.max_frequency_rel_error,
-        "max_growth_time_rel_error": result.max_growth_time_rel_error,
-        "marginal_growth_rate": result.marginal_growth_rate,
-        "scaling": [
-            {
-                "name": check.name,
-                "measured_ratio": check.measured_ratio,
-                "expected_ratio": check.expected_ratio,
-                "rel_error": check.rel_error,
-            }
-            for check in result.scaling
-        ],
-        "max_scaling_rel_error": result.max_scaling_rel_error,
-        "wall": {
-            "no_wall_growth_rate": result.wall.no_wall_growth_rate,
-            "with_wall_growth_rate": result.wall.with_wall_growth_rate,
-            "wall_slows_growth": result.wall.wall_slows_growth,
-            "with_wall_finite": result.wall.with_wall_finite,
-        },
-        "growth_passed": result.growth_passed,
-        "frequency_passed": result.frequency_passed,
-        "growth_time_passed": result.growth_time_passed,
-        "marginal_passed": result.marginal_passed,
-        "scaling_passed": result.scaling_passed,
-        "wall_passed": result.wall_passed,
-        "passed": result.passed,
-        "payload_sha256": "",
-    }
-    payload["payload_sha256"] = _payload_sha256(payload)
-    return payload
+    """Build a detached, checked v1 report from a bounded RZIP result.
+
+    ``target_id`` is a nonempty caller label, not a trusted producer identity.
+    The returned mapping records geometry in metres, current in MA, inertia in
+    kg, growth rates in s^-1 and dimensionless relative errors. Both coherent
+    passing and failing results are sealed with a UTC receipt. Inconsistent or
+    malformed result fields raise ValueError; no files are written.
+    """
+    return _evidence.build_evidence(result, target_id=target_id)
 
 
 def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
-    """Return ``True`` when a payload is well-formed, sealed, and passing."""
-    if payload.get("schema_version") != RZIP_VERTICAL_STABILITY_SCHEMA_VERSION:
-        raise ValueError("unsupported rzip vertical stability evidence schema_version")
-    declared = payload.get("payload_sha256")
-    if not _is_sha256(declared):
-        raise ValueError("payload_sha256 must be a SHA-256 hex digest")
-    if declared != _payload_sha256(payload):
-        raise ValueError("payload_sha256 does not match payload")
-    return bool(payload.get("passed"))
+    """Check a complete v1 seal, finite domains and metric/verdict agreement.
 
-
-def _utc_now() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _canonical_json(payload: Mapping[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
-
-
-def _payload_sha256(payload: Mapping[str, Any]) -> str:
-    unsigned = dict(payload)
-    unsigned["payload_sha256"] = ""
-    return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
-
-
-def _is_sha256(value: object) -> bool:
-    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
-
-
-def _finite_float(name: str, value: object) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{name} must be a finite number")
-    result = float(value)
-    if not math.isfinite(result):
-        raise ValueError(f"{name} must be finite")
-    return result
-
-
-def _positive_float(name: str, value: object) -> float:
-    result = _finite_float(name, value)
-    if result <= 0.0:
-        raise ValueError(f"{name} must be positive")
-    return result
-
-
-def _negative_float(name: str, value: object) -> float:
-    result = _finite_float(name, value)
-    if result >= 0.0:
-        raise ValueError(f"{name} must be negative")
-    return result
+    Returns the literal passing flag after consistency checks; a coherent
+    failing report returns False. Invalid structure, names, domains, timestamp,
+    seal or verdicts raise ValueError. A matching self-seal establishes neither
+    source authentication nor facility calibration or freshness.
+    """
+    return _evidence.validate_evidence_payload(payload)
 
 
 def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
-    """Persist the sealed JSON evidence and a human-readable Markdown summary."""
-    json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    md_path = json_path.with_suffix(".md")
-    config = evidence["config"]
-    wall = evidence["wall"]
-    lines = [
-        "",
-        "# RZIP Rigid Vertical Stability Validation",
-        "",
-        f"- Schema: `{evidence['schema_version']}`",
-        f"- Generated (UTC): {evidence['generated_utc']}",
-        f"- Target: `{evidence['target_id']}`",
-        f"- Geometry: R0={config['r0']} m, a={config['a']} m, kappa={config['kappa']}, "
-        f"Ip={config['ip_ma']} MA, M_eff={config['m_eff_kg']} kg",
-        f"- Status: **{'pass' if evidence['passed'] else 'fail'}**",
-        "",
-        "## Exact no-wall references (largest eigenvalue of the 2x2 rigid block)",
-        "",
-        f"- Max unstable growth-rate rel error (n<0): {evidence['max_growth_rel_error']:.3e}",
-        f"- Max stable oscillation-frequency rel error (n>0): {evidence['max_frequency_rel_error']:.3e}",
-        f"- Max growth-time identity rel error: {evidence['max_growth_time_rel_error']:.3e}",
-        f"- Marginal growth rate at n=0: {evidence['marginal_growth_rate']:.3e} "
-        f"(gate < {evidence['marginal_tol']:.1e})",
-        f"- Exact-reference tolerance: {evidence['exact_tol']:.1e}",
-        "",
-        "## Exact scaling laws",
-        "",
-        "| law | measured ratio | expected | rel error |",
-        "| --- | --- | --- | --- |",
-    ]
-    lines += [
-        f"| {check['name']} | {check['measured_ratio']:.6f} | {check['expected_ratio']} | {check['rel_error']:.3e} |"
-        for check in evidence["scaling"]
-    ]
-    lines += [
-        "",
-        "## Resistive-wall stabilisation",
-        "",
-        f"- No-wall growth rate: {wall['no_wall_growth_rate']:.4e} s^-1",
-        f"- With-wall growth rate: {wall['with_wall_growth_rate']:.4e} s^-1",
-        f"- Wall slows growth: {wall['wall_slows_growth']}; finite: {wall['with_wall_finite']}",
-    ]
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    """Write checked JSON/Markdown directly; the parent must already exist.
+
+    Existing destinations are overwritten. IO failure may leave a partial
+    pair; no rollback or facility publication guarantee is provided.
+    """
+    _evidence.write_report(evidence, json_path)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """CLI entry point producing schema-versioned validation evidence."""
+    """Run the bounded rigid-model validation through the operator CLI.
+
+    ``argv=None`` reads process arguments. ``--exact-tol`` overrides the API's
+    relative-error threshold and ``--marginal-tol`` overrides growth in s^-1;
+    absent options retain the API defaults. ``--json-out`` selects sealed JSON
+    stdout instead of text. ``--report`` writes JSON then same-stem Markdown at
+    a cwd-relative or absolute path whose parent must already exist. Default
+    execution writes no files. ``--target-id`` is a local case label.
+
+    Return 0 for a passing model result or 1 for a coherent failed result.
+    Argparse raises SystemExit(2) for malformed arguments or invalid tolerances
+    and SystemExit(0) for help. Invalid labels raise ValueError; report IO raises
+    OSError and can leave a JSON-only pair. No producer authentication, reference
+    measurement, facility admission or source-freshness proof is performed.
+    """
     parser = argparse.ArgumentParser(
         description="Validate the RZIP rigid vertical stability model against exact references"
     )
     parser.add_argument("--target-id", type=str, default="local-rzip-vertical-stability")
     parser.add_argument("--json-out", action="store_true", help="emit the evidence payload as JSON")
     parser.add_argument("--report", type=str, default=None, help="write sealed JSON evidence and a Markdown summary")
+    parser.add_argument("--exact-tol", type=float, default=None, help="finite positive relative-error threshold")
+    parser.add_argument("--marginal-tol", type=float, default=None, help="finite positive growth threshold in s^-1")
     args = parser.parse_args(argv)
 
-    result = validate_rzip_vertical_stability()
+    tolerances = {
+        name: value
+        for name, value in (("exact_tol", args.exact_tol), ("marginal_tol", args.marginal_tol))
+        if value is not None
+    }
+    try:
+        result = validate_rzip_vertical_stability(**tolerances)
+    except ValueError as exc:
+        parser.error(str(exc))
     evidence = build_evidence(result, target_id=args.target_id)
 
     if args.report:

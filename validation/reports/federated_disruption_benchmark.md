@@ -6,8 +6,8 @@
 - Rounds: 4
 - Mean accuracy: 0.666667
 - Mean loss: 0.705369
-- Differential privacy epsilon: 7.751688
-- Differential privacy delta: 1.0e-05
+- Nominal Gaussian epsilon: 7.751688
+- Per-round input delta: 1.0e-05
 
 Per-facility final accuracy:
 
@@ -17,7 +17,7 @@ Per-facility final accuracy:
 - `KSTAR`: 0.716667
 
 Claim boundary: this report exercises the production federation,
-heterogeneity, and facility-update differential privacy contracts on
+heterogeneity, and facility-update noise mechanics on
 deterministic synthetic facility distributions. It does not claim
-measured cross-facility validation against DIII-D, JET, KSTAR, or EAST
-shot databases.
+measured cross-facility validation, remote data isolation, or
+end-to-end differential privacy.

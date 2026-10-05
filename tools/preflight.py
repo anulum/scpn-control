@@ -56,7 +56,17 @@ CI_REQUIREMENTS = [
 
 GATES: list[tuple[str, list[str], Path | None]] = [
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
-    ("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None),
+    (
+        "ruff check debt scope",
+        [_PY, "-m", "ruff", "check", "--extend-ignore", "D", "tests/", "tools/", "validation/"],
+        None,
+    ),
+    (
+        "ruff format",
+        [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/", "tools/", "validation/"],
+        None,
+    ),
+    ("docstring-debt-ratchet", [_PY, "tools/check_docstring_debt.py"], None),
     # Native documentation is enforced for the remediated scalar benchmark owner.
     (
         "scalar-benchmark-docs",

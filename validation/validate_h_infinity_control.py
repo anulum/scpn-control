@@ -27,8 +27,9 @@ import json
 
 # The validator invokes one fixed local Git metadata command with no caller input.
 import subprocess  # nosec B404
+import sys
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
@@ -36,18 +37,25 @@ import numpy as np
 import numpy.typing as npt
 
 from scpn_control.control.h_infinity_controller import get_flight_sim_controller
+from validation import h_infinity_evidence as _evidence
+from validation.report_output_paths import checked_report_destination
 
-H_INFINITY_SCHEMA_VERSION = "scpn-control.h-infinity-validation.v1"
+H_INFINITY_SCHEMA_VERSION = _evidence.SCHEMA_VERSION
 ROOT = Path(__file__).resolve().parents[1]
-RUNTIME_SOURCE_PATHS = (
-    "src/scpn_control/control/h_infinity_controller.py",
-    "validation/validate_h_infinity_control.py",
-)
+RUNTIME_SOURCE_PATHS = _evidence.RUNTIME_SOURCE_PATHS
 
 
 @dataclass(frozen=True)
 class HInfinityValidationResult:
-    """Deterministic metrics for one normalized DGKF synthesis."""
+    """Frozen metrics for one normalized DGKF synthesis and finite sweep.
+
+    Relative residuals, formula error and peak/gamma ratio are dimensionless.
+    The feasibility margin is gamma squared minus rho(XY), in squared normalized
+    gain units. The dominant pole real part uses s^-1; gamma and sweep peak use
+    normalized gain units. ``frequency_samples`` counts the fixed sweep and
+    ``passed`` declares its bounded checks. Construction is unchecked; report
+    serialization verifies domains and verdict consistency before returning.
+    """
 
     gamma: float
     normalization_max_residual: float
@@ -63,10 +71,12 @@ class HInfinityValidationResult:
 
 
 def _sha256(path: Path) -> str:
+    """Observe local file bytes by SHA-256; filesystem errors propagate."""
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _source_commit() -> str:
+    """Observe repository HEAD through the fixed native Git command."""
     # The static argv contains no caller-controlled values and never uses a shell.
     completed = subprocess.run(  # nosec B603, B607
         ["git", "rev-parse", "HEAD"],
@@ -79,10 +89,12 @@ def _source_commit() -> str:
 
 
 def _canonical_bytes(payload: Mapping[str, Any]) -> bytes:
-    return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    """Retain the historical compact UTF-8 serializer used by existing callers."""
+    return _evidence.canonical_payload_bytes(payload)
 
 
 def _formula_relative_error(controller: Any) -> float:
+    """Compare all central-controller matrices with the normalized DGKF formula."""
     gamma_squared = controller.gamma**2
     expected_f = -controller.B2.T @ controller.X
     expected_l = -controller.Y @ controller.C2.T
@@ -122,6 +134,7 @@ def _formula_relative_error(controller: Any) -> float:
 
 
 def _frequency_peak(controller: Any, frequencies: npt.NDArray[np.float64]) -> float:
+    """Return the largest sampled singular gain at the supplied frequencies."""
     state, disturbance, performance, feedthrough = controller.closed_loop_realization()
     identity = np.eye(state.shape[0])
     peak = 0.0
@@ -132,7 +145,14 @@ def _frequency_peak(controller: Any, frequencies: npt.NDArray[np.float64]) -> fl
 
 
 def validate_h_infinity_control() -> HInfinityValidationResult:
-    """Run the bounded normalized-DGKF validation."""
+    """Run the actual flight-simulator factory and fixed 20002-frequency sweep.
+
+    Return immutable float64 metrics with the original residual, feasibility,
+    stability and sampled-gain thresholds. Frequencies include zero and 20001
+    logarithmic points from 1e-4 to 1e6 rad/s. This call writes no files. Native
+    synthesis/linear-algebra failures propagate, and finite sampling supplies
+    corroboration without an exact norm or facility-control admission.
+    """
     controller = get_flight_sim_controller()
     normalization_max = max(controller.normalization_residual_norms())
     residual_x, residual_y = controller.riccati_residual_norms()
@@ -174,65 +194,61 @@ def build_evidence(
     *,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
-    """Build a digest-sealed bounded-model evidence payload."""
-    timestamp = generated_at or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+    """Serialize consistent metrics with actual HEAD/source-byte observations.
+
+    ``generated_at=None`` observes the UTC clock; a supplied timestamp must be
+    aware UTC. Returned v1 data is detached and sealed with historical compact
+    UTF-8 JSON. All three declared runtime owners are hashed, including the
+    decoder. Coherent failing results declare local scientific admission False;
+    public and production admission always remain False. ValueError rejects
+    malformed domains/verdicts; file/Git errors propagate. No files are written,
+    clean-tree guarantee, producer authentication or independent run is supplied.
+    """
+    timestamp = datetime.now(UTC).isoformat().replace("+00:00", "Z") if generated_at is None else generated_at
     payload: dict[str, Any] = {
         "schema_version": H_INFINITY_SCHEMA_VERSION,
         "generated_at": timestamp,
         "source_commit": _source_commit(),
         "runtime_source_sha256": {path: _sha256(ROOT / path) for path in RUNTIME_SOURCE_PATHS},
         "precision": "float64",
-        "reference": {
-            "title": "State-space solutions to standard H2 and H-infinity control problems",
-            "authors": "Doyle, Glover, Khargonekar, Francis",
-            "doi": "10.1109/9.29425",
-            "result": "Theorem 3 normalized central controller",
-        },
+        "reference": dict(_evidence.REFERENCE),
         "claim_boundary": {
-            "model": "normalized continuous-time standard plant; D11=D22=0",
-            "scientific_admission": True,
+            "model": _evidence.MODEL,
+            "scientific_admission": result.passed,
             "public_claim_allowed": False,
             "production_admission": False,
-            "excluded": [
-                "facility or reactor validation",
-                "saturated H-infinity guarantee",
-                "arbitrary sampled-data stability",
-                "structured uncertainty or D-K synthesis",
-                "classical gain margin",
-            ],
-            "frequency_sweep_classification": "finite numerical corroboration, not exact norm proof",
+            "excluded": list(_evidence.EXCLUDED),
+            "frequency_sweep_classification": _evidence.SWEEP_CLASSIFICATION,
         },
         "result": asdict(result),
     }
     payload["payload_sha256"] = hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+    _evidence.inspect_evidence_payload(payload, expected_sources=payload["runtime_source_sha256"])
     return payload
 
 
 def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
-    """Validate schema, seal, required source digests, and passing status."""
-    if payload.get("schema_version") != H_INFINITY_SCHEMA_VERSION:
-        raise ValueError("unsupported H-infinity evidence schema_version")
-    provided_digest = payload.get("payload_sha256")
-    if not isinstance(provided_digest, str) or len(provided_digest) != 64:
-        raise ValueError("payload_sha256 must be a SHA-256 hex digest")
-    unsigned = dict(payload)
-    unsigned.pop("payload_sha256", None)
-    expected_digest = hashlib.sha256(_canonical_bytes(unsigned)).hexdigest()
-    if provided_digest != expected_digest:
-        raise ValueError("payload_sha256 does not match payload bytes")
-    source_digests = payload.get("runtime_source_sha256")
-    if not isinstance(source_digests, dict) or set(source_digests) != set(RUNTIME_SOURCE_PATHS):
-        raise ValueError("runtime_source_sha256 does not cover the exact owner set")
-    for source_path, digest in source_digests.items():
-        if digest != _sha256(ROOT / source_path):
-            raise ValueError(f"runtime source digest mismatch: {source_path}")
-    result = payload.get("result")
-    if not isinstance(result, dict) or result.get("passed") is not True:
+    """Admit only a consistent passing bounded report bound to current source bytes.
+
+    Return True after exact v1 structure, finite metrics, original thresholds,
+    fixed sweep, ratio and restricted claim checks. Invalid or failing reports
+    raise ValueError. Three local source files are observed afresh; OSError
+    propagates. The capture-time commit label is format-checked, not required to
+    equal a later HEAD with unchanged source bytes. Sequential reads provide no coherent
+    snapshot or producer/facility/run authentication. Old source-bound reports
+    remain historical and can fail this current-source check.
+    """
+    passed = _evidence.inspect_evidence_payload(
+        payload,
+        expected_sources={path: _sha256(ROOT / path) for path in RUNTIME_SOURCE_PATHS},
+    )
+    if not passed:
         raise ValueError("H-infinity validation result is not passing")
     return True
 
 
 def _markdown(payload: Mapping[str, Any]) -> str:
+    """Render checked bounded-model values and their explicit claim exclusions."""
     result = payload["result"]
     boundary = payload["claim_boundary"]
     return f"""# Normalized DGKF H-infinity validation
@@ -266,7 +282,22 @@ This admits only `{boundary["model"]}`. The frequency sweep is
 
 
 def write_reports(payload: Mapping[str, Any], json_path: Path, markdown_path: Path) -> None:
-    """Write canonical JSON and Markdown evidence reports."""
+    """Check a coherent report and directly replace distinct JSON/Markdown outputs.
+
+    Relative paths use cwd, parents are created and existing files overwritten.
+    Outputs must not alias each other or the three observed runtime sources;
+    path/report refusals raise ValueError before writes. OSError/RuntimeError
+    from filesystem inspection or writes propagate.
+    A failure after the JSON write can leave a partial pair. Both coherent pass
+    and fail reports are supported, without rollback or facility admission.
+    """
+    protected = [ROOT / name for name in RUNTIME_SOURCE_PATHS]
+    checked_report_destination(json_path, inputs=[markdown_path, *protected])
+    checked_report_destination(markdown_path, inputs=[json_path, *protected])
+    _evidence.inspect_evidence_payload(
+        payload,
+        expected_sources={path: _sha256(ROOT / path) for path in RUNTIME_SOURCE_PATHS},
+    )
     json_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -274,7 +305,17 @@ def write_reports(payload: Mapping[str, Any], json_path: Path, markdown_path: Pa
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Run validation, validate its seal, and optionally write reports."""
+    """Run the fixed real validator or read-only check of an existing sealed report.
+
+    ``--check-report PATH`` reads unique-key UTF-8 JSON, checks current sources
+    and passing bounded metrics, and prints the accepted payload. It never
+    writes outputs. Without it, run the fixed 20002-sample producer and write the
+    requested JSON/Markdown pair unless ``--no-write`` is supplied. Existing
+    default paths remain under validation/reports; relative paths use cwd.
+    Return 0 for pass, 1 for coherent failure or authored report/IO/Git refusal.
+    Argparse raises SystemExit(0) for help or (2) for malformed arguments. No old
+    report is resealed by check mode and no facility-control claim is admitted.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--json-out",
@@ -287,14 +328,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         default=ROOT / "validation" / "reports" / "h_infinity_control.md",
     )
     parser.add_argument("--no-write", action="store_true")
+    parser.add_argument("--check-report", type=Path, help="check an existing sealed report without writing outputs")
     args = parser.parse_args(argv)
-    result = validate_h_infinity_control()
-    payload = build_evidence(result)
-    validate_evidence_payload(payload)
-    if not args.no_write:
-        write_reports(payload, args.json_out, args.markdown_out)
+    try:
+        if args.check_report is not None:
+            payload = _evidence.read_report(args.check_report)
+            validate_evidence_payload(payload)
+            passed = True
+        else:
+            result = validate_h_infinity_control()
+            payload = build_evidence(result)
+            passed = result.passed
+            if not args.no_write:
+                write_reports(payload, args.json_out, args.markdown_out)
+    except (ValueError, OSError, subprocess.SubprocessError) as exc:
+        print(f"H-infinity validation refused: {exc}", file=sys.stderr)
+        return 1
     print(json.dumps(payload, indent=2, sort_keys=True))
-    return 0 if result.passed else 1
+    return int(not passed)
 
 
 if __name__ == "__main__":

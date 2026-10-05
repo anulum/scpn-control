@@ -144,11 +144,18 @@ $$q_\parallel = \frac{\kappa_0 T_u^{7/2}}{(7/2) L_\parallel}, \qquad
   parallel-flux mapping, the Spitzer-Härm upstream conduction integral, the
   pressure balance $n_u T_u = 2 n_t T_t$, the Eich regression exponents
   ($P^{-0.02}$, $R^{0.04}$, $B_{\rm pol}^{-0.92}$, $\varepsilon^{0.42}$), the
-  peak-heat-flux geometry, and the sheath-limited detachment density boundary —
-  all to machine precision, in `validation/validate_sol_two_point.py` with tests
-  in `tests/test_sol_two_point_validation.py`. Facility-validated edge-transport
-  or divertor-heat-load claims still require measured probe-campaign or published
-  reference artefacts.
+  peak-heat-flux geometry, and the sheath-limited detachment density boundary,
+  in `validation/validate_sol_two_point.py`. The same production constants and
+  Eich implementation are shared, so this establishes local algebraic
+  consistency rather than independent numerical or physical evidence. The
+  complete v1 reader checks finite domains, literal booleans, shapes, scaling
+  arithmetic and strict gates in addition to the SHA-256 self-digest; it does
+  not authenticate source provenance. Tests remain in
+  `tests/test_sol_two_point_validation.py`, with dedicated numerical, evidence
+  and real CLI contracts in `tests/sol_two_point_contracts/`. Scaling probes
+  halve epsilon at or above 0.5 to stay within the production domain. Independent
+  numerical, experimental, facility, safety, controller and training admission
+  still require their corresponding external evidence.
 
 ---
 
@@ -334,7 +341,7 @@ $$M = f_{\rm contact} \sqrt{L_p L_h}, \qquad \tau_h = \frac{L_h}{R_h}, \qquad
 
 - **Source**: Fitzpatrick, *Phys. Plasmas* 9, 3459 (2002); Wesson, *Tokamaks*,
   4th ed., Oxford University Press, Ch. 7 (2011).
-- **Implementation**: `src/scpn_control/control/halo_re_physics.py:213`.
+- **Implementation**: `src/scpn_control/control/_halo_current_model.py`.
 - **Validation**: The production `HaloCurrentModel` is checked against its exact
   closed forms — the halo resistance $R_h$, the halo inductance $L_h$, the mutual
   inductance $M$, and the time constant $\tau_h = L_h/R_h$, together with the
@@ -357,7 +364,7 @@ $$E_c = \frac{n_e e^3 \ln\Lambda}{4\pi\varepsilon_0^2 m_e c^2}, \qquad
 
 - **Source**: Connor & Hastie, *Nucl. Fusion* 15, 415 (1975); Rosenbluth &
   Putvinski, *Nucl. Fusion* 37, 1355 (1997).
-- **Implementation**: `src/scpn_control/control/halo_re_physics.py:327`.
+- **Implementation**: `src/scpn_control/control/_runaway_electron_model.py`.
 - **Validation**: The production `RunawayElectronModel` is checked against its
   exact closed forms — the critical field $E_c$ (with total free-plus-bound
   electron density), the Dreicer field $E_D$, the collision time, the avalanche
@@ -453,7 +460,10 @@ $$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
 - **Source**: Wesson, *Tokamaks*, 4th ed., Oxford University Press, Eq. 3.7.4
   (2011); Ejima et al., *Nucl. Fusion* 22, 1313 (1982); ITER Physics Basis,
   *Nucl. Fusion* 39, 2137, §3 (1999).
-- **Implementation**: `src/scpn_control/control/volt_second_manager.py:338`.
+- **Implementation**: `scpn_control.control.volt_second_core` (budget),
+  `volt_second_profiles` (bootstrap proxy), `volt_second_runtime` (monitor and
+  scenario), and `volt_second_claims` (claim evidence), reexported through
+  `volt_second_manager`.
 - **Validation**: The production `FluxBudget`, `ScenarioFluxAnalysis`,
   `FluxConsumptionMonitor`, and `VoltSecondOptimizer` are checked against their
   exact closed forms — the inductive flux $L_p I_p$, the Ejima startup flux
@@ -465,9 +475,10 @@ $$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
   optimiser — all to machine precision, in
   `validation/validate_volt_second.py` with tests in
   `tests/test_volt_second_validation.py`. The bootstrap-current proxy remains a
-  documented rough scaling, and facility pulse-design or central-solenoid
-  commissioning claims still require measured loop-voltage or scenario
-  references.
+  documented rough scaling. The current claim builder retains caller-declared
+  reference metadata without admitting a facility claim; pulse-design or
+  central-solenoid commissioning requires independently bound source bytes,
+  recomputed comparison metrics and the affected formulation owner's contract.
 
 ### DT Burn Control and Alpha Heating
 Deuterium-tritium alpha-heating power, fusion energy gain, the Lawson ignition

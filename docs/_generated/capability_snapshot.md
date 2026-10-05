@@ -6,16 +6,16 @@
 | Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
-| Python control/physics modules | 207 |
-| Python public classes | 580 |
-| Rust source files | 66 |
+| Python control/physics modules | 285 |
+| Python public classes | 599 |
+| Rust source files | 67 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 158 |
-| Optional extras | 23 |
-| Python test files | 594 |
-| Public documentation pages | 75 |
+| Validation scripts | 268 |
+| Optional extras | 25 |
+| Python test files | 802 |
+| Public documentation pages | 78 |
 | GitHub Actions workflows | 22 |
 
-**Evidence roots:** `src/scpn_control/{core,control,phase,scpn}`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
+**Evidence roots:** `src/scpn_control/core`, `src/scpn_control/control`, `src/scpn_control/phase`, `src/scpn_control/scpn`, `src/scpn_control/reactor_semantic_admission`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
 
 Refresh with `python tools/capability_manifest.py`; enforce with `python tools/capability_manifest.py --check`.

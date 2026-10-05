@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Digital twin reference validation tests
 
+"""Retain eight original public digital_twin declaration acceptance/refusal witnesses."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_digital_twin_reference import validate_digital_twin_ref
 
 
 def _valid_digital_twin_reference_artifact() -> dict[str, object]:
+    """Supply original engineering twin declarations without authenticating physical reference bytes."""
     return {
         "schema_version": "1.0",
         "source": "documented_public_reference",
@@ -66,6 +69,7 @@ def _valid_digital_twin_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_digital_twin_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode retains original empty-directory refusal."""
     report = validate_digital_twin_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -74,6 +78,7 @@ def test_strict_digital_twin_gate_requires_reference_artifacts(tmp_path: Path) -
 
 
 def test_digital_twin_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Declared DOI and original metadata pass inspection."""
     artifact = tmp_path / "digital_twin_public_reference.json"
     artifact.write_text(json.dumps(_valid_digital_twin_reference_artifact()), encoding="utf-8")
 
@@ -86,6 +91,7 @@ def test_digital_twin_gate_accepts_documented_public_reference(tmp_path: Path) -
 
 
 def test_digital_twin_gate_accepts_measured_discharge_replay(tmp_path: Path) -> None:
+    """Replay retains shot and diagnostic presence checks."""
     payload = _valid_digital_twin_reference_artifact()
     payload["source"] = "measured_discharge_replay"
     payload.pop("reference_doi")
@@ -101,6 +107,7 @@ def test_digital_twin_gate_accepts_measured_discharge_replay(tmp_path: Path) -> 
 
 
 def test_digital_twin_gate_accepts_external_integrated_modelling(tmp_path: Path) -> None:
+    """Named TRANSP and URI presence pass original external declaration inspection."""
     payload = _valid_digital_twin_reference_artifact()
     payload["source"] = "external_integrated_modelling"
     payload.pop("reference_doi")
@@ -116,6 +123,7 @@ def test_digital_twin_gate_accepts_external_integrated_modelling(tmp_path: Path)
 
 
 def test_digital_twin_gate_accepts_tsc_external_integrated_modelling(tmp_path: Path) -> None:
+    """Named TSC retains admission with URI presence."""
     payload = _valid_digital_twin_reference_artifact()
     payload["source"] = "external_integrated_modelling"
     payload.pop("reference_doi")
@@ -131,6 +139,7 @@ def test_digital_twin_gate_accepts_tsc_external_integrated_modelling(tmp_path: P
 
 
 def test_digital_twin_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Synthetic source remains outside original membership."""
     payload = _valid_digital_twin_reference_artifact()
     payload["source"] = "synthetic"
     artifact = tmp_path / "synthetic_digital_twin_reference.json"
@@ -143,6 +152,7 @@ def test_digital_twin_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_digital_twin_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Declared q error exceeding its bound produces the original finding."""
     payload = _valid_digital_twin_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["q_profile_rmse"] = 0.2
@@ -156,6 +166,7 @@ def test_digital_twin_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> N
 
 
 def test_digital_twin_gate_rejects_missing_actuator_metadata(tmp_path: Path) -> None:
+    """Missing original actuator lag refuses the metadata block."""
     payload = _valid_digital_twin_reference_artifact()
     actuator_metadata = cast(dict[str, object], payload["actuator_metadata"])
     actuator_metadata.pop("actuator_tau_steps")

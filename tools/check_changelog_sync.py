@@ -6,7 +6,12 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Changelog mirror sync guard.
-"""Fail closed when the rendered changelog mirror drifts from the root file."""
+"""Compare the root changelog and documentation mirror without rewriting them.
+
+Hook, CI and preflight consumers use byte equality: encoding, line endings and
+whitespace remain significant. This checks two local files, without rendering
+Markdown, validating release history or checking published documentation.
+"""
 
 from __future__ import annotations
 
@@ -26,14 +31,30 @@ def changelog_sync_errors(repo: Path) -> list[str]:
     ----------
     repo
         Repository root containing ``CHANGELOG.md`` and ``docs/changelog.md``.
+        Relative roots follow the caller's working directory.
 
     Returns
     -------
     list[str]
         Human-readable validation errors. An empty list means the root
-        changelog and rendered docs mirror are byte-identical.
-    """
+        changelog and docs mirror are byte-identical, including line endings
+        and whitespace. Missing root and mirror errors are ordered that way;
+        if either is missing, no content is read. Any matching bytes, including
+        non-UTF-8 content, pass. No Markdown or version-history parsing occurs.
 
+    Raises
+    ------
+    OSError
+        An existing carrier cannot be read, including a directory at either
+        file location. The CLI translates this into a fixed refusal sentence.
+
+    Examples
+    --------
+    Compare the actual repository files through the public API:
+
+    >>> changelog_sync_errors(ROOT)
+    []
+    """
     root_changelog = repo / ROOT_CHANGELOG
     docs_changelog = repo / DOCS_CHANGELOG
     errors: list[str] = []
@@ -56,14 +77,32 @@ def changelog_sync_errors(repo: Path) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the changelog mirror sync guard."""
+    """Check both local changelog carriers through the hook/CI command.
 
+    Parameters
+    ----------
+    argv
+        Arguments excluding the executable; None reads process arguments.
+        --repo selects a root, resolved against cwd. Without it use the root
+        containing this script, regardless of cwd. Leave caller argv unchanged.
+
+    Returns
+    -------
+    int
+        Zero for byte equality; one for drift, missing files or an OS read
+        failure. Print a PASS or FAIL diagnostic to stdout; argument errors
+        exit two through argparse. No files, Git state or releases are changed.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=ROOT)
     args = parser.parse_args(argv)
 
     repo = args.repo.resolve()
-    errors = changelog_sync_errors(repo)
+    try:
+        errors = changelog_sync_errors(repo)
+    except OSError:
+        print("FAIL: could not read changelog files")
+        return 1
     if not errors:
         print("PASS: docs/changelog.md matches CHANGELOG.md")
         return 0

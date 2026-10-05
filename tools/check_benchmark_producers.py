@@ -30,7 +30,12 @@ CATEGORIES = (
 
 
 def _python_calls_recorded_guard(source: str) -> bool:
-    """Return whether Python source invokes the persistent-output guard."""
+    """Parse Python text and find a call with the guard's literal name or attribute.
+
+    Alias/import resolution, reachability, arguments and runtime custody are not
+    checked. A commented/imported name alone is insufficient; syntax errors
+    propagate without executing any producer.
+    """
     tree = ast.parse(source)
     return any(
         isinstance(node, ast.Call)
@@ -45,6 +50,14 @@ def _python_calls_recorded_guard(source: str) -> bool:
 
 
 def _discover(repository_root: Path) -> set[str]:
+    """Collect existing files in the maintained Python/Rust glob and explicit-path scope.
+
+    Python benchmark/scripts/tools/validation owners and selected Rust benches,
+    examples and the transport binary are included regardless of Git tracking.
+    The auditor itself is excluded. Missing subdirectories add no paths; normal
+    Path.is_file semantics follow file symlinks. This is lexical inventory, not
+    a producer execution or a complete dynamic consumer/export discovery.
+    """
     paths: set[Path] = set()
     paths.update((repository_root / "benchmarks").glob("*.py"))
     paths.update((repository_root / "scripts").glob("*benchmark*.py"))
@@ -53,7 +66,12 @@ def _discover(repository_root: Path) -> set[str]:
     paths.update((repository_root / "validation").glob("benchmark_*.py"))
     paths.update(
         repository_root / "validation" / name
-        for name in ("code_to_code_benchmark.py", "control_benchmark_suite.py", "scpn_pid_mpc_benchmark.py")
+        for name in (
+            "code_to_code_benchmark.py",
+            "control_benchmark_suite.py",
+            "free_boundary_tracking_acceptance.py",
+            "scpn_pid_mpc_benchmark.py",
+        )
     )
     rust_root = repository_root / "scpn-control-rs"
     paths.update((rust_root / "benches").glob("bench_*.rs"))
@@ -63,11 +81,18 @@ def _discover(repository_root: Path) -> set[str]:
 
 
 def _documentation_command_findings(repository_root: Path, guarded_paths: set[str]) -> list[str]:
-    """Find public Python benchmark commands that bypass immutable custody."""
+    """Scan sorted public Markdown lines for direct commands naming guarded producers.
+
+    README and docs Markdown are inspected except changelog.md and internal path
+    components. Literal Python/cargo/CMD prefixes and runner payload markers are
+    recognised without parsing shell, Markdown fences or wrapper execution.
+    Missing documents are skipped; read/decode errors propagate. Findings use
+    repository-relative paths and one-based lines, ordered by document/line/path.
+    """
     documents = [repository_root / "README.md"]
     documents.extend(
         path
-        for path in (repository_root / "docs").rglob("*.md")
+        for path in sorted((repository_root / "docs").rglob("*.md"))
         if path.name != "changelog.md" and "internal" not in path.parts
     )
     allowed_payload_markers = (
@@ -82,7 +107,7 @@ def _documentation_command_findings(repository_root: Path, guarded_paths: set[st
         if not document.is_file():
             continue
         for line_number, line in enumerate(document.read_text(encoding="utf-8").splitlines(), start=1):
-            for producer_path in guarded_paths:
+            for producer_path in sorted(guarded_paths):
                 if producer_path not in line:
                     continue
                 prefix = line.split(producer_path, 1)[0]
@@ -97,7 +122,21 @@ def _documentation_command_findings(repository_root: Path, guarded_paths: set[st
 
 
 def audit_registry(registry_path: Path = REGISTRY, repository_root: Path = REPO_ROOT) -> list[str]:
-    """Return deterministic findings for producer inventory or custody drift."""
+    """Read a TOML registry and existing repository, returning ordered lexical-custody findings.
+
+    Registry and root paths are caller-relative; the root resolves to an existing
+    directory or raises FileNotFoundError/ValueError. Schema/category/duplicate
+    errors and inventory differences remain findings, including registry entries
+    absent from discovery. Only discovered registered sources are inspected.
+    Python guards use AST call-name presence; Rust, append, scratch and custody
+    classes use literal source markers. These checks do not establish live guard
+    execution, immutable output, numerical performance or scientific admission.
+    IO, UTF-8, TOML and Python syntax errors propagate. No producer is executed or
+    file mutated; multi-file reads are not a coherent concurrent snapshot.
+    """
+    repository_root = repository_root.resolve(strict=True)
+    if not repository_root.is_dir():
+        raise ValueError("benchmark producer repository root must be a directory")
     with registry_path.open("rb") as handle:
         raw: dict[str, Any] = tomllib.load(handle)
     findings: list[str] = []
@@ -122,9 +161,9 @@ def audit_registry(registry_path: Path = REGISTRY, repository_root: Path = REPO_
         findings.append(f"registry path is not a discovered benchmark producer: {relative_path}")
 
     for relative_path, category in sorted(ownership.items()):
-        path = repository_root / relative_path
-        if not path.is_file():
+        if relative_path not in discovered:
             continue
+        path = repository_root / relative_path
         source = path.read_text(encoding="utf-8")
         if category == "recorded_guard":
             guarded = (
@@ -150,13 +189,21 @@ def audit_registry(registry_path: Path = REGISTRY, repository_root: Path = REPO_
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Audit the registry and print a concise producer-custody verdict."""
+    """Return zero for classified selected inventory, one for findings or supported inspection errors.
+
+    --repo selects the repository; absent --registry selects its benchmarks TOML.
+    Explicit registry paths are caller-relative. Expected IO/decode/TOML/syntax/
+    root errors use authored stderr, not tracebacks. Parser help/usage retain
+    exits zero/two. Reported count is actual lexical discovery, not runtime or
+    scientific qualification; this CLI never runs benchmarks or writes files.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--registry", type=Path, default=REGISTRY)
+    parser.add_argument("--repo", type=Path, default=REPO_ROOT)
+    parser.add_argument("--registry", type=Path)
     args = parser.parse_args(argv)
     try:
-        findings = audit_registry(args.registry)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
+        findings = audit_registry(args.registry or args.repo / "benchmarks/producer_registry.toml", args.repo)
+    except (OSError, UnicodeError, ValueError, SyntaxError) as exc:
         print(f"benchmark producer registry FAILED: {exc}", file=sys.stderr)
         return 1
     if findings:
@@ -164,7 +211,7 @@ def main(argv: list[str] | None = None) -> int:
         for finding in findings:
             print(f"  - {finding}", file=sys.stderr)
         return 1
-    print(f"benchmark producer registry passed: {len(_discover(REPO_ROOT))} producers classified")
+    print(f"benchmark producer registry passed: {len(_discover(args.repo))} producers classified")
     return 0
 
 

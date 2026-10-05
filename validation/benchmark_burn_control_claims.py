@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Burn-control claim-admission benchmark
 
+"""Publish a fixed bounded model declaration through recorded output custody."""
+
 from __future__ import annotations
 
 import json
@@ -28,6 +30,40 @@ MARKDOWN_REPORT = REPORT_DIR / "burn_control_claims.md"
 
 
 def main() -> None:
+    """Write a fixed bounded DT burn declaration using fresh model/controller state.
+
+    Returns
+    -------
+    None
+        Write burn_control_claims.json, burn_control_claims.md, then the same
+        JSON payload again in this module's reports directory. Outputs use
+        UTF-8 with final newlines and the defining evidence dataclass schema.
+
+    Raises
+    ------
+    RuntimeError
+        Persistent paths lack a recorded-campaign identifier.
+    ValueError
+        The identifier or defining scientific inputs/evidence are refused.
+    OSError
+        Creating the directory or a sequential write fails. Earlier writes may
+        remain; there is no atomic replacement or multi-file transaction.
+
+    Notes
+    -----
+    There are no CLI parameters. rho has 48 points from 0 to 1; ne_20 is
+    0.85+0.25*(1-rho**2) in 1e20 m^-3 and both temperatures are
+    14+8*(1-rho**1.7) keV. Alpha geometry fixes R0=6.2 m, a=2 m, kappa=1.7.
+    Confinement time is 3.7 s and auxiliary power 50 MW. Controller targets are
+    Q=10 and T=20 keV with maximum auxiliary power 73 MW. The defining builder
+    computes weighted profile metrics and one controller step with dt=0.1 s;
+    it does not evolve a burn trajectory or apply a closed-loop actuator replay.
+    No reference artifact is supplied and reactor_claim_allowed remains False.
+    Shared fixed filenames have no producer locks. The destination guard checks
+    campaign ID presence/syntax, not authentic source or reactor evidence; the
+    actual recorded wrapper separately reserves and preserves output custody.
+    Numerical alpha/reactivity/Lawson/command semantics belong to defining APIs.
+    """
     require_recorded_campaign(JSON_REPORT, MARKDOWN_REPORT, repository_root=REPORT_DIR.parents[1])
     rho = np.linspace(0.0, 1.0, 48)
     ne = 0.85 + 0.25 * (1.0 - rho**2)

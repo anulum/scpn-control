@@ -115,13 +115,22 @@ class StochasticPetriNet:
 
         Parameters
         ----------
+        source, target : str
+            Existing node names identifying the directed connection.
+        weight : float, default 1.0
+            Arc-weight magnitude converted to float. Zero and negative weights
+            are rejected before adding the arc.
         inhibitor : bool, default False
             If True, arc is encoded as a negative weight inhibitor input arc.
             Only valid for ``Place -> Transition`` edges. Controller artifact
             export and runtime admission reject this negative matrix encoding
             until the artifact topology carries inhibitor arcs explicitly.
 
-        Raises ``ValueError`` for same-kind connections or unknown nodes.
+        Raises
+        ------
+        ValueError
+            A node is unknown, both nodes have the same kind, an inhibitor arc
+            has the wrong direction, or the weight is zero or negative.
         """
         if source not in self._kind:
             raise ValueError(f"Unknown node '{source}'.")

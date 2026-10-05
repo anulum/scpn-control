@@ -334,7 +334,8 @@ def run_digital_twin(
     Run deterministic digital-twin control simulation.
 
     Returns a summary dict so callers can use the simulation without relying on
-    console text or plot artifacts.
+    console text or plot artifacts. Computed NumPy reward/advantage scalars
+    are normalized to Python floats at the history and network boundaries.
     """
     steps = int(time_steps)
     if steps < 1:
@@ -451,11 +452,11 @@ def run_digital_twin(
         # 5. Learn (On-Policy / Immediate)
         # If reward is better than recent average, encourage this action direction
         baseline = np.mean(history_rewards[-50:]) if len(history_rewards) > 50 else 0
-        advantage = (reward - baseline) * noise  # Simple derivative-free estimator trick
+        advantage = float((reward - baseline) * noise)  # Python scalar at the network boundary
 
         loss = brain.train_step(state_vector, None, advantage)
 
-        history_rewards.append(reward)
+        history_rewards.append(float(reward))
         history_actions.append(action)
         history_commanded_actions.append(commanded_action)
 

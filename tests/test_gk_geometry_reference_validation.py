@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK geometry reference validation tests
 
+"""Retain original local Miller reference regression cases through the public validator."""
+
 from __future__ import annotations
 
 import json
@@ -13,12 +15,12 @@ from pathlib import Path
 
 from validation.validate_gk_geometry_reference import validate_gk_geometry_reference
 
-
 ROOT = Path(__file__).resolve().parents[1]
 REFERENCE_CASES = ROOT / "validation" / "reference_data" / "gk_geometry" / "miller_reference_cases.json"
 
 
 def test_repository_geometry_reference_cases_pass() -> None:
+    """Original circular, shaped and high-shear references pass bounded-local comparison while full-equilibrium admission stays false."""
     report = validate_gk_geometry_reference(REFERENCE_CASES)
 
     assert report["status"] == "pass"
@@ -46,6 +48,7 @@ def test_repository_geometry_reference_cases_pass() -> None:
 
 
 def test_geometry_reference_gate_rejects_missing_required_case(tmp_path: Path) -> None:
+    """A valid circular case cannot replace the required shaped and high-shear references."""
     payload = {
         "spdx_license_id": "AGPL-3.0-or-later",
         "commercial_license": "available",
@@ -94,6 +97,7 @@ def test_geometry_reference_gate_rejects_missing_required_case(tmp_path: Path) -
 
 
 def test_geometry_reference_gate_rejects_metric_drift(tmp_path: Path) -> None:
+    """A changed g_tt sample exceeds the original fixed numerical tolerance."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"][0]["sample_points"][0]["g_tt"] = 99.0
     path = tmp_path / "miller_reference_cases.json"
@@ -106,6 +110,7 @@ def test_geometry_reference_gate_rejects_metric_drift(tmp_path: Path) -> None:
 
 
 def test_geometry_reference_gate_rejects_duplicate_valid_case(tmp_path: Path) -> None:
+    """A duplicate valid case yields an explicit name finding rather than duplicate admission."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
     payload["cases"].append(payload["cases"][0])
     path = tmp_path / "miller_reference_cases.json"

@@ -43,8 +43,9 @@ def main() -> None:
     )
     payload = asdict(summary)
     payload["claim_boundary"] = (
-        "Synthetic multi-facility benchmark only; no measured cross-facility "
-        "disruption-validation claim is made by this artefact."
+        "Synthetic in-process multi-facility benchmark only; no measured "
+        "cross-facility validation, remote data isolation, or end-to-end "
+        "differential-privacy claim is made by this artefact."
     )
     payload["feature_contract"] = [
         "Ip",
@@ -62,7 +63,6 @@ def main() -> None:
     MD_REPORT.write_text(
         "\n".join(
             [
-                "",
                 "# Federated disruption benchmark",
                 "",
                 "- Evidence kind: synthetic multi-facility",
@@ -71,8 +71,8 @@ def main() -> None:
                 f"- Rounds: {summary.n_rounds}",
                 f"- Mean accuracy: {summary.mean_accuracy:.6f}",
                 f"- Mean loss: {summary.mean_loss:.6f}",
-                f"- Differential privacy epsilon: {summary.privacy_epsilon:.6f}",
-                f"- Differential privacy delta: {summary.privacy_delta:.1e}",
+                f"- Nominal Gaussian epsilon: {summary.privacy_epsilon:.6f}",
+                f"- Per-round input delta: {summary.privacy_delta:.1e}",
                 "",
                 "Per-facility final accuracy:",
                 "",
@@ -82,10 +82,10 @@ def main() -> None:
                 ],
                 "",
                 "Claim boundary: this report exercises the production federation,",
-                "heterogeneity, and facility-update differential privacy contracts on",
+                "heterogeneity, and facility-update noise mechanics on",
                 "deterministic synthetic facility distributions. It does not claim",
-                "measured cross-facility validation against DIII-D, JET, KSTAR, or EAST",
-                "shot databases.",
+                "measured cross-facility validation, remote data isolation, or",
+                "end-to-end differential privacy.",
                 "",
             ]
         ),

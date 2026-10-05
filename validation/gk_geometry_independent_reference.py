@@ -58,7 +58,7 @@ class IndependentMillerMetric:
     Z: FloatArray  # vertical position Z(theta) [m]
     dR_dr: FloatArray  # dR/dr at constant theta [dimensionless]
     dZ_dr: FloatArray  # dZ/dr at constant theta [dimensionless]
-    jacobian: FloatArray  # (r, theta) -> (R, Z) Jacobian [m^2]
+    jacobian: FloatArray  # (r, theta) -> (R, Z) Jacobian [m]
     g_rr: FloatArray  # |grad r|^2 [dimensionless]
     g_rt: FloatArray  # grad r . grad theta [m^-1]
     g_tt: FloatArray  # |grad theta|^2 [m^-2]
@@ -67,6 +67,7 @@ class IndependentMillerMetric:
 
 
 def _finite(name: str, value: float, *, positive: bool = False) -> float:
+    """Convert and require a finite scalar, optionally strictly positive."""
     scalar = float(value)
     if not np.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -182,6 +183,7 @@ def independent_miller_metric(
     eps_r = eps_r_rel * a
 
     def surf(r: float, th: FloatArray) -> tuple[FloatArray, FloatArray]:
+        """Evaluate the local sheared surface at the stencil radius and angle."""
         return _surface(r, th, **shape)
 
     R_s, Z_s = surf(r0, theta_arr)

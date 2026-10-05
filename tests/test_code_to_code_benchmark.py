@@ -14,59 +14,81 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
+from numpy.typing import NDArray
 
 from validation import code_to_code_benchmark as c2c
 
 
 class _FakeCoord:
-    def __init__(self, values: np.ndarray) -> None:
+    """Retain the historical authored coordinate fixture; no provider execution."""
+
+    def __init__(self, values: NDArray[np.float64]) -> None:
+        """Store the authored fixture values without simulation."""
         self.values = values
 
 
 class _FakeSeries:
-    def __init__(self, values: np.ndarray) -> None:
+    """Retain the historical authored series fixture; no provider execution."""
+
+    def __init__(self, values: NDArray[np.float64]) -> None:
+        """Store the authored fixture values without simulation."""
         self.values = values
 
     def isel(self, *, time: int) -> _FakeSeries:
+        """Select an authored time slice for the legacy extraction unit test."""
         return _FakeSeries(np.asarray(self.values[time]))
 
 
 class _FakeDataset:
+    """Retain the historical authored dataset fixture; no provider execution."""
+
     def __init__(
         self,
-        values: dict[str, np.ndarray],
+        values: dict[str, NDArray[np.float64]],
         *,
-        rho: np.ndarray | None = None,
+        rho: NDArray[np.float64] | None = None,
     ) -> None:
+        """Store the authored fixture values without simulation."""
         self._values = values
-        self.coords = {}
+        self.coords: dict[str, _FakeCoord] = {}
         if rho is not None:
             self.coords["rho_norm"] = _FakeCoord(rho)
 
     def __contains__(self, name: str) -> bool:
+        """Report whether the authored dataset contains a scalar field."""
         return name in self._values
 
     def __getitem__(self, name: str) -> _FakeSeries:
+        """Retrieve the authored fixture field by name."""
         return _FakeSeries(self._values[name])
 
 
 class _FakeTreeNode:
+    """Retain the historical authored node fixture; no provider execution."""
+
     def __init__(self, dataset: _FakeDataset) -> None:
+        """Store the authored fixture values without simulation."""
         self.dataset = dataset
 
 
 class _FakeDataTree:
+    """Retain the historical authored tree fixture; no provider execution."""
+
     def __init__(self, profiles: _FakeDataset, scalars: _FakeDataset) -> None:
+        """Store the authored fixture values without simulation."""
         self._nodes = {
             "profiles": _FakeTreeNode(profiles),
             "scalars": _FakeTreeNode(scalars),
         }
 
     def __getitem__(self, name: str) -> _FakeTreeNode:
+        """Retrieve the authored fixture field by name."""
         return self._nodes[name.strip("/")]
 
 
 def test_torax_config_maps_scenario_fields() -> None:
+    """Torax config maps scenario fields."""
     cfg = c2c._torax_config_dict(c2c.ITER_SCENARIO)
 
     assert cfg["profile_conditions"]["Ip"] == c2c.ITER_SCENARIO["I_p"]
@@ -77,7 +99,8 @@ def test_torax_config_maps_scenario_fields() -> None:
     assert cfg["sources"]["generic_heat"]["P_total"] == c2c.ITER_SCENARIO["P_aux"] * 1.0e6
 
 
-def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch) -> None:
+def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Repo src bootstrap supports direct script execution."""
     repo_src = str(Path(c2c.__file__).resolve().parents[1] / "src")
     monkeypatch.setattr(sys, "path", [entry for entry in sys.path if entry != repo_src])
 
@@ -87,6 +110,7 @@ def test_repo_src_bootstrap_supports_direct_script_execution(monkeypatch) -> Non
 
 
 def test_extract_torax_result_reads_profiles_and_scalars() -> None:
+    """Extract torax result reads profiles and scalars."""
     rho = np.array([0.0, 0.5, 1.0])
     profiles = _FakeDataset(
         {
@@ -114,6 +138,7 @@ def test_extract_torax_result_reads_profiles_and_scalars() -> None:
 
 
 def test_compare_results_includes_ion_temperature_metrics() -> None:
+    """Compare results includes ion temperature metrics."""
     scpn = {
         "rho": [0.0, 0.5, 1.0],
         "Te_final": [8.0, 5.0, 1.0],
@@ -134,6 +159,7 @@ def test_compare_results_includes_ion_temperature_metrics() -> None:
 
 
 def test_compare_results_keeps_electron_metrics_when_torax_omits_ion_profile() -> None:
+    """Compare results keeps electron metrics when torax omits ion profile."""
     scpn = {
         "rho": [0.0, 0.5, 1.0],
         "Te_final": [8.0, 5.0, 1.0],
@@ -153,6 +179,7 @@ def test_compare_results_keeps_electron_metrics_when_torax_omits_ion_profile() -
 
 
 def test_external_reference_report_blocks_when_torax_was_not_requested() -> None:
+    """External reference report blocks when torax was not requested."""
     scpn = {
         "code": "scpn-control",
         "scenario": c2c.ITER_SCENARIO["name"],
@@ -174,7 +201,8 @@ def test_external_reference_report_blocks_when_torax_was_not_requested() -> None
     assert c2c._verify_payload_digest(report) is True
 
 
-def test_external_reference_report_admits_real_torax_comparison() -> None:
+def test_declared_torax_profiles_do_not_admit_unmatched_physics() -> None:
+    """Declared torax profiles do not admit unmatched physics."""
     scpn = {
         "code": "scpn-control",
         "scenario": c2c.ITER_SCENARIO["name"],
@@ -198,15 +226,21 @@ def test_external_reference_report_admits_real_torax_comparison() -> None:
         requested_torax=True,
     )
 
-    assert report["external_reference"]["admitted"] is True
-    assert report["external_reference"]["status"] == "admitted"
-    assert report["external_reference"]["blocked_reasons"] == []
+    assert report["external_reference"]["admitted"] is False
+    assert report["external_reference"]["status"] == "blocked"
+    assert report["external_reference"]["diagnostic_comparison_available"] is True
+    assert report["external_reference"]["blocked_reasons"] == [
+        "transport_closures_not_matched",
+        "current_geometry_not_matched",
+        "source_channels_not_matched",
+    ]
     assert report["external_reference"]["provider"] == "TORAX"
     assert report["scenario_sha256"] == c2c._sha256_payload(c2c.ITER_SCENARIO)
     assert c2c._verify_payload_digest(report) is True
 
 
 def test_external_reference_report_rejects_digest_tampering() -> None:
+    """External reference report rejects digest tampering."""
     scpn = {
         "code": "scpn-control",
         "scenario": c2c.ITER_SCENARIO["name"],

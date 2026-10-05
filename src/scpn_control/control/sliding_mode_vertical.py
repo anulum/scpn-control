@@ -17,10 +17,7 @@ import numpy as np
 # Boundary-layer thickness for chattering suppression.
 # Replaces sign(s) with s/(|s|+δ).
 # Slotine & Li 1991, "Applied Nonlinear Control", Prentice Hall, Ch. 7, §7.2.
-_BOUNDARY_LAYER_DELTA: float = 0.01  # dimensionless
-
-# Minimum denominator guard to prevent division by zero.
-_EPS: float = 1e-12
+_BOUNDARY_LAYER_DELTA: float = 0.01  # same units as the sliding surface
 
 
 def _sat(s: float, delta: float = _BOUNDARY_LAYER_DELTA) -> float:
@@ -35,21 +32,25 @@ def _sat(s: float, delta: float = _BOUNDARY_LAYER_DELTA) -> float:
 class SuperTwistingSMC:
     """Second-order sliding mode controller: super-twisting algorithm.
 
-    Convergence in finite time to s = 0 with continuous control output.
+    Discrete, boundary-smoothed and actuator-limited approximation.
 
     Algorithm (Levant 1993, Int. J. Control 58, 1247, Eq. (1)):
         u(t)  = -α |s|^{1/2} sat(s)  +  v(t)
         v̇(t) = -β sat(s)
 
-    Gain conditions for finite-time convergence under bounded disturbance L:
-        α > √(2L),  β > L
-    (Moreno & Osorio 2012, IEEE TAC 57, 1049, Theorem 1)
+    The ideal continuous-time sign-law analysis does not certify finite-time
+    convergence for this smoothed and saturated implementation.
 
     Sliding surface follows Utkin 1992, "Sliding Modes in Control and
-    Optimization", Springer, Ch. 2: s = e + c ė.
+    Optimization", Springer, Ch. 2: s = e + c ė. When e is metres, c is
+    seconds and the fixed boundary-layer delta is metres. The emitted
+    command has caller-defined units; no coil-voltage conversion is supplied.
     """
 
     def __init__(self, alpha: float, beta: float, c: float, u_max: float) -> None:
+        for name, value in (("alpha", alpha), ("beta", beta), ("c", c), ("u_max", u_max)):
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
         self.alpha = alpha
         self.beta = beta
         self.c = c
@@ -57,8 +58,13 @@ class SuperTwistingSMC:
         self.v = 0.0
 
     def sliding_surface(self, e: float, de_dt: float) -> float:
-        """Return the sliding surface ``s = e + c ė`` (Utkin 1992, Ch. 2)."""
-        return e + self.c * de_dt
+        """Return finite ``s = e + c ė`` for finite error observations."""
+        if not math.isfinite(e) or not math.isfinite(de_dt):
+            raise ValueError("error and derivative must be finite")
+        s = e + self.c * de_dt
+        if not math.isfinite(s):
+            raise ValueError("sliding surface must be finite")
+        return s
 
     def step(self, e: float, de_dt: float, dt: float) -> float:
         """Advance one super-twisting step.
@@ -67,15 +73,25 @@ class SuperTwistingSMC:
             u  = -α |s|^{1/2} sat(s) + v
             v̇  = -β sat(s)
         """
+        for name, value in (("alpha", self.alpha), ("beta", self.beta), ("c", self.c), ("u_max", self.u_max)):
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
+        if not math.isfinite(dt) or dt < 0.0:
+            raise ValueError("dt must be finite and non-negative")
         s = self.sliding_surface(e, de_dt)
-
-        if dt > 0:
-            self.v -= self.beta * _sat(s) * dt
-
-        self.v = np.clip(self.v, -self.u_max, self.u_max)
-
-        u = -self.alpha * math.sqrt(abs(s)) * _sat(s) + self.v
-        return float(np.clip(u, -self.u_max, self.u_max))
+        sat_s = _sat(s)
+        integral_change = self.beta * sat_s * dt
+        if not math.isfinite(integral_change):
+            raise ValueError("integral update must be finite")
+        candidate_v = self.v - integral_change
+        if not math.isfinite(candidate_v):
+            raise ValueError("integral state must be finite")
+        candidate_v = float(np.clip(candidate_v, -self.u_max, self.u_max))
+        raw_u = -self.alpha * math.sqrt(abs(s)) * sat_s + candidate_v
+        if not math.isfinite(raw_u):
+            raise ValueError("control command must be finite")
+        self.v = candidate_v
+        return float(np.clip(raw_u, -self.u_max, self.u_max))
 
 
 class VerticalStabilizer:
@@ -89,9 +105,10 @@ class VerticalStabilizer:
     Real-time VS implementation at DIII-D:
     Humphreys et al. 2009, Nucl. Fusion 49, 115003.
 
-    Restoring force on the plasma column (rigid-body model):
-        F = -n μ₀ I_p² / (4π R₀) · Z  ≡  -K_vs · Z
-    where n is the field-index (n < 0 for unstable equilibria),
+    Model force on the plasma column (rigid-body approximation):
+        F = n μ₀ I_p² / (4π R₀) · Z  ≡  -K_vs · Z
+    where n is a signed model index. This is not a calibrated facility
+    equilibrium or stability certificate;
     μ₀ = 4π×10⁻⁷ H/m (SI),  I_p in A,  R₀ in m.
     (Wesson 2004, "Tokamaks", Oxford, §3.7)
     """
@@ -108,12 +125,22 @@ class VerticalStabilizer:
         tau_wall: float,
         smc: SuperTwistingSMC,
     ) -> None:
+        if not math.isfinite(n_index):
+            raise ValueError("n_index must be finite")
+        if not math.isfinite(Ip_MA) or Ip_MA < 0.0:
+            raise ValueError("Ip_MA must be finite and non-negative")
+        for name, value in (("R0", R0), ("m_eff", m_eff), ("tau_wall", tau_wall)):
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
         self.n_index = n_index
         self.Ip = Ip_MA * 1e6  # convert MA → A
+        if not math.isfinite(self.Ip):
+            raise ValueError("Ip_MA conversion must be finite")
         self.R0 = R0
         self.m_eff = m_eff
         self.tau_wall = tau_wall
         self.smc = smc
+        _ = self.K_vs
 
     @property
     def K_vs(self) -> float:
@@ -121,39 +148,59 @@ class VerticalStabilizer:
 
         K_vs = -n μ₀ I_p² / (4π R₀)
         Wesson 2004, §3.7, Eq. (3.7.4).
-        Negative n_index (n < 0) makes K_vs > 0 (unstable).
+        In the declared ``-K_vs Z`` force convention, positive ``K_vs`` is
+        restoring and negative ``K_vs`` is destabilizing.
         """
-        return -self.n_index * self.MU0 * self.Ip**2 / (4.0 * math.pi * self.R0)
+        if not math.isfinite(self.n_index):
+            raise ValueError("n_index must be finite")
+        if not math.isfinite(self.Ip) or self.Ip < 0.0:
+            raise ValueError("Ip_MA converted current must be finite and non-negative")
+        for name, value in (("R0", self.R0), ("m_eff", self.m_eff), ("tau_wall", self.tau_wall)):
+            if not math.isfinite(value) or value <= 0.0:
+                raise ValueError(f"{name} must be finite and positive")
+        try:
+            coefficient = -self.n_index * self.MU0 * self.Ip**2 / (4.0 * math.pi * self.R0)
+        except OverflowError as exc:
+            raise ValueError("K_vs must be finite") from exc
+        if not math.isfinite(coefficient):
+            raise ValueError("K_vs must be finite")
+        return coefficient
 
     def step(self, Z_meas: float, Z_ref: float, dZ_dt_meas: float, dt: float) -> float:
-        """Compute coil correction voltage.
+        """Compute a bounded, uncalibrated vertical correction command.
 
         Plant: m_eff Z̈ = -K_vs Z + F_coil  (linearised, Humphreys 2009).
         e = Z_meas - Z_ref; SMC drives e → 0.
         """
+        _ = self.K_vs
         e = Z_meas - Z_ref
         return self.smc.step(e, dZ_dt_meas, dt)
 
 
 def lyapunov_certificate(alpha: float, beta: float, L_max: float) -> bool:
-    """Check gain conditions for finite-time convergence.
+    """Screen ideal sign-law gains, without certifying the discrete controller.
 
-    Moreno & Osorio 2012, IEEE TAC 57, 1049, Theorem 1:
-        α > √(2 L_max),  β > L_max
+    This compatibility function checks ``α > √(2 L_max), β > L_max`` for
+    finite nonnegative ``L_max``. Those inequalities alone do not establish
+    a Lyapunov proof for the boundary-smoothed, saturated, sampled controller.
     """
-    cond1 = alpha > math.sqrt(2.0 * max(L_max, _EPS))
-    cond2 = beta > max(L_max, _EPS)
-    return cond1 and cond2
+    if not all(math.isfinite(value) for value in (alpha, beta, L_max)):
+        return False
+    if alpha <= 0.0 or beta <= 0.0 or L_max < 0.0:
+        return False
+    return alpha > math.sqrt(2.0) * math.sqrt(L_max) and beta > L_max
 
 
 def estimate_convergence_time(alpha: float, beta: float, L_max: float, s0: float) -> float:
-    """Upper bound on time to reach s = 0.
+    """Return an idealized sign-law expression, never a runtime guarantee.
 
-    T ≤ 2 |s₀|^{1/2} / (α - √(2 L_max))
-    Moreno & Osorio 2012, Eq. (18).
+    Compute ``2 √|s₀| / (α - √(2 L_max))`` only for admitted idealized
+    gains and finite inputs. The result is not an upper bound for this runtime.
     """
-    if L_max < 0 or alpha <= math.sqrt(2.0 * L_max):
+    if not all(math.isfinite(value) for value in (alpha, beta, L_max, s0)):
+        return float("inf")
+    if not lyapunov_certificate(alpha, beta, L_max):
         return float("inf")
 
-    denom = alpha - math.sqrt(2.0 * L_max)
+    denom = alpha - math.sqrt(2.0) * math.sqrt(L_max)
     return 2.0 * math.sqrt(abs(s0)) / denom

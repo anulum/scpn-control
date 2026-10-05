@@ -6,10 +6,16 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Physics Traceability Report Tests
 
+"""Preserve original real canonical report checks and legacy mocked formatter-shape regressions."""
+
 from __future__ import annotations
 
+import doctest
 import importlib.util
+import json
+import os
 import re
+import subprocess
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -25,6 +31,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
+    """Render the actual canonical registry and check its tracker/marker/claim metadata."""
     registry_path = ROOT / "validation" / "physics_traceability.json"
     report = validate_physics_traceability(registry_path)
     tracker_counts: dict[int, int] = {}
@@ -135,6 +142,7 @@ def test_generate_physics_traceability_markdown_bounds_public_claims() -> None:
 
 
 def test_generate_markdown_handles_missing_optional_report_shapes(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preserve the inherited mocked malformed-report formatter regression without physical claims."""
     report: dict[str, Any] = {
         "status": "fail",
         "total": 1,
@@ -171,6 +179,7 @@ def test_generate_markdown_handles_missing_optional_report_shapes(monkeypatch: p
 
 
 def test_generate_markdown_handles_invalid_entries_and_marker_counts(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preserve the inherited mocked report-shape fallback for counts and empty entries."""
     report: dict[str, Any] = {
         "status": "pass",
         "total": 0,
@@ -193,6 +202,7 @@ def test_generate_markdown_handles_invalid_entries_and_marker_counts(monkeypatch
 
 
 def test_generate_markdown_skips_invalid_tracker_status(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preserve the inherited mocked nonstring-status counting fallback."""
     report: dict[str, Any] = {
         "status": "pass",
         "total": 1,
@@ -230,6 +240,7 @@ def test_generate_markdown_skips_invalid_tracker_status(monkeypatch: pytest.Monk
 
 
 def test_module_bootstrap_adds_repo_root_to_sys_path(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Preserve the original bootstrap test when repository root is absent from sys.path."""
     root = str(ROOT)
     monkeypatch.setattr(sys, "path", [path for path in sys.path if path != root])
     spec = importlib.util.spec_from_file_location(
@@ -246,6 +257,7 @@ def test_module_bootstrap_adds_repo_root_to_sys_path(monkeypatch: pytest.MonkeyP
 
 
 def test_generate_physics_traceability_report_writes_file(tmp_path: Path) -> None:
+    """Run the real generator on the canonical valid registry and inspect UTF-8 output."""
     output = tmp_path / "physics_traceability.md"
 
     exit_code = main(
@@ -264,7 +276,94 @@ def test_generate_physics_traceability_report_writes_file(tmp_path: Path) -> Non
 
 
 def test_repository_physics_traceability_report_is_current() -> None:
+    """Compare complete actual generator bytes against current canonical public Markdown."""
     expected = generate_physics_traceability_markdown(ROOT / "validation" / "physics_traceability.json")
     actual = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
 
     assert actual == expected
+
+
+@pytest.fixture
+def malformed_real_registry(tmp_path: Path) -> Path:
+    """Persist a copied actual registry with one invalid unit contract and a raw true claim.
+
+    This is a schema refusal probe; the flag is not measured scientific evidence.
+    """
+    payload = json.loads((ROOT / "validation/physics_traceability.json").read_text())
+    payload["entries"][0].update(unit_contract="", public_claim_allowed=True, claim_admission_requirements=None)
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps(payload))
+    return path
+
+
+def test_actual_failed_registry_diagnostic_cannot_render_allowed_claim(malformed_real_registry: Path) -> None:
+    """Keep diagnostic visibility while blocking every displayed claim on a failed registry."""
+    markdown = generate_physics_traceability_markdown(malformed_real_registry)
+    assert "- Status: fail" in markdown and "## Validation Errors" in markdown
+    assert "- Full-fidelity public claim: allowed" not in markdown
+    assert "- Full-fidelity public claim: blocked" in markdown
+    with pytest.raises(ValueError, match="registry failed validation"):
+        generate_physics_traceability_markdown(malformed_real_registry, require_valid_registry=True)
+
+
+@pytest.mark.parametrize("value", [None, "false", 1])
+def test_generator_strict_policy_requires_literal_boolean(value: Any) -> None:
+    """Refuse ill-typed policy values before inspecting source, without truthiness coercion."""
+    with pytest.raises(ValueError, match="require_valid_registry must be boolean"):
+        generate_physics_traceability_markdown(
+            ROOT / "validation/physics_traceability.json", require_valid_registry=value
+        )
+
+
+def test_actual_generator_cli_refuses_invalid_source_before_output(
+    malformed_real_registry: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Preserve existing output bytes when strict input validation fails."""
+    output = tmp_path / "existing.md"
+    output.write_bytes(b"preserved preexisting report\n")
+    assert main(["--registry", str(malformed_real_registry), "--output-md", str(output)]) == 1
+    assert output.read_bytes() == b"preserved preexisting report\n"
+    assert "registry failed validation" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("kind", ["directory", "file_parent", "null"])
+def test_actual_generator_output_path_refusal(tmp_path: Path, kind: str, capsys: pytest.CaptureFixture[str]) -> None:
+    """Return refusal for actual output IO/path failures after valid canonical generation."""
+    if kind == "directory":
+        value = str(tmp_path)
+    elif kind == "null":
+        value = "bad\0path"
+    else:
+        parent = tmp_path / "parent"
+        parent.write_text("actual file parent")
+        value = str(parent / "child.md")
+    assert main(["--output-md", value]) == 1
+    assert "report refused" in capsys.readouterr().err
+
+
+def test_generator_standard_library_cli_refuses_missing_source_without_site(tmp_path: Path) -> None:
+    """Run actual generator bootstrap from another cwd without optional dependencies."""
+    output = tmp_path / "output.md"
+    c = subprocess.run(
+        [
+            sys.executable,
+            "-S",
+            str(ROOT / "validation/generate_physics_traceability_report.py"),
+            "--registry",
+            str(tmp_path / "missing"),
+            "--output-md",
+            str(output),
+        ],
+        cwd=tmp_path,
+        env=dict(os.environ, PYTHONPATH="", PYTHONDONTWRITEBYTECODE="1"),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    assert c.returncode == 1 and "report refused" in c.stderr and not output.exists()
+
+
+def test_generator_native_diagnostic_examples_execute() -> None:
+    """Execute the real native missing-source diagnostic example without a mocked report."""
+    result = doctest.testmod(traceability_report, raise_on_error=True)
+    assert result.failed == 0 and result.attempted >= 2

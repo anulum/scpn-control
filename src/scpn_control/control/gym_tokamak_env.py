@@ -20,6 +20,7 @@ Action:      [P_aux_delta, Ip_delta]               (2-dim, continuous)
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any
 
@@ -112,28 +113,41 @@ class TokamakEnv:
         return (2,)
 
     def reset(self, seed: int | None = None) -> tuple[FloatArray, dict[str, Any]]:
-        """Reset to initial plasma state."""
-        if seed is not None:
-            self._rng = np.random.default_rng(seed)
+        """Reset to an admitted initial plasma state and observation."""
+        candidate_rng = np.random.default_rng(seed) if seed is not None else self._rng
+        rng_state = copy.deepcopy(candidate_rng.bit_generator.state)
 
         # ITER-like initial condition with small perturbation
-        self._state[:] = [
-            10.0 + self._rng.normal(0, 0.5),
-            2.0 + self._rng.normal(0, 0.1),
-            1.5 + self._rng.normal(0, 0.1),
-            0.85 + self._rng.normal(0, 0.05),
-            3.0 + self._rng.normal(0, 0.1),
-            15.0,
-        ]
+        try:
+            initial_state = np.array(
+                [
+                    10.0 + candidate_rng.normal(0, 0.5),
+                    2.0 + candidate_rng.normal(0, 0.1),
+                    1.5 + candidate_rng.normal(0, 0.1),
+                    0.85 + candidate_rng.normal(0, 0.05),
+                    3.0 + candidate_rng.normal(0, 0.1),
+                    15.0,
+                ],
+                dtype=np.float64,
+            )
+            observation = self._observe(initial_state, candidate_rng)
+        except (FloatingPointError, ValueError):
+            candidate_rng.bit_generator.state = rng_state
+            raise
+
+        self._rng = candidate_rng
+        self._state[:] = initial_state
         self._step_count = 0
-        self._prev_temp_err = abs(self._state[0] - self.T_target)
+        self._prev_temp_err = abs(float(initial_state[0]) - self.T_target)
         self.P_aux = 50.0
-        return self._observe(), {}
+        return observation, {}
 
     def step(self, action: AnyFloatArray) -> tuple[FloatArray, float, bool, bool, dict[str, Any]]:
         """Advance one timestep using physics-based energy balance.
 
-        Returns (obs, reward, terminated, truncated, info).
+        Return (obs, reward, terminated, truncated, info) after finite admission.
+
+        A failed numerical update leaves the episode and observation RNG unchanged.
         """
         action = self._validate_action(action)
         action = np.clip(action, self.action_low, self.action_high)
@@ -144,68 +158,48 @@ class TokamakEnv:
         T_edge: float = float(s[1])
         Ip: float = float(s[5])
 
-        # 1. Update heating and current
-        self.P_aux = float(np.clip(self.P_aux + P_aux_delta, 0.0, 150.0))
-        Ip = float(np.clip(Ip + Ip_delta * self.dt * 10.0, 0.1, 20.0))
+        try:
+            with np.errstate(over="raise", invalid="raise", divide="raise"):
+                # Candidate actuators are local until the whole step is admitted.
+                next_heating = float(np.clip(self.P_aux + P_aux_delta, 0.0, 150.0))
+                Ip = float(np.clip(Ip + Ip_delta * self.dt * 10.0, 0.1, 20.0))
 
-        # 2. Physics: Energy Balance (Wesson Ch. 3 & Ch. 14)
-        # Average temperature assuming parabolic profile: <T> = 0.5 * (T_ax + T_edge)
-        T_avg = 0.5 * (T_ax + T_edge)
+                # Energy balance (Wesson Ch. 3 & Ch. 14).
+                T_avg = 0.5 * (T_ax + T_edge)
+                W_th = 0.04806 * self.n_e_20 * T_avg * self.V_plasma
+                tau_E = 2.0 * (Ip / 15.0) ** 0.93 * (max(next_heating, 1.0) / 50.0) ** -0.69
+                P_loss = W_th / max(tau_E, 0.1)
+                P_rad = 0.00535 * (self.n_e_20**2) * 1.5 * np.sqrt(max(T_avg, 0.1)) * self.V_plasma
+                dW_dt = next_heating - P_loss - P_rad
+                dT_avg_dt = dW_dt / (0.04806 * self.n_e_20 * self.V_plasma)
+                T_avg += dT_avg_dt * self.dt
+                T_ax = 1.8 * T_avg
+                T_edge = 0.2 * T_avg
 
-        # Stored Energy: W = 3/2 * (n_e + n_i) * <T> * V. Assume n_e = n_i.
-        # W [MJ] = 3 * n_e_20 * T_avg_keV * V * 1.602e-19 * 1e20 * 1e-6
-        # W [MJ] = 0.04806 * n_e_20 * T_avg * V
-        W_th = 0.04806 * self.n_e_20 * T_avg * self.V_plasma
+                # Reduced-order diagnostic estimates.
+                beta_N: float = 0.27 * T_ax / max(abs(Ip), 0.1)
+                q95: float = max(45.0 / max(Ip, 0.1), 1.5)
+                li: float = 0.85 + 0.1 * (q95 - 3.0)
+                disrupted = q95 < 2.0 or beta_N > 3.5
 
-        # Confinement Time: Simplified IPB98(y,2) scaling
-        # tau_E ~ Ip^0.93 * P^-0.69. Calibrated to ~2.0s for ITER at 15MA, 50MW.
-        tau_E = 2.0 * (Ip / 15.0) ** 0.93 * (max(self.P_aux, 1.0) / 50.0) ** -0.69
+                temp_err = abs(T_ax - self.T_target)
+                progress = max(0.0, self._prev_temp_err - temp_err)
+                reward = -temp_err + 5.0 * progress + 0.5 - 50.0 * float(disrupted) - 0.01 * np.linalg.norm(action)
+                next_state = np.array([T_ax, T_edge, beta_N, li, q95, Ip], dtype=np.float64)
+        except (FloatingPointError, OverflowError, ZeroDivisionError) as exc:
+            raise ValueError("model step must remain finite") from exc
 
-        # Losses: P_loss = W / tau_E [MW]
-        P_loss = W_th / max(tau_E, 0.1)
+        rng_state = copy.deepcopy(self._rng.bit_generator.state)
+        try:
+            observation = self._observe(next_state)
+        except (FloatingPointError, ValueError):
+            self._rng.bit_generator.state = rng_state
+            raise
 
-        # Bremsstrahlung: P_br [MW] = 0.00535 * n_e_20^2 * Z_eff * sqrt(Te) * V
-        # Reference: Wesson Ch. 14.5.1. Z_eff = 1.5.
-        P_rad = 0.00535 * (self.n_e_20**2) * 1.5 * np.sqrt(max(T_avg, 0.1)) * self.V_plasma
-
-        # Energy rate: dW/dt = P_aux - P_loss - P_rad
-        dW_dt = self.P_aux - P_loss - P_rad
-
-        # Temperature rate: d<T>/dt = dW_dt / (0.04806 * n_e_20 * V)
-        dT_avg_dt = dW_dt / (0.04806 * self.n_e_20 * self.V_plasma)
-
-        # Update T_ax and T_edge (simple profile relaxation)
-        T_avg += dT_avg_dt * self.dt
-        T_ax = 1.8 * T_avg  # Maintain profile ratio
-        T_edge = 0.2 * T_avg
-
-        # beta_N = beta_t * a * B_T / Ip (Troyon, Phys. Rev. Lett. 53, 1984)
-        _BETA_N_COEFF = 0.27  # [%-m-T/MA], ITER calibration
-        beta_N: float = _BETA_N_COEFF * T_ax / max(abs(Ip), 0.1)
-
-        # q95 ≈ 5 a² κ B_T / (R Ip); ITER: a=2m, κ=1.7, B_T=5.3T, R=6.2m
-        # Wesson Ch.3 Eq.3.51
-        _Q95_CONST = 45.0
-        q95: float = max(_Q95_CONST / max(Ip, 0.1), 1.5)
-        li: float = 0.85 + 0.1 * (q95 - 3.0)
-
-        self._state[:] = [T_ax, T_edge, beta_N, li, q95, Ip]
+        self.P_aux = next_heating
+        self._state[:] = next_state
         self._step_count += 1
-
-        # Disruption check: q95 < 2 or beta_N > 3.5
-        disrupted = q95 < 2.0 or beta_N > 3.5
-
-        # Reward: tracking error + potential-based shaping (Ng et al. 1999)
-        temp_err = abs(T_ax - self.T_target)
-        progress = max(0.0, self._prev_temp_err - temp_err)
         self._prev_temp_err = temp_err
-        reward = (
-            -temp_err
-            + 5.0 * progress
-            + 0.5  # survival bonus
-            - 50.0 * float(disrupted)
-            - 0.01 * np.linalg.norm(action)
-        )
 
         terminated = bool(disrupted)
         truncated = bool(self._step_count >= self.max_steps)
@@ -217,16 +211,20 @@ class TokamakEnv:
             "disrupted": bool(disrupted),
             "step": self._step_count,
         }
-        return self._observe(), float(reward), terminated, truncated, info
+        return observation, float(reward), terminated, truncated, info
 
-    def _observe(self) -> FloatArray:
-        """Return noisy observation."""
-        noise = self._rng.normal(0, self.noise_std, 6)
-        obs = np.clip(
-            self._state + noise,
-            self.observation_low,
-            self.observation_high,
-        )
+    def _observe(
+        self,
+        state: FloatArray | None = None,
+        rng: np.random.Generator | None = None,
+    ) -> FloatArray:
+        """Return a finite noisy observation of the supplied or current state."""
+        noise = (self._rng if rng is None else rng).normal(0, self.noise_std, 6)
+        with np.errstate(over="raise", invalid="raise"):
+            noisy_state = (self._state if state is None else state) + noise
+        if not np.all(np.isfinite(noisy_state)):
+            raise ValueError("observation must remain finite")
+        obs = np.clip(noisy_state, self.observation_low, self.observation_high)
         return obs.astype(np.float64)
 
     def _validate_action(self, action: AnyFloatArray) -> FloatArray:

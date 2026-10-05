@@ -5,6 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Sliding mode vertical tests.
+"""Public synthetic sliding-mode controller behavior tests."""
 
 from __future__ import annotations
 
@@ -20,7 +21,8 @@ from scpn_control.control.sliding_mode_vertical import (
 )
 
 
-def test_gain_verification():
+def test_gain_verification() -> None:
+    """Idealized gain screen accepts and rejects its declared inequalities."""
     L_max = 10.0
     alpha = math.sqrt(2.0 * L_max) + 1.0
     beta = L_max + 1.0
@@ -31,7 +33,8 @@ def test_gain_verification():
     assert not lyapunov_certificate(alpha, 1.0, L_max)  # beta too small
 
 
-def test_convergence_time_estimate():
+def test_convergence_time_estimate() -> None:
+    """Idealized time expression returns a finite positive value for valid inputs."""
     s0 = 4.0
     L_max = 2.0
     alpha = 5.0
@@ -42,7 +45,8 @@ def test_convergence_time_estimate():
     assert t_conv < 10.0
 
 
-def test_no_disturbance_convergence():
+def test_no_disturbance_convergence() -> None:
+    """The synthetic double integrator settles under a nominal controller."""
     smc = SuperTwistingSMC(alpha=50.0, beta=100.0, c=5.0, u_max=500.0)
 
     # Simulate simple double integrator: x_ddot = u
@@ -60,7 +64,8 @@ def test_no_disturbance_convergence():
     assert abs(x_dot) < 0.5
 
 
-def test_constant_disturbance_rejection():
+def test_constant_disturbance_rejection() -> None:
+    """Integral action counters a constant synthetic matched disturbance."""
     smc = SuperTwistingSMC(alpha=50.0, beta=100.0, c=5.0, u_max=500.0)
 
     dt = 0.001
@@ -80,7 +85,8 @@ def test_constant_disturbance_rejection():
     assert np.isclose(smc.v, -dist, atol=2.0)
 
 
-def test_actuator_saturation():
+def test_actuator_saturation() -> None:
+    """The emitted command obeys the configured numeric envelope."""
     smc = SuperTwistingSMC(alpha=100.0, beta=100.0, c=1.0, u_max=10.0)
     u = smc.step(10.0, 10.0, 0.01)
 
@@ -88,7 +94,8 @@ def test_actuator_saturation():
     assert abs(u) <= 10.0
 
 
-def test_vertical_stabilizer_wrapper():
+def test_vertical_stabilizer_wrapper() -> None:
+    """The public vertical wrapper delegates a finite command."""
     smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
     vs = VerticalStabilizer(n_index=-1.0, Ip_MA=15.0, R0=6.2, m_eff=1.0, tau_wall=0.01, smc=smc)
 
@@ -96,7 +103,7 @@ def test_vertical_stabilizer_wrapper():
     assert u != 0.0
 
 
-def test_smc_chattering_bounded():
+def test_smc_chattering_bounded() -> None:
     """Boundary-layer output magnitude < k (Slotine & Li 1991, Ch. 7, §7.2).
 
     |u| ≤ α |s|^{1/2} |sat(s)| + |v|.  With |sat(s)| ≤ 1, the
@@ -115,7 +122,7 @@ def test_smc_chattering_bounded():
     assert all(o <= k + 1e-9 for o in outputs), "output exceeds u_max (chattering not bounded)"
 
 
-def test_smc_reaching_condition():
+def test_smc_reaching_condition() -> None:
     """Sliding condition: s · ds/dt < 0 outside the boundary layer.
 
     Utkin 1992, Ch. 2: reaching condition s ṡ < 0 guarantees
@@ -139,7 +146,7 @@ def test_smc_reaching_condition():
     assert s_prev * ds_dt < 0.0, f"reaching condition violated: s={s_prev:.4f}, ds/dt={ds_dt:.4f}"
 
 
-def test_vertical_stabilizer_K_vs():
+def test_vertical_stabilizer_K_vs() -> None:
     """Exercise sliding_mode_vertical.py line 121: K_vs property."""
     smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
     vs = VerticalStabilizer(n_index=-1.0, Ip_MA=15.0, R0=6.2, m_eff=1.0, tau_wall=0.01, smc=smc)
@@ -147,18 +154,18 @@ def test_vertical_stabilizer_K_vs():
     assert K > 0.0  # n_index < 0 -> K_vs > 0
 
 
-def test_convergence_time_marginal_alpha():
+def test_convergence_time_marginal_alpha() -> None:
     """Exercise sliding_mode_vertical.py lines 151, 155: alpha <= sqrt(2*L) returns inf."""
     assert estimate_convergence_time(alpha=2.0, beta=5.0, L_max=2.0, s0=1.0) == float("inf")
     assert estimate_convergence_time(alpha=0.5, beta=5.0, L_max=-1.0, s0=1.0) == float("inf")
 
 
-def test_step_skips_integral_update_for_nonpositive_dt():
-    """Leave the integral state untouched when dt is non-positive (branch 69->72).
+def test_step_skips_integral_update_for_zero_dt() -> None:
+    """Leave the integral state untouched when dt is zero.
 
     The super-twisting integral term v is advanced by -beta*sat(s)*dt only for a
-    strictly positive time step. A zero (or negative) dt must not integrate, so v
-    stays at its prior value while the algebraic output term is still evaluated.
+    positive time step. Zero dt evaluates only the algebraic output term;
+    negative dt is rejected by the public admission boundary.
     """
     smc = SuperTwistingSMC(alpha=10.0, beta=20.0, c=1.0, u_max=100.0)
     v_before = smc.v

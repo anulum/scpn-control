@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MAST EFM neural equilibrium evaluation tests
 
+"""Public MAST evaluator regression tests using real archives, models and geometry."""
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -23,6 +25,7 @@ from validation.evaluate_mast_efm_neural_equilibrium import (
 
 
 def _write_reference_bundle(path: Path, *, n: int = 2, grid_shape: tuple[int, int] = (5, 7)) -> None:
+    """Persist converted-shaped two-row reference arrays for real accelerator inference and diagnostic metrics."""
     z, r = grid_shape
     psirz = np.arange(n * z * r, dtype=np.float64).reshape(n, z, r) / 100.0
     mask = np.ones_like(psirz, dtype=bool)
@@ -48,6 +51,7 @@ def _write_reference_bundle(path: Path, *, n: int = 2, grid_shape: tuple[int, in
 
 
 def _write_weights(path: Path, *, grid_shape: tuple[int, int] = (5, 7)) -> None:
+    """Exercise existing bounded synthetic pretraining through the accelerator API for the original inference regression."""
     acc = NeuralEquilibriumAccelerator(
         NeuralEqConfig(n_components=4, hidden_sizes=(), n_input_features=12, grid_shape=grid_shape)
     )
@@ -55,6 +59,7 @@ def _write_weights(path: Path, *, grid_shape: tuple[int, int] = (5, 7)) -> None:
 
 
 def test_masked_rmse_uses_only_valid_reference_points() -> None:
+    """Verify masked observations exclude unrelated residuals from the public metric."""
     observed = np.array([[1.0, 100.0], [3.0, 5.0]])
     predicted = np.array([[2.0, -100.0], [1.0, 1.0]])
     mask = np.array([[True, False], [True, False]])
@@ -63,6 +68,7 @@ def test_masked_rmse_uses_only_valid_reference_points() -> None:
 
 
 def test_build_feature_projection_records_source_boundaries(tmp_path: Path) -> None:
+    """Read a real NPZ mapping and retain explicit fallback provenance for absent diagnostics."""
     bundle = tmp_path / "reference.npz"
     _write_reference_bundle(bundle)
 
@@ -77,6 +83,7 @@ def test_build_feature_projection_records_source_boundaries(tmp_path: Path) -> N
 
 
 def test_evaluate_flux_geometry_recovers_axis_and_lcfs_on_explicit_grid() -> None:
+    """Recover analytic circular geometry through the public flux evaluator on exact source grids."""
     r_grid = np.linspace(0.4, 1.0, 61)
     z_grid = np.linspace(-0.3, 0.3, 61)
     rr, zz = np.meshgrid(r_grid, z_grid)
@@ -108,6 +115,7 @@ def test_evaluate_flux_geometry_recovers_axis_and_lcfs_on_explicit_grid() -> Non
 
 
 def test_evaluate_reference_bundle_writes_predictions_and_blocks_admission(tmp_path: Path) -> None:
+    """Run actual accelerator inference, persist predictions and keep incomplete predictive admission false."""
     bundle = tmp_path / "reference.npz"
     weights = tmp_path / "weights.npz"
     predictions = tmp_path / "predictions.npz"
@@ -132,3 +140,126 @@ def test_evaluate_reference_bundle_writes_predictions_and_blocks_admission(tmp_p
         assert data["feature_projection"].shape == (2, 12)
         assert data["derived_magnetic_axis_r_m"].shape == (2,)
         assert data["derived_lcfs_point_count"].shape == (2,)
+
+
+def test_evaluation_single_row_matches_accelerator_batch_contract(tmp_path: Path) -> None:
+    """The real accelerator's squeezed single-row result remains a one-row diagnostic artefact."""
+    reference = tmp_path / "reference.npz"
+    weights = tmp_path / "weights.npz"
+    prediction = tmp_path / "prediction.without_npz_suffix"
+    _write_reference_bundle(reference)
+    with np.load(reference, allow_pickle=False) as data:
+        arrays = {key: data[key][:1] for key in data.files}
+    from scpn_control._npz import save_npz_arrays
+
+    save_npz_arrays(reference, arrays)
+    _write_weights(weights)
+    report = evaluate_reference_bundle(reference, weights, prediction)
+    assert report["reference_equilibria_count"] == 1
+    assert prediction.is_file()
+    assert not prediction.with_suffix(".without_npz_suffix.npz").exists()
+    with np.load(prediction, allow_pickle=False) as payload:
+        assert payload["psi_prediction_Wb_per_rad"].shape == (1, 5, 7)
+    assert sorted(p.name for p in tmp_path.iterdir()) == [prediction.name, reference.name, weights.name]
+
+
+def test_metric_refusals_and_representable_large_residuals() -> None:
+    """Public RMSE refuses invalid selections and avoids square overflow without changing units."""
+    import pytest
+
+    with pytest.raises(ValueError, match="identical shapes"):
+        masked_rmse(np.ones(2), np.ones(3), np.ones(3, dtype=bool))
+    with pytest.raises(ValueError, match="mask and observed"):
+        masked_rmse(np.ones(2), np.ones(2), np.ones(3, dtype=bool))
+    with pytest.raises(ValueError, match="finite masked point"):
+        masked_rmse(np.ones(2), np.ones(2), np.zeros(2, dtype=bool))
+    with pytest.raises(ValueError, match="representable"):
+        masked_rmse(np.array([1e308]), np.array([-1e308]), np.ones(1, dtype=bool))
+    assert masked_rmse(np.ones(2), np.ones(2), np.ones(2, dtype=bool)) == 0.0
+    assert masked_rmse(np.array([1e200]), np.zeros(1), np.ones(1, dtype=bool)) == 1e200
+
+
+def test_reference_loader_and_report_outputs_preserve_inputs(tmp_path: Path) -> None:
+    """Real archive/report writes refuse resolved input aliases and retain selected source bytes."""
+    import pytest
+
+    from validation.evaluate_mast_efm_neural_equilibrium import load_reference_bundle, write_report
+
+    reference = tmp_path / "reference.npz"
+    weights = tmp_path / "weights.npz"
+    prediction = tmp_path / "prediction.npz"
+    _write_reference_bundle(reference)
+    _write_weights(weights)
+    original = reference.read_bytes()
+    arrays = load_reference_bundle(reference)
+    assert arrays["psirz_Wb_per_rad"].shape == (2, 5, 7)
+    for alias in (reference, weights):
+        with pytest.raises(ValueError, match="must be distinct"):
+            evaluate_reference_bundle(reference, weights, alias)
+    report = evaluate_reference_bundle(reference, weights, prediction)
+    for alias in (reference, weights, prediction):
+        with pytest.raises(ValueError, match="must be distinct"):
+            write_report(report, alias, None)
+    assert reference.read_bytes() == original
+    output = tmp_path / "evaluation.json"
+    markdown = tmp_path / "evaluation.md"
+    write_report(report, output, markdown)
+    assert '"admission_ready": false' in output.read_text()
+    assert "Admission ready: False" in markdown.read_text()
+    write_report(report, None, None)
+
+
+def test_real_model_grid_mismatch_refuses_before_prediction_write(tmp_path: Path) -> None:
+    """A loaded real accelerator with the wrong spatial dimensions cannot emit matched-grid evidence."""
+    import pytest
+
+    reference = tmp_path / "reference.npz"
+    weights = tmp_path / "weights.npz"
+    prediction = tmp_path / "prediction.npz"
+    _write_reference_bundle(reference)
+    _write_weights(weights, grid_shape=(4, 4))
+    with pytest.raises(ValueError, match="does not match"):
+        evaluate_reference_bundle(reference, weights, prediction)
+    assert not prediction.exists()
+
+
+def test_cli_success_and_authored_refusal_use_real_inputs(tmp_path: Path) -> None:
+    """Run the public CLI boundary, preserving false admission and refusing aliases before any inference."""
+    import pytest
+
+    from validation.evaluate_mast_efm_neural_equilibrium import main, parse_args
+
+    reference = tmp_path / "reference.npz"
+    weights = tmp_path / "weights.npz"
+    prediction = tmp_path / "prediction.npz"
+    output = tmp_path / "evaluation.json"
+    markdown = tmp_path / "evaluation.md"
+    _write_reference_bundle(reference)
+    _write_weights(weights)
+    args = [
+        "--reference-path",
+        str(reference),
+        "--weights-path",
+        str(weights),
+        "--prediction-path",
+        str(prediction),
+        "--json-out",
+        str(output),
+        "--report-out",
+        str(markdown),
+        "--ffprime-reference",
+        "1.0",
+    ]
+    assert main(args) == 0
+    assert output.is_file() and markdown.is_file()
+    args[args.index("--prediction-path") + 1] = str(reference)
+    assert main(args) == 1
+    args[args.index("--reference-path") + 1] = str(tmp_path / "missing-reference.npz")
+    args[args.index("--prediction-path") + 1] = str(tmp_path / "missing-prediction.npz")
+    assert main(args) == 1
+    with pytest.raises(SystemExit) as help_exit:
+        parse_args(["--help"])
+    assert help_exit.value.code == 0
+    with pytest.raises(SystemExit) as usage_exit:
+        parse_args([])
+    assert usage_exit.value.code == 2

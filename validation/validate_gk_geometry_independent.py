@@ -49,7 +49,7 @@ _COMPARE_FIELDS = ("R", "Z", "jacobian", "g_rr", "g_rt", "g_tt", "B_toroidal", "
 _UNITS = {
     "R": "m",
     "Z": "m",
-    "jacobian": "m2",
+    "jacobian": "m",
     "g_rr": "dimensionless",
     "g_rt": "m-1",
     "g_tt": "m-2",
@@ -139,6 +139,7 @@ _CASES: tuple[dict[str, Any], ...] = (
 
 
 def _production_fields(parameters: dict[str, Any]) -> dict[str, Any]:
+    """Sample analytic Miller geometry and toroidal field on the fixed comparison grid."""
     geometry = miller_geometry(**parameters, n_theta=_N_THETA, n_period=_N_PERIOD)
     B0 = float(parameters["B0"])
     R0 = float(parameters["R0"])
@@ -156,6 +157,7 @@ def _production_fields(parameters: dict[str, Any]) -> dict[str, Any]:
 
 
 def _reference_fields(parameters: dict[str, Any], theta: FloatArray) -> dict[str, FloatArray]:
+    """Evaluate finite-difference metric fields on the analytic implementation theta grid."""
     ref = independent_miller_metric(theta=theta, **parameters)
     return {
         "R": ref.R,
@@ -170,6 +172,7 @@ def _reference_fields(parameters: dict[str, Any], theta: FloatArray) -> dict[str
 
 
 def _field_agreement(production: FloatArray, reference: FloatArray) -> tuple[float, float, bool]:
+    """Compare sampled fields with the declared absolute and relative tolerances."""
     diff = np.abs(production - reference)
     max_abs = float(np.max(diff))
     denom = np.abs(reference)
@@ -219,6 +222,7 @@ def validate_gk_geometry_independent() -> dict[str, Any]:
 
 
 def _new_report() -> dict[str, Any]:
+    """Initialise the independent local metric report with SI units and bounded claims."""
     return {
         "schema_version": _REPORT_SCHEMA,
         "status": "pass",
@@ -243,11 +247,13 @@ def _new_report() -> dict[str, Any]:
 
 
 def _json_sha256(payload: object) -> str:
+    """Hash sorted compact ASCII JSON for report and case consistency."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Set local comparison admission and bind the canonical report payload digest."""
     report["public_claims"]["bounded_local_miller_geometry_independently_verified"] = report["status"] == "pass"
     payload = dict(report)
     payload["payload_sha256"] = None

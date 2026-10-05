@@ -5,7 +5,19 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Python lint-scope consistency gate.
-"""Keep repository lint and generated-artifact scopes consistent across gates."""
+"""Check literal Python lint declarations in four local repository surfaces.
+
+Make, static-governance CI, local preflight and pre-commit must contain the
+required fragments and omit the forbidden broad lint commands. The pre-commit
+declaration also binds this checker to its own executable entry and file filter,
+including the actual static-governance workflow.
+
+This is a UTF-8 text inspection, not a YAML/Make/Python parser or an execution
+check. Comments and inactive strings can satisfy a fragment; a pass does not
+prove lint ran, tool versions agree or every definition has native documentation.
+The separate docstring gates and actual lint commands enforce those contracts.
+No tools, hooks, workflows or generated ledgers are run or rewritten by the API.
+"""
 
 from __future__ import annotations
 
@@ -16,11 +28,40 @@ from typing import Final
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 TYPO_LEDGER_EXCLUSION: Final = "        exclude: ^tools/coverage_exception_ledger\\.json$\n"
+LINT_HOOK_FILES: Final = (
+    r"^(Makefile|pyproject\.toml|\.pre-commit-config\.yaml|"
+    r"\.github/workflows/ci(?:-static-governance)?\.yml|"
+    r"tools/(preflight|check_python_lint_contract)\.py|tests/test_python_lint_contract\.py)$"
+)
+LINT_HOOK_SECTION: Final = (
+    "      - id: check-python-lint-contract\n"
+    "        name: Python lint scope contract\n"
+    "        entry: python tools/check_python_lint_contract.py\n"
+    "        language: system\n"
+    "        pass_filenames: false\n"
+    f"        files: {LINT_HOOK_FILES}\n"
+)
 
 
 @dataclass(frozen=True)
 class SurfaceContract:
-    """Required and forbidden command fragments for one repository surface."""
+    """Literal text requirements for one repository-relative surface.
+
+    Attributes
+    ----------
+    path
+        File spelling joined to the caller's repository root, without a
+        containment or symlink check.
+    required
+        Fragments that must each occur at least once, including their whitespace.
+    forbidden
+        Fragments whose presence always yields an error; empty by default.
+
+    Notes
+    -----
+    Construction stores the supplied declarations without runtime validation.
+    Frozen fields prevent reassignment, not validation of file contents.
+    """
 
     path: Path
     required: tuple[str, ...]
@@ -30,19 +71,31 @@ class SurfaceContract:
 CONTRACTS: Final = (
     SurfaceContract(
         Path("Makefile"),
-        ("\truff check src/scpn_control/\n", "\truff format --check src/ tests/\n"),
+        (
+            "\truff check src/scpn_control/\n",
+            "\truff check --extend-ignore D tests/ tools/ validation/\n",
+            "\truff format --check src/ tests/ tools/ validation/\n",
+            "\tpython tools/check_docstring_debt.py\n",
+        ),
         ("\truff check src/ tests/\n",),
     ),
     SurfaceContract(
         Path(".github/workflows/ci-static-governance.yml"),
-        ("run: ruff check src/scpn_control/", "run: ruff format --check src/scpn_control/ tests/"),
+        (
+            "run: ruff check src/scpn_control/",
+            "run: ruff check --extend-ignore D tests/ tools/ validation/",
+            "run: ruff format --check src/scpn_control/ tests/ tools/ validation/",
+            "run: python tools/check_docstring_debt.py",
+        ),
         ("run: ruff check src/ tests/",),
     ),
     SurfaceContract(
         Path("tools/preflight.py"),
         (
             '("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None)',
-            '("ruff format", [_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/"], None)',
+            '[_PY, "-m", "ruff", "check", "--extend-ignore", "D", "tests/", "tools/", "validation/"]',
+            '[_PY, "-m", "ruff", "format", "--check", "src/scpn_control/", "tests/", "tools/", "validation/"]',
+            '("docstring-debt-ratchet", [_PY, "tools/check_docstring_debt.py"], None)',
         ),
         ('"check", "src/", "tests/"',),
     ),
@@ -50,22 +103,57 @@ CONTRACTS: Final = (
         Path(".pre-commit-config.yaml"),
         (
             "      - id: ruff\n        args: [--fix, --exit-non-zero-on-fix]\n        files: ^src/\n",
-            "      - id: ruff-format\n        files: ^(src/|tests/)\n",
+            "        args: [--fix, --exit-non-zero-on-fix, --extend-ignore, D]\n        files: ^(tests/|tools/|validation/)\n",
+            "      - id: ruff-format\n        files: ^(src/|tests/|tools/|validation/)\n",
             "      - id: typos\n" + TYPO_LEDGER_EXCLUSION,
+            LINT_HOOK_SECTION,
         ),
     ),
 )
 
 
 def lint_contract_errors(repo: Path) -> list[str]:
-    """Return lint-scope contract errors found below ``repo``."""
+    """Return ordered declaration errors from the four policy-owned text files.
+
+    Parameters
+    ----------
+    repo
+        Root joined to the declared relative paths. Relative roots use the
+        caller's working directory; symlinks are followed. No Git state is read.
+
+    Returns
+    -------
+    list[str]
+        Fresh list ordered by surface, then required and forbidden fragments.
+        Missing or non-file surfaces produce one error and are not read.
+        Expected read/UTF-8 failures produce fixed errors and inspection proceeds
+        to the next surface. Empty means only that all literal fragments match.
+
+    Notes
+    -----
+    UTF-8 text uses Python's universal newline handling. Matching is case and
+    whitespace sensitive after newline normalisation. No parsing, linter run,
+    mutation, cache, locking or coherent concurrent-file snapshot is provided.
+    Fragment diagnostics quote authored policy constants, not exception text.
+
+    Examples
+    --------
+    Inspect the actual repository declarations:
+
+    >>> lint_contract_errors(ROOT)
+    []
+    """
     errors: list[str] = []
     for contract in CONTRACTS:
         surface = repo / contract.path
         if not surface.is_file():
             errors.append(f"missing contract surface: {contract.path.as_posix()}")
             continue
-        text = surface.read_text(encoding="utf-8")
+        try:
+            text = surface.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            errors.append(f"could not read UTF-8 contract surface: {contract.path.as_posix()}")
+            continue
         for fragment in contract.required:
             if fragment not in text:
                 errors.append(f"{contract.path.as_posix()}: missing required fragment {fragment!r}")
@@ -76,17 +164,41 @@ def lint_contract_errors(repo: Path) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Validate the repository lint contract and return a process status."""
+    """Inspect lint declarations through the stdlib command-line entrypoint.
+
+    Parameters
+    ----------
+    argv
+        Arguments without the executable name, or None for process arguments.
+        --repo selects a root relative to the caller; default ROOT is determined
+        from this script. The selected root is resolved before inspection.
+
+    Returns
+    -------
+    int
+        0 when literal declarations match, 1 for contract/read errors, or 2 when
+        the root cannot be resolved. Authored diagnostics go to stdout only.
+
+    Raises
+    ------
+    SystemExit
+        ArgumentParser uses exit 0 for help and 2 for invalid arguments.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=ROOT)
     args = parser.parse_args(argv)
-    errors = lint_contract_errors(args.repo.resolve())
+    try:
+        repo = args.repo.resolve()
+    except (OSError, RuntimeError, ValueError):
+        print("FAIL: could not resolve Python lint contract repository")
+        return 2
+    errors = lint_contract_errors(repo)
     if errors:
         print("FAIL: Python lint scope drift detected")
         for error in errors:
             print(f"  - {error}")
         return 1
-    print("PASS: Python source lint and test format scopes agree across repository gates")
+    print("PASS: required Python lint declarations match repository fragments")
     return 0
 
 

@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — GK OOD calibration validation tests
 
+"""Keep original six metadata acceptance/refusal assertions and fixture executable bodies unchanged."""
+
 from __future__ import annotations
 
 import json
@@ -15,6 +17,7 @@ from validation.validate_gk_ood_calibration import validate_gk_ood_calibration
 
 
 def _valid_calibration_report() -> dict[str, object]:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     return {
         "schema_version": "scpn-control.gk-ood-calibration-artifact.v2",
         "campaign_id": "qlknn-public-cbc-shift-2026-05-18",
@@ -72,6 +75,7 @@ def _valid_calibration_report() -> dict[str, object]:
 
 
 def test_strict_ood_calibration_gate_requires_campaign_artifacts(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     report = validate_gk_ood_calibration(tmp_path, require_campaign_artifacts=True)
 
     assert report["status"] == "fail"
@@ -87,6 +91,7 @@ def test_strict_ood_calibration_gate_requires_campaign_artifacts(tmp_path: Path)
 
 
 def test_ood_calibration_gate_accepts_valid_campaign_artifact(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     artifact = tmp_path / "qlknn_public_cbc_shift.json"
     artifact.write_text(json.dumps(_valid_calibration_report()), encoding="utf-8")
 
@@ -103,6 +108,7 @@ def test_ood_calibration_gate_accepts_valid_campaign_artifact(tmp_path: Path) ->
 
 
 def test_ood_calibration_gate_rejects_missing_feature_schema(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     payload = _valid_calibration_report()
     payload["feature_schema"] = ["R_L_Ti"]
     artifact = tmp_path / "bad_schema.json"
@@ -115,6 +121,7 @@ def test_ood_calibration_gate_rejects_missing_feature_schema(tmp_path: Path) -> 
 
 
 def test_ood_calibration_gate_rejects_false_negative_regression(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     payload = _valid_calibration_report()
     acceptance = payload["acceptance"]
     assert isinstance(acceptance, dict)
@@ -129,6 +136,7 @@ def test_ood_calibration_gate_rejects_false_negative_regression(tmp_path: Path) 
 
 
 def test_ood_calibration_gate_rejects_missing_metric_provenance(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     payload = _valid_calibration_report()
     payload.pop("mahalanobis_metric")
     artifact = tmp_path / "bad_metric.json"
@@ -141,6 +149,7 @@ def test_ood_calibration_gate_rejects_missing_metric_provenance(tmp_path: Path) 
 
 
 def test_ood_calibration_gate_rejects_duplicate_campaign_ids(tmp_path: Path) -> None:
+    """Preserve original declared-campaign test/fixture behavior; no actual deployment is authenticated."""
     payload = _valid_calibration_report()
     for index in range(2):
         artifact = tmp_path / f"duplicate_{index}.json"

@@ -132,8 +132,8 @@ The architecture *could* support future integration, but:
 ## Architecture
 
 ```
-207 Python control/physics modules | 5 Rust crates / 66 Rust source files
-594 Python test files | 22 GitHub Actions workflows
+285 Python control/physics modules | 5 Rust crates / 67 Rust source files
+802 Python test files | 22 GitHub Actions workflows
 ```
 
 ```
@@ -160,11 +160,15 @@ scpn-control-rs/
 Real-time 16-layer Kuramoto-Sakaguchi phase sync with global field driver.
 Interactive controls for coupling strength, oscillator count, and Psi driver.
 
-**Phase sync convergence (500 ticks, 16 layers x 50 oscillators):**
+**Historical phase-model visualization (labelled 500 ticks, 16 layers x 50 oscillators):**
 
 <p align="center">
-  <img src="../phase_sync_live.gif" alt="Phase Sync Convergence" width="100%">
+  <img src="phase_sync_live.gif" alt="Historical phase-model visualization" width="100%">
 </p>
+
+The current seeded default gives R≈0.154 and V≈0.846 at tick500. Generate new
+media in a fresh directory with `python tools/generate_phase_video.py --output-dir phase-video`;
+see the [phase-model video contract](api.md#phase-model-video).
 
 ---
 

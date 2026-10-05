@@ -74,7 +74,56 @@ def validate(
     native_formal_max_aot_p99_cycle_us: float,
     no_native_formal_certificate: bool,
 ) -> None:
-    """Run import hygiene, provenance, parity, traceability, and formal evidence validation."""
+    """Print enabled evidence-reader summaries and fail on import or gate findings.
+
+    Parameters
+    ----------
+    json_out : bool
+        Emit one JSON object instead of text summaries and stderr findings.
+    data_manifest_root : str or None
+        Override the repository data-manifest input directory.
+    no_data_manifests : bool
+        Skip that gate for an explicitly scoped check.
+    no_verify_artifacts : bool
+        Disable local manifest checksum reopening; metadata still checked.
+    jax_gk_parity_root : str or None
+        Override persisted JAX case/backend reports.
+    no_jax_gk_parity : bool
+        Skip persisted JAX parity inspection.
+    physics_traceability_registry : str or None
+        Override the bounded-claim registry input.
+    no_physics_traceability : bool
+        Skip that registry reader.
+    multi_shot_campaign_python_report, multi_shot_campaign_rust_report : str or None
+        Override persisted campaign reports; this command does not run them.
+    multi_shot_min_digest_count : int
+        Required minimum upstream admission digest count in those reports.
+    no_multi_shot_campaign_evidence : bool
+        Skip the campaign reader for a scoped check.
+    runtime_admission_report : str or None
+        Override the persisted admission-probe report, not live host policy.
+    no_runtime_admission_evidence : bool
+        Skip that reader for a scoped check.
+    native_formal_certificate_report : str or None
+        Override the persisted native AOT certificate report.
+    native_formal_max_aot_p99_cycle_us : float
+        Maximum declared AOT p99 latency admitted by the native report reader.
+    no_native_formal_certificate : bool
+        Skip the certificate reader for a scoped check.
+
+    Raises
+    ------
+    click.exceptions.Exit
+        Code1 when transport import fails, a prohibited visualization/ML module
+        is loaded, or any enabled gate fails. Skipped gates cannot support a
+        complete release-evidence admission.
+
+    Notes
+    -----
+    Reports retain each reader's provenance boundary. No physical benchmark,
+    control loop or current-host admission probe is started here. Text findings
+    use stderr; JSON mode emits the combined result to stdout before exit.
+    """
     try:
         from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
 
@@ -82,17 +131,18 @@ def validate(
     except ImportError:
         has_transport = False
 
-    result = {
+    result: dict[str, object] = {
         "transport_solver_available": has_transport,
         "import_clean": True,
-        "status": "pass",
+        "status": "pass" if has_transport else "fail",
     }
-    validation_failed = False
+    validation_failed = not has_transport
 
     for mod in ["matplotlib", "torch", "streamlit"]:
         if mod in sys.modules:
             result["import_clean"] = False
             result["status"] = "fail"
+            validation_failed = True
             result["contaminated_module"] = mod
             break
 
@@ -312,7 +362,14 @@ def validate_release_evidence_command(report: str, json_out: bool) -> None:
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 @click.option("--verify-artifact", is_flag=True, help="Verify local artefact checksum")
 def validate_manifest(manifest: str, json_out: bool, verify_artifact: bool) -> None:
-    """Validate real-shot or synthetic-shot data manifest provenance."""
+    """Inspect one declaration through the actual loader and optional local hashing.
+
+    The Click command accepts an existing readable manifest file, --json-out and
+    --verify-artifact. Metadata/path/read failures emit FAIL and exit 1. Selected
+    verification adds artifact_verified: true only if local bytes were checked;
+    remote sources without artifacts report false. PASS proves neither facility
+    acquisition nor physical correctness; the command returns no Python value.
+    """
     from scpn_control.core.real_data_manifest import RealDataManifestError, load_real_data_manifest
 
     try:
@@ -339,7 +396,11 @@ def validate_manifest(manifest: str, json_out: bool, verify_artifact: bool) -> N
         "status": "pass",
     }
     if verify_artifact:
-        result["artifact_verified"] = True
+        result["artifact_verified"] = bool(
+            validated.artifacts
+            or (validated.synthetic and validated.checksum_sha256 is not None)
+            or validated.source.kind in {"geqdsk", "local_archive"}
+        )
     if json_out:
         click.echo(json.dumps(result, indent=2))
     else:
@@ -352,7 +413,10 @@ def validate_manifest(manifest: str, json_out: bool, verify_artifact: bool) -> N
         click.echo(f"Status: {result['status']}")
 
 
-@click.command("validate-data-manifests")
+@click.command(
+    "validate-data-manifests",
+    help="Run the defining directory reader with Click's manifest policy options.\n\nRoot defaults to the repository reference tree. JSON/text output preserves\ndiagnostic counters on FAIL; optional output creates parents and writes UTF-8\nJSON. Supported output failures add a finding and exit 1. Validation FAIL also\nexits 1. Realised metadata is not scientific acquisition authentication, and\n--no-verify-artifacts records the absence of byte checks. Returns no value.",
+)
 @click.option("--root", help="Root directory to scan for repository data manifests")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--no-verify-artifacts", is_flag=True, help="Validate metadata without local checksum verification")
@@ -369,7 +433,34 @@ def validate_data_manifests_command(
     require_real_acquisition: bool,
     json_out: bool,
 ) -> None:
-    """Validate repository data manifests, local artefacts, and acquisition specs."""
+    """Run the defining directory reader with Click's manifest policy options.
+
+    Root defaults to the repository reference tree. JSON/text output preserves
+    diagnostic counters on FAIL; optional output creates parents and writes UTF-8
+    JSON. Selected manifests/specifications/local artifacts and the input root
+    cannot be destinations, including existing hard links. Supported output
+    failures add a finding and exit 1. Validation FAIL also
+    exits 1. Realised metadata is not scientific acquisition authentication, and
+    --no-verify-artifacts records the absence of byte checks. Returns no value.
+
+    Parameters
+    ----------
+    root
+        Directory spelling, or None/empty for the repository reference tree.
+    output_json
+        Optional caller-relative output; protected input aliases are refused.
+    no_verify_artifacts
+        Disable checksum verification in the defining reader, not destination checks.
+    require_real_acquisition
+        Ask the reader to fail on pending valid acquisition specifications.
+    json_out
+        Print diagnostic JSON instead of counts and stderr findings.
+
+    Notes
+    -----
+    Input discovery and output checking are sequential, without an atomic
+    filesystem snapshot or write. Only selected local inputs are protected.
+    """
     from validation.validate_data_manifests import ROOT, validate_manifest_directory
 
     validation_root = root or str(ROOT / "validation" / "reference_data")
@@ -379,11 +470,15 @@ def validate_data_manifests_command(
         require_real_acquisition=require_real_acquisition,
     )
     if output_json is not None:
-        from pathlib import Path as _P
+        from validation.report_output_paths import checked_report_destination, manifest_report_inputs
 
-        output_path = _P(output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            output_path = checked_report_destination(output_json, inputs=manifest_report_inputs(validation_root))
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, ValueError, RuntimeError) as exc:
+            report["status"] = "fail"
+            report["errors"].append({"path": output_json, "error": f"cannot write report: {exc}"})
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
@@ -401,7 +496,9 @@ def validate_data_manifests_command(
         raise click.exceptions.Exit(1)
 
 
-@click.command("validate-physics-traceability")
+@click.command(
+    "validate-physics-traceability", help="Validate physics fidelity traceability and bounded-claim contracts."
+)
 @click.option("--registry", help="Physics traceability registry JSON path")
 @click.option("--output-json", type=click.Path(dir_okay=False), help="Write JSON report to this path")
 @click.option("--json-out", is_flag=True, help="Emit JSON")
@@ -410,17 +507,49 @@ def validate_physics_traceability_command(
     output_json: str | None,
     json_out: bool,
 ) -> None:
-    """Validate physics fidelity traceability and bounded-claim contracts."""
+    """Inspect local registry declarations through the defining public reader.
+
+    Default input is the source-tree registry; caller-relative paths use cwd.
+    Optional sorted UTF-8 JSON output creates parents but refuses the selected
+    registry and its symlink/hard-link aliases. Supported write/path failures
+    raise a fixed ClickException with exit1; no raw filesystem error is exposed.
+    Validation FAIL prints diagnostic JSON/text and exits1. No equations,
+    external evidence or full-fidelity/operational admission are authenticated.
+
+    Parameters
+    ----------
+    registry
+        Input spelling, or None/empty for the source-tree default registry.
+    output_json
+        Optional caller-relative output, distinct from the selected registry.
+    json_out
+        Print diagnostic JSON instead of counts and stderr findings.
+
+    Raises
+    ------
+    click.ClickException
+        Supported output/path failure, with fixed operational text and exit1.
+    click.exceptions.Exit
+        Exit1 for a defining reader's FAIL result after diagnostic output.
+
+    Notes
+    -----
+    No registry-evidence bytes, coherent filesystem snapshot, lock or atomic
+    report replacement are authenticated by this command.
+    """
     from validation.validate_physics_traceability import ROOT, validate_physics_traceability
 
     registry_path = registry or str(ROOT / "validation" / "physics_traceability.json")
     report = validate_physics_traceability(registry_path)
     if output_json is not None:
-        from pathlib import Path as _P
+        from validation.report_output_paths import checked_report_destination
 
-        output_path = _P(output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        try:
+            output_path = checked_report_destination(output_json, inputs=[registry_path])
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        except (OSError, ValueError, RuntimeError) as exc:
+            raise click.ClickException("could not write physics traceability report") from exc
     if json_out:
         click.echo(json.dumps(report, indent=2, sort_keys=True))
     else:
@@ -444,18 +573,33 @@ def validate_physics_traceability_command(
 @click.option("--output-json", default="artifacts/rmse_report.json", help="JSON path")
 @click.option("--output-md", default="artifacts/rmse_report.md", help="Markdown path")
 def validate_rmse(json_out: bool, output_json: str, output_md: str) -> None:
-    """Run full RMSE validation dashboard against reference data."""
+    """Generate bounded regression reports, retaining unavailable model lanes.
+
+    Parameters
+    ----------
+    json_out
+        Echo the generated JSON carrier after the dashboard's progress output.
+    output_json, output_md
+        Output paths relative to the caller's working directory. Figures go
+        beside the JSON report. Existing destinations may be overwritten.
+
+    Notes
+    -----
+    Successful output generation does not admit physics/facility validation
+    or guarantee a passing CI regression gate. The caller's process arguments
+    are preserved. File or input failures become a Click error and exit one.
+    """
+    from pathlib import Path
+
     from validation.rmse_dashboard import main as rmse_main
 
-    sys.argv = ["rmse_dashboard", "--output-json", output_json, "--output-md", output_md]
-    exit_code = rmse_main()
-    if json_out:
-        from pathlib import Path as _P
-
-        p = _P(output_json)
-        if p.exists():
-            click.echo(p.read_text(encoding="utf-8"))
-    sys.exit(exit_code or 0)
+    try:
+        exit_code = rmse_main(["--output-json", output_json, "--output-md", output_md])
+        if json_out:
+            click.echo(Path(output_json).read_text(encoding="utf-8"))
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise click.ClickException(str(exc)) from exc
+    sys.exit(exit_code)
 
 
 EVIDENCE_VALIDATOR_COMMANDS: tuple[click.Command, ...] = (

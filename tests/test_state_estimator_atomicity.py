@@ -26,6 +26,33 @@ def _assert_state(ekf: ExtendedKalmanFilter, expected: tuple[FloatArray, ...]) -
         np.testing.assert_array_equal(actual, previous)
 
 
+def test_large_finite_covariance_is_admitted_without_intermediate_overflow() -> None:
+    """A representable covariance must survive public filter construction."""
+    covariance = np.eye(4) * 1e308
+    with np.errstate(over="raise", invalid="raise"):
+        ekf = ExtendedKalmanFilter(np.zeros(6), np.eye(6), np.eye(6), covariance)
+    np.testing.assert_array_equal(ekf.R, covariance)
+
+
+def test_large_asymmetric_covariance_is_rejected() -> None:
+    """Scaling must not mask a material covariance asymmetry."""
+    covariance = np.eye(4) * 1e308
+    covariance[0, 1] = 1e307
+    with np.errstate(over="raise", invalid="raise"), pytest.raises(ValueError, match="R_cov must be symmetric"):
+        ExtendedKalmanFilter(np.zeros(6), np.eye(6), np.eye(6), covariance)
+
+
+def test_large_indefinite_covariance_is_rejected() -> None:
+    """Scaled eigenvalue validation must retain the PSD boundary."""
+    covariance = np.eye(4) * 1e308
+    covariance[0, 0] = -1e307
+    with (
+        np.errstate(over="raise", invalid="raise"),
+        pytest.raises(ValueError, match="R_cov must be positive semidefinite"),
+    ):
+        ExtendedKalmanFilter(np.zeros(6), np.eye(6), np.eye(6), covariance)
+
+
 @pytest.mark.parametrize("floating_errors", ["ignore", "raise"])
 def test_prediction_overflow_preserves_state_and_retry(floating_errors: Literal["ignore", "raise"]) -> None:
     """Rejected covariance prediction must not advance the state estimate."""

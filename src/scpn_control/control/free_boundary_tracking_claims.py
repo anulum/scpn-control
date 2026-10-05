@@ -14,12 +14,11 @@ of the :class:`~scpn_control.control.free_boundary_tracking.FreeBoundaryTracking
 engine: it consumes a summary and an optional reference artifact, never a live
 controller, so evidence construction and the control loop stay separable.
 
-A claim is admitted as a *facility* free-boundary reference match only when the run
-was scored against a documented public reference, a measured free-boundary replay,
-or an external equilibrium benchmark **and** the supplied reference artifact passes
-its unit, digest, case-count, and per-metric tolerance checks; otherwise the
-evidence downgrades to a bounded free-boundary tracking claim. Every numeric field
-is validated finite (fail-closed) before it enters the evidence record.
+Reference metadata supplied by the caller is checked for shape and numeric
+validity, but its digest and metrics are not independently verified against
+artifact bytes or a replay. Schema v1 therefore records bounded evidence only.
+Facility admission requires a separately defined, independently verified
+provenance contract. Every numeric field is validated finite before persistence.
 """
 
 from __future__ import annotations
@@ -41,7 +40,7 @@ _BOUNDED_FREE_BOUNDARY_REFERENCE_SOURCES = frozenset(
 
 @dataclass(frozen=True)
 class FreeBoundaryTrackingClaimEvidence:
-    """Serialisable evidence for bounded or facility free-boundary claims."""
+    """Serialisable bounded evidence with an explicit facility-admission flag."""
 
     schema_version: int
     source: str
@@ -145,6 +144,10 @@ def _extract_free_boundary_reference_artifact(
     if source not in _FACILITY_FREE_BOUNDARY_REFERENCE_SOURCES:
         allowed = ", ".join(sorted(_FACILITY_FREE_BOUNDARY_REFERENCE_SOURCES))
         raise ValueError(f"reference_artifact.source must be one of: {allowed}")
+    dataset_id = reference_artifact.get("reference_dataset_id")
+    if not isinstance(dataset_id, str):
+        raise ValueError("reference_artifact.reference_dataset_id must be a non-empty string")
+    _non_empty_text("reference_artifact.reference_dataset_id", dataset_id)
     units = reference_artifact.get("units")
     expected_units = {
         "position": "m",
@@ -204,13 +207,7 @@ def free_boundary_tracking_claim_evidence(
     flux_tol = _positive_reference_scalar("x_point_flux_abs_tolerance", x_point_flux_abs_tolerance)
     divertor_tol = _positive_reference_scalar("divertor_rms_abs_tolerance", divertor_rms_abs_tolerance)
     coil_tol = _positive_reference_scalar("coil_current_relative_tolerance", coil_current_relative_tolerance)
-    artifact, artifact_passed = _extract_free_boundary_reference_artifact(reference_artifact)
-    facility_claim_allowed = bool(source_clean in _FACILITY_FREE_BOUNDARY_REFERENCE_SOURCES and artifact_passed)
-    claim_status = (
-        "facility_free_boundary_reference_matched"
-        if facility_claim_allowed
-        else "bounded_free_boundary_tracking_evidence"
-    )
+    artifact, _ = _extract_free_boundary_reference_artifact(reference_artifact)
     metrics = artifact.get("metrics", {}) if artifact else {}
 
     return FreeBoundaryTrackingClaimEvidence(
@@ -253,22 +250,37 @@ def free_boundary_tracking_claim_evidence(
         x_point_flux_abs_tolerance=flux_tol,
         divertor_rms_abs_tolerance=divertor_tol,
         coil_current_relative_tolerance=coil_tol,
-        facility_claim_allowed=facility_claim_allowed,
-        claim_status=claim_status,
+        facility_claim_allowed=False,
+        claim_status="bounded_free_boundary_tracking_evidence",
     )
 
 
 def assert_free_boundary_tracking_facility_claim_admissible(evidence: FreeBoundaryTrackingClaimEvidence) -> None:
     """Raise when free-boundary evidence is insufficient for facility-control claims."""
-    if not evidence.facility_claim_allowed:
-        raise ValueError("facility free-boundary tracking claim requires matched reference artifact evidence")
+    if not isinstance(evidence, FreeBoundaryTrackingClaimEvidence):
+        raise ValueError("evidence must be FreeBoundaryTrackingClaimEvidence")
+    if evidence.schema_version != _FREE_BOUNDARY_CLAIM_SCHEMA_VERSION:
+        raise ValueError("free-boundary claim evidence schema_version is unsupported")
+    raise ValueError(
+        "facility free-boundary tracking claim is not admissible: independent reference verification absent"
+    )
 
 
 def save_free_boundary_tracking_claim_evidence(evidence: FreeBoundaryTrackingClaimEvidence, path: str | Path) -> None:
     """Persist free-boundary claim evidence as deterministic JSON."""
+    if not isinstance(evidence, FreeBoundaryTrackingClaimEvidence):
+        raise ValueError("evidence must be FreeBoundaryTrackingClaimEvidence")
+    if evidence.schema_version != _FREE_BOUNDARY_CLAIM_SCHEMA_VERSION:
+        raise ValueError("free-boundary claim evidence schema_version is unsupported")
+    if evidence.facility_claim_allowed or evidence.claim_status != "bounded_free_boundary_tracking_evidence":
+        raise ValueError("facility free-boundary claim admission is not independently verified")
+    try:
+        body = json.dumps(asdict(evidence), indent=2, sort_keys=True, allow_nan=False) + "\n"
+    except ValueError as exc:
+        raise ValueError("free-boundary claim evidence numeric fields must be finite") from exc
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    output_path.write_text(body, encoding="utf-8")
 
 
 __all__ = [

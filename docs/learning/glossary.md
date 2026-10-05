@@ -180,11 +180,11 @@ Terms from fusion plasma physics and control theory used in scpn-control.
 
 **SPN (Stochastic Petri Net)** — Bipartite graph (places, transitions) with stochastic firing rules. Marking vector m(t) encodes the system state; transition firing updates m via the incidence matrix. `scpn.structure`
 
-**Sliding-mode control** — Robust nonlinear control driving the state to a sliding surface s=0. The super-twisting algorithm provides chattering-free second-order convergence. `control.sliding_mode_vertical`
+**Sliding-mode control** — Nonlinear control that drives an idealized state toward a sliding surface s=0. The sampled, smoothed `SuperTwistingSMC` is a bounded software approximation without a finite-time certificate. `control.sliding_mode_vertical`
 
 **SPARC** — Compact high-field tokamak (R0=1.85 m, B0=12.2 T, Ip=8.7 MA). Target Q > 2 with HTS magnets. Creely et al., J. Plasma Phys. 86 (2020). `core.tokamak_config`
 
-**Super-twisting algorithm** — Second-order sliding mode: u = -alpha |s|^{1/2} sign(s) + v, dv/dt = -beta sign(s). Finite-time convergence, continuous control signal. `control.sliding_mode_vertical`
+**Super-twisting algorithm** — Ideal second-order sliding mode: u = -alpha |s|^{1/2} sign(s) + v, dv/dt = -beta sign(s). Finite-time results apply only under their stated continuous-time assumptions; the repository's smoothed, saturated implementation has no such proof. `control.sliding_mode_vertical`
 
 ## T
 

@@ -76,4 +76,7 @@ extend-exclude = [
     "weights/",
     "artifacts/",
     ".benchmarks/",
+    # Output of the external TGLF provider, bound by its hashes; its text
+    # is evidence and must not be rewritten.
+    "tests/data/tglf/",
 ]

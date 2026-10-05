@@ -102,12 +102,12 @@ def _as_covariance(
         raise ValueError(f"{name} must have shape ({expected_size}, {expected_size}), got {array.shape}")
     if not np.all(np.isfinite(array)):
         raise ValueError(f"{name} must contain only finite values")
-    scale = max(1.0, float(np.linalg.norm(array, ord=2)))
-    tolerance = _SYMMETRY_RTOL * scale
-    if not np.allclose(array, array.T, rtol=0.0, atol=tolerance):
+    scale = max(1.0, float(np.max(np.abs(array))))
+    scaled = array / scale
+    if not np.allclose(scaled, scaled.T, rtol=0.0, atol=_SYMMETRY_RTOL):
         raise ValueError(f"{name} must be symmetric")
-    symmetric = 0.5 * (array + array.T)
-    if float(np.linalg.eigvalsh(symmetric).min()) < -_PSD_RTOL * scale:
+    symmetric = 0.5 * array + 0.5 * array.T
+    if float(np.linalg.eigvalsh(symmetric / scale).min()) < -_PSD_RTOL:
         raise ValueError(f"{name} must be positive semidefinite")
     return symmetric.copy()
 

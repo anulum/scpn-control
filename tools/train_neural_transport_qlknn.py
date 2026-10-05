@@ -14,11 +14,11 @@
 # ORCID: https://orcid.org/0009-0009-3560-0851
 # License: GNU AGPL v3 | Commercial licensing available
 # ──────────────────────────────────────────────────────────────────────
-"""Train a neural transport MLP on QLKNN-10D-style data.
+"""Run the legacy NumPy transport-training prototype on supplied or synthetic data.
 
 Usage:
     python tools/train_neural_transport_qlknn.py --data-dir data/qlknn10d/
-    python tools/train_neural_transport_qlknn.py --synthetic  # CI-friendly synthetic data
+    python tools/train_neural_transport_qlknn.py --help
 
 Dataset provenance (real data):
     van de Plassche, K.L. et al. (2020). "Fast modeling of turbulent
@@ -28,7 +28,11 @@ Dataset provenance (real data):
 
 Architecture: [10] → [128] → [64] → [3] with ReLU hidden, softplus output.
 Input features: [rho, Te, Ti, ne, R/L_Te, R/L_Ti, R/L_ne, q, s_hat, beta_e]
-Output targets: [chi_e, chi_i, D_e] in m^2/s
+Output target labels: [chi_e, chi_i, D_e], nominally m^2/s. The loader validates
+neither units nor provenance; synthetic values use an uncalibrated scale 1
+critical-gradient proxy, not a real QuaLiKiz calculation. Preprocessing uses all
+rows before splitting, so returned test metrics are not a strictly held-out
+validation. Importing this module does not train or create weights.
 """
 
 from __future__ import annotations
@@ -39,6 +43,7 @@ import logging
 import sys
 import time
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -48,18 +53,36 @@ logger = logging.getLogger(__name__)
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = REPO_ROOT / "weights" / "neural_transport_qlknn.npz"
 DEFAULT_METRICS = REPO_ROOT / "weights" / "neural_transport_qlknn.metrics.json"
+Array = NDArray[Any]
 
 
 def generate_synthetic_qlknn_data(
     n_samples: int = 5000,
     seed: int = 42,
-) -> tuple[NDArray, NDArray]:
-    """Generate synthetic training data mimicking QLKNN-10D structure.
+) -> tuple[Array, Array]:
+    """Generate reproducible proxy features and nonnegative synthetic targets.
 
-    Uses the critical-gradient model as ground truth with added noise,
-    providing a reasonable proxy for CI testing without the real dataset.
+    Parameters
+    ----------
+    n_samples
+        Number of rows, default 5,000. Zero returns empty arrays; invalid counts
+        propagate NumPy errors. This function does not create model weights.
+    seed
+        Seed of a local default_rng; global NumPy random state is untouched.
 
-    Returns (X, Y) with X shape (n, 10) and Y shape (n, 3).
+    Returns
+    -------
+    tuple[Array, Array]
+        Float64 X(n,10), ordered rho/Te/Ti/ne/gradTe/gradTi/gradNe/q/s_hat/beta_e,
+        and Y(n,3), ordered chi_e/chi_i/D_e. Beta is 4.03e-3*ne*Te. Targets use
+        squared excess gradients at thresholds 5/4 with scale 1, independent 10%
+        multiplicative noise and nonnegative clipping. D_e starts as chi_e/3
+        before its separate noise draw; that ratio is not exact afterward.
+
+    Notes
+    -----
+    Column labels carry nominal historical units, not dimensional calibration
+    or authentic QLKNN provenance. No learning or filesystem operation occurs.
     """
     rng = np.random.default_rng(seed)
 
@@ -97,11 +120,40 @@ def generate_synthetic_qlknn_data(
     return X, Y
 
 
-def load_qlknn_data(data_dir: Path) -> tuple[NDArray, NDArray]:
-    """Load QLKNN-10D data from Zenodo download.
+def load_qlknn_data(data_dir: Path) -> tuple[Array, Array]:
+    """Read the first local NPZ or CSV match without dataset authentication.
 
-    Expects CSV or NPZ files in data_dir with columns matching the
-    10-dim input and 3-dim output specification.
+    Parameters
+    ----------
+    data_dir
+        Directory searched nonrecursively with unsorted lowercase extension
+        globs. Any NPZ match takes precedence over all CSV matches.
+
+    Returns
+    -------
+    tuple[Array, Array]
+        NPZ inputs/outputs arrays, independently falling back to X/Y keys;
+        their dtype and shape are retained. CSV skips one header row, converts
+        all fields to float, and returns columns[:10] and[10:13]. Extra columns
+        are ignored. No row/feature/channel/unit/finiteness contract is enforced.
+
+    Raises
+    ------
+    FileNotFoundError
+        Neither glob has a match, including an absent directory.
+    KeyError
+        The selected archive lacks a requested primary and fallback key.
+    ValueError
+        NumPy/CSV decoding fails, including disabled object-array loading.
+    StopIteration, IndexError
+        CSV is empty or has no data rows of the shape expected by slicing.
+    OSError
+        Opening or reading the selected file fails.
+
+    Notes
+    -----
+    This local convention is not an authenticated Zenodo schema. The NPZ reader
+    uses NumPy's default allow_pickle=False and is not explicitly context-closed.
     """
     npz_files = list(data_dir.glob("*.npz"))
     csv_files = list(data_dir.glob("*.csv"))
@@ -128,17 +180,50 @@ def load_qlknn_data(data_dir: Path) -> tuple[NDArray, NDArray]:
 
 
 def train_mlp(
-    X: NDArray,
-    Y: NDArray,
+    X: Array,
+    Y: Array,
     hidden_sizes: tuple[int, int] = (128, 64),
     n_epochs: int = 300,
     batch_size: int = 64,
     lr: float = 1e-3,
     seed: int = 42,
-) -> dict[str, NDArray]:
-    """Train 3-layer MLP: input(10) → hidden1 → hidden2 → output(3).
+) -> dict[str, Array]:
+    """Train the original NumPy MLP and return last-epoch weights and metrics.
 
-    Returns dict of weight arrays ready for np.savez.
+    Parameters
+    ----------
+    X, Y
+        Numeric arrays expected to have matching row counts and shapes(n,10)
+        and(n,3). Shapes, dtypes, finite values and physical units are unchecked.
+    hidden_sizes
+        Two layer widths, default 128/64; weights use He initialization.
+    n_epochs, batch_size, lr
+        Maximum epochs 300, batches 64 and learning rate1e-3. No positive-limit
+        admission occurs; zero epochs returns randomly initialized weights.
+    seed
+        Local random seed for splitting, initialization and shuffled batches.
+
+    Returns
+    -------
+    dict[str, Array]
+        w1/b1/w2/b2/w3/b3, input_mean/std, output_scale and version[1]. Private
+        _test_rmse/_per_channel_rmse/_n_train arrays carry evaluation metadata.
+        ReLU hidden layers and clipped-logit softplus output match these arrays.
+
+    Raises
+    ------
+    Exception
+        NumPy shape, dtype, reduction and arithmetic failures propagate.
+        Nonfinite losses need not raise; no training/adoption gate is supplied.
+
+    Notes
+    -----
+    Input mean/std and target maxima use all rows before the nominal 80/10/10
+    split, with at least one validation/test row each. Metrics therefore share
+    preprocessing with held-out rows. SGD uses momentum 0.9 and elementwise
+    gradient clipping[-5,5]. Early stopping has patience 30; best weights are
+    not restored. Reported MSE averages channels, while its update expression
+    divides 2*error by batch size. No files are written by this function.
     """
     rng = np.random.default_rng(seed)
 
@@ -181,12 +266,19 @@ def train_mlp(
     best_val_loss = float("inf")
     patience, patience_counter = 30, 0
 
-    def softplus(x: NDArray) -> NDArray:
-        return np.log1p(np.exp(np.clip(x, -20.0, 20.0)))
+    def softplus(x: Array) -> Array:
+        """Evaluate log1p(exp(clip(x,-20,20))) on the supplied logits."""
+        result: Array = np.log1p(np.exp(np.clip(x, -20.0, 20.0)))
+        return result
 
-    def softplus_grad(x: NDArray) -> NDArray:
+    def softplus_grad(x: Array) -> Array:
+        """Return the clipped-logit logistic factor used by the original update.
+
+        This does not include the derivative of clipping outside[-20,20].
+        """
         ex = np.exp(np.clip(x, -20.0, 20.0))
-        return ex / (1.0 + ex)
+        result: Array = ex / (1.0 + ex)
+        return result
 
     for epoch in range(n_epochs):
         order = rng.permutation(n_train)
@@ -294,6 +386,22 @@ def train_mlp(
 
 
 def main() -> None:
+    """Parse input selection, train and overwrite the selected weights/metrics.
+
+    --synthetic takes precedence over --data-dir and generates 5,000 proxy rows.
+    No input selection prints a message and exits1 before learning. --help
+    exits0 before either generation or training. Other native load/train errors
+    propagate; epochs and dataset quality have no admission checks here.
+    The default output resolves from this script to weights/neural_transport_qlknn.npz;
+    an explicit relative output resolves from caller cwd. Parent directories
+    are created and existing files overwritten. np.savez may append.npz to an
+    unsuffixed name; metrics use output.with_suffix('.metrics.json') regardless.
+    DEFAULT_METRICS is retained but not used to select the metrics destination.
+    Writes are separate and non-atomic; later failure can leave only weights.
+    CLI metrics remove private array keys, label all three channels, record
+    train_mlp() wall time, and provide no provenance or independent holdout
+    certificate. Invoking a training input creates new model weights.
+    """
     parser = argparse.ArgumentParser(description="Train QLKNN-10D neural transport model")
     parser.add_argument("--data-dir", type=Path, help="Directory with QLKNN-10D data")
     parser.add_argument("--synthetic", action="store_true", help="Use synthetic data (CI mode)")

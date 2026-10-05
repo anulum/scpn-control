@@ -17,14 +17,24 @@
 
 from __future__ import annotations
 
-import math
 import time
-from dataclasses import dataclass
 from typing import Any, Callable, cast
 
 import numpy as np
 
+from scpn_control.control.digital_twin_telemetry import (
+    TelemetryPacket as TelemetryPacket,
+)
+from scpn_control.control.digital_twin_telemetry import (
+    _apply_chaos_monkey,
+    _normalize_machine,
+)
+from scpn_control.control.digital_twin_telemetry import (
+    generate_emulated_stream as generate_emulated_stream,
+)
 from scpn_control.control.disruption_predictor import predict_disruption_risk
+from scpn_control.core._validators import require_int
+from scpn_control.scpn.artifact import Artifact
 from scpn_control.scpn.compiler import FusionCompiler
 from scpn_control.scpn.contracts import (
     ControlScales,
@@ -35,174 +45,68 @@ from scpn_control.scpn.structure import StochasticPetriNet
 
 _PredictRiskFn = Callable[[list[float], dict[str, float]], float]
 _predict_disruption_risk = cast(_PredictRiskFn, predict_disruption_risk)
-_VALID_MACHINES = {"NSTX-U", "SPARC"}
 
 
-@dataclass(frozen=True)
-class TelemetryPacket:
-    """A single digital-twin telemetry sample.
+def _build_snn_planner(*, artifact: Artifact | None = None, seed_base: int = 161803399) -> NeuroSymbolicController:
+    """Build a fresh planner, reusing a compiled artifact for replay calls."""
+    if artifact is None:
+        net = StochasticPetriNet()
+        net.add_place("x_R_pos", initial_tokens=0.0)
+        net.add_place("x_R_neg", initial_tokens=0.0)
+        net.add_place("a_R_pos", initial_tokens=0.0)
+        net.add_place("a_R_neg", initial_tokens=0.0)
+        net.add_transition("T_Rp", threshold=0.1)
+        net.add_transition("T_Rn", threshold=0.1)
+        net.add_arc("x_R_pos", "T_Rp", weight=1.0)
+        net.add_arc("x_R_neg", "T_Rn", weight=1.0)
+        net.add_arc("T_Rp", "a_R_pos", weight=1.0)
+        net.add_arc("T_Rn", "a_R_neg", weight=1.0)
+        net.compile()
 
-    Attributes
-    ----------
-    t_ms
-        Timestamp in milliseconds.
-    machine
-        Source device name (``"NSTX-U"`` or ``"SPARC"``).
-    ip_ma
-        Plasma current in MA.
-    beta_n
-        Normalised beta.
-    q95
-        Edge safety factor q95.
-    density_1e19
-        Line-averaged density in 10¹⁹ m⁻³.
-    """
-
-    t_ms: int
-    machine: str
-    ip_ma: float
-    beta_n: float
-    q95: float
-    density_1e19: float
-
-    def __post_init__(self) -> None:
-        # A non-finite field (NaN/inf) would poison the risk signal — max(nan, 0) is nan
-        # and nan comparisons fail OPEN in the mitigation gate — so reject it at
-        # construction rather than let it reach risk scoring.
-        for value, name in (
-            (self.ip_ma, "ip_ma"),
-            (self.beta_n, "beta_n"),
-            (self.q95, "q95"),
-            (self.density_1e19, "density_1e19"),
-        ):
-            if not math.isfinite(value):
-                raise ValueError(f"TelemetryPacket {name} must be finite")
-
-
-def _normalize_machine(machine: str) -> str:
-    machine_key = machine.strip().upper()
-    if machine_key not in _VALID_MACHINES:
-        raise ValueError("machine must be 'NSTX-U' or 'SPARC'")
-    return machine_key
-
-
-def _build_snn_planner() -> NeuroSymbolicController:
-    net = StochasticPetriNet()
-    net.add_place("x_R_pos", initial_tokens=0.0)
-    net.add_place("x_R_neg", initial_tokens=0.0)
-    net.add_place("a_R_pos", initial_tokens=0.0)
-    net.add_place("a_R_neg", initial_tokens=0.0)
-    net.add_transition("T_Rp", threshold=0.1)
-    net.add_transition("T_Rn", threshold=0.1)
-    net.add_arc("x_R_pos", "T_Rp", weight=1.0)
-    net.add_arc("x_R_neg", "T_Rn", weight=1.0)
-    net.add_arc("T_Rp", "a_R_pos", weight=1.0)
-    net.add_arc("T_Rn", "a_R_neg", weight=1.0)
-    net.compile()
-
-    artifact = (
-        FusionCompiler.with_reactor_lif_defaults(
-            bitstream_length=1024,
-            seed=404,
+        artifact = (
+            FusionCompiler.with_reactor_lif_defaults(
+                bitstream_length=1024,
+                seed=404,
+            )
+            .compile(net, firing_mode="binary")
+            .export_artifact(
+                name="digital-twin-ingest-controller",
+                dt_control_s=0.001,
+                readout_config={
+                    "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],
+                    "gains": [1800.0],
+                    "abs_max": [3500.0],
+                    "slew_per_s": [1e6],
+                },
+                injection_config=[
+                    {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+                    {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
+                ],
+            )
         )
-        .compile(net, firing_mode="binary")
-        .export_artifact(
-            name="digital-twin-ingest-controller",
-            dt_control_s=0.001,
-            readout_config={
-                "actions": [{"name": "dI_PF3_A", "pos_place": 2, "neg_place": 3}],
-                "gains": [1800.0],
-                "abs_max": [3500.0],
-                "slew_per_s": [1e6],
-            },
-            injection_config=[
-                {"place_id": 0, "source": "x_R_pos", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
-                {"place_id": 1, "source": "x_R_neg", "scale": 1.0, "offset": 0.0, "clamp_0_1": True},
-            ],
-        )
-    )
     return NeuroSymbolicController(
         artifact=artifact,
-        seed_base=161803399,
+        seed_base=seed_base,
         targets=ControlTargets(R_target_m=1.9, Z_target_m=0.0),
         scales=ControlScales(R_scale_m=0.9, Z_scale_m=1.0),
     )
 
 
-def generate_emulated_stream(
-    machine: str,
-    *,
-    samples: int = 320,
-    dt_ms: int = 5,
-    seed: int = 42,
-) -> list[TelemetryPacket]:
-    """Generate a synthetic telemetry stream for a device.
-
-    Parameters
-    ----------
-    machine
-        Device name (``"NSTX-U"`` or ``"SPARC"``).
-    samples
-        Number of telemetry packets to generate.
-    dt_ms
-        Sample spacing in milliseconds.
-    seed
-        Random seed for reproducibility.
-
-    Returns
-    -------
-    list[TelemetryPacket]
-        The emulated telemetry packets.
-    """
-    machine_key = _normalize_machine(machine)
-
-    rng = np.random.default_rng(int(seed))
-    samples = int(samples)
-    if samples < 32:
-        raise ValueError("samples must be >= 32.")
-    dt_ms = int(dt_ms)
-    if dt_ms < 1:
-        raise ValueError("dt_ms must be >= 1.")
-
-    # Menard et al., Nucl. Fusion 52, 083015 (2012): NSTX-U H-mode baseline
-    if machine_key == "NSTX-U":
-        ip_base, beta_base, q95_base, dens_base = 1.2, 1.95, 4.7, 6.5
-    else:
-        # Creely et al., J. Plasma Phys. 86, 865860502 (2020): SPARC V2C design
-        ip_base, beta_base, q95_base, dens_base = 8.7, 1.65, 3.9, 8.2
-
-    packets: list[TelemetryPacket] = []
-    for k in range(samples):
-        phase = k / max(samples - 1, 1)
-        disruption_burst = 0.0
-        if 0.58 <= phase <= 0.76:
-            disruption_burst = 0.18 * np.sin(np.pi * (phase - 0.58) / 0.18)
-
-        packets.append(
-            TelemetryPacket(
-                t_ms=k * dt_ms,
-                machine=machine_key,
-                ip_ma=float(ip_base + 0.03 * np.sin(2.0 * np.pi * phase) + rng.normal(0.0, 0.004)),
-                beta_n=float(beta_base + 0.05 * np.cos(2.0 * np.pi * 1.4 * phase) + disruption_burst),
-                q95=float(q95_base - 0.12 * disruption_burst + rng.normal(0.0, 0.01)),
-                density_1e19=float(dens_base + 0.10 * np.sin(2.0 * np.pi * 0.6 * phase)),
-            )
-        )
-    return packets
-
-
 class RealtimeTwinHook:
-    """In-memory realtime ingest + SNN planning hook."""
+    """In-memory telemetry ingest and synthetic SNN scenario planning.
+
+    Accepted packets have one canonical machine identity and strictly increasing
+    timestamps. Each plan uses a fresh controller state derived from the same
+    compiled artifact and seed, so hypothetical rollouts cannot alter the next
+    plan. This is a deterministic synthetic planner, not a facility command.
+    """
 
     def __init__(self, machine: str, *, max_buffer: int = 512, seed: int = 42) -> None:
         self.machine = _normalize_machine(machine)
-        max_buffer = int(max_buffer)
-        if max_buffer < 64:
-            raise ValueError("max_buffer must be >= 64.")
-        self.max_buffer = max_buffer
+        self.max_buffer = require_int("max_buffer", max_buffer, 64)
         self.buffer: list[TelemetryPacket] = []
-        self.seed = int(seed)
-        self.controller = _build_snn_planner()
+        self.seed = require_int("seed", seed, 0)
+        self.controller = _build_snn_planner(seed_base=self.seed)
 
     def ingest(self, packet: TelemetryPacket) -> None:
         """Append a telemetry packet to the rolling buffer.
@@ -210,9 +114,15 @@ class RealtimeTwinHook:
         Parameters
         ----------
         packet
-            The telemetry packet to ingest; the buffer is capped at
-            ``max_buffer``.
+            A packet for this hook's machine with a timestamp later than the
+            last accepted sample. The buffer is capped at ``max_buffer``.
         """
+        if not isinstance(packet, TelemetryPacket):
+            raise TypeError("packet must be a TelemetryPacket")
+        if packet.machine != self.machine:
+            raise ValueError("packet machine must match the hook machine")
+        if self.buffer and packet.t_ms <= self.buffer[-1].t_ms:
+            raise ValueError("packet timestamp must be later than the last accepted sample")
         self.buffer.append(packet)
         if len(self.buffer) > self.max_buffer:
             self.buffer = self.buffer[-self.max_buffer :]
@@ -233,38 +143,42 @@ class RealtimeTwinHook:
         Parameters
         ----------
         horizon
-            Planning horizon in samples; must be at least 4.
+            Integral planning horizon in samples; must be at least 4.
 
         Returns
         -------
         dict[str, float | bool]
-            The projected risk metrics and mitigation recommendation.
+            The projected risk metrics and mitigation recommendation. The
+            ``latency_wall_ms`` field is observed wall time; the other values
+            replay deterministically for an unchanged buffer and seed.
 
         Raises
         ------
         RuntimeError
             If no telemetry has been ingested.
         """
-        if not self.buffer:
+        observations = tuple(self.buffer[-64:])
+        if not observations:
             raise RuntimeError("No telemetry packets ingested.")
-        horizon = int(horizon)
+        horizon = require_int("horizon", horizon)
         if horizon < 4:
             raise ValueError("horizon must be >= 4.")
 
-        latest = self.buffer[-1]
+        latest = observations[-1]
         beta = float(latest.beta_n)
         q95 = float(latest.q95)
         dens = float(latest.density_1e19)
 
-        signal_history = [self._risk_signal(p) for p in self.buffer[-64:]]
+        signal_history = [self._risk_signal(p) for p in observations]
         risks = []
         safe_steps = 0
         last_action = 0.0
 
+        planner = _build_snn_planner(artifact=self.controller.artifact, seed_base=self.seed)
         t0 = time.perf_counter()
         for k in range(horizon):
             obs: dict[str, float] = {"R_axis_m": beta, "Z_axis_m": 0.0}
-            action = self.controller.step(obs, k)
+            action = planner.step(obs, k)
             control = float(np.clip(action["dI_PF3_A"] / 3500.0, -0.8, 0.8))
             last_action = control
 
@@ -309,40 +223,6 @@ class RealtimeTwinHook:
         }
 
 
-def _apply_chaos_monkey(
-    packet: TelemetryPacket,
-    *,
-    rng: np.random.Generator,
-    dropout_prob: float,
-    gaussian_noise_std: float,
-) -> tuple[TelemetryPacket, int, int]:
-    drop = float(np.clip(dropout_prob, 0.0, 1.0))
-    sigma = max(float(gaussian_noise_std), 0.0)
-    dropouts = 0
-    noise_injections = 0
-
-    def channel(value: float) -> float:
-        nonlocal dropouts, noise_injections
-        out = float(value)
-        if drop > 0.0 and float(rng.random()) < drop:
-            out = 0.0
-            dropouts += 1
-        if sigma > 0.0:
-            out += float(rng.normal(0.0, sigma))
-            noise_injections += 1
-        return out
-
-    noisy_packet = TelemetryPacket(
-        t_ms=int(packet.t_ms),
-        machine=str(packet.machine),
-        ip_ma=channel(packet.ip_ma),
-        beta_n=channel(packet.beta_n),
-        q95=channel(packet.q95),
-        density_1e19=max(0.0, channel(packet.density_1e19)),
-    )
-    return noisy_packet, int(dropouts), int(noise_injections)
-
-
 def run_realtime_twin_session(
     machine: str,
     *,
@@ -355,20 +235,28 @@ def run_realtime_twin_session(
     chaos_dropout_prob: float = 0.0,
     chaos_noise_std: float = 0.0,
 ) -> dict[str, Any]:
-    """Run deterministic digital-twin ingest+planning session and return summary."""
+    """Run a synthetic ingest and planning session.
+
+    Integer counts, spacing, horizon, cadence, buffer size and seed are
+    validated without truncation. The returned rates and deterministic latency
+    estimate describe this local emulation, not commissioned facility operation.
+    When no plan is produced, ``mean_risk`` and ``p95_latency_ms`` are ``None``.
+    """
     machine_key = _normalize_machine(machine)
-    samples = int(samples)
+    seed = require_int("seed", seed, 0)
+    samples = require_int("samples", samples)
     if samples < 32:
         raise ValueError("samples must be >= 32.")
-    dt_ms = int(dt_ms)
+    dt_ms = require_int("dt_ms", dt_ms)
     if dt_ms < 1:
         raise ValueError("dt_ms must be >= 1.")
-    horizon = int(horizon)
+    horizon = require_int("horizon", horizon)
     if horizon < 4:
         raise ValueError("horizon must be >= 4.")
-    plan_every = int(plan_every)
+    plan_every = require_int("plan_every", plan_every)
     if plan_every < 1:
         raise ValueError("plan_every must be >= 1.")
+    max_buffer = require_int("max_buffer", max_buffer, 64)
     dropout = float(chaos_dropout_prob)
     if not np.isfinite(dropout) or dropout < 0.0 or dropout > 1.0:
         raise ValueError("chaos_dropout_prob must be finite and in [0, 1].")
@@ -419,8 +307,8 @@ def run_realtime_twin_session(
             "chaos_noise_injection_rate": float(chaos_noise_injections_total / max(chaos_channels_total, 1)),
             "plan_count": 0,
             "planning_success_rate": 0.0,
-            "mean_risk": 1.0,
-            "p95_latency_ms": 999.0,
+            "mean_risk": None,
+            "p95_latency_ms": None,
             "passes_thresholds": False,
         }
 

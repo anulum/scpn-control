@@ -4,11 +4,13 @@
   "status": "review_draft_not_submitted",
   "title": "SCPN Control: Neuro-Symbolic Stochastic Petri Net Controllers with First-Principles Gyrokinetic Transport for Real-Time Tokamak Plasma Control",
   "author": {
-    "name": "Miroslav Sotek",
+    "name": "Miroslav Šotek",
     "orcid": "0009-0009-3560-0851"
   },
   "evidence_revision": "c598b4eceabd335b0913e84cc9632f01a4867f59",
-  "source_date_epoch": 1787386155,
+  "source_date_epoch": 1790193313,
+  "pdf_subject": "Software review draft describing bounded tokamak-control, gyrokinetic transport, and neuro-symbolic controller evidence.",
+  "pdf_keywords": "tokamak control; gyrokinetic transport; stochastic Petri nets; spiking neural networks; software validation; plasma physics",
   "evidence_files": [
     "../../../validation/reports/controller_latency.json",
     "../../../validation/reports/native_handoff_comparison.json",

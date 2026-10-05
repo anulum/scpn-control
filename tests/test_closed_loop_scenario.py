@@ -12,12 +12,15 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+import numpy as np
 import pytest
 
+from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.control.closed_loop_scenario import (
     closed_loop_scenario_result_to_dict,
     run_integrated_scenario_closed_loop,
 )
+from scpn_control.control.scenario_scheduler import FeedforwardController
 from scpn_control.core.integrated_scenario import ScenarioConfig
 
 
@@ -103,6 +106,29 @@ def test_closed_loop_scenario_rejects_invalid_max_steps() -> None:
     """Closed-loop max step domains fail closed."""
     with pytest.raises(ValueError, match="max_steps"):
         run_integrated_scenario_closed_loop(_fast_config(), max_steps=0)
+
+
+@pytest.mark.parametrize("invalid", [True, 1.5])
+def test_closed_loop_scenario_rejects_coerced_step_count(invalid: object) -> None:
+    """Boolean and fractional step counts cannot silently become one step."""
+    with pytest.raises(ValueError, match="max_steps must be a positive integer"):
+        run_integrated_scenario_closed_loop(_fast_config(), max_steps=cast(int, invalid))
+
+
+@pytest.mark.parametrize("invalid", [float("inf"), float("nan")])
+def test_closed_loop_scenario_rejects_nonfinite_controller_command(
+    monkeypatch: pytest.MonkeyPatch, invalid: float
+) -> None:
+    """The public loop refuses invalid controller output before the plant step."""
+
+    def invalid_step(self: FeedforwardController, x: AnyFloatArray, t: float, dt: float) -> FloatArray:
+        """Inject one malformed output at the controller-to-plant boundary."""
+        del self, x, t, dt
+        return np.array([invalid, 0.0, 0.0], dtype=np.float64)
+
+    monkeypatch.setattr(FeedforwardController, "step", invalid_step)
+    with pytest.raises(ValueError, match="commanded_p_aux_mw must be finite"):
+        run_integrated_scenario_closed_loop(_fast_config(), max_steps=1)
 
 
 def test_closed_loop_scenario_rejects_invalid_target() -> None:

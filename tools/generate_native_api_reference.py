@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -21,17 +22,25 @@ OUTPUT = ROOT / "docs/_generated/native_api_reference.md"
 
 
 def _clean_c_comment(raw: str) -> str:
+    """Remove Doxygen leading stars and outer blank space while retaining contract line order."""
     lines = [re.sub(r"^\s*\* ?", "", line).rstrip() for line in raw.splitlines()]
     return "\n".join(lines).strip()
 
 
 def _normalise_signature(raw: str) -> str:
+    """Trim declaration boundaries and trailing line whitespace, retaining one final semicolon."""
     return "\n".join(line.rstrip() for line in raw.strip().splitlines()) + ";"
 
 
 def _c_declarations(source: str) -> list[tuple[str | None, str]]:
+    """Pair exported lexical C declarations with immediately adjacent Doxygen blocks.
+
+    A preceding type comment cannot cross its closing delimiter to become a
+    function contract. This recognises the maintained header corpus, not general
+    C syntax, preprocessing, compilation or ABI compatibility.
+    """
     declaration = re.compile(r"^SCPN_SOLVER_API\s+(.+?);", re.DOTALL | re.MULTILINE)
-    documented = re.compile(r"/\*\*(.*?)\*/\s*^SCPN_SOLVER_API\s+(.+?);", re.DOTALL | re.MULTILINE)
+    documented = re.compile(r"/\*\*((?:(?!\*/).)*)\*/\s*^SCPN_SOLVER_API\s+(.+?);", re.DOTALL | re.MULTILINE)
     comments = {match.group(2).strip(): _clean_c_comment(match.group(1)) for match in documented.finditer(source)}
     return [
         (comments.get(match.group(1).strip()), _normalise_signature(match.group(1)))
@@ -40,6 +49,7 @@ def _c_declarations(source: str) -> list[tuple[str | None, str]]:
 
 
 def _symbol_name(signature: str) -> str:
+    """Require a lexical C function identifier before the first argument-list parenthesis."""
     match = re.search(r"([A-Za-z_][A-Za-z0-9_]*)\s*\(", signature)
     if match is None:
         raise ValueError(f"unable to identify C declaration: {signature}")
@@ -47,17 +57,36 @@ def _symbol_name(signature: str) -> str:
 
 
 def _lean_declarations(source: str) -> list[tuple[str, str, str]]:
+    """Pair adjacent non-nested Lean doc blocks with maintained inductive/def/theorem declarations.
+
+    Comment whitespace is flattened for Markdown. This does not parse or check
+    Lean proofs, nested comments or arbitrary syntax; the owning Lean toolchain
+    remains responsible for proof checking.
+    """
     pattern = re.compile(
-        r"/--\s*(.*?)\s*-/\s*(inductive|def|theorem)\s+([A-Za-z_][A-Za-z0-9_]*)",
+        r"/--\s*((?:(?!-/).)*?)\s*-/\s*(inductive|def|theorem)\s+([A-Za-z_][A-Za-z0-9_]*)",
         re.DOTALL,
     )
     return [(match.group(2), match.group(3), " ".join(match.group(1).split())) for match in pattern.finditer(source)]
 
 
-def render() -> str:
-    """Return the complete deterministic Markdown reference."""
-    c_declarations = _c_declarations(HEADER.read_text(encoding="utf-8"))
-    lean_declarations = _lean_declarations(LEAN.read_text(encoding="utf-8"))
+def render(*, header_path: Path = HEADER, lean_path: Path = LEAN) -> str:
+    """Read selected UTF-8 C/Lean sources and return deterministic Markdown without writing.
+
+    The maintained corpus requires five versioned and five legacy C functions,
+    ABI version 1, nonempty adjacent versioned Doxygen comments, and nine
+    nonempty adjacent documented Lean declarations. Source IO/decode errors propagate; malformed declarations
+    or incomplete comment/cardinality contracts raise ValueError. No compiler,
+    proof checker, dynamic library or plant model is executed. The normative
+    comments retain units, array/handle ownership and model limitations verbatim.
+    Custom source paths support qualifying actual source changes independently
+    of the default tracked document; no source authentication is inferred.
+    """
+    header = header_path.read_text(encoding="utf-8")
+    if re.findall(r"^#define\s+SCPN_SOLVER_ABI_VERSION\s+(\S+)\s*$", header, re.MULTILINE) != ["1"]:
+        raise ValueError("selected C header must declare ABI version 1 exactly once")
+    c_declarations = _c_declarations(header)
+    lean_declarations = _lean_declarations(lean_path.read_text(encoding="utf-8"))
     versioned = [(comment, sig) for comment, sig in c_declarations if _symbol_name(sig).startswith("scpn_solver_")]
     legacy = [(comment, sig) for comment, sig in c_declarations if not _symbol_name(sig).startswith("scpn_solver_")]
 
@@ -65,18 +94,21 @@ def render() -> str:
         raise ValueError(
             f"expected five versioned and five legacy C functions, found {len(versioned)} and {len(legacy)}"
         )
-    if any(comment is None for comment, _ in versioned):
-        raise ValueError("every versioned C function requires a Doxygen contract")
+    if any(not comment for comment, _ in versioned):
+        raise ValueError("every versioned C function requires a nonempty adjacent Doxygen contract")
     if len(lean_declarations) != 9:
         raise ValueError(f"expected nine documented Lean declarations, found {len(lean_declarations)}")
+    if any(not comment for _, _, comment in lean_declarations):
+        raise ValueError("every selected Lean declaration requires a nonempty adjacent contract")
 
     lines = [
         "# Native API and checked proof reference",
         "",
         "<!-- Generated by tools/generate_native_api_reference.py; do not edit. -->",
         "",
-        "This reference is generated from `src/scpn_control/core/solver.h` and",
-        "`lean/SCPNControl/PulsedFSM.lean`. The C header is the normative ABI",
+        "This reference is generated from the selected C header and Lean source.",
+        "The default corpus is `src/scpn_control/core/solver.h` and",
+        "`lean/SCPNControl/PulsedFSM.lean`. The selected C header is the normative ABI",
         "contract. The Lean section describes only the checked finite-state model;",
         "it is not evidence of continuous plant or plasma safety.",
         "",
@@ -109,20 +141,42 @@ def render() -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Write the reference, or fail if ``--check`` detects stale output."""
+    """Return zero for exact checked text or a successful local write, one for stale/refused IO or source contracts.
+
+    Optional header/Lean/output paths select local files. A write refuses resolved
+    path and existing hard-link aliases of either selected source. Non-alias
+    output can be replaced. Check mode only reads and compares UTF-8 bytes;
+    parser help/usage retain exits zero/two. No compilation or proof checking is
+    implied by generation or comparison success.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="fail instead of updating stale output")
+    parser.add_argument("--header", type=Path, default=HEADER, help="selected C header")
+    parser.add_argument("--lean", type=Path, default=LEAN, help="selected Lean declaration source")
+    parser.add_argument("--output", type=Path, default=OUTPUT, help="selected Markdown reference")
     args = parser.parse_args(argv)
-    rendered = render()
+    try:
+        if not args.check:
+            for source in (args.header, args.lean):
+                if args.output.resolve() == source.resolve() or (
+                    args.output.exists() and source.exists() and args.output.samefile(source)
+                ):
+                    raise ValueError("native reference output must not overwrite selected source")
+        rendered = render(header_path=args.header, lean_path=args.lean)
+        if args.check:
+            if not args.output.is_file() or args.output.read_text(encoding="utf-8") != rendered:
+                print(f"stale generated native API reference: {args.output}")
+                return 1
+        else:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            args.output.write_text(rendered, encoding="utf-8")
+    except (OSError, UnicodeError, ValueError) as exc:
+        print(f"native API reference FAILED: {exc}", file=sys.stderr)
+        return 1
     if args.check:
-        if not OUTPUT.is_file() or OUTPUT.read_text(encoding="utf-8") != rendered:
-            print(f"stale generated native API reference: {OUTPUT.relative_to(ROOT)}")
-            return 1
         print("native API reference is current")
         return 0
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(rendered, encoding="utf-8")
-    print(f"wrote {OUTPUT.relative_to(ROOT)}")
+    print(f"wrote {args.output}")
     return 0
 
 

@@ -42,15 +42,11 @@ plasma current-profile and kinetic-variable control.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable
-from dataclasses import dataclass
 
 import numpy as np
 
-from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control._typing import AnyFloatArray
 from scpn_control.core.differentiable_transport import (
-    TransportCampaignMetadata,
-    TransportGradientAudit,
     TransportParameterGradients,
     TransportRolloutSourceGradients,
     assert_transport_parameter_gradients_consistent,
@@ -59,190 +55,35 @@ from scpn_control.core.differentiable_transport import (
     transport_loss_gradient,
     transport_parameter_gradients,
     transport_rollout_source_gradients,
-    transport_rollout_tracking_loss,
 )
 from scpn_control.core.differentiable_transport import (
     has_jax as has_differentiable_transport_jax,
 )
 
+from .nmpc_transport_contracts import (
+    TransportCoefficientTuningResult,
+    TransportSourceRolloutGradientAudit,
+    TransportSourceRolloutTuningResult,
+    TransportSourceScheduleTuningResult,
+    _audit_transport_rollout_source_gradients,
+    _bounded_tuning_update,
+    _optional_finite_array_bound,
+    _rollout_audit_indices,
+)
 
-@dataclass(frozen=True)
-class TransportCoefficientTuningResult:
-    """Result of a gradient-based transport-coefficient tuning step."""
-
-    loss: float
-    gradient: FloatArray
-    updated_chi: FloatArray
-    step_norm: float
-    metadata: TransportCampaignMetadata
-    gradient_audit: TransportGradientAudit | None
-
-
-@dataclass(frozen=True)
-class TransportSourceScheduleTuningResult:
-    """Result of a gradient-based transport source-schedule tuning step."""
-
-    loss: float
-    gradient: FloatArray
-    updated_sources: FloatArray
-    step_norm: float
-    metadata: TransportCampaignMetadata
-    gradient_audit: TransportGradientAudit | None
-
-
-@dataclass(frozen=True)
-class TransportSourceRolloutGradientAudit:
-    """Finite-difference audit for multi-step source-schedule gradients."""
-
-    loss: float
-    epsilon: float
-    tolerance: float
-    checked_indices: tuple[tuple[int, int, int], ...]
-    source_max_abs_error: float
-    passed: bool
-
-
-@dataclass(frozen=True)
-class TransportSourceRolloutTuningResult:
-    """Result of a gradient-based multi-step transport source rollout update."""
-
-    loss: float
-    gradient: FloatArray
-    updated_sources: FloatArray
-    final_profiles: FloatArray
-    step_norm: float
-    metadata: TransportCampaignMetadata
-    gradient_audit: TransportSourceRolloutGradientAudit | None
-
-
-def _optional_finite_array_bound(name: str, value: object, shape: tuple[int, ...]) -> FloatArray | None:
-    if value is None:
-        return None
-    arr = np.asarray(value, dtype=np.float64)
-    if arr.shape == ():
-        arr = np.full(shape, float(arr), dtype=np.float64)
-    if arr.shape != shape or not np.all(np.isfinite(arr)):
-        raise ValueError(f"{name} must be finite and broadcastable to source shape.")
-    return arr
-
-
-def _rollout_audit_indices(
-    source_shape: tuple[int, ...],
-    sample_indices: object | None,
-) -> tuple[tuple[int, int, int], ...]:
-    if len(source_shape) != 3:
-        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho).")
-    n_steps, n_channels, n_rho = source_shape
-    if n_steps < 1 or n_channels != 4 or n_rho < 3:
-        raise ValueError("source_sequence must have shape (n_steps, 4, n_rho) with n_rho >= 3.")
-    if sample_indices is None:
-        candidates: tuple[tuple[int, int, int], ...] = (
-            (0, 0, 1),
-            (n_steps - 1, 1, n_rho // 2),
-            (n_steps // 2, 2, n_rho - 2),
-            (n_steps - 1, 3, max(1, n_rho // 3)),
-        )
-    else:
-        if not isinstance(sample_indices, Iterable):
-            raise ValueError("gradient_audit_sample_indices must be an iterable of three-part indices.")
-        parsed_candidates: list[tuple[int, int, int]] = []
-        for raw_index in sample_indices:
-            if not isinstance(raw_index, Iterable):
-                raise ValueError("gradient_audit_sample_indices must contain iterable three-part indices.")
-            index_tuple = tuple(int(part) for part in raw_index)
-            if len(index_tuple) != 3:
-                raise ValueError("gradient_audit_sample_indices must contain three-part indices.")
-            parsed_candidates.append((index_tuple[0], index_tuple[1], index_tuple[2]))
-        candidates = tuple(parsed_candidates)
-    unique: list[tuple[int, int, int]] = []
-    for step, channel, radius in candidates:
-        if not (0 <= step < n_steps and 0 <= channel < n_channels and 0 <= radius < n_rho):
-            raise ValueError("gradient_audit_sample_indices contain an out-of-range rollout source index.")
-        index = (int(step), int(channel), int(radius))
-        if index not in unique:
-            unique.append(index)
-    if not unique:
-        raise ValueError("gradient_audit_sample_indices must contain at least one index.")
-    return tuple(unique)
-
-
-def _audit_transport_rollout_source_gradients(
-    initial_profiles: AnyFloatArray,
-    chi: AnyFloatArray,
-    source_sequence: AnyFloatArray,
-    target_history: AnyFloatArray,
-    rho: AnyFloatArray,
-    dt: float,
-    edge_values: AnyFloatArray,
-    source_gradient: AnyFloatArray,
-    *,
-    weights: AnyFloatArray | None,
-    epsilon: float,
-    tolerance: float,
-    sample_indices: object | None,
-) -> TransportSourceRolloutGradientAudit:
-    epsilon_float = float(epsilon)
-    tolerance_float = float(tolerance)
-    if not np.isfinite(epsilon_float) or epsilon_float <= 0.0:
-        raise ValueError("gradient_audit_epsilon must be positive and finite.")
-    if not np.isfinite(tolerance_float) or tolerance_float <= 0.0:
-        raise ValueError("gradient_audit_tolerance must be positive and finite.")
-    indices = _rollout_audit_indices(source_sequence.shape, sample_indices)
-    base_loss = float(
-        transport_rollout_tracking_loss(
-            initial_profiles,
-            chi,
-            source_sequence,
-            target_history,
-            rho,
-            dt,
-            edge_values,
-            weights=weights,
-            use_jax=False,
-        )
-    )
-    max_abs_error = 0.0
-    for index in indices:
-        plus_sources = source_sequence.copy()
-        minus_sources = source_sequence.copy()
-        plus_sources[index] += epsilon_float
-        minus_sources[index] -= epsilon_float
-        plus_loss = float(
-            transport_rollout_tracking_loss(
-                initial_profiles,
-                chi,
-                plus_sources,
-                target_history,
-                rho,
-                dt,
-                edge_values,
-                weights=weights,
-                use_jax=False,
-            )
-        )
-        minus_loss = float(
-            transport_rollout_tracking_loss(
-                initial_profiles,
-                chi,
-                minus_sources,
-                target_history,
-                rho,
-                dt,
-                edge_values,
-                weights=weights,
-                use_jax=False,
-            )
-        )
-        finite_difference = (plus_loss - minus_loss) / (2.0 * epsilon_float)
-        max_abs_error = max(max_abs_error, abs(float(source_gradient[index]) - finite_difference))
-    return TransportSourceRolloutGradientAudit(
-        loss=base_loss,
-        epsilon=epsilon_float,
-        tolerance=tolerance_float,
-        checked_indices=indices,
-        source_max_abs_error=float(max_abs_error),
-        passed=bool(max_abs_error <= tolerance_float),
-    )
+__all__ = [
+    "TransportCoefficientTuningResult",
+    "TransportSourceScheduleTuningResult",
+    "TransportSourceRolloutGradientAudit",
+    "TransportSourceRolloutTuningResult",
+    "tune_transport_coefficients_for_tracking",
+    "tune_transport_sources_for_tracking",
+    "tune_transport_source_rollout_for_tracking",
+    "tune_neural_transport_closure_for_tracking",
+    "_audit_transport_rollout_source_gradients",
+    "_optional_finite_array_bound",
+    "_rollout_audit_indices",
+]
 
 
 def tune_transport_coefficients_for_tracking(
@@ -306,6 +147,9 @@ def tune_transport_coefficients_for_tracking(
     gradient_array = np.asarray(gradient, dtype=np.float64)
     if gradient_array.shape != chi_array.shape or not np.all(np.isfinite(gradient_array)):
         raise ValueError("transport gradient must be finite and match chi shape.")
+    loss_float = float(loss)
+    if not np.isfinite(loss_float):
+        raise ValueError("transport loss must be finite.")
     gradient_audit = None
     if require_gradient_audit:
         gradient_audit = assert_transport_parameter_gradients_consistent(
@@ -322,12 +166,14 @@ def tune_transport_coefficients_for_tracking(
             sample_indices=gradient_audit_sample_indices,
         )
 
-    delta = -learning_rate_float * gradient_array
-    if max_fractional_update_float is not None:
-        cap = max_fractional_update_float * np.maximum(np.abs(chi_array), 1.0e-12)
-        delta = np.clip(delta, -cap, cap)
-    updated_chi = np.maximum(chi_min_float, chi_array + delta)
-    step_norm = float(np.linalg.norm(updated_chi - chi_array))
+    updated_chi, step_norm = _bounded_tuning_update(
+        "chi",
+        chi_array,
+        gradient_array,
+        learning_rate_float,
+        fractional_cap=max_fractional_update_float,
+        lower=chi_min_float,
+    )
     metadata = transport_campaign_metadata(
         profiles,
         chi_array,
@@ -341,7 +187,7 @@ def tune_transport_coefficients_for_tracking(
         equilibrium_psi=equilibrium_psi,
     )
     return TransportCoefficientTuningResult(
-        loss=float(loss),
+        loss=loss_float,
         gradient=gradient_array,
         updated_chi=updated_chi,
         step_norm=step_norm,
@@ -412,6 +258,9 @@ def tune_transport_sources_for_tracking(
     )
     if not isinstance(gradient_result, TransportParameterGradients):
         raise ValueError("transport_parameter_gradients must return TransportParameterGradients.")
+    loss_float = float(gradient_result.loss)
+    if not np.isfinite(loss_float):
+        raise ValueError("transport loss must be finite.")
     source_gradient = np.asarray(gradient_result.source_gradient, dtype=np.float64)
     if source_gradient.shape != source_array.shape or not np.all(np.isfinite(source_gradient)):
         raise ValueError("source gradient must be finite and match source shape.")
@@ -431,15 +280,15 @@ def tune_transport_sources_for_tracking(
             sample_indices=gradient_audit_sample_indices,
         )
 
-    delta = -learning_rate_float * source_gradient
-    if max_absolute_update_float is not None:
-        delta = np.clip(delta, -max_absolute_update_float, max_absolute_update_float)
-    updated_sources = source_array + delta
-    if source_min_array is not None:
-        updated_sources = np.maximum(source_min_array, updated_sources)
-    if source_max_array is not None:
-        updated_sources = np.minimum(source_max_array, updated_sources)
-    step_norm = float(np.linalg.norm(updated_sources - source_array))
+    updated_sources, step_norm = _bounded_tuning_update(
+        "sources",
+        source_array,
+        source_gradient,
+        learning_rate_float,
+        absolute_cap=max_absolute_update_float,
+        lower=source_min_array,
+        upper=source_max_array,
+    )
     metadata = transport_campaign_metadata(
         profiles,
         chi,
@@ -453,7 +302,7 @@ def tune_transport_sources_for_tracking(
         equilibrium_psi=equilibrium_psi,
     )
     return TransportSourceScheduleTuningResult(
-        loss=float(gradient_result.loss),
+        loss=loss_float,
         gradient=source_gradient,
         updated_sources=updated_sources,
         step_norm=step_norm,
@@ -526,6 +375,9 @@ def tune_transport_source_rollout_for_tracking(
     )
     if not isinstance(gradient_result, TransportRolloutSourceGradients):
         raise ValueError("transport_rollout_source_gradients must return TransportRolloutSourceGradients.")
+    loss_float = float(gradient_result.loss)
+    if not np.isfinite(loss_float):
+        raise ValueError("transport loss must be finite.")
     source_gradient = np.asarray(gradient_result.source_gradient, dtype=np.float64)
     if source_gradient.shape != source_array.shape or not np.all(np.isfinite(source_gradient)):
         raise ValueError("rollout source gradient must be finite and match source_sequence shape.")
@@ -558,15 +410,15 @@ def tune_transport_source_rollout_for_tracking(
                 stacklevel=2,
             )
 
-    delta = -learning_rate_float * source_gradient
-    if max_absolute_update_float is not None:
-        delta = np.clip(delta, -max_absolute_update_float, max_absolute_update_float)
-    updated_sources = source_array + delta
-    if source_min_array is not None:
-        updated_sources = np.maximum(source_min_array, updated_sources)
-    if source_max_array is not None:
-        updated_sources = np.minimum(source_max_array, updated_sources)
-    step_norm = float(np.linalg.norm(updated_sources - source_array))
+    updated_sources, step_norm = _bounded_tuning_update(
+        "rollout sources",
+        source_array,
+        source_gradient,
+        learning_rate_float,
+        absolute_cap=max_absolute_update_float,
+        lower=source_min_array,
+        upper=source_max_array,
+    )
     metadata = transport_campaign_metadata(
         initial_profiles,
         chi,
@@ -580,7 +432,7 @@ def tune_transport_source_rollout_for_tracking(
         equilibrium_psi=equilibrium_psi,
     )
     return TransportSourceRolloutTuningResult(
-        loss=float(gradient_result.loss),
+        loss=loss_float,
         gradient=source_gradient,
         updated_sources=updated_sources,
         final_profiles=final_profiles,

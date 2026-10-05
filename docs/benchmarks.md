@@ -31,6 +31,50 @@ sole evidence copy. Each `--artifact ROLE=PATH` declaration must name every file
 or directory the producer persists. Running the same command twice therefore
 creates two immutable run directories and never discards the first result.
 
+### Recorded command lifecycle
+
+The runner accepts an executable argument vector after `--` and executes it
+without a shell. Its working directory is the resolved `--repository-root`;
+relative output paths use that root. `--records-root` defaults to
+`artifacts/benchmarks/records` and must resolve inside the repository. Every child
+inherits the native environment and standard streams, with
+`SCPN_BENCHMARK_CAMPAIGN_ID` set to the reserved identifier. This same Python
+runner can launch Python, Rust or other native producers.
+
+Before launch, the runner reserves the campaign and cooperating writers' output
+destinations, then retains and displaces old materializations. After the direct
+child exits, it seals every recreated declared artifact and releases its output
+lease. Missing artifacts cause a failed manifest; their old materializations are
+restored. Failed runs retain available partial artifacts and never advance
+`latest`. A successful no-op cannot reuse stale output as fresh evidence.
+
+| Result | Runner exit | Immutable record |
+| --- | --- | --- |
+| Producer exits zero and recreates every output | `0` | Successful; advances `latest` |
+| Producer exits nonzero | Native producer code | Failed; retains available artifacts |
+| Producer exits zero with a missing output | `1` | Failed; records the missing role |
+| Native executable cannot start | `127` | Failed; records the launch result |
+| Interrupt caught while waiting for the child | `130` | Failed; uses native child cleanup before sealing |
+| Help or invalid wrapper arguments | argparse `0` or `2` | No campaign is reserved |
+
+POSIX signal termination gives a negative child code through the imported
+`main(argv)` API; the script's `SystemExit` uses the platform's command-line
+mapping. Reservation, archival or finalization errors propagate rather than
+becoming the launch code. An unresolved finalization failure may retain a lease
+for explicit recovery. The runner provides no timeout or descendant-process
+supervisor; use it with producers whose direct child owns their lifecycle.
+An interrupt does not guarantee that the OS has immediately reaped the child.
+Native Windows console interruption and POSIX SIGINT have different delivery
+rules, so interruption evidence must come from the actual platform.
+
+The optional JSON object in `--measurement-json` overrides labels inferred from
+`--steps`, `--iterations`, `--warmup`, `--repeats`, `--samples` and `--n-bench`.
+The last spelling wins; integer spellings become integers and other values stay
+strings. These labels describe the command, not the measured sample population.
+The manifest's source HEAD is repository metadata, not a digest of dirty source
+bytes. Successful custody and an evidence-class label alone do not admit a
+scientific result, a model or a production deployment.
+
 The v0.20.4 release candidate includes the following repository reports as
 local-regression evidence for the native execution and formal-runtime lane:
 
@@ -162,7 +206,29 @@ AOT p99 cycle latency above the configured threshold. Reports generated on a
 loaded workstation or without explicit CPU/core isolation must use
 `evidence_class=local_regression` and `production_claim_allowed=false`.
 `evidence_class=production_benchmark` requires explicit isolation metadata,
-a clean workspace, and a declared yes/no value for concurrent heavy jobs.
+literal `workspace_dirty=false`, and a declared yes/no value for concurrent heavy
+jobs. These are report declarations: the reader does not probe the host, reject
+a declared heavy-job value of true, reopen certificate bytes, authenticate the
+producer or grant certified control. Required nonblank context strings and
+nonempty version objects do not independently establish realtime qualification.
+
+The standard-library reader hashes the same exact bytes it decodes. Duplicate
+keys, nonfinite floating JSON tokens and overflowing exponents are refused at
+any depth. A non-boolean, positive finite numeric p99 threshold is required;
+invalid runtime API thresholds return FAIL before case-limit evaluation.
+Unconvertible huge numeric declarations become findings rather than tracebacks.
+Other latency fields, per-tick measurements, execution rows and isolation/load
+contents are not recomputed. The threshold applies to each declared AOT
+`avg_cycle_us.p99`, which the producer computes across repeated summaries.
+
+The result preserves case-level admitted labels even when a global schema,
+context or cross-case digest finding makes overall status FAIL. Its single
+observed certificate digest may come from a rejected case. Consumers must check
+overall status and independent artifact custody. Declared production flags also
+remain visible on FAIL; they are not qualification. Read/decode/non-object
+refusals have no report digest. Caller-relative paths and symlinks are followed;
+there is no containment or input size/depth budget. Additional metadata is
+unchecked apart from decoder refusals.
 
 `scpn-control validate` runs the same native formal certificate gate by default
 and emits the result under `native_formal_certificate`. The release-evidence
@@ -253,6 +319,16 @@ transport; 5000 steps × 7 repeats, P50/P99 µs):
 | H-infinity | numpy (historical general state-space) | 29.43 / 53.42 | 13.27 / 29.81 |
 | H-infinity | rust (historical 2-state approximation) | 1.39 / 1.49 | 1.05 / 5.28 |
 
+The historical PID row labelled `numpy` measured a pure Python fallback. The
+current benchmark names that backend `python`; the optional `PyPIDController`
+binding is still unavailable. A separate local, non-isolated 2026-09-23 run of
+the current PID arithmetic used the same sine-error sequence and gains for
+seven repeats of 5,000 steps after 500 warm-up steps. Median-across-repeat
+P50/P99 was **1.014/2.449 µs** for Python and **0.055/0.073 µs** for the direct
+release-built native Rust PID. The native result comes from
+`control-control/examples/bench_pid.rs`, not from a PyO3 call; these local
+numbers do not replace the CI table or establish a real-time bound.
+
 The retained H-infinity rows above are historical records from unlike plants
 and unlike controller algorithms; they do **not** support a Python/Rust speedup
 claim. Current benchmark code supplies both runtimes with one normalized
@@ -331,6 +407,14 @@ and canonical SHA-256 digests for solver kwargs, case parameters, and the
 complete payload. The default benchmark emits the built-in CBC, kinetic-electron
 TEM, and low-drive stable-mode parity cases.
 
+The persisted reader validates declarations without rerunning this campaign:
+finite numeric/token domains, digests, drift, spectra and named coverage. A
+reader refusal test or copied historical artifact does not establish new
+backend timing or physical parity. Its digests bind canonical JSON, not raw
+bytes or authenticated device/source metadata. Physical solver kernels,
+producer inputs and the recorded CPU/GPU artifacts remain the timing sources;
+standalone reader IO/refusal corrections do not change those computations.
+
 Run:
 
 ```bash
@@ -368,7 +452,7 @@ validation/reports/jax_gk_parity_benchmark.json
 validation/reports/jax_gk_parity_benchmark.md
 ```
 
-Current local CPU run, generated with `JAX_PLATFORM_NAME=cpu`, regenerated the
+Recorded local CPU run, generated with `JAX_PLATFORM_NAME=cpu`, regenerated the
 three CPU artifacts in `2.963800` seconds total. Per-case timings were:
 
 | Case | Backend | Device | Elapsed s |
@@ -699,6 +783,46 @@ the `1.0..5.0` CBC reference band, and had tail relative drift
 `--require-saturation` for publication or release gates that must fail unless a
 long enough saturated campaign is admitted.
 
+## Manual nonlinear GK software check
+
+This short source-checkout example uses the actual JAX CPU backend and the
+runner's existing initial-state seed. It checks saved diagnostics without
+executing the fixed long ES/EM or Dimits presets:
+
+```bash
+JAX_PLATFORMS=cpu OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 \
+XLA_FLAGS='--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=1' \
+PYTHONPATH=.:src python - <<'PY'
+from tools.em_and_dimits import run_jax
+
+result = run_jax(
+    "short CPU software check",
+    n_kx=8, n_ky=4, n_theta=8, n_vpar=4, n_mu=2,
+    n_steps=2, save_interval=1,
+)
+assert result["time_final"] > 0
+assert result["chi_i_gB"] is not None
+print(result)
+PY
+```
+
+An installed JAX backend and this checkout's Python dependencies are required.
+The two saved samples can set `converged=True`; this only reflects the solver's
+finite-sample flag. The displayed transport ratio and endpoint growth are raw
+diagnostics, not validated physical transport, a Dimits-shift measurement or
+facility admission. Wall-clock timings vary with runtime/device state. Calling
+`run_jax` writes no report; running the module's fixed `main()` selects much
+larger workloads and replaces `gpu_results/em_and_dimits.json` after all cases
+finish. That raw output has no authenticated source or campaign custody.
+
+The separate fixed comparisons use different numerical presets:
+`tools.dimits_256_fixed` uses 256 kx modes, 10000 steps and hyper coefficient
+0.02; `tools.dimits_long` uses 128 kx modes, 20000 steps and coefficient 0.2.
+Both compare drives 3.0 and 6.9 with save interval 200. Their entry points
+cannot be substituted for the short configurable example above, and these
+different workloads do not establish a controlled timing or convergence
+comparison. See their [API and output contracts](api.md#manual-nonlinear-jax-gk-experiments).
+
 ## RZIP Calibration Benchmark
 
 `validation/benchmark_rzip_calibration.py` publishes bounded local regression
@@ -732,6 +856,40 @@ Report artefacts:
 Facility RWM-control claims still require documented public, external MHD, or
 measured-shot evidence that passes the strict admission gate.
 
+## Vacuum diagnostic report software check
+
+This source-checkout example runs the actual public writer with a temporary
+working directory. Its report paths are outside the checkout's persistent
+evidence roots, so the existing scratch-path policy permits the write. It does
+not replace the canonical scientific reports:
+
+```bash
+PYTHONPATH=.:src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python - <<'PY'
+import json
+from contextlib import chdir
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from validation.benchmark_free_boundary import main
+
+with TemporaryDirectory() as scratch, chdir(scratch):
+    main()
+    payload = json.loads(Path("validation/reports/free_boundary_benchmark.json").read_text())
+    assert payload["helmholtz"]["pass"] is None
+    assert payload["helmholtz"]["assessment"] == "diagnostic_only_off_axis_sample"
+    print(payload["helmholtz"])
+PY
+```
+
+The Helmholtz sample is off-axis and its reference is on-axis. Their differing
+values are diagnostic, with no same-point tolerance or quantitative PASS.
+Single-coil equality uses the solver's own expression; the reported X-point is
+a grid-gradient minimum with a Z-only test. These checks provide no independent
+flux normalization or validated magnetic-null witness. The raw diagnostic API
+retains its historical qualitative marker; the report writer explicitly records
+that marker as unassessed. The [API contract](api.md#vacuum-software-diagnostic-reports)
+describes output order, temporary config cleanup and native error propagation.
+
 ## Free-boundary Tracking Claim-Admission Benchmark
 
 `validation/benchmark_free_boundary_tracking_claims.py` publishes bounded
@@ -745,9 +903,15 @@ Report artefacts:
 - `validation/reports/free_boundary_tracking_claims.json`
 - `validation/reports/free_boundary_tracking_claims.md`
 
-Facility free-boundary tracking claims still require documented public,
-measured-replay, or external equilibrium benchmark evidence that passes the
-strict admission gate.
+The shipped producer uses a fixed 8-by-4 linear current response, with a zero
+Psi grid. It runs five real controller steps with gain 0.5, one-step measurement
+latency and gain-0.75 compensation. Its config filename is only a report label;
+no configuration file or Grad-Shafranov solver is used by this fixture.
+
+The reference metadata validator checks declared fields and tolerances; it does
+not verify the digest against artifact bytes or independently replay the metrics.
+Facility free-boundary tracking claims remain blocked pending independently
+verified reference evidence and device-specific admission.
 
 ## EFIT-lite Claim-Admission Benchmark
 
@@ -755,16 +919,19 @@ strict admission gate.
 regression evidence for the fixed-boundary EFIT-lite reconstruction path. The
 generated report records diagnostic provenance, grid shape, flux-loop and
 B-probe counts, Rogowski radius, reconstructed current, q95, beta_pol, li, and
-the explicit facility-claim boundary.
+the explicit facility-claim boundary. Schema 2 also records the geometric or
+Picard termination status and the final Picard relative change when present.
 
 Report artefacts:
 
 - `validation/reports/efit_lite_claims.json`
 - `validation/reports/efit_lite_claims.md`
 
-Facility equilibrium claims still require matched EFIT/P-EFIT, documented
-public, or measured-discharge evidence for psi, Ip, q95, beta_pol, and li that
-passes the strict admission gate.
+The current builder does not admit facility claims from caller-declared
+references, even when all metric tolerances pass. Facility equilibrium claims
+require independently obtained and byte-pinned EFIT/P-EFIT or measured
+references, diagnostic/shot/time provenance, and fixed comparison conventions
+for psi, Ip, q95, beta_pol, and li.
 
 ## Kinetic EFIT Claim-Admission Benchmark
 
@@ -777,6 +944,13 @@ Report artefacts:
 
 - `validation/reports/kinetic_efit_claims.json`
 - `validation/reports/kinetic_efit_claims.md`
+
+The producer passes empty magnetic measurements. The synthetic flux loop and
+radial probe at (6, 1) m lie inside its 33-by-33 R=4..8 m, Z=-3..3 m grid.
+The fixed temperature/density constraints produce 50-point pressure profiles;
+the prescribed 5-degree MSE pitch gives q_axis=1+5/90 and q_edge=q_axis+2.
+Reconstruction chi-squared, iteration count and wall-time fields are constants,
+not measured diagnostics or performance. No reference is supplied.
 
 Facility kinetic-EFIT claims still require matched EFIT/P-EFIT, documented
 public, or measured-discharge references for pressure, q-profile, and
@@ -815,6 +989,86 @@ also pass `transport_full_fidelity_readiness_evidence()` with bound one-step and
 rollout reports, controller proof digest, equilibrium-coupled campaign
 metadata, and an admitted external reference artefact.
 
+
+### Temporary manufactured mesh and differentiable reader examples
+
+Run these source-checkout examples from the repository root. The first calls
+the actual independent manufactured mesh API; it does not invoke FusionKernel
+or overwrite reports. The full fixed command additionally runs65/129 grids
+and writes sequential caller-relative reports; execute it in an isolated cwd.
+
+```python
+from validation.mesh_convergence_study import run_solovev_benchmark
+
+empty = run_solovev_benchmark(5, 7, max_iter=0)
+assert empty["iterations"] == 0
+coarse = run_solovev_benchmark(17, 17, max_iter=2000)
+fine = run_solovev_benchmark(33, 33, max_iter=4000)
+assert fine["nrmse"] < coarse["nrmse"]
+print("Manufactured stencil only:", coarse["nrmse"], fine["nrmse"])
+```
+
+The second runs the complete byte-identical installed-CPU-JAX producer, with
+actual audited timing and software-only immutable report custody. Output paths
+resolve from the copied source location; external/reference/formal evidence is
+absent, so full-fidelity readiness remains blocked. The explicitly authored
+invalid-audit derivative is reader input, not a new observation. Timing values
+are local diagnostics, not controlled comparisons or hardware guarantees.
+
+```python
+from pathlib import Path
+import json
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+
+from validation.validate_differentiable_transport_latency import validate_differentiable_transport_latency
+
+root = Path.cwd()
+with tempfile.TemporaryDirectory(prefix="control-differentiable-reader-") as directory:
+    temporary = Path(directory)
+    source = temporary / "validation/benchmark_differentiable_transport_latency.py"
+    source.parent.mkdir()
+    original = root / "validation/benchmark_differentiable_transport_latency.py"
+    shutil.copyfile(original, source)
+    assert source.read_bytes() == original.read_bytes()
+    names = ["differentiable_transport_latency",
+             "differentiable_transport_rollout_latency",
+             "differentiable_transport_full_fidelity_readiness"]
+    command = [sys.executable, str(root / "tools/run_recorded_benchmark.py"),
+        "--repository-root", str(temporary), "--records-root", "records",
+        "--family", "differentiable-reader-example", "--campaign-id", "local-software",
+        "--evidence-class", "software_boundary_test"]
+    for role, name in zip(["one", "rollout", "readiness"], names, strict=True):
+        command += ["--artifact", f"{role}=validation/reports/{name}.json"]
+    command += ["--", sys.executable, str(source)]
+    subprocess.run(command, cwd=temporary, env=dict(os.environ,
+        PYTHONPATH=str(root / "src"), JAX_PLATFORMS="cpu",
+        OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1"),
+        capture_output=True, text=True, check=True)
+    one, rollout, readiness = (temporary / "validation/reports" / (name + ".json") for name in names)
+    result = validate_differentiable_transport_latency(
+        one, rollout, readiness_report=readiness, require_admitted=True)
+    assert result["status"] == "pass" and result["admitted_reports"] == 2
+    assert result["full_fidelity_ready"] is False
+    payload = json.loads(one.read_text())
+    payload["audit"]["passed"] = False
+    derivative = temporary / "authored-invalid-audit.json"
+    derivative.write_text(json.dumps(payload), encoding="utf-8")
+    refused = validate_differentiable_transport_latency(derivative, rollout)
+    assert refused["status"] == "fail" and refused["admitted_reports"] == 1
+    assert refused["entries"][0]["status"] == "fail"
+    print("Local declarations only; full-fidelity readiness remains blocked")
+```
+
+require_admitted concerns valid local latency declarations and refuses valid
+blocked latency reports. It does not require full-fidelity readiness. Invalid
+entries have statusfail and do not count as admitted; aggregate readiness is
+False on errors. Runtime and readiness hashes are declarations checked for
+syntax/presence, without replay or source/operator authentication.
+
 ## Differentiable Scenario Readiness Evidence
 
 The coupled differentiable scenario facade records bounded evidence for an
@@ -845,11 +1099,13 @@ or facility-control claim.
 
 ## TORAX Code-to-Code External-Reference Evidence
 
-`validation/code_to_code_benchmark.py` runs the local transport stack on a
-declared ITER-like scenario and can optionally execute TORAX on the same
-scenario. The script now emits schema-versioned JSON and Markdown evidence with
-a canonical payload digest, scenario digest, external-reference status, blocked
-reasons, and finite comparison metrics when TORAX is available.
+The source-checkout command runs actual CONTROL transport and optionally the
+installed TORAX provider. Shared declared linear initial profiles and fixed dt
+now map consistently; n_rho sets the local radial solver length. Configured
+transport closures, current/geometry and source channels still differ, so
+finite diagnostics do not admit a physical transport reference. Schema v3
+records scenario/payload digests, model limitations, status and declared
+diagnostic_comparison_available separately from physical admission.
 
 Report artefacts:
 
@@ -872,13 +1128,39 @@ PYTHONPATH=src python tools/run_recorded_benchmark.py \
   -- python validation/code_to_code_benchmark.py --with-torax --require-external
 ```
 
-`--require-external` exits non-zero unless TORAX actually runs and the report
-contains finite scpn-control and TORAX profile/comparison payloads. Reports
-without TORAX remain explicit blocked evidence and do not satisfy full-fidelity
-external-reference requirements. The current local evidence run executed the
-scpn-control scenario path with average `Te=8.142 keV`, average `Ti=8.109 keV`,
-energy-balance error `1.3548e-02`, particle-balance error `7.4357e-03`, and
-blocked TORAX admission because TORAX is not installed in this environment.
+The ordinary command writes both outputs and exits zero for a successful local
+diagnostic even when the optional provider is missing. With
+`--require-external`, exit one follows both outputs while physical admission
+remains blocked. A real provider run would supply diagnostic metrics but would
+not resolve the current source-backed model limitations. Historical report
+numbers are retained in their original artifacts; they are not a fresh run of
+this adapter or a controlled cross-code performance comparison.
+
+The following temporary source-checkout example observes actual initialization,
+executes two real transport steps and compares those local observations as
+declared reader inputs. It does not invoke or substitute TORAX:
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+from validation.code_to_code_benchmark import (
+    ITER_SCENARIO,
+    build_comparison_report,
+    compare_transport_profiles,
+    run_local_transport,
+)
+from validation.code_to_code_torax import write_torax_config
+
+initial = run_local_transport(dict(ITER_SCENARIO, n_rho=13, n_steps=0, t_final=0.0))
+evolved = run_local_transport(dict(ITER_SCENARIO, n_rho=13, n_steps=2, t_final=0.02))
+comparison = compare_transport_profiles(evolved, initial)
+report = build_comparison_report(comparison, ITER_SCENARIO, requested_torax=False)
+assert report["external_reference"]["admitted"] is False
+assert comparison["comparison"]["Te_rmse_keV"] > 0
+with TemporaryDirectory() as directory:
+    write_torax_config(Path(directory) / "config.py", ITER_SCENARIO)
+```
 
 ## End-to-End Control Latency Evidence
 
@@ -910,6 +1192,64 @@ python validation/validate_e2e_latency_evidence.py validation/reports/e2e_contro
 The validator rejects unqualified local-host metadata, missing RT-kernel
 evidence, non-finite percentile data, missing claim-boundary text, and optional
 P95 latency threshold regressions.
+
+
+### Temporary E2E reader example
+
+Run this source-checkout example from the repository root. It invokes the actual
+Python sensor, one-SOR-step equilibrium, transport, H-infinity and actuator-clamp
+path, retaining its report outside canonical scientific destinations. The
+record wrapper identifies software-only custody; unqualified target labels
+remain unchanged. Three samples with the producer's floor-index percentiles
+are insufficient to establish a tail distribution, hardware deadline or
+comparative performance. No historical report is replaced.
+
+The reader requires an explicitly zero-offset UTC timestamp and refuses NaN,
+infinite, negative, boolean or nonnumeric budgets before opening the report.
+A zero-microsecond budget is valid and rejects positive p95; equality passes.
+Report checks do not authenticate declared target labels, operator approval,
+clocks, actual isolation or raw samples. The parsed-payload self-checksum can
+be recomputed by any author; it is not a signature.
+
+```python
+from pathlib import Path
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+from validation.validate_e2e_latency_evidence import validate_e2e_latency_evidence
+
+root = Path.cwd()
+with tempfile.TemporaryDirectory(prefix="control-e2e-reader-") as temporary:
+    output = Path(temporary)
+    report = output / "actual.json"
+    command = [
+        sys.executable, str(root / "tools/run_recorded_benchmark.py"),
+        "--repository-root", str(output), "--records-root", "records",
+        "--family", "e2e-reader-example", "--campaign-id", "local-software",
+        "--evidence-class", "software_boundary_test", "--artifact", f"report={report}",
+        "--", sys.executable, str(root / "benchmarks/e2e_control_latency.py"),
+        "--iterations", "3", "--warmup", "1", "--output-json", str(report), "--json",
+    ]
+    process = subprocess.run(command, cwd=root,
+        env=dict(os.environ, OPENBLAS_NUM_THREADS="1", OMP_NUM_THREADS="1"),
+        capture_output=True, text=True, check=True)
+    observed = json.loads(report.read_text(encoding="utf-8"))
+    result = validate_e2e_latency_evidence(report, require_target_hardware=False)
+    assert result.status == "pass" and result.p95_us is not None
+    assert observed["production_claim_allowed"] is False
+    assert validate_e2e_latency_evidence(
+        report, require_target_hardware=False, max_e2e_p95_us=result.p95_us
+    ).status == "pass"
+    cli = subprocess.run([
+        sys.executable, str(root / "validation/validate_e2e_latency_evidence.py"),
+        str(report), "--allow-local-unqualified", "--json-out",
+    ], cwd=root, capture_output=True, text=True, check=True)
+    assert json.loads(cli.stdout)["status"] == "pass"
+    print("Local software observation only:", result.p95_us, "microseconds")
+```
 
 ## VMEC-lite Claim-Admission Benchmark
 
@@ -960,6 +1300,31 @@ admission status. The companion result-template report binds the launch digest
 and declares the holdout, latency, GPU-cost, and admission-certificate outputs
 that a future workstation or cloud execution must publish before strict
 predictive admission is requested.
+
+The trainer now checks current plan/source self-digests, selected NPZ shape
+and shot-held-out splits before fitting. Both preserved MAST source audits
+currently have stale self-digests, and the declared physical tensor payload is
+absent locally; current source/execute admission remains FAIL. These checks do
+not rerun or refresh historical scientific benchmark numbers. Small retained
+format regressions exercise the actual NumPy baseline but establish no MAST
+throughput, GPU billing or physical predictive performance. The ridge intercept
+count is assigned directly to preserve the unpenalised intercept at large
+finite regularisation. The launch format has no measured numerical benchmark;
+PCA/ridge arithmetic remains a Python implementation.
+
+The MAST dataset producer verifies converter declarations and selected NPZ
+custody before assembling inputs. Hash verification and decoding share one
+compressed-file byte capture rather than two pathname observations. This
+adds temporary storage for one compressed bundle and closes input substitution
+between checks; no performance measurement is claimed. The supervised trainer
+uses the same verified-NPZ reader for its input dataset. The producer and trainer
+also share final N × 12 feature validation. Stored wider-dtype observations
+must remain finite after float64 conversion; this is input admission, not a
+change to the PCA/ridge numerical formulas or a measured speed improvement. Its stable pressure/RMS mean and median,
+descending-grid normalisation and valid LCFS compaction are covered through
+actual public format regressions. This producer has no measured benchmark or
+native language counterpart; these changes do not refresh historical physical
+performance numbers. The reported external corpus remains unavailable locally.
 
 ## Neural-transport Claim-Admission Benchmark
 
@@ -1027,6 +1392,13 @@ Report artefacts:
 - `validation/reports/uq_claims.json`
 - `validation/reports/uq_claims.md`
 
+The preset fixes I_p=15 MA, B_t=5.3 T, P_heat=50 MW, n_e=10.1 in 1e19 m^-3,
+R=6.2 m, A=3.1, kappa=1.7 and M=2.5 AMU, with equal D/T fractions and no
+dilution. A local NumPy Generator uses seed 31 for 256 samples. The chain samples
+scaling-law and transport/pedestal/boundary proxies; it runs no equilibrium or
+transport PDE solver, and supplies no calibration reference. Central tau_E is
+in seconds, fusion power in MW and Q is dimensionless.
+
 Calibrated predictive-UQ claims still require matched measured scenario,
 documented-public, external-UQ, or facility validation references for central
 values and sigma statistics.
@@ -1044,9 +1416,72 @@ Report artefacts:
 - `validation/reports/density_control_claims.json`
 - `validation/reports/density_control_claims.md`
 
-Facility-calibrated density-control claims still require matched measured
-discharge, documented-public, external particle-balance, or facility replay
-references for Greenwald fraction and particle inventory change.
+Numerically matched measured-discharge, documented-public, external
+particle-balance, or facility-replay references remain bounded comparison
+evidence when supplied by the caller. The schema version 2 report records the
+comparison result separately. Facility admission remains closed until an
+independent reference witness can be verified.
+
+## Bounded particle report software check
+
+From this source checkout, the following example copies the complete producers
+to a temporary output root and runs their actual recorded wrapper. It exercises
+bounded declarations without replacing the checkout's scientific reports. The
+copied root's custody metadata does not establish the canonical package source
+identity or an external physical reference.
+
+```bash
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python - <<'PY'
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+checkout = Path.cwd()
+with TemporaryDirectory() as scratch:
+    root = Path(scratch)
+    (root / "validation").mkdir()
+    claims = {
+        "density_control_claims": "facility_density_claim_allowed",
+        "current_drive_claims": "external_claim_allowed",
+        "burn_control_claims": "reactor_claim_allowed",
+        "volt_second_claims": "facility_claim_allowed",
+        "orbit_following_claims": "external_orbit_claim_allowed",
+    }
+    for stem, claim in claims.items():
+        producer = root / "validation" / f"benchmark_{stem}.py"
+        shutil.copyfile(checkout / "validation" / producer.name, producer)
+        subprocess.run(
+            [sys.executable, str(checkout / "tools/run_recorded_benchmark.py"),
+             "--repository-root", str(root), "--records-root", "records",
+             "--family", stem, "--evidence-class", "software_boundary_example",
+             "--artifact", f"report=validation/reports/{stem}.json",
+             "--artifact", f"markdown=validation/reports/{stem}.md",
+             "--", sys.executable, str(producer)],
+            env=dict(os.environ, PYTHONPATH=str(checkout / "src")),
+            check=True,
+        )
+        payload = json.loads((root / "validation/reports" / f"{stem}.json").read_text())
+        assert payload[claim] is False
+        print(stem, payload["claim_status"], payload[claim])
+PY
+```
+
+The density case takes an imposed-source CFL-limited step and computes its
+controller command separately from the initial profile. It is not a closed-loop
+replay. Current-drive samples fixed bounded source formulae without external
+reference bytes. Both remain declarations with closed physical admission; the
+copied reports and records disappear when the example's temporary scope ends.
+
+Burn adds static profile diagnostics and one controller update. Volt-second
+adds scalar scenario flux accounting. Orbit uses a first-loss formula and
+fixed declared particle counts; it executes no trajectory ensemble. These
+outputs likewise keep reactor/facility/external orbit admission closed. Their
+[specific API contracts](api.md#bounded-burn-volt-second-and-orbit-report-producers)
+identify units, fixed presets, state and sequential write order.
 
 ## Burn-control Claim-Admission Benchmark
 
@@ -1081,7 +1516,9 @@ Report artefacts:
 Pulse-duration or central-solenoid commissioning claims still require documented
 public, measured loop-voltage replay, or external scenario benchmark references
 for total flux, flat-top duration, Ejima flux, bootstrap current, and budget
-margin agreement.
+margin agreement. A caller-supplied reference dictionary does not meet that
+gate: the current public builder records its metadata as unverified and keeps
+facility admission false until source bytes and comparison metrics are bound.
 
 ## Current-drive Claim-Admission Benchmark
 
@@ -1134,10 +1571,11 @@ Generated artefacts:
 - `validation/reports/disruption_mitigation_claims.json`
 - `validation/reports/disruption_mitigation_claims.md`
 
-Measured disruption-mitigation claims remain blocked until strict measured,
-external-benchmark, or documented public reference artefacts validate warning
-lead time, mitigation outcome, halo-current envelope, runaway-beam envelope,
-and tritium-breeding-ratio metrics inside stated tolerances.
+Measured disruption-mitigation claims remain blocked until an independent
+comparison against measured, external-benchmark, or documented public source
+data validates warning lead time, mitigation outcome, halo-current envelope,
+runaway-beam envelope, and tritium-breeding-ratio metrics. A metadata-only
+reference artefact cannot admit a claim.
 
 The phase-ordering side of the same tracker is covered by the bounded validation
 artefacts `validation/reports/disruption_sequence.json` and
@@ -1254,6 +1692,18 @@ metrics), a tampered report (`payload_sha256` mismatch), a benchmark/language
 metric present in the baseline but absent from the report, or a metric with no
 threshold policy are all failures.
 
+These are local declared-record checks. Matching digests do not authenticate
+the producer or host; declared CPU equality does not prove comparable execution
+conditions. The command's policy and verdict helpers retain their original
+arithmetic in `tools.benchmark_gate_policy` and `tools.benchmark_gate_verdict`.
+The original `tools.benchmark_regression_gate` Python imports remain available.
+Selected report, baseline and threshold-file aliases cannot receive JSON verdict
+output, including resolved symlinks and existing hard links. Unrelated existing
+outputs may be replaced. Supported input/output/custody failures return 1 even
+with `--evidence-only`; generated rejection verdicts alone may return 0 in that
+mode. Output is finite, sorted UTF-8 JSON with a trailing newline. Sequential
+checks provide no coherent snapshot, lock or atomic write.
+
 ```bash
 # Record a fresh run. The command prints its immutable manifest path.
 PYTHONPATH=src python tools/run_recorded_benchmark.py \
@@ -1299,3 +1749,404 @@ Use this page for benchmark interpretation and replay evidence, not as a substit
 - Record benchmark context when comparing results across Python, Rust, and benchmark modes.
 - Use this with `docs/validation.md` for claim boundaries and with `docs/physics_traceability.md` for evidence lineage.
 - Treat every number as environment- and mode-dependent unless explicitly documented otherwise.
+
+### Output freshness and concurrent campaigns
+
+The recorded runner reserves every declared output before starting the producer.
+Existing files and directories are first copied into the verified legacy archive,
+then moved into the invocation's `prior-output` directory. The producer must
+recreate every declared destination. Writing identical deterministic bytes is
+valid; merely leaving an older file in place cannot establish a successful run.
+Directory producers must recreate the directory and its complete result set.
+
+Disjoint output destinations can run concurrently. Identical or overlapping
+file/directory destinations are rejected across recorded campaigns in the same
+canonical repository, even when they use different records roots. The reservation
+registry is `artifacts/benchmarks/output-leases`; it coordinates cooperating
+recorded producers, not unrelated processes writing directly to those paths.
+Each invocation records its command, reservation and original/prior-output paths
+in `invocation.json` before any old destination is moved.
+
+A failed or incomplete run keeps its immutable partial artifacts and cannot
+advance the digest-bound `latest` index. Missing destinations are restored from
+the run's prior outputs. If the producer exits zero but an output is absent, the
+runner returns exit code 1. Nonzero producer exit codes are preserved.
+
+If finalisation or the process is interrupted, its reservation remains in place.
+Recover the invocation and its original/prior-output paths before releasing that
+reservation; a PID becoming absent or being reused is not proof of recovery.
+Historical manifests remain unchanged. New manifests identify this contract as
+`reserved-empty-destination.v1` in `output_custody`; it establishes output
+freshness, not source-tree reproducibility or permission for production claims.
+
+The [output lease API][scpn_control.benchmark_output_lease.BenchmarkOutputLease]
+documents reservation acquisition and release.
+
+A failed preparation releases its reservation only after all displaced outputs
+are restored. If restoration is denied or a destination has become occupied,
+the reservation and prior bytes remain available for explicit recovery; a new
+campaign cannot claim those paths.
+
+Relative output paths are resolved once against the working directory at
+`BenchmarkRun.begin`. Later directory changes cannot redirect reservation,
+archival, sealing or restoration to another file.
+
+## Bounded UQ and equilibrium report software check
+
+From this source checkout, this example runs byte-identical producer copies and
+the actual recorded wrapper in a temporary output root. It creates software
+custody evidence with the physical/calibrated claim flags closed. Copied-root
+metadata does not identify the canonical package build or an external reference.
+The reports and records disappear when the temporary scope ends.
+
+```bash
+PYTHONPATH=src OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 python - <<'PY'
+import json
+import os
+import shutil
+import subprocess
+import sys
+from pathlib import Path
+from tempfile import TemporaryDirectory
+
+checkout = Path.cwd()
+with TemporaryDirectory() as scratch:
+    root = Path(scratch)
+    (root / "validation").mkdir()
+    claims = {
+        "uq_claims": "calibrated_uq_claim_allowed",
+        "kinetic_efit_claims": "facility_claim_allowed",
+        "free_boundary_tracking_claims": "facility_claim_allowed",
+    }
+    for stem, claim in claims.items():
+        producer = root / "validation" / f"benchmark_{stem}.py"
+        shutil.copyfile(checkout / "validation" / producer.name, producer)
+        subprocess.run(
+            [sys.executable, str(checkout / "tools/run_recorded_benchmark.py"),
+             "--repository-root", str(root), "--records-root", "records",
+             "--family", stem, "--evidence-class", "software_boundary_example",
+             "--artifact", f"report=validation/reports/{stem}.json",
+             "--artifact", f"markdown=validation/reports/{stem}.md",
+             "--", sys.executable, str(producer)],
+            env=dict(os.environ, PYTHONPATH=str(checkout / "src")),
+            check=True,
+        )
+        payload = json.loads((root / "validation/reports" / f"{stem}.json").read_text())
+        assert payload[claim] is False
+        print(stem, payload["claim_status"], payload[claim])
+PY
+```
+
+## Formal declaration reader and bounded Z3 software check
+
+From this source checkout, the Lean example writes an authored declaration in a
+temporary directory and calls the actual reader. It executes no Lean proof and
+asserts no artifact admission. The second example invokes installed Z3 on the
+fixed two-step model using temporary destinations.
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from tests.formal_validator_declaration_fixtures import declared_lean_case
+from validation.validate_scpn_lean_formal import validate_lean_formal_evidence
+
+with TemporaryDirectory() as temporary:
+    named, other, artifact = declared_lean_case(Path(temporary))
+    result = validate_lean_formal_evidence(named)
+    assert result.status == "pass" and result.artifact_admitted is False
+    wrong = validate_lean_formal_evidence(
+        other, artifact_path=artifact, formal_report_root=Path(temporary)
+    )
+    assert wrong.status == "fail" and wrong.artifact_admitted is False
+```
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from validation.validate_scpn_z3_formal import publish_report
+
+with TemporaryDirectory() as temporary:
+    root = Path(temporary)
+    result = publish_report(
+        json_path=root / "proof.json",
+        markdown_path=root / "proof.md",
+        require_z3=True,
+    )
+    assert result["status"] == "pass" and result["max_depth"] == 2
+```
+
+
+### Temporary synthetic resilience, ROC and Kuramoto examples
+
+Run this source-checkout example from the repository root with its Python
+environment and `PYTHONPATH=src:.`. It exercises actual public producers in
+a temporary directory and evaluates five actual synthetic ROC shots.
+No canonical reports or controlled latency comparisons are created.
+
+```python
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+from tempfile import TemporaryDirectory
+
+from validation.disruption_roc_analysis import evaluate_batch, generate_scenario_batch
+
+root = Path.cwd()
+env = dict(os.environ, PYTHONPATH=str(root) + os.pathsep + str(root / "src"))
+with TemporaryDirectory() as temporary:
+    directory = Path(temporary)
+    phase = directory / "phase.json"
+    resilience = directory / "resilience.json"
+    markdown = directory / "resilience.md"
+    subprocess.run([
+        sys.executable, str(root / "validation/benchmark_kuramoto_runtime_evidence.py"),
+        "--output-json", str(phase), "--oscillators", "8",
+        "--deployment-target-oscillators", "8", "--psi-mode", "mean_field",
+    ], cwd=directory, env=env, check=True)
+    subprocess.run([
+        sys.executable, str(root / "validation/control_resilience_campaign.py"),
+        "--episodes", "2", "--window", "16", "--noise-std", ".01", "--strict",
+        "--output-json", str(resilience), "--output-md", str(markdown),
+    ], cwd=directory, env=env, check=True)
+    assert json.loads(phase.read_text())["oscillator_count"] == 8
+    assert json.loads(resilience.read_text())["campaign"]["passes_thresholds"]
+    shots = generate_scenario_batch(5)
+    assert sum(shot["label"] for shot in shots) == 2
+    print(evaluate_batch(shots, 0.0))
+```
+
+Kuramoto evidence measures numerical one-step refinement/parity, not runtime
+latency or a Python/Rust speedup. The actual existing native extension can
+satisfy the optional core parity/target checks; the default command remains
+bounded. Resilience uses measured duration only as a local campaign diagnostic.
+ROC alarms use absolute observed event indices and dimensionless risk rates.
+AUC from the fixed mixed synthetic cohort is not a held-out facility score.
+The Rust/PyO3 Kuramoto kernels are unchanged by these command contracts, so
+the historical timing table above is retained as historical measurement;
+this work makes no new comparative timing claim.
+
+## Synthetic disturbance rejection
+
+This Python-only benchmark compares actual available controllers on one
+synthetic two-state vertical Euler proxy. Its scenario names describe forcing
+patterns; density and beta_N are not simulated. Schema v2 reports actual
+requested/completed time, stop reason, settling band and missing providers.
+H-infinity uses its defining positive-measurement convention; the SNN provider
+runs its own per-call clock. The MPC gradient is approximate; its original
+q_weight, r_weight and iterations arguments remain available. Results do not
+admit physical accuracy, facility control or a cross-language speedup.
+
+The following source-checkout example checks a real initial/terminal trace:
+```python
+from validation.benchmark_disturbance_rejection import PIDController, SCENARIOS, run_scenario
+
+scenario = dict(SCENARIOS["VDE"])
+scenario["duration_s"] = 0.005
+metrics, trace = run_scenario("PID", PIDController(), "VDE", scenario)
+assert metrics.stable and metrics.completed_steps == 50
+assert len(trace.times) == 51
+assert trace.times[-1] == metrics.completed_duration_s == 0.005
+assert (trace.errors == -trace.positions).all()
+```
+
+Use the [recorded benchmark runner][tools.run_recorded_benchmark] for
+CLI campaigns. Its declared artifacts and campaign manifest retain command
+and output custody. The API example above produces an in-memory observation.
+
+Default durations remain 2/4/3 seconds at 100 microsecond dt. Unstable runs
+stop at the actual boundary crossing, without a padded tail. Ordinary exit
+zero means reporting completed; require-complete exits two after output when
+any expected controller is missing or a run fails bounded completion. The
+CLI protects selected source files and all output aliases before execution;
+persistent evidence requires a recorded campaign. The wall_clock_s field
+measures the conditional Euler/control loop, including forcing, finite checks
+and trace accumulation. It excludes configuration, plant/controller construction
+and reset, metric reduction, report writes and plotting. These local times
+remain uncontrolled diagnostics, and reports are sequential writes.
+Each plot figure is released after rendering or writing, including failures;
+plots already written remain when a later plot fails.
+
+
+## Manual JAX CBC grid study
+
+`tools/gk_convergence_benchmark.py` retains the original full nonlinear JAX
+calibration, adiabatic/kinetic runs and kx64/256 grid cases. Its standalone main
+is a large manual workload; there are no parsed CLI arguments or help/reduced
+mode. Do not substitute a short software check for that campaign or infer grid
+convergence from its saved finite-sample flag.
+
+The [full API example](api.md#manual-jax-cbc-grid-study) executes the actual public
+configurable runner on a short caller-specified grid and writes caller-owned
+scratch. It preserves the seed, config, numerical provider and returned raw
+fields. Local qualification compares zero/one/two-sample results to independent
+actual provider replays. The provider's one-sample second-half mean is empty and
+maps NaN to null; this is not admitted transport data. The original large main
+configuration/branch body remains unchanged and is not newly benchmarked here.
+
+`wall_s` includes construction and first-use compilation, uses the system clock
+and rounds to one decimal. It excludes import, result printing and file writes.
+Device/precision, cache and shared-load differences must remain explicit; these
+measurements do not establish a controlled speed comparison across grids or
+languages. No matching study wrapper exists in Rust/TypeScript. The backend's
+numerical source and existing numerical comparison evidence remain unchanged.
+
+`RESULTS_FILE` defaults to `/tmp/gk_convergence.json` and can be assigned a
+caller-owned path before `save`. This overwritable raw mapping is explicitly
+classified temporary scratch, with legacy nonstandard-float handling and no
+campaign/source digest or reference admission. It must not replace the separate
+nonlinear CBC saturation evidence above. See the API contract for exact grids,
+step selection, time/flux units and write/error/concurrency limits.
+
+
+## Fixed CBC model comparison
+
+`tools/gpu_cbc_benchmark.py` retains the original manual linear, native SAT1,
+NumPy500/JAX500 and NumPy2000/JAX2000 campaign. All nonlinear stages use the
+same16x16x64x16x8 grid with two species, dt0.02,save50 and CFL adaptation off.
+Each begins with fresh seed42 state. The500-step calls are complete fresh runs;
+there is no separately measured warmup, retained-state continuation or increased
+resolution at2000 steps. CPU JAX is permitted; no CUDA device check is imposed.
+
+Public per-stage functions return raw in-memory model reports and allow an
+explicit requested nonlinear count. Zero requests exercise allocation with empty
+history; one saved sample returns NaN means. `chi_i`/`chi_e` from nonlinear calls
+are raw code-unit flux means, whereas native SAT1 reports m^2/s. The linear
+adiabatic/period2 spectrum and SAT1 kinetic/period1 spectrum also differ.
+No independent CBC/TGLF physical reference, backend parity or saturation test
+is performed by this producer. Its flags and requested counts do not authenticate
+complete integration. Read the [API contract](api.md#fixed-cbc-model-comparison)
+for every field, fixed parameter, actual error and executable short example.
+
+`elapsed_s` clocks have different boundaries: nonlinear run-only time excludes
+solver/config construction but includes initialization and JAX first-use JIT/
+synchronization; SAT1 includes construction/solve, linear includes solve alone.
+Console/imports/writes are excluded. Host contention, caches, device and precision
+prevent interpreting these raw fields as an isolated throughput comparison.
+No speedup or physical-performance claim follows from a short local observation.
+
+Main writes cwd-relative `gpu_results/gk_nonlinear_cbc_gpu.json` once after all
+six stages, with raw NaN/Infinity serialization and no partial-stage checkpoint.
+Canonical persistent use requires `tools/run_recorded_benchmark.py` and the
+matching declared artifact; outside-source scratch follows the existing guard
+exemption. Existing output replacement/partial I/O and missing-JAX skipped reports
+retain their original conventions. The raw payload itself has no source/config/
+backend digest or physical admission. The standalone script may invoke its
+unpinned CUDA-JAX installer before main checks campaign custody; main's API does
+not install. Provisioning and the original large CPU/GPU campaign require an
+explicitly prepared environment and are separate from the short documented API.
+
+
+## JarvisLabs remote PPO recipe
+
+`tools/jarvislabs_train.py` requests one A5000 GPU with the PyTorch template,
+while forcing CPU training. It reuses/clones the remote repository and uploads
+seven recipe sources. The remaining source and dependencies are not pinned to
+local HEAD. Fresh remote candidates use `artifacts/rl/<campaign>`; the local
+`--output-dir` option selects an existing directory for nine flat downloads.
+
+Before provider requests, main checks fresh local targets and recorded campaign
+input. Every SSH/SCP step must exit zero. The full uppercase MPC/PID/PPO schema
+requires finite metrics, valid ranges and equal positive episode counts. Existing
+artifacts cannot count as new deliveries. Cleanup requires an explicit successful
+SDK response; acknowledgement does not independently establish stopped billing.
+Successful provider creation, training, transport and cleanup need actual execution
+evidence. Local refusals are not training-performance measurements.
+
+## Stored PPO comparison and explicit seed recipe
+
+The corrected shell passes `--seed 42`, `--seed 123` and `--seed 456` to the real
+trainer. `--dry-run` prints those three constructor plans without creating a model
+or weights. Actual learning records requested and completed steps separately;
+SB3 can round the request up to a complete rollout. Candidate selection requires
+explicit seed identity in each metrics file, accepts finite rewards below -99999,
+and resolves ties in listed seed order. The final table reads actual uppercase
+MPC/PID/PPO keys.
+
+Retained seed-labelled weights and metrics predate this correction. The old trainer
+used seed 42 for all labels. Those files and the retained 50-episode report remain
+historical artifacts; their names cannot establish independent training runs or
+hardware provenance. A declared seed in new metrics is also not authenticated
+training provenance.
+
+`benchmarks/rl_vs_classical.py` evaluates the stored PPO policy on CPU, the original
+proportional baseline and the original one-step 11x5 grid controller on the same
+500-step reduced-order model and reset seeds 1000 through 1000+N-1. All controllers
+must complete valid summaries; missing/unloadable PPO cannot silently yield a
+PID/MPC-only success. The output is an exclusive fresh candidate JSON with reward
+mean/population deviation, mean length, termination fraction and episode count.
+Persistent report locations require recorded campaign input. The model comparison
+does not establish experimental accuracy, stability or controller-safety acceptance.
+The benchmark performs inference and does not learn or save weights. Runtime
+measurements on a shared host are functional evidence only.
+
+The tutorial loads the actual retained `weights/ppo_tokamak.zip`, reports observed
+outcomes and renders retained artifact values dynamically. Default execution does
+not train. `--train-demo` explicitly selects the separate 5000-step learning demo;
+no hardcoded zero-disruption outcome replaces the observed rollout.
+
+
+The current stored-policy comparison on 2026-10-02 used the retained policy ZIP
+SHA-256 `53e7481a440845db01378018a21ec15fe0fde5bbff5f7413be8ea577d1dce736`
+and the current `TokamakEnv` source SHA-256
+`725447a489b5384169f62e0bb4b7bbf6c8b3f895f42caae583c6878406abb510`.
+All three controllers ran 50 paired episodes, with mean length 500 and observed
+termination fraction zero:
+
+| Controller | Mean reward | Population deviation |
+| --- | ---: | ---: |
+| PPO | -5002.553057 | 160.755944 |
+| PID | -4982.946570 | 161.906390 |
+| MPC | -5119.341406 | 156.845936 |
+
+The report SHA-256 is
+`c6d993256a59f1caad598fde011926dfc5a5a3c4c035b99d4a409fcfbd8e881b`.
+These outcomes do not reproduce the retained historical report, and PPO has a
+lower mean reward than the proportional baseline in this run. The existing policy
+is evaluated without learning or weight changes; the result does not determine
+how a newly trained policy would behave. The one-step grid retains its legacy
+fixed temperature-response surrogate, which differs from the current environment's
+energy-balance evolution. This is a comparison of those concrete implementations.
+The shared host was not isolated; no training-speed or production-latency claim
+is derived from this run.
+
+To reproduce model inference with an immutable custody record and a fresh temporary report:
+
+```bash
+python tools/run_recorded_benchmark.py --family rl-stored-model --artifact comparison=/tmp/scpn-rl-model-comparison.json -- python benchmarks/rl_vs_classical.py --episodes 50 --output /tmp/scpn-rl-model-comparison.json
+```
+
+The destination must not already exist. `benchmarks/rl_vs_classical.json` remains
+the historical artifact; it is not overwritten or presented as this new result.
+
+
+## Native oscillator capacity sweep
+
+The standalone `tools/stress_test_oscillators.py` measures repeated calls to the
+installed Rust/PyO3 phase kernel. Its [API contract](api.md#native-oscillator-capacity-sweep)
+provides the exact sizes, parameters, repetition counts and exit behaviour. The
+maximum allocation is 16×32768 = 524288 oscillators.
+
+Each call receives the same phase and frequency arrays for that size, and its
+returned tick is discarded. The table therefore describes single-call
+throughput on those allocations. The displayed frequency is the reciprocal of
+mean call latency. The ten-calls-per-second stop rule is a measurement threshold
+chosen by this script.
+
+The default CLI draws unseeded inputs from NumPy's global RNG. A caller can
+choose the input seed before invoking the API:
+
+```python
+import numpy as np
+from tools.stress_test_oscillators import stress_test
+
+np.random.seed(42)
+stress_test()
+```
+
+This consumes the caller's RNG state. Timing also depends on host contention,
+native build, CPU affinity and processor state. Record those conditions for
+comparisons; a shared-host table supplies no isolated production-latency or
+physical-control admission. The command prints to stdout without writing an
+evidence file or installing its required native module.

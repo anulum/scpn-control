@@ -35,6 +35,14 @@ DEFAULT_MARKDOWN = ROOT / "validation" / "reports" / "scpn_z3_formal.md"
 
 
 def _reference_net() -> StochasticPetriNet:
+    """Build a fresh compiled two-place, one-transition deterministic model.
+
+    Returns
+    -------
+    StochasticPetriNet
+        Source marking 1, sink marking 0 and move threshold/unit arc weights 1.
+        Token densities/weights are dimensionless; no input file is read.
+    """
     net = StochasticPetriNet()
     net.add_place("source", initial_tokens=1.0)
     net.add_place("sink", initial_tokens=0.0)
@@ -46,10 +54,48 @@ def _reference_net() -> StochasticPetriNet:
 
 
 def _blocked_report(error: str) -> dict[str, Any]:
+    """Build the defining unavailable-Z3 declaration from a failure message.
+
+    Parameters
+    ----------
+    error : str
+        Reason forwarded to the schema/payload-digest builder.
+
+    Returns
+    -------
+    dict[str, Any]
+        Fresh blocked schema payload; no proof obligation is certified.
+    """
     return build_blocked_z3_formal_report_payload(error)
 
 
 def _write_blocked(report: dict[str, Any], *, json_path: Path, markdown_path: Path) -> None:
+    """Persist a blocked declaration sequentially, without a transaction.
+
+    Parameters
+    ----------
+    report : dict[str, Any]
+        Defining blocked payload; this writer does not revalidate its fields.
+    json_path, markdown_path : pathlib.Path
+        Explicit targets resolved from caller cwd, with parent creation.
+
+    Returns
+    -------
+    None
+        Write UTF-8 JSON with final newline, then Markdown with final newline.
+
+    Raises
+    ------
+    OSError
+        Directory creation or write fails; earlier output may remain.
+    KeyError, TypeError
+        Missing formatting fields or unserialisable payload propagate.
+
+    Notes
+    -----
+    Existing files are replaced. Output aliases are not checked; producer
+    locks, atomic replacement and campaign/source authentication are absent.
+    """
     json_path.parent.mkdir(parents=True, exist_ok=True)
     markdown_path.parent.mkdir(parents=True, exist_ok=True)
     json_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -74,7 +120,41 @@ def _write_blocked(report: dict[str, Any], *, json_path: Path, markdown_path: Pa
 
 
 def publish_report(*, json_path: Path, markdown_path: Path, require_z3: bool) -> dict[str, Any]:
-    """Publish deterministic Z3 evidence or an explicit blocked report."""
+    """Prove fixed bounded obligations with installed Z3 and persist the result.
+
+    Parameters
+    ----------
+    json_path, markdown_path : pathlib.Path
+        Destinations with parent creation; relative paths use caller cwd.
+    require_z3 : bool
+        Re-raise a RuntimeError after writing its blocked declaration when True.
+
+    Returns
+    -------
+    dict[str, Any]
+        Passing/failing proof summary, or full blocked payload on a caught
+        RuntimeError when require_z3 is False.
+
+    Raises
+    ------
+    RuntimeError
+        Model verification failed and require_z3 is True, after blocked output.
+    OSError
+        Sequential directory/writes fail; earlier output can remain.
+    ValueError, TypeError, KeyError
+        Unconverted defining model/schema/serialization failures propagate.
+
+    Notes
+    -----
+    Fresh source/sink/move net has dimensionless token/weight values, marking
+    bounds [0,1] and at most two firings. Obligations are move eventual firing,
+    same-step sink marking >=0.5 after firing and exclusion of co-marking >=0.5.
+    All caught RuntimeError cases are labelled blocked, not only unavailable
+    dependency errors. The publisher does no independent backend/proof-source
+    authentication. JSON is written before Markdown; shared outputs/aliases
+    have no lock or transaction. No hardware timing, PCS certification,
+    unbounded liveness or physical claim follows from bounded holds=True.
+    """
     try:
         report = verify_z3_formal_contracts(
             _reference_net(),
@@ -102,6 +182,34 @@ def publish_report(*, json_path: Path, markdown_path: Path, require_z3: bool) ->
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Publish the fixed bounded Z3 model report and print a result summary.
+
+    Parameters
+    ----------
+    argv : list[str] or None
+        Parser arguments or process sys.argv. --json-out/--markdown-out
+        override canonical checkout defaults; --require-z3 makes blocked fatal.
+
+    Returns
+    -------
+    int
+        Zero for pass or permitted blocked; one for fail or required-Z3
+        RuntimeError. Standalone execution exits with this returned code.
+
+    Raises
+    ------
+    SystemExit
+        Parser help/code zero or invalid command syntax/code two.
+    OSError, ValueError, TypeError, KeyError
+        Unconverted model/persistence errors propagate.
+
+    Notes
+    -----
+    Default outputs are checkout validation/reports/scpn_z3_formal.json/.md.
+    Explicit relative destinations use caller cwd. This actually invokes the
+    installed bounded Z3 checker; a successful process with status blocked
+    is an availability declaration rather than a proof.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json-out", type=Path, default=DEFAULT_JSON)
     parser.add_argument("--markdown-out", type=Path, default=DEFAULT_MARKDOWN)

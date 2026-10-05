@@ -11,28 +11,43 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 
 from pytest import CaptureFixture
 
 from tools.evidence_gap_matrix import ROOT, build_evidence_gap_matrix, main
 
+_OPEN_STATUSES = frozenset({"bounded_model", "external_dependency_blocked", "validation_gap"})
+
+
+def _registry_summary() -> tuple[int, int, int, dict[str, int]]:
+    """Count the registry directly, without the matrix builder.
+
+    Returns the entry count, the entries without public-claim permission, the
+    entries in an open fidelity status, and the count per status.
+    """
+    registry = json.loads((ROOT / "validation" / "physics_traceability.json").read_text(encoding="utf-8"))
+    entries = registry["entries"]
+    statuses = Counter(entry["fidelity_status"] for entry in entries)
+    blocked = sum(1 for entry in entries if entry["public_claim_allowed"] is False)
+    open_gaps = sum(count for status, count in statuses.items() if status in _OPEN_STATUSES)
+    return len(entries), blocked, open_gaps, dict(statuses)
+
 
 def test_evidence_gap_matrix_matches_repository_traceability_inventory() -> None:
     """The matrix summary must match the canonical traceability registry."""
     matrix = build_evidence_gap_matrix(ROOT / "validation" / "physics_traceability.json")
 
-    assert len(matrix.entries) == 73
-    assert matrix.public_claim_blocked == 72
-    assert matrix.open_fidelity_gaps == 72
+    total, blocked, open_gaps, statuses = _registry_summary()
+
+    assert total > 0 and open_gaps > 0
+    assert len(matrix.entries) == total
+    assert matrix.public_claim_blocked == blocked
+    assert matrix.open_fidelity_gaps == open_gaps
     assert len(matrix.trackers) == 8
     assert matrix.untracked_open_entries == 0
-    assert matrix.status_counts == {
-        "bounded_model": 44,
-        "external_dependency_blocked": 4,
-        "reference_validated": 1,
-        "validation_gap": 24,
-    }
+    assert matrix.status_counts == statuses
     assert {package.tracker.issue for package in matrix.work_packages} == {47, 48, 49, 50, 51, 52, 53}
 
 
@@ -42,7 +57,7 @@ def test_evidence_gap_matrix_renders_tracker_work_package_details() -> None:
     rendered = matrix.to_markdown()
 
     assert "# SCPN Control Evidence Gap Matrix" in rendered
-    assert "Public full-fidelity claims blocked: `72`" in rendered
+    assert f"Public full-fidelity claims blocked: `{_registry_summary()[1]}`" in rendered
     assert "### Tracker #47: External gyrokinetic validation artefacts" in rendered
     assert "`src/scpn_control/core/gk_interface.py`" in rendered
 
@@ -58,7 +73,7 @@ def test_evidence_gap_matrix_cli_writes_json_and_markdown(tmp_path: Path, capsys
 
     payload = json.loads(output_json.read_text(encoding="utf-8"))
     assert payload["schema_version"] == "scpn-control.evidence-gap-matrix.v1"
-    assert payload["summary"]["public_claim_blocked"] == 72
+    assert payload["summary"]["public_claim_blocked"] == _registry_summary()[1]
     assert "Tracker #47" in output_md.read_text(encoding="utf-8")
 
 
@@ -67,7 +82,7 @@ def test_evidence_gap_matrix_cli_emits_json_stdout(capsys: CaptureFixture[str]) 
     assert main(["--json-out"]) == 0
     payload = json.loads(capsys.readouterr().out)
 
-    assert payload["summary"]["open_fidelity_gaps"] == 72
+    assert payload["summary"]["open_fidelity_gaps"] == _registry_summary()[2]
     assert payload["summary"]["untracked_open_entries"] == 0
 
 

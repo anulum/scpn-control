@@ -9,9 +9,12 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import numpy as np
 import pytest
 
+from scpn_control.control import _disruption_risk_series
 from scpn_control.control.advanced_soc_fusion_learning import FusionAIAgent
 from scpn_control.control.disruption_contracts import run_real_shot_replay
 from scpn_control.control.disruption_roc import (
@@ -65,6 +68,37 @@ def test_score_risk_series_rejects_bad_window() -> None:
     arr = np.ones(10)
     with pytest.raises(ValueError, match="window_size must be >= 1"):
         score_risk_series(arr, arr, arr, window_size=0)
+
+
+@pytest.mark.parametrize("window", [True, 1.5, 10, 11])
+def test_score_risk_series_rejects_invalid_window(window: object) -> None:
+    """Boolean, fractional, and unscorable window lengths refuse."""
+    arr = np.ones(10)
+    with pytest.raises(ValueError, match="window_size"):
+        score_risk_series(arr, arr, arr, window_size=cast(int, window))
+
+
+def test_score_risk_series_rejects_multidimensional_channel() -> None:
+    """A matching leading dimension does not make a matrix a shot channel."""
+    with pytest.raises(ValueError, match="one-dimensional"):
+        score_risk_series(np.ones((10, 2)), np.ones(10), np.ones(10), window_size=2)
+
+
+def test_score_risk_series_extreme_finite_modes_remain_finite() -> None:
+    """Euclidean asymmetry remains finite without intermediate squaring."""
+    dbdt = np.zeros(10)
+    n1 = np.full(10, 1.0e200)
+    n2 = np.full(10, 1.0e200)
+    risk = score_risk_series(dbdt, n1, n2, window_size=8)
+    assert np.all(np.isfinite(risk))
+    assert np.all((0.0 <= risk) & (risk <= 1.0))
+
+
+def test_score_risk_series_refuses_nonfinite_predictor_output(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A violated predictor return contract cannot publish a risk series."""
+    monkeypatch.setattr(_disruption_risk_series, "predict_disruption_risk", lambda _window, _modes: float("nan"))
+    with pytest.raises(ValueError, match="predictor risk"):
+        score_risk_series(np.ones(2), np.ones(2), np.ones(2), window_size=1)
 
 
 def test_score_risk_series_rejects_length_mismatch() -> None:
@@ -137,6 +171,38 @@ def test_shot_evaluation_rejects_bad_disruption_index(bad_idx: int) -> None:
         _evaluation([0.0, 0.9, 0.9], label=1, disruption_time_idx=bad_idx)
 
 
+@pytest.mark.parametrize("risk", [[0.0, np.nan], [0.0, 1.1], [0.0, -0.1]])
+def test_shot_evaluation_rejects_invalid_risk(risk: list[float]) -> None:
+    """A report cannot admit nonfinite or out-of-range scored risks."""
+    with pytest.raises(ValueError, match="risk_series"):
+        _evaluation(risk, label=0, disruption_time_idx=-1)
+
+
+@pytest.mark.parametrize("times", [[0.0, 0.0], [0.0, np.inf], [1.0, 0.0]])
+def test_shot_evaluation_rejects_bad_timebase(times: list[float]) -> None:
+    """Warning leads require a finite increasing shot clock."""
+    with pytest.raises(ValueError, match="time_s"):
+        ShotEvaluation(np.zeros(2), 0, -1, np.asarray(times), 1)
+
+
+def test_shot_evaluation_rejects_window_longer_than_shot() -> None:
+    """A window longer than the shot has no scoreable sample."""
+    with pytest.raises(ValueError, match="window_size"):
+        _evaluation([0.0, 0.1], label=0, disruption_time_idx=-1, window_size=3)
+
+
+def test_shot_evaluation_rejects_window_without_a_scored_sample() -> None:
+    """A shot with no scored sample cannot enter metric assembly."""
+    with pytest.raises(ValueError, match="window_size"):
+        _evaluation([0.0, 0.1], label=0, disruption_time_idx=-1, window_size=2)
+
+
+def test_shot_evaluation_rejects_multidimensional_timebase() -> None:
+    """A matching leading dimension cannot hide an invalid time axis."""
+    with pytest.raises(ValueError, match="one-dimensional"):
+        ShotEvaluation(np.zeros(2), 0, -1, np.zeros((2, 2)), 1)
+
+
 # --------------------------------------------------------------------------- #
 # first_alarm_index
 # --------------------------------------------------------------------------- #
@@ -158,6 +224,19 @@ def test_first_alarm_index_respects_start() -> None:
 def test_first_alarm_index_clamps_negative_start() -> None:
     risk = np.array([0.9, 0.1])
     assert first_alarm_index(risk, 0.5, start=-5) == 0
+
+
+@pytest.mark.parametrize("threshold", [np.nan, -0.1, 1.1])
+def test_first_alarm_index_rejects_invalid_threshold(threshold: float) -> None:
+    """Invalid alarm thresholds cannot silently suppress a real alarm."""
+    with pytest.raises(ValueError, match="threshold"):
+        first_alarm_index(np.array([0.9]), threshold, start=0)
+
+
+def test_first_alarm_index_rejects_nonfinite_risk() -> None:
+    """Standalone alarm scanning enforces the same risk domain as a shot."""
+    with pytest.raises(ValueError, match="risk_series"):
+        first_alarm_index(np.array([np.nan]), 0.5, start=0)
 
 
 # --------------------------------------------------------------------------- #
@@ -208,6 +287,23 @@ def test_roc_auc_with_existing_endpoints() -> None:
     assert roc_auc_from_curve([0.0, 0.0, 1.0], [0.0, 1.0, 1.0]) == pytest.approx(1.0)
 
 
+@pytest.mark.parametrize("fpr,tpr", [([], []), ([0.0], []), ([np.nan], [0.5]), ([1.1], [0.5])])
+def test_roc_auc_rejects_invalid_curve(fpr: list[float], tpr: list[float]) -> None:
+    """Standalone AUC rejects absent, unmatched, or invalid rate points."""
+    with pytest.raises(ValueError, match="ROC"):
+        roc_auc_from_curve(fpr, tpr)
+
+
+def test_roc_auc_duplicate_fpr_is_order_independent() -> None:
+    """Repeated FPR coordinates use a deterministic TPR ordering."""
+    assert roc_auc_from_curve([1.0, 0.0, 0.0], [1.0, 1.0, 0.0]) == pytest.approx(1.0)
+
+
+def test_roc_auc_adds_missing_endpoint_pairs() -> None:
+    """An FPR endpoint without its canonical TPR pair is completed."""
+    assert roc_auc_from_curve([0.0, 1.0], [1.0, 0.0]) == pytest.approx(0.5)
+
+
 # --------------------------------------------------------------------------- #
 # warning_time_recall
 # --------------------------------------------------------------------------- #
@@ -228,6 +324,13 @@ def test_warning_time_recall_skips_late_or_absent_alarm() -> None:
     late = _evaluation([0.0, 0.1, 0.1, 0.9], label=1, disruption_time_idx=2)  # alarm after disruption
     quiet = _evaluation([0.0, 0.1, 0.1], label=1, disruption_time_idx=2)  # no alarm
     assert warning_time_recall([late, quiet], 0.5, 1.0) == 0.0
+
+
+@pytest.mark.parametrize("warning_ms", [np.nan, -1.0])
+def test_warning_time_recall_rejects_invalid_lead(warning_ms: float) -> None:
+    """Invalid lead requirements cannot be counted as detections."""
+    with pytest.raises(ValueError, match="warning_ms"):
+        warning_time_recall([], 0.5, warning_ms)
 
 
 # --------------------------------------------------------------------------- #
@@ -256,5 +359,38 @@ def test_disruption_metrics_bundle() -> None:
     }
     assert metrics["n_shots"] == 2
     assert metrics["n_disruptive"] == 1
-    assert 0.0 <= float(metrics["auc"]) <= 1.0
-    assert set(metrics["recall_at_warning_ms"]) == {10, 50}
+    assert 0.0 <= float(cast(float, metrics["auc"])) <= 1.0
+    assert set(cast(dict[int, float], metrics["recall_at_warning_ms"])) == {10, 50}
+
+
+@pytest.mark.parametrize("labels", [[0, 0], [1, 1], []])
+def test_disruption_metrics_rejects_one_class_or_empty_cohort(labels: list[int]) -> None:
+    """The report bundle cannot fabricate a ROC without both labels."""
+    evaluations = [_evaluation([0.0, 0.9], label=label, disruption_time_idx=1 if label else -1) for label in labels]
+    with pytest.raises(ValueError, match="both safe and disruptive"):
+        disruption_metrics(evaluations, thresholds=[0.0, 1.0], alarm_threshold=0.5, warning_ms=[10])
+
+
+def test_disruption_metrics_rejects_duplicate_warning_keys() -> None:
+    """Warning recall entries cannot silently overwrite a prior key."""
+    evaluations = [_evaluation([0.0, 0.9], label=label, disruption_time_idx=1 if label else -1) for label in (0, 1)]
+    with pytest.raises(ValueError, match="warning_ms"):
+        disruption_metrics(evaluations, thresholds=[0.0, 1.0], alarm_threshold=0.5, warning_ms=[10, 10])
+
+
+@pytest.mark.parametrize(
+    "thresholds,alarm_threshold,warning_ms,expected",
+    [
+        ([], 0.5, [10], "thresholds"),
+        ([np.nan], 0.5, [10], "thresholds"),
+        ([0.0, 1.0], np.nan, [10], "alarm_threshold"),
+        ([0.0, 1.0], 0.5, [10.5], "warning_ms"),
+    ],
+)
+def test_disruption_metrics_rejects_invalid_metric_inputs(
+    thresholds: list[float], alarm_threshold: float, warning_ms: list[float], expected: str
+) -> None:
+    """The report bundle refuses malformed sweep and warning inputs."""
+    evaluations = [_evaluation([0.0, 0.9], label=label, disruption_time_idx=1 if label else -1) for label in (0, 1)]
+    with pytest.raises(ValueError, match=expected):
+        disruption_metrics(evaluations, thresholds=thresholds, alarm_threshold=alarm_threshold, warning_ms=warning_ms)

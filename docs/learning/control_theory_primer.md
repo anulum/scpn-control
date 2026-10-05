@@ -119,14 +119,17 @@ based on the detected regime.
 
 The `RegimeDetector` classifies the current operating point from $dI_p/dt$, energy
 confinement time $\tau_E$, and disruption probability. The `GainScheduledController`
-interpolates gains during regime transitions via bumpless transfer:
+interpolates gains during regime transitions:
 
 $$
 K(t) = (1 - \alpha) \, K_{\text{old}} + \alpha \, K_{\text{new}}, \qquad \alpha = \frac{t - t_{\text{switch}}}{\tau_{\text{switch}}}
 $$
 
-This avoids discontinuous jumps in the control signal at regime boundaries. Integral
-state is reset on entry to disruption mitigation.
+The interpolation limits gain jumps, but it does not by itself guarantee a
+continuous actuator signal; the disruption-mitigation branch also resets the
+integral state. Nonfinite or wrong-size diagnostics are refused before the
+controller publishes a new regime or PI state. Facility operation needs an
+independent actuator and safety contract.
 
 **scpn-control**: `GainScheduledController`, `RegimeDetector`, `OperatingRegime` in
 `scpn_control.control.gain_scheduled_controller`.
@@ -350,16 +353,23 @@ the penalty, and back toward zero when constraints are satisfied.
 
 ### Conditions Where RL May Outperform MPC
 
-MPC requires a differentiable model of the plant. If that model is wrong, MPC performs
-poorly. RL learns a policy directly from interaction (or simulated interaction),
-absorbing nonlinearities and model errors into the policy itself. In scpn-control,
-PPO trained for 500K timesteps on `TokamakEnv` outperforms both MPC and PID on
-reference tracking with fewer constraint violations.
+Model error can affect both model-based control and a policy trained in simulation.
+RL learns from interaction with its training environment; that does not by itself
+correct discrepancies between the simulator and a physical plant. The retained
+scpn-control PPO benchmark records higher reward than its proportional baseline
+and one-step grid controller in the reduced-order `TokamakEnv`. This is a model
+comparison, not evidence of experimental tracking accuracy or fewer physical
+constraint violations. The legacy three seed-labelled files were produced by a
+recipe that used seed 42 for every label; they do not establish independent runs.
+The corrected recipe now forwards each seed explicitly. The [current stored-policy comparison](../benchmarks.md#stored-ppo-comparison-and-explicit-seed-recipe)
+does not reproduce the historical rewards and does not show PPO outperforming
+the proportional baseline.
 
-The tradeoff: RL policies are opaque (no formal stability certificate), and training
-requires many episodes. MPC provides constraint satisfaction guarantees. In practice,
-RL is used for scenario-level control (seconds timescale), while classical controllers
-handle fast loops (milliseconds).
+PPO supplies no formal stability certificate. Constraint guarantees for an MPC
+formulation depend on its model, assumptions, feasible optimisation and execution;
+the benchmark's one-step temperature-cost grid does not supply such a certificate.
+A learned supervisory policy and a fast classical loop require their own operating
+contracts and safety qualification before physical use.
 
 **scpn-control**: `TokamakEnv` (Gymnasium interface, 0D physics) in
 `scpn_control.control.gym_tokamak_env`. `LagrangianPPO` and
@@ -451,13 +461,21 @@ $$
 u = -\alpha \, |s|^{1/2} \, \text{sgn}(s) + v, \qquad \dot{v} = -\beta \, \text{sgn}(s)
 $$
 
-The integral term $v$ provides robustness against matched disturbances. The
-$|s|^{1/2}$ term eliminates chattering (the high-frequency oscillation that plagues
-classical sliding mode). Convergence to $s = 0$ occurs in finite time.
+The integral term $v$ helps reject matched disturbances in the ideal continuous
+sign-law model. Finite-time convergence results for that model require its
+specific disturbance and gain assumptions; see
+[Moreno and Osorio (2012)](https://doi.org/10.1109/TAC.2012.2186179).
 
-**Lyapunov certificate.** Define $V = 2\beta|s| + \frac{1}{2}v^2 + \frac{1}{2}(\alpha|s|^{1/2}\text{sgn}(s) - v)^2$.
-Then $\dot{V} \leq 0$ for $\alpha, \beta$ satisfying $\alpha > 0$, $\beta > \alpha$.
-Finite-time convergence follows from $\dot{V} \leq -\mu V^{1/2}$ for some $\mu > 0$.
+`SuperTwistingSMC` replaces `sgn(s)` with `s/(|s| + 0.01)`, samples the
+integrator and clips both the integrator and command. Its public
+`lyapunov_certificate` function checks only the declared idealized gain
+inequalities, and `estimate_convergence_time` evaluates an idealized formula.
+Neither output certifies finite-time convergence, a disturbance margin or a
+warning time for this implemented controller. Its synthetic example uses a
+double-integrator plant, not a calibrated plasma vertical-stability model.
+For metre-valued position error, $c$ is in seconds and the fixed boundary
+layer thickness is in metres. The returned control has application-defined
+units; no coil-voltage or force calibration is implemented.
 
 **scpn-control**: `SuperTwistingSMC`, `VerticalStabilizer` in
 `scpn_control.control.sliding_mode_vertical`.

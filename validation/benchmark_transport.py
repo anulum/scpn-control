@@ -32,11 +32,16 @@ from scpn_control.core.integrated_transport_solver import TransportSolver
 from scpn_control.core.neural_transport import NeuralTransportModel, TransportInputs
 from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
 
-PURE_DIFFUSION_MAX_RELATIVE_ERROR = 0.45
+PURE_DIFFUSION_MAX_RELATIVE_ERROR = 0.05
 
 
 def run_pure_diffusion_benchmark(nr: int = 200) -> dict[str, Any]:
-    """Benchmark 1: Pure diffusion against analytic steady state."""
+    """Compare the ion channel with its cylindrical half-power steady state.
+
+    The case splits auxiliary heating equally between ions and electrons.
+    Equal diffusivities and nearly equal edge temperatures make exchange a
+    small correction; the analytic reference uses only the ion power share.
+    """
     # Dummy config: R0=2.0, a=1.0
     cfg = {
         "reactor_name": "Analytic-Transport",
@@ -82,7 +87,10 @@ def run_pure_diffusion_benchmark(nr: int = 200) -> dict[str, Any]:
         norm = float(np.sum(dV))
         e_keV_J = 1.602176634e-16
         ne_m3 = 1.0e19
-        S_T_discrete = (P_aux_MW * 1e6) / (1.5 * ne_m3 * e_keV_J * norm)
+        # This reference is for Ti alone. The configured 50/50 split deposits
+        # only the ion share in that channel; using total power double-counts it.
+        P_ion_MW = P_aux_MW * (1.0 - solver.aux_heating_electron_fraction)
+        S_T_discrete = (P_ion_MW * 1e6) / (1.5 * ne_m3 * e_keV_J * norm)
 
         # T(rho) = T_edge + (S_T * a^2 / (4*chi)) * (1 - rho^2)
         rho = solver.rho
@@ -127,6 +135,7 @@ def run_iter_scaling_benchmark() -> dict[str, Any]:
 
 
 def main() -> None:
+    """Write the recorded transport benchmark through the campaign gate."""
     report_dir = Path("validation/reports")
     json_path = report_dir / "transport_benchmark.json"
     markdown_path = report_dir / "transport_benchmark.md"

@@ -118,15 +118,80 @@ Soft-affinity workstation reports must keep `production_claim_allowed=false`.
 Production timing claims require explicit core isolation, host-load context, and
 target-runtime evidence.
 
+## Persisted benchmark report admission
+
+`validation.validate_multi_shot_campaign_evidence.validate_multi_shot_campaign_evidence`
+reads the Python/PyO3 `scpn-control.multi-shot-campaign-benchmark.v1.1` and
+native Rust `scpn-control.rust-multi-shot-campaign-benchmark.v1.1` benchmark
+report pair. These summaries differ from the campaign kernel report above.
+The reader runs no campaign and writes no evidence. Repository defaults are
+historical local-regression reports; their PASS grants no current-host readiness.
+
+```bash
+python validation/validate_multi_shot_campaign_evidence.py \
+  --python-report python-report.json --rust-report rust-report.json \
+  --minimum-digest-count 2 --json-out
+```
+
+Paths follow the caller's working directory and symlinks. Without `--json-out`,
+the command prints status and ordered `ERROR` findings. Exit zero means reader
+PASS, one refusal and two argument parsing failure. The root
+`scpn-control validate` command consumes this reader by default. Its
+`--multi-shot-campaign-python-report`, `--multi-shot-campaign-rust-report` and
+`--multi-shot-min-digest-count` select reports/counts; the skip
+option is limited to explicitly scoped import checks.
+
+Each object must carry its expected schema, recognised `local_regression` or
+`production_benchmark` class, boolean production flag, a command containing
+`bench_multi_shot_campaign`, and a lowercase SHA-256 self-digest. The digest is
+computed after replacing `payload_sha256` with an empty string and encoding all
+fields as sorted, compact JSON. It detects inconsistent edits; a producer can
+edit and reseal any declaration. Duplicate keys and nonfinite floating JSON
+tokens, including overflowing exponents, are refused throughout the object.
+Empty decoded objects fail required fields and retain their exact byte hashes.
+
+Python must declare `pyo3_status="ok"` and both `result`/`pyo3_result` objects;
+Rust must declare `result`. Each has positive non-boolean integer
+`last_passed_count`, `stats.samples`, and
+`last_pulsed_mpc_admission_digest_count` at least the requested positive integer
+minimum. Individual decision bytes, sums, steps/count consistency and latency
+values beyond positive sample counts are not checked or recomputed.
+
+Python context requires a nonempty affinity list; native Rust context uses
+nonblank text. Both require non-`None` `loadavg_start`/`loadavg_end`. The reader
+does not inspect affinity elements, parse Linux affinity/load strings, validate
+load values or host isolation, or reconcile contexts across reports. Native
+producer sentinel strings are not independently qualified host observations.
+
+The frozen result exposes status/errors, four exact-report/declared-payload
+digests, the admitted surface set, declared PyO3 status, aggregate production
+flag and effective minimum. `as_dict()` adds the admission v1 schema and fresh
+mutable finding/surface lists. Only PASS lists `python`, `pyo3`, `rust`.
+Malformed non-string digest/PyO3 declarations become `None`; invalid API minimum
+arguments record FAIL and use fallback one. Successfully decoded objects retain
+exact byte SHA-256 on FAIL; read/decode/non-object failure has no report digest.
+
+Local regression cannot claim production. A production-class declaration may
+keep its flag false. The aggregate flag reflects either report's literal true,
+even when overall reader status is FAIL; consumers must inspect status and their
+own admission evidence. No current-host qualification, producer authentication,
+certified controller, machine-protection veto or facility action authority is
+established. Additional metadata stays unchecked except its digest inclusion and
+the decoder refusals. No filesystem containment or input size/depth budget is
+provided.
+
 ## How to use the campaign orchestrator in a validation workflow
 
 The orchestrator itself does not prove hardware correctness. It structures repeated shot handling so downstream validators can consume bounded evidence.
 
 - run one short campaign first to confirm scheduler and bank handoff,
-- persist campaign reports with digest fields,
-- run the matching validator to convert the campaign output into admissible claims.
+- preserve actual campaign reports and decision evidence with their digest fields,
+- use the persisted benchmark reader for the benchmark summary pair and retain
+  independent source/artifact custody evidence for any further admission.
 
-Do not use multi-shot campaign outputs for deployment proof unless the strict campaign validator and execution context are included.
+The persisted benchmark reader does not convert campaign outputs into deployment
+proof. Deployment/control admission requires its separately owned evidence and
+authorisation boundaries.
 
 ## Practical use and scope
 

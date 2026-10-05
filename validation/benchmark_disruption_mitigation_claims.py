@@ -48,8 +48,8 @@ def main() -> None:
         "ensemble_report": asdict(report),
         "claim_evidence": asdict(evidence),
         "claim_boundary": (
-            "Bounded halo/runaway ensemble evidence only. Mitigation claims require measured, "
-            "external-benchmark, or documented public disruption reference artifacts."
+            "Bounded halo/runaway ensemble evidence only. Mitigation claims require independent "
+            "comparison against measured, external-benchmark, or documented public source data."
         ),
     }
     JSON_REPORT.write_text(
@@ -72,7 +72,8 @@ def main() -> None:
                 "",
                 "Claim boundary: this report records deterministic bounded ensemble",
                 "evidence for the halo-current and runaway-electron mitigation model.",
-                "It is not measured disruption-campaign or external-MHD validation.",
+                "Reference metadata alone does not establish measured disruption-campaign",
+                "or external-MHD validation; independent comparison is required.",
                 "",
             ]
         ),

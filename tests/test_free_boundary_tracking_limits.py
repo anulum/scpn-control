@@ -15,6 +15,30 @@ import pytest
 
 import scpn_control.control.free_boundary_tracking_limits as limits
 from scpn_control.control.free_boundary_tracking import FreeBoundaryTrackingController
+from scpn_control.core.fusion_kernel import CoilSet
+
+
+class _FractionalHoldKernel:
+    """One-coil contract exposing a malformed public tracking configuration."""
+
+    def __init__(self, config_file: str) -> None:
+        del config_file
+        self.cfg: dict[str, object] = {
+            "coils": [{"current": 0.0}],
+            "free_boundary": {},
+            "free_boundary_tracking": {"hold_steps_after_reject": 1.5},
+        }
+
+    def build_coilset_from_config(self) -> CoilSet:
+        """Provide a real CoilSet so the controller reaches config resolution."""
+        return CoilSet(
+            positions=[(1.0, 1.0)],
+            currents=np.zeros(1, dtype=np.float64),
+            turns=[1],
+            current_limits=np.ones(1, dtype=np.float64),
+            target_flux_points=np.array([[1.0, 0.0]], dtype=np.float64),
+            target_flux_values=np.zeros(1, dtype=np.float64),
+        )
 
 
 def test_owner_objective_and_supervisor_wrappers_match_leaf() -> None:
@@ -63,9 +87,24 @@ def test_scalar_resolvers_defaults_overrides_and_rejections() -> None:
     assert limits.resolve_nonnegative_float(float("inf"), default=1.0, name="f") == float("inf")
     with pytest.raises(ValueError):
         limits.resolve_nonnegative_float(-0.1, default=1.0, name="f")
+    with pytest.raises(ValueError, match="finite or infinity"):
+        limits.resolve_nonnegative_float(float("nan"), default=1.0, name="f")
     assert limits.resolve_fraction(0.7, default=0.3, name="frac") == 0.7
     with pytest.raises(ValueError):
         limits.resolve_fraction(1.1, default=0.3, name="frac")
+
+
+@pytest.mark.parametrize("invalid", [True, 1.5, "2"])
+def test_nonnegative_int_refuses_coercion(invalid: object) -> None:
+    """Boolean, fractional and text settings cannot silently become step counts."""
+    with pytest.raises(ValueError, match="non-negative integer"):
+        limits.resolve_nonnegative_int(invalid, None, default=0, name="hold_steps_after_reject")
+
+
+def test_public_controller_refuses_fractional_hold_steps() -> None:
+    """Malformed config is rejected through the public controller constructor."""
+    with pytest.raises(ValueError, match="hold_steps_after_reject must be a non-negative integer"):
+        FreeBoundaryTrackingController("dummy.json", kernel_factory=_FractionalHoldKernel, verbose=False)
 
 
 def test_coil_slew_and_fallback_currents() -> None:
@@ -77,9 +116,15 @@ def test_coil_slew_and_fallback_currents() -> None:
     np.testing.assert_allclose(slew, 0.5)
     with pytest.raises(ValueError, match="scalar or match"):
         limits.resolve_coil_slew_limits(n, None, [1.0, 2.0])
+    with pytest.raises(ValueError, match="finite values"):
+        limits.resolve_coil_slew_limits(n, None, [1.0, 2.0, 0.0, 4.0])
     assert limits.resolve_fallback_currents(n, coil_limits, None) is None
     ok = limits.resolve_fallback_currents(n, coil_limits, [1.0, 2.0, 3.0, 4.0])
     assert ok is not None
     np.testing.assert_allclose(ok, [1.0, 2.0, 3.0, 4.0])
+    with pytest.raises(ValueError, match="match the number of coils"):
+        limits.resolve_fallback_currents(n, coil_limits, [1.0, 2.0])
+    with pytest.raises(ValueError, match="must be finite"):
+        limits.resolve_fallback_currents(n, coil_limits, [1.0, 2.0, float("nan"), 4.0])
     with pytest.raises(ValueError, match="respect CoilSet.current_limits"):
         limits.resolve_fallback_currents(n, coil_limits, [6.0, 0.0, 0.0, 0.0])

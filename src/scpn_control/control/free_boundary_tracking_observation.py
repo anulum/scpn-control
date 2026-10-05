@@ -37,6 +37,36 @@ class ObjectiveBlock:
     stop: int
 
 
+def require_finite_observation(value: FloatArray, *, width: int, name: str) -> FloatArray:
+    """Validate one objective vector before controller state is updated.
+
+    Parameters
+    ----------
+    value
+        Candidate objective vector.
+    width
+        Required number of objective entries.
+    name
+        Observation stage named in validation errors.
+
+    Returns
+    -------
+    FloatArray
+        The finite one-dimensional vector.
+
+    Raises
+    ------
+    ValueError
+        If the vector has the wrong width or contains a nonfinite value.
+    """
+    observed = np.asarray(value, dtype=np.float64).reshape(-1)
+    if observed.shape != (width,):
+        raise ValueError(f"{name} observation must have width {width}.")
+    if not np.isfinite(observed).all():
+        raise ValueError(f"{name} observation contains nonfinite values.")
+    return observed
+
+
 def build_target_vector(coils: CoilSet) -> tuple[FloatArray, tuple[ObjectiveBlock, ...]]:
     """Build the stacked objective target vector and block map from a coil set."""
     values: list[float] = []
@@ -84,7 +114,7 @@ def resolve_measurement_vector(
     """Resolve a per-block measurement offset/bias vector aligned to the target."""
     vector = np.zeros(target_size, dtype=np.float64)
     if raw_value is None:
-        return cast(FloatArray, vector)
+        return vector
     if not isinstance(raw_value, dict):
         raise ValueError(f"{name} must be a mapping of objective block names to finite scalars or vectors.")
 

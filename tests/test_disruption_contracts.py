@@ -13,6 +13,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import pytest
 from numpy.typing import NDArray
@@ -153,13 +155,22 @@ def test_run_real_shot_replay_rejects_window_larger_than_shot() -> None:
     agent = FusionAIAgent(epsilon=0.05)
     shot_data = _build_replay_shot(n=64)
     shot_data["disruption_time_idx"] = 48
-    with pytest.raises(ValueError, match="window_size must be <= number of samples"):
+    with pytest.raises(ValueError, match="window_size must be < number of samples"):
         run_real_shot_replay(
             shot_data=shot_data,
             rl_agent=agent,
             risk_threshold=0.55,
             spi_trigger_risk=0.72,
             window_size=96,
+        )
+
+    with pytest.raises(ValueError, match="window_size must be < number of samples"):
+        run_real_shot_replay(
+            shot_data=shot_data,
+            rl_agent=agent,
+            risk_threshold=0.55,
+            spi_trigger_risk=0.72,
+            window_size=64,
         )
 
     shot_data = _build_replay_shot()
@@ -235,6 +246,23 @@ def test_run_real_shot_replay_rejects_negative_disruption_time_idx() -> None:
             rl_agent=agent,
             risk_threshold=0.55,
             spi_trigger_risk=0.72,
+            window_size=96,
+        )
+
+
+@pytest.mark.parametrize(
+    "label,index",
+    [("False", -1), (True, 1.5), (True, -1), (False, 100)],
+)
+def test_run_real_shot_replay_rejects_invalid_label_index_pair(label: object, index: object) -> None:
+    """Replay metadata cannot coerce a label or pair it with a false index."""
+    shot_data: dict[str, Any] = dict(_build_replay_shot())
+    shot_data["is_disruption"] = label
+    shot_data["disruption_time_idx"] = index
+    with pytest.raises(ValueError, match="is_disruption|disruption_time_idx"):
+        run_real_shot_replay(
+            shot_data=shot_data,
+            rl_agent=FusionAIAgent(epsilon=0.05),
             window_size=96,
         )
 

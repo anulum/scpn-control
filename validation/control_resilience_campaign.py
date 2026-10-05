@@ -19,57 +19,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
+import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from scpn_control.control.disruption_predictor import run_fault_noise_campaign
-
-
-def _normalize_campaign_inputs(
-    *,
-    seed: int,
-    episodes: int,
-    window: int,
-    noise_std: float,
-    bit_flip_interval: int,
-    recovery_window: int,
-    recovery_epsilon: float,
-) -> tuple[int, int, int, float, int, int, float]:
-    seed_i = int(seed)
-    episodes_i = int(episodes)
-    window_i = int(window)
-    noise = float(noise_std)
-    bit_flip_i = int(bit_flip_interval)
-    recovery_window_i = int(recovery_window)
-    recovery_eps = float(recovery_epsilon)
-
-    if episodes_i < 1:
-        raise ValueError("episodes must be >= 1.")
-    if window_i < 16:
-        raise ValueError("window must be >= 16.")
-    if not math.isfinite(noise) or noise < 0.0:
-        raise ValueError("noise_std must be finite and >= 0.")
-    if bit_flip_i < 1:
-        raise ValueError("bit_flip_interval must be >= 1.")
-    if recovery_window_i < 1:
-        raise ValueError("recovery_window must be >= 1.")
-    if not math.isfinite(recovery_eps) or recovery_eps <= 0.0:
-        raise ValueError("recovery_epsilon must be finite and > 0.")
-
-    return (
-        seed_i,
-        episodes_i,
-        window_i,
-        noise,
-        bit_flip_i,
-        recovery_window_i,
-        recovery_eps,
-    )
+from validation.resilience_campaign_inputs import _normalize_campaign_inputs as _normalize_campaign_inputs
 
 
 def generate_campaign_report(
@@ -82,6 +43,44 @@ def generate_campaign_report(
     recovery_window: int = 6,
     recovery_epsilon: float = 0.03,
 ) -> dict[str, Any]:
+    """Measure a deterministic synthetic disruption-risk fault campaign.
+
+    Parameters
+    ----------
+    seed : int
+        Seed for the core's local NumPy generator; normalized with int().
+    episodes, window : int
+        Number of synthetic traces and samples per trace, >= 1 and >= 16.
+    noise_std : float
+        Non-negative finite additive noise in synthetic signal units.
+    bit_flip_interval : int
+        Positive sample interval for binary64 mantissa-bit flips.
+    recovery_window : int
+        Positive maximum recovery search offset, in samples rather than seconds.
+    recovery_epsilon : float
+        Positive finite tolerance on dimensionless absolute risk error.
+
+    Returns
+    -------
+    dict[str, Any]
+        UTC generation time, measured runtime_seconds around the core call,
+        and campaign metrics. Metrics include risk-error mean/p95, recovery
+        offset p95/success fraction, fault count and four threshold checks.
+        For fixed normalized inputs campaign metrics repeat; time does not.
+
+    Raises
+    ------
+    ValueError, TypeError, OverflowError
+        Local normalization or core input validation fails before running.
+
+    Notes
+    -----
+    The core uses synthetic traces and perturbed observables, no plant actuator
+    or hardware faults. Recovery offsets use a tail-capped finite search;
+    threshold pass is a synthetic diagnostic, not proven controller recovery.
+    Thresholds bound mean error at 0.08, p95 error at 0.22, recovery p95 at
+    recovery_window and success fraction at 0.80. No report is written here.
+    """
     (
         seed_i,
         episodes_i,
@@ -111,13 +110,33 @@ def generate_campaign_report(
     )
     elapsed = time.perf_counter() - start
     return {
-        "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+        "generated_at_utc": datetime.now(UTC).isoformat(),
         "runtime_seconds": elapsed,
         "campaign": metrics,
     }
 
 
 def render_markdown(report: dict[str, Any]) -> str:
+    """Format one campaign report without running or writing a campaign.
+
+    Parameters
+    ----------
+    report : dict[str, Any]
+        Mapping returned by generate_campaign_report, including all metric
+        and threshold fields; no independent schema validation is performed.
+
+    Returns
+    -------
+    str
+        Markdown ending in a newline. Runtime is rounded to three decimals,
+        risk errors to six, and recovery statistics to three.
+        Threshold pass is printed as YES or NO.
+
+    Raises
+    ------
+    KeyError, TypeError, ValueError
+        Missing fields or incompatible format values propagate to the caller.
+    """
     c = report["campaign"]
     lines = [
         "# Control Resilience Campaign",
@@ -151,6 +170,36 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Run the public campaign and write JSON/Markdown, then apply strict exit.
+
+    Parameters
+    ----------
+    argv : list[str] or None
+        Argparse tokens; None reads sys.argv. Options mirror the campaign
+        producer, plus --output-json, --output-md and --strict.
+        Default paths are under this checkout's validation/reports.
+
+    Returns
+    -------
+    int
+        Zero normally, including a failed non-strict campaign. Two when
+        --strict is requested and the computed thresholds fail.
+
+    Raises
+    ------
+    SystemExit
+        Argparse help exits zero; syntax errors exit two.
+    ValueError, TypeError, OverflowError
+        Campaign input errors propagate before outputs are written.
+    OSError
+        UTF-8 parent creation/write fails. Writes are sequential and can
+        overwrite prior files; no transaction, alias guard or campaign guard.
+
+    Notes
+    -----
+    Both outputs and metric stdout are produced before a strict-failure
+    return. A successful process exit is not a physical admission verdict.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--episodes", type=int, default=64)

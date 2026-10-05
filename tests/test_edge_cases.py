@@ -33,6 +33,7 @@ from scpn_control.core.integrated_transport_solver import IntegratedTransportSol
 
 @pytest.fixture
 def minimal_config(tmp_path):
+    """Write a minimum-grid reactor config and return its path."""
     cfg = {
         "reactor_name": "EdgeCase-Reactor",
         "grid_resolution": [3, 3],
@@ -68,7 +69,14 @@ def test_gs_solver_min_grid(minimal_config):
 
 
 def test_transport_solver_zero_chi(minimal_config):
-    """2. Transport solver with chi = 0.0 keeps Ti fixed and cools Te via sinks."""
+    """2. With chi = 0 both species cool only through sinks and their mutual exchange.
+
+    Zero diffusivity removes conduction, not the ion-electron energy exchange.
+    Radiation withdraws energy from the electrons and the exchange stage then
+    shares that loss with the ions, so neither temperature may rise and the step
+    must remain energy-conserving. Asserting that Ti is exactly unchanged would
+    encode a solver without ion-electron coupling.
+    """
     # Use multi_ion=False to exercise the single-ion transport lane.
     solver = IntegratedTransportSolver(minimal_config, multi_ion=False)
     nr = solver.nr
@@ -76,8 +84,7 @@ def test_transport_solver_zero_chi(minimal_config):
     solver.chi_e = np.zeros(nr)
 
     # Use initial profiles that match the solver's hardcoded boundary conditions
-    # to ensure "unchanged" status is not tripped by BC enforcement.
-    # Ti edge = 0.1.
+    # so a change cannot be an artefact of boundary enforcement. Ti edge = 0.1.
     solver.Ti = np.full(nr, 0.1)
     solver.Te = np.full(nr, 0.1)
 
@@ -87,9 +94,20 @@ def test_transport_solver_zero_chi(minimal_config):
     # Evolve with zero heating and zero chi
     solver.evolve_profiles(dt=0.1, P_aux=0.0)
 
-    np.testing.assert_allclose(solver.Ti, ti_before)
+    assert np.all(np.isfinite(solver.Ti))
     assert np.all(np.isfinite(solver.Te))
+    assert np.all(solver.Ti <= ti_before)
     assert np.all(solver.Te <= te_before)
+
+    # Both species lose energy, but not the same temperature: the exchange
+    # splits energy, and ion and electron heat capacities differ with density.
+    assert np.mean(solver.Ti - ti_before) < 0.0
+    assert np.mean(solver.Te - te_before) < 0.0
+
+    # The invariant that does hold is the step's own energy accounting.
+    balance = solver.last_energy_balance
+    assert balance is not None
+    assert abs(balance.relative_error) < 1e-12
 
 
 def test_transport_solver_zero_dt(minimal_config):

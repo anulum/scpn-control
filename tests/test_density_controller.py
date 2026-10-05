@@ -5,13 +5,18 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Density-controller tests
+"""Public density-control behavior and claim-boundary regressions."""
+
 from __future__ import annotations
 
+import dataclasses
 import math
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from scpn_control._typing import AnyFloatArray
 from scpn_control.control.density_controller import (
     ActuatorCommand,
     DensityControlClaimEvidence,
@@ -27,7 +32,8 @@ from scpn_control.control.density_controller import (
 from scpn_control.core.pellet_injection import PelletParams, PelletTrajectory
 
 
-def test_particle_transport_model_sources():
+def test_particle_transport_model_sources() -> None:
+    """Check particle transport model sources."""
     model = ParticleTransportModel(n_rho=20, R0=6.2, a=2.0)
 
     gas = model.gas_puff_source(rate=1e21, penetration_depth=0.1)
@@ -48,6 +54,7 @@ def test_particle_transport_model_sources():
 
 
 def test_pellet_source_uses_ngs_trajectory_deposition() -> None:
+    """Check pellet source uses ngs trajectory deposition."""
     model = ParticleTransportModel(n_rho=32, R0=6.2, a=2.0)
     ne_profile = np.linspace(0.8e20, 1.2e20, model.n_rho)
     te_profile = np.linspace(8000.0, 1200.0, model.n_rho)
@@ -70,7 +77,8 @@ def test_pellet_source_uses_ngs_trajectory_deposition() -> None:
     np.testing.assert_allclose(pellet, expected.deposition_profile, rtol=1e-12, atol=0.0)
 
 
-def test_particle_transport_model_rejects_nonphysical_geometry():
+def test_particle_transport_model_rejects_nonphysical_geometry() -> None:
+    """Check particle transport model rejects nonphysical geometry."""
     for kwargs in (
         {"n_rho": 1},
         {"R0": 0.0},
@@ -80,7 +88,8 @@ def test_particle_transport_model_rejects_nonphysical_geometry():
             ParticleTransportModel(**kwargs)
 
 
-def test_particle_transport_model_rejects_invalid_transport_profiles():
+def test_particle_transport_model_rejects_invalid_transport_profiles() -> None:
+    """Check particle transport model rejects invalid transport profiles."""
     model = ParticleTransportModel(n_rho=10)
 
     with pytest.raises(ValueError, match="shape"):
@@ -93,7 +102,8 @@ def test_particle_transport_model_rejects_invalid_transport_profiles():
         model.set_transport(-np.ones(10), np.ones(10))
 
 
-def test_particle_transport_model_rejects_nonphysical_source_inputs():
+def test_particle_transport_model_rejects_nonphysical_source_inputs() -> None:
+    """Check particle transport model rejects nonphysical source inputs."""
     model = ParticleTransportModel(n_rho=10)
 
     with pytest.raises(ValueError, match="non-negative"):
@@ -115,7 +125,8 @@ def test_particle_transport_model_rejects_nonphysical_source_inputs():
         model.recycling_source(outflux=1.0, recycling_coeff=1.1)
 
 
-def test_particle_transport_step_rejects_invalid_state_and_timestep():
+def test_particle_transport_step_rejects_invalid_state_and_timestep() -> None:
+    """Check particle transport step rejects invalid state and timestep."""
     model = ParticleTransportModel(n_rho=10)
     ne = np.ones(10) * 1e19
     sources = np.zeros(10)
@@ -133,7 +144,8 @@ def test_particle_transport_step_rejects_invalid_state_and_timestep():
         model.step(ne, sources, dt=0.0)
 
 
-def test_particle_transport_model_step():
+def test_particle_transport_model_step() -> None:
+    """Check particle transport model step."""
     model = ParticleTransportModel(n_rho=10)
     ne = np.ones(10) * 1e19
     sources = np.zeros(10)
@@ -148,7 +160,7 @@ def test_particle_transport_model_step():
     assert np.all(np.isfinite(ne_new))
 
 
-def test_particle_transport_step_without_diffusion_skips_cfl_clamp():
+def test_particle_transport_step_without_diffusion_skips_cfl_clamp() -> None:
     """A zero diffusion profile skips the CFL clamp and evolves from sources alone."""
     model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
     model.set_transport(np.zeros(model.n_rho), np.zeros(model.n_rho))
@@ -181,7 +193,8 @@ def test_particle_transport_step_without_diffusion_skips_cfl_clamp():
     assert evidence.cfl_limited is False
 
 
-def test_density_controller():
+def test_density_controller() -> None:
+    """Check density controller."""
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model, dt_control=0.01)
 
@@ -205,7 +218,7 @@ def test_density_controller():
     assert cmd_high.cryo_pump_speed > 0.0
 
 
-def test_density_controller_small_deficit_uses_gas_without_pellets():
+def test_density_controller_small_deficit_uses_gas_without_pellets() -> None:
     """A small density deficit fuels with gas alone; the pellet branch stays inactive."""
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model, dt_control=0.01)
@@ -219,7 +232,8 @@ def test_density_controller_small_deficit_uses_gas_without_pellets():
     assert cmd.cryo_pump_speed == 0.0
 
 
-def test_density_controller_rejects_nonphysical_domains():
+def test_density_controller_rejects_nonphysical_domains() -> None:
+    """Check density controller rejects nonphysical domains."""
     model = ParticleTransportModel(n_rho=10)
 
     with pytest.raises(ValueError, match="dt_control"):
@@ -243,7 +257,8 @@ def test_density_controller_rejects_nonphysical_domains():
         ctrl.step(np.full(10, np.inf))
 
 
-def test_greenwald_limit_override():
+def test_greenwald_limit_override() -> None:
+    """Check greenwald limit override."""
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model, dt_control=0.01)
 
@@ -261,7 +276,8 @@ def test_greenwald_limit_override():
     assert cmd.cryo_pump_speed == ctrl.pump_max
 
 
-def test_kalman_estimator():
+def test_kalman_estimator() -> None:
+    """Check kalman estimator."""
     est = KalmanDensityEstimator(n_rho=20, n_chords=5)
 
     ne_pred = np.ones(20) * 1e19
@@ -272,7 +288,7 @@ def test_kalman_estimator():
     assert ne_upd.shape == (20,)
 
 
-def test_kalman_measurement_matrix_uses_declared_chord_impacts():
+def test_kalman_measurement_matrix_uses_declared_chord_impacts() -> None:
     """Different physical chord layouts must produce different projections."""
     est = KalmanDensityEstimator(n_rho=8, n_chords=3)
     central = est.measurement_matrix(np.array([0.0, 0.2, 0.4]))
@@ -280,7 +296,7 @@ def test_kalman_measurement_matrix_uses_declared_chord_impacts():
     assert not np.array_equal(central, edge)
 
 
-def test_kalman_uniform_profile_matches_exact_circular_chord_length():
+def test_kalman_uniform_profile_matches_exact_circular_chord_length() -> None:
     """Annular shell weights telescope to the exact circular chord length."""
     impacts = np.array([0.0, 0.3, 0.8, 1.0])
     est = KalmanDensityEstimator(n_rho=16, n_chords=4)
@@ -289,7 +305,7 @@ def test_kalman_uniform_profile_matches_exact_circular_chord_length():
     np.testing.assert_allclose(projected, expected, rtol=0.0, atol=1e-14)
 
 
-def test_kalman_annular_projection_has_physical_scale_and_signed_symmetry():
+def test_kalman_annular_projection_has_physical_scale_and_signed_symmetry() -> None:
     """Projection weights retain metres and circular signed symmetry."""
     impacts = np.array([-0.75, 0.0, 0.75])
     est = KalmanDensityEstimator(n_rho=4, n_chords=3, minor_radius_m=2.5)
@@ -305,7 +321,7 @@ def test_kalman_annular_projection_has_physical_scale_and_signed_symmetry():
     )
 
 
-def test_kalman_deprecated_chord_angles_alias_is_explicit():
+def test_kalman_deprecated_chord_angles_alias_is_explicit() -> None:
     """The historical keyword warns and preserves normalised-impact values."""
     est = KalmanDensityEstimator(n_rho=4, n_chords=2)
     impacts = np.array([0.0, 0.5])
@@ -325,7 +341,7 @@ def test_kalman_deprecated_chord_angles_alias_is_explicit():
         ({"n_rho": 4, "minor_radius_m": math.inf}, "minor_radius_m"),
     ],
 )
-def test_kalman_constructor_rejects_invalid_domains(kwargs: dict[str, object], message: str):
+def test_kalman_constructor_rejects_invalid_domains(kwargs: dict[str, object], message: str) -> None:
     """Constructor dimensions and physical radius fail closed."""
     with pytest.raises(ValueError, match=message):
         KalmanDensityEstimator(**kwargs)  # type: ignore[arg-type]
@@ -340,14 +356,14 @@ def test_kalman_constructor_rejects_invalid_domains(kwargs: dict[str, object], m
         (np.array([0.0, 1.01]), r"\[-1, 1\]"),
     ],
 )
-def test_kalman_measurement_matrix_rejects_invalid_geometry(impacts: object, message: str):
+def test_kalman_measurement_matrix_rejects_invalid_geometry(impacts: object, message: str) -> None:
     """Chord geometry must be present, finite, shaped, and in-domain."""
     est = KalmanDensityEstimator(n_rho=4, n_chords=2)
     with pytest.raises(ValueError, match=message):
         est.measurement_matrix(impacts)  # type: ignore[arg-type]
 
 
-def test_kalman_measurement_matrix_rejects_ambiguous_geometry():
+def test_kalman_measurement_matrix_rejects_ambiguous_geometry() -> None:
     """Canonical and compatibility geometry keywords cannot be mixed."""
     est = KalmanDensityEstimator(n_rho=4, n_chords=2)
     impacts = np.array([0.0, 0.5])
@@ -355,7 +371,7 @@ def test_kalman_measurement_matrix_rejects_ambiguous_geometry():
         est.measurement_matrix(impacts, chord_angles=impacts)
 
 
-def test_kalman_predict_validates_and_copies_state():
+def test_kalman_predict_validates_and_copies_state() -> None:
     """Prediction validates its domain and does not alias caller state."""
     est = KalmanDensityEstimator(n_rho=3, n_chords=2)
     ne = np.array([1.0, 2.0, 3.0])
@@ -375,7 +391,7 @@ def test_kalman_predict_validates_and_copies_state():
         est.predict(np.ones(3), dt=-0.1)
 
 
-def test_kalman_update_matches_independent_joseph_reference():
+def test_kalman_update_matches_independent_joseph_reference() -> None:
     """Gain, state, and covariance match an independent direct solve."""
     est = KalmanDensityEstimator(n_rho=3, n_chords=2, minor_radius_m=1.7)
     est.P = np.array([[4.0, 0.5, 0.2], [0.5, 3.0, 0.1], [0.2, 0.1, 2.0]])
@@ -400,14 +416,14 @@ def test_kalman_update_matches_independent_joseph_reference():
     assert np.linalg.eigvalsh(est.P)[0] >= -1e-14
 
 
-def test_kalman_repeated_updates_preserve_covariance_symmetry_and_psd():
+def test_kalman_repeated_updates_preserve_covariance_symmetry_and_psd() -> None:
     """Repeated measurement corrections preserve covariance invariants."""
     est = KalmanDensityEstimator(n_rho=12, n_chords=5, minor_radius_m=2.0)
     impacts = np.linspace(-0.8, 0.8, est.n_chords)
     truth = np.linspace(8.0e19, 2.0e19, est.n_rho)
     measurements = est.measurement_matrix(impacts) @ truth
 
-    estimate = np.full(est.n_rho, 5.0e19)
+    estimate: AnyFloatArray = np.full(est.n_rho, 5.0e19)
     for _ in range(40):
         estimate = est.update(estimate, measurements, impacts)
         np.testing.assert_allclose(est.P, est.P.T, rtol=0.0, atol=0.0)
@@ -426,7 +442,7 @@ def test_kalman_repeated_updates_preserve_covariance_symmetry_and_psd():
         ("Q", np.diag([1.0, -1.0, 1.0]), "positive semidefinite"),
     ],
 )
-def test_kalman_predict_rejects_invalid_covariance(attribute: str, value: np.ndarray, message: str):
+def test_kalman_predict_rejects_invalid_covariance(attribute: str, value: AnyFloatArray, message: str) -> None:
     """Prediction rejects malformed or non-PSD state covariances."""
     est = KalmanDensityEstimator(n_rho=3, n_chords=2)
     setattr(est, attribute, value)
@@ -444,14 +460,16 @@ def test_kalman_predict_rejects_invalid_covariance(attribute: str, value: np.nda
         (np.ones(3), np.array([1.0, math.nan]), "measurements must contain only finite"),
     ],
 )
-def test_kalman_update_rejects_invalid_vectors(ne_pred: np.ndarray, measurements: np.ndarray, message: str):
+def test_kalman_update_rejects_invalid_vectors(
+    ne_pred: AnyFloatArray, measurements: AnyFloatArray, message: str
+) -> None:
     """Measurement correction rejects invalid state and observation vectors."""
     est = KalmanDensityEstimator(n_rho=3, n_chords=2)
     with pytest.raises(ValueError, match=message):
         est.update(ne_pred, measurements, np.array([0.0, 0.5]))
 
 
-def test_kalman_update_rejects_non_positive_measurement_covariance():
+def test_kalman_update_rejects_non_positive_measurement_covariance() -> None:
     """Measurement noise must make the observation model non-degenerate."""
     est = KalmanDensityEstimator(n_rho=3, n_chords=2)
     est.R = np.zeros((2, 2))
@@ -459,7 +477,7 @@ def test_kalman_update_rejects_non_positive_measurement_covariance():
         est.update(np.ones(3), np.ones(2), np.array([0.0, 0.5]))
 
 
-def test_kalman_update_rejects_non_positive_innovation_covariance():
+def test_kalman_update_rejects_non_positive_innovation_covariance() -> None:
     """Round-off-scale invalid priors cannot enter a Cholesky gain solve."""
     est = KalmanDensityEstimator(n_rho=1, n_chords=1)
     # The PSD admission tolerance permits a round-off-scale negative prior;
@@ -470,7 +488,8 @@ def test_kalman_update_rejects_non_positive_innovation_covariance():
         est.update(np.ones(1), np.ones(1), np.array([0.0]))
 
 
-def test_fueling_optimizer():
+def test_fueling_optimizer() -> None:
+    """Check fueling optimizer."""
     opt = FuelingOptimizer()
     sched = opt.optimize_pellet_sequence(np.zeros(10), np.ones(10), n_pellets=3, time_horizon=1.0)
 
@@ -480,7 +499,7 @@ def test_fueling_optimizer():
     assert sched.times[0] == 0.25  # 1.0 / 4
 
 
-def test_greenwald_limit_iter():
+def test_greenwald_limit_iter() -> None:
     """n_GW ≈ 1.19×10^20 m^-3 for ITER (15 MA, a=2.0 m).
 
     Greenwald 2002, PPCF 44, R27, Eq. 1: n_GW = I_p / (π a²) [10^20 m^-3].
@@ -501,7 +520,7 @@ def test_greenwald_limit_iter():
             DensityController.compute_greenwald_limit(current, minor_radius)
 
 
-def test_density_below_greenwald():
+def test_density_below_greenwald() -> None:
     """Controller keeps n < n_GW after triggering the pump-out threshold.
 
     When n/n_GW exceeds 0.95 the controller activates maximum pumping with
@@ -522,7 +541,7 @@ def test_density_below_greenwald():
     assert cmd.cryo_pump_speed == ctrl.pump_max, "Max pumping when above Greenwald limit"
 
 
-def test_set_transport():
+def test_set_transport() -> None:
     """Transport setter preserves validated diffusivity and pinch profiles."""
     model = ParticleTransportModel(n_rho=10)
     D_new = np.ones(10) * 2.0
@@ -532,7 +551,7 @@ def test_set_transport():
     np.testing.assert_array_equal(model.V_pinch, V_new)
 
 
-def test_pellet_source_zero_radius():
+def test_pellet_source_zero_radius() -> None:
     """Zero-radius pellets deposit no particles and avoid trajectory integration."""
     model = ParticleTransportModel(n_rho=10)
     result = model.pellet_source(speed_ms=500.0, radius_mm=0.0)
@@ -541,14 +560,14 @@ def test_pellet_source_zero_radius():
     np.testing.assert_array_equal(result_neg, np.zeros(10))
 
 
-def test_nbi_source_zero_power():
+def test_nbi_source_zero_power() -> None:
     """Zero beam power contributes no neutral-beam particle source."""
     model = ParticleTransportModel(n_rho=10)
     result = model.nbi_source(beam_energy_keV=100.0, power_MW=0.0)
     np.testing.assert_array_equal(result, np.zeros(10))
 
 
-def test_recycling_source():
+def test_recycling_source() -> None:
     """Recycling returns a finite non-negative edge-localised source."""
     model = ParticleTransportModel(n_rho=10)
     outflux = 1e20
@@ -558,7 +577,7 @@ def test_recycling_source():
     assert np.sum(recycled) > 0
 
 
-def test_step_cfl_dt_clamp():
+def test_step_cfl_dt_clamp() -> None:
     """Transport integration remains finite when requested dt exceeds the CFL limit."""
     model = ParticleTransportModel(n_rho=10)
     ne = np.ones(10) * 1e19
@@ -569,7 +588,7 @@ def test_step_cfl_dt_clamp():
     assert np.all(np.isfinite(ne_new))
 
 
-def test_greenwald_fraction():
+def test_greenwald_fraction() -> None:
     """Greenwald fraction is finite for a physical density profile."""
     model = ParticleTransportModel(n_rho=10, R0=6.2, a=2.0)
     ctrl = DensityController(model)
@@ -582,7 +601,7 @@ def test_greenwald_fraction():
         ctrl.greenwald_fraction(-ne, I_p_MA=15.0, a=2.0)
 
 
-def test_below_greenwald_safety_margin():
+def test_below_greenwald_safety_margin() -> None:
     """Safety-margin predicate switches at the ITER Greenwald fraction boundary."""
     model = ParticleTransportModel(n_rho=10)
     ctrl = DensityController(model)
@@ -598,7 +617,7 @@ def test_below_greenwald_safety_margin():
         ctrl.below_greenwald_safety_margin(-ne_low)
 
 
-def test_kalman_predict():
+def test_kalman_predict() -> None:
     """Kalman prediction carries density state forward and inflates covariance."""
     est = KalmanDensityEstimator(n_rho=10, n_chords=4)
     ne = np.ones(10) * 1e19
@@ -607,7 +626,7 @@ def test_kalman_predict():
     assert est.P[0, 0] > 1e38  # P grew by Q*dt
 
 
-def test_fueling_optimizer_zero_pellets():
+def test_fueling_optimizer_zero_pellets() -> None:
     """Zero-pellet optimisation produces an empty schedule."""
     opt = FuelingOptimizer()
     sched = opt.optimize_pellet_sequence(np.zeros(10), np.ones(10), n_pellets=0, time_horizon=1.0)
@@ -616,7 +635,8 @@ def test_fueling_optimizer_zero_pellets():
     assert sched.sizes == []
 
 
-def test_density_control_claim_evidence_records_bounded_provenance(tmp_path):
+def test_density_control_claim_evidence_records_bounded_provenance(tmp_path: Path) -> None:
+    """Check density control claim evidence records bounded provenance."""
     model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
     controller = DensityController(model, dt_control=0.01)
     controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
@@ -656,7 +676,8 @@ def test_density_control_claim_evidence_records_bounded_provenance(tmp_path):
     assert '"facility_density_claim_allowed": false' in report_path.read_text(encoding="utf-8")
 
 
-def test_density_control_facility_admission_requires_matched_greenwald_and_inventory_references():
+def test_density_control_reference_match_cannot_self_admit_facility_claim() -> None:
+    """Check density control reference match cannot self admit facility claim."""
     model = ParticleTransportModel(n_rho=12, R0=6.2, a=2.0)
     controller = DensityController(model, dt_control=0.01)
     controller.set_constraints(n_GW=1.0e20, gas_max=1.0e22, pellet_freq_max=10.0, pump_max=10.0)
@@ -698,8 +719,15 @@ def test_density_control_facility_admission_requires_matched_greenwald_and_inven
         reference_greenwald_fraction=base.greenwald_fraction,
         reference_inventory_delta=base.particle_inventory_delta,
     )
-    assert_density_control_facility_claim_admissible(matched)
-    assert matched.facility_density_claim_allowed is True
+    assert matched.reference_comparison_passed is True
+    assert matched.facility_density_claim_allowed is False
+    assert matched.claim_status == "bounded_density_reference_matched"
+    with pytest.raises(ValueError, match="independently verified reference evidence"):
+        assert_density_control_facility_claim_admissible(matched)
+    with pytest.raises(ValueError, match="independently verified reference evidence"):
+        assert_density_control_facility_claim_admissible(
+            dataclasses.replace(matched, facility_density_claim_allowed=True)
+        )
 
     mismatched = density_control_claim_evidence(
         model,
@@ -719,12 +747,14 @@ def test_density_control_facility_admission_requires_matched_greenwald_and_inven
         reference_inventory_delta=base.particle_inventory_delta,
         greenwald_fraction_abs_tolerance=0.01,
     )
-    with pytest.raises(ValueError, match="facility density-control claim requires matched"):
+    assert mismatched.reference_comparison_passed is False
+    with pytest.raises(ValueError, match="independently verified reference evidence"):
         assert_density_control_facility_claim_admissible(mismatched)
     assert mismatched.facility_density_claim_allowed is False
 
 
-def test_density_control_claim_evidence_rejects_invalid_inputs():
+def test_density_control_claim_evidence_rejects_invalid_inputs() -> None:
+    """Check density control claim evidence rejects invalid inputs."""
     model = ParticleTransportModel(n_rho=8, R0=6.2, a=2.0)
     controller = DensityController(model, dt_control=0.01)
     controller.set_target(np.ones(model.n_rho) * 5.0e19)
@@ -786,30 +816,35 @@ def test_density_control_claim_evidence_rejects_invalid_inputs():
 
 
 def test_pellet_source_rejects_nonfinite_radius() -> None:
+    """Check pellet source rejects nonfinite radius."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="radius_mm must be finite"):
         model.pellet_source(speed_ms=200.0, radius_mm=math.nan)
 
 
 def test_pellet_source_rejects_nonfinite_launch_angle() -> None:
+    """Check pellet source rejects nonfinite launch angle."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="launch_angle_deg must be finite"):
         model.pellet_source(speed_ms=200.0, radius_mm=3.0, launch_angle_deg=math.inf)
 
 
 def test_pellet_source_rejects_nonpositive_b0() -> None:
+    """Check pellet source rejects nonpositive b0."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="B0_T must be finite and positive"):
         model.pellet_source(speed_ms=200.0, radius_mm=3.0, B0_T=0.0)
 
 
 def test_pellet_source_rejects_unknown_injection_side() -> None:
+    """Check pellet source rejects unknown injection side."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="injection_side must be 'HFS' or 'LFS'"):
         model.pellet_source(speed_ms=200.0, radius_mm=3.0, injection_side="TOP")
 
 
 def test_pellet_source_rejects_nonpositive_density_profile() -> None:
+    """Check pellet source rejects nonpositive density profile."""
     model = ParticleTransportModel(n_rho=16)
     ne_profile = np.full(model.n_rho, 1.0e20)
     ne_profile[3] = 0.0
@@ -818,6 +853,7 @@ def test_pellet_source_rejects_nonpositive_density_profile() -> None:
 
 
 def test_pellet_source_rejects_negative_temperature_profile() -> None:
+    """Check pellet source rejects negative temperature profile."""
     model = ParticleTransportModel(n_rho=16)
     te_profile = np.full(model.n_rho, 2000.0)
     te_profile[5] = -1.0
@@ -826,24 +862,28 @@ def test_pellet_source_rejects_negative_temperature_profile() -> None:
 
 
 def test_nbi_source_rejects_negative_power() -> None:
+    """Check nbi source rejects negative power."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="NBI power_MW must be finite and non-negative"):
         model.nbi_source(beam_energy_keV=100.0, power_MW=-1.0)
 
 
 def test_cryopump_sink_rejects_negative_edge_density() -> None:
+    """Check cryopump sink rejects negative edge density."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="Cryopump ne_edge must be finite and non-negative"):
         model.cryopump_sink(pump_speed=1.0, ne_edge=-1.0)
 
 
 def test_recycling_source_rejects_negative_outflux() -> None:
+    """Check recycling source rejects negative outflux."""
     model = ParticleTransportModel(n_rho=16)
     with pytest.raises(ValueError, match="Recycling outflux must be finite and non-negative"):
         model.recycling_source(outflux=-1.0)
 
 
 def test_step_rejects_negative_density() -> None:
+    """Check step rejects negative density."""
     model = ParticleTransportModel(n_rho=16)
     ne = np.full(model.n_rho, 1.0e20)
     ne[2] = -1.0
@@ -853,6 +893,7 @@ def test_step_rejects_negative_density() -> None:
 
 
 def test_non_empty_text_rejects_blank_string() -> None:
+    """Check non empty text rejects blank string."""
     assert _non_empty_text("source_id", "  iter-12345  ") == "iter-12345"
     with pytest.raises(ValueError, match="source_id must be a non-empty string"):
         _non_empty_text("source_id", "   ")

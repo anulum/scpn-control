@@ -32,7 +32,7 @@ import os
 import platform
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable
 
@@ -149,13 +149,14 @@ def _entry(name: str, backend: str, stats: dict[str, Any] | None, status: str, n
 
 def _pid_entries(iterations: int, warmup: int) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    pid_np = RustPIDController._PurePythonPID(1.0, 0.1, 0.05)
+    pid_python = RustPIDController._PurePythonPID(1.0, 0.1, 0.05)
     entries.append(
         _entry(
             "PID",
-            "numpy",
-            _measure(lambda i: pid_np.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup),
+            "python",
+            _measure(lambda i: pid_python.step(math.sin(i * 0.01)), iterations=iterations, warmup=warmup),
             "measured",
+            "canonical Python PID fallback",
         )
     )
     if _rust_symbol_available("PyPIDController"):
@@ -350,7 +351,7 @@ def main() -> int:
     payload = {
         "schema": "scpn-control.controller_latency.v1",
         "campaign_id": os.environ.get(CAMPAIGN_ENV),
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "generated_at": datetime.now(UTC).isoformat(),
         "platform": {
             "python": sys.version,
             "platform": platform.platform(),

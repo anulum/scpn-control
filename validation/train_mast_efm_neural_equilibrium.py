@@ -6,580 +6,149 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MAST EFM neural-equilibrium trainer
-"""Prepare or execute deterministic full-output MAST EFM baseline training."""
+"""Prepare or execute deterministic full-output MAST EFM baseline training.
+
+The facade retains public trainer/report/template APIs while controls and
+metadata, tensor/numerical work, evidence declarations and persistence have
+separate owners. Both dry-run and execution inspect present selected bytes;
+missing tensors allow a planning report only. Scientific admission stays blocked.
+
+Generate a real plan from canonical repository metadata and inspect a dry-run
+without writing weights or updating checked-in reports:
+
+>>> import json
+>>> from tempfile import TemporaryDirectory
+>>> from validation.plan_neural_equilibrium_training_campaign import CampaignInputs, build_plan
+>>> with TemporaryDirectory() as directory:
+...     folder = Path(directory)
+...     dataset_report = DEFAULT_DATASET_REPORT
+...     plan = build_plan(CampaignInputs(dataset_report, folder / "missing-storage", ROOT / "validation/reference_data/qlknn"))
+...     plan_path = folder / "plan.json"
+...     _ = plan_path.write_text(json.dumps(plan))
+...     launch = build_training_report(TrainingInputs(dataset_report, plan_path, folder / "missing.npz", folder / "weights.npz"))
+...     template = build_result_templates(launch)
+...     verified = validate_result_templates(template, training_report=launch)
+...     print(launch["status"], launch["execution_mode"], launch["admission_ready"])
+...     print(verified is template, (folder / "weights.npz").exists())
+prepared dry_run False
+True False
+"""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
-import importlib
-import json
-import socket
+import shlex
 import sys
-import time
-from dataclasses import dataclass
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import numpy as np
-from numpy.typing import NDArray
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-_DATASET_MODULE = importlib.import_module("validation.build_mast_efm_neural_equilibrium_dataset")
-_CAMPAIGN_MODULE = importlib.import_module("validation.plan_neural_equilibrium_training_campaign")
-DATASET_SCHEMA: str = _DATASET_MODULE.DATASET_SCHEMA
-FEATURE_NAMES: tuple[str, ...] = _DATASET_MODULE.FEATURE_NAMES
-TARGET_KEYS: tuple[str, ...] = _DATASET_MODULE.TARGET_KEYS
-CAMPAIGN_PLAN_SCHEMA: str = _CAMPAIGN_MODULE.REPORT_SCHEMA
-
-TRAINING_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-training.v1"
-RESULT_TEMPLATES_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-result-templates.v1"
-EXECUTION_HOST_POLICY = (
-    "The storage host is storage-only; execute training only on this workstation or external cloud compute with the storage-host dataset "
-    "mounted read-only or copied to admitted compute storage."
+from validation.mast_efm_feature_audit_inputs import read_dataset_declaration
+from validation.neural_equilibrium_training_arrays import _dataset_metadata, _execute_training, _load_dataset
+from validation.neural_equilibrium_training_evidence import _sha256_json
+from validation.neural_equilibrium_training_evidence import build_result_templates as build_result_templates
+from validation.neural_equilibrium_training_evidence import validate_result_templates as validate_result_templates
+from validation.neural_equilibrium_training_evidence import validate_training_report as validate_training_report
+from validation.neural_equilibrium_training_inputs import (
+    ADMITTED_COMPUTE_HOST_KINDS as ADMITTED_COMPUTE_HOST_KINDS,
 )
-DEFAULT_DATASET_REPORT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_dataset.json"
-DEFAULT_CAMPAIGN_PLAN = ROOT / "validation" / "reports" / "neural_equilibrium_training_campaign_plan.json"
-DEFAULT_FEATURE_PROVENANCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_feature_provenance_audit.json"
-DEFAULT_ORIGINAL_SOURCE_REPORT = ROOT / "validation" / "reports" / "mast_efm_original_feature_source_audit.json"
-DEFAULT_DATASET_PATH = Path(
-    "/data/SCPN-CONTROL/processed/neural_equilibrium/mast_efm_supervised_dataset.npz"
+from validation.neural_equilibrium_training_inputs import (
+    CAMPAIGN_PLAN_SCHEMA as CAMPAIGN_PLAN_SCHEMA,
 )
-DEFAULT_WEIGHTS_OUT = Path("artifacts/neural_equilibrium/mast_efm_full_output_baseline_weights.npz")
-DEFAULT_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_training_launch.json"
-DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_training_launch.md"
-DEFAULT_TEMPLATES_JSON_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_result_templates.json"
-DEFAULT_TEMPLATES_MD_OUT = ROOT / "validation" / "reports" / "mast_efm_neural_equilibrium_result_templates.md"
-SPLITS = ("train", "validation", "test")
-ADMITTED_COMPUTE_HOST_KINDS = ("workstation", "external_cloud")
-STORAGE_ONLY_HOST_MARKERS = ("storage_host",)
-STORAGE_OUTPUT_ROOTS = (
-    Path("/data"),
-    Path("/data/SCPN-CONTROL"),
+from validation.neural_equilibrium_training_inputs import (
+    DATASET_SCHEMA as DATASET_SCHEMA,
 )
-REQUIRED_HOLDOUT_METRICS = (
-    "psi_rmse_Wb_per_rad",
-    "pprime_rmse_Pa_per_Wb_rad",
-    "q_profile_rmse",
-    "lcfs_r_rmse_m",
-    "lcfs_z_rmse_m",
-    "magnetic_axis_rmse_m",
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_CAMPAIGN_PLAN as DEFAULT_CAMPAIGN_PLAN,
 )
-REQUIRED_LATENCY_FIELDS = (
-    "hardware_label",
-    "accelerator_kind",
-    "precision",
-    "batch_size",
-    "p50_ms",
-    "p95_ms",
-    "p99_ms",
-    "sample_count",
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_DATASET_PATH as DEFAULT_DATASET_PATH,
 )
-REQUIRED_GPU_COST_FIELDS = (
-    "compute_provider",
-    "gpu_model",
-    "gpu_count",
-    "wall_time_hours",
-    "gpu_hours",
-    "storage_gb",
-    "currency",
-    "estimated_cost",
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_DATASET_REPORT as DEFAULT_DATASET_REPORT,
 )
-REQUIRED_ADMISSION_CERTIFICATE_FIELDS = (
-    "dataset_sha256",
-    "weights_sha256",
-    "training_report_sha256",
-    "holdout_metrics_sha256",
-    "latency_metrics_sha256",
-    "source_provenance_payload_sha256",
-    "strict_reference_report_sha256",
-    "admission_status",
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_FEATURE_PROVENANCE_REPORT as DEFAULT_FEATURE_PROVENANCE_REPORT,
 )
-
-
-@dataclass(frozen=True)
-class TrainingInputs:
-    """Input paths and controls for MAST EFM training."""
-
-    dataset_report: Path
-    campaign_plan: Path
-    dataset_path: Path
-    weights_out: Path
-    feature_provenance_report: Path = DEFAULT_FEATURE_PROVENANCE_REPORT
-    original_source_report: Path = DEFAULT_ORIGINAL_SOURCE_REPORT
-    compute_host_kind: str = "unspecified"
-    compute_host_label: str = ""
-    execute: bool = False
-    ridge_alpha: float = 1.0e-6
-    max_flux_components: int = 32
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _sha256_json(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _is_sha256(value: Any) -> bool:
-    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
-
-
-def _payload_digest(payload: dict[str, Any]) -> str:
-    return _sha256_json({**payload, "payload_sha256": None})
-
-
-def _require(condition: bool, field: str, message: str, errors: list[dict[str, str]]) -> None:
-    if not condition:
-        errors.append({"field": field, "error": message})
-
-
-def _require_string_members(
-    values: Any,
-    expected: tuple[str, ...],
-    field: str,
-    errors: list[dict[str, str]],
-) -> None:
-    if not isinstance(values, list) or any(not isinstance(item, str) for item in values):
-        errors.append({"field": field, "error": "must be a list of strings"})
-        return
-    missing = [item for item in expected if item not in values]
-    if missing:
-        errors.append({"field": field, "error": f"missing required entries: {', '.join(missing)}"})
-
-
-def _load_json_object(path: Path) -> dict[str, Any]:
-    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f"duplicate JSON key: {key}")
-            result[key] = value
-        return result
-
-    payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicates)
-    if not isinstance(payload, dict):
-        raise ValueError(f"{path} must contain a JSON object")
-    return payload
-
-
-def _validate_reports(dataset_report: dict[str, Any], campaign_plan: dict[str, Any]) -> None:
-    if dataset_report.get("schema_version") != DATASET_SCHEMA:
-        raise ValueError("dataset report has unsupported schema_version")
-    if dataset_report.get("status") != "blocked":
-        raise ValueError("dataset report must preserve blocked predictive-admission state")
-    if campaign_plan.get("schema_version") != CAMPAIGN_PLAN_SCHEMA:
-        raise ValueError("campaign plan has unsupported schema_version")
-    if campaign_plan.get("status") != "prepared":
-        raise ValueError("campaign plan must be prepared before training")
-
-
-def _path_is_relative_to(path: Path, root: Path) -> bool:
-    try:
-        path.resolve(strict=False).relative_to(root.resolve(strict=False))
-    except ValueError:
-        return False
-    return True
-
-
-def _display_path(path: Path) -> str:
-    """Render repository paths relative to the checkout for stable reports."""
-
-    if not path.is_absolute():
-        return str(path)
-    try:
-        return str(path.resolve(strict=False).relative_to(ROOT))
-    except ValueError:
-        return str(path)
-
-
-def _validate_feature_provenance(report: dict[str, Any], dataset_report: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-    if report.get("schema_version") != "scpn-control.mast-efm-feature-provenance-audit.v1":
-        errors.append("feature provenance report has unsupported schema_version")
-    if report.get("reference_dataset_id") != dataset_report.get("reference_dataset_id"):
-        errors.append("feature provenance report does not match the dataset reference_dataset_id")
-    if report.get("blocked_features") != []:
-        errors.append("feature provenance report still has blocked features")
-    feature_status = report.get("feature_status")
-    if not isinstance(feature_status, dict) or not feature_status:
-        errors.append("feature provenance report has no feature_status entries")
-    else:
-        unresolved = [
-            str(name)
-            for name, status in feature_status.items()
-            if not isinstance(status, dict) or status.get("status") != "resolved"
-        ]
-        if unresolved:
-            errors.append(f"feature provenance report has unresolved features: {', '.join(sorted(unresolved))}")
-    return errors
-
-
-def _validate_original_source_provenance(report: dict[str, Any], dataset_report: dict[str, Any]) -> list[str]:
-    errors: list[str] = []
-    if report.get("schema_version") != "scpn-control.mast-efm-original-feature-source-audit.v1":
-        errors.append("original source report has unsupported schema_version")
-    if report.get("reference_dataset_id") != dataset_report.get("reference_dataset_id"):
-        errors.append("original source report does not match the dataset reference_dataset_id")
-    if report.get("status") != "source_ready":
-        errors.append("original source report is not source_ready")
-    if report.get("can_rebuild_dataset_now") is not True:
-        errors.append("original source report does not admit rebuild readiness")
-    if report.get("blocked_features") != []:
-        errors.append("original source report still has blocked features")
-    return errors
-
-
-def _source_provenance_admission(inputs: TrainingInputs, dataset_report: dict[str, Any]) -> dict[str, Any]:
-    errors: list[str] = []
-    feature_report: dict[str, Any] | None = None
-    original_report: dict[str, Any] | None = None
-    if inputs.feature_provenance_report.is_file():
-        feature_report = _load_json_object(inputs.feature_provenance_report)
-        errors.extend(_validate_feature_provenance(feature_report, dataset_report))
-    else:
-        errors.append(f"feature provenance report is missing: {inputs.feature_provenance_report}")
-    if inputs.original_source_report.is_file():
-        original_report = _load_json_object(inputs.original_source_report)
-        errors.extend(_validate_original_source_provenance(original_report, dataset_report))
-    else:
-        errors.append(f"original source report is missing: {inputs.original_source_report}")
-    return {
-        "status": "pass" if not errors else "fail",
-        "feature_provenance_report": _display_path(inputs.feature_provenance_report),
-        "feature_provenance_payload_sha256": None if feature_report is None else feature_report.get("payload_sha256"),
-        "original_source_report": _display_path(inputs.original_source_report),
-        "original_source_payload_sha256": None if original_report is None else original_report.get("payload_sha256"),
-        "errors": errors,
-    }
-
-
-def _compute_execution_admission(inputs: TrainingInputs, dataset_sha256: str | None) -> dict[str, Any]:
-    errors: list[str] = []
-    host_label = inputs.compute_host_label or socket.gethostname()
-    host_label_lower = host_label.lower()
-    if inputs.compute_host_kind not in ADMITTED_COMPUTE_HOST_KINDS:
-        errors.append("compute host kind must be explicitly declared as workstation or external_cloud before --execute")
-    if any(marker in host_label_lower for marker in STORAGE_ONLY_HOST_MARKERS):
-        errors.append("The storage host is storage-only and is not an admitted training host")
-    if dataset_sha256 is None:
-        errors.append("dataset payload SHA-256 must be verified before --execute")
-    if any(_path_is_relative_to(inputs.weights_out, root) for root in STORAGE_OUTPUT_ROOTS):
-        errors.append("weights_out must not be under storage-host dataset storage; use workstation or cloud compute storage")
-    return {
-        "status": "pass" if not errors else "fail",
-        "compute_host_kind": inputs.compute_host_kind,
-        "compute_host_label": host_label,
-        "admitted_compute_host_kinds": list(ADMITTED_COMPUTE_HOST_KINDS),
-        "storage_only_host_markers": list(STORAGE_ONLY_HOST_MARKERS),
-        "forbidden_output_roots": [str(root) for root in STORAGE_OUTPUT_ROOTS],
-        "errors": errors,
-    }
-
-
-def _pre_run_admission(
-    inputs: TrainingInputs,
-    dataset_report: dict[str, Any],
-    dataset_sha256: str | None,
-) -> dict[str, Any]:
-    source = _source_provenance_admission(inputs, dataset_report)
-    compute = _compute_execution_admission(inputs, dataset_sha256)
-    errors = [*source["errors"], *compute["errors"]]
-    return {
-        "status": "pass" if not errors else "fail",
-        "required_for_execute": True,
-        "dataset_sha256_verified": dataset_sha256 == dataset_report.get("dataset_sha256"),
-        "source_provenance": source,
-        "compute_execution": compute,
-        "errors": errors,
-    }
-
-
-def _load_dataset(path: Path) -> dict[str, NDArray[Any]]:
-    with np.load(path, allow_pickle=False) as payload:
-        return {key: payload[key] for key in payload.files}
-
-
-def _require_keys(data: dict[str, NDArray[Any]], keys: tuple[str, ...] | list[str]) -> None:
-    missing = [key for key in keys if key not in data]
-    if missing:
-        raise ValueError(f"dataset is missing required keys: {', '.join(missing)}")
-
-
-def _dataset_metadata(data: dict[str, NDArray[Any]], dataset_report: dict[str, Any]) -> dict[str, Any]:
-    _require_keys(data, ["features", "feature_names", "split", "shot_id", "time_s", "lcfs_point_count", *TARGET_KEYS])
-    features = np.asarray(data["features"], dtype=np.float64)
-    if features.ndim != 2 or features.shape[1] != len(FEATURE_NAMES) or not np.all(np.isfinite(features)):
-        raise ValueError(f"features must be finite with shape (n, {len(FEATURE_NAMES)})")
-    feature_names = tuple(str(item) for item in data["feature_names"].tolist())
-    if feature_names != FEATURE_NAMES:
-        raise ValueError("dataset feature_names do not match the declared training contract")
-    labels = np.asarray(data["split"]).astype(str)
-    if labels.shape != (features.shape[0],):
-        raise ValueError("split labels must have one value per feature row")
-    split_counts = {name: int(np.count_nonzero(labels == name)) for name in SPLITS}
-    if split_counts != dict(dataset_report["split_counts"]):
-        raise ValueError("dataset split_counts do not match the dataset report")
-    psirz = np.asarray(data["psirz_Wb_per_rad"], dtype=np.float64)
-    psirz_mask = np.asarray(data["psirz_valid_mask"], dtype=bool)
-    if psirz.ndim != 3 or psirz.shape[0] != features.shape[0] or psirz_mask.shape != psirz.shape:
-        raise ValueError("psirz_Wb_per_rad and psirz_valid_mask must have shape (n, z, r)")
-    if not np.all(np.isfinite(psirz[psirz_mask])):
-        raise ValueError("psirz_Wb_per_rad must be finite on valid mask entries")
-    mask_targets = {
-        "psirz_valid_mask": "psirz_Wb_per_rad",
-        "pprime_valid_mask": "pprime_Pa_per_Wb_rad",
-        "q_profile_valid_mask": "q_profile",
-        "lcfs_valid_mask": "lcfs_r_m",
-    }
-    for key, target_key in mask_targets.items():
-        mask = np.asarray(data[key], dtype=bool)
-        if mask.shape != np.asarray(data[target_key], dtype=np.float64).shape:
-            raise ValueError(f"{key} shape does not match its target array")
-    axis = np.column_stack(
-        [
-            np.asarray(data["magnetic_axis_r_m"], dtype=np.float64),
-            np.asarray(data["magnetic_axis_z_m"], dtype=np.float64),
-        ]
-    )
-    if axis.shape != (features.shape[0], 2) or not np.all(np.isfinite(axis)):
-        raise ValueError("magnetic-axis targets must be finite per-equilibrium values")
-    lcfs_count = np.asarray(data["lcfs_point_count"], dtype=np.int64)
-    if lcfs_count.shape != (features.shape[0],) or np.any(lcfs_count < 1):
-        raise ValueError("lcfs_point_count must be positive per equilibrium")
-    return {
-        "equilibria_count": int(features.shape[0]),
-        "feature_count": int(features.shape[1]),
-        "grid_shape": [int(psirz.shape[1]), int(psirz.shape[2])],
-        "split_counts": split_counts,
-        "target_keys": list(TARGET_KEYS),
-        "max_lcfs_points": int(np.max(lcfs_count)),
-    }
-
-
-def _standardise_train(
-    features: NDArray[np.float64], train_mask: NDArray[np.bool_]
-) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64]]:
-    mean = features[train_mask].mean(axis=0)
-    std = features[train_mask].std(axis=0)
-    std[std < 1.0e-12] = 1.0
-    return (features - mean) / std, mean, std
-
-
-def _ridge_fit(x: NDArray[np.float64], y: NDArray[np.float64], ridge_alpha: float) -> NDArray[np.float64]:
-    x_aug = np.column_stack([x, np.ones(x.shape[0])])
-    gram = x_aug.T @ x_aug + ridge_alpha * np.eye(x_aug.shape[1])
-    gram[-1, -1] -= ridge_alpha
-    return cast(NDArray[np.float64], np.linalg.solve(gram, x_aug.T @ y))
-
-
-def _ridge_predict(x: NDArray[np.float64], coeff: NDArray[np.float64]) -> NDArray[np.float64]:
-    x_aug = np.column_stack([x, np.ones(x.shape[0])])
-    return np.asarray(x_aug @ coeff, dtype=np.float64)
-
-
-def _pca_fit(
-    y_train: NDArray[np.float64], n_components: int
-) -> tuple[NDArray[np.float64], NDArray[np.float64], NDArray[np.float64], float]:
-    mean = y_train.mean(axis=0)
-    centred = y_train - mean
-    _, singular_values, vt = np.linalg.svd(centred, full_matrices=False)
-    usable = min(max(1, int(n_components)), vt.shape[0])
-    components = vt[:usable]
-    coeffs = centred @ components.T
-    total = float(np.sum(singular_values**2))
-    explained = float(np.sum(singular_values[:usable] ** 2) / max(total, 1.0e-30))
-    return mean, components, coeffs, explained
-
-
-def _masked_rmse(
-    predicted: NDArray[np.float64], observed: NDArray[np.float64], mask: NDArray[np.bool_]
-) -> float | None:
-    valid = mask & np.isfinite(predicted) & np.isfinite(observed)
-    if not np.any(valid):
-        return None
-    residual = predicted[valid] - observed[valid]
-    return float(np.sqrt(np.mean(residual**2)))
-
-
-def _fill_masked_columns(
-    values: NDArray[np.float64], mask: NDArray[np.bool_], train_mask: NDArray[np.bool_]
-) -> NDArray[np.float64]:
-    filled = np.asarray(values, dtype=np.float64).copy()
-    valid_train = mask[train_mask] & np.isfinite(filled[train_mask])
-    defaults = np.zeros(filled.shape[1], dtype=np.float64)
-    for col in range(filled.shape[1]):
-        column_valid = valid_train[:, col]
-        if np.any(column_valid):
-            defaults[col] = float(np.mean(filled[train_mask][column_valid, col]))
-    invalid = ~mask | ~np.isfinite(filled)
-    rows, cols = np.nonzero(invalid)
-    filled[rows, cols] = defaults[cols]
-    return filled
-
-
-def _fill_masked_flux(
-    values: NDArray[np.float64], mask: NDArray[np.bool_], train_mask: NDArray[np.bool_]
-) -> NDArray[np.float64]:
-    flat_values = values.reshape(values.shape[0], -1)
-    flat_mask = mask.reshape(mask.shape[0], -1)
-    return _fill_masked_columns(flat_values, flat_mask, train_mask)
-
-
-def _split_metrics(
-    data: dict[str, NDArray[Any]],
-    labels: NDArray[np.str_],
-    predictions: dict[str, NDArray[np.float64]],
-) -> dict[str, dict[str, float | None]]:
-    metrics: dict[str, dict[str, float | None]] = {}
-    psirz = np.asarray(data["psirz_Wb_per_rad"], dtype=np.float64)
-    pprime = np.asarray(data["pprime_Pa_per_Wb_rad"], dtype=np.float64)
-    q_profile = np.asarray(data["q_profile"], dtype=np.float64)
-    lcfs_r = np.asarray(data["lcfs_r_m"], dtype=np.float64)
-    lcfs_z = np.asarray(data["lcfs_z_m"], dtype=np.float64)
-    axis = np.column_stack(
-        [
-            np.asarray(data["magnetic_axis_r_m"], dtype=np.float64),
-            np.asarray(data["magnetic_axis_z_m"], dtype=np.float64),
-        ]
-    )
-    for split in SPLITS:
-        split_mask = labels == split
-        axis_error = np.linalg.norm(predictions["axis"][split_mask] - axis[split_mask], axis=1)
-        metrics[split] = {
-            "psi_rmse_Wb_per_rad": _masked_rmse(
-                predictions["psirz"][split_mask],
-                psirz[split_mask],
-                np.asarray(data["psirz_valid_mask"], dtype=bool)[split_mask],
-            ),
-            "pprime_rmse_Pa_per_Wb_rad": _masked_rmse(
-                predictions["pprime"][split_mask],
-                pprime[split_mask],
-                np.asarray(data["pprime_valid_mask"], dtype=bool)[split_mask],
-            ),
-            "q_profile_rmse": _masked_rmse(
-                predictions["q_profile"][split_mask],
-                q_profile[split_mask],
-                np.asarray(data["q_profile_valid_mask"], dtype=bool)[split_mask],
-            ),
-            "lcfs_r_rmse_m": _masked_rmse(
-                predictions["lcfs_r"][split_mask],
-                lcfs_r[split_mask],
-                np.asarray(data["lcfs_valid_mask"], dtype=bool)[split_mask],
-            ),
-            "lcfs_z_rmse_m": _masked_rmse(
-                predictions["lcfs_z"][split_mask],
-                lcfs_z[split_mask],
-                np.asarray(data["lcfs_valid_mask"], dtype=bool)[split_mask],
-            ),
-            "magnetic_axis_rmse_m": float(np.sqrt(np.mean(axis_error**2))) if axis_error.size else None,
-        }
-    return metrics
-
-
-def _execute_training(
-    data: dict[str, NDArray[Any]],
-    inputs: TrainingInputs,
-) -> tuple[dict[str, Any], str]:
-    start = time.perf_counter()
-    features = np.asarray(data["features"], dtype=np.float64)
-    labels = np.asarray(data["split"]).astype(str)
-    train_mask = labels == "train"
-    if int(np.count_nonzero(train_mask)) < 2:
-        raise ValueError("at least two training equilibria are required")
-    x, x_mean, x_std = _standardise_train(features, train_mask)
-    psirz = np.asarray(data["psirz_Wb_per_rad"], dtype=np.float64)
-    y_flux = _fill_masked_flux(psirz, np.asarray(data["psirz_valid_mask"], dtype=bool), train_mask)
-    flux_mean, flux_components, flux_train_coeffs, flux_explained = _pca_fit(
-        y_flux[train_mask],
-        inputs.max_flux_components,
-    )
-    flux_regression = _ridge_fit(x[train_mask], flux_train_coeffs, inputs.ridge_alpha)
-    flux_coeffs = _ridge_predict(x, flux_regression)
-    flux_pred = (flux_coeffs @ flux_components + flux_mean).reshape(psirz.shape)
-
-    pprime = np.asarray(data["pprime_Pa_per_Wb_rad"], dtype=np.float64)
-    q_profile = np.asarray(data["q_profile"], dtype=np.float64)
-    lcfs_r = np.asarray(data["lcfs_r_m"], dtype=np.float64)
-    lcfs_z = np.asarray(data["lcfs_z_m"], dtype=np.float64)
-    pprime_filled = _fill_masked_columns(pprime, np.asarray(data["pprime_valid_mask"], dtype=bool), train_mask)
-    q_filled = _fill_masked_columns(q_profile, np.asarray(data["q_profile_valid_mask"], dtype=bool), train_mask)
-    lcfs_mask = np.asarray(data["lcfs_valid_mask"], dtype=bool)
-    lcfs_r_filled = _fill_masked_columns(lcfs_r, lcfs_mask, train_mask)
-    lcfs_z_filled = _fill_masked_columns(lcfs_z, lcfs_mask, train_mask)
-    axis = np.column_stack(
-        [
-            np.asarray(data["magnetic_axis_r_m"], dtype=np.float64),
-            np.asarray(data["magnetic_axis_z_m"], dtype=np.float64),
-        ]
-    )
-    regressions = {
-        "pprime": _ridge_fit(x[train_mask], pprime_filled[train_mask], inputs.ridge_alpha),
-        "q_profile": _ridge_fit(x[train_mask], q_filled[train_mask], inputs.ridge_alpha),
-        "lcfs_r": _ridge_fit(x[train_mask], lcfs_r_filled[train_mask], inputs.ridge_alpha),
-        "lcfs_z": _ridge_fit(x[train_mask], lcfs_z_filled[train_mask], inputs.ridge_alpha),
-        "axis": _ridge_fit(x[train_mask], axis[train_mask], inputs.ridge_alpha),
-    }
-    predictions = {
-        "psirz": flux_pred,
-        "pprime": _ridge_predict(x, regressions["pprime"]),
-        "q_profile": _ridge_predict(x, regressions["q_profile"]),
-        "lcfs_r": _ridge_predict(x, regressions["lcfs_r"]),
-        "lcfs_z": _ridge_predict(x, regressions["lcfs_z"]),
-        "axis": _ridge_predict(x, regressions["axis"]),
-    }
-    metrics = _split_metrics(data, labels, predictions)
-    inputs.weights_out.parent.mkdir(parents=True, exist_ok=True)
-    np.savez_compressed(
-        inputs.weights_out,
-        schema_version=np.asarray([TRAINING_SCHEMA]),
-        feature_names=np.asarray(FEATURE_NAMES),
-        x_mean=x_mean,
-        x_std=x_std,
-        ridge_alpha=np.asarray([inputs.ridge_alpha]),
-        flux_mean=flux_mean,
-        flux_components=flux_components,
-        flux_regression=flux_regression,
-        flux_explained_variance=np.asarray([flux_explained]),
-        pprime_regression=regressions["pprime"],
-        q_profile_regression=regressions["q_profile"],
-        lcfs_r_regression=regressions["lcfs_r"],
-        lcfs_z_regression=regressions["lcfs_z"],
-        axis_regression=regressions["axis"],
-        lcfs_point_count=np.asarray(data["lcfs_point_count"], dtype=np.int64),
-        grid_shape=np.asarray(psirz.shape[1:], dtype=np.int64),
-    )
-    return (
-        {
-            "execution_mode": "execute",
-            "weights_path": str(inputs.weights_out),
-            "weights_sha256": _sha256_file(inputs.weights_out),
-            "flux_components": int(flux_components.shape[0]),
-            "flux_explained_variance": flux_explained,
-            "ridge_alpha": float(inputs.ridge_alpha),
-            "train_time_s": time.perf_counter() - start,
-            "holdout_metrics": metrics,
-        },
-        _sha256_file(inputs.weights_out),
-    )
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_JSON_OUT as DEFAULT_JSON_OUT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_MD_OUT as DEFAULT_MD_OUT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_ORIGINAL_SOURCE_REPORT as DEFAULT_ORIGINAL_SOURCE_REPORT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_TEMPLATES_JSON_OUT as DEFAULT_TEMPLATES_JSON_OUT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_TEMPLATES_MD_OUT as DEFAULT_TEMPLATES_MD_OUT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    DEFAULT_WEIGHTS_OUT as DEFAULT_WEIGHTS_OUT,
+)
+from validation.neural_equilibrium_training_inputs import (
+    EXECUTION_HOST_POLICY as EXECUTION_HOST_POLICY,
+)
+from validation.neural_equilibrium_training_inputs import (
+    FEATURE_NAMES as FEATURE_NAMES,
+)
+from validation.neural_equilibrium_training_inputs import (
+    RESULT_TEMPLATES_SCHEMA as RESULT_TEMPLATES_SCHEMA,
+)
+from validation.neural_equilibrium_training_inputs import (
+    TARGET_KEYS as TARGET_KEYS,
+)
+from validation.neural_equilibrium_training_inputs import (
+    TRAINING_SCHEMA as TRAINING_SCHEMA,
+)
+from validation.neural_equilibrium_training_inputs import (
+    TrainingInputs as TrainingInputs,
+)
+from validation.neural_equilibrium_training_inputs import (
+    _display_path,
+    _load_json_object,
+    _pre_run_admission,
+    _validate_reports,
+)
+from validation.neural_equilibrium_training_inputs import (
+    _sha256_file as _sha256_file,
+)
+from validation.neural_equilibrium_training_rendering import ensure_distinct_outputs
+from validation.neural_equilibrium_training_rendering import write_report as write_report
+from validation.neural_equilibrium_training_rendering import write_result_templates as write_result_templates
 
 
 def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
-    """Build a dry-run launch report or execute deterministic local training."""
+    """Prepare a launch from real metadata or execute the existing validated baseline.
 
-    dataset_report = _load_json_object(inputs.dataset_report)
+    Campaign digest/public acquisition and every MAST binding must match. Selected
+    local bytes and decoded tensor layout/splits/masks are checked before fitting.
+    Missing tensors permit dry-run metadata with FAIL admission; --execute requires
+    actual local bytes and complete source/compute PASS. Source audits are checked
+    as declarations/digests, not authenticated remote physics. Generated launches
+    are validated before return; executed weights are locally SHA-bound. Paths and
+    reads are sequential observations, not an atomic filesystem snapshot.
+    Selected tensor decoding uses the same captured NPZ bytes whose SHA was
+    verified; the reported SHA is assigned only after successful verification.
+    """
+    dataset_report, dataset_report_sha256 = read_dataset_declaration(inputs.dataset_report)
     campaign_plan = _load_json_object(inputs.campaign_plan)
     _validate_reports(dataset_report, campaign_plan)
-    dataset_exists = inputs.dataset_path.is_file()
+    try:
+        inputs.dataset_path.resolve()
+        dataset_exists = inputs.dataset_path.is_file()
+        if not dataset_exists and (inputs.dataset_path.exists() or inputs.dataset_path.is_symlink()):
+            raise ValueError("selected dataset_path must be a regular file when present")
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise ValueError(f"cannot inspect selected training dataset: {exc}") from exc
     if inputs.execute and not dataset_exists:
         raise FileNotFoundError(f"dataset payload is required for --execute: {inputs.dataset_path}")
 
@@ -587,16 +156,20 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
     dataset_metadata: dict[str, Any] | None = None
     execution_payload: dict[str, Any]
     if dataset_exists:
-        dataset_sha256 = _sha256_file(inputs.dataset_path)
-        if dataset_sha256 != dataset_report["dataset_sha256"]:
-            raise ValueError("dataset payload SHA-256 does not match the dataset report")
-        data = _load_dataset(inputs.dataset_path)
+        data = _load_dataset(inputs.dataset_path, dataset_report["dataset_sha256"])
+        dataset_sha256 = dataset_report["dataset_sha256"]
         dataset_metadata = _dataset_metadata(data, dataset_report)
         if inputs.execute:
-            pre_run_admission = _pre_run_admission(inputs, dataset_report, dataset_sha256)
+            pre_run_admission = _pre_run_admission(
+                inputs, dataset_report, dataset_sha256, dataset_report_sha256=dataset_report_sha256
+            )
             if pre_run_admission["status"] != "pass":
                 raise ValueError("pre-run admission failed before --execute: " + "; ".join(pre_run_admission["errors"]))
-            execution_payload, _ = _execute_training(data, inputs)
+            try:
+                with np.errstate(over="raise", invalid="raise", divide="raise"):
+                    execution_payload, _ = _execute_training(data, inputs)
+            except (FloatingPointError, OverflowError, np.linalg.LinAlgError) as exc:
+                raise ValueError(f"baseline numerical fit refused: {exc}") from exc
         else:
             execution_payload = {
                 "execution_mode": "dry_run",
@@ -611,7 +184,9 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
             "weights_sha256": None,
             "holdout_metrics": None,
         }
-    pre_run_admission = _pre_run_admission(inputs, dataset_report, dataset_sha256)
+    pre_run_admission = _pre_run_admission(
+        inputs, dataset_report, dataset_sha256, dataset_report_sha256=dataset_report_sha256
+    )
 
     fallback_features = list(dataset_report["fallback_features"])
     blocked_before_admission = [
@@ -647,358 +222,28 @@ def build_training_report(inputs: TrainingInputs) -> dict[str, Any]:
         "blocked_before_admission": blocked_before_admission,
         "run_command": (
             "python validation/train_mast_efm_neural_equilibrium.py --execute "
-            "--compute-host-kind workstation "
-            f"--dataset-path {inputs.dataset_path} --weights-out {inputs.weights_out} "
-            f"--feature-provenance-report {_display_path(inputs.feature_provenance_report)} "
-            f"--original-source-report {_display_path(inputs.original_source_report)}"
+            f"--compute-host-kind {inputs.compute_host_kind if inputs.compute_host_kind != 'unspecified' else 'workstation'} "
+            f"--compute-host-label {shlex.quote(inputs.compute_host_label)} "
+            f"--dataset-report {shlex.quote(str(inputs.dataset_report))} "
+            f"--campaign-plan {shlex.quote(str(inputs.campaign_plan))} "
+            f"--dataset-path {shlex.quote(str(inputs.dataset_path))} --weights-out {shlex.quote(str(inputs.weights_out))} "
+            f"--feature-provenance-report {shlex.quote(str(inputs.feature_provenance_report))} "
+            f"--original-source-report {shlex.quote(str(inputs.original_source_report))} "
+            f"--ridge-alpha {float(inputs.ridge_alpha)!r} --max-flux-components {inputs.max_flux_components}"
         ),
         **execution_payload,
     }
     report["payload_sha256"] = _sha256_json({**report, "payload_sha256": None})
+    validate_training_report(report, require_executed=inputs.execute)
     return report
 
 
-def build_result_templates(report: dict[str, Any]) -> dict[str, Any]:
-    """Build dry-run result schemas for the later compute campaign."""
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse explicit argv or process controls; help/usage retain argparse0/2.
 
-    templates: dict[str, Any] = {
-        "schema_version": RESULT_TEMPLATES_SCHEMA,
-        "claim_boundary": (
-            "These are result schemas for a later admitted compute run. They are not executed training evidence."
-        ),
-        "training_report_payload_sha256": report["payload_sha256"],
-        "expected_dataset_sha256": report["dataset_sha256"],
-        "expected_weight_path_policy": "weights are written to workstation or external cloud compute storage, not storage-host dataset storage",
-        "holdout_metrics": {
-            "schema_version": "scpn-control.mast-efm-neural-equilibrium-holdout-metrics.v1",
-            "required_splits": list(SPLITS),
-            "required_metrics": list(REQUIRED_HOLDOUT_METRICS),
-            "acceptance_policy": (
-                "compact train, validation, and test metrics must be emitted before predictive admission is requested"
-            ),
-        },
-        "latency_metrics": {
-            "schema_version": "scpn-control.mast-efm-neural-equilibrium-latency-metrics.v1",
-            "required_fields": list(REQUIRED_LATENCY_FIELDS),
-            "acceptance_policy": "latency is evidence only after hardware, precision, batch size, and sample count are recorded",
-        },
-        "gpu_cost": {
-            "schema_version": "scpn-control.mast-efm-neural-equilibrium-gpu-cost.v1",
-            "required_fields": list(REQUIRED_GPU_COST_FIELDS),
-            "acceptance_policy": "cost reports must distinguish planning estimates from measured billing evidence",
-        },
-        "admission_certificate": {
-            "schema_version": "scpn-control.mast-efm-neural-equilibrium-admission-certificate.v1",
-            "required_fields": list(REQUIRED_ADMISSION_CERTIFICATE_FIELDS),
-            "admission_status_enum": ["blocked", "pass", "fail"],
-            "acceptance_policy": (
-                "certificate stays blocked until the strict neural-equilibrium reference gate admits the exact weights"
-            ),
-        },
-    }
-    templates["payload_sha256"] = _sha256_json({**templates, "payload_sha256": None})
-    return templates
-
-
-def validate_training_report(report: dict[str, Any], *, require_executed: bool = False) -> dict[str, Any]:
-    """Validate a MAST EFM training launch report before it is cited as evidence."""
-
-    errors: list[dict[str, str]] = []
-    _require(report.get("schema_version") == TRAINING_SCHEMA, "schema_version", "unsupported schema_version", errors)
-    _require(report.get("status") in {"prepared", "executed"}, "status", "must be prepared or executed", errors)
-    _require(
-        report.get("execution_mode") in {"dry_run", "execute"}, "execution_mode", "must be dry_run or execute", errors
-    )
-    _require(_is_sha256(report.get("payload_sha256")), "payload_sha256", "must be a SHA-256 hex digest", errors)
-    if _is_sha256(report.get("payload_sha256")):
-        _require(
-            report["payload_sha256"] == _payload_digest(report),
-            "payload_sha256",
-            "does not match canonical report payload",
-            errors,
-        )
-    _require(_is_sha256(report.get("dataset_sha256")), "dataset_sha256", "must be a SHA-256 hex digest", errors)
-    _require(
-        "not predictive EFIT/P-EFIT admission evidence" in str(report.get("claim_boundary", "")),
-        "claim_boundary",
-        "must preserve predictive admission block",
-        errors,
-    )
-    _require(
-        "The storage host is storage-only" in str(report.get("execution_host_policy", "")),
-        "execution_host_policy",
-        "must preserve storage-host storage-only policy",
-        errors,
-    )
-    _require(report.get("admission_ready") is False, "admission_ready", "launch report cannot self-admit", errors)
-    _require(
-        report.get("strict_artefact_emitted") is False,
-        "strict_artefact_emitted",
-        "strict reference artefact must remain false in launch report",
-        errors,
-    )
-    _require_string_members(report.get("required_targets"), TARGET_KEYS, "required_targets", errors)
-
-    weights_path = Path(str(report.get("weights_path", "")))
-    _require(bool(str(weights_path)), "weights_path", "must declare weights output path", errors)
-    if str(weights_path):
-        _require(
-            not any(_path_is_relative_to(weights_path, root) for root in STORAGE_OUTPUT_ROOTS),
-            "weights_path",
-            "must not write weights under storage-host dataset storage",
-            errors,
-        )
-    pre_run = report.get("pre_run_admission")
-    if not isinstance(pre_run, dict):
-        errors.append({"field": "pre_run_admission", "error": "must be an object"})
-        pre_run = {}
-    else:
-        _require(
-            pre_run.get("required_for_execute") is True,
-            "pre_run_admission.required_for_execute",
-            "must be true",
-            errors,
-        )
-        _require(
-            isinstance(pre_run.get("errors"), list),
-            "pre_run_admission.errors",
-            "must list pre-run admission errors",
-            errors,
-        )
-
-    if report.get("execution_mode") == "execute":
-        _require(report.get("status") == "executed", "status", "execute mode must have executed status", errors)
-        _require(pre_run.get("status") == "pass", "pre_run_admission.status", "execute mode requires pass", errors)
-        _require(
-            report.get("dataset_exists_on_this_host") is True,
-            "dataset_exists_on_this_host",
-            "execute requires dataset",
-            errors,
-        )
-        _require(_is_sha256(report.get("weights_sha256")), "weights_sha256", "execute requires weights digest", errors)
-        holdout = report.get("holdout_metrics")
-        if not isinstance(holdout, dict):
-            errors.append({"field": "holdout_metrics", "error": "execute requires holdout metrics"})
-        else:
-            for split in SPLITS:
-                split_metrics = holdout.get(split)
-                if not isinstance(split_metrics, dict):
-                    errors.append({"field": f"holdout_metrics.{split}", "error": "missing split metrics"})
-                    continue
-                for metric in REQUIRED_HOLDOUT_METRICS:
-                    value = split_metrics.get(metric)
-                    _require(
-                        value is None or isinstance(value, int | float),
-                        f"holdout_metrics.{split}.{metric}",
-                        "must be null or numeric",
-                        errors,
-                    )
-    else:
-        _require(report.get("status") == "prepared", "status", "dry_run mode must have prepared status", errors)
-        _require(report.get("weights_sha256") is None, "weights_sha256", "dry_run must not declare weights", errors)
-        _require(
-            report.get("holdout_metrics") is None, "holdout_metrics", "dry_run must not declare holdout metrics", errors
-        )
-
-    if require_executed:
-        _require(report.get("execution_mode") == "execute", "execution_mode", "executed report required", errors)
-
-    if errors:
-        raise ValueError("; ".join(f"{error['field']}: {error['error']}" for error in errors))
-    return report
-
-
-def validate_result_templates(
-    templates: dict[str, Any],
-    *,
-    training_report: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Validate result templates before future compute evidence references them."""
-
-    errors: list[dict[str, str]] = []
-    _require(
-        templates.get("schema_version") == RESULT_TEMPLATES_SCHEMA,
-        "schema_version",
-        "unsupported schema_version",
-        errors,
-    )
-    _require(_is_sha256(templates.get("payload_sha256")), "payload_sha256", "must be a SHA-256 hex digest", errors)
-    if _is_sha256(templates.get("payload_sha256")):
-        _require(
-            templates["payload_sha256"] == _payload_digest(templates),
-            "payload_sha256",
-            "does not match canonical template payload",
-            errors,
-        )
-    _require(
-        _is_sha256(templates.get("training_report_payload_sha256")),
-        "training_report_payload_sha256",
-        "must be a SHA-256 hex digest",
-        errors,
-    )
-    _require(
-        _is_sha256(templates.get("expected_dataset_sha256")),
-        "expected_dataset_sha256",
-        "must be a SHA-256 hex digest",
-        errors,
-    )
-    _require(
-        "not storage-host dataset storage" in str(templates.get("expected_weight_path_policy", "")),
-        "expected_weight_path_policy",
-        "must forbid storage-host dataset storage weight output",
-        errors,
-    )
-    _require(
-        "not executed training evidence" in str(templates.get("claim_boundary", "")),
-        "claim_boundary",
-        "must preserve non-executed boundary",
-        errors,
-    )
-
-    template_specs = {
-        "holdout_metrics": ("required_metrics", REQUIRED_HOLDOUT_METRICS),
-        "latency_metrics": ("required_fields", REQUIRED_LATENCY_FIELDS),
-        "gpu_cost": ("required_fields", REQUIRED_GPU_COST_FIELDS),
-        "admission_certificate": ("required_fields", REQUIRED_ADMISSION_CERTIFICATE_FIELDS),
-    }
-    for section, (key, expected) in template_specs.items():
-        payload = templates.get(section)
-        if not isinstance(payload, dict):
-            errors.append({"field": section, "error": "must be an object"})
-            continue
-        _require(
-            isinstance(payload.get("schema_version"), str), f"{section}.schema_version", "must be a string", errors
-        )
-        _require(
-            isinstance(payload.get("acceptance_policy"), str) and bool(payload["acceptance_policy"]),
-            f"{section}.acceptance_policy",
-            "must be a non-empty string",
-            errors,
-        )
-        _require_string_members(payload.get(key), expected, f"{section}.{key}", errors)
-
-    certificate = templates.get("admission_certificate", {})
-    if isinstance(certificate, dict):
-        _require(
-            certificate.get("admission_status_enum") == ["blocked", "pass", "fail"],
-            "admission_certificate.admission_status_enum",
-            "must be ['blocked', 'pass', 'fail']",
-            errors,
-        )
-
-    if training_report is not None:
-        validate_training_report(training_report)
-        _require(
-            templates.get("training_report_payload_sha256") == training_report.get("payload_sha256"),
-            "training_report_payload_sha256",
-            "does not match launch report",
-            errors,
-        )
-        _require(
-            templates.get("expected_dataset_sha256") == training_report.get("dataset_sha256"),
-            "expected_dataset_sha256",
-            "does not match launch report",
-            errors,
-        )
-
-    if errors:
-        raise ValueError("; ".join(f"{error['field']}: {error['error']}" for error in errors))
-    return templates
-
-
-def write_report(report: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
-    """Write JSON and Markdown launch reports."""
-
-    validate_training_report(report)
-    json_out.parent.mkdir(parents=True, exist_ok=True)
-    json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    lines = [
-        "# MAST EFM Neural-Equilibrium Training Launch",
-        "",
-        f"Schema: `{report['schema_version']}`",
-        f"Status: `{report['status']}`",
-        f"Execution mode: `{report['execution_mode']}`",
-        f"Dataset path: `{report['dataset_path']}`",
-        f"Dataset SHA-256: `{report['dataset_sha256']}`",
-        f"Dataset exists on this host: `{report['dataset_exists_on_this_host']}`",
-        f"Weights path: `{report['weights_path']}`",
-        "",
-        "## Execution host policy",
-        "",
-        report["execution_host_policy"],
-        "",
-        "## Claim boundary",
-        "",
-        report["claim_boundary"],
-        "",
-        "## Pre-run admission",
-        "",
-        f"Status: `{report['pre_run_admission']['status']}`",
-        f"Dataset SHA-256 verified: `{report['pre_run_admission']['dataset_sha256_verified']}`",
-        f"Source provenance: `{report['pre_run_admission']['source_provenance']['status']}`",
-        f"Compute execution: `{report['pre_run_admission']['compute_execution']['status']}`",
-        "",
-        "## Run command",
-        "",
-        "```bash",
-        report["run_command"],
-        "```",
-        "",
-        "## Required targets",
-        "",
-    ]
-    lines.extend(f"- `{key}`" for key in report["required_targets"])
-    lines.extend(["", "## Admission blockers", ""])
-    lines.extend(f"- {item}" for item in report["blocked_before_admission"])
-    if report["holdout_metrics"] is not None:
-        lines.extend(["", "## Holdout metrics", ""])
-        lines.append("```json")
-        lines.append(json.dumps(report["holdout_metrics"], indent=2, sort_keys=True))
-        lines.append("```")
-    lines.append("")
-    markdown_out.parent.mkdir(parents=True, exist_ok=True)
-    markdown_out.write_text("\n".join(lines), encoding="utf-8")
-
-
-def write_result_templates(templates: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
-    """Write JSON and Markdown result templates for the later compute campaign."""
-
-    validate_result_templates(templates)
-    json_out.parent.mkdir(parents=True, exist_ok=True)
-    json_out.write_text(json.dumps(templates, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    lines = [
-        "# MAST EFM Neural-Equilibrium Result Templates",
-        "",
-        f"Schema: `{templates['schema_version']}`",
-        f"Expected dataset SHA-256: `{templates['expected_dataset_sha256']}`",
-        "",
-        templates["claim_boundary"],
-        "",
-        "## Output policy",
-        "",
-        templates["expected_weight_path_policy"],
-        "",
-        "## Template schemas",
-        "",
-    ]
-    for key in ("holdout_metrics", "latency_metrics", "gpu_cost", "admission_certificate"):
-        template = templates[key]
-        lines.extend(
-            [
-                f"### `{key}`",
-                "",
-                f"- Schema: `{template['schema_version']}`",
-                f"- Acceptance policy: {template['acceptance_policy']}",
-                "",
-            ]
-        )
-    markdown_out.parent.mkdir(parents=True, exist_ok=True)
-    markdown_out.write_text("\n".join(lines), encoding="utf-8")
-
-
-def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments."""
-
+    --execute is required for fitting. Default outputs are historical canonical
+    report locations; isolated callers must supply all four report output paths.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", default=DEFAULT_DATASET_REPORT, type=Path)
     parser.add_argument("--campaign-plan", default=DEFAULT_CAMPAIGN_PLAN, type=Path)
@@ -1017,31 +262,52 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ridge-alpha", default=1.0e-6, type=float)
     parser.add_argument("--max-flux-components", default=32, type=int)
     parser.add_argument("--execute", action="store_true")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    """Prepare or execute the training lane."""
+def main(argv: Sequence[str] | None = None) -> int:
+    """Prepare/write or explicitly execute; return0 on success and1 on supported refusal.
 
-    args = parse_args()
-    report = build_training_report(
-        TrainingInputs(
-            dataset_report=args.dataset_report,
-            campaign_plan=args.campaign_plan,
-            dataset_path=args.dataset_path,
-            weights_out=args.weights_out,
-            feature_provenance_report=args.feature_provenance_report,
-            original_source_report=args.original_source_report,
-            compute_host_kind=args.compute_host_kind,
-            compute_host_label=args.compute_host_label,
-            execute=args.execute,
-            ridge_alpha=args.ridge_alpha,
-            max_flux_components=args.max_flux_components,
+    All report outputs are checked against each other and protected inputs/weights
+    before execution. Failures print authored FAIL stderr, with no implied rollback:
+    sequential writes may leave earlier outputs. No GPU/storage reservation or
+    remote fetch is performed. Argparse retains help0/usage2.
+    """
+    args = parse_args(argv)
+    try:
+        ensure_distinct_outputs(
+            [args.json_out, args.report_out, args.templates_json_out, args.templates_report_out],
+            protected=[
+                args.dataset_report,
+                args.campaign_plan,
+                args.dataset_path,
+                args.weights_out,
+                args.feature_provenance_report,
+                args.original_source_report,
+            ],
         )
-    )
-    write_report(report, args.json_out, args.report_out)
-    write_result_templates(build_result_templates(report), args.templates_json_out, args.templates_report_out)
+        report = build_training_report(
+            TrainingInputs(
+                dataset_report=args.dataset_report,
+                campaign_plan=args.campaign_plan,
+                dataset_path=args.dataset_path,
+                weights_out=args.weights_out,
+                feature_provenance_report=args.feature_provenance_report,
+                original_source_report=args.original_source_report,
+                compute_host_kind=args.compute_host_kind,
+                compute_host_label=args.compute_host_label,
+                execute=args.execute,
+                ridge_alpha=args.ridge_alpha,
+                max_flux_components=args.max_flux_components,
+            )
+        )
+        write_report(report, args.json_out, args.report_out)
+        write_result_templates(build_result_templates(report), args.templates_json_out, args.templates_report_out)
+    except (OSError, ValueError, RuntimeError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

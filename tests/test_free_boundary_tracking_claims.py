@@ -6,19 +6,17 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Free-boundary tracking claim-evidence tests
 
-"""Fail-closed validation, extraction and admission branches of the free-boundary
-tracking claim-evidence surface.
+"""Exercise fail-closed free-boundary claim evidence.
 
-Exercises the summary/reference scalar validators, the reference-artifact
-extraction matrix (unit, digest, case-count and per-metric tolerance rejections),
-and the bounded/facility claim-evidence build, admission gate, and JSON persistence
-round-trip. The claim surface consumes a plain run-summary ``dict``, so these tests
-build synthetic summaries directly and never construct a controller.
+The claim surface consumes a plain run-summary ``dict``. These tests cover
+reference metadata validation, bounded evidence, facility refusal and JSON
+persistence without constructing a controller.
 """
 
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 
 import pytest
 
@@ -213,7 +211,7 @@ def test_claim_evidence_bounded_path_and_save_round_trip(tmp_path) -> None:
     assert evidence.facility_claim_allowed is False
     assert evidence.reference_artifact_sha256 is None
     assert evidence.max_response_condition_number == 12.0
-    with pytest.raises(ValueError, match="facility free-boundary tracking claim requires matched reference"):
+    with pytest.raises(ValueError, match="not admissible"):
         assert_free_boundary_tracking_facility_claim_admissible(evidence)
 
     output = tmp_path / "free_boundary_claim.json"
@@ -223,15 +221,72 @@ def test_claim_evidence_bounded_path_and_save_round_trip(tmp_path) -> None:
     assert persisted["claim_status"] == "bounded_free_boundary_tracking_evidence"
 
 
-def test_claim_evidence_facility_path_admits_matched_reference() -> None:
+def test_declared_reference_does_not_admit_facility_claim() -> None:
+    """Caller supplied metrics and a digest cannot prove a facility comparison."""
     evidence = free_boundary_tracking_claim_evidence(
         _valid_free_boundary_summary(),
         source="external_equilibrium_benchmark",
         source_id="free-boundary-external-benchmark-v1",
         reference_artifact=_valid_free_boundary_reference_artifact(),
     )
-    assert evidence.facility_claim_allowed is True
-    assert evidence.claim_status == "facility_free_boundary_reference_matched"
+    assert evidence.facility_claim_allowed is False
+    assert evidence.claim_status == "bounded_free_boundary_tracking_evidence"
     assert evidence.reference_dataset_id == "efit-free-boundary-fixture-v1"
     assert evidence.shape_rms_abs_error == 0.004
-    assert_free_boundary_tracking_facility_claim_admissible(evidence)
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_free_boundary_tracking_facility_claim_admissible(evidence)
+
+
+@pytest.mark.parametrize("dataset_id", [None, " "])
+def test_declared_reference_requires_dataset_id(dataset_id) -> None:
+    """Reference metadata needs an identified dataset even for bounded records."""
+    artifact = _valid_free_boundary_reference_artifact()
+    artifact["reference_dataset_id"] = dataset_id
+    with pytest.raises(ValueError, match="reference_dataset_id must be a non-empty string"):
+        free_boundary_tracking_claim_evidence(
+            _valid_free_boundary_summary(),
+            source="external_equilibrium_benchmark",
+            source_id="bounded-case",
+            reference_artifact=artifact,
+        )
+
+
+def test_forged_facility_evidence_cannot_be_asserted_or_saved(tmp_path) -> None:
+    """A replaced admission flag cannot be asserted or persisted."""
+    evidence = free_boundary_tracking_claim_evidence(
+        _valid_free_boundary_summary(),
+        source="external_equilibrium_benchmark",
+        source_id="free-boundary-external-benchmark-v1",
+        reference_artifact=_valid_free_boundary_reference_artifact(),
+    )
+    forged = replace(evidence, facility_claim_allowed=True, claim_status="facility_free_boundary_reference_matched")
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_free_boundary_tracking_facility_claim_admissible(forged)
+    destination = tmp_path / "new" / "claim.json"
+    with pytest.raises(ValueError, match="facility"):
+        save_free_boundary_tracking_claim_evidence(forged, destination)
+    assert not destination.parent.exists()
+
+
+def test_claim_persistence_rejects_invalid_schema_status_and_numeric_payload(tmp_path) -> None:
+    """Persistence checks schema, status, and finite numeric fields before I/O."""
+    evidence = free_boundary_tracking_claim_evidence(
+        _valid_free_boundary_summary(), source="repository_free_boundary_regression", source_id="bounded-case"
+    )
+    destination = tmp_path / "new" / "claim.json"
+    for invalid in (
+        replace(evidence, schema_version=2),
+        replace(evidence, claim_status="facility_free_boundary_reference_matched"),
+        replace(evidence, true_shape_rms=float("nan")),
+    ):
+        with pytest.raises(ValueError):
+            save_free_boundary_tracking_claim_evidence(invalid, destination)
+    with pytest.raises(ValueError, match="schema_version is unsupported"):
+        assert_free_boundary_tracking_facility_claim_admissible(replace(evidence, schema_version=2))
+    for operation in (
+        assert_free_boundary_tracking_facility_claim_admissible,
+        lambda invalid: save_free_boundary_tracking_claim_evidence(invalid, destination),
+    ):
+        with pytest.raises(ValueError, match="must be FreeBoundaryTrackingClaimEvidence"):
+            operation(None)
+    assert not destination.parent.exists()

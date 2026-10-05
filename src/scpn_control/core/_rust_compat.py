@@ -31,6 +31,7 @@ from typing import Any
 import numpy as np
 
 from scpn_control._typing import AnyFloatArray, FloatArray
+from scpn_control.core._rust_pid_compat import RustPIDController as RustPIDController
 from scpn_control.core.fusion_kernel import (
     _fusion_kernel_config_dump,
     _parse_fusion_kernel_config,
@@ -486,108 +487,6 @@ if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
     RustUdpTransportBridge = _NativeRustUdpTransportBridge
 else:  # pragma: no cover - rust-absent selector; exercised by the rust-free python-tests CI job
     RustUdpTransportBridge = _FallbackRustUdpTransportBridge
-
-
-class RustPIDController:
-    """Rust PID controller (kp, ki, kd gains with finite-input validation).
-
-    Parameters
-    ----------
-    kp, ki, kd : float
-        Proportional / integral / derivative gains.
-    """
-
-    class _PurePythonPID:
-        """Pure Python fallback for environments where PyPIDController is absent."""
-
-        __slots__ = ("_kp", "_ki", "_kd", "_integral", "_prev_error")
-
-        def __init__(self, kp: float, ki: float, kd: float) -> None:
-            self._kp = float(kp)
-            self._ki = float(ki)
-            self._kd = float(kd)
-            self._integral = 0.0
-            self._prev_error = 0.0
-
-        def step(self, error: float) -> float:
-            err = float(error)
-            derivative = err - self._prev_error
-            self._prev_error = err
-            self._integral += err
-            return self._kp * err + self._ki * self._integral + self._kd * derivative
-
-        def reset(self) -> None:
-            self._integral = 0.0
-            self._prev_error = 0.0
-
-        @property
-        def kp(self) -> float:
-            return self._kp
-
-        @property
-        def ki(self) -> float:
-            return self._ki
-
-        @property
-        def kd(self) -> float:
-            return self._kd
-
-    def __init__(self, kp: float, ki: float, kd: float):
-        try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
-
-            self._inner = PyPIDController(kp, ki, kd)  # pragma: no cover - optional Rust backend path
-            self._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
-            self._inner = self._PurePythonPID(kp, ki, kd)  # pragma: no cover - optional Rust backend path
-            self._mode = "fallback"
-
-    @classmethod
-    def radial(cls) -> "RustPIDController":
-        obj = cls.__new__(cls)  # pragma: no cover - optional Rust backend path
-        try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
-
-            obj._inner = PyPIDController.radial()  # pragma: no cover - optional Rust backend path
-            obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
-            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover - optional Rust backend path
-            obj._mode = "fallback"
-        return obj  # pragma: no cover - optional Rust backend path
-
-    @classmethod
-    def vertical(cls) -> "RustPIDController":
-        obj = cls.__new__(cls)  # pragma: no cover - optional Rust backend path
-        try:
-            from scpn_control_rs import PyPIDController  # pragma: no cover - optional Rust backend path
-
-            obj._inner = PyPIDController.vertical()  # pragma: no cover - optional Rust backend path
-            obj._mode = "rust"  # pragma: no cover - rust PyPIDController path (rust-python-interop CI job)
-        except (ImportError, AttributeError):  # pragma: no cover - optional Rust backend path
-            obj._inner = cls._PurePythonPID(1.0, 0.1, 0.01)  # pragma: no cover - optional Rust backend path
-            obj._mode = "fallback"
-        return obj  # pragma: no cover - optional Rust backend path
-
-    def step(self, error: float) -> float:
-        return float(self._inner.step(error))
-
-    def reset(self) -> None:
-        self._inner.reset()
-
-    @property
-    def kp(self) -> float:
-        return float(self._inner.kp)
-
-    @property
-    def ki(self) -> float:
-        return float(self._inner.ki)
-
-    @property
-    def kd(self) -> float:
-        return float(self._inner.kd)
-
-    def __repr__(self) -> str:
-        return f"RustPIDController(mode={self._mode}, kp={self.kp}, ki={self.ki}, kd={self.kd})"
 
 
 class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust-python-interop job)

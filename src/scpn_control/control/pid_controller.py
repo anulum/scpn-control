@@ -86,14 +86,19 @@ class PIDController:
         Raises
         ------
         ValueError
-            If ``error`` is not finite.
+            If ``error`` or a derived controller value is not finite. Rejected
+            steps leave the controller state unchanged.
         """
         error = float(error)
         if not math.isfinite(error):
             raise ValueError("pid error input must be finite")
         d_err = error - self._last_err
         candidate_sum = self._err_sum + error
+        if not (math.isfinite(d_err) and math.isfinite(candidate_sum)):
+            raise ValueError("pid arithmetic must remain finite")
         raw = self.kp * error + self.ki * candidate_sum + self.kd * d_err
+        if not math.isfinite(raw):
+            raise ValueError("pid arithmetic must remain finite")
         applied = self._saturate_and_slew(raw)
 
         # Anti-windup: ``(raw - applied) * error > 0`` means the output was clamped

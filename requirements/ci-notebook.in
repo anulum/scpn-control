@@ -8,7 +8,9 @@
 
 jupyter
 nbconvert
-jupyterlab==4.5.11
+# Notebook 7.6.3 fixes PYSEC-2026-4112 and requires JupyterLab >=4.6.4.
+notebook==7.6.3
+jupyterlab==4.6.4
 jupyter-server>=2.21.0,<3
 setuptools==84.0.0
 soupsieve>=2.9.2,<3

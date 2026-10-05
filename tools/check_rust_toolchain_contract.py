@@ -6,7 +6,15 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Reproducible Rust toolchain contract gate
-"""Fail closed when local and hosted Rust toolchain pins drift."""
+"""Check exact local Rust pins and real YAML action-input declarations.
+
+This read-only repository policy checks one fixed TOML table and seven fixed
+workflow files. Workflow actions count only inside jobs' step sequences and
+their toolchain/components values come only from each action's own ``with``
+mapping. YAML nodes are composed without constructing tags. The policy validates
+declarations, not Rust installation, hosted execution, action authenticity,
+conditional reachability, compiler behavior, or scientific/native admission.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +23,9 @@ import re
 import tomllib
 from pathlib import Path
 from typing import Final, cast
+
+import yaml
+from yaml.nodes import MappingNode, Node, ScalarNode, SequenceNode
 
 ROOT: Final = Path(__file__).resolve().parents[1]
 STABLE_TOOLCHAIN: Final = "1.98.0"
@@ -28,38 +39,159 @@ EXPECTED_WORKFLOWS: Final = {
     ".github/workflows/benchmark-nightly.yml": (STABLE_TOOLCHAIN, 1, "rustfmt, clippy"),
     ".github/workflows/fuzz-nightly.yml": (NIGHTLY_TOOLCHAIN, 2, None),
 }
-_ACTION_RE: Final = re.compile(r"^(?P<indent>\s*)-\s+uses:\s+dtolnay/rust-toolchain@(?P<ref>\S+?)(?:\s+#.*)?$")
-_TOOLCHAIN_RE: Final = re.compile(r"^\s+toolchain:\s*[\"']?(?P<toolchain>[^\s\"']+)[\"']?(?:\s+#.*)?$")
-_COMPONENTS_RE: Final = re.compile(r"^\s+components:\s*[\"']?(?P<components>[^\"']+?)[\"']?\s*(?:#.*)?$")
 _FULL_SHA_RE: Final = re.compile(r"[0-9a-f]{40}")
 
 
+class _WorkflowContractError(ValueError):
+    """Represent malformed or ambiguous workflow pin declarations."""
+
+
+def _mapping(node: Node | None, label: str) -> dict[str, Node]:
+    """Read one ordinary mapping with unique string keys and no merge ambiguity.
+
+    Parameters
+    ----------
+    node : yaml.nodes.Node or None
+        Composed YAML node; custom constructors are never invoked.
+    label : str
+        Structural location for authored diagnostics.
+
+    Returns
+    -------
+    dict[str, yaml.nodes.Node]
+        Child nodes keyed by literal strings, in declaration order.
+
+    Raises
+    ------
+    _WorkflowContractError
+        The node is not an ordinary mapping, has a non-string key, repeats a
+        key, or contains a merge key. BaseLoader leaves implicit ``on`` and
+        version scalars as strings; explicitly tagged keys remain constrained.
+    """
+    if not isinstance(node, MappingNode) or node.tag != "tag:yaml.org,2002:map":
+        raise _WorkflowContractError(f"{label} requires a mapping")
+    fields: dict[str, Node] = {}
+    for key, value in node.value:
+        if not isinstance(key, ScalarNode) or key.tag != "tag:yaml.org,2002:str":
+            raise _WorkflowContractError(f"{label} requires string keys")
+        if key.value == "<<" or key.value in fields:
+            raise _WorkflowContractError(f"{label} has an ambiguous key {key.value!r}")
+        fields[key.value] = value
+    return fields
+
+
+def _scalar(node: Node, label: str) -> str:
+    """Read one literal string scalar without coercion or tag construction.
+
+    Parameters
+    ----------
+    node : yaml.nodes.Node
+        Composed action field.
+    label : str
+        Structural location for diagnostics.
+
+    Returns
+    -------
+    str
+        Exact scalar value, including significant whitespace.
+
+    Raises
+    ------
+    _WorkflowContractError
+        A relevant action field is a collection or an explicitly non-string tag.
+    """
+    if not isinstance(node, ScalarNode) or node.tag != "tag:yaml.org,2002:str":
+        raise _WorkflowContractError(f"{label} requires a string")
+    return cast(str, node.value)
+
+
 def _toolchain_steps(path: Path) -> list[tuple[str, str | None, str | None]]:
-    """Return action refs, toolchains, and components from one workflow."""
-    lines = path.read_text(encoding="utf-8").splitlines()
+    """Collect Rust actions from real job steps and each action's own inputs.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        UTF-8 workflow file. Named steps and ordinary aliases are supported.
+
+    Returns
+    -------
+    list[tuple[str, str or None, str or None]]
+        Literal action suffix, toolchain, and components in job/step order.
+        Missing input fields remain None. Run strings and env mappings do not
+        supply actions or inputs; unrelated custom tags are not constructed.
+
+    Raises
+    ------
+    OSError
+        The workflow cannot be read.
+    UnicodeError
+        The file is not UTF-8.
+    yaml.YAMLError
+        YAML parsing fails, including multiple documents or undefined aliases.
+    _WorkflowContractError
+        Relevant mappings, step sequences, or scalar fields are ambiguous or
+        malformed. This policy does not validate the complete Actions schema.
+    """
+    document = yaml.compose(path.read_text(encoding="utf-8"), Loader=yaml.BaseLoader)
+    workflow = _mapping(document, "workflow")
+    jobs = _mapping(workflow.get("jobs"), "jobs")
     steps: list[tuple[str, str | None, str | None]] = []
-    for index, line in enumerate(lines):
-        match = _ACTION_RE.match(line)
-        if match is None:
+    for name, job_node in jobs.items():
+        job = _mapping(job_node, f"job {name!r}")
+        sequence = job.get("steps")
+        if sequence is None:
             continue
-        indent = match.group("indent")
-        toolchain: str | None = None
-        components: str | None = None
-        for candidate in lines[index + 1 :]:
-            if candidate.startswith(f"{indent}- "):
-                break
-            toolchain_match = _TOOLCHAIN_RE.match(candidate)
-            if toolchain_match is not None:
-                toolchain = toolchain_match.group("toolchain")
-            components_match = _COMPONENTS_RE.match(candidate)
-            if components_match is not None:
-                components = components_match.group("components")
-        steps.append((match.group("ref"), toolchain, components))
+        if not isinstance(sequence, SequenceNode) or sequence.tag != "tag:yaml.org,2002:seq":
+            raise _WorkflowContractError(f"job {name!r} steps requires a sequence")
+        for index, step_node in enumerate(sequence.value):
+            label = f"job {name!r} step {index}"
+            step = _mapping(step_node, label)
+            uses = step.get("uses")
+            if uses is None:
+                continue
+            action = _scalar(uses, label + " uses")
+            if not action.startswith("dtolnay/rust-toolchain@"):
+                continue
+            settings_node = step.get("with")
+            settings = {} if settings_node is None else _mapping(settings_node, label + " with")
+            toolchain_node = settings.get("toolchain")
+            components_node = settings.get("components")
+            toolchain = None if toolchain_node is None else _scalar(toolchain_node, label + " toolchain")
+            components = None if components_node is None else _scalar(components_node, label + " components")
+            steps.append((action.removeprefix("dtolnay/rust-toolchain@"), toolchain, components))
     return steps
 
 
 def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
-    """Return deterministic contract violations for a repository root."""
+    """Compare one repository's Rust declarations with the fixed local policy.
+
+    Parameters
+    ----------
+    root : pathlib.Path, default ROOT
+        Repository root. Relative roots resolve from caller cwd; the default
+        resolves from this script. Symlinks retain ordinary pathlib behavior.
+
+    Returns
+    -------
+    list[str]
+        Fresh findings in local-table then declared-workflow/step order. The
+        stable channel is 1.98.0, ordered local components are clippy/rustfmt,
+        profile is minimal, and no other TOML table/key is allowed. Seven fixed
+        workflows require exact counts, literal channels/component strings and
+        40 lowercase hexadecimal action refs. SHA syntax is not authentication.
+        Missing/unreadable inputs and TOML/YAML/structure errors are findings.
+
+    Raises
+    ------
+    UnicodeError
+        A present input is not UTF-8. No native installation or file write occurs.
+
+    Notes
+    -----
+    This API checks declarations and returns caller-owned strings/list. It has
+    no numerical units, array shapes, simulation clock, controller state, remote
+    lookup, or compiler execution. It does not prove steps run or Rust parity.
+    """
     errors: list[str] = []
     toolchain_path = root / "rust-toolchain.toml"
     try:
@@ -87,6 +219,9 @@ def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
         except OSError as exc:
             errors.append(f"cannot read {relative_path}: {exc}")
             continue
+        except (yaml.YAMLError, _WorkflowContractError) as exc:
+            errors.append(f"cannot parse {relative_path}: {exc}")
+            continue
         if len(steps) != expected_count:
             errors.append(f"{relative_path}: expected {expected_count} Rust toolchain steps, found {len(steps)}")
         for ref, actual_toolchain, actual_components in steps:
@@ -105,7 +240,26 @@ def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI entry point for the Rust toolchain contract gate."""
+    """Inspect the selected real repository through the maintained CLI entry.
+
+    Parameters
+    ----------
+    argv : list[str] or None, default None
+        Argparse arguments; None reads process arguments. ``--root`` selects a
+        pathlib repository root, with the resolved script root as its default.
+
+    Returns
+    -------
+    int
+        Zero for matching declarations; one after printing ``FAIL:`` findings.
+
+    Raises
+    ------
+    SystemExit
+        Argparse help exits zero and malformed/unknown arguments exit two.
+    UnicodeError
+        A required present file is not UTF-8.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=ROOT)
     args = parser.parse_args(argv)

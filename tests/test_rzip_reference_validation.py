@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — RZIP reference validation tests
 
+"""Retain the eight original persisted RZIP public-reader acceptance/refusal witnesses."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_rzip_reference import validate_rzip_reference
 
 
 def _valid_rzip_reference_artifact() -> dict[str, object]:
+    """Supply original RZIP engineering declaration data without authenticating physical reference bytes."""
     return {
         "schema_version": "1.0",
         "source": "documented_public_reference",
@@ -56,6 +59,7 @@ def _valid_rzip_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_rzip_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode refuses an empty selected directory with the original RZIP finding."""
     report = validate_rzip_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -64,6 +68,7 @@ def test_strict_rzip_gate_requires_reference_artifacts(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """A declared public DOI and original RZIP inputs pass declaration inspection."""
     artifact = tmp_path / "lazarus_rzip_reference.json"
     artifact.write_text(json.dumps(_valid_rzip_reference_artifact()), encoding="utf-8")
 
@@ -76,6 +81,7 @@ def test_rzip_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_accepts_external_code_benchmark(tmp_path: Path) -> None:
+    """CREATE-L with a validation-prefix file URI passes the original external policy."""
     payload = _valid_rzip_reference_artifact()
     payload["source"] = "external_code_benchmark"
     payload.pop("reference_doi")
@@ -91,6 +97,7 @@ def test_rzip_gate_accepts_external_code_benchmark(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_rejects_relative_external_artifact_uri(tmp_path: Path) -> None:
+    """External artifact URI declarations require an explicit admitted scheme."""
     payload = _valid_rzip_reference_artifact()
     payload["source"] = "external_code_benchmark"
     payload.pop("reference_doi")
@@ -107,6 +114,7 @@ def test_rzip_gate_rejects_relative_external_artifact_uri(tmp_path: Path) -> Non
 
 
 def test_rzip_gate_accepts_measured_discharge_reference(tmp_path: Path) -> None:
+    """Measured declarations retain shot and nonblank diagnostic presence checks."""
     payload = _valid_rzip_reference_artifact()
     payload["source"] = "measured_discharge"
     payload.pop("reference_doi")
@@ -122,6 +130,7 @@ def test_rzip_gate_accepts_measured_discharge_reference(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Synthetic sources are outside original RZIP reference source membership."""
     payload = _valid_rzip_reference_artifact()
     payload["source"] = "synthetic"
     artifact = tmp_path / "synthetic_rzip_reference.json"
@@ -134,6 +143,7 @@ def test_rzip_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """A growth error exceeding its declared positive bound refuses."""
     payload = _valid_rzip_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["growth_rate_relative_error"] = 0.2
@@ -147,6 +157,7 @@ def test_rzip_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
 
 
 def test_rzip_gate_rejects_missing_physical_parameter_metadata(tmp_path: Path) -> None:
+    """Missing original wall-time metadata refuses physical-parameter declarations."""
     payload = _valid_rzip_reference_artifact()
     parameters = cast(dict[str, object], payload["physical_parameters"])
     parameters.pop("wall_time_constant_s")

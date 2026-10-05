@@ -62,7 +62,10 @@ def test_native_coverage_matrix_rejects_missing_rust_present_artifact(tmp_path: 
     matrix = validate_native_coverage_matrix(workflow, pyproject, docs)
 
     assert matrix.passed is False
-    assert [finding.check for finding in matrix.findings] == ["rust-present coverage data artifact"]
+    assert [finding.check for finding in matrix.findings] == [
+        "rust-present coverage data artifact",
+        "combined coverage job",
+    ]
 
 
 def test_native_coverage_matrix_rejects_missing_rust_variant_owner(tmp_path: Path) -> None:

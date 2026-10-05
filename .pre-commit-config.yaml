@@ -29,8 +29,13 @@ repos:
       - id: ruff
         args: [--fix, --exit-non-zero-on-fix]
         files: ^src/
+      - id: ruff
+        alias: ruff-debt-scope
+        name: ruff (test, tool and validation surfaces)
+        args: [--fix, --exit-non-zero-on-fix, --extend-ignore, D]
+        files: ^(tests/|tools/|validation/)
       - id: ruff-format
-        files: ^(src/|tests/)
+        files: ^(src/|tests/|tools/|validation/)
 
   - repo: https://github.com/crate-ci/typos
     rev: 11ca4583f2f3f74c7e7785c0ecb20fe2c99a4308  # v1.29.5
@@ -50,6 +55,13 @@ repos:
 
   - repo: local
     hooks:
+      - id: check-docs-internal-private
+        name: private documentation declarations and Git paths
+        entry: python tools/check_docs_internal_private.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: scalar-benchmark-native-docs
         name: Scalar benchmark native docs and lint
         entry: python -m ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
@@ -69,7 +81,7 @@ repos:
         entry: python tools/check_python_lint_contract.py
         language: system
         pass_filenames: false
-        files: ^(Makefile|pyproject\.toml|\.pre-commit-config\.yaml|\.github/workflows/ci\.yml|tools/(preflight|check_python_lint_contract)\.py|tests/test_python_lint_contract\.py)$
+        files: ^(Makefile|pyproject\.toml|\.pre-commit-config\.yaml|\.github/workflows/ci(?:-static-governance)?\.yml|tools/(preflight|check_python_lint_contract)\.py|tests/test_python_lint_contract\.py)$
 
       - id: cargo-fmt
         name: cargo fmt

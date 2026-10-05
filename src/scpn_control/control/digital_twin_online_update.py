@@ -365,7 +365,7 @@ def assert_digital_twin_update_claim_admissible(
     """Fail closed unless online twin-update evidence matches replay inputs."""
     if not isinstance(evidence, DigitalTwinUpdateEvidence):
         raise ValueError("evidence must be DigitalTwinUpdateEvidence")
-    if evidence.schema_version != 1:
+    if type(evidence.schema_version) is not int or evidence.schema_version != 1:
         raise ValueError("digital twin update evidence schema_version is unsupported")
     required = tuple(sorted(code.upper() for code in require_simulators))
     if tuple(sorted(evidence.simulator_codes)) != required:
@@ -385,6 +385,8 @@ def assert_digital_twin_update_claim_admissible(
         raise ValueError("digital twin update evidence priors_sha256 mismatch")
     if evidence.result_sha256 != recomputed.result_sha256:
         raise ValueError("digital twin update evidence result_sha256 mismatch")
+    if evidence.claim_status != recomputed.claim_status:
+        raise ValueError("digital twin update evidence claim_status mismatch")
     _validate_update_inputs(observation, priors, result, external_artifacts)
     if not evidence.improved_over_baseline or result.best_loss >= result.baseline_loss:
         raise ValueError("digital twin update evidence must improve over baseline")

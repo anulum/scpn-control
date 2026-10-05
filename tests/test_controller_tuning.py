@@ -17,7 +17,6 @@ applied during the rollout (the regression this module was hardened for).
 from __future__ import annotations
 
 import importlib
-import logging
 import sys
 from collections.abc import Callable
 from types import ModuleType, SimpleNamespace
@@ -25,6 +24,7 @@ from types import ModuleType, SimpleNamespace
 import pytest
 
 import scpn_control.control.controller_tuning as tuning_mod
+from scpn_control.control.gym_tokamak_env import TokamakEnv
 
 
 class _ScriptedEnv:
@@ -78,7 +78,7 @@ def test_resolve_control_period_defaults_when_absent() -> None:
     assert tuning_mod._resolve_control_period(object(), None) == tuning_mod._DEFAULT_DT
 
 
-@pytest.mark.parametrize("bad_dt", [0.0, -0.5])
+@pytest.mark.parametrize("bad_dt", [0.0, -0.5, float("inf"), float("nan")])
 def test_resolve_control_period_rejects_non_positive(bad_dt: float) -> None:
     """A non-positive control period is rejected."""
     with pytest.raises(ValueError, match="strictly positive"):
@@ -111,21 +111,25 @@ def test_pid_episode_anti_windup_clamps_both_bounds() -> None:
     assert neg.actions == [pytest.approx(-10.0), pytest.approx(-15.0), pytest.approx(-15.0)]
 
 
-def test_tune_pid_without_optuna_returns_defaults(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
-) -> None:
-    """Absent Optuna, tune_pid logs a warning and returns default gains."""
+def test_tune_pid_without_optuna_refuses_to_claim_tuning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Absent Optuna, no made-up gains can be returned as tuned."""
     monkeypatch.setattr(tuning_mod, "HAS_OPTUNA", False)
-    with caplog.at_level(logging.WARNING):
-        gains = tuning_mod.tune_pid(None, n_trials=3)
-    assert gains == {"Kp": 1.0, "Ki": 0.1, "Kd": 0.05}
-    assert "Optuna not installed" in caplog.text
+    with pytest.raises(ImportError, match=r"scpn-control\[tuning\]"):
+        tuning_mod.tune_pid(_ScriptedEnv([0.25]), n_trials=3)
 
 
-def test_tune_hinf_without_optuna_returns_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Absent Optuna, tune_hinf returns default gains."""
+@pytest.mark.parametrize("n_trials", [0, -1, True])
+def test_tune_pid_rejects_invalid_trial_count(n_trials: int) -> None:
+    """A malformed search budget cannot be passed to Optuna."""
+    with pytest.raises(ValueError, match="n_trials"):
+        tuning_mod.tune_pid(_ScriptedEnv([0.25]), n_trials=n_trials)
+
+
+def test_tune_hinf_without_optuna_rejects_missing_plant(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Absent plant data cannot produce a made-up attenuation."""
     monkeypatch.setattr(tuning_mod, "HAS_OPTUNA", False)
-    assert tuning_mod.tune_hinf({}, n_trials=2) == {"gamma": 1.1, "bandwidth": 0.5}
+    with pytest.raises(ValueError, match="plant"):
+        tuning_mod.tune_hinf({})
 
 
 def test_has_optuna_is_bool() -> None:
@@ -195,13 +199,68 @@ def test_tune_pid_applies_integral_and_derivative_gains(monkeypatch: pytest.Monk
 
             env = _ScriptedEnv([0.25])
             pid_gains = tuning_mod.tune_pid(env, n_trials=1)
-            hinf_gains = tuning_mod.tune_hinf({}, n_trials=1)
 
             assert tuning_mod.HAS_OPTUNA is True
             assert pid_gains == {"Kp": 1.5, "Ki": 0.2, "Kd": 0.07}
-            assert hinf_gains == {"gamma": 1.1}
             assert env.reset_calls == tuning_mod._TUNE_EPISODES
             assert env.actions == [pytest.approx(0.425)] * tuning_mod._TUNE_EPISODES
-            assert [len(study.objective_values) for study in studies] == [1, 1]
+            assert [len(study.objective_values) for study in studies] == [1]
+    finally:
+        importlib.reload(tuning_mod)
+
+
+def test_tune_pid_runs_against_public_tokamak_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The actual two-action environment accepts the tuned heating command."""
+    studies: list[_FakeStudy] = []
+    try:
+        with monkeypatch.context() as patch:
+            patch.setitem(sys.modules, "optuna", _fake_optuna_module(studies))
+            importlib.reload(tuning_mod)
+            env = TokamakEnv(max_steps=2, noise_std=0.0)
+            gains = tuning_mod.tune_pid(env, n_trials=1)
+            assert gains == {"Kp": 1.5, "Ki": 0.2, "Kd": 0.07}
+            assert len(studies[0].objective_values) == 1
+            assert studies[0].objective_values[0] > 0.0
+    finally:
+        importlib.reload(tuning_mod)
+
+
+def test_tune_pid_pairs_tokamak_noise_across_candidates(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Equal gain candidates face identical shot noise in the real environment."""
+    studies: list[_FakeStudy] = []
+    try:
+        with monkeypatch.context() as patch:
+            patch.setitem(sys.modules, "optuna", _fake_optuna_module(studies))
+            importlib.reload(tuning_mod)
+            env = TokamakEnv(max_steps=2, noise_std=0.2)
+            tuning_mod.tune_pid(env, n_trials=2)
+            assert studies[0].objective_values[0] == studies[0].objective_values[1]
+    finally:
+        importlib.reload(tuning_mod)
+
+
+@pytest.mark.parametrize(
+    ("errors", "dt_s", "message"),
+    [
+        ([float("nan")], 1.0, "initial tracking error"),
+        ([0.25, float("nan")], 1.0, "tracking error"),
+        ([1.3e308], 1.0, "PID action"),
+        ([1e200], 1e200, "integrated tracking error"),
+    ],
+)
+def test_tune_pid_refuses_nonfinite_runtime_evidence(
+    monkeypatch: pytest.MonkeyPatch,
+    errors: list[float],
+    dt_s: float,
+    message: str,
+) -> None:
+    """Invalid environment evidence never becomes an Optuna objective value."""
+    studies: list[_FakeStudy] = []
+    try:
+        with monkeypatch.context() as patch:
+            patch.setitem(sys.modules, "optuna", _fake_optuna_module(studies))
+            importlib.reload(tuning_mod)
+            with pytest.raises(ValueError, match=message):
+                tuning_mod.tune_pid(_ScriptedEnv(errors), n_trials=1, dt=dt_s)
     finally:
         importlib.reload(tuning_mod)

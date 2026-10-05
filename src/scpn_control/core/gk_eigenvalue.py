@@ -329,7 +329,8 @@ def _mtm_drive(
     theta = geom.theta
     parity = np.exp(-(theta**2) / 2.0)
     drive = beta_e * abs(omega_star_T_e) * nu_e * parity / max(k_y**2, 1e-30)
-    return (1j * drive).astype(np.complex128)
+    result: NDArray[np.complex128] = (1j * drive).astype(np.complex128)
+    return result
 
 
 def _classify_mode(

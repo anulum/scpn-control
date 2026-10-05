@@ -7,68 +7,41 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural equilibrium reference artifact validator
 
-"""Validate persisted neural-equilibrium reference artifacts."""
+"""Validate persisted neural-equilibrium declarations; inspect no referenced array or P-EFIT execution."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
-import hmac
 import json
 import math
-import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeIs
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from validation.reference_uri import external_executable_path_error
+from validation.neural_equilibrium_reference_contracts import (
+    _portable_path,
+    _validate_artifact,
+)
+from validation.neural_equilibrium_reference_contracts import (
+    canonical_artifact_sha256 as canonical_artifact_sha256,
+)
+from validation.neural_equilibrium_reference_metrics import _validate_metric_block
 
-_ALLOWED_SOURCES = {"real_pefit", "documented_public_reference"}
-_SCHEMA_VERSION = "scpn-control.neural-equilibrium-reference.v1"
-_REQUIRED_STR_FIELDS = (
-    "source",
-    "model_id",
-    "model_version",
-    "trained_weights_sha256",
-    "reference_dataset_id",
-    "reference_artifact_uri",
-    "prediction_artifact_uri",
-    "reference_artifact_sha256",
-    "prediction_artifact_sha256",
-    "payload_sha256",
-    "executed_at",
-)
-_REQUIRED_METRICS = (
-    "psi_rmse_Wb",
-    "pressure_rmse_Pa",
-    "q_profile_rmse",
-    "boundary_rmse_m",
-    "axis_position_error_m",
-)
-_REQUIRED_UNITS = {
-    "psi": "Wb/rad",
-    "pressure": "Pa",
-    "q_profile": "1",
-    "boundary": "m",
-}
-_REQUIRED_TARGET_SCHEMA = ("psi", "pressure", "q_profile", "lcfs_boundary", "magnetic_axis")
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
-_ARTIFACT_URI_FIELDS = ("reference_artifact_uri", "prediction_artifact_uri")
-_SHA256_FIELDS = (
-    "trained_weights_sha256",
-    "reference_artifact_sha256",
-    "prediction_artifact_sha256",
-    "payload_sha256",
-)
 _REPORT_SCHEMA = "scpn-control.neural-equilibrium-reference-report.v2"
 _BLOCKED_REASON = "Requires persisted real P-EFIT or documented public-reference neural equilibrium artefacts."
+
+
+class NeuralReferenceReportRefusal(ValueError):
+    """Refuse a report destination aliasing selected input; no system exception text is included."""
+
+
+class _NeuralArtifactRefusal(ValueError):
+    """Carry an authored duplicate or nonrepresentable JSON-number finding."""
 
 
 def validate_neural_equilibrium_reference(
@@ -76,30 +49,76 @@ def validate_neural_equilibrium_reference(
     *,
     require_reference_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Validate neural-equilibrium surrogate evidence against persisted references."""
+    """Read selected JSON declarations, validating schema, identity, checksums and declared tolerances.
+
+    A directory selects its immediate sorted JSON files; a regular file selects
+    itself regardless of suffix. Missing/nonfile roots select nothing: optional
+    mode passes with zero declarations, required mode fails. Per-file read,
+    UTF-8, duplicate-key/JSON and supported value errors become fixed findings.
+    Nonfinite numbers and nonzero decimal underflow are refused at every depth.
+    Each JSON file is read once; its reported digest covers exact captured bytes,
+    including newline spelling. Identical model/weight/dataset triples are refused.
+    Results are mutable report dictionaries with ordered entries/errors and a
+    canonical report checksum. Reads are sequential, not a concurrent snapshot.
+
+    All five declared nonnegative finite errors must be within positive finite
+    tolerances; units/grid/count/source are declaration contracts, not recomputed
+    from arrays. Referenced files, weights and binary execution are not inspected
+    or authenticated. reference_artifacts_admitted denotes accepted declarations;
+    predictive_equilibrium_claim_admitted remains false. Consumers remain
+    responsible for model matching, actual data/provenance and scientific review.
+    No fitting, P-EFIT, download or file mutation occurs here.
+
+    Examples
+    --------
+    >>> from tempfile import TemporaryDirectory
+    >>> with TemporaryDirectory() as directory:
+    ...     report = validate_neural_equilibrium_reference(directory, require_reference_artifacts=True)
+    >>> report["status"], report["reference_artifacts"], report["public_claims"]["predictive_equilibrium_claim_admitted"]
+    ('fail', 0, False)
+    """
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
     report = _new_report(root, require_reference_artifacts=require_reference_artifacts)
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
 
-    if require_reference_artifacts and not paths:
-        errors.append(
-            {
-                "path": _portable_path(root),
-                "field": "artifact_root",
-                "error": "no neural equilibrium reference artefacts found",
-            }
-        )
-
     seen_reference_sets: set[tuple[str, str, str]] = set()
     for path in paths:
         try:
-            raw_payload = path.read_text(encoding="utf-8")
-            payload = json.loads(raw_payload, object_pairs_hook=_reject_duplicate_json_keys)
+            raw_payload = path.read_bytes()
+            payload = json.loads(
+                raw_payload.decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+                parse_float=_parse_finite_json_float,
+            )
+            if _has_nonfinite_json_number(payload):
+                errors.append(
+                    {
+                        "path": _portable_path(path),
+                        "field": "json",
+                        "error": "reference artifact contains non-finite JSON numbers",
+                    }
+                )
+                if isinstance(payload, dict):
+                    _validate_metric_block(
+                        _portable_path(path), payload.get("metrics"), payload.get("tolerances"), errors
+                    )
+                continue
             entry = _validate_artifact(path, raw_payload, payload, errors)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except _NeuralArtifactRefusal as exc:
             errors.append({"path": _portable_path(path), "field": "json", "error": str(exc)})
+            continue
+        except OSError:
+            errors.append({"path": _portable_path(path), "field": "json", "error": "could not read reference artifact"})
+            continue
+        except UnicodeError:
+            errors.append({"path": _portable_path(path), "field": "json", "error": "reference artifact is not UTF-8"})
+            continue
+        except (ValueError, RecursionError):
+            errors.append(
+                {"path": _portable_path(path), "field": "json", "error": "reference artifact is not valid JSON"}
+            )
             continue
         if entry is not None:
             reference_set = (
@@ -136,201 +155,40 @@ def validate_neural_equilibrium_reference(
     return _finalise_report(report)
 
 
-def _validate_artifact(
-    path: Path,
-    raw_payload: str,
-    payload: object,
-    errors: list[dict[str, object]],
-) -> dict[str, object] | None:
-    if not isinstance(payload, dict):
-        errors.append({"path": _portable_path(path), "field": "root", "error": "artefact root must be an object"})
-        return None
-    if payload.get("schema_version") != _SCHEMA_VERSION:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "schema_version",
-                "error": f"schema_version must be '{_SCHEMA_VERSION}'",
-            }
-        )
-    for field in _REQUIRED_STR_FIELDS:
-        if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a non-empty string"})
-    for field in _SHA256_FIELDS:
-        value = payload.get(field)
-        if isinstance(value, str) and not _SHA256_RE.match(value):
-            errors.append({"path": _portable_path(path), "field": field, "error": "field must be a SHA-256 hex digest"})
-    for field in _ARTIFACT_URI_FIELDS:
-        error = _artifact_uri_error(payload.get(field))
-        if error is not None:
-            errors.append({"path": _portable_path(path), "field": field, "error": error})
-    if payload.get("target_schema") != list(_REQUIRED_TARGET_SCHEMA):
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "target_schema",
-                "error": "target_schema must match equilibrium outputs",
-            }
-        )
-    if isinstance(payload.get("payload_sha256"), str):
-        expected = canonical_artifact_sha256(payload)
-        observed = str(payload["payload_sha256"])
-        if not hmac.compare_digest(observed.lower(), expected):
-            errors.append(
-                {"path": _portable_path(path), "field": "payload_sha256", "error": "canonical payload digest mismatch"}
-            )
-    if payload.get("source") not in _ALLOWED_SOURCES:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "source",
-                "error": "source must be real_pefit or documented_public_reference",
-            }
-        )
-    if payload.get("source") == "real_pefit":
-        binary_path_error = external_executable_path_error(payload.get("binary_path"))
-        if binary_path_error is not None:
-            errors.append({"path": _portable_path(path), "field": "binary_path", "error": binary_path_error})
-    if payload.get("source") == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "reference",
-                "error": "documented public reference artefacts require reference_url or reference_doi",
-            }
-        )
-    if not _valid_grid_shape(payload.get("grid_shape")):
-        errors.append(
-            {"path": _portable_path(path), "field": "grid_shape", "error": "grid_shape must be two positive integers"}
-        )
-    if not _valid_units(payload.get("units")):
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "units",
-                "error": "units must declare psi, pressure, q_profile, and boundary",
-            }
-        )
-    count = payload.get("reference_equilibria_count")
-    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        errors.append(
-            {
-                "path": _portable_path(path),
-                "field": "reference_equilibria_count",
-                "error": "field must be a positive integer",
-            }
-        )
-    _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
-    if any(error["path"] == _portable_path(path) for error in errors):
-        return None
-    return {
-        "path": _portable_path(path),
-        "source": str(payload["source"]),
-        "model_id": str(payload["model_id"]),
-        "model_version": str(payload["model_version"]),
-        "trained_weights_sha256": str(payload["trained_weights_sha256"]).lower(),
-        "reference_dataset_id": str(payload["reference_dataset_id"]),
-        "reference_equilibria_count": int(payload["reference_equilibria_count"]),
-        "artifact_file_sha256": hashlib.sha256(raw_payload.encode("utf-8")).hexdigest(),
-        "payload_sha256": str(payload["payload_sha256"]).lower(),
-    }
-
-
-def _validate_metric_block(
-    path: Path,
-    metrics: object,
-    tolerances: object,
-    errors: list[dict[str, object]],
-) -> None:
-    if not isinstance(metrics, dict):
-        errors.append({"path": _portable_path(path), "field": "metrics", "error": "metrics must be an object"})
-        return
-    if not isinstance(tolerances, dict):
-        errors.append({"path": _portable_path(path), "field": "tolerances", "error": "tolerances must be an object"})
-        return
-    for field in _REQUIRED_METRICS:
-        metric = metrics.get(field)
-        tolerance = tolerances.get(field)
-        if not _is_nonnegative_finite(metric):
-            errors.append(
-                {"path": _portable_path(path), "field": field, "error": "metric must be finite and non-negative"}
-            )
-            continue
-        if not _is_positive_finite(tolerance):
-            errors.append(
-                {"path": _portable_path(path), "field": field, "error": "tolerance must be finite and positive"}
-            )
-            continue
-        if float(metric) > float(tolerance):
-            errors.append({"path": _portable_path(path), "field": field, "error": "metric exceeds declared tolerance"})
-
-
-def _valid_grid_shape(value: object) -> bool:
-    if not isinstance(value, list | tuple) or len(value) != 2:
-        return False
-    return all(not isinstance(item, bool) and isinstance(item, int) and item > 0 for item in value)
-
-
-def _valid_units(value: object) -> bool:
-    if not isinstance(value, dict):
-        return False
-    return all(value.get(field) == unit for field, unit in _REQUIRED_UNITS.items())
-
-
-def _has_public_reference(payload: dict[str, object]) -> bool:
-    for field in ("reference_url", "reference_doi"):
-        value = payload.get(field)
-        if isinstance(value, str) and value.strip():
-            return True
-    return False
-
-
-def canonical_artifact_sha256(payload: dict[str, object]) -> str:
-    """Return the tamper-evident digest for a neural equilibrium reference artifact."""
-    canonical_payload = dict(payload)
-    canonical_payload.pop("payload_sha256", None)
-    encoded = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def _artifact_uri_error(value: object) -> str | None:
-    if not isinstance(value, str) or not value.strip():
-        return "artefact URI must be a non-empty string"
-    ref = value.strip()
-    if "\x00" in ref:
-        return "artefact URI must not contain NUL bytes"
-    if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
-        return None
-    path = Path(ref)
-    if path.is_absolute():
-        return "artefact URI must be relative or an admitted external reference URI"
-    if any(part == ".." for part in path.parts):
-        return "artefact URI must not contain traversal"
-    return None
-
-
-def _is_nonnegative_finite(value: object) -> TypeIs[float]:
-    return (
-        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value >= 0.0
-    )
-
-
-def _is_positive_finite(value: object) -> TypeIs[float]:
-    return (
-        not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value)) and value > 0.0
-    )
-
-
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Preserve JSON member order while refusing duplicate keys in any decoded object."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise ValueError(f"duplicate JSON key: {key}")
+            raise _NeuralArtifactRefusal("reference artifact contains duplicate JSON keys")
         out[key] = value
     return out
 
 
+def _has_nonfinite_json_number(payload: object) -> bool:
+    """Inspect decoded values at every depth; retain original metric-field diagnostics on refusal."""
+    values = [payload]
+    while values:
+        value = values.pop()
+        if isinstance(value, float) and not math.isfinite(value):
+            return True
+        if isinstance(value, dict):
+            values.extend(value.values())
+        elif isinstance(value, list):
+            values.extend(value)
+    return False
+
+
+def _parse_finite_json_float(token: str) -> float:
+    """Refuse nonzero decimal underflow; decoded overflow retains metric diagnostics before refusal."""
+    value = float(token)
+    if value == 0.0 and any(char in "123456789" for char in token.lower().split("e", 1)[0]):
+        raise _NeuralArtifactRefusal("reference artifact contains underflowed JSON numbers")
+    return value
+
+
 def _new_report(root: Path, *, require_reference_artifacts: bool) -> dict[str, Any]:
+    """Create a mutable v2 report with zero declarations and both public claims initially false."""
     return {
         "schema_version": _REPORT_SCHEMA,
         "status": "pass",
@@ -348,19 +206,18 @@ def _new_report(root: Path, *, require_reference_artifacts: bool) -> dict[str, A
     }
 
 
-def _portable_path(path: Path) -> str:
-    try:
-        return str(path.resolve().relative_to(ROOT))
-    except ValueError:
-        return path.as_posix()
-
-
 def _json_sha256(payload: object) -> str:
+    """Hash sorted compact ASCII JSON report spelling; no keyed authentication is provided."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Bind report contents with its own digest nulled and admit only passing declaration metadata.
+
+    This mutates the supplied report, retains predictive admission false and
+    keeps the historical blocked-reason text even when declarations pass.
+    """
     admitted = report["status"] == "pass" and report["reference_artifacts"] > 0
     report["public_claims"]["reference_artifacts_admitted"] = admitted
     payload = dict(report)
@@ -369,7 +226,38 @@ def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
     return report
 
 
+def write_neural_equilibrium_reference_report(
+    report: dict[str, Any], output_path: str | Path, *, artifact_root: str | Path
+) -> None:
+    """Persist sorted indented v2 JSON without overwriting selected input file aliases.
+
+    Caller-relative output parents are created; an ordinary non-alias output may
+    be replaced. Resolved paths, symlinks and existing hard links to the root or
+    its current immediate JSON inputs raise NeuralReferenceReportRefusal (a ValueError). IO/encoding/serialization
+    errors propagate. Input discovery is a fresh observation, not a transaction
+    with prior validation or protection against concurrent pathname replacement.
+    """
+    output = Path(output_path)
+    root = Path(artifact_root)
+    inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
+    for source in inputs:
+        if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+            raise NeuralReferenceReportRefusal("neural reference report output must not overwrite selected input")
+    text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Return zero for a passing declaration report, one for findings or supported inspection/persistence errors.
+
+    Root and output options are caller-relative; absent root uses the canonical
+    reference directory. --json-out prints the report; otherwise stdout carries
+    a summary and stderr findings. The shared writer protects selected input
+    aliases. Expected operational errors receive authored stderr; parser help
+    and usage retain exits zero/two. Cyclic report paths receive fixed operational
+    refusal; public writer path errors still propagate. No array/model qualification follows a pass.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact-root",
@@ -385,14 +273,22 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_neural_equilibrium_reference(
-        args.artifact_root,
-        require_reference_artifacts=args.require_reference_artifacts,
-    )
-    if args.output_json:
-        output_path = Path(args.output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        report = validate_neural_equilibrium_reference(
+            args.artifact_root,
+            require_reference_artifacts=args.require_reference_artifacts,
+        )
+        if args.output_json:
+            write_neural_equilibrium_reference_report(report, args.output_json, artifact_root=args.artifact_root)
+    except NeuralReferenceReportRefusal:
+        print(
+            "Neural equilibrium reference FAILED: neural reference report output must not overwrite selected input",
+            file=sys.stderr,
+        )
+        return 1
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        print("Neural equilibrium reference FAILED: could not inspect artifacts or write report", file=sys.stderr)
+        return 1
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

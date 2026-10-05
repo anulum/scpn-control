@@ -211,7 +211,9 @@ def test_campaign_report_preserves_failed_shot_boundary(tmp_path: Path) -> None:
     assert report["n_not_acquired"] == 1
     failed = next(item for item in report["shots"] if item["status"] == "not_acquired")
     assert failed["shot_id"] == _SHOT_ID + 1
-    assert "shot unavailable" in failed["reason"]
+    # The acquisition records an authored reason; the text of the underlying
+    # exception is not carried into the campaign record.
+    assert failed["reason"] == "Could not acquire the requested MAST shot."
 
 
 def test_readiness_is_deterministic_and_lineage_bound(tmp_path: Path) -> None:

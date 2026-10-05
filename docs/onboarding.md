@@ -230,3 +230,33 @@ The real subprocess examples and invalid-input cases are exercised by
 `tests/test_benchmark_regression_gate.py`, including checksummed empty baselines,
 nonfinite values, malformed maps, zero report observations and evidence-only
 reporting. These tests establish admission behavior, not benchmark performance.
+
+The command refuses JSON verdict destinations that alias its selected report,
+baseline or threshold file, including resolved symlink and existing hard-link
+identities. An unrelated existing destination may be replaced. JSON/UTF-8/object
+loading failures and supported custody/output errors return exit 1, including in
+evidence-only mode. Output uses sorted UTF-8 JSON with a trailing newline and
+refuses nonfinite values. Checks and writes are sequential; partial writes remain
+possible, without a filesystem snapshot, lock or atomic replacement.
+
+The compatibility module retains the original pure Python names. Policy and
+domain checks live in `tools.benchmark_gate_policy`; findings and arithmetic
+verdict assembly live in `tools.benchmark_gate_verdict`. A malformed provenance
+mapping can still raise a native error in the Python API. Standard JSON decoding
+does not authenticate origins or reject duplicate object keys by itself.
+
+### Inspecting the existing baseline without running a benchmark
+
+This example checks the actual declared baseline and policy. It neither produces
+new timings nor grants comparability or physical admission.
+
+```python
+import json
+from pathlib import Path
+from tools.benchmark_regression_gate import load_thresholds_file, verify_baseline_integrity
+
+baseline = json.loads(Path("benchmarks/baselines/capacitor_bank.json").read_text(encoding="utf-8"))
+policy = load_thresholds_file(Path("benchmarks/regression_thresholds.toml"))
+assert verify_baseline_integrity(baseline) == []
+assert policy["default"]
+```

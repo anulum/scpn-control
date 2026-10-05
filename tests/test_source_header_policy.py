@@ -26,19 +26,54 @@ POLICY = ROOT / "tools/source_header_policy.toml"
 
 
 def _write_policy(tmp_path: Path, text: str) -> Path:
+    """Write a task-local policy variant while preserving the repository policy.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    text : str
+        Literal TOML declaration written unchanged.
+
+    Returns
+    -------
+    Path
+        Actual task-local policy file for native TOML/API execution.
+    """
     policy_path = tmp_path / "source_header_policy.toml"
     policy_path.write_text(text, encoding="utf-8")
     return policy_path
 
 
 def _policy_variant(tmp_path: Path, old: str, new: str) -> Path:
+    """Change one asserted fragment of the live policy to exercise its public validation path.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    old : str
+        Asserted literal fragment of the maintained policy.
+    new : str
+        Replacement declaration used by the real public loader.
+
+    Returns
+    -------
+    Path
+        Actual task-local policy file for native TOML/API execution.
+    """
     source = POLICY.read_text(encoding="utf-8")
     assert old in source
     return _write_policy(tmp_path, source.replace(old, new, 1))
 
 
 def test_live_repository_source_header_policy_passes() -> None:
-    """Every tracked path is classified and every enforced header is exact."""
+    """Every tracked path is classified and every enforced header is exact.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     completed = subprocess.run(
         [sys.executable, str(TOOL), "--root", str(ROOT), "--policy", str(POLICY), "--json"],
         check=False,
@@ -52,7 +87,12 @@ def test_live_repository_source_header_policy_passes() -> None:
 
 
 def test_policy_classifies_every_live_tracked_path() -> None:
-    """A new file format cannot bypass enforcement or reviewed exemption."""
+    """A new file format cannot bypass enforcement or reviewed exemption.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     policy = check_source_headers.load_policy(POLICY)
     dispositions = [check_source_headers.classify(path, policy)[0] for path in check_source_headers.tracked_paths(ROOT)]
     assert "unclassified" not in dispositions
@@ -60,7 +100,17 @@ def test_policy_classifies_every_live_tracked_path() -> None:
 
 
 def test_exact_headers_accept_directive_and_reject_identity_drift(tmp_path: Path) -> None:
-    """The file-path gate accepts a shebang but rejects ASCII identity drift."""
+    """The file-path gate accepts a shebang but rejects ASCII identity drift.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     relative = Path("probe.py")
     header = check_source_headers.expected_header(relative, "Header policy probe.")
     (tmp_path / relative).write_text("#!/usr/bin/env python3\n" + "\n".join(header) + "\n", encoding="utf-8")
@@ -75,7 +125,19 @@ def test_exact_headers_accept_directive_and_reject_identity_drift(tmp_path: Path
 
 @pytest.mark.parametrize("relative", [Path("probe.lean"), Path("probe.html"), Path("probe.rs")])
 def test_format_native_headers_are_accepted(tmp_path: Path, relative: Path) -> None:
-    """Lean, HTML, and slash-comment source headers retain native syntax."""
+    """Lean, HTML, and slash-comment source headers retain native syntax.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    relative : Path or str
+        Native format or exact-path case declared by parametrization.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     header = check_source_headers.expected_header(relative, "Format-native policy probe.")
     (tmp_path / relative).write_text("\n".join(header) + "\n", encoding="utf-8")
     assert check_source_headers.header_finding(tmp_path, relative) is None
@@ -101,7 +163,21 @@ def test_malformed_native_headers_are_rejected(
     relative: Path,
     mutation: Callable[[list[str]], list[str]],
 ) -> None:
-    """Every semantic component of a format-native header is mandatory."""
+    """Every semantic component of a format-native header is mandatory.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    relative : Path or str
+        Native format or exact-path case declared by parametrization.
+    mutation : Callable[[list[str]], list[str]]
+        Header-line transformation that creates the selected semantic defect.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     lines = check_source_headers.expected_header(relative, "Format-native policy probe.")
     malformed = mutation(lines)
     (tmp_path / relative).write_text("\n".join(malformed) + "\n", encoding="utf-8")
@@ -111,7 +187,17 @@ def test_malformed_native_headers_are_rejected(
 
 
 def test_non_utf8_enforced_source_is_rejected(tmp_path: Path) -> None:
-    """An enforced source file cannot bypass the contract with binary bytes."""
+    """An enforced source file cannot bypass the contract with binary bytes.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     relative = Path("probe.py")
     (tmp_path / relative).write_bytes(b"\xff\xfe")
     finding = check_source_headers.header_finding(tmp_path, relative)
@@ -158,13 +244,37 @@ def test_non_utf8_enforced_source_is_rejected(tmp_path: Path) -> None:
     ],
 )
 def test_invalid_policy_contracts_fail_closed(tmp_path: Path, policy_text: str, message: str) -> None:
-    """Malformed, vague, and overlapping policy entries are rejected."""
+    """Malformed, vague, and overlapping policy entries are rejected.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    policy_text : str
+        Literal malformed or conflicting TOML declaration.
+    message : str
+        Expected public validation diagnostic fragment.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     with pytest.raises(ValueError, match=message):
         check_source_headers.load_policy(_write_policy(tmp_path, policy_text))
 
 
 def test_live_audit_reports_real_unclassified_format(tmp_path: Path) -> None:
-    """Removing a reviewed live suffix makes its tracked files fail closed."""
+    """Removing a reviewed live suffix makes its tracked files fail closed.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     policy_path = _policy_variant(tmp_path, '".png", ".pub", ".svg"', '".png", ".svg"')
     result = check_source_headers.audit(ROOT, policy_path)
     assert result["passed"] is False
@@ -173,7 +283,17 @@ def test_live_audit_reports_real_unclassified_format(tmp_path: Path) -> None:
 
 
 def test_live_audit_reports_real_header_mismatch(tmp_path: Path) -> None:
-    """Moving tracked prose into enforced scope exposes its missing source header."""
+    """Moving tracked prose into enforced scope exposes its missing source header.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     source = POLICY.read_text(encoding="utf-8")
     source = source.replace('  ".js",\n', '  ".js",\n  ".md",\n', 1)
     source = source.replace('suffixes = [".bib", ".md", ".tex"]', 'suffixes = [".bib", ".tex"]', 1)
@@ -183,7 +303,19 @@ def test_live_audit_reports_real_header_mismatch(tmp_path: Path) -> None:
 
 
 def test_cli_modes_report_pass_failure_and_policy_error(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-    """The public entry point exposes stable success, finding, JSON, and error modes."""
+    """The public entry point exposes stable success, finding, JSON, and error modes.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    capsys : pytest.CaptureFixture[str]
+        Capture of the actual public entry-point stdout and stderr.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     assert check_source_headers.main(["--root", str(ROOT), "--policy", str(POLICY)]) == 0
     assert capsys.readouterr().out == "Source-header policy passed\n"
 
@@ -201,7 +333,17 @@ def test_cli_modes_report_pass_failure_and_policy_error(tmp_path: Path, capsys: 
 
 
 def test_help_is_side_effect_free(tmp_path: Path) -> None:
-    """The CLI help path writes no report or repository artefact."""
+    """The CLI help path writes no report or repository artefact.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
     before = tuple(tmp_path.iterdir())
     completed = subprocess.run(
         [sys.executable, str(TOOL), "--help"],
@@ -213,3 +355,65 @@ def test_help_is_side_effect_free(tmp_path: Path) -> None:
     assert completed.returncode == 0
     assert "reviewed format exemptions" in completed.stdout
     assert tuple(tmp_path.iterdir()) == before
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        "input.tglf",
+        "out.tglf.grid",
+        "out.tglf.scalar_saturation_parameters",
+        "out.tglf.sum_flux_spectrum",
+        "input.tglf.gen",
+        "out.tglf.gbflux",
+        "out.tglf.ky_spectrum",
+        "out.tglf.eigenvalue_spectrum",
+        "input.tglf.license",
+        "out.tglf.grid.license",
+        "out.tglf.scalar_saturation_parameters.license",
+        "out.tglf.sum_flux_spectrum.license",
+        "input.tglf.gen.license",
+        "out.tglf.gbflux.license",
+        "out.tglf.ky_spectrum.license",
+        "out.tglf.eigenvalue_spectrum.license",
+        "provenance.json.license",
+    ],
+)
+def test_captured_tglf_exemption_does_not_admit_unrelated_same_name(relative: str) -> None:
+    """The live policy admits only the captured fixture path, not same-name files elsewhere.
+
+    Parameters
+    ----------
+    relative : Path or str
+        Native format or exact-path case declared by parametrization.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
+    policy = check_source_headers.load_policy(POLICY)
+    captured = Path("tests/data/tglf/default") / relative
+    assert (ROOT / captured).is_file()
+    assert check_source_headers.classify(captured, policy)[0] == "exempt"
+    assert check_source_headers.classify(Path("unrelated") / relative, policy)[0] == "unclassified"
+    assert check_source_headers.classify(Path(relative), policy)[0] == "unclassified"
+
+
+@pytest.mark.parametrize("relative", ["../input.tglf", "/tmp/input.tglf", "tests//input.tglf", ""])
+def test_invalid_exact_exemption_path_is_rejected(tmp_path: Path, relative: str) -> None:
+    """Scope must be canonical repository-relative paths, without traversal or implicit normalization.
+
+    Parameters
+    ----------
+    tmp_path : Path
+        Isolated physical policy/source allocation outside the checkout.
+    relative : Path or str
+        Native format or exact-path case declared by parametrization.
+
+    Notes
+    -----
+    The maintained implementation is exercised without replacing its providers.
+    """
+    text = POLICY.read_text().replace('"tests/data/tglf/default/input.tglf"', json.dumps(relative), 1)
+    with pytest.raises(ValueError, match="exact relative POSIX path"):
+        check_source_headers.load_policy(_write_policy(tmp_path, text))

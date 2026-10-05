@@ -7,61 +7,52 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Density reference artifact validator
 
-"""Validate persisted density-control and fuelling reference artifacts."""
+"""Inspect local density-reference declarations and their caller-supplied errors.
+
+The API, direct script and registered ``validate-density-reference`` command
+check JSON metadata; they do not execute a density model. A directory contributes
+sorted immediate ``*.json`` paths, including matching directories that produce
+read errors. A single file is inspected regardless of suffix. Relative paths use
+the caller's working directory; symlinks are followed without root containment.
+
+Each accepted declaration has schema version ``1.0``, required identity strings,
+a 64-character hexadecimal digest, exact unit labels, positive geometry and case
+count, finite nonnegative actuator settings, and four declared errors within
+positive declared tolerances. Duplicate JSON keys at any depth are refused.
+Required numeric values must be representable as finite floats. Nonfinite and nonzero underflowed JSON
+floating-point tokens are refused at every depth, including unused metadata;
+other unused fields are not schema-validated. Geometry checks do not establish a valid radial mesh.
+
+Source labels, reference DOI/URL, shot, URI, digest and metrics are declarations,
+not independently authenticated evidence. No network fetch, reference-file hash,
+model execution, metric recomputation or facility/action admission occurs. A
+passing report means only that the inspected declarations meet these checks.
+Empty/missing roots pass with zero entries unless references are required.
+
+The reader only reads files and returns fresh containers. The public writer protects selected
+input aliases before replacing unrelated output with sorted UTF8 JSON+LF. File reads/parsing errors
+become report findings; root enumeration failures may propagate as OSError.
+There is no cache, lock, concurrent snapshot or atomic CLI report-write guarantee.
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
 import math
-import re
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from typing_extensions import TypeIs
-
-from validation.reference_uri import reference_artifact_uri_error
+from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+if __package__ in (None, ""):
+    sys.path.insert(0, str(ROOT))
 
-_ALLOWED_SOURCES = {"documented_public_reference", "measured_fuelling_campaign", "external_integrated_modelling"}
-_ALLOWED_EXTERNAL_CODES = {"ASTRA", "TRANSP", "JINTRAC", "TGLF"}
-_REQUIRED_STR_FIELDS = (
-    "source",
-    "model_id",
-    "model_version",
-    "reference_dataset_id",
-    "reference_artifact_sha256",
-    "executed_at",
-)
-_REQUIRED_GRID_FIELDS = ("n_rho", "major_radius_m", "minor_radius_m")
-_REQUIRED_ACTUATOR_FIELDS = (
-    "gas_puff_rate_particles_s",
-    "pellet_radius_mm",
-    "pellet_speed_m_s",
-    "nbi_energy_keV",
-    "nbi_power_MW",
-    "cryopump_speed_m3_s",
-    "recycling_coefficient",
-)
-_REQUIRED_UNITS = {
-    "density": "m^-3",
-    "particle_rate": "s^-1",
-    "radius": "m",
-    "diffusivity": "m^2/s",
-    "pinch_velocity": "m/s",
-    "time": "s",
-    "greenwald_fraction": "1",
-}
-_MAXIMUM_ERROR_METRICS = (
-    "pellet_deposition_rmse",
-    "recycling_source_relative_error",
-    "greenwald_fraction_abs_error",
-    "density_profile_relative_error",
-)
-_SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
+from validation.density_reference_contracts import _validate_artifact
+
+
+class _DensityDeclarationRefusal(ValueError):
+    """Carry only an authored decoder diagnostic into the public declaration report."""
 
 
 def validate_density_reference(
@@ -69,7 +60,39 @@ def validate_density_reference(
     *,
     require_reference_artifacts: bool = False,
 ) -> dict[str, Any]:
-    """Validate density-control evidence against persisted reference artifacts."""
+    """Return a local metadata/declared-metric report without authenticating references.
+
+    Parameters
+    ----------
+    artifact_root
+        Directory of immediate JSON candidates or one file of any suffix.
+        Relative paths use the current directory; symlink targets are inspected.
+    require_reference_artifacts
+        Make an empty or missing selection fail. Defaults to optional inspection.
+
+    Returns
+    -------
+    dict[str, Any]
+        Fresh status/root/count/policy/entries/errors containers. Status is pass
+        only when there are no findings; count includes accepted declarations,
+        not measured cases. Entries retain declared identity/source/case count.
+        Passing syntax and declared tolerances supplies no external provenance.
+
+    Raises
+    ------
+    OSError
+        Root selection or enumeration fails. Candidate read/JSON/UTF-8 errors
+        are instead reported per path; no passing placeholder replaces them.
+
+    Examples
+    --------
+    The actual Python owner is not a JSON reference artifact. Inspect its bytes
+    through the public API and retain failure without inventing reference data.
+
+    >>> report = validate_density_reference(Path(__file__), require_reference_artifacts=True)
+    >>> report["status"], report["reference_artifacts"]
+    ('fail', 0)
+    """
     root = Path(artifact_root)
     paths = sorted(root.glob("*.json")) if root.is_dir() else ([root] if root.is_file() else [])
     report: dict[str, Any] = {
@@ -83,16 +106,28 @@ def validate_density_reference(
     entries: list[dict[str, object]] = report["entries"]
     errors: list[dict[str, object]] = report["errors"]
 
-    if require_reference_artifacts and not paths:
-        errors.append({"path": str(root), "field": "artifact_root", "error": "no density reference artifacts found"})
-
     for path in paths:
         try:
-            with path.open(encoding="utf-8") as handle:
-                payload = json.load(handle, object_pairs_hook=_reject_duplicate_json_keys)
+            payload = json.loads(
+                path.read_bytes().decode("utf-8"),
+                object_pairs_hook=_reject_duplicate_json_keys,
+                parse_float=_parse_json_float,
+                parse_constant=_parse_json_float,
+            )
             entry = _validate_artifact(path, payload, errors)
-        except (OSError, ValueError, json.JSONDecodeError) as exc:
+        except _DensityDeclarationRefusal as exc:
             errors.append({"path": str(path), "field": "json", "error": str(exc)})
+            continue
+        except UnicodeError:
+            errors.append({"path": str(path), "field": "json", "error": "density reference declaration is not UTF-8"})
+            continue
+        except OSError:
+            errors.append({"path": str(path), "field": "json", "error": "could not read density reference declaration"})
+            continue
+        except (ValueError, RecursionError):
+            errors.append(
+                {"path": str(path), "field": "json", "error": "density reference declaration is not valid JSON"}
+            )
             continue
         if entry is not None:
             entries.append(entry)
@@ -105,175 +140,48 @@ def validate_density_reference(
     return report
 
 
-def _validate_artifact(path: Path, payload: object, errors: list[dict[str, object]]) -> dict[str, object] | None:
-    if not isinstance(payload, dict):
-        errors.append({"path": str(path), "field": "root", "error": "artifact root must be an object"})
-        return None
-    if payload.get("schema_version") != "1.0":
-        errors.append({"path": str(path), "field": "schema_version", "error": "schema_version must be '1.0'"})
-    for field in _REQUIRED_STR_FIELDS:
-        if not isinstance(payload.get(field), str) or not str(payload.get(field)).strip():
-            errors.append({"path": str(path), "field": field, "error": "field must be a non-empty string"})
-    digest = payload.get("reference_artifact_sha256")
-    if isinstance(digest, str) and not _SHA256_RE.match(digest):
-        errors.append(
-            {"path": str(path), "field": "reference_artifact_sha256", "error": "field must be a SHA-256 hex digest"}
-        )
-    source = payload.get("source")
-    if source not in _ALLOWED_SOURCES:
-        errors.append(
-            {
-                "path": str(path),
-                "field": "source",
-                "error": "source must be documented_public_reference, measured_fuelling_campaign, or external_integrated_modelling",
-            }
-        )
-    _validate_source_provenance(path, payload, errors)
-    if not _valid_radial_grid(payload.get("radial_grid")):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "radial_grid",
-                "error": "radial_grid must declare positive density-model geometry",
-            }
-        )
-    if not _valid_actuator_metadata(payload.get("actuator_metadata")):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "actuator_metadata",
-                "error": "actuator_metadata must declare finite fuelling and exhaust settings",
-            }
-        )
-    if not _valid_units(payload.get("units")):
-        errors.append({"path": str(path), "field": "units", "error": "units must declare density reference units"})
-    count = payload.get("reference_case_count")
-    if isinstance(count, bool) or not isinstance(count, int) or count <= 0:
-        errors.append({"path": str(path), "field": "reference_case_count", "error": "field must be a positive integer"})
-    _validate_metric_block(path, payload.get("metrics"), payload.get("tolerances"), errors)
-    if any(error["path"] == str(path) for error in errors):
-        return None
-    return {
-        "path": str(path),
-        "source": str(payload["source"]),
-        "model_id": str(payload["model_id"]),
-        "model_version": str(payload["model_version"]),
-        "reference_dataset_id": str(payload["reference_dataset_id"]),
-        "reference_case_count": int(payload["reference_case_count"]),
-    }
-
-
-def _validate_source_provenance(path: Path, payload: dict[str, object], errors: list[dict[str, object]]) -> None:
-    source = payload.get("source")
-    if source == "documented_public_reference" and not _has_public_reference(payload):
-        errors.append(
-            {
-                "path": str(path),
-                "field": "reference",
-                "error": "documented public reference artifacts require reference_url or reference_doi",
-            }
-        )
-    if source == "measured_fuelling_campaign":
-        if not _has_nonempty_str(payload, "shot_id"):
-            errors.append(
-                {"path": str(path), "field": "shot_id", "error": "measured fuelling campaigns require shot_id"}
-            )
-        if not _has_nonempty_str(payload, "diagnostic_uri"):
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "diagnostic_uri",
-                    "error": "measured fuelling campaigns require diagnostic_uri",
-                }
-            )
-    if source == "external_integrated_modelling":
-        external_code = payload.get("external_code")
-        if external_code not in _ALLOWED_EXTERNAL_CODES:
-            errors.append(
-                {
-                    "path": str(path),
-                    "field": "external_code",
-                    "error": "external_code must be ASTRA, TRANSP, JINTRAC, or TGLF",
-                }
-            )
-        uri_error = reference_artifact_uri_error(payload.get("reference_artifact_uri"), "reference_artifact_uri")
-        if uri_error is not None:
-            errors.append({"path": str(path), "field": "reference_artifact_uri", "error": uri_error})
-
-
-def _validate_metric_block(path: Path, metrics: object, tolerances: object, errors: list[dict[str, object]]) -> None:
-    if not isinstance(metrics, dict):
-        errors.append({"path": str(path), "field": "metrics", "error": "metrics must be an object"})
-        return
-    if not isinstance(tolerances, dict):
-        errors.append({"path": str(path), "field": "tolerances", "error": "tolerances must be an object"})
-        return
-    for field in _MAXIMUM_ERROR_METRICS:
-        metric = metrics.get(field)
-        tolerance = tolerances.get(field)
-        if not _is_nonnegative_finite(metric):
-            errors.append({"path": str(path), "field": field, "error": "metric must be finite and non-negative"})
-            continue
-        if not _is_positive_finite(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "tolerance must be finite and positive"})
-            continue
-        if float(metric) > float(tolerance):
-            errors.append({"path": str(path), "field": field, "error": "metric exceeds declared tolerance"})
-
-
-def _valid_radial_grid(value: object) -> bool:
-    if not isinstance(value, dict):
-        return False
-    n_rho = value.get("n_rho")
-    if isinstance(n_rho, bool) or not isinstance(n_rho, int) or n_rho < 2:
-        return False
-    return all(_is_positive_finite(value.get(field)) for field in _REQUIRED_GRID_FIELDS if field != "n_rho")
-
-
-def _valid_actuator_metadata(value: object) -> bool:
-    if not isinstance(value, dict):
-        return False
-    if not all(_is_nonnegative_finite(value.get(field)) for field in _REQUIRED_ACTUATOR_FIELDS):
-        return False
-    recycling = value.get("recycling_coefficient")
-    return _is_nonnegative_finite(recycling) and float(recycling) <= 1.0
-
-
-def _valid_units(value: object) -> bool:
-    return isinstance(value, dict) and all(value.get(field) == unit for field, unit in _REQUIRED_UNITS.items())
-
-
-def _has_public_reference(payload: dict[str, object]) -> bool:
-    return any(_has_nonempty_str(payload, field) for field in ("reference_url", "reference_doi"))
-
-
-def _has_nonempty_str(payload: dict[str, object], field: str) -> bool:
-    value = payload.get(field)
-    return isinstance(value, str) and bool(value.strip())
-
-
-def _is_finite_number(value: object) -> TypeIs[float]:
-    return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
-
-
-def _is_nonnegative_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) >= 0.0
-
-
-def _is_positive_finite(value: object) -> TypeIs[float]:
-    return _is_finite_number(value) and float(value) > 0.0
+def _parse_json_float(token: str) -> float:
+    """Refuse nonfinite and nonzero underflowed floating tokens at every JSON depth, including unused metadata."""
+    value = float(token)
+    if not math.isfinite(value):
+        raise _DensityDeclarationRefusal("density reference JSON numbers must be finite")
+    if value == 0 and any(char in "123456789" for char in token.lower().partition("e")[0]):
+        raise _DensityDeclarationRefusal("density reference declaration contains underflowed JSON numbers")
+    return value
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Reject duplicate object keys at every JSON depth instead of selecting the last value."""
     out: dict[str, Any] = {}
     for key, value in pairs:
         if key in out:
-            raise ValueError(f"duplicate JSON key: {key}")
+            raise _DensityDeclarationRefusal("density reference declaration contains duplicate JSON keys")
         out[key] = value
     return out
 
 
+def write_density_reference_report(
+    report: dict[str, Any], output_path: str | Path, *, artifact_root: str | Path
+) -> None:
+    """Write sorted UTF8 JSON+LF while protecting the selected root and immediate JSON inputs.
+
+    Direct, resolved, symlink and existing hardlink aliases raise ValueError
+    before writing. Other output may replace. IO/path/encoding/serialization
+    errors propagate. Checks are sequential, without locks or a concurrent snapshot.
+    """
+    output = Path(output_path)
+    root = Path(artifact_root)
+    inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
+    for source in inputs:
+        if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
+            raise ValueError("Density reference report output must not overwrite selected input")
+    text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(text, encoding="utf-8")
+
+
 def main(argv: list[str] | None = None) -> int:
+    """Inspect declarations and protect report output; return zero for pass, one for findings or supported operational refusal."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--artifact-root",
@@ -287,13 +195,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json-out", action="store_true", help="Emit JSON report")
     args = parser.parse_args(argv)
 
-    report = validate_density_reference(
-        args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
-    )
-    if args.output_json:
-        output_path = Path(args.output_json)
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    try:
+        report = validate_density_reference(
+            args.artifact_root, require_reference_artifacts=args.require_reference_artifacts
+        )
+        if args.output_json:
+            write_density_reference_report(report, args.output_json, artifact_root=args.artifact_root)
+    except (OSError, UnicodeError, ValueError, RuntimeError):
+        print("Density reference FAILED: could not inspect artifacts or write report", file=sys.stderr)
+        return 1
     if args.json_out:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

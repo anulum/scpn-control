@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Blob transport reference validation tests
 
+"""Retain nine original persisted SOL blob tests and their engineering fixture."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_blob_transport_reference import canonical_artifact_sha2
 
 
 def _valid_blob_reference_artifact() -> dict[str, object]:
+    """Supply original engineering SOL blob declarations with caller-recomputable body hash; authenticate no producer bytes."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.blob-transport-reference.v1",
         "source": "measured_probe_campaign",
@@ -68,6 +71,7 @@ def _valid_blob_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_blob_transport_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Required mode refuses an empty directory with the original artifact_root finding."""
     report = validate_blob_transport_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -76,6 +80,7 @@ def test_strict_blob_transport_gate_requires_reference_artifacts(tmp_path: Path)
 
 
 def test_blob_transport_gate_accepts_measured_probe_campaign(tmp_path: Path) -> None:
+    """Measured machine/shot presence and original finite SOL declarations pass body-consistency inspection."""
     artifact = tmp_path / "diiid_blob_reference.json"
     artifact.write_text(json.dumps(_valid_blob_reference_artifact()), encoding="utf-8")
 
@@ -87,6 +92,7 @@ def test_blob_transport_gate_accepts_measured_probe_campaign(tmp_path: Path) -> 
 
 
 def test_blob_transport_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """A declared DOI replaces measured identity while the recomputed engineering body hash preserves public-source admission."""
     payload = _valid_blob_reference_artifact()
     payload["source"] = "documented_public_reference"
     payload.pop("machine")
@@ -103,6 +109,7 @@ def test_blob_transport_gate_accepts_documented_public_reference(tmp_path: Path)
 
 
 def test_blob_transport_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Synthetic sources remain outside the original measured/public source membership."""
     payload = _valid_blob_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -116,6 +123,7 @@ def test_blob_transport_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_blob_transport_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -> None:
+    """A measured machine with neither shot nor campaign identity returns the original campaign finding."""
     payload = _valid_blob_reference_artifact()
     payload.pop("shot_id")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -129,6 +137,7 @@ def test_blob_transport_gate_rejects_missing_measured_campaign_identity(tmp_path
 
 
 def test_blob_transport_gate_rejects_nonmonotone_sol_profile_coordinates(tmp_path: Path) -> None:
+    """Equal SOL coordinates refuse strict ordering after recalculating the engineering body consistency hash."""
     payload = _valid_blob_reference_artifact()
     payload["separatrix_to_wall_coordinates_m"] = [0.0, 0.02, 0.02, 0.05]
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -142,6 +151,7 @@ def test_blob_transport_gate_rejects_nonmonotone_sol_profile_coordinates(tmp_pat
 
 
 def test_blob_transport_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Declared wall-flux error above its inclusive bound returns the original metric finding."""
     payload = _valid_blob_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["wall_flux_relative_error"] = 0.25
@@ -156,6 +166,7 @@ def test_blob_transport_gate_rejects_metric_outside_tolerance(tmp_path: Path) ->
 
 
 def test_blob_transport_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Changed declared profile error with the prior body hash refuses canonical consistency despite its accepted numeric bound."""
     payload = _valid_blob_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["density_profile_relative_l2"] = 0.05
@@ -169,6 +180,7 @@ def test_blob_transport_gate_rejects_tampered_payload_digest(tmp_path: Path) -> 
 
 
 def test_blob_transport_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """A parent-traversing profile URI returns the original lexical URI finding even when its engineering body hash matches."""
     payload = _valid_blob_reference_artifact()
     payload["profile_artifact_uri"] = "../sol_profiles.npz"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)

@@ -71,6 +71,8 @@ def main() -> None:
                 f"- Flux loops: `{payload['n_flux_loops']}`",
                 f"- B probes: `{payload['n_b_probes']}`",
                 f"- Reconstructed Ip [A]: `{payload['ip_reconstructed_A']:.6e}`",
+                f"- Iteration status: `{payload['iteration_status']}`",
+                f"- Final Picard relative change: `{payload['final_relative_change']}`",
                 f"- q95: `{payload['q95']:.6e}`",
                 f"- beta_pol: `{payload['beta_pol']:.6e}`",
                 f"- li: `{payload['li']:.6e}`",

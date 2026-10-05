@@ -16,11 +16,18 @@ Tracked public Markdown and JSON are also rejected when they expose unchecked
 work lists, prioritisation headings, internal task identifiers, or private
 operational paths. Narrow path-and-line allowlists preserve benign tutorial and
 contribution-template navigation.
+
+The repository API enumerates Git's index but reads current worktree bytes,
+including unstaged edits. It does not inspect untracked files, staged blobs or
+history. Selected files with invalid UTF-8 and tracked missing/non-file paths
+are skipped. A pass only covers the resulting inspected text, not publication
+readiness, scientific validity or a coherent concurrent repository snapshot.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import subprocess
 from dataclasses import dataclass
@@ -294,11 +301,17 @@ class Finding:
     path
         Repository-relative path that contains the finding.
     line
-        One-based line number in ``path``.
+        One-based splitlines position, or zero for a path-name finding.
     category
         Stable finding category.
     detail
-        The matched source line with surrounding whitespace stripped.
+        Source line with surrounding whitespace stripped, or the original path
+        for a path-name finding. Payload text is retained, not redacted.
+
+    Notes
+    -----
+    Frozen fields hold the supplied values without constructor validation.
+    Categories may repeat on a line when independent pattern families match.
     """
 
     path: str
@@ -307,15 +320,32 @@ class Finding:
     detail: str
 
 
+class PublicSurfaceScanError(ValueError):
+    """Authored refusal from Git enumeration, path inspection or a file read.
+
+    Notes
+    -----
+    Guard producers supply fixed messages without subprocess or OS exception
+    text. Callers can catch this type separately from policy findings; a failed
+    repository scan has no successful partial-result return.
+    """
+
+
 def _git_ls_files(repo: Path) -> list[str]:
-    """Return tracked paths in ``repo`` from Git's index."""
-    completed = subprocess.run(
-        ["git", "-C", str(repo), "ls-files"],
-        check=True,
-        text=True,
-        capture_output=True,
-    )
-    return [line for line in completed.stdout.splitlines() if line]
+    """Read NUL-delimited index paths without Git quoting or newline ambiguity.
+
+    Filesystem decoding retains native path spellings. Git startup/exit failures
+    become a fixed authored refusal; subprocess diagnostics are not exposed.
+    """
+    try:
+        completed = subprocess.run(
+            ["git", "-C", str(repo), "ls-files", "-z"],
+            check=True,
+            capture_output=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise PublicSurfaceScanError("could not enumerate tracked public files") from exc
+    return [os.fsdecode(path) for path in completed.stdout.split(b"\0") if path]
 
 
 def _is_scanned_path(path: str) -> bool:
@@ -326,21 +356,43 @@ def _is_scanned_path(path: str) -> bool:
 
 
 def iter_scanned_files(repo: Path) -> Iterable[Path]:
-    """Yield tracked outward-facing files that should be scanned.
+    """Yield selected regular worktree paths enumerated from Git's index.
 
     Parameters
     ----------
     repo
-        Repository root to inspect.
+        Directory passed to Git -C and joined with its relative index paths.
+        Relative spelling uses the caller's working directory; the API does not
+        resolve the root. A Git subdirectory scans its own index-relative scope.
 
     Yields
     ------
     Path
-        Absolute paths for tracked text files outside private/internal surfaces.
+        Paths joined to repo, absolute only when repo is absolute. Selection uses
+        case-sensitive suffixes or the workflow prefix, then private/cache and
+        guard-fixture exclusions. Missing/non-file tracked paths are skipped.
+
+    Raises
+    ------
+    PublicSurfaceScanError
+        Git cannot enumerate the index or inspect a selected worktree path.
+
+    Notes
+    -----
+    Enumeration is lazy until iteration and follows Git's order. Current regular
+    files and symlinks to regular files are yielded, without containment checks.
+    Untracked files, staged blob bytes and history are not visited. The API does
+    not read payloads or guarantee a coherent concurrent index/worktree snapshot.
     """
     for tracked_path in _git_ls_files(repo):
         candidate = repo / tracked_path
-        if _is_scanned_path(tracked_path) and candidate.is_file():
+        if not _is_scanned_path(tracked_path):
+            continue
+        try:
+            is_file = candidate.is_file()
+        except OSError as exc:
+            raise PublicSurfaceScanError("could not inspect tracked public path") from exc
+        if is_file:
             yield candidate
 
 
@@ -395,20 +447,41 @@ def _rendered_markdown_producer_finding(path: str, text: str) -> Finding | None:
 
 
 def scan_text(path: str, text: str) -> list[Finding]:
-    """Scan one text payload for outward-facing promotion terms.
+    """Inspect one caller-supplied payload with path-dependent pattern families.
 
     Parameters
     ----------
     path
-        Logical path to report in findings.
+        Logical POSIX spelling used for categories and findings, not a file to
+        open. Case-sensitive suffix/prefix checks require the intended spelling;
+        the function does not apply repository path-selection exclusions.
     text
-        File content to scan.
+        Unicode content scanned without parsing Markdown, JSON or source code.
 
     Returns
     -------
     list[Finding]
-        Promotion-term and path-specific internal-token findings, excluding
-        explicitly bounded contexts.
+        Fresh ordered findings: first path identity, then first-eight-line
+        Markdown preamble and validation producer checks, then per-line rules.
+        Each family takes its first match; independent families can both emit.
+
+    Notes
+    -----
+    A Markdown fence-looking line toggles fence state without matching its
+    delimiter or length. Only planning checks are suppressed inside fences;
+    identifier/promotion checks still apply. Bounded context matches suppress
+    promotion, path-specific and planning rules for that line, after identifier
+    inspection. Narrow reviewed planning exceptions depend on the exact path.
+    No filesystem access, mutation, cache, rendering or semantic claim proof is
+    provided. Findings retain source text for the local operator's report.
+
+    Examples
+    --------
+    Inspect the actual maintained development guide:
+
+    >>> guide = REPO_ROOT / "docs/development.md"
+    >>> scan_text("docs/development.md", guide.read_text(encoding="utf-8"))
+    []
     """
     findings: list[Finding] = []
     for category, pattern in INTERNAL_IDENTIFIER_PATTERNS:
@@ -449,10 +522,32 @@ def scan_text(path: str, text: str) -> list[Finding]:
 
 
 def scan_repository(repo: Path) -> list[Finding]:
-    """Scan tracked outward-facing text files in ``repo``.
+    """Inspect selected indexed paths using their current UTF-8 worktree text.
 
-    Undecodable tracked files are skipped so binary artifacts do not fail the
-    claim-hygiene gate for unrelated encoding reasons.
+    Parameters
+    ----------
+    repo
+        Git directory/root spelling used by iter_scanned_files. Relative paths
+        remain caller-relative; symlinks follow without containment enforcement.
+
+    Returns
+    -------
+    list[Finding]
+        Fresh findings in index/path and scan_text order. Paths are relative to
+        the supplied root. Invalid UTF-8 selected files are skipped as binary;
+        empty therefore means no finding in inspected text, not all-file proof.
+
+    Raises
+    ------
+    PublicSurfaceScanError
+        Git enumeration, selected-path inspection or worktree reading fails.
+
+    Notes
+    -----
+    Worktree bytes use universal newline handling. Untracked/staged/history
+    content is not read. A read failure aborts without returning earlier partial
+    findings. No repository writes, subprocess timeout, atomic snapshot,
+    deployment check or scientific/security certification is provided.
     """
     findings: list[Finding] = []
     for path in iter_scanned_files(repo):
@@ -460,19 +555,52 @@ def scan_repository(repo: Path) -> list[Finding]:
             text = path.read_text(encoding="utf-8")
         except UnicodeDecodeError:
             continue
+        except OSError as exc:
+            raise PublicSurfaceScanError("could not read tracked public text") from exc
         findings.extend(scan_text(path.relative_to(repo).as_posix(), text))
     return findings
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the command-line public-surface hygiene guard."""
+    """Inspect a resolved Git/worktree scope through the stdlib CLI.
+
+    Parameters
+    ----------
+    argv
+        Arguments without the executable name, or None for process arguments.
+        Default root comes from this script; --repo is caller-relative and is
+        resolved before scanning.
+
+    Returns
+    -------
+    int
+        0 for no inspected-text findings, 1 for policy findings, or 2 for root,
+        Git or read refusal. Reports and fixed authored refusals use stdout.
+        Finding detail contains the inspected source text and path spelling.
+
+    Raises
+    ------
+    SystemExit
+        Argparse exits 0 for help and 2 for invalid arguments.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)
 
-    findings = scan_repository(args.repo.resolve())
+    try:
+        repo = args.repo.resolve()
+    except (OSError, RuntimeError, ValueError):
+        print("FAIL: could not resolve public surface repository")
+        return 2
+    try:
+        findings = scan_repository(repo)
+    except PublicSurfaceScanError as exc:
+        print(f"FAIL: {exc}")
+        return 2
     if not findings:
-        print("PASS: public surfaces contain no forbidden claims, planning, or internal identifiers")
+        print(
+            "PASS: inspected tracked UTF-8 public text contains no forbidden claims, planning, or internal identifiers"
+        )
         return 0
 
     print("FAIL: outward-facing claim or operational-planning findings found")

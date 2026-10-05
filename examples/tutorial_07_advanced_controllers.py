@@ -31,6 +31,7 @@ import time
 from pathlib import Path
 
 import numpy as np
+from numpy.typing import NDArray
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -52,8 +53,8 @@ print("=" * 60)
 # Vertical instability in a tokamak with elongated cross-section:
 #   m_eff * d²Z/dt² = (n-1) * μ₀ Ip² / (4π R₀) * Z + F_coil
 # where n is the decay index. For n > 1 the equilibrium is unstable.
-# The super-twisting algorithm provides finite-time convergence
-# to s = 0 with continuous (chattering-free) control output.
+# This sampled and saturated approximation has no finite-time certificate.
+# The simulation below uses a synthetic double integrator, not this force law.
 
 ALPHA_SMC = 500.0
 BETA_SMC = 1000.0
@@ -76,8 +77,8 @@ t_conv = estimate_convergence_time(ALPHA_SMC, BETA_SMC, L_MAX, s0=0.05)
 
 print(f"  SMC gains:     alpha={ALPHA_SMC}, beta={BETA_SMC}")
 print(f"  Plant:         n_index=1.5, Ip=15 MA, R0=6.2 m, m_eff={M_EFF} kg")
-print(f"  Lyapunov cert: {cert} (alpha > sqrt(2*L_max), beta > L_max)")
-print(f"  T_conv upper:  {t_conv * 1e3:.2f} ms (to reach s=0 from s0=0.05)")
+print(f"  Ideal gain screen: {cert} (alpha > sqrt(2*L_max), beta > L_max)")
+print(f"  Ideal time formula: {t_conv * 1e3:.2f} ms (not a runtime bound)")
 print()
 
 # Simulate 5 cm initial vertical displacement
@@ -176,7 +177,7 @@ for name, dip, tau_e, p_dis in phases:
         dstate = np.array([dip, 0.0, 0.0])
         regime = detector.detect(state_vec, dstate, tau_e, p_dis)
 
-    u = gs_ctrl.step(x, t, dt_gs, regime)
+    gs_ctrl.step(x, t, dt_gs, regime)
     t += dt_gs
     print(f"  {name:>12s}  {dip:7.2f}  {tau_e:5.1f}  {regime.name:<28s}")
 
@@ -355,7 +356,7 @@ for step_i in range(60):
         n_faults = len(fdi.detected_faults)
         print(f"  Step {step_i:3d}: y_meas[2]={y_meas[2]:+7.4f}, faults_total={n_faults}")
 
-if detected_at is not None:
+if detected_at is not None and detected_type is not None:
     latency = detected_at - FAULT_STEP
     print(f"\n  Detection latency: {latency} steps ({latency * 1.0:.0f} ms)")
     print(f"  Fault classified:  {detected_type.name}")
@@ -421,7 +422,7 @@ for t in sample_times:
 
 
 # Offline trajectory optimization with a simple integrator plant
-def simple_plant(x, u, dt_p):
+def simple_plant(x: NDArray[np.float64], u: NDArray[np.float64], dt_p: float) -> NDArray[np.float64]:
     """Advance ``x' = A x + B u`` by one Euler step."""
     A_p = np.array([[0, 1], [-1, -0.5]])
     B_p = np.array([[0, 0.1], [0.5, 0]])
@@ -491,7 +492,7 @@ print()
 
 # --- MPC (trajectory planner latency) ---
 surrogate = NeuralSurrogate(2, 4, verbose=False)
-surrogate.B = np.random.default_rng(0).standard_normal((4, 2)) * 0.01
+surrogate.B[:] = np.random.default_rng(0).standard_normal((4, 2)) * 0.01
 mpc = ModelPredictiveController(
     surrogate,
     target_state=np.zeros(4),
@@ -547,7 +548,7 @@ print(f"  {'PID':>12s}  {lat_pid * 1e6:18.1f}  no guarantees")
 print("\n" + "=" * 60)
 print("ADVANCED CONTROLLERS SUMMARY")
 print("=" * 60)
-print("  SuperTwistingSMC       -- finite-time chattering-free vertical control")
+print("  SuperTwistingSMC       -- smoothed synthetic vertical-control example")
 print("  GainScheduledController -- bumpless multi-regime PID with hysteresis")
 print("  RWMFeedbackController  -- sensor-coil feedback for resistive wall modes")
 print("  compute_static_mu_upper_bound -- static D-scaled mu bound")

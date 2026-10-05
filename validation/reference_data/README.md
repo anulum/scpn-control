@@ -64,6 +64,14 @@ trained neural-transport weights, quantitative QuaLiKiz agreement, or measured
 facility validation until the large numeric files are downloaded on an admitted
 storage target and processed into strict reference-artifact evidence.
 
+The offline inspector requires DOI-record/download-key consistency and unique
+safe file identities. Selected local mirrors must match SHA-256, advertised
+MD5 and byte size. Raw record digests are checked only when an adjacent
+`record.json` is present; absent canonical raw records are not authenticated by
+metadata PASS. Invalid declarations contribute findings rather than accepted
+counts. This check does not download files, validate tensor contents or admit
+facility/control claims.
+
 ### ITER Configurations (existing)
 
 Four ITER-scale validation configurations with different coil current optimisations:

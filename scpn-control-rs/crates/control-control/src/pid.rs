@@ -135,7 +135,8 @@ impl PIDController {
     /// With no envelope configured this is the ideal `kp*e + ki*Σe + kd*Δe`.
     /// With an envelope, the output is saturated and slew-limited, and the
     /// integrator is frozen whenever the raw output is clamped in the same
-    /// direction as the error (conditional-integration anti-windup).
+    /// direction as the error (conditional-integration anti-windup). Nonfinite
+    /// inputs or derived values are refused without changing controller state.
     pub fn step(&mut self, error: f64) -> FusionResult<f64> {
         if !error.is_finite() {
             return Err(FusionError::ConfigError(
@@ -144,7 +145,17 @@ impl PIDController {
         }
         let d_err = error - self.last_err;
         let candidate_sum = self.err_sum + error;
+        if !d_err.is_finite() || !candidate_sum.is_finite() {
+            return Err(FusionError::LinAlg(
+                "pid arithmetic must remain finite".to_string(),
+            ));
+        }
         let raw = self.kp * error + self.ki * candidate_sum + self.kd * d_err;
+        if !raw.is_finite() {
+            return Err(FusionError::LinAlg(
+                "pid arithmetic must remain finite".to_string(),
+            ));
+        }
         let applied = self.saturate_and_slew(raw);
 
         // Anti-windup: `(raw - applied) * error > 0` means the output was clamped
@@ -299,6 +310,46 @@ mod tests {
         assert!(PIDController::new(f64::NAN, 0.1, 0.2).is_err());
         let mut pid = PIDController::new(1.0, 0.1, 0.2).expect("valid gains");
         assert!(pid.step(f64::INFINITY).is_err());
+    }
+
+    #[test]
+    fn test_finite_input_arithmetic_overflow_is_atomic() {
+        for bounded in [false, true] {
+            let mut pid = PIDController::new(0.0, 0.0, 0.0).expect("valid gains");
+            if bounded {
+                pid = pid.with_output_limits(-1.0, 1.0).expect("valid limits");
+            }
+            pid.step(-1e308).expect("finite first step");
+            let before = pid.clone();
+            assert!(matches!(pid.step(1e308), Err(FusionError::LinAlg(_))));
+            assert_eq!(pid.err_sum.to_bits(), before.err_sum.to_bits());
+            assert_eq!(pid.last_err.to_bits(), before.last_err.to_bits());
+            assert_eq!(pid.last_output.to_bits(), before.last_output.to_bits());
+            assert_eq!(pid.step(0.0).expect("recovered"), 0.0);
+        }
+
+        let mut gain_overflow = PIDController::new(1e308, 0.0, 0.0).expect("valid gains");
+        assert!(matches!(
+            gain_overflow.step(2.0),
+            Err(FusionError::LinAlg(_))
+        ));
+        assert_eq!(gain_overflow.err_sum, 0.0);
+        assert_eq!(gain_overflow.last_err, 0.0);
+        assert_eq!(gain_overflow.last_output, 0.0);
+
+        let mut sum_overflow = PIDController::new(0.0, 0.0, 0.0).expect("valid gains");
+        sum_overflow.step(1e308).expect("finite first step");
+        let before = sum_overflow.clone();
+        assert!(matches!(
+            sum_overflow.step(1e308),
+            Err(FusionError::LinAlg(_))
+        ));
+        assert_eq!(sum_overflow.err_sum.to_bits(), before.err_sum.to_bits());
+        assert_eq!(sum_overflow.last_err.to_bits(), before.last_err.to_bits());
+        assert_eq!(
+            sum_overflow.last_output.to_bits(),
+            before.last_output.to_bits()
+        );
     }
 
     #[test]

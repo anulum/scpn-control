@@ -10,7 +10,10 @@
 
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
+from typing import TYPE_CHECKING
 
 os.environ.setdefault("JAX_ENABLE_X64", "1")
 os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
@@ -18,24 +21,30 @@ os.environ.setdefault("CUDA_VISIBLE_DEVICES", "")
 import numpy as np
 import pytest
 
+from scpn_control.core.integrated_transport_solver import TransportSolver
+
+if TYPE_CHECKING:
+    from scpn_control.scpn.controller import NeuroSymbolicController
+    from scpn_control.scpn.structure import StochasticPetriNet
+
 
 @pytest.fixture
-def rng():
+def rng() -> np.random.Generator:
     """Deterministic RNG seeded at 42."""
     return np.random.default_rng(42)
 
 
 @pytest.fixture
-def minimal_petri_net():
-    """A minimal 3-place, 2-transition Petri net for smoke tests."""
+def minimal_petri_net() -> StochasticPetriNet:
+    """Build a minimal 3-place, 2-transition Petri net for smoke tests."""
     from scpn_control.scpn.structure import StochasticPetriNet
 
     net = StochasticPetriNet()
-    net.add_place("p0", tokens=1.0)
-    net.add_place("p1", tokens=0.0)
-    net.add_place("p2", tokens=0.0)
-    net.add_transition("t0", rate=1.0)
-    net.add_transition("t1", rate=1.0)
+    net.add_place("p0", initial_tokens=1.0)
+    net.add_place("p1", initial_tokens=0.0)
+    net.add_place("p2", initial_tokens=0.0)
+    net.add_transition("t0", threshold=1.0)
+    net.add_transition("t1", threshold=1.0)
     net.add_arc("p0", "t0", weight=1.0)
     net.add_arc("t0", "p1", weight=1.0)
     net.add_arc("p1", "t1", weight=1.0)
@@ -44,7 +53,7 @@ def minimal_petri_net():
 
 
 @pytest.fixture
-def reference_data_dir():
+def reference_data_dir() -> Path:
     """Path to validation reference data."""
     from pathlib import Path
 
@@ -52,7 +61,7 @@ def reference_data_dir():
 
 
 @pytest.fixture
-def weights_dir():
+def weights_dir() -> Path:
     """Path to pretrained weights."""
     from pathlib import Path
 
@@ -63,8 +72,8 @@ def weights_dir():
 
 
 @pytest.fixture
-def petri_net_std():
-    """Standard 8-place, 4-transition Petri net used by controller tests."""
+def petri_net_std() -> StochasticPetriNet:
+    """Build the standard 8-place, 4-transition Petri net used by controller tests."""
     from scpn_control.scpn.structure import StochasticPetriNet
 
     net = StochasticPetriNet()
@@ -88,7 +97,7 @@ def petri_net_std():
 
 
 @pytest.fixture
-def controller_artifact(tmp_path, petri_net_std):
+def controller_artifact(tmp_path: Path, petri_net_std: StochasticPetriNet) -> str:
     """Compile petri_net_std and save artifact, return path string."""
     from scpn_control.scpn.artifact import save_artifact
     from scpn_control.scpn.compiler import FusionCompiler
@@ -121,12 +130,11 @@ def controller_artifact(tmp_path, petri_net_std):
 
 
 @pytest.fixture
-def controller_instance(controller_artifact):
+def controller_instance(controller_artifact: str) -> NeuroSymbolicController:
     """Ready-to-use NeuroSymbolicController from shared artifact."""
     from scpn_control.scpn.artifact import load_artifact
+    from scpn_control.scpn.contracts import ControlScales, ControlTargets
     from scpn_control.scpn.controller import (
-        ControlScales,
-        ControlTargets,
         NeuroSymbolicController,
     )
 
@@ -140,3 +148,57 @@ def controller_instance(controller_artifact):
         sc_bitflip_rate=0.0,
         runtime_backend="numpy",
     )
+
+
+# Integrated transport solver fixtures
+
+MINIMAL_CONFIG = {
+    "reactor_name": "TransportSolver-Test",
+    "grid_resolution": [20, 20],
+    "dimensions": {"R_min": 4.0, "R_max": 8.0, "Z_min": -4.0, "Z_max": 4.0},
+    "physics": {"plasma_current_target": 15.0, "vacuum_permeability": 1.0},
+    "coils": [
+        {"name": "CS", "r": 1.7, "z": 0.0, "current": 0.15},
+    ],
+    "solver": {
+        "max_iterations": 10,
+        "convergence_threshold": 1e-4,
+        "relaxation_factor": 0.1,
+    },
+}
+
+
+@pytest.fixture
+def config_file(tmp_path: Path) -> Path:
+    """Write a minimal JSON config and return its path."""
+    cfg = tmp_path / "test_transport_config.json"
+    cfg.write_text(json.dumps(MINIMAL_CONFIG), encoding="utf-8")
+    return cfg
+
+
+@pytest.fixture
+def solver(config_file: Path) -> TransportSolver:
+    """Create a single-ion TransportSolver with physical initial profiles."""
+    ts = TransportSolver(str(config_file), multi_ion=False)
+    # Set physically meaningful initial profiles
+    ts.Ti = 5.0 * (1 - ts.rho**2)
+    ts.Te = 5.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+    ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+    ts.update_transport_model(50.0)
+    return ts
+
+
+@pytest.fixture
+def solver_multi(config_file: Path) -> TransportSolver:
+    """Create a multi-ion TransportSolver with D, T, He-ash species."""
+    ts = TransportSolver(str(config_file), multi_ion=True)
+    ts.Ti = 5.0 * (1 - ts.rho**2)
+    ts.Te = 5.0 * (1 - ts.rho**2)
+    ts.ne = 8.0 * (1 - ts.rho**2) ** 0.5
+    ts.n_D = 0.5 * ts.ne.copy()
+    ts.n_T = 0.5 * ts.ne.copy()
+    ts.n_He = np.zeros(ts.nr)
+    ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
+    ts.update_transport_model(50.0)
+    return ts

@@ -72,7 +72,7 @@ def test_cli_reports_the_live_inventory_count() -> None:
 def test_imported_cli_reports_live_inventory_count(capsys: pytest.CaptureFixture[str]) -> None:
     """The imported command surface returns a successful live verdict."""
     assert producer_audit.main([]) == 0
-    assert "64 producers classified" in capsys.readouterr().out
+    assert "68 producers classified" in capsys.readouterr().out
 
 
 def test_registry_fails_when_one_real_producer_is_unclassified(tmp_path: Path) -> None:
@@ -165,6 +165,7 @@ def test_registry_cli_reports_audit_error_and_findings(
     """The CLI converts parser/read failures and findings into nonzero verdicts."""
 
     def _raise(*_args: object, **_kwargs: object) -> list[str]:
+        """Retain the original CLI regression for a propagated filesystem inspection refusal."""
         raise OSError("unreadable")
 
     monkeypatch.setattr(producer_audit, "audit_registry", _raise)
@@ -174,3 +175,113 @@ def test_registry_cli_reports_audit_error_and_findings(
     monkeypatch.setattr(producer_audit, "audit_registry", lambda *_args, **_kwargs: ["finding"])
     assert producer_audit.main([]) == 1
     assert "finding" in capsys.readouterr().err
+
+
+@pytest.fixture
+def selected_repository(tmp_path: Path) -> Path:
+    """Build a real minimal filesystem/TOML corpus with a recorded Python producer."""
+    root = tmp_path / "selected"
+    (root / "benchmarks").mkdir(parents=True)
+    (root / "benchmarks/bench_example.py").write_text("require_recorded_campaign(output)\n", encoding="utf-8")
+    (root / "benchmarks/producer_registry.toml").write_text(
+        f'schema_version = "{producer_audit.SCHEMA}"\n'
+        'recorded_guard = ["benchmarks/bench_example.py"]\n'
+        "append_stream = []\ntemporary_scratch = []\nstdout_or_build_product = []\ncustody_infrastructure = []\n",
+        encoding="utf-8",
+    )
+    return root
+
+
+@pytest.mark.parametrize("exists", [False, True])
+def test_public_audit_refuses_uninspectable_repository(selected_repository: Path, exists: bool) -> None:
+    """Missing roots and regular files cannot produce an empty successful inventory."""
+    root = selected_repository / "not_a_repository"
+    if exists:
+        root.write_text("regular file", encoding="utf-8")
+    error = ValueError if exists else FileNotFoundError
+    with pytest.raises(error):
+        audit_registry(selected_repository / "benchmarks/producer_registry.toml", root)
+    assert producer_audit.main(["--repo", str(root)]) == 1
+
+
+def test_public_selected_repository_and_real_cold_cli(selected_repository: Path, tmp_path: Path) -> None:
+    """API and unrelated-cwd CLI select the actual corpus/default registry and classify one producer."""
+    registry = selected_repository / "benchmarks/producer_registry.toml"
+    assert audit_registry(registry, selected_repository) == []
+    for args in [
+        ["--repo", str(selected_repository)],
+        ["--repo", str(selected_repository), "--registry", str(registry)],
+    ]:
+        completed = subprocess.run(
+            [sys.executable, str(TOOL), *args], cwd=tmp_path, capture_output=True, text=True, check=False
+        )
+        assert completed.returncode == 0, completed.stderr
+        assert "1 producers classified" in completed.stdout
+
+
+def test_public_lexical_guard_limits_and_command_order(selected_repository: Path) -> None:
+    """Unreachable named calls remain lexical matches; direct documentation commands have stable ordering."""
+    source = selected_repository / "benchmarks/bench_example.py"
+    source.write_text("if False:\n    guard.require_recorded_campaign(output)\n", encoding="utf-8")
+    assert audit_registry(selected_repository / "benchmarks/producer_registry.toml", selected_repository) == []
+    docs = selected_repository / "docs"
+    docs.mkdir()
+    (docs / "z.md").write_text("python benchmarks/bench_example.py\n", encoding="utf-8")
+    (docs / "a.md").write_text("python benchmarks/bench_example.py\n", encoding="utf-8")
+    (docs / "internal").mkdir()
+    (docs / "internal/private.md").write_text("python benchmarks/bench_example.py\n", encoding="utf-8")
+    (docs / "changelog.md").write_text("python benchmarks/bench_example.py\n", encoding="utf-8")
+    (selected_repository / "README.md").write_text(
+        "python tools/run_recorded_benchmark.py -- python benchmarks/bench_example.py\n", encoding="utf-8"
+    )
+    findings = audit_registry(selected_repository / "benchmarks/producer_registry.toml", selected_repository)
+    assert findings == [
+        "public benchmark command bypasses recorded runner: docs/a.md:1: benchmarks/bench_example.py",
+        "public benchmark command bypasses recorded runner: docs/z.md:1: benchmarks/bench_example.py",
+    ]
+    assert producer_audit.main(["--repo", str(selected_repository)]) == 1
+
+
+@pytest.mark.parametrize("fault", ["syntax", "source_utf8", "toml", "registry_utf8", "missing_registry"])
+def test_real_cli_inspection_failures(
+    selected_repository: Path, fault: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Actual invalid source/registry bytes fail with authored diagnostics, preserving selected files."""
+    registry = selected_repository / "benchmarks/producer_registry.toml"
+    source = selected_repository / "benchmarks/bench_example.py"
+    if fault == "syntax":
+        source.write_text("require_recorded_campaign(\n", encoding="utf-8")
+    elif fault == "source_utf8":
+        source.write_bytes(b"\xff")
+    elif fault == "toml":
+        registry.write_text("schema_version = [\n", encoding="utf-8")
+    elif fault == "registry_utf8":
+        registry.write_bytes(b"\xff")
+    else:
+        registry.unlink()
+    original = source.read_bytes()
+    assert producer_audit.main(["--repo", str(selected_repository)]) == 1
+    captured = capsys.readouterr()
+    assert "benchmark producer registry FAILED:" in captured.err
+    assert "Traceback" not in captured.err
+    assert source.read_bytes() == original
+
+
+def test_nondiscovered_registered_paths_are_not_read(selected_repository: Path) -> None:
+    """An unexpected file outside discovery remains an inventory finding without decoding its bytes."""
+    registry = selected_repository / "benchmarks/producer_registry.toml"
+    registry.write_text(
+        registry.read_text().replace("stdout_or_build_product = []", 'stdout_or_build_product = ["other.py"]')
+    )
+    (selected_repository / "other.py").write_bytes(b"\xff")
+    assert audit_registry(registry, selected_repository) == [
+        "registry path is not a discovered benchmark producer: other.py"
+    ]
+
+
+def test_public_parser_help_and_usage() -> None:
+    """The real CLI parser retains its documented zero/help and two/usage exits."""
+    for args, code in [(["--help"], 0), (["--unknown"], 2)]:
+        with pytest.raises(SystemExit) as failure:
+            producer_audit.main(args)
+        assert failure.value.code == code

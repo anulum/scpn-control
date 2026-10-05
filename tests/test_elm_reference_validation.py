@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — ELM reference validation tests
 
+"""Preserve nine original ELM public regression assertions and fixture values."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_elm_reference import canonical_artifact_sha256, validat
 
 
 def _valid_elm_reference_artifact() -> dict[str, object]:
+    """Supply original ELM engineering metadata without claiming measured artifact bytes."""
     payload: dict[str, object] = {
         "schema_version": "scpn-control.elm-reference.v1",
         "source": "measured_hmode_campaign",
@@ -66,6 +69,7 @@ def _valid_elm_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_elm_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     report = validate_elm_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -74,6 +78,7 @@ def test_strict_elm_gate_requires_reference_artifacts(tmp_path: Path) -> None:
 
 
 def test_elm_gate_accepts_measured_hmode_campaign(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     artifact = tmp_path / "diiid_elm_reference.json"
     artifact.write_text(json.dumps(_valid_elm_reference_artifact()), encoding="utf-8")
 
@@ -85,6 +90,7 @@ def test_elm_gate_accepts_measured_hmode_campaign(tmp_path: Path) -> None:
 
 
 def test_elm_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     payload["source"] = "documented_public_reference"
     payload.pop("machine")
@@ -101,6 +107,7 @@ def test_elm_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
 
 
 def test_elm_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     payload["source"] = "synthetic"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -114,6 +121,7 @@ def test_elm_gate_rejects_synthetic_source(tmp_path: Path) -> None:
 
 
 def test_elm_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     payload.pop("shot_id")
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -127,6 +135,7 @@ def test_elm_gate_rejects_missing_measured_campaign_identity(tmp_path: Path) -> 
 
 
 def test_elm_gate_rejects_energy_fraction_outside_type_i_bounds(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     payload["elm_energy_fraction_range"] = [0.01, 0.20]
     payload["payload_sha256"] = canonical_artifact_sha256(payload)
@@ -140,6 +149,7 @@ def test_elm_gate_rejects_energy_fraction_outside_type_i_bounds(tmp_path: Path) 
 
 
 def test_elm_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["elm_frequency_relative_error"] = 0.2
@@ -154,6 +164,7 @@ def test_elm_gate_rejects_metric_outside_tolerance(tmp_path: Path) -> None:
 
 
 def test_elm_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["peak_heat_flux_relative_error"] = 0.05
@@ -167,6 +178,7 @@ def test_elm_gate_rejects_tampered_payload_digest(tmp_path: Path) -> None:
 
 
 def test_elm_gate_rejects_traversing_artifact_uri(tmp_path: Path) -> None:
+    """Exercise the original public ELM declaration acceptance or refusal regression."""
     payload = _valid_elm_reference_artifact()
     payload["event_catalog_uri"] = "../event_catalog.json"
     payload["payload_sha256"] = canonical_artifact_sha256(payload)

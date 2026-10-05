@@ -246,7 +246,7 @@ def test_joss_paper_coverage_gate_claim_matches_configuration() -> None:
     gate = _coverage_gate()
     prose = _normalized_prose(JOSS_MANUSCRIPT)
 
-    assert f"{gate}% local package-coverage gate" in prose
+    assert f"{gate}% package-coverage threshold in the project and CI configuration" in prose
     assert f"{gate}% package-coverage gate" in prose
     for stale in ("99% local", "99% package-coverage gate"):
         assert stale not in prose, f"canonical JOSS manuscript contains stale {stale!r}"

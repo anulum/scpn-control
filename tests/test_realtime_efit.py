@@ -9,14 +9,19 @@
 # ──────────────────────────────────────────────────────────────────────
 # SCPN Control — Real-Time EFIT Tests
 # ──────────────────────────────────────────────────────────────────────
+"""Real EFIT diagnostic, inverse, admission, and solver regression tests."""
+
 from __future__ import annotations
 
 import json
 from dataclasses import replace
+from pathlib import Path
+from typing import cast
 
 import numpy as np
 import pytest
 
+from scpn_control._typing import AnyFloatArray
 from scpn_control.control.realtime_efit import (
     MU0,
     EFITLiteClaimEvidence,
@@ -31,11 +36,13 @@ from scpn_control.control.realtime_efit import (
     efit_lite_claim_evidence,
     save_efit_lite_claim_evidence,
 )
+from scpn_control.core.fusion_kernel import CoilSet
 
 
 def create_mock_diagnostics() -> MagneticDiagnostics:
     # Sensor locations sit inside the reconstruction grids used below
     # (R in [4.2, 8.2], Z in [-3, 3]) so the real inverse can sample them.
+    """Build sensor positions inside the reconstruction grids."""
     flux_loops = [(5.0, 1.0), (6.2, 1.5), (7.4, 1.0)]
     b_probes = [(5.0, 1.0, "R"), (5.0, 1.0, "Z"), (7.4, 1.0, "R")]
     return MagneticDiagnostics(flux_loops, b_probes, rogowski_radius=6.2)
@@ -45,7 +52,7 @@ def _closure_case(
     efit: RealtimeEFIT,
     p_true: tuple[float, ...] = (2.0, -1.5, 0.4),
     ff_true: tuple[float, ...] = (1.0, -0.6, 0.1),
-) -> tuple[dict[str, np.ndarray], np.ndarray, float]:
+) -> tuple[dict[str, float | AnyFloatArray], AnyFloatArray, float]:
     """Self-consistent diagnostics from a known equilibrium for closure-style tests.
 
     Returns the synthetic ``measurements`` dict, the ground-truth flux map, and the
@@ -58,6 +65,7 @@ def _closure_case(
 
 
 def _solovev_efit_and_result() -> tuple[RealtimeEFIT, ReconstructionResult]:
+    """Check  solovev efit and result."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
@@ -67,7 +75,8 @@ def _solovev_efit_and_result() -> tuple[RealtimeEFIT, ReconstructionResult]:
     return efit, res
 
 
-def test_simulate_measurements():
+def test_simulate_measurements() -> None:
+    """Check simulate measurements."""
     diag = create_mock_diagnostics()
     R = np.linspace(2.0, 10.0, 30)
     Z = np.linspace(-6.0, 6.0, 30)
@@ -81,12 +90,13 @@ def test_simulate_measurements():
     coils = np.zeros(5)
     meas = efit.response.simulate_measurements(psi, coils)
 
-    assert len(meas["flux_loops"]) == len(diag.flux_loops)
-    assert len(meas["b_probes"]) == len(diag.b_probes)
+    assert len(np.asarray(meas["flux_loops"])) == len(diag.flux_loops)
+    assert len(np.asarray(meas["b_probes"])) == len(diag.b_probes)
     assert "Ip" in meas
 
 
-def test_simulate_measurements_derives_rogowski_current_from_flux_source():
+def test_simulate_measurements_derives_rogowski_current_from_flux_source() -> None:
+    """Check simulate measurements derives rogowski current from flux source."""
     R = np.linspace(2.0, 4.0, 81)
     Z = np.linspace(-1.0, 1.0, 81)
     diag = MagneticDiagnostics(
@@ -108,7 +118,8 @@ def test_simulate_measurements_derives_rogowski_current_from_flux_source():
     assert not np.isclose(meas["Ip"], 15.0e6)
 
 
-def test_reconstruction_solovev():
+def test_reconstruction_solovev() -> None:
+    """Check reconstruction solovev."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
@@ -135,7 +146,8 @@ def test_reconstruction_solovev():
     assert res.n_iterations > 0
 
 
-def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path):
+def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path: Path) -> None:
+    """Check efit lite claim evidence records synthetic boundary."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
@@ -162,11 +174,12 @@ def test_efit_lite_claim_evidence_records_synthetic_boundary(tmp_path):
     assert evidence.psi_relative_error is None
     assert evidence.facility_claim_allowed is False
     assert evidence.claim_status.startswith("bounded synthetic EFIT-lite regression evidence")
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     assert payload["facility_claim_allowed"] is False
 
 
-def test_efit_lite_facility_admission_requires_matched_reference():
+def test_efit_lite_facility_admission_requires_matched_reference() -> None:
+    """Confirm result-derived references cannot establish facility provenance."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
@@ -218,8 +231,10 @@ def test_efit_lite_facility_admission_requires_matched_reference():
         q95_abs_tolerance=0.1,
     )
 
-    assert assert_efit_lite_facility_claim_admissible(admitted) == admitted
-    assert admitted.facility_claim_allowed is True
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_efit_lite_facility_claim_admissible(admitted)
+    assert admitted.facility_claim_allowed is False
+    assert "unverified" in admitted.claim_status
     assert admitted.psi_relative_error == pytest.approx(0.0)
     assert admitted.ip_relative_error == pytest.approx(0.0)
     assert rejected.facility_claim_allowed is False
@@ -227,7 +242,8 @@ def test_efit_lite_facility_admission_requires_matched_reference():
         assert_efit_lite_facility_claim_admissible(rejected)
 
 
-def test_efit_lite_claim_evidence_rejects_invalid_reference_inputs():
+def test_efit_lite_claim_evidence_rejects_invalid_reference_inputs() -> None:
+    """Check efit lite claim evidence rejects invalid reference inputs."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 17)
     Z = np.linspace(-3.0, 3.0, 17)
@@ -257,7 +273,8 @@ def test_efit_lite_claim_evidence_rejects_invalid_reference_inputs():
         )
 
 
-def test_gs_solver_satisfies_constant_source_residual():
+def test_gs_solver_satisfies_constant_source_residual() -> None:
+    """Check gs solver satisfies constant source residual."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 41)
     Z = np.linspace(-3.0, 3.0, 41)
@@ -284,22 +301,23 @@ def test_gs_solver_satisfies_constant_source_residual():
     assert np.allclose(psi[:, [0, -1]], 0.0)
 
 
-def test_xpoint_detection():
+def test_xpoint_detection() -> None:
+    """Check xpoint detection."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)
 
     efit = RealtimeEFIT(diag, R, Z)
 
-    # Just need an arbitrary psi
+    # A zero field has no saddle point.
     psi = np.zeros((33, 33))
     xp = efit.find_xpoint(psi)
 
-    assert xp is not None
-    assert xp[0] > 0.0
+    assert xp is None
 
 
-def test_find_lcfs_extracts_elliptical_boundary():
+def test_find_lcfs_extracts_elliptical_boundary() -> None:
+    """Check find lcfs extracts elliptical boundary."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 81)
     Z = np.linspace(-3.0, 3.0, 81)
@@ -324,17 +342,20 @@ def test_find_lcfs_extracts_elliptical_boundary():
 # ── Trapezoidal integration helper ───────────────────────────────────
 
 
-def test_trapezoid_integral_rejects_non_one_dimensional_grid():
+def test_trapezoid_integral_rejects_non_one_dimensional_grid() -> None:
+    """Check trapezoid integral rejects non one dimensional grid."""
     with pytest.raises(ValueError, match="grid must be one-dimensional"):
         _trapezoid_integral(np.ones(3), np.ones((2, 2)))
 
 
-def test_trapezoid_integral_rejects_length_mismatch():
+def test_trapezoid_integral_rejects_length_mismatch() -> None:
+    """Check trapezoid integral rejects length mismatch."""
     with pytest.raises(ValueError, match="values and grid lengths must match"):
         _trapezoid_integral(np.ones(3), np.array([0.0, 1.0]))
 
 
-def test_trapezoid_integral_returns_zero_for_degenerate_grid():
+def test_trapezoid_integral_returns_zero_for_degenerate_grid() -> None:
+    """Check trapezoid integral returns zero for degenerate grid."""
     result = _trapezoid_integral(np.ones(1), np.array([0.0]))
     assert result.shape == ()
     assert float(result) == 0.0
@@ -343,7 +364,8 @@ def test_trapezoid_integral_returns_zero_for_degenerate_grid():
 # ── Numeric / array validation helpers ───────────────────────────────
 
 
-def test_finite_float_rejects_non_finite_and_sign_violations():
+def test_finite_float_rejects_non_finite_and_sign_violations() -> None:
+    """Check finite float rejects non finite and sign violations."""
     with pytest.raises(ValueError, match="must be finite"):
         _finite_float("x", float("inf"))
     with pytest.raises(ValueError, match="must be positive"):
@@ -352,7 +374,8 @@ def test_finite_float_rejects_non_finite_and_sign_violations():
         _finite_float("x", -1.0, nonnegative=True)
 
 
-def test_relative_array_error_rejects_non_finite_reference():
+def test_relative_array_error_rejects_non_finite_reference() -> None:
+    """Check relative array error rejects non finite reference."""
     with pytest.raises(ValueError, match="reference must be finite"):
         _relative_array_error("psi", np.ones((2, 2)), np.array([[1.0, np.inf], [1.0, 1.0]]))
 
@@ -360,7 +383,8 @@ def test_relative_array_error_rejects_non_finite_reference():
 # ── Claim-evidence builder guards ────────────────────────────────────
 
 
-def test_claim_evidence_rejects_blank_model_id():
+def test_claim_evidence_rejects_blank_model_id() -> None:
+    """Check claim evidence rejects blank model id."""
     efit, res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="model_id must be a non-empty string"):
         efit_lite_claim_evidence(
@@ -373,7 +397,8 @@ def test_claim_evidence_rejects_blank_model_id():
         )
 
 
-def test_claim_evidence_rejects_non_two_dimensional_psi():
+def test_claim_evidence_rejects_non_two_dimensional_psi() -> None:
+    """Check claim evidence rejects non two dimensional psi."""
     efit, res = _solovev_efit_and_result()
     tampered = replace(res, psi=np.ones((2, 2)))
     with pytest.raises(ValueError, match="two-dimensional grid with both dimensions"):
@@ -386,7 +411,8 @@ def test_claim_evidence_rejects_non_two_dimensional_psi():
         )
 
 
-def test_claim_evidence_rejects_non_finite_psi():
+def test_claim_evidence_rejects_non_finite_psi() -> None:
+    """Check claim evidence rejects non finite psi."""
     efit, res = _solovev_efit_and_result()
     psi = res.psi.copy()
     psi[0, 0] = np.nan
@@ -401,7 +427,8 @@ def test_claim_evidence_rejects_non_finite_psi():
         )
 
 
-def test_claim_evidence_rejects_non_positive_iteration_count():
+def test_claim_evidence_rejects_non_positive_iteration_count() -> None:
+    """Check claim evidence rejects non positive iteration count."""
     efit, res = _solovev_efit_and_result()
     tampered = replace(res, n_iterations=0)
     with pytest.raises(ValueError, match="n_iterations must be positive"):
@@ -414,7 +441,8 @@ def test_claim_evidence_rejects_non_positive_iteration_count():
         )
 
 
-def test_claim_evidence_flags_external_source_without_complete_comparison():
+def test_claim_evidence_flags_external_source_without_complete_comparison() -> None:
+    """Check claim evidence flags external source without complete comparison."""
     efit, res = _solovev_efit_and_result()
     evidence = efit_lite_claim_evidence(
         res,
@@ -427,12 +455,14 @@ def test_claim_evidence_flags_external_source_without_complete_comparison():
     assert "comparison is missing" in evidence.claim_status
 
 
-def test_facility_admission_rejects_non_evidence_object():
+def test_facility_admission_rejects_non_evidence_object() -> None:
+    """Check facility admission rejects non evidence object."""
     with pytest.raises(ValueError, match="must be EFITLiteClaimEvidence"):
-        assert_efit_lite_facility_claim_admissible({"not": "evidence"})
+        assert_efit_lite_facility_claim_admissible(cast(EFITLiteClaimEvidence, {"not": "evidence"}))
 
 
-def test_facility_admission_rejects_unsupported_schema_version():
+def test_facility_admission_rejects_unsupported_schema_version() -> None:
+    """Check facility admission rejects unsupported schema version."""
     efit, res = _solovev_efit_and_result()
     evidence = efit_lite_claim_evidence(
         res,
@@ -449,13 +479,15 @@ def test_facility_admission_rejects_unsupported_schema_version():
 # ── DiagnosticResponse guards ────────────────────────────────────────
 
 
-def test_simulate_measurements_rejects_psi_shape_mismatch():
+def test_simulate_measurements_rejects_psi_shape_mismatch() -> None:
+    """Check simulate measurements rejects psi shape mismatch."""
     efit, _res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="psi shape must match the diagnostic R/Z grid"):
         efit.response.simulate_measurements(np.ones((3, 3)), np.zeros(5))
 
 
-def test_simulate_measurements_rejects_non_finite_psi():
+def test_simulate_measurements_rejects_non_finite_psi() -> None:
+    """Check simulate measurements rejects non finite psi."""
     efit, _res = _solovev_efit_and_result()
     psi = np.zeros((efit.nR, efit.nZ))
     psi[0, 0] = np.inf
@@ -466,44 +498,50 @@ def test_simulate_measurements_rejects_non_finite_psi():
 # ── Grad-Shafranov solver guards ─────────────────────────────────────
 
 
-def test_gs_solver_rejects_non_one_dimensional_coefficients():
+def test_gs_solver_rejects_non_one_dimensional_coefficients() -> None:
+    """Check gs solver rejects non one dimensional coefficients."""
     efit, _res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="source coefficients must be one-dimensional"):
         efit._solve_gs_with_sources(np.ones((2, 2)), np.ones(1))
 
 
-def test_gs_solver_rejects_empty_coefficients():
+def test_gs_solver_rejects_empty_coefficients() -> None:
+    """Check gs solver rejects empty coefficients."""
     efit, _res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="source coefficient arrays must be non-empty"):
         efit._solve_gs_with_sources(np.array([]), np.array([1.0]))
 
 
-def test_gs_solver_rejects_non_finite_coefficients():
+def test_gs_solver_rejects_non_finite_coefficients() -> None:
+    """Check gs solver rejects non finite coefficients."""
     efit, _res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="source coefficients must be finite"):
         efit._solve_gs_with_sources(np.array([np.nan]), np.array([1.0]))
 
 
-def test_gs_solver_rejects_too_few_grid_points():
+def test_gs_solver_rejects_too_few_grid_points() -> None:
+    """Check gs solver rejects too few grid points."""
     diag = create_mock_diagnostics()
     efit = RealtimeEFIT(diag, np.linspace(2.0, 4.0, 2), np.linspace(-1.0, 1.0, 5))
     with pytest.raises(ValueError, match="at least three R and Z points"):
         efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
 
 
-def test_gs_solver_rejects_non_uniform_spacing():
+def test_gs_solver_rejects_non_uniform_spacing() -> None:
+    """Check gs solver rejects non uniform spacing."""
     diag = create_mock_diagnostics()
     efit = RealtimeEFIT(diag, np.array([2.0, 2.5, 5.0]), np.linspace(-1.0, 1.0, 3))
     with pytest.raises(ValueError, match="uniform R/Z spacing"):
         efit._solve_gs_with_sources(np.array([1.0]), np.array([1.0]))
 
 
-def test_gs_solver_raises_when_solve_produces_non_finite_flux():
+def test_gs_solver_raises_when_solve_produces_non_finite_flux() -> None:
+    """Check gs solver raises when solve produces non finite flux."""
     diag = create_mock_diagnostics()
     efit = RealtimeEFIT(diag, np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
 
     class _NanLU:
-        def solve(self, rhs: np.ndarray) -> np.ndarray:
+        def solve(self, rhs: AnyFloatArray) -> AnyFloatArray:
             return np.full_like(np.asarray(rhs, dtype=float), np.nan)
 
     # Inject a factorisation that returns a non-finite interior solution.
@@ -516,13 +554,15 @@ def test_gs_solver_raises_when_solve_produces_non_finite_flux():
 # ── LCFS tracing guards ──────────────────────────────────────────────
 
 
-def test_find_lcfs_rejects_psi_shape_mismatch():
+def test_find_lcfs_rejects_psi_shape_mismatch() -> None:
+    """Check find lcfs rejects psi shape mismatch."""
     efit, _res = _solovev_efit_and_result()
     with pytest.raises(ValueError, match="psi shape must match the EFIT R/Z grid"):
         efit.find_lcfs(np.ones((3, 3)))
 
 
-def test_find_lcfs_rejects_non_finite_psi():
+def test_find_lcfs_rejects_non_finite_psi() -> None:
+    """Check find lcfs rejects non finite psi."""
     efit, _res = _solovev_efit_and_result()
     psi = np.zeros((efit.nR, efit.nZ))
     psi[0, 0] = np.nan
@@ -530,7 +570,8 @@ def test_find_lcfs_rejects_non_finite_psi():
         efit.find_lcfs(psi)
 
 
-def test_find_lcfs_returns_empty_for_non_positive_flux():
+def test_find_lcfs_returns_empty_for_non_positive_flux() -> None:
+    """Check find lcfs returns empty for non positive flux."""
     efit, _res = _solovev_efit_and_result()
     lcfs = efit.find_lcfs(np.zeros((efit.nR, efit.nZ)))
     assert lcfs.shape == (0, 2)
@@ -540,10 +581,12 @@ def test_find_lcfs_returns_empty_for_non_positive_flux():
 
 
 def _efit_33() -> RealtimeEFIT:
+    """Check  efit 33."""
     return RealtimeEFIT(create_mock_diagnostics(), np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
 
 
-def test_reconstruct_psi_n_closure_recovers_flux_and_iterates():
+def test_reconstruct_psi_n_closure_recovers_flux_and_iterates() -> None:
+    """Check reconstruct psi n closure recovers flux and iterates."""
     efit = _efit_33()
     p_true = np.array([2.0, -1.5, 0.4])
     ff_true = np.array([1.0, -0.6, 0.1])
@@ -563,20 +606,24 @@ def test_reconstruct_psi_n_closure_recovers_flux_and_iterates():
     assert res.n_iterations > 1  # the Picard loop actually iterated
 
 
-def test_reconstruct_recovers_ip_under_measurement_noise():
+def test_reconstruct_recovers_ip_under_measurement_noise() -> None:
+    """Check reconstruct recovers ip under measurement noise."""
     efit = _efit_33()
     meas, _psi_true, ip_true = _closure_case(efit)
     rng = np.random.default_rng(0)
-    noisy = {
-        "flux_loops": meas["flux_loops"] * (1.0 + 0.01 * rng.standard_normal(meas["flux_loops"].shape)),
-        "b_probes": meas["b_probes"] * (1.0 + 0.01 * rng.standard_normal(meas["b_probes"].shape)),
+    flux = np.asarray(meas["flux_loops"], dtype=float)
+    probes = np.asarray(meas["b_probes"], dtype=float)
+    noisy: dict[str, float | AnyFloatArray] = {
+        "flux_loops": flux * (1.0 + 0.01 * rng.standard_normal(flux.shape)),
+        "b_probes": probes * (1.0 + 0.01 * rng.standard_normal(probes.shape)),
         "Ip": float(meas["Ip"]) * (1.0 + 0.01 * float(rng.standard_normal())),
     }
     res = efit.reconstruct(noisy, mode="geometric")
     assert res.shape.Ip_reconstructed == pytest.approx(ip_true, rel=0.05)
 
 
-def test_reconstruct_regularisation_shrinks_coefficients():
+def test_reconstruct_regularisation_shrinks_coefficients() -> None:
+    """Check reconstruct regularisation shrinks coefficients."""
     efit = _efit_33()
     meas, _psi_true, _ip_true = _closure_case(efit)
     weak = efit.reconstruct(meas, mode="geometric", regularization=1.0e-12)
@@ -586,28 +633,32 @@ def test_reconstruct_regularisation_shrinks_coefficients():
     assert strong_norm <= weak_norm + 1.0e-9
 
 
-def test_reconstruct_rejects_invalid_mode():
+def test_reconstruct_rejects_invalid_mode() -> None:
+    """Check reconstruct rejects invalid mode."""
     efit = _efit_33()
     meas, _psi_true, _ip_true = _closure_case(efit)
     with pytest.raises(ValueError, match="mode must be"):
         efit.reconstruct(meas, mode="bad")
 
 
-def test_reconstruct_rejects_nonpositive_max_iter():
+def test_reconstruct_rejects_nonpositive_max_iter() -> None:
+    """Check reconstruct rejects nonpositive max iter."""
     efit = _efit_33()
     meas, _psi_true, _ip_true = _closure_case(efit)
     with pytest.raises(ValueError, match="max_iter"):
         efit.reconstruct(meas, max_iter=0)
 
 
-def test_measurement_vector_pads_empty_groups():
+def test_measurement_vector_pads_empty_groups() -> None:
+    """Check measurement vector pads empty groups."""
     efit = _efit_33()
-    d = efit._measurement_vector({"flux_loops": [], "b_probes": [], "Ip": 1.0e6})
+    d = efit._measurement_vector({"flux_loops": np.array([]), "b_probes": np.array([]), "Ip": 1.0e6})
     assert d.shape[0] == len(efit.diagnostics.flux_loops) + len(efit.diagnostics.b_probes) + 1
     assert d[-1] == 1.0e6
 
 
-def test_measurement_vector_rejects_wrong_length():
+def test_measurement_vector_rejects_wrong_length() -> None:
+    """Check measurement vector rejects wrong length."""
     efit = _efit_33()
     with pytest.raises(ValueError, match="flux_loops measurement length"):
         efit._measurement_vector({"flux_loops": np.zeros(99)})
@@ -615,13 +666,15 @@ def test_measurement_vector_rejects_wrong_length():
         efit._measurement_vector({"b_probes": np.zeros(99)})
 
 
-def test_solve_source_rejects_shape_mismatch():
+def test_solve_source_rejects_shape_mismatch() -> None:
+    """Check solve source rejects shape mismatch."""
     efit = _efit_33()
     with pytest.raises(ValueError, match="source shape"):
         efit._solve_source(np.zeros((2, 2)))
 
 
-def test_gs_factorization_rejects_bad_grid():
+def test_gs_factorization_rejects_bad_grid() -> None:
+    """Check gs factorization rejects bad grid."""
     diag = create_mock_diagnostics()
     with pytest.raises(ValueError, match="three R and Z"):
         RealtimeEFIT(diag, np.array([1.0, 2.0]), np.linspace(-1.0, 1.0, 3))._gs_factorization()
@@ -629,7 +682,8 @@ def test_gs_factorization_rejects_bad_grid():
         RealtimeEFIT(diag, np.array([1.0, 2.0, 4.0]), np.linspace(-1.0, 1.0, 3))._gs_factorization()
 
 
-def test_diagnostic_weights_handles_missing_probe_group():
+def test_diagnostic_weights_handles_missing_probe_group() -> None:
+    """Check diagnostic weights handles missing probe group."""
     diag = MagneticDiagnostics([(6.0, 0.0), (6.0, 1.0)], [], rogowski_radius=6.0)
     efit = RealtimeEFIT(diag, np.linspace(4.2, 8.2, 33), np.linspace(-3.0, 3.0, 33))
     weights = efit._diagnostic_weights(np.array([0.1, 0.2, 1.0e6]), 2.0e-2)
@@ -646,7 +700,9 @@ def _free_boundary_efit() -> RealtimeEFIT:
     return RealtimeEFIT(diagnostics, np.linspace(4.2, 8.2, 49), np.linspace(-3.0, 3.0, 49), vacuum_rb_phi=33.0)
 
 
-def _free_boundary_closure(efit):
+def _free_boundary_closure(
+    efit: RealtimeEFIT,
+) -> tuple[CoilSet, AnyFloatArray, AnyFloatArray, dict[str, float | AnyFloatArray]]:
     """Build a true free-boundary equilibrium (plasma + coils) and its diagnostics."""
     from scpn_control.core.fusion_kernel import CoilSet
 
@@ -657,13 +713,16 @@ def _free_boundary_closure(efit):
     rho = efit._geometric_rho()[0]
     basis = [efit._solve_source_freespace(s) for s in efit._basis_sources(rho)]
     coil_cols = efit._coil_flux_columns(coils)
-    psi_true = np.tensordot(np.concatenate([p_true, ff_true]), np.asarray(basis), axes=(0, 0))
-    psi_true = psi_true + np.tensordot(i_true, np.asarray(coil_cols), axes=(0, 0))
+    psi_true: AnyFloatArray = np.asarray(
+        np.tensordot(np.concatenate([p_true, ff_true]), np.asarray(basis), axes=(0, 0)), dtype=float
+    )
+    psi_true = np.asarray(psi_true + np.tensordot(i_true, np.asarray(coil_cols), axes=(0, 0)), dtype=float)
     measurements = efit.response.simulate_measurements(psi_true, i_true)
     return coils, psi_true, i_true, measurements
 
 
-def test_free_boundary_closure_recovers_coil_currents_and_flux():
+def test_free_boundary_closure_recovers_coil_currents_and_flux() -> None:
+    """Check free boundary closure recovers coil currents and flux."""
     efit = _free_boundary_efit()
     coils, psi_true, i_true, measurements = _free_boundary_closure(efit)
     res = efit.reconstruct(measurements, coils=coils, mode="geometric")
@@ -674,11 +733,12 @@ def test_free_boundary_closure_recovers_coil_currents_and_flux():
     assert res.chi_squared < 1.0e-6
 
 
-def test_free_boundary_picard_mode_runs_and_fits_diagnostics():
+def test_free_boundary_picard_mode_runs_and_fits_diagnostics() -> None:
     # The truth uses the geometric-rho basis, so the psi_N Picard basis cannot
     # recover it exactly (as in the fixed-boundary case); this exercises the
     # free-boundary Picard path and checks it iterates to a finite, coil-augmented
     # fit.
+    """Check free boundary picard mode runs and fits diagnostics."""
     efit = _free_boundary_efit()
     coils, _psi_true, _i_true, measurements = _free_boundary_closure(efit)
     res = efit.reconstruct(measurements, coils=coils, mode="psi_n", max_iter=10)
@@ -689,14 +749,16 @@ def test_free_boundary_picard_mode_runs_and_fits_diagnostics():
     assert np.all(np.isfinite(res.psi))
 
 
-def test_fixed_boundary_reconstruct_has_no_coil_currents():
+def test_fixed_boundary_reconstruct_has_no_coil_currents() -> None:
+    """Check fixed boundary reconstruct has no coil currents."""
     efit = _efit_33()
     meas, _psi_true, _ip_true = _closure_case(efit)
     res = efit.reconstruct(meas, mode="geometric")
     assert res.coil_currents is None
 
 
-def test_coil_flux_columns_default_turns_when_unset():
+def test_coil_flux_columns_default_turns_when_unset() -> None:
+    """Check coil flux columns default turns when unset."""
     from scpn_control.core.fusion_kernel import CoilSet
 
     efit = _free_boundary_efit()
@@ -706,7 +768,8 @@ def test_coil_flux_columns_default_turns_when_unset():
     assert all(c.shape == (efit.nR, efit.nZ) for c in columns)
 
 
-def test_coil_flux_columns_rejects_turns_length_mismatch():
+def test_coil_flux_columns_rejects_turns_length_mismatch() -> None:
+    """Check coil flux columns rejects turns length mismatch."""
     from scpn_control.core.fusion_kernel import CoilSet
 
     efit = _free_boundary_efit()
@@ -715,7 +778,8 @@ def test_coil_flux_columns_rejects_turns_length_mismatch():
         efit._coil_flux_columns(coils)
 
 
-def test_solve_source_with_bc_zero_matches_fixed_boundary():
+def test_solve_source_with_bc_zero_matches_fixed_boundary() -> None:
+    """Check solve source with bc zero matches fixed boundary."""
     efit = _efit_33()
     source = efit._basis_sources(efit._geometric_rho()[0])[0]
     psi_fixed = efit._solve_source(source)
@@ -723,23 +787,26 @@ def test_solve_source_with_bc_zero_matches_fixed_boundary():
     assert np.allclose(psi_fixed, psi_bc, atol=1e-12)
 
 
-def test_solve_source_with_bc_rejects_bad_shape():
+def test_solve_source_with_bc_rejects_bad_shape() -> None:
+    """Check solve source with bc rejects bad shape."""
     efit = _efit_33()
     with pytest.raises(ValueError, match="shapes must match"):
         efit._solve_source_with_bc(np.zeros((3, 3)), np.zeros((efit.nR, efit.nZ)))
 
 
-def test_solve_source_freespace_rejects_bad_shape():
+def test_solve_source_freespace_rejects_bad_shape() -> None:
+    """Check solve source freespace rejects bad shape."""
     efit = _free_boundary_efit()
     with pytest.raises(ValueError, match="source shape"):
         efit._solve_source_freespace(np.zeros((4, 4)))
 
 
-def test_solve_source_with_bc_raises_on_non_finite_solution():
+def test_solve_source_with_bc_raises_on_non_finite_solution() -> None:
+    """Check solve source with bc raises on non finite solution."""
     efit = _efit_33()
 
     class _NanLU:
-        def solve(self, rhs: np.ndarray) -> np.ndarray:
+        def solve(self, rhs: AnyFloatArray) -> AnyFloatArray:
             return np.full_like(np.asarray(rhs, dtype=float), np.nan)
 
     efit._gs_lu = _NanLU()
@@ -748,7 +815,8 @@ def test_solve_source_with_bc_raises_on_non_finite_solution():
         efit._solve_source_with_bc(np.zeros((efit.nR, efit.nZ)), np.zeros((efit.nR, efit.nZ)))
 
 
-def test_freespace_operator_rejects_nonuniform_grid():
+def test_freespace_operator_rejects_nonuniform_grid() -> None:
+    """Check freespace operator rejects nonuniform grid."""
     diagnostics = create_mock_diagnostics()
     r_nonuniform = np.array([4.2, 4.5, 5.5, 7.0, 8.2])
     efit = RealtimeEFIT(diagnostics, r_nonuniform, np.linspace(-3.0, 3.0, 33))
@@ -756,9 +824,8 @@ def test_freespace_operator_rejects_nonuniform_grid():
         efit._freespace_boundary_operator()
 
 
-def test_reconstruct_unregularised_single_iteration_exits_on_max_iter():
-    """An unregularised, non-converging single-iteration psi_n fit exercises the direct-lstsq path
-    and the Picard-loop max-iteration exit (branches 708->712, 782->812)."""
+def test_reconstruct_unregularised_single_iteration_exits_on_max_iter() -> None:
+    """Exercise a one-step Picard limit with the direct least-squares path."""
     diag = create_mock_diagnostics()
     R = np.linspace(4.2, 8.2, 33)
     Z = np.linspace(-3.0, 3.0, 33)

@@ -18,9 +18,11 @@ test-all: test test-rust
 
 lint:
 	ruff check src/scpn_control/
+	ruff check --extend-ignore D tests/ tools/ validation/
 	ruff check validation/control_benchmark_suite.py tests/test_control_benchmark_suite.py
 	ruff format --check validation/control_benchmark_suite.py
-	ruff format --check src/ tests/
+	ruff format --check src/ tests/ tools/ validation/
+	python tools/check_docstring_debt.py
 	python tools/check_python_lint_contract.py
 	python tools/check_changelog_sync.py
 	python tools/check_source_headers.py
@@ -31,7 +33,7 @@ lint:
 
 fmt:
 	ruff check --fix src/ tests/
-	ruff format src/ tests/
+	ruff format src/ tests/ tools/ validation/
 	cd scpn-control-rs && cargo fmt
 
 bandit:

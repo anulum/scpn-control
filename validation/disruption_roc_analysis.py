@@ -10,8 +10,10 @@
 # SCPN Control — Disruption Predictor ROC Analysis
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
-"""
-Disruption predictor performance analysis using ROC curves.
+"""Evaluate synthetic disruption risk using absolute observed event indices.
+
+The fixed cohort and thresholds provide a local diagnostic, not held-out
+facility discrimination or authenticated warning-time evidence.
 """
 
 from __future__ import annotations
@@ -30,6 +32,30 @@ from scpn_control.control.disruption_roc import roc_auc_from_curve
 
 
 def generate_scenario_batch(n_total: int = 100) -> list[dict[str, Any]]:
+    """Draw a reproducible balanced cohort from the actual synthetic simulator.
+
+    Parameters
+    ----------
+    n_total : int
+        Desired count. Non-positive values return an empty list; otherwise
+        floor(n_total/2) shots are disruptive and the remainder safe.
+
+    Returns
+    -------
+    list[dict[str, Any]]
+        signal is a variable-length one-dimensional array, at most 500
+        samples. label is 0/1; mode is ntm/density_limit/vde for a disruptive
+        shot and safe otherwise. t_disrupt is the zero-based absolute index
+        of the observed threshold-crossing final sample, or -1 for safe shots.
+
+    Notes
+    -----
+    A fresh NumPy seed 42 generator feeds mode selection and public simulation.
+    Rejected quota/class samples are redrawn without an attempt cap. Global
+    RNG state is unchanged. The simulator's third return is elapsed steps
+    since its internal trigger; it is not the absolute event index used here.
+    Signals are synthetic mechanism proxies, not held-out facility shots.
+    """
     rng = np.random.default_rng(42)
     shots: list[dict[str, Any]] = []
     modes = ["ntm", "density_limit", "vde"]
@@ -38,9 +64,9 @@ def generate_scenario_batch(n_total: int = 100) -> list[dict[str, Any]]:
 
     while len(shots) < n_total:
         mode = rng.choice(modes)
-        signal, label, t_disrupt = simulate_tearing_mode(steps=500, mode=mode, rng=rng)
+        signal, label, _ = simulate_tearing_mode(steps=500, mode=mode, rng=rng)
         if label == 1 and n_disrupt < n_disrupt_target:
-            shots.append({"signal": signal, "label": 1, "t_disrupt": t_disrupt, "mode": mode})
+            shots.append({"signal": signal, "label": 1, "t_disrupt": len(signal) - 1, "mode": mode})
             n_disrupt += 1
         elif label == 0 and n_safe < (n_total - n_disrupt_target):
             shots.append({"signal": signal, "label": 0, "t_disrupt": -1, "mode": "safe"})
@@ -49,6 +75,39 @@ def generate_scenario_batch(n_total: int = 100) -> list[dict[str, Any]]:
 
 
 def evaluate_batch(shots: list[dict[str, Any]], threshold: float) -> dict[str, Any]:
+    """Count alarms strictly before declared events over sampled risk windows.
+
+    Parameters
+    ----------
+    shots : list[dict[str, Any]]
+        Cohort mappings with one-dimensional signal, integer label, absolute
+        sample index t_disrupt and mode. Generated disruptive traces terminate
+        at their observed event. Caller-supplied metadata is not authenticated.
+    threshold : float
+        Literal strict risk > threshold comparator; no range/finite check.
+        NaN produces no detections. Normal risk thresholds lie in [0, 1].
+
+    Returns
+    -------
+    dict[str, Any]
+        Dimensionless tpr/fpr. Windows contain 128 past samples and endpoints
+        advance by 20 from index 128, excluding len(signal).
+        A disruptive alarm at/after t_disrupt counts as FN; safe alarms count
+        as FP. Missing-class denominators are clamped to one, so an empty
+        cohort yields zero rates rather than a usable discrimination result.
+
+    Raises
+    ------
+    KeyError, TypeError, ValueError
+        Malformed mappings, arrays or core risk inputs propagate.
+
+    Notes
+    -----
+    The last signal sample in each window scales n1 by 0.2 for ntm, n2 by
+    0.1 for density_limit and radial spread by 1.0 for vde; other modes use
+    n1=0.05. These ad hoc observable scales do not harmonize physical units
+    across mechanisms. Rates do not establish a validated warning time.
+    """
     tp, fp, tn, fn = 0, 0, 0, 0
     for shot in shots:
         signal, label, t_dis_true, mode = shot["signal"], shot["label"], shot["t_disrupt"], shot["mode"]
@@ -90,6 +149,33 @@ def evaluate_batch(shots: list[dict[str, Any]], threshold: float) -> dict[str, A
 
 
 def main() -> None:
+    """Write a fixed 100-shot, 51-threshold synthetic ROC diagnostic.
+
+    No CLI parser. The cohort seed is 42; thresholds span [0, 1].
+
+    Returns
+    -------
+    None
+        Caller-relative validation/reports/disruption_roc.json and .md are
+        created sequentially with the platform text codec. JSON contains AUC
+        and raw swept tpr/fpr lists. Markdown prints PASS only for AUC > 0.85;
+        FAIL still exits normally. Existing reports may be overwritten.
+
+    Raises
+    ------
+    OSError
+        Directory creation/writing fails; partial output can remain.
+    ValueError, TypeError
+        Simulation, evaluation or shared curve assembly errors propagate.
+
+    Notes
+    -----
+    Shared AUC assembly adds canonical endpoint pairs, sorts FPR/TPR and
+    uses trapezoidal integration; those added points are absent from the
+    reported raw arrays. No recording guard, output transaction or hardware/
+    facility/scientific admission is provided. Run from a temporary cwd for
+    software verification, preserving canonical scientific reports.
+    """
     print("Generating batch...")
     shots = generate_scenario_batch(100)
     thresholds = np.linspace(0.0, 1.0, 51)

@@ -541,7 +541,7 @@ def test_free_boundary_claim_evidence_records_bounded_boundary(tmp_path) -> None
     assert evidence.facility_claim_allowed is False
     assert evidence.true_shape_rms >= 0.0
     assert evidence.reference_artifact_sha256 is None
-    with pytest.raises(ValueError, match="facility free-boundary tracking claim requires matched reference"):
+    with pytest.raises(ValueError, match="not admissible"):
         assert_free_boundary_tracking_facility_claim_admissible(evidence)
 
     output = tmp_path / "free_boundary_claim.json"
@@ -552,6 +552,7 @@ def test_free_boundary_claim_evidence_records_bounded_boundary(tmp_path) -> None
 
 
 def test_free_boundary_facility_claim_requires_reference_artifact() -> None:
+    """The public tracking run remains bounded despite declared reference data."""
     summary = run_free_boundary_tracking(
         config_file="dummy.json",
         kernel_factory=_DummyFreeBoundaryKernel,
@@ -592,9 +593,10 @@ def test_free_boundary_facility_claim_requires_reference_artifact() -> None:
         source_id="free-boundary-external-benchmark-v1",
         reference_artifact=artifact,
     )
-    assert evidence.facility_claim_allowed is True
+    assert evidence.facility_claim_allowed is False
     assert evidence.reference_dataset_id == "efit-free-boundary-fixture-v1"
-    assert_free_boundary_tracking_facility_claim_admissible(evidence)
+    with pytest.raises(ValueError, match="not admissible"):
+        assert_free_boundary_tracking_facility_claim_admissible(evidence)
 
     bad_artifact = dict(artifact)
     bad_artifact["metrics"] = dict(artifact["metrics"])

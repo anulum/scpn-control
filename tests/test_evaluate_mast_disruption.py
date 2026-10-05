@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -32,7 +33,7 @@ _FIXED_TS = "2026-07-10T00:00:00+00:00"
 def _write_shot(path: Path, *, disruptive: bool, n: int = 200, seed: int = 0) -> None:
     rng = np.random.default_rng(seed)
     ramp = np.linspace(0.0, 1.0, n)
-    channels: dict[str, object] = {name: rng.normal(0.0, 0.1, n) for name in REQUIRED_ARRAY_CHANNELS}
+    channels: dict[str, Any] = {name: rng.normal(0.0, 0.1, n) for name in REQUIRED_ARRAY_CHANNELS}
     channels["time_s"] = np.arange(n, dtype=np.float64) * 1.0e-3
     if disruptive:
         # Rising precursor drives the heuristic before the labelled disruption.
@@ -161,22 +162,31 @@ def test_build_report_is_fail_closed_and_self_digested(campaign: tuple[Path, Pat
 def test_build_report_is_deterministic(campaign: tuple[Path, Path]) -> None:
     shots_dir, manifest = campaign
     shots = load_shots(shots_dir)
-    kwargs = {
-        "manifest_path": manifest,
-        "window_size": 64,
-        "alarm_threshold": 0.65,
-        "warning_ms": (10, 50),
-        "generated_at": _FIXED_TS,
-    }
-    first = build_report(shots, **kwargs)
-    second = build_report(shots, **kwargs)
+    first = build_report(
+        shots,
+        manifest_path=manifest,
+        window_size=64,
+        alarm_threshold=0.65,
+        warning_ms=(10, 50),
+        generated_at=_FIXED_TS,
+    )
+    second = build_report(
+        shots,
+        manifest_path=manifest,
+        window_size=64,
+        alarm_threshold=0.65,
+        warning_ms=(10, 50),
+        generated_at=_FIXED_TS,
+    )
     assert first["payload_sha256"] == second["payload_sha256"]
 
 
 def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> None:
+    """A two-class report retains the supplied FAIR-MAST archive metadata."""
     shots_dir = tmp_path / "shots"
     shots_dir.mkdir()
     _write_shot(shots_dir / "shot_0001_locked.npz", disruptive=True, seed=1)
+    _write_shot(shots_dir / "shot_0002_safe.npz", disruptive=False, seed=2)
     manifest = tmp_path / "campaign.manifest.json"
     _write_manifest(manifest, synthetic=False)
 
@@ -196,6 +206,24 @@ def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> Non
     assert len(provenance["citations"]) == 2
     assert "10.1016/j.softx.2024.101869" in provenance["citation"]
     assert provenance["source_policy_url"] == "https://mastapp.site/"
+
+
+def test_build_report_rejects_one_class_roc(tmp_path: Path) -> None:
+    """A single labelled class cannot produce a meaningful ROC/AUC report."""
+    shots_dir = tmp_path / "shots"
+    shots_dir.mkdir()
+    _write_shot(shots_dir / "shot_0001_locked.npz", disruptive=True, seed=1)
+    manifest = tmp_path / "campaign.manifest.json"
+    _write_manifest(manifest)
+    with pytest.raises(ValueError, match="both safe and disruptive"):
+        build_report(
+            load_shots(shots_dir),
+            manifest_path=manifest,
+            window_size=64,
+            alarm_threshold=0.65,
+            warning_ms=(10, 50),
+            generated_at=_FIXED_TS,
+        )
 
 
 def test_render_markdown_summarises_report(campaign: tuple[Path, Path]) -> None:

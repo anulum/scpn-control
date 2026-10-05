@@ -7,7 +7,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Dimits Shift Long Run.
 
-"""Long Dimits shift: R/L_Ti=3.0 vs 6.9 at 20K steps."""
+"""Manual 20K-step drive comparison; diagnostics do not establish a physical Dimits shift."""
 
 from __future__ import annotations
 
@@ -19,6 +19,42 @@ import numpy as np
 
 
 def main() -> None:
+    """Run two fixed 20K-step JAX experiments and overwrite a raw JSON report.
+
+    Returns
+    -------
+    None
+        Print backend and saved diagnostics, then write both drive cases to
+        caller-relative gpu_results/dimits_long_3_vs_69.json. Each case uses
+        (n_kx, n_ky, n_theta, n_vpar, n_mu) = (128, 16, 32, 16, 8), 20000
+        steps, save interval 200, dt 0.05, CFL adaptation and hyper coefficient
+        0.2. R_L_Ti/R_L_Te are 3.0 or 6.9; other declared CBC values are fixed.
+
+    Raises
+    ------
+    RuntimeError, TypeError, ValueError
+        The defining solver/config/backend refuses an experiment before output.
+    IndexError
+        A result has no saved history; the endpoint print indexes that history
+        before completing remaining cases or writing a final report.
+    OSError
+        Creating gpu_results or writing dimits_long_3_vs_69.json fails.
+
+    Notes
+    -----
+    No CLI parameters are parsed. Each case creates a fresh solver with default
+    initial-state seed 42; JAX chooses its configured CPU/GPU backend and no
+    NumPy fallback is enabled. Wall-clock elapsed_s brackets run(); saved time
+    is solver code time. chi_i_gB is raw chi_i / max(R_L_Ti, 0.01), with None
+    for a nonfinite scalar. Histories retain native nonfinite values. Printed
+    late_growth is a fractional endpoint difference per code time rather than
+    logarithmic growth. The converged flag means more than one finite flux
+    sample, not physical or asymptotic convergence. The legacy serializer uses
+    indent=2/default=str and its nonfinite-float convention, via the platform
+    text codec. Existing output may be replaced without atomic replacement,
+    locks, campaign custody or authenticated source digests. The raw report
+    provides no validated Dimits shift, external reference or facility evidence.
+    """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
 

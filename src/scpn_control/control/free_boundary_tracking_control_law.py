@@ -90,7 +90,7 @@ def build_control_activation_mask(
             raise ValueError(f"Unknown objective block {block.name!r}.")
         if relevant and all(objective_checks.get(key, False) for key in relevant):
             mask[block.start : block.stop] = 0.0
-    return cast(FloatArray, mask)
+    return mask
 
 
 def build_coil_penalties(
@@ -128,7 +128,7 @@ def build_coil_penalties(
             penalties[idx] = 1.0
             continue
         penalties[idx] = float(np.sqrt(max(reference_headroom / float(headrooms[idx]), 1.0)))
-    return cast(FloatArray, penalties)
+    return penalties
 
 
 def compute_coil_correction(
@@ -150,6 +150,11 @@ def compute_coil_correction(
     -------
     tuple[FloatArray, FloatArray]
         ``(clipped_delta_currents, coil_penalties)``.
+
+    Raises
+    ------
+    ValueError
+        If an input or derived value is nonfinite before a coil command exists.
     """
     obs = np.asarray(observation, dtype=np.float64).reshape(-1)
     target = np.asarray(target_vector, dtype=np.float64).reshape(-1)
@@ -168,30 +173,48 @@ def compute_coil_correction(
     if response.ndim != 2 or response.shape[0] != target.size:
         raise ValueError("response_matrix must be (n_objectives, n_coils).")
     n_coils = int(response.shape[1])
+    currents = np.asarray(coil_currents, dtype=np.float64).reshape(-1)
+    limits = np.asarray(coil_current_limits, dtype=np.float64).reshape(-1)
+    if currents.shape != (n_coils,) or limits.shape != (n_coils,):
+        raise ValueError("coil currents and limits must match the response coil count.")
+    if np.isnan(limits).any() or (limits <= 0.0).any():
+        raise ValueError("coil_current_limits must be positive or +inf.")
     if not np.isfinite(response_regularization) or response_regularization < 0.0:
         raise ValueError("response_regularization must be finite and >= 0.")
     if not np.isfinite(correction_limit) or correction_limit <= 0.0:
         raise ValueError("correction_limit must be finite and > 0.")
+    if any(not np.isfinite(value).all() for value in (obs, target, bias, weights, mask, response, currents)):
+        raise ValueError("control-law input contains nonfinite values.")
 
-    error = target + bias - obs
-    weight_vector = weights * mask
-    weighted_response = weight_vector[:, None] * response
-    weighted_error = weight_vector * error
+    with np.errstate(over="ignore", invalid="ignore"):
+        error = target + bias - obs
+        weight_vector = weights * mask
+        weighted_response = weight_vector[:, None] * response
+        weighted_error = weight_vector * error
+    if any(not np.isfinite(value).all() for value in (error, weight_vector, weighted_response, weighted_error)):
+        raise ValueError("control-law arithmetic produced nonfinite values.")
     base_reg = np.sqrt(float(response_regularization)) * np.eye(n_coils, dtype=np.float64)
     base_aug_matrix = np.vstack([weighted_response, base_reg])
     base_aug_rhs = np.concatenate([weighted_error, np.zeros(n_coils, dtype=np.float64)])
     delta_hint, *_ = np.linalg.lstsq(base_aug_matrix, base_aug_rhs, rcond=None)
     delta_hint = np.asarray(delta_hint, dtype=np.float64)
-    coil_penalties = build_coil_penalties(coil_currents, coil_current_limits, delta_hint)
-    aug_matrix = np.vstack(
-        [
-            weighted_response,
-            np.sqrt(float(response_regularization)) * np.diag(coil_penalties),
-        ]
-    )
+    if not np.isfinite(delta_hint).all():
+        raise ValueError("control-law solution produced nonfinite values.")
+    coil_penalties = build_coil_penalties(currents, limits, delta_hint)
+    with np.errstate(over="ignore", invalid="ignore"):
+        aug_matrix = np.vstack(
+            [
+                weighted_response,
+                np.sqrt(float(response_regularization)) * np.diag(coil_penalties),
+            ]
+        )
+    if not np.isfinite(aug_matrix).all():
+        raise ValueError("control-law penalties produced nonfinite values.")
     aug_rhs = np.concatenate([weighted_error, np.zeros(n_coils, dtype=np.float64)])
     delta, *_ = np.linalg.lstsq(aug_matrix, aug_rhs, rcond=None)
     clipped = np.clip(np.asarray(delta, dtype=np.float64), -float(correction_limit), float(correction_limit))
+    if not np.isfinite(clipped).all():
+        raise ValueError("control-law solution produced nonfinite values.")
     return (
         cast(FloatArray, np.asarray(clipped, dtype=np.float64)),
         cast(FloatArray, np.asarray(coil_penalties, dtype=np.float64)),

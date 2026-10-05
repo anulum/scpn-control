@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import json
 import subprocess
+import sys
 from dataclasses import replace
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -29,10 +30,12 @@ from tools.document_link_audit import (
     audit_local,
     audit_site,
     extract_links,
+    public_sources,
 )
 
 
 def _git_track(root: Path, *paths: str) -> None:
+    """Initialize a real local index and stage only the fixture's named paths."""
     subprocess.run(["git", "init", "-q"], cwd=root, check=True)  # noqa: S603
     subprocess.run(["git", "add", "--", *paths], cwd=root, check=True)  # noqa: S603
 
@@ -177,7 +180,7 @@ def test_external_audit_reuses_fresh_provenanced_cache(tmp_path: Path, monkeypat
                         "classification": "reachable",
                         "status_code": 200,
                         "attempts": 1,
-                        "checked_at": datetime.now(timezone.utc).isoformat(),
+                        "checked_at": datetime.now(UTC).isoformat(),
                         "final_url": url,
                         "detail": "HTTP response",
                     }
@@ -188,6 +191,7 @@ def test_external_audit_reuses_fresh_provenanced_cache(tmp_path: Path, monkeypat
     )
 
     def unexpected_request(_url: str, _policy: object) -> ExternalResult:
+        """Reject any request attempted despite a current matching cache record."""
         raise AssertionError("fresh cache must suppress network access")
 
     monkeypatch.setattr("tools.document_link_audit._check_external", unexpected_request)
@@ -212,6 +216,7 @@ def test_external_audit_retries_transient_response_then_recovers(
     responses = iter(((503, "https://example.test/reference"), (200, "https://example.test/reference")))
 
     def request_once(_url: str, _policy: object, _method: str) -> tuple[int, str]:
+        """Supply the retained transient/positive sequence to the historical test."""
         return next(responses)
 
     monkeypatch.setattr("tools.document_link_audit._request_once", request_once)
@@ -221,3 +226,164 @@ def test_external_audit_retries_transient_response_then_recovers(
     assert [(result.classification, result.attempts, result.status_code) for result in results] == [
         ("reachable", 2, 200)
     ]
+
+
+def _audit_cli(root: Path, *args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+    """Run the defining script with explicit fixture root and unchanged policy."""
+    return subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools/document_link_audit.py"),
+            "--root",
+            str(root),
+            "--policy",
+            str(DEFAULT_POLICY),
+            *args,
+        ],
+        cwd=cwd or root,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=20,
+    )
+
+
+def test_cli_existing_untracked_target_refuses_until_real_index_add(tmp_path: Path) -> None:
+    """Cold CLI distinguishes existing bytes from actual Git index membership."""
+    (tmp_path / "README.md").write_text("[target](target.md#result)\n", encoding="utf-8")
+    (tmp_path / "target.md").write_text("# Result\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    report = tmp_path / "report.json"
+    first = _audit_cli(tmp_path, "--json-out", str(report))
+    assert first.returncode == 1
+    assert [f["reason"] for f in json.loads(report.read_text())["findings"]] == ["relative target is not tracked"]
+    _git_track(tmp_path, "target.md")
+    second = _audit_cli(tmp_path, "--json-out", str(report), cwd=tmp_path.parent)
+    assert second.returncode == 0
+    assert json.loads(report.read_text())["findings"] == []
+
+
+def test_cli_lists_screened_deduplicated_urls_without_http_results(tmp_path: Path) -> None:
+    """Listing records no HTTP observation for actual prose URLs and fragments."""
+    (tmp_path / "README.md").write_text(
+        "[one](https://reference.invalid/item#first)\n"
+        "[two](https://reference.invalid/item#second)\n"
+        "[private](http://127.0.0.1/state)\n",
+        encoding="utf-8",
+    )
+    _git_track(tmp_path, "README.md")
+    report = tmp_path / "report.json"
+    result = _audit_cli(tmp_path, "--list-external", "--json-out", str(report))
+    assert result.returncode == 1
+    assert result.stdout.splitlines()[0] == "https://reference.invalid/item"
+    payload = json.loads(report.read_text())
+    assert payload["results"] == []
+    assert len(payload["findings"]) == 1
+    assert payload["findings"][0]["reason"] == "URL targets a non-public IP address"
+
+
+def test_public_source_selection_uses_index_names_without_disk_walk(tmp_path: Path) -> None:
+    """Untracked/private sources are omitted while a missing indexed file remains."""
+    (tmp_path / "docs/internal").mkdir(parents=True)
+    for rel in ("README.md", "missing.md", "untracked.md", "docs/internal/notes.md"):
+        (tmp_path / rel).write_text("# Source\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md", "missing.md", "docs/internal/notes.md")
+    (tmp_path / "missing.md").unlink()
+    selected = public_sources(tmp_path, _read_policy(DEFAULT_POLICY))
+    assert tuple(p.relative_to(tmp_path).as_posix() for p in selected) == ("README.md", "missing.md")
+
+
+def test_cli_rendered_site_checks_files_but_not_html_fragments(tmp_path: Path) -> None:
+    """An actual site refuses absent assets and accepts existing fragment targets."""
+    (tmp_path / "README.md").write_text("# Source\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    site = tmp_path / "rendered"
+    site.mkdir()
+    (site / "index.html").write_text('<a href="guide.html#absent">Guide</a>', encoding="utf-8")
+    first = _audit_cli(tmp_path, "--site-dir", str(site))
+    assert first.returncode == 1 and "rendered target does not exist" in first.stdout
+    (site / "guide.html").write_text("<p>Guide</p>", encoding="utf-8")
+    second = _audit_cli(tmp_path, "--site-dir", str(site))
+    assert second.returncode == 0
+    assert audit_site(tmp_path / "missing-site") == ()
+
+
+def test_external_cache_cli_retains_original_restricted_observation(tmp_path: Path) -> None:
+    """Cold external CLI reuses an actual matching cache without changing its time."""
+    url = "https://reference.invalid/item"
+    (tmp_path / "README.md").write_text(f"[source]({url})\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    checked_at = datetime.now(UTC).isoformat()
+    cache = tmp_path / "cache.json"
+    cache.write_text(
+        json.dumps(
+            {
+                "schema_version": SCHEMA,
+                "provenance": {
+                    "policy_sha256": _read_policy(DEFAULT_POLICY).source_sha256,
+                    "tool_sha256": _tool_sha256(),
+                },
+                "results": [
+                    {
+                        "url": url,
+                        "classification": "restricted",
+                        "status_code": 403,
+                        "attempts": 1,
+                        "checked_at": checked_at,
+                        "final_url": url,
+                        "detail": "HTTP response",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    result = _audit_cli(tmp_path, "--external", "--cache", str(cache))
+    assert result.returncode == 0
+    row = json.loads(cache.read_text())["results"][0]
+    assert row["cached"] is True and row["checked_at"] == checked_at
+    assert row["classification"] == "restricted" and row["status_code"] == 403
+
+
+def test_real_external_request_failure_uses_authored_report_detail(tmp_path: Path) -> None:
+    """A real unsuccessful URL request records no interpreter exception text."""
+    policy = replace(
+        _read_policy(DEFAULT_POLICY),
+        retries=0,
+        timeout_seconds=0.5,
+        per_host_delay_seconds=0.0,
+        retry_backoff_seconds=0.0,
+    )
+    results = audit_external(("https://scpn-control-unresolvable.invalid/",), policy, tmp_path / "absent-cache.json")
+    assert len(results) == 1
+    assert results[0].classification == "transient" and results[0].attempts == 1
+    assert results[0].status_code is None
+    assert results[0].detail == "Public URL request failed."
+
+
+def test_cli_missing_indexed_source_preserves_existing_report(tmp_path: Path) -> None:
+    """A native file-read failure cannot replace an earlier report with success."""
+    (tmp_path / "README.md").write_text("# Source\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    (tmp_path / "README.md").unlink()
+    report = tmp_path / "report.json"
+    report.write_bytes(b"retained original report\n")
+    result = _audit_cli(tmp_path, "--json-out", str(report))
+    assert result.returncode != 0
+    assert "Document link audit passed" not in result.stdout
+    assert report.read_bytes() == b"retained original report\n"
+
+
+def test_report_source_set_hash_does_not_certify_source_contents(tmp_path: Path) -> None:
+    """Equal filenames retain the set hash across different source text bytes."""
+    readme = tmp_path / "README.md"
+    readme.write_text("# First source\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    report = tmp_path / "report.json"
+    assert _audit_cli(tmp_path, "--json-out", str(report)).returncode == 0
+    first = json.loads(report.read_text())
+    readme.write_text("# Different source\n", encoding="utf-8")
+    assert _audit_cli(tmp_path, "--json-out", str(report)).returncode == 0
+    second = json.loads(report.read_text())
+    assert first["provenance"]["source_set_sha256"] == second["provenance"]["source_set_sha256"]
+    assert first["source_count"] == second["source_count"] == 1

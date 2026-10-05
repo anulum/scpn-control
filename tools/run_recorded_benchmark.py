@@ -6,7 +6,18 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Recorded benchmark command runner
-"""Run one benchmark command inside an immutable evidence campaign."""
+"""Run one benchmark command inside an immutable evidence campaign.
+
+The command is executed as an argument vector without a shell, with the resolved
+repository as its working directory and its campaign identifier in the inherited
+environment. Declared artifacts are reserved before execution and sealed through
+``BenchmarkRun`` afterward. Outputs may be files or directories; every declared
+destination must be recreated for a zero-exit producer to be successful.
+
+Sample/warm-up/repeat metadata are observations of command spelling, not measured
+execution or numerical validation. This module supplies a Python source-checkout
+runner for producers in any language; it is not a scientific benchmark itself.
+"""
 
 from __future__ import annotations
 
@@ -24,6 +35,25 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _parse_artifact(value: str, repository_root: Path) -> BenchmarkOutput:
+    """Decode one role/path declaration against the selected repository.
+
+    Parameters
+    ----------
+    value : str
+        ROLE=PATH spelling; the first equals sign separates the role and path.
+    repository_root : Path
+        Resolved repository used to prefix relative destinations.
+
+    Returns
+    -------
+    BenchmarkOutput
+        Valid identifier role and native path, without opening the destination.
+
+    Raises
+    ------
+    argparse.ArgumentTypeError
+        Missing separator/path or an invalid output-role identifier.
+    """
     role, separator, raw_path = value.partition("=")
     if not separator or not raw_path:
         raise argparse.ArgumentTypeError("artifact must use ROLE=PATH")
@@ -37,6 +67,26 @@ def _parse_artifact(value: str, repository_root: Path) -> BenchmarkOutput:
 
 
 def _command_measurement(command: Sequence[str]) -> dict[str, Any]:
+    """Extract the last spelling of recognized producer measurement options.
+
+    Parameters
+    ----------
+    command : sequence of str
+        Executable argument vector, including the executable and other options.
+
+    Returns
+    -------
+    dict of str to int or str
+        Steps, iterations, warmup, repeats and samples; --n-bench is a samples
+        alias. Inline and following-argument values are parsed as integers when
+        possible. Other values, including a missing final value, remain strings.
+
+    Notes
+    -----
+    These labels do not enforce positivity, sample counts or producer semantics.
+    A following option can be retained as the preceding option's string value.
+    Caller-supplied measurement JSON overrides these inferred labels.
+    """
     measurements: dict[str, Any] = {}
     names = {
         "--steps": "steps",
@@ -64,6 +114,25 @@ def _command_measurement(command: Sequence[str]) -> dict[str, Any]:
 
 
 def _records_root(path: Path, repository_root: Path) -> Path:
+    """Resolve the immutable-records root inside the selected repository.
+
+    Parameters
+    ----------
+    path : Path
+        Native absolute path or repository-relative custody root.
+    repository_root : Path
+        Repository boundary used after native path and symlink resolution.
+
+    Returns
+    -------
+    Path
+        Resolved custody root equal to or beneath the repository.
+
+    Raises
+    ------
+    ValueError
+        Resolved records root escapes the repository.
+    """
     resolved = path if path.is_absolute() else repository_root / path
     resolved = resolved.resolve()
     if not resolved.is_relative_to(repository_root.resolve()):
@@ -72,7 +141,46 @@ def _records_root(path: Path, repository_root: Path) -> Path:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run a command, seal its declared outputs, and return its exit code."""
+    """Run a command and fail if its declared outputs are not freshly complete.
+
+    Parameters
+    ----------
+    argv : list of str or None, optional
+        Wrapper arguments followed by a command, conventionally after --.
+        None selects sys.argv. Repository and records roots default to this
+        source checkout and artifacts/benchmarks/records, respectively.
+
+    Returns
+    -------
+    int
+        Producer return code, 127 for native launch failure, or 130 for an
+        interrupt caught while waiting. A zero-exit producer with missing
+        declared output returns one. Success returns zero after sealing.
+
+    Raises
+    ------
+    SystemExit
+        Native argparse help/usage exits zero/two before campaign reservation.
+    ValueError, RuntimeError, OSError
+        Native record reservation, archival, finalization or filesystem failure;
+        errors outside the producer wait are not mapped to return codes.
+
+    Notes
+    -----
+    --artifact is repeatable ROLE=PATH, with relative paths rooted at the selected
+    repository. --measurement-json must be a JSON object and overrides inferred
+    command metadata. --campaign-id and --evidence-class are passed to the record
+    owner unchanged. The child inherits stdio/environment with CAMPAIGN_ENV set
+    to the reserved campaign. No shell, timeout, scheduling or descendant-process
+    supervisor is provided. Native subprocess.run owns direct-child waiting and
+    interrupted cleanup; interruption does not guarantee immediate OS reaping.
+    Failed/incomplete manifests cannot
+    advance latest. Record-finalization errors can retain a recovery reservation.
+    Direct negative POSIX child return codes are retained by this API; Python
+    SystemExit maps such integers to the platform's command-line exit status.
+    Command/sample metadata and successful custody do not grant production or
+    scientific admission. Source HEAD metadata does not hash dirty source bytes.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--family", required=True, help="Descriptive benchmark family identifier.")
     parser.add_argument(
@@ -142,6 +250,8 @@ def main(argv: list[str] | None = None) -> int:
         exit_code = 130
     manifest = run.finish(exit_code=exit_code)
     print(f"benchmark record: {manifest.relative_to(repository_root)}", file=sys.stderr)
+    if exit_code == 0 and json.loads(manifest.read_text())["status"] != "succeeded":
+        return 1
     return exit_code
 
 

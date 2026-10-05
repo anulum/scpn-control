@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -41,28 +43,33 @@ def result() -> SOLValidationResult:
 
 
 def test_connection_length_matches_pi_q95_r0() -> None:
+    """Connection length matches pi q95 r0."""
     assert connection_length_rel_error(default_config()) < 1e-12
 
 
 def test_flux_mapping_matches_closed_form() -> None:
+    """Flux mapping matches closed form."""
     config = default_config()
     for p, n in ((10.0, 3.0), (20.0, 5.0)):
         assert flux_mapping_rel_error(config, p, n) < 1e-12
 
 
 def test_upstream_conduction_integral_holds() -> None:
+    """Upstream conduction integral holds."""
     config = default_config()
     for p, n in ((10.0, 3.0), (5.0, 1.5)):
         assert conduction_integral_rel_error(config, p, n) < 1e-12
 
 
 def test_pressure_balance_holds() -> None:
+    """Pressure balance holds."""
     config = default_config()
     for p, n in ((10.0, 3.0), (20.0, 5.0)):
         assert pressure_balance_rel_error(config, p, n) < 1e-12
 
 
 def test_eich_scaling_exponents_are_exact() -> None:
+    """Eich scaling exponents are exact."""
     checks = {c.name: c for c in eich_scaling_checks(default_config(), 10.0)}
     assert checks["b_pol_-0.92"].measured_ratio == pytest.approx(2.0**-0.92, rel=1e-12)
     assert checks["epsilon_0.42"].measured_ratio == pytest.approx(2.0**0.42, rel=1e-12)
@@ -71,6 +78,7 @@ def test_eich_scaling_exponents_are_exact() -> None:
 
 
 def test_peak_heat_flux_matches_closed_form() -> None:
+    """Peak heat flux matches closed form."""
     assert peak_heat_flux_rel_error(default_config(), 10.0) < 1e-12
 
 
@@ -78,6 +86,7 @@ def test_peak_heat_flux_matches_closed_form() -> None:
 
 
 def test_detachment_boundary_brackets_critical_density() -> None:
+    """Detachment boundary brackets critical density."""
     boundary = detachment_boundary(100.0, 20.0)
     assert boundary.critical_density_19 > 0.0
     assert boundary.detached_below_critical is False
@@ -85,6 +94,7 @@ def test_detachment_boundary_brackets_critical_density() -> None:
 
 
 def test_detachment_boundary_rejects_nonpositive_flux() -> None:
+    """Detachment boundary rejects nonpositive flux."""
     with pytest.raises(ValueError, match="q_par_mw_m2 must be positive"):
         detachment_boundary(0.0, 20.0)
 
@@ -93,6 +103,7 @@ def test_detachment_boundary_rejects_nonpositive_flux() -> None:
 
 
 def test_overall_validation_passes(result: SOLValidationResult) -> None:
+    """Overall validation passes."""
     assert result.passed is True
     assert result.connection_passed
     assert result.flux_mapping_passed
@@ -106,6 +117,7 @@ def test_overall_validation_passes(result: SOLValidationResult) -> None:
 
 
 def test_validation_is_deterministic() -> None:
+    """Validation is deterministic."""
     a = validate_sol_two_point()
     b = validate_sol_two_point()
     assert a.max_conduction_rel_error == b.max_conduction_rel_error
@@ -113,6 +125,7 @@ def test_validation_is_deterministic() -> None:
 
 
 def test_validation_rejects_empty_operating_points() -> None:
+    """Validation rejects empty operating points."""
     with pytest.raises(ValueError, match="at least one operating point"):
         validate_sol_two_point(operating_points=())
 
@@ -121,26 +134,31 @@ def test_validation_rejects_empty_operating_points() -> None:
 
 
 def test_config_rejects_minor_radius_above_major() -> None:
+    """Config rejects minor radius above major."""
     with pytest.raises(ValueError, match="a must be smaller than r0"):
         SOLConfig(r0=0.5, a=1.7, q95=3.5, b_pol=0.4)
 
 
 def test_config_rejects_nonpositive_b_pol() -> None:
+    """Config rejects nonpositive b pol."""
     with pytest.raises(ValueError, match="b_pol must be positive"):
         SOLConfig(r0=1.7, a=0.5, q95=3.5, b_pol=0.0)
 
 
 def test_config_rejects_nonfinite_q95() -> None:
+    """Config rejects nonfinite q95."""
     with pytest.raises(ValueError, match="q95 must be finite"):
         SOLConfig(r0=1.7, a=0.5, q95=float("inf"), b_pol=0.4)
 
 
 def test_config_rejects_nonnumeric_radius() -> None:
+    """Config rejects nonnumeric radius."""
     with pytest.raises(ValueError, match="r0 must be a finite number"):
-        SOLConfig(r0="big", a=0.5, q95=3.5, b_pol=0.4)  # type: ignore[arg-type]
+        SOLConfig(r0=cast(float, "big"), a=0.5, q95=3.5, b_pol=0.4)
 
 
 def test_config_epsilon() -> None:
+    """Config epsilon."""
     assert default_config().epsilon == pytest.approx(0.5 / 1.7)
 
 
@@ -148,6 +166,7 @@ def test_config_epsilon() -> None:
 
 
 def test_evidence_roundtrip_is_sealed_and_passing(result: SOLValidationResult) -> None:
+    """Evidence roundtrip is sealed and passing."""
     evidence = build_evidence(result, target_id="test-target")
     assert evidence["schema_version"] == SOL_TWO_POINT_SCHEMA_VERSION
     assert validate_evidence_payload(evidence) is True
@@ -155,6 +174,7 @@ def test_evidence_roundtrip_is_sealed_and_passing(result: SOLValidationResult) -
 
 
 def test_evidence_tamper_is_rejected(result: SOLValidationResult) -> None:
+    """Evidence tamper is rejected."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["max_conduction_rel_error"] = 1.0
     with pytest.raises(ValueError, match="payload_sha256 does not match"):
@@ -162,11 +182,13 @@ def test_evidence_tamper_is_rejected(result: SOLValidationResult) -> None:
 
 
 def test_evidence_rejects_empty_target_id(result: SOLValidationResult) -> None:
+    """Evidence rejects empty target id."""
     with pytest.raises(ValueError, match="target_id"):
         build_evidence(result, target_id="   ")
 
 
 def test_evidence_rejects_unknown_schema(result: SOLValidationResult) -> None:
+    """Evidence rejects unknown schema."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["schema_version"] = "scpn-control.unknown.v9"
     with pytest.raises(ValueError, match="unsupported"):
@@ -174,6 +196,7 @@ def test_evidence_rejects_unknown_schema(result: SOLValidationResult) -> None:
 
 
 def test_evidence_rejects_non_hex_seal(result: SOLValidationResult) -> None:
+    """Evidence rejects non hex seal."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["payload_sha256"] = "notadigest"
     with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
@@ -183,7 +206,8 @@ def test_evidence_rejects_non_hex_seal(result: SOLValidationResult) -> None:
 # ── CLI / report writer ──────────────────────────────────────────────
 
 
-def test_main_text_output_passes(capsys) -> None:
+def test_main_text_output_passes(capsys: pytest.CaptureFixture[str]) -> None:
+    """Main text output passes."""
     import validation.validate_sol_two_point as mod
 
     assert mod.main([]) == 0
@@ -192,7 +216,8 @@ def test_main_text_output_passes(capsys) -> None:
     assert "detachment boundary" in out
 
 
-def test_main_json_output_and_report(capsys, tmp_path) -> None:
+def test_main_json_output_and_report(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """Main json output and report."""
     import validation.validate_sol_two_point as mod
 
     report = tmp_path / "sol.json"
@@ -204,10 +229,9 @@ def test_main_json_output_and_report(capsys, tmp_path) -> None:
     assert "Scrape-Off-Layer" in report.with_suffix(".md").read_text()
 
 
-def test_main_returns_one_on_failure(monkeypatch, capsys) -> None:
+def test_main_returns_one_on_failure(capsys: pytest.CaptureFixture[str]) -> None:
+    """Main returns one on failure."""
     import validation.validate_sol_two_point as mod
 
-    real = mod.validate_sol_two_point
-    monkeypatch.setattr(mod, "validate_sol_two_point", lambda: real(exact_tol=1e-30))
-    assert mod.main([]) == 1
+    assert mod.main(["--exact-tol", "1e-30"]) == 1
     assert "Status: fail" in capsys.readouterr().out

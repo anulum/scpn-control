@@ -1,3 +1,4 @@
+
 # EFIT-lite Claim-Admission Benchmark
 
 This report is bounded synthetic regression evidence for EFIT-lite.
@@ -9,6 +10,8 @@ It is not matched EFIT/P-EFIT or measured-discharge validation.
 - Flux loops: `3`
 - B probes: `3`
 - Reconstructed Ip [A]: `1.500000e+07`
+- Iteration status: `picard_converged`
+- Final Picard relative change: `3.266450632679135e-06`
 - q95: `3.486432e+00`
 - beta_pol: `8.994660e-10`
 - li: `2.592558e-01`

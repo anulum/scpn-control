@@ -7,15 +7,8 @@
 # SCPN Control — Disruption ROC and warning-time analysis core
 """Reusable disruption-prediction ROC and warning-time analysis.
 
-This module is the single source of truth for two pieces of disruption analysis
-that were previously inlined in separate scripts:
-
-* ``score_risk_series`` — the canonical per-window scoring convention (the
-  ``dBdt`` signal window plus n=1/n=2/n=3 toroidal observables) shared by the
-  real-shot replay in :mod:`scpn_control.control.disruption_contracts` and the
-  FAIR-MAST evaluation harness.
-* ``roc_auc_from_curve`` — the endpoint-forced, FPR-sorted trapezoidal AUC
-  assembly shared with the synthetic ROC analysis.
+The public ``score_risk_series`` import delegates to its dedicated scoring
+leaf. This module owns ROC, confusion, and warning-time metric assembly.
 
 Warning-time metrics follow the DisruptionBench convention: an alarm on a
 disruptive shot counts as a true positive only if it fires strictly before the
@@ -31,7 +24,7 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-from scpn_control.control.disruption_predictor import predict_disruption_risk
+from scpn_control.control._disruption_risk_series import score_risk_series
 
 __all__ = [
     "ShotEvaluation",
@@ -44,68 +37,6 @@ __all__ = [
     "disruption_metrics",
 ]
 
-# Upper clip on toroidal mode amplitudes fed to the predictor, matching the
-# real-shot replay convention in ``disruption_contracts.run_real_shot_replay``.
-_TOROIDAL_AMP_CLIP = 10.0
-# The n=3 amplitude is a bounded approximation of n=2 (0.4 * n=2; no dedicated
-# n=3 diagnostic channel exists), so this scoring core is a bounded model.
-_N3_FROM_N2 = 0.4
-
-
-def score_risk_series(
-    dbdt: NDArray[np.float64],
-    n1_amp: NDArray[np.float64],
-    n2_amp: NDArray[np.float64],
-    *,
-    window_size: int,
-) -> NDArray[np.float64]:
-    """Return the per-sample disruption risk over a shot.
-
-    The signal window is the ``window_size``-sample history of ``dbdt`` ending at
-    (but excluding) each sample; the toroidal observables are derived from the
-    n=1/n=2 mode amplitudes with the n=3 amplitude approximated as
-    ``0.4 * n2``. Samples before the first full window carry zero risk. This
-    mirrors the scoring loop of
-    :func:`scpn_control.control.disruption_contracts.run_real_shot_replay` and is
-    its single source of truth.
-
-    Parameters
-    ----------
-    dbdt, n1_amp, n2_amp : numpy.ndarray
-        One-dimensional, equal-length, finite arrays: the magnetic pickup-coil
-        time derivative and the n=1/n=2 toroidal mode amplitudes.
-    window_size : int
-        Sliding predictor window in samples (``>= 1``).
-
-    Returns
-    -------
-    numpy.ndarray
-        Risk in ``[0, 1]`` per sample, zero for the leading ``window_size``
-        samples.
-    """
-    if window_size < 1:
-        raise ValueError("window_size must be >= 1.")
-    n = int(dbdt.shape[0])
-    if not n1_amp.shape[0] == n2_amp.shape[0] == n:
-        raise ValueError("dbdt, n1_amp and n2_amp must share the same length.")
-    for name, arr in (("dbdt", dbdt), ("n1_amp", n1_amp), ("n2_amp", n2_amp)):
-        if not bool(np.all(np.isfinite(arr))):
-            raise ValueError(f"{name} must be finite.")
-
-    n3_amp = n2_amp * _N3_FROM_N2
-    risk = np.zeros(n, dtype=np.float64)
-    for t in range(window_size, n):
-        window = dbdt[t - window_size : t]
-        toroidal = {
-            "toroidal_n1_amp": float(np.clip(n1_amp[t], 0.0, _TOROIDAL_AMP_CLIP)),
-            "toroidal_n2_amp": float(np.clip(n2_amp[t], 0.0, _TOROIDAL_AMP_CLIP)),
-            "toroidal_n3_amp": float(np.clip(n3_amp[t], 0.0, _TOROIDAL_AMP_CLIP)),
-            "toroidal_asymmetry_index": float(np.sqrt(n1_amp[t] ** 2 + n2_amp[t] ** 2 + n3_amp[t] ** 2)),
-            "toroidal_radial_spread": float(0.02 + 0.05 * n1_amp[t]),
-        }
-        risk[t] = float(np.clip(predict_disruption_risk(window, toroidal), 0.0, 1.0))
-    return risk
-
 
 @dataclass(frozen=True)
 class ShotEvaluation:
@@ -117,7 +48,8 @@ class ShotEvaluation:
     required when ``label == 1``, ignored when ``label == 0``); ``time_s`` is the
     strictly increasing shot timebase used for warning-time leads; and
     ``window_size`` is the leading gap of zero-risk samples to skip when scanning
-    for an alarm.
+    for an alarm. The shot must contain at least one scored sample, finite
+    probabilities in ``[0, 1]``, and a strictly increasing finite timebase.
     """
 
     risk_series: NDArray[np.float64]
@@ -127,13 +59,24 @@ class ShotEvaluation:
     window_size: int
 
     def __post_init__(self) -> None:
+        """Validate the scored shot before it enters any report metric."""
+        if self.risk_series.ndim != 1 or self.time_s.ndim != 1:
+            raise ValueError("risk_series and time_s must be one-dimensional.")
         if self.label not in (0, 1):
             raise ValueError("label must be 0 (safe) or 1 (disruptive).")
+        n = int(self.risk_series.shape[0])
         if self.window_size < 1:
             raise ValueError("window_size must be >= 1.")
-        n = int(self.risk_series.shape[0])
+        if self.window_size >= n:
+            raise ValueError("window_size must leave at least one scored sample.")
         if int(self.time_s.shape[0]) != n:
             raise ValueError("risk_series and time_s must share the same length.")
+        if not bool(np.all(np.isfinite(self.risk_series))) or not bool(
+            np.all((0.0 <= self.risk_series) & (self.risk_series <= 1.0))
+        ):
+            raise ValueError("risk_series must contain finite probabilities in [0, 1].")
+        if not bool(np.all(np.isfinite(self.time_s))) or not bool(np.all(np.diff(self.time_s) > 0.0)):
+            raise ValueError("time_s must be finite and strictly increasing.")
         if self.label == 1:
             if not 0 <= self.disruption_time_idx < n:
                 raise ValueError("a disruptive shot needs 0 <= disruption_time_idx < n_samples.")
@@ -142,8 +85,17 @@ class ShotEvaluation:
 def first_alarm_index(risk_series: NDArray[np.float64], threshold: float, *, start: int) -> int:
     """Return the first sample index at/after ``start`` whose risk exceeds ``threshold``.
 
-    Returns ``-1`` when the risk never rises above ``threshold``.
+    Returns ``-1`` when the risk never rises above ``threshold``. Risk and
+    threshold must be finite probabilities in ``[0, 1]``.
     """
+    if not np.isfinite(threshold) or not 0.0 <= threshold <= 1.0:
+        raise ValueError("threshold must be finite and in [0, 1].")
+    if (
+        risk_series.ndim != 1
+        or not bool(np.all(np.isfinite(risk_series)))
+        or not bool(np.all((0.0 <= risk_series) & (risk_series <= 1.0)))
+    ):
+        raise ValueError("risk_series must contain finite probabilities in [0, 1].")
     for t in range(max(start, 0), int(risk_series.shape[0])):
         if risk_series[t] > threshold:
             return t
@@ -201,16 +153,21 @@ def roc_auc_from_curve(fpr: Sequence[float], tpr: Sequence[float]) -> float:
     The ``(0, 0)`` and ``(1, 1)`` endpoints are added when absent, the points are
     sorted by false-positive rate, and the area is integrated with the
     trapezoidal rule — the same assembly used by the synthetic ROC analysis.
+    Empty, unmatched, nonfinite or out-of-range rate arrays refuse.
     """
     fpr_points = [float(x) for x in fpr]
     tpr_points = [float(x) for x in tpr]
-    if not any(point == 0.0 for point in fpr_points):
+    if not fpr_points or len(fpr_points) != len(tpr_points):
+        raise ValueError("ROC arrays must be nonempty and equal length.")
+    if not all(np.isfinite(x) and 0.0 <= x <= 1.0 for x in fpr_points + tpr_points):
+        raise ValueError("ROC points must be finite rates in [0, 1].")
+    if (0.0, 0.0) not in zip(fpr_points, tpr_points, strict=True):
         fpr_points.append(0.0)
         tpr_points.append(0.0)
-    if not any(point == 1.0 for point in fpr_points):
+    if (1.0, 1.0) not in zip(fpr_points, tpr_points, strict=True):
         fpr_points.append(1.0)
         tpr_points.append(1.0)
-    order = np.argsort(fpr_points)
+    order = np.lexsort((tpr_points, fpr_points))
     fpr_sorted = np.asarray(fpr_points, dtype=np.float64)[order]
     tpr_sorted = np.asarray(tpr_points, dtype=np.float64)[order]
     # Trapezoidal integral of TPR over FPR, computed natively (no scipy) so the
@@ -225,8 +182,10 @@ def warning_time_recall(evaluations: Sequence[ShotEvaluation], threshold: float,
 
     Returns ``0.0`` when there are no disruptive shots. The lead time is measured
     on each shot's timebase between the labelled disruption sample and the first
-    alarm sample.
+    alarm sample. The lead requirement must be finite and nonnegative.
     """
+    if not np.isfinite(warning_ms) or warning_ms < 0.0:
+        raise ValueError("warning_ms must be finite and nonnegative.")
     disruptive = [e for e in evaluations if e.label == 1]
     if not disruptive:
         return 0.0
@@ -252,7 +211,20 @@ def disruption_metrics(
 
     Combines the threshold-swept ROC curve and AUC with the confusion matrix and
     warning-time recall evaluated at a single operating ``alarm_threshold``.
+    ROC/AUC requires both safe and disruptive shots. Warning keys are unique
+    nonnegative integer milliseconds.
     """
+    labels = {evaluation.label for evaluation in evaluations}
+    if labels != {0, 1}:
+        raise ValueError("ROC metrics require both safe and disruptive shots.")
+    if not thresholds or not all(np.isfinite(t) and 0.0 <= t <= 1.0 for t in thresholds):
+        raise ValueError("thresholds must be nonempty finite probabilities in [0, 1].")
+    if not np.isfinite(alarm_threshold) or not 0.0 <= alarm_threshold <= 1.0:
+        raise ValueError("alarm_threshold must be finite and in [0, 1].")
+    if not all(np.isfinite(w) and w >= 0.0 and float(w).is_integer() for w in warning_ms):
+        raise ValueError("warning_ms must contain nonnegative integer millisecond keys.")
+    if len({int(w) for w in warning_ms}) != len(warning_ms):
+        raise ValueError("warning_ms keys must be unique.")
     fpr, tpr = roc_curve(evaluations, thresholds)
     auc = roc_auc_from_curve(fpr, tpr)
     recall = {int(w): warning_time_recall(evaluations, alarm_threshold, float(w)) for w in warning_ms}

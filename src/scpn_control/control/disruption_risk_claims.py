@@ -34,9 +34,7 @@ DISRUPTION_FEATURE_CONTRACT: tuple[str, ...] = (
 )
 DISRUPTION_HEURISTIC_SCORE_SOURCE = "fixed_weight_logistic_heuristic"
 DISRUPTION_HEURISTIC_TRAINING_PROVENANCE = "hand_chosen_weights_no_real_disruption_database_fit"
-DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE = (
-    "synthetic_sanity_check:validation/reports/disruption_replay_pipeline_benchmark.md"
-)
+DISRUPTION_HEURISTIC_VALIDATION_PROVENANCE = "synthetic_unit_tests:tests/test_disruption_predictor_pure.py"
 DISRUPTION_HEURISTIC_REQUIRED_ACTION = (
     "Train or fit on an admitted real disruption database before any facility disruption-prediction claim."
 )

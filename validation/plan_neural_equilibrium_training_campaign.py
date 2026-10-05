@@ -6,13 +6,30 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural-equilibrium training campaign planner
-"""Publish run-ready neural-equilibrium dataset and GPU-budget campaign plans."""
+"""Prepare deterministic metadata plans and finite GPU budget ranges without training.
+
+The public acquisition reader must PASS. Dataset counts, grids, split totals and
+optional producer digests are checked; selected local dataset bytes must match
+SHA-256. Remote operator attestation is recorded separately from local hashing.
+Preparation does not admit predictive EFIT/P-EFIT or facility use. Budgets are
+planning assumptions, not measured performance. Reports bind finite canonical
+JSON with the payload_sha256 field set to null and refuse stale digests.
+
+>>> from tempfile import TemporaryDirectory
+>>> with TemporaryDirectory() as tmp:
+...     inputs = CampaignInputs(DEFAULT_MAST_REPORT, Path(tmp), DEFAULT_PUBLIC_DATA_ROOT)
+...     plan = build_plan(inputs)
+...     (plan['status'], plan['mast_efm_dataset']['payload']['sha256_verified_on_this_host'])
+('prepared', False)
+"""
 
 from __future__ import annotations
 
 import argparse
 import json
+import shlex
 import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -21,8 +38,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from validation.build_mast_efm_neural_equilibrium_dataset import DATASET_SCHEMA as MAST_DATASET_SCHEMA
-from validation.validate_public_data_acquisition import validate_public_data_acquisition_directory
+from validation.neural_equilibrium_campaign_inputs import (
+    CampaignPlanError as CampaignPlanError,
+)
+from validation.neural_equilibrium_campaign_inputs import (
+    canonical_campaign_digest,
+    inspect_storage_payload,
+    read_campaign_dataset_report,
+    summarise_campaign_public_data,
+)
 
 REPORT_SCHEMA = "scpn-control.neural-equilibrium-training-campaign-plan.v1"
 EXECUTION_HOST_POLICY = (
@@ -39,7 +63,26 @@ DEFAULT_MD_OUT = ROOT / "validation" / "reports" / "neural_equilibrium_training_
 
 @dataclass(frozen=True)
 class CampaignInputs:
-    """Inputs for generating the campaign plan."""
+    """Immutable path choices and literal boolean storage controls.
+
+    Parameters
+    ----------
+    mast_dataset_report : Path
+        UTF-8 blocked supervised-dataset metadata, not tensors.
+    storage_root : Path
+        Local lookup root; relative dataset paths cannot escape it.
+    public_data_root : Path
+        Offline acquisition manifest tree; aggregate FAIL refuses preparation.
+    require_storage_payload : bool
+        Require local SHA-bound bytes or explicit remote operator attestation.
+    verified_storage_payload : bool
+        Acknowledge operator verification elsewhere; never hash remote storage.
+
+    Raises
+    ------
+    CampaignPlanError
+        A path is not a Path or a control is not a literal boolean.
+    """
 
     mast_dataset_report: Path
     storage_root: Path
@@ -47,78 +90,14 @@ class CampaignInputs:
     require_storage_payload: bool = False
     verified_storage_payload: bool = False
 
-
-def _load_json_object(path: Path) -> dict[str, Any]:
-    def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
-        result: dict[str, Any] = {}
-        for key, value in pairs:
-            if key in result:
-                raise ValueError(f"duplicate JSON key: {key}")
-            result[key] = value
-        return result
-
-    payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=reject_duplicates)
-    if not isinstance(payload, dict):
-        raise ValueError(f"{path} must contain a JSON object")
-    return payload
-
-
-def _validate_mast_report(path: Path) -> dict[str, Any]:
-    report = _load_json_object(path)
-    if report.get("schema_version") != MAST_DATASET_SCHEMA:
-        raise ValueError("MAST EFM dataset report has unsupported schema_version")
-    if report.get("status") != "blocked":
-        raise ValueError("MAST EFM dataset report must preserve blocked predictive-admission state")
-    if int(report.get("equilibria_count", 0)) <= 0:
-        raise ValueError("MAST EFM dataset report must contain equilibria")
-    dataset_sha = report.get("dataset_sha256")
-    if not isinstance(dataset_sha, str) or len(dataset_sha) != 64:
-        raise ValueError("MAST EFM dataset report must bind a dataset_sha256")
-    return report
-
-
-def _storage_payload_status(
-    report: dict[str, Any],
-    storage_root: Path,
-    require_payload: bool,
-    verified_payload: bool,
-) -> dict[str, Any]:
-    relative = Path(str(report["dataset_path"]))
-    absolute = storage_root / relative
-    exists = absolute.is_file()
-    available = bool(exists or verified_payload)
-    if require_payload and not available:
-        raise FileNotFoundError(f"storage-host dataset payload is missing: {absolute}")
-    return {
-        "relative_path": str(relative),
-        "absolute_path": str(absolute),
-        "exists_on_this_host": exists,
-        "verified_available": available,
-        "sha256": report["dataset_sha256"],
-    }
-
-
-def _public_data_summary(root: Path) -> dict[str, Any]:
-    report = validate_public_data_acquisition_directory(root)
-    manifests = []
-    for manifest in report.get("manifests", []):
-        item = dict(manifest)
-        manifest_path = item.get("path")
-        if isinstance(manifest_path, str):
-            try:
-                item["path"] = str(Path(manifest_path).resolve(strict=False).relative_to(ROOT))
-            except ValueError:
-                item["path"] = manifest_path
-        manifests.append(item)
-    return {
-        "status": report["status"],
-        "records": int(report.get("records", 0)),
-        "files": int(report.get("files", 0)),
-        "local_files": int(report.get("local_files", 0)),
-        "deferred_files": int(report.get("deferred_files", 0)),
-        "deferred_bytes": int(report.get("deferred_bytes", 0)),
-        "manifests": manifests,
-    }
+    def __post_init__(self) -> None:
+        """Reject runtime type coercion before paths or acknowledgement flags are used."""
+        for field in ("mast_dataset_report", "storage_root", "public_data_root"):
+            if not isinstance(getattr(self, field), Path):
+                raise CampaignPlanError(f"{field} must be a Path")
+        for field in ("require_storage_payload", "verified_storage_payload"):
+            if not isinstance(getattr(self, field), bool):
+                raise CampaignPlanError(f"{field} must be a boolean")
 
 
 def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[str, Any]]:
@@ -129,9 +108,11 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
     model sweeps, and repository evidence generation rather than large
     foundation-model-scale runs.
     """
-
-    mast_scale = max(float(equilibria_count) / 527.0, 1.0)
-    qlknn_scale = max(float(deferred_bytes) / 309_688_648_974.0, 1.0)
+    try:
+        mast_scale = max(float(equilibria_count) / 527.0, 1.0)
+        qlknn_scale = max(float(deferred_bytes) / 309_688_648_974.0, 1.0)
+    except OverflowError as exc:
+        raise CampaignPlanError("declared counts exceed finite planning budgets") from exc
     return [
         {
             "scenario": "mast_efm_readiness_smoke",
@@ -197,18 +178,35 @@ def _gpu_budget_table(equilibria_count: int, deferred_bytes: int) -> list[dict[s
 
 
 def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
-    """Build the deterministic campaign plan."""
+    """Build a finite declaration plan after public acquisition and local custody checks.
 
-    mast_report = _validate_mast_report(inputs.mast_dataset_report)
-    storage_payload = _storage_payload_status(
+    Returns
+    -------
+    dict[str, Any]
+        Fresh JSON-compatible metadata with null-field canonical digest. The
+        historical prepared_on_storage lane label describes declared storage;
+        payload availability_basis records what was actually observed.
+
+    Raises
+    ------
+    CampaignPlanError
+        Dataset metadata, selected bytes, public acquisition or budgets refuse.
+    FileNotFoundError
+        Required storage is absent and no remote attestation is supplied.
+    """
+    mast_report = read_campaign_dataset_report(inputs.mast_dataset_report)
+    storage_payload = inspect_storage_payload(
         mast_report,
         inputs.storage_root,
         inputs.require_storage_payload,
         inputs.verified_storage_payload,
     )
-    public_data = _public_data_summary(inputs.public_data_root)
-    deferred_bytes = int(public_data["deferred_bytes"])
-    equilibria_count = int(mast_report["equilibria_count"])
+    public_data = summarise_campaign_public_data(inputs.public_data_root, ROOT)
+    deferred_bytes = public_data["deferred_bytes"]
+    equilibria_count = mast_report["equilibria_count"]
+    candidate_path = shlex.quote(str(inputs.storage_root / mast_report["candidate_report"]))
+    dataset_path = shlex.quote(str(inputs.storage_root / mast_report["dataset_path"]))
+    storage_root = shlex.quote(str(inputs.storage_root))
     gpu_budgets = _gpu_budget_table(equilibria_count, deferred_bytes)
     admission_blockers = [
         "full-output trainer must be executed on workstation or external cloud compute and publish holdout metrics",
@@ -241,8 +239,8 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
                 "python validation/plan_neural_equilibrium_training_campaign.py --require-storage-payload",
                 "python validation/train_mast_efm_neural_equilibrium.py",
                 "python validation/build_mast_efm_neural_equilibrium_dataset.py --candidate-report "
-                f"{inputs.storage_root / mast_report['candidate_report']} --storage-root {inputs.storage_root} --output-npz "
-                f"{inputs.storage_root / mast_report['dataset_path']} --json-out "
+                f"{candidate_path} --storage-root {storage_root} --output-npz "
+                f"{dataset_path} --json-out "
                 "validation/reports/mast_efm_neural_equilibrium_dataset.json --report-out "
                 "validation/reports/mast_efm_neural_equilibrium_dataset.md",
             ],
@@ -266,7 +264,7 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "exact_command": (
                 "python validation/train_mast_efm_neural_equilibrium.py --execute "
                 "--compute-host-kind workstation "
-                f"--dataset-path {inputs.storage_root / mast_report['dataset_path']} "
+                f"--dataset-path {dataset_path} "
                 f"--weights-out {DEFAULT_COMPUTE_WEIGHTS_OUT.as_posix()}"
             ),
             "pre_run_admission_gates": [
@@ -314,22 +312,12 @@ def build_plan(inputs: CampaignInputs) -> dict[str, Any]:
             "Keep all predictive and facility claims blocked until strict admission reports pass.",
         ],
     }
-    plan["payload_sha256"] = _payload_sha256({**plan, "payload_sha256": None})
+    plan["payload_sha256"] = canonical_campaign_digest(plan)
     return plan
 
 
-def _payload_sha256(payload: dict[str, Any]) -> str:
-    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
-    import hashlib
-
-    return hashlib.sha256(encoded).hexdigest()
-
-
-def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
-    """Write JSON and Markdown campaign reports."""
-
-    json_out.parent.mkdir(parents=True, exist_ok=True)
-    json_out.write_text(json.dumps(plan, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+def _render_markdown(plan: dict[str, Any]) -> str:
+    """Render declared plan sections; write_report wraps malformed runtime shapes."""
     lines = [
         "# Neural-Equilibrium Training Campaign Plan",
         "",
@@ -355,6 +343,8 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
         f"- storage-host payload: `{plan['mast_efm_dataset']['payload']['absolute_path']}`",
         f"- Exists on this host: `{plan['mast_efm_dataset']['payload']['exists_on_this_host']}`",
         f"- Verified available: `{plan['mast_efm_dataset']['payload']['verified_available']}`",
+        f"- Availability basis: `{plan['mast_efm_dataset']['payload']['availability_basis']}`",
+        f"- SHA-256 verified on this host: `{plan['mast_efm_dataset']['payload']['sha256_verified_on_this_host']}`",
         "",
         "## Compute execution package",
         "",
@@ -402,13 +392,52 @@ def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> No
     lines.extend(["", "## Run order", ""])
     lines.extend(f"{idx}. {item}" for idx, item in enumerate(plan["run_order"], start=1))
     lines.append("")
-    markdown_out.parent.mkdir(parents=True, exist_ok=True)
-    markdown_out.write_text("\n".join(lines), encoding="utf-8")
+    return "\n".join(lines)
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse CLI arguments."""
+def write_report(plan: dict[str, Any], json_out: Path, markdown_out: Path) -> None:
+    """Persist digest-bound JSON and rendered Markdown to distinct explicit paths.
 
+    Invalid schema/status, stale/non-finite payloads and unrenderable shapes are
+    refused before either output is written. Supported IO/path errors become
+    CampaignPlanError. Writes are sequential, not a two-file transaction; a
+    later IO failure may leave the JSON file and must not count as a complete
+    report. A matching self-digest proves consistency, not scientific admission.
+    """
+    try:
+        if (
+            not isinstance(plan, dict)
+            or plan.get("schema_version") != REPORT_SCHEMA
+            or plan.get("status") != "prepared"
+        ):
+            raise CampaignPlanError("campaign report must have the supported schema and prepared status")
+        if plan.get("payload_sha256") != canonical_campaign_digest(plan):
+            raise CampaignPlanError("campaign report payload_sha256 does not match its contents")
+        encoded = json.dumps(plan, indent=2, sort_keys=True, allow_nan=False) + "\n"
+        markdown = _render_markdown(plan)
+        if json_out.resolve() == markdown_out.resolve() or (
+            json_out.exists() and markdown_out.exists() and json_out.samefile(markdown_out)
+        ):
+            raise CampaignPlanError("JSON and Markdown outputs must be distinct paths")
+        json_out.parent.mkdir(parents=True, exist_ok=True)
+        json_out.write_text(encoded, encoding="utf-8")
+        markdown_out.parent.mkdir(parents=True, exist_ok=True)
+        markdown_out.write_text(markdown, encoding="utf-8")
+    except (OSError, ValueError, TypeError, KeyError, IndexError, RecursionError, RuntimeError) as exc:
+        raise CampaignPlanError(f"cannot write campaign report: {exc}") from exc
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse path/output controls from argv or the process arguments.
+
+    The verified-storage flag is an explicit remote operator attestation.
+    Default outputs remain the historical canonical report paths; callers
+    needing an isolated inspection must supply both output paths. Argparse
+    usage errors retain SystemExit(2); --help retains SystemExit(0).
+
+    >>> parse_args(['--verified-storage-payload']).verified_storage_payload
+    True
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--mast-dataset-report", default=DEFAULT_MAST_REPORT, type=Path)
     parser.add_argument("--storage-root", default=DEFAULT_STORAGE_ROOT, type=Path)
@@ -417,24 +446,33 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--report-out", default=DEFAULT_MD_OUT, type=Path)
     parser.add_argument("--require-storage-payload", action="store_true")
     parser.add_argument("--verified-storage-payload", action="store_true")
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    """Write the campaign plan."""
+def main(argv: Sequence[str] | None = None) -> int:
+    """Prepare/write metadata only; return zero on success or one on domain/IO refusal.
 
-    args = parse_args()
-    plan = build_plan(
-        CampaignInputs(
-            mast_dataset_report=args.mast_dataset_report,
-            storage_root=args.storage_root,
-            public_data_root=args.public_data_root,
-            require_storage_payload=args.require_storage_payload,
-            verified_storage_payload=args.verified_storage_payload,
+    Failures print authored FAIL text to stderr. Training, fetching, provenance
+    admission and weight creation are never performed. Argparse exits preserve
+    its documented usage/help codes.
+    """
+    args = parse_args(argv)
+    try:
+        plan = build_plan(
+            CampaignInputs(
+                mast_dataset_report=args.mast_dataset_report,
+                storage_root=args.storage_root,
+                public_data_root=args.public_data_root,
+                require_storage_payload=args.require_storage_payload,
+                verified_storage_payload=args.verified_storage_payload,
+            )
         )
-    )
-    write_report(plan, args.json_out, args.report_out)
+        write_report(plan, args.json_out, args.report_out)
+    except (CampaignPlanError, OSError) as exc:
+        print(f"FAIL: {exc}", file=sys.stderr)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

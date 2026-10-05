@@ -310,7 +310,7 @@ class HInfinityController:
         except np.linalg.LinAlgError as error:
             raise ValueError("DGKF coupling matrix is singular.") from error
         Ak = np.asarray(self.A + self.B1 @ self.B1.T @ X / gamma_squared + self.B2 @ F + Z @ L @ self.C2)
-        Bk = np.asarray(-Z @ L)
+        Bk: FloatArray = np.asarray(-Z @ L)
         Ck = F.copy()
         for name, matrix in (("F", F), ("L", L), ("Z", Z), ("Ak", Ak), ("Bk", Bk), ("Ck", Ck)):
             require_finite_array(name, matrix)

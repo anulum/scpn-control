@@ -1,0 +1,35 @@
+{
+  "provider": "GACODE TGLF",
+  "reported_version": "b4933975 [2026-08-20] PIXI_OPENMP Linux x86_64",
+  "case": "Upstream tglf01 standalone default; input is a comment-only deck",
+  "command": [
+    "tglf",
+    "-e",
+    "."
+  ],
+  "returncode": 0,
+  "files_sha256": {
+    "input.tglf": "4e05796a31c67aff505e9fbec219d1d264bbc7c760c1997e4e1cee0b3d790e6f",
+    "out.tglf.grid": "806353dc43860f2c20ab177f3963db19aa5e1d6ff855fd07ebb9f7aea20cf9f3",
+    "out.tglf.gbflux": "301cb0d9d627eb47c0a94ae07c05293326c06a757e969b1d1711a1b3d50a4116",
+    "out.tglf.ky_spectrum": "6acb7f44a6d5b3becdde875dc4bbec6127894c4828c98d1c03445484cf2806fe",
+    "out.tglf.eigenvalue_spectrum": "502b42a1bae808ed5d212e6bf2facf093afd6f20145bfea94d14e5cfd37a0887",
+    "out.tglf.sum_flux_spectrum": "a8b532772e9f6fecea79289e2a8770771f985c8bde9318f87be150333519b2ea",
+    "input.tglf.gen": "2e0d36a86f0452286865dc609e28aaab63bb32dc4d06d198060f97cf3859995a",
+    "out.tglf.scalar_saturation_parameters": "9488e439bfbc273f0e87c41be75102c92b0917d9ee8aeaeaf552adbd4f49c049"
+  },
+  "interpretation": "Actual generated normalized signed fluxes and spectra; no physical calibration claim.",
+  "original_files_sha256": {
+    "input.tglf": "4e05796a31c67aff505e9fbec219d1d264bbc7c760c1997e4e1cee0b3d790e6f",
+    "out.tglf.grid": "806353dc43860f2c20ab177f3963db19aa5e1d6ff855fd07ebb9f7aea20cf9f3",
+    "out.tglf.gbflux": "301cb0d9d627eb47c0a94ae07c05293326c06a757e969b1d1711a1b3d50a4116",
+    "out.tglf.ky_spectrum": "f4a48a2318c41a258d80ddcc7e91270c7458cdcb5925aaa4058cb117fe6ae7ba",
+    "out.tglf.eigenvalue_spectrum": "0dbae88797cfda2e825fd1ecd9402a0971e6340e061b14998240450f3e9cc38f",
+    "out.tglf.sum_flux_spectrum": "09b1a15744e95ef376c9ab5ef6b12652fcf836cc18804b2e0cb62acef9bb510d",
+    "input.tglf.gen": "2e0d36a86f0452286865dc609e28aaab63bb32dc4d06d198060f97cf3859995a",
+    "out.tglf.scalar_saturation_parameters": "e9f4e758210e85fdc7e9aa5c25c9c1ea0f630156dc156c68e8f0a303901ea41b"
+  },
+  "fixture_transform": "Remove trailing whitespace on each line, retain all headers and numeric tokens; original execution files retained separately.",
+  "precision_extension": "Full-precision weighted spectrum and resolved inputs recovered from a repeated real execution with byte-identical original fixture members after the declared whitespace transform.",
+  "effective_settings_extension": "Scalar saturation output records provider settings after startup presets; recovered from the same retained execution matching all previous fixture members."
+}

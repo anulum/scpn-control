@@ -52,6 +52,7 @@ def _artifact_payload(code: str = "TRANSP") -> dict[str, object]:
 
 
 def test_external_simulator_artifact_accepts_transp_and_tsc(tmp_path: Path) -> None:
+    """Accept validated metadata for both supported simulator families."""
     for code in ("TRANSP", "TSC"):
         path = tmp_path / f"{code.lower()}.json"
         path.write_text(json.dumps(_artifact_payload(code)), encoding="utf-8")
@@ -61,6 +62,7 @@ def test_external_simulator_artifact_accepts_transp_and_tsc(tmp_path: Path) -> N
 
 
 def test_external_simulator_artifact_rejects_bad_time_base() -> None:
+    """Reject simulator metadata with an invalid time base."""
     payload = _artifact_payload()
     payload["time_base_s"] = [0.0, 0.02, 0.01]
     with pytest.raises(ValueError, match="strictly increasing"):
@@ -68,6 +70,7 @@ def test_external_simulator_artifact_rejects_bad_time_base() -> None:
 
 
 def test_external_simulator_artifact_rejects_unsupported_code() -> None:
+    """Reject simulator codes outside the supported pair."""
     payload = _artifact_payload("UNVETTED")
     with pytest.raises(ValueError, match="TRANSP or TSC"):
         validate_external_simulator_artifact(payload)
@@ -91,6 +94,7 @@ def test_external_simulator_artifact_rejects_malformed_metadata(
     mutation: Callable[[dict[str, object]], None],
     message: str,
 ) -> None:
+    """Reject malformed external simulator metadata fields."""
     payload = _artifact_payload()
     mutation(payload)
 
@@ -99,6 +103,7 @@ def test_external_simulator_artifact_rejects_malformed_metadata(
 
 
 def test_load_external_simulator_artifact_rejects_non_object_json(tmp_path: Path) -> None:
+    """Require a JSON object when loading artifact metadata."""
     path = tmp_path / "artifact.json"
     path.write_text(json.dumps(["not", "an", "object"]), encoding="utf-8")
 
@@ -107,11 +112,13 @@ def test_load_external_simulator_artifact_rejects_non_object_json(tmp_path: Path
 
 
 def test_artifact_payload_digest_is_stable() -> None:
+    """Keep artifact payload hashing deterministic across key order."""
     payload = _artifact_payload()
     assert artifact_payload_sha256(payload) == artifact_payload_sha256(dict(reversed(list(payload.items()))))
 
 
 def test_digital_twin_physical_update_knobs_change_reference_loss() -> None:
+    """Ensure physical update parameters affect the reference loss."""
     target = run_digital_twin(time_steps=10, seed=41, save_plot=False, verbose=False, n_e=1.25e20, Z_eff=2.5)
     observation = TwinObservation(
         targets={"final_avg_temp": float(target["final_avg_temp"]), "final_reward": float(target["final_reward"])},
@@ -129,6 +136,7 @@ def test_digital_twin_physical_update_knobs_change_reference_loss() -> None:
 
 
 def test_bayesian_update_improves_over_nominal_baseline() -> None:
+    """Require the bounded update to improve on the nominal baseline."""
     target = run_digital_twin(
         time_steps=12,
         seed=101,
@@ -168,6 +176,7 @@ def test_bayesian_update_improves_over_nominal_baseline() -> None:
 
 
 def test_synthetic_online_update_benchmark_is_bounded_and_deterministic() -> None:
+    """Keep the synthetic benchmark bounded and repeatable."""
     a = synthetic_online_update_benchmark(seed=8)
     b = synthetic_online_update_benchmark(seed=8)
     assert a.best_loss == pytest.approx(b.best_loss)
@@ -176,6 +185,7 @@ def test_synthetic_online_update_benchmark_is_bounded_and_deterministic() -> Non
 
 
 def test_digital_twin_update_evidence_requires_transp_tsc_and_improvement() -> None:
+    """Admit only evidence with supported provenance and improvement."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(
         targets={"final_avg_temp": 2.0},
@@ -260,6 +270,7 @@ def test_update_evidence_rejects_negative_result_loss() -> None:
 
 
 def test_digital_twin_update_evidence_rejects_missing_simulator_and_non_improvement() -> None:
+    """Reject absent simulator provenance or a non-improving update."""
     artifacts = (validate_external_simulator_artifact(_artifact_payload("TRANSP")),)
     observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
     priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
@@ -289,6 +300,7 @@ def test_digital_twin_update_evidence_rejects_missing_simulator_and_non_improvem
 
 
 def test_digital_twin_update_evidence_rejects_malformed_bayesian_results() -> None:
+    """Reject malformed Bayesian update results at the evidence boundary."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(
         targets={"final_avg_temp": 2.0},
@@ -372,6 +384,7 @@ def test_digital_twin_update_evidence_rejects_malformed_bayesian_results() -> No
 
 
 def test_bayesian_update_config_rejects_bool_and_float_integer_fields() -> None:
+    """Require genuine integers for discrete update configuration fields."""
     with pytest.raises(ValueError, match="n_initial"):
         BayesianUpdateConfig(n_initial=6.0)  # type: ignore[arg-type]
 
@@ -393,6 +406,7 @@ def test_bayesian_update_config_rejects_bool_and_float_integer_fields() -> None:
 
 
 def test_twin_observation_requires_matching_positive_tolerances() -> None:
+    """Require positive tolerances that match the observation fields."""
     with pytest.raises(ValueError, match="missing tolerance"):
         TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={})
 
@@ -406,6 +420,7 @@ def test_twin_observation_requires_matching_positive_tolerances() -> None:
 
 
 def test_twin_parameter_prior_rejects_unphysical_domains() -> None:
+    """Reject parameter priors outside physical or numeric bounds."""
     with pytest.raises(ValueError, match="Unsupported"):
         TwinParameterPrior("unsupported", 0.0, 1.0, 0.5)
     with pytest.raises(ValueError, match="finite"):
@@ -417,6 +432,7 @@ def test_twin_parameter_prior_rejects_unphysical_domains() -> None:
 
 
 def test_digital_twin_update_evidence_rejects_duplicate_priors() -> None:
+    """Reject duplicate prior names in update evidence."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
     priors = (
@@ -438,6 +454,7 @@ def test_digital_twin_update_evidence_rejects_duplicate_priors() -> None:
 
 
 def test_digital_twin_update_evidence_rejects_type_and_digest_contract_violations() -> None:
+    """Enforce evidence field types and digest contracts."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
     priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
@@ -475,6 +492,8 @@ def test_digital_twin_update_evidence_rejects_type_and_digest_contract_violation
     ("field_name", "replacement", "message"),
     [
         ("schema_version", 2, "schema_version"),
+        ("schema_version", True, "schema_version"),
+        ("claim_status", "facility validated", "claim_status"),
         ("external_artifacts_sha256", "9" * 64, "external_artifacts_sha256"),
         ("observation_sha256", "9" * 64, "observation_sha256"),
         ("priors_sha256", "9" * 64, "priors_sha256"),
@@ -490,6 +509,7 @@ def test_digital_twin_update_admission_rejects_evidence_drift(
     replacement: object,
     message: str,
 ) -> None:
+    """Reject tampering with replay-bound evidence and its claim text."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
     priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)
@@ -516,6 +536,7 @@ def test_digital_twin_update_admission_rejects_evidence_drift(
 
 
 def test_digital_twin_update_evidence_rejects_malformed_result_accounting() -> None:
+    """Reject inconsistent or malformed optimizer result accounting."""
     artifacts = tuple(validate_external_simulator_artifact(_artifact_payload(code)) for code in ("TRANSP", "TSC"))
     observation = TwinObservation(targets={"final_avg_temp": 2.0}, tolerances={"final_avg_temp": 0.05})
     priors = (TwinParameterPrior("n_e", 0.8e20, 1.5e20, 1.0e20),)

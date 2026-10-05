@@ -5,30 +5,72 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — E2E Latency Evidence Validation
-"""Validate end-to-end control latency reports before real-time claims."""
+"""Check persisted local latency declarations and an inclusive microsecond budget.
+
+The payload/context helpers retain compatibility aliases here. A report pass
+checks fields and a recomputable checksum; it does not qualify hardware or
+replay timings. This standard-library command never writes report artifacts.
+"""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import math
+import sys
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
-from typing import Any
 
-E2E_LATENCY_SCHEMA_VERSION = "scpn-control.e2e-latency.v1"
-E2E_LATENCY_CLAIM_BOUNDARY = (
-    "local latency evidence only; not a hardware-in-the-loop real-time guarantee "
-    "unless target_hardware.id, class, and rt_kernel are operator-qualified"
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from validation.e2e_latency_context import (
+    _valid_utc_timestamp as _valid_utc_timestamp,
 )
-_UNQUALIFIED_VALUES = {"", "unknown", "unspecified", "unspecified-local", "local-host-unqualified"}
+from validation.e2e_latency_context import (
+    _validate_benchmark_context,
+)
+from validation.e2e_latency_context import (
+    _validate_loadavg as _validate_loadavg,
+)
+from validation.e2e_latency_payload import (
+    _UNQUALIFIED_VALUES as _UNQUALIFIED_VALUES,
+)
+from validation.e2e_latency_payload import (
+    E2E_LATENCY_CLAIM_BOUNDARY,
+    E2E_LATENCY_SCHEMA_VERSION,
+    _finite_positive_number,
+    _load_json,
+    _payload_digest,
+    _qualified_string,
+    _validate_percentiles,
+)
+from validation.e2e_latency_payload import (
+    build_e2e_latency_evidence_payload as build_e2e_latency_evidence_payload,
+)
 
 
 @dataclass(frozen=True)
 class LatencyEvidenceReport:
-    """Strict validation result for a latency evidence artifact."""
+    """Immutable outcome of declaration checks, without real-time certification.
+
+    Attributes
+    ----------
+    status : str
+        pass when no checks fail, otherwise fail.
+    errors : tuple[str, ...]
+        Ordered authored field diagnostics.
+    p95_us : float or None
+        Converted positive finite E2E p95 in microseconds, even on failed reports.
+    target_hardware_id, target_hardware_class, rt_kernel : str or None
+        Trimmed declared labels, or None for unqualified placeholders.
+
+    Notes
+    -----
+    Direct construction does not validate fields. A validator pass authenticates
+    no hardware, original samples, operator approval or end-to-end deadline.
+    """
 
     status: str
     errors: tuple[str, ...]
@@ -38,137 +80,59 @@ class LatencyEvidenceReport:
     rt_kernel: str | None
 
 
-def _load_json(path: str | Path) -> dict[str, Any]:
-    with Path(path).open("r", encoding="utf-8") as handle:
-        payload = json.load(handle)
-    if not isinstance(payload, dict):
-        raise ValueError("latency evidence root must be a JSON object")
-    return payload
-
-
-def _qualified_string(value: object) -> str | None:
-    if not isinstance(value, str):
-        return None
-    stripped = value.strip()
-    if stripped.lower() in _UNQUALIFIED_VALUES:
-        return None
-    return stripped
-
-
-def _finite_positive_number(value: object) -> float | None:
-    if isinstance(value, bool) or not isinstance(value, int | float):
-        return None
-    numeric = float(value)
-    if not math.isfinite(numeric) or numeric <= 0.0:
-        return None
-    return numeric
-
-
-def _payload_digest(payload: dict[str, Any]) -> str:
-    canonical = dict(payload)
-    canonical.pop("payload_sha256", None)
-    blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
-    return hashlib.sha256(blob).hexdigest()
-
-
-def build_e2e_latency_evidence_payload(payload: dict[str, Any]) -> dict[str, Any]:
-    """Return a canonical schema-versioned latency evidence payload."""
-    canonical = dict(payload)
-    canonical["schema_version"] = E2E_LATENCY_SCHEMA_VERSION
-    canonical["claim_status"] = E2E_LATENCY_CLAIM_BOUNDARY
-    canonical["claim_boundary"] = E2E_LATENCY_CLAIM_BOUNDARY
-    canonical.setdefault("evidence_class", "local_regression")
-    canonical.setdefault("production_claim_allowed", False)
-    canonical["payload_sha256"] = _payload_digest(canonical)
-    return canonical
-
-
-def _validate_percentiles(
-    payload: dict[str, Any],
-    section_name: str,
-    errors: list[str],
-) -> dict[str, float | None]:
-    section = payload.get(section_name)
-    if not isinstance(section, dict):
-        errors.append(f"{section_name} must be an object")
-        section = {}
-    values = {key: _finite_positive_number(section.get(key)) for key in ("p50", "p95", "p99")}
-    for key, value in values.items():
-        if value is None:
-            errors.append(f"{section_name}.{key} must be a positive finite number")
-    p50, p95, p99 = values["p50"], values["p95"], values["p99"]
-    if p50 is not None and p95 is not None and p99 is not None and not (p50 <= p95 <= p99):
-        errors.append(f"{section_name} percentiles must satisfy p50 <= p95 <= p99")
-    return values
-
-
-def _valid_utc_timestamp(value: object) -> bool:
-    if not isinstance(value, str) or not value.strip():
-        return False
-    try:
-        datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    except ValueError:
-        return False
-    return True
-
-
-def _validate_loadavg(payload: dict[str, Any], key: str, errors: list[str]) -> None:
-    value = payload.get(key)
-    if not isinstance(value, list) or len(value) != 3:
-        errors.append(f"context.{key} must contain three finite load-average values")
-        return
-    for item in value:
-        if not isinstance(item, int | float) or isinstance(item, bool) or not math.isfinite(float(item)):
-            errors.append(f"context.{key} must contain three finite load-average values")
-            return
-
-
-def _validate_benchmark_context(payload: dict[str, Any], errors: list[str]) -> None:
-    command = payload.get("command")
-    if not isinstance(command, str) or "benchmarks/e2e_control_latency.py" not in command:
-        errors.append("command must record the E2E benchmark invocation")
-
-    if not _valid_utc_timestamp(payload.get("generated_utc")):
-        errors.append("generated_utc must record an ISO-8601 UTC timestamp")
-
-    if payload.get("evidence_class") != "local_regression":
-        errors.append("evidence_class must be local_regression")
-    if payload.get("production_claim_allowed") is not False:
-        errors.append("production_claim_allowed must be false for local E2E latency reports")
-    if payload.get("claim_boundary") != E2E_LATENCY_CLAIM_BOUNDARY:
-        errors.append("claim_boundary must preserve the canonical local-evidence boundary")
-
-    context = payload.get("context")
-    if not isinstance(context, dict):
-        errors.append("context must record benchmark host-load and isolation metadata")
-        context = {}
-    affinity = context.get("cpu_affinity")
-    if (
-        not isinstance(affinity, list)
-        or not affinity
-        or not all(isinstance(item, int) and not isinstance(item, bool) and item >= 0 for item in affinity)
-    ):
-        errors.append("context.cpu_affinity must record at least one CPU")
-    isolation_method = context.get("isolation_method")
-    if not isinstance(isolation_method, str) or not isolation_method.strip():
-        errors.append("context.isolation_method must record the benchmark isolation method")
-    _validate_loadavg(context, "loadavg_start", errors)
-    _validate_loadavg(context, "loadavg_end", errors)
-    if "governor" not in context:
-        errors.append("context.governor must record CPU governor state or null when unavailable")
-    heavy_jobs = context.get("heavy_jobs_running")
-    if not isinstance(heavy_jobs, str) or not heavy_jobs.strip():
-        errors.append("context.heavy_jobs_running must record whether concurrent heavy jobs were observed")
-
-
 def validate_e2e_latency_evidence(
     path: str | Path,
     *,
     require_target_hardware: bool = True,
     max_e2e_p95_us: float | None = None,
 ) -> LatencyEvidenceReport:
-    """Validate a persisted E2E latency report for publication admission."""
+    """Check a persisted local report and an optional inclusive p95 budget.
 
+    Parameters
+    ----------
+    path : str or pathlib.Path
+        UTF-8 JSON object read from the caller's working directory.
+    require_target_hardware : bool, default True
+        Require nonplaceholder id/class/rt_kernel labels. False still requires
+        the target_hardware mapping and preserves the local claim boundary.
+    max_e2e_p95_us : float or None, default None
+        Finite nonnegative microsecond upper bound; equality is accepted.
+        None omits only this comparison. Booleans and nonnumeric budgets fail.
+
+    Returns
+    -------
+    LatencyEvidenceReport
+        Ordered field refusals and observed p95/labels. Self-digest, counters,
+        percentile positivity/order, overhead, local boundary and context are
+        checked without changing the report.
+
+    Raises
+    ------
+    ValueError
+        Budget is invalid, JSON parsing fails or the root is not an object.
+        Budget validation happens before report I/O.
+    OSError, UnicodeError
+        The report cannot be read as UTF-8.
+    OverflowError, TypeError, RecursionError
+        Legacy report numeric conversion or canonical JSON serialization fails.
+
+    Notes
+    -----
+    The digest covers parsed canonical fields, not raw file bytes. Duplicate
+    JSON keys keep the last value; unknown fields are retained in that digest.
+    Timestamp must be explicitly UTC but need not be recent. Labels/context
+    are declarations, not hardware or isolation verification. No timing replay,
+    source signature, operator qualification or production admission occurs.
+    """
+    if max_e2e_p95_us is not None:
+        if isinstance(max_e2e_p95_us, bool) or not isinstance(max_e2e_p95_us, int | float):
+            raise ValueError("max_e2e_p95_us must be a finite non-negative number")
+        try:
+            budget = float(max_e2e_p95_us)
+        except OverflowError as exc:
+            raise ValueError("max_e2e_p95_us must be a finite non-negative number") from exc
+        if not math.isfinite(budget) or budget < 0.0:
+            raise ValueError("max_e2e_p95_us must be a finite non-negative number")
     payload = _load_json(path)
     errors: list[str] = []
     if payload.get("schema_version") != E2E_LATENCY_SCHEMA_VERSION:
@@ -235,6 +199,30 @@ def validate_e2e_latency_evidence(
 
 
 def main() -> None:
+    """Read CLI arguments and print local-report diagnostics to standard output.
+
+    Parameters
+    ----------
+    None
+        Arguments come from sys.argv: report, --allow-local-unqualified,
+        --max-e2e-p95-us (microseconds) and --json-out.
+
+    Returns
+    -------
+    None
+        No file is written; JSON output retains the existing six result fields.
+
+    Raises
+    ------
+    SystemExit
+        0 for a valid report or help, 1 for reported field refusals and 2 for
+        argparse syntax errors. Native API/I/O exceptions remain uncaught and
+        cause script failure; invalid budgets raise ValueError before I/O.
+
+    Notes
+    -----
+    A pass is bounded metadata validation, not a hardware real-time guarantee.
+    """
     parser = argparse.ArgumentParser(description="Validate E2E control-latency evidence")
     parser.add_argument("report", type=Path)
     parser.add_argument("--allow-local-unqualified", action="store_true")

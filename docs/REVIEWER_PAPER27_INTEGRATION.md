@@ -635,17 +635,21 @@ guard status, Ψ control slider, raw JSON expander, auto-refresh at 3 Hz.
 
 ### 11.10 Phase Sync Live Video
 
-![Phase Sync Convergence](phase_sync_live.gif)
+![Historical phase-model visualization](phase_sync_live.gif)
 
-Generated model trajectory from RealtimeMonitor (500 ticks, 16×50 oscillators,
-ζ=0.5):
+Retained historical model media labelled 500 ticks, 16×50 oscillators, ζ=0.5:
 
-- **MP4**: [`docs/phase_sync_live.mp4`](phase_sync_live.mp4) (418 KB, H.264)
-- **GIF**: [`docs/phase_sync_live.gif`](phase_sync_live.gif) (1.1 MB)
-- **Generator**: `tools/generate_phase_video.py --ticks 500 --fps 20`
+- **MP4**: [`docs/phase_sync_live.mp4`](phase_sync_live.mp4)
+- **GIF**: [`docs/phase_sync_live.gif`](phase_sync_live.gif)
+- **Current generator**: `python tools/generate_phase_video.py --ticks 500 --fps 20 --output-dir phase-video`
 
-Observed model convergence: R=0.92, V→0, λ=−0.47 (model-local stable),
-38 µs/tick in the recorded benchmark context.
+The current default seeded monitor gives R≈0.154, V≈0.846 and the finite-history
+model exponent λ≈−0.458 at tick500. The old R=0.92, V→0 caption is not reproduced;
+no current 38 µs/tick claim follows from these media. The new caller-relative
+directory contains GIF, H.264 MP4 and displayed-value JSON; an existing destination
+refuses. `--gif-only` explicitly omits MP4. Model dt0.001 and playback FPS are
+independent, and model guard PASS/HALT does not admit reactor protection.
+See the [API contract](api.md#phase-model-video) for errors, sampling and limits.
 
 ### 11.11 PyPI Publish Script
 

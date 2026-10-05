@@ -11,10 +11,10 @@
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """
-Mesh convergence study for the Grad-Shafranov elliptic solver.
+Manufactured Grad-Shafranov stencil convergence using independent row-vector SOR.
 
-Runs the Solov'ev analytic benchmark at multiple grid resolutions to
-determine the spatial order of accuracy.
+This mathematical Dirichlet benchmark does not invoke the canonical FusionKernel.
+The public function measures interior error; main writes a fixed four-grid study.
 """
 
 from __future__ import annotations
@@ -28,7 +28,38 @@ import numpy as np
 
 
 def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 1e-10) -> dict[str, Any]:
-    """Run Solov'ev benchmark on a nr x nz grid."""
+    """Solve a manufactured Solov'ev-form Dirichlet problem with row-vector SOR.
+
+    Parameters
+    ----------
+    nr, nz : int
+        Uniform radial/vertical sample counts. A nonempty interior requires
+        both >=3; native NumPy/arithmetic errors propagate for invalid sizes.
+    max_iter : int, default 25000
+        Python range iteration cap. Zero/negative means no sweeps.
+    tol : float, default 1e-10
+        Strict maximum interior discrete-residual stopping threshold, checked
+        after sweep indices0,200,400,...; not an error tolerance or convergence
+        guarantee. Invalid/nonfinite tolerances retain ordinary comparison rules.
+
+    Returns
+    -------
+    dict[str, Any]
+        nr/nz, radial spacing h, interior RMSE/max error, NRMSE normalized by
+        the exact full-grid range, actual completed sweep count and wall_time_s.
+        No arrays, residual or convergence flag are returned.
+
+    Notes
+    -----
+    Independent manufactured problem on R=[1,3], Z=[-1.5,1.5], c1=1/c2=0.5:
+    psi=R**4/8+Z**2/2, source=R**2+1, exact Dirichlet edges and zero interior.
+    SOR omega1.2 updates radial rows using vectorized vertical values. Coordinates,
+    flux and source are mathematical benchmark scales, not calibrated discharge
+    units. This does not call FusionKernel or prove its runtime solver fidelity.
+    Early stop occurs at a sampled residual below tol or sampled NaN detection;
+    cap exhaustion is returned without refusal. Wall time covers sweeps only,
+    excluding setup/error reduction, and is not an isolated performance claim.
+    """
     R_min, R_max = 1.0, 3.0
     Z_min, Z_max = -1.5, 1.5
 
@@ -60,7 +91,7 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     omega = 1.2
 
     t0 = time.perf_counter()
-    final_iter = 0
+    final_iter = -1
     for k in range(max_iter):
         final_iter = k
         # SOR iteration (vectorized by row to speed up Python)
@@ -111,6 +142,34 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
 
 
 def main() -> None:
+    """Run the fixed 17/33/65/129 manufactured study and overwrite two local reports.
+
+    Parameters
+    ----------
+    None
+        No CLI parser or user arguments are consumed; default 25000 sweeps and
+        tol1e-10 apply to each square grid.
+
+    Returns
+    -------
+    None
+        Print table/rates and sequentially write caller-relative
+        validation/reports/mesh_convergence.json and mesh_convergence.md.
+        First row has no convergence_rate; later rates use adjacent radial
+        spacing and NRMSE ratios.
+
+    Raises
+    ------
+    OSError, ValueError
+        Native computation/serialization or sequential report I/O fails.
+        Platform-default text encoding and nontransactional overwrite remain.
+
+    Notes
+    -----
+    No campaign guard, physical admission, independent canonical-solver check
+    or output alias protection is performed. A failed write can leave one
+    report updated. Use an isolated cwd to preserve canonical scientific files.
+    """
     resolutions = [17, 33, 65, 129]
     results = []
 

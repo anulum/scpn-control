@@ -1,0 +1,19 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Real Gymnasium and stored-policy CI dependencies.
+
+-c ci-deps.txt
+-c ci-test.txt
+-c ci-viz.txt
+--extra-index-url https://download.pytorch.org/whl/cpu
+
+# Match the package and matrix's admitted Python >=3.11,<3.14 range.
+gymnasium==1.2.3; python_version >= '3.11' and python_version < '3.14'
+stable-baselines3==2.8.0; python_version >= '3.11' and python_version < '3.14'
+pandas==3.0.6; python_version >= '3.11' and python_version < '3.14'
+torch==2.14.0+cpu; sys_platform != 'darwin' and python_version >= '3.11' and python_version < '3.14'
+torch==2.14.0; sys_platform == 'darwin' and python_version >= '3.11' and python_version < '3.14'

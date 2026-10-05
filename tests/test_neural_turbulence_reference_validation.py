@@ -6,6 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Neural turbulence reference validation tests
 
+"""Preserve six original public turbulence regression assertions and fixture data."""
+
 from __future__ import annotations
 
 import json
@@ -16,6 +18,7 @@ from validation.validate_neural_turbulence_reference import validate_neural_turb
 
 
 def _valid_turbulence_reference_artifact() -> dict[str, object]:
+    """Supply original engineering turbulence declaration metadata without claiming physical reference bytes."""
     return {
         "schema_version": "1.0",
         "source": "documented_public_reference",
@@ -63,6 +66,7 @@ def _valid_turbulence_reference_artifact() -> dict[str, object]:
 
 
 def test_strict_neural_turbulence_gate_requires_reference_artifacts(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     report = validate_neural_turbulence_reference(tmp_path, require_reference_artifacts=True)
 
     assert report["status"] == "fail"
@@ -71,6 +75,7 @@ def test_strict_neural_turbulence_gate_requires_reference_artifacts(tmp_path: Pa
 
 
 def test_neural_turbulence_gate_accepts_documented_public_reference(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     artifact = tmp_path / "qlknn_turbulence_reference.json"
     artifact.write_text(json.dumps(_valid_turbulence_reference_artifact()), encoding="utf-8")
 
@@ -83,6 +88,7 @@ def test_neural_turbulence_gate_accepts_documented_public_reference(tmp_path: Pa
 
 
 def test_neural_turbulence_gate_accepts_real_gk_artifact(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     payload = _valid_turbulence_reference_artifact()
     payload["source"] = "real_gk_campaign"
     payload.pop("reference_doi")
@@ -97,6 +103,7 @@ def test_neural_turbulence_gate_accepts_real_gk_artifact(tmp_path: Path) -> None
 
 
 def test_neural_turbulence_gate_rejects_synthetic_source(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     payload = _valid_turbulence_reference_artifact()
     payload["source"] = "synthetic"
     artifact = tmp_path / "synthetic_turbulence_reference.json"
@@ -109,6 +116,7 @@ def test_neural_turbulence_gate_rejects_synthetic_source(tmp_path: Path) -> None
 
 
 def test_neural_turbulence_gate_rejects_score_below_minimum(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     payload = _valid_turbulence_reference_artifact()
     metrics = cast(dict[str, object], payload["metrics"])
     metrics["critical_gradient_accuracy"] = 0.81
@@ -122,6 +130,7 @@ def test_neural_turbulence_gate_rejects_score_below_minimum(tmp_path: Path) -> N
 
 
 def test_neural_turbulence_gate_rejects_missing_flux_unit_contract(tmp_path: Path) -> None:
+    """Exercise the original persisted turbulence declaration regression and its public acceptance or refusal."""
     payload = _valid_turbulence_reference_artifact()
     payload["units"] = {"Q_i": "gyroBohm", "Q_e": "gyroBohm"}
     artifact = tmp_path / "bad_units_reference.json"

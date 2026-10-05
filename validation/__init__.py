@@ -5,3 +5,12 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Validation Package.
+
+"""Repository-local evidence readers, report writers and validation campaigns.
+
+The initializer declares package documentation without eager submodule exports.
+Evidence scans, file writes, optional backends and campaign execution belong to
+the explicit defining submodule APIs and command-line entry points. Their
+contracts distinguish declared, synthetic and independently verified evidence;
+the package initializer supplies no validation verdict or scientific admission.
+"""
