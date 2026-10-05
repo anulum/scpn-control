@@ -180,7 +180,7 @@ def write_current_drive_reference_report(
     """Write sorted UTF8 JSON+LF while protecting root/immediate selected input aliases.
 
     Direct, resolved, symlink and existing hardlink aliases raise ValueError
-    before writing. Other output may replace. IO/path/encoding/serialization
+    before writing. Other output may replace. IO/path/encoding/serialisation
     errors propagate. Checks are sequential without locks or a concurrent snapshot.
     """
     output = Path(output_path)

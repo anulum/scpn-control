@@ -13,7 +13,7 @@ workflow files. Workflow actions count only inside jobs' step sequences and
 their toolchain/components values come only from each action's own ``with``
 mapping. YAML nodes are composed without constructing tags. The policy validates
 declarations, not Rust installation, hosted execution, action authenticity,
-conditional reachability, compiler behavior, or scientific/native admission.
+conditional reachability, compiler behaviour, or scientific/native admission.
 """
 
 from __future__ import annotations
@@ -169,7 +169,7 @@ def check_rust_toolchain_contract(root: Path = ROOT) -> list[str]:
     ----------
     root : pathlib.Path, default ROOT
         Repository root. Relative roots resolve from caller cwd; the default
-        resolves from this script. Symlinks retain ordinary pathlib behavior.
+        resolves from this script. Symlinks retain ordinary pathlib behaviour.
 
     Returns
     -------

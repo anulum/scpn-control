@@ -74,7 +74,7 @@ class TestEvolveProfiles:
             solver.update_transport_model(50.0)
             solver.evolve_profiles(dt=0.01, P_aux=50.0)
         T_end = float(np.mean(solver.Ti))
-        # Temperature should have changed (either up or stabilized)
+        # Temperature should have changed (either up or stabilised)
         assert T_end != T_start
 
     def test_evolve_rejects_nonpositive_or_nonfinite_dt(self, solver: TransportSolver) -> None:

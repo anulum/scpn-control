@@ -61,7 +61,7 @@ def _map_profiles_to_2d(self: TransportSolver) -> None:
     # J_phi = R p' + J_bs
     self.J_phi = (self.Pressure_2D * self.RR) + J_bs_2D
 
-    # Normalize to target current
+    # Normalise to target current
     I_curr = np.sum(self.J_phi) * self.dR * self.dZ
     if I_curr > 1e-9:
         self.J_phi *= I_target / I_curr

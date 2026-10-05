@@ -78,7 +78,7 @@ class DataSourceManifest:
     uri : str
         Remote provenance or local file spelling; not authenticated here.
     access : str
-        Declared access policy, not facility authorization.
+        Declared access policy, not facility authorisation.
     """
 
     kind: str
@@ -106,7 +106,7 @@ class ArtifactManifest:
 class RealDataManifest:
     """Frozen schema record separating declared real and synthetic roles.
 
-    Required fields are schema_version, dataset_id, machine, normalized shot,
+    Required fields are schema_version, dataset_id, machine, normalised shot,
     synthetic, source and signals. Optional retrieval/licence/digest/citation/
     source-policy strings carry provenance declarations. Synthetic generator
     and integer seed carry fixture reproducibility declarations; artifacts is
@@ -279,7 +279,7 @@ def validate_real_data_manifest(payload: dict[str, Any]) -> RealDataManifest:
     Returns
     -------
     RealDataManifest
-        Frozen record whose shot is a trimmed string or normalized integer.
+        Frozen record whose shot is a trimmed string or normalised integer.
 
     Raises
     ------

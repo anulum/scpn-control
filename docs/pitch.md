@@ -160,7 +160,7 @@ scpn-control-rs/
 Real-time 16-layer Kuramoto-Sakaguchi phase sync with global field driver.
 Interactive controls for coupling strength, oscillator count, and Psi driver.
 
-**Historical phase-model visualization (labelled 500 ticks, 16 layers x 50 oscillators):**
+**Historical phase-model visualisation (labelled 500 ticks, 16 layers x 50 oscillators):**
 
 <p align="center">
   <img src="phase_sync_live.gif" alt="Historical phase-model visualization" width="100%">

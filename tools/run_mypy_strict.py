@@ -338,7 +338,7 @@ def write_ledger(ledger: StrictDebtLedger, path: Path = LEDGER_PATH) -> None:
     """Write formatted UTF-8 JSON without creating parents or validating direct constructors.
 
     The write is not atomic. The caller owns path selection and concurrent-file
-    coordination; IO/decode/serialization errors propagate.
+    coordination; IO/decode/serialisation errors propagate.
     """
     path.write_text(json.dumps(ledger.to_dict(), indent=2) + "\n", encoding="utf-8")
 

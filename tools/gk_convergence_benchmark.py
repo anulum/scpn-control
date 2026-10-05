@@ -9,7 +9,7 @@
 
 """Manual JAX nonlinear CBC grid study with disposable raw JSON output.
 
-Import initializes the actual configured JAX backend and prints its devices;
+Import initialises the actual configured JAX backend and prints its devices;
 CPU is permitted and missing JAX refuses import. run_benchmark accepts a caller
 config, while main keeps the original large calibration and four-case campaign.
 The provider's converged flag is finite-sample bookkeeping, not saturation or
@@ -62,15 +62,15 @@ def save(results: Mapping[str, object]) -> None:
     RESULTS_FILE defaults to absolute /tmp/gk_convergence.json and is mutable;
     a caller-assigned relative value follows cwd. The parent must exist. UTF-8
     is not forced: open uses the platform text codec. JSON retains the original
-    indent=2 and allow_nan=True behavior, including nonstandard NaN/Infinity.
-    None chi values serialize as null. Input mappings are borrowed, not verified
+    indent=2 and allow_nan=True behaviour, including nonstandard NaN/Infinity.
+    None chi values serialise as null. Input mappings are borrowed, not verified
     or authenticated. This disposable scratch is not canonical benchmark evidence.
 
     OSError propagates on creation/write; TypeError/ValueError propagate for
     unsupported/circular JSON inputs. Existing output is truncated before
-    serialization and can remain partial after failure. No alias guard, atomic
+    serialisation and can remain partial after failure. No alias guard, atomic
     replacement, locking or ownership check exists. Callers must own the target
-    and serialize module-global changes and writes themselves.
+    and serialise module-global changes and writes themselves.
     """
     with open(RESULTS_FILE, "w") as f:
         json.dump(results, f, indent=2)
@@ -107,10 +107,10 @@ def run_benchmark(name: str, config: NonlinearGKConfig) -> BenchmarkResult:
 
     Notes
     -----
-    A fresh solver initializes its unchanged seed-42 state and configured JAX
+    A fresh solver initialises its unchanged seed-42 state and configured JAX
     device/precision; its default grid axes are species,kx,ky,theta,vpar,mu.
     The system wall clock brackets construction and run(), including first-use
-    compilation/allocation and synchronized diagnostic conversions. Import and
+    compilation/allocation and synchronised diagnostic conversions. Import and
     console result formatting/printing/file writing are excluded. wall_s is
     rounded to one decimal and is not a monotonic or controlled timing claim.
     This call prints diagnostics, writes no file and retains no solver state.
@@ -150,7 +150,7 @@ def main() -> None:
     Adiabatic beta0 and kinetic-electron beta0.01 cases use that count and
     save=max(count//10,1); electromagnetic remains its False default. Both grid
     cases use kx64/256,adiabatic beta0,500steps,save50. All use dt0.02 and
-    unchanged CFL adaptation, initialization and remaining provider defaults.
+    unchanged CFL adaptation, initialisation and remaining provider defaults.
 
     save() overwrites the mutable caller-owned RESULTS_FILE after calibration
     and each actual case, retaining partial campaign progress on later failure.

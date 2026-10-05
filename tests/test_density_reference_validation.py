@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Density reference validation tests
 
-"""Exercise declaration-schema behavior, not real density or facility validation.
+"""Exercise declaration-schema behaviour, not real density or facility validation.
 
 The inherited fixture supplies illustrative self-declared metadata/errors only;
 its source labels and DOI do not establish an authenticated reference corpus.

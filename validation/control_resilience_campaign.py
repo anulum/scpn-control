@@ -48,7 +48,7 @@ def generate_campaign_report(
     Parameters
     ----------
     seed : int
-        Seed for the core's local NumPy generator; normalized with int().
+        Seed for the core's local NumPy generator; normalised with int().
     episodes, window : int
         Number of synthetic traces and samples per trace, >= 1 and >= 16.
     noise_std : float
@@ -66,12 +66,12 @@ def generate_campaign_report(
         UTC generation time, measured runtime_seconds around the core call,
         and campaign metrics. Metrics include risk-error mean/p95, recovery
         offset p95/success fraction, fault count and four threshold checks.
-        For fixed normalized inputs campaign metrics repeat; time does not.
+        For fixed normalised inputs campaign metrics repeat; time does not.
 
     Raises
     ------
     ValueError, TypeError, OverflowError
-        Local normalization or core input validation fails before running.
+        Local normalisation or core input validation fails before running.
 
     Notes
     -----

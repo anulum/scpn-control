@@ -401,7 +401,7 @@ def test_captured_tglf_exemption_does_not_admit_unrelated_same_name(relative: st
 
 @pytest.mark.parametrize("relative", ["../input.tglf", "/tmp/input.tglf", "tests//input.tglf", ""])
 def test_invalid_exact_exemption_path_is_rejected(tmp_path: Path, relative: str) -> None:
-    """Scope must be canonical repository-relative paths, without traversal or implicit normalization.
+    """Scope must be canonical repository-relative paths, without traversal or implicit normalisation.
 
     Parameters
     ----------

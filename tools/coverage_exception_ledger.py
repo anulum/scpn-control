@@ -353,7 +353,7 @@ def _entry(
 
     Notes
     -----
-    Strictness is not inferred from an xfail call: every recognized xfail gets
+    Strictness is not inferred from an xfail call: every recognised xfail gets
     an unexpected-pass retirement criterion. The rule date overrides the
     policy date. Neither the ID nor entry authenticates source/coverage data.
     """

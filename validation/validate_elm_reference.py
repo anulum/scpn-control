@@ -123,7 +123,7 @@ def write_elm_reference_report(report: dict[str, Any], output_path: str | Path, 
 
     Direct, resolved, symbolic and existing hard-link aliases of the supplied
     root or its immediate JSON inputs raise ValueError before any write. Other
-    existing output is replaced. IO/path-resolution/encoding/serialization errors propagate.
+    existing output is replaced. IO/path-resolution/encoding/serialisation errors propagate.
     Discovery is a fresh sequential observation, without locking or transactional
     coupling to prior validation. Concurrent pathname changes remain outside it.
     """

@@ -90,7 +90,7 @@ class WallStabilisation:
     """Frozen passive-wall comparison with growth rates in s^-1.
 
     ``wall_slows_growth`` and ``with_wall_finite`` are declared boolean checks.
-    Construction is unchecked; serialization validates finite rates and whether
+    Construction is unchecked; serialisation validates finite rates and whether
     the declarations agree with the comparison. This is a bounded rigid model.
     """
 

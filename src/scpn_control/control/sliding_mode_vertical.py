@@ -42,7 +42,7 @@ class SuperTwistingSMC:
     convergence for this smoothed and saturated implementation.
 
     Sliding surface follows Utkin 1992, "Sliding Modes in Control and
-    Optimization", Springer, Ch. 2: s = e + c ė. When e is metres, c is
+    Optimisation", Springer, Ch. 2: s = e + c ė. When e is metres, c is
     seconds and the fixed boundary-layer delta is metres. The emitted
     command has caller-defined units; no coil-voltage conversion is supplied.
     """

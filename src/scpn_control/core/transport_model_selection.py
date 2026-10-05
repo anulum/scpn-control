@@ -67,7 +67,7 @@ def set_neoclassical_impl(
 def chang_hinton_chi_profile_impl(self: TransportSolver) -> FloatArray:
     """Backward-compatible Chang-Hinton profile helper.
 
-    Older parity tests call this no-arg method on a partially-initialized
+    Older parity tests call this no-arg method on a partially-initialised
     transport object. Keep the method as a thin adapter over the module
     function so those tests remain stable.
     """

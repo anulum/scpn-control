@@ -134,7 +134,7 @@ def normalise_sdist(path: Path, epoch: int) -> None:
     ----------
     path : pathlib.Path
         Existing gzip tar archive. The caller owns directory coordination;
-        ordinary symlink/read/replace behavior follows the native filesystem.
+        ordinary symlink/read/replace behaviour follows the native filesystem.
     epoch : int
         Unsigned 32-bit Unix seconds excluding booleans.
 
@@ -193,7 +193,7 @@ def _wheel_entry_points(archive: zipfile.ZipFile, names: list[str]) -> dict[str,
     -------
     dict of str to str
         Console-script declarations, or an empty mapping for no console section.
-        ConfigParser's ordinary option normalization applies.
+        ConfigParser's ordinary option normalisation applies.
 
     Raises
     ------
@@ -371,7 +371,7 @@ def build_release_artifacts(
     Returns
     -------
     list of ArtifactSummary
-        Filename-sorted summaries after sdist normalization and inspection.
+        Filename-sorted summaries after sdist normalisation and inspection.
 
     Raises
     ------

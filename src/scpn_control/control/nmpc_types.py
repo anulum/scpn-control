@@ -7,7 +7,7 @@
 # SCPN Control — Nonlinear Model Predictive Controller
 """Configuration, solver callbacks, and result records for tokamak NMPC.
 
-NMPC formulation: minimize
+NMPC formulation: minimise
     J = Σ_{k=0}^{N-1} ‖x_k − x_ref‖²_Q + ‖u_k‖²_R  + ‖x_N − x_ref‖²_P
     subject to  x_{k+1} = f(x_k, u_k),  u_min ≤ u_k ≤ u_max,  |Δu_k| ≤ Δu_max.
 

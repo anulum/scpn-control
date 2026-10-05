@@ -197,7 +197,7 @@ def _has_public_reference(payload: dict[str, object]) -> bool:
 def canonical_artifact_sha256(payload: dict[str, object]) -> str:
     """Hash a shallow copy excluding only payload_sha256 using original sorted compact ASCII JSON.
 
-    Preserve author body hash algorithm and Python json serialization behavior;
+    Preserve author body hash algorithm and Python json serialisation behaviour;
     stored declarations separately refuse nonfinite numbers before hashing. This
     authenticates no referenced file, executable, source provenance or parser run.
 

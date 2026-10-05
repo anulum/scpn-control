@@ -45,7 +45,7 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     Returns
     -------
     dict[str, Any]
-        nr/nz, radial spacing h, interior RMSE/max error, NRMSE normalized by
+        nr/nz, radial spacing h, interior RMSE/max error, NRMSE normalised by
         the exact full-grid range, actual completed sweep count and wall_time_s.
         No arrays, residual or convergence flag are returned.
 
@@ -53,7 +53,7 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     -----
     Independent manufactured problem on R=[1,3], Z=[-1.5,1.5], c1=1/c2=0.5:
     psi=R**4/8+Z**2/2, source=R**2+1, exact Dirichlet edges and zero interior.
-    SOR omega1.2 updates radial rows using vectorized vertical values. Coordinates,
+    SOR omega1.2 updates radial rows using vectorised vertical values. Coordinates,
     flux and source are mathematical benchmark scales, not calibrated discharge
     units. This does not call FusionKernel or prove its runtime solver fidelity.
     Early stop occurs at a sampled residual below tol or sampled NaN detection;
@@ -161,7 +161,7 @@ def main() -> None:
     Raises
     ------
     OSError, ValueError
-        Native computation/serialization or sequential report I/O fails.
+        Native computation/serialisation or sequential report I/O fails.
         Platform-default text encoding and nontransactional overwrite remain.
 
     Notes

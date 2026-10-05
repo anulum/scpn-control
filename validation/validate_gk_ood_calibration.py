@@ -144,7 +144,7 @@ def write_gk_ood_calibration_report(
     """Persist sorted UTF8 JSON+LF while refusing root/immediate selected direct/resolved/hardlink aliases.
 
     Aliases raise ValueError before writing. Other destinations may replace;
-    parent creation and path/IO/encoding/serialization failures propagate.
+    parent creation and path/IO/encoding/serialisation failures propagate.
     Sequential checks provide no pathname lock against concurrent replacement.
     No calibration/source evidence is resealed or installed.
     """

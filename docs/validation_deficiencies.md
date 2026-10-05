@@ -162,8 +162,8 @@ current in configured units; these values cannot silently be interpreted as SI
 or matched to a 15 MA preset by name. Its rectangular computational domain also
 does not establish a measured plasma boundary or minor radius.
 
-The solver normalizes its current distribution toward the declared total.
-Integrating that same distribution back to the target checks that normalization;
+The solver normalises its current distribution toward the declared total.
+Integrating that same distribution back to the target checks that normalisation;
 it does not independently establish physical current conservation. A campaign
 must retain the convergence failure, explicit unit convention, boundary/source
 contract and separate comparison reference.
@@ -210,7 +210,7 @@ it is the reference transport mathematics.
 ### Transport energy gate and returned profiles
 
 The transport energy check now runs after internal exchange, pedestal overrides and
-final profile sanitization. Previously, `enforce_conservation=True` could accept
+final profile sanitisation. Previously, `enforce_conservation=True` could accept
 a state whose temperatures were subsequently changed before return, while
 `energy_balance_error` still described the earlier state. The corrected gate
 checks the final thermal profiles with the existing 1% threshold. The subsequent
@@ -255,7 +255,7 @@ The step now transfers equal and opposite energies after the separate
 transport solves, using frozen-rate relaxation weighted by the respective ion
 and electron heat capacities. Internal exchange contributes zero
 to net external sources. The fixed edge temperatures remain boundary conditions;
-pedestal overrides and sanitization still precede the final energy check.
+pedestal overrides and sanitisation still precede the final energy check.
 Per-channel zero-heating rescaling was removed because a recipient channel can
 legitimately heat through internal transfer with no auxiliary input.
 
@@ -295,7 +295,7 @@ Full boundary, species and independent physical validation remain open.
 The axis Neumann condition and fixed edge temperatures are now imposed in the
 Crank–Nicolson linear systems before solving. Previously identity boundary rows
 solved for source-updated boundary values, and those values were overwritten
-afterwards. Neighboring interior cells therefore used boundary values different
+afterwards. Neighbouring interior cells therefore used boundary values different
 from the returned profiles.
 
 Public-runtime regressions reconstruct face fluxes from initial and returned
@@ -460,7 +460,7 @@ weights raise `ValueError`; this diagnostic does not support arbitrary geometry.
 stage. Every thermal evolution attempt resets it before validating the timestep.
 Single-ion evolution and zero timesteps leave no record. A subsequent thermal
 admission failure preserves the completed species record for inspection; later
-thermal sanitization or external profile mutation does not rewrite it. It is
+thermal sanitisation or external profile mutation does not rewrite it. It is
 not a certificate for the final thermal-state inventory.
 
 Public tests check signed inward/outward parabolic flux against an analytic
@@ -473,7 +473,7 @@ calibrated fusion rates, or full machine validation.
 ### Quasineutral electron capacity at low density
 
 The multi-ion species result now retains ne = n_D + n_T + 2*n_He + 10*n_impurity
-without adding a minimum electron population. Runtime electron sanitization no
+without adding a minimum electron population. Runtime electron sanitisation no
 longer imposes the single-ion density floor or ceiling in multi-ion mode.
 The prescribed fuel edge therefore has electron density 0.02 in units of
 10^19 m^-3 when no impurity is present, rather than the former artificial 0.1.
@@ -485,7 +485,7 @@ capacity to the actual electron capacity before ion-capacity conversion.
 Electron radiation rates likewise use the actual positive capacity. Dilute
 public runtime tests reconstruct the initial stored energy and external source
 power from independent volume and radiation integrals. The inherited exchange
-time regularization remains unchanged and uncalibrated. These changes remove
+time regularisation remains unchanged and uncalibrated. These changes remove
 an artificial charge/energy contribution; they do not supply the still-missing
 thermal energy transport or reaction closure; pumping heat is specified below.
 
@@ -507,10 +507,10 @@ Sauter closure, the current-conservation domain, or particle-energy coupling.
 
 ### Conservative thermal storage with evolving density
 
-The thermal Crank–Nicolson step now discretizes the change of n*T. For each
+The thermal Crank–Nicolson step now discretises the change of n*T. For each
 channel its storage is n_new*T_new - n_old*T_old; the explicit conductive flux
 uses n_old and T_old, and the implicit conductive flux uses n_new and T_new.
-Volumetric heat sources retain the current channel-capacity normalization.
+Volumetric heat sources retain the current channel-capacity normalisation.
 The thermal boundary record averages the corresponding old and new face fluxes,
 and prescribed-edge energy uses both old and new edge capacities.
 
@@ -519,13 +519,13 @@ energy even when particle boundary flux, reactions and pumping were all zero.
 Six public runtime cases now close that energy balance, with rising, falling
 and uniform temperature and two timesteps. Independent dense matrix solutions
 use separate old/new storage and conductivity matrices to check local channel
-energy and boundary records. Single-ion fixed-density behavior is retained.
+energy and boundary records. Single-ion fixed-density behaviour is retained.
 
 This corrects storage for the existing heat equation with conductive transport
 and its declared sources. No separate particle-associated heat convection,
 pressure-work closure or fusion-product heating has been inferred from density
 changes. Without a specified heat source, changing population alone does not
-remove modeled channel energy: temperatures respond to the changed capacity.
+remove modelled channel energy: temperatures respond to the changed capacity.
 The ash-removal source is specified separately below. Discrete energy closure
 does not validate a physical source model. The remaining source/flux closures and
 coupled timestep convergence remain required for full multispecies validation.
@@ -554,7 +554,7 @@ the count-weighted ion/electron energy integral. A separate dense thermal oracle
 uses public species counts to check local deposition and channel profiles.
 
 This is a volumetric thermal-ash model, not a flowing-plasma enthalpy or sheath
-model. It assumes He is thermalized at the common ion temperature and electron
+model. It assumes He is thermalised at the common ion temperature and electron
 removal maintains quasineutrality; energy-selective pumping, fast-alpha dynamics,
 pressure work and boundary exhaust temperatures are not represented. Fusion
 product heating, particle-associated heat convection and full coupled convergence
@@ -619,21 +619,21 @@ remain unqualified; these tests do not establish physical calibration.
 
 A real GACODE standalone run succeeds independently of this adapter. Its
 standard output is out.tglf.gbflux: signed particle, energy, momentum and
-exchange fluxes in gyro-Bohm normalization, ordered with electrons first.
+exchange fluxes in gyro-Bohm normalisation, ordered with electrons first.
 These are not the chi_i, chi_e and d_e coefficients expected by the adapter's
 out.tglf.transport parser. A reference run exhibits inward particle transport;
 clipping that signed flux or labelling it a positive diffusivity would change
-its physical meaning. A flux-aware coupling and normalization contract is
+its physical meaning. A flux-aware coupling and normalisation contract is
 required before the external path can be admitted.
 
 The [standalone signed-flux API](tglf_flux.md) now executes actual GACODE
-decks in fresh directories and preserves normalized signed fluxes and
+decks in fresh directories and preserves normalised signed fluxes and
 multi-mode spectra with hashed execution evidence. It does not infer
 diffusivities or supply the outstanding conservative runtime coupling.
 
 The current adapter also emits a Fortran namelist where the standalone parser
 requires key=value records, supplies unsupported SHAT/ALPHA_MHD keys, and uses
-initialization-only -i with a file path instead of executing a simulation
+initialisation-only -i with a file path instead of executing a simulation
 directory. Real eigenvalue output has separate ky and multi-mode spectra,
 not the three-column table currently assumed. Correcting executable discovery
 alone therefore cannot qualify this external path.
@@ -678,5 +678,5 @@ public TransportSolver.evolve_fluxes method. Local updates and boundary
 ledgers use identical physical face areas and fluxes. Nonambipolar or
 nonphysical steps reject without profile mutation. This supplies conservative
 coupling for prescribed physical fluxes, including values from the explicit
-TGLF SI conversion. Automatic spatial provider sampling, normalization and
+TGLF SI conversion. Automatic spatial provider sampling, normalisation and
 species mapping remain unqualified; source/operator composition is explicit.

@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — GK OOD finite and probability domain behavior
+# SCPN Control — GK OOD finite and probability domain behaviour
 
 """Exercise numeric/metric declarations through public persisted JSON without fitting covariance or predictions."""
 

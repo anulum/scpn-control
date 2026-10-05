@@ -31,7 +31,7 @@
   metrics before best selection, and refuse existing weights/reports. Add explicit
   configuration-only plans and separate tutorial learning from default inference.
   Retained seed-labelled artifacts do not establish independent training runs.
-- Bound H-infinity tuning to normalized DGKF plant synthesis. `tune_hinf`
+- Bound H-infinity tuning to normalised DGKF plant synthesis. `tune_hinf`
   returns only feasible plant-derived `gamma`; its former `n_trials` argument
   and synthetic `bandwidth` output are removed. PID tuning now refuses when
   Optuna is unavailable, uses the real two-channel `TokamakEnv` heating

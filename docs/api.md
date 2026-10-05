@@ -458,7 +458,7 @@ either report's literal true even when other findings make overall status FAIL.
 Consumers must check status and apply their independent admission boundaries.
 
 The [persisted-report contract](control/multi_shot_campaign.md#persisted-benchmark-report-admission)
-describes standalone JSON/text use, context serialization and remaining nonchecks.
+describes standalone JSON/text use, context serialisation and remaining nonchecks.
 
 ::: scpn_control.control.multi_shot_campaign.CampaignShotSample
 
@@ -598,9 +598,9 @@ ambiguous/nonfinite JSON or lower-reader failures refuse the aggregate.
 sorted compact JSON with only `manifest_sha256` removed. Nested entries and the
 evidence-class mapping retain result aliases; caller mutation can invalidate
 the digest. Invalid non-boolean production API arguments return FAIL and
-normalize to false. No source authentication, current-host qualification,
+normalise to false. No source authentication, current-host qualification,
 certified controller or facility action authority is established. The
-[validation guide](validation.md) documents CLI/output behavior and nonchecks.
+[validation guide](validation.md) documents CLI/output behaviour and nonchecks.
 
 ## Validation benchmark regression gates
 
@@ -767,7 +767,7 @@ selected Rust benches/examples and the transport binary. The auditor excludes
 itself. Files are discovered independently of Git tracking; normal file-symlink
 semantics apply. Python guard checks find an AST call with the literal guard
 name/attribute, including unreachable calls; they do not resolve imports,
-aliases, arguments or live behavior. Rust guards and append/scratch/custody
+aliases, arguments or live behaviour. Rust guards and append/scratch/custody
 classes use literal source markers. README and sorted public docs Markdown are
 scanned for direct executable-looking commands naming guarded producers, except
 changelog and internal paths. Findings retain document/line/path order. This
@@ -828,7 +828,7 @@ reviewer responsibilities. The core fine-tuning caller uses report status before
 reading supplied GEQDSK files; the claim-evidence caller additionally matches the
 supplied weight digest. This validator alone does not authenticate those inputs
 or establish facility validity. Synthetic declaration test fixtures demonstrate
-schema behavior only and do not establish executed P-EFIT evidence.
+schema behaviour only and do not establish executed P-EFIT evidence.
 
 `write_neural_equilibrium_reference_report(report, output_path, artifact_root=...)`
 writes sorted indented finite JSON, creates parents and replaces a non-alias
@@ -3344,7 +3344,7 @@ correction is in caller-defined units and has no coil-voltage calibration.
 Waveform interpolation requires finite, equal-length, strictly increasing
 knots. A feedforward control step checks the schedule, state, cycle time and
 three-value feedback trim before emitting a finite command. Offline trajectory
-optimization requires a finite positive horizon/timestep and projects heating
+optimisation requires a finite positive horizon/timestep and projects heating
 power and plasma current candidates to non-negative values; it does not claim
 a globally optimal or facility-qualified trajectory.
 
@@ -3523,11 +3523,11 @@ public `TokamakEnv`, it tunes the heating channel against `T_target - T_axis`
 while commanding zero change to the current channel. Scalar-error
 environments retain their one-dimensional action contract. Without Optuna,
 PID tuning raises `ImportError`; fixed fallback gains are not labelled as
-optimized. `tune_hinf(plant)` uses the normalized DGKF plant matrices through
+optimised. `tune_hinf(plant)` uses the normalised DGKF plant matrices through
 `HInfinityController` and returns only the feasible near-infimum attenuation
-`gamma`. It refuses missing or non-normalized plant data. The former
+`gamma`. It refuses missing or non-normalised plant data. The former
 `n_trials` argument and synthetic `bandwidth` output are removed; neither
-represented a plant-derived optimization result. The attenuation applies to
+represented a plant-derived optimisation result. The attenuation applies to
 the unsaturated linear continuous-time model, not clipped runtime action or
 facility performance.
 
@@ -3660,7 +3660,7 @@ inside the repository. Command options remain producer arguments after `--`.
 `main(argv)` returns the native producer code, `127` for a launch failure or
 `130` for an interrupt caught while waiting. A zero-exit command that does not
 recreate every declared output returns `1`. Help and malformed wrapper arguments
-raise argparse's `SystemExit` before reservation. Reservation and finalization
+raise argparse's `SystemExit` before reservation. Reservation and finalisation
 errors propagate; an unresolved custody failure can retain a recovery lease.
 See the [runner lifecycle](benchmarks.md#recorded-command-lifecycle) for native
 process boundaries and immutable failure records.
@@ -3800,10 +3800,10 @@ children; a file selects that file regardless of suffix. Missing inputs pass
 without requirements, while required artifacts or missing named coverage fail.
 Names are stripped and deduplicated; unsupported names raise `ValueError`.
 Both nonempty requirement sets demand every Cartesian pair. Invalid runtime
-policy booleans produce a FAIL finding and normalize to false.
+policy booleans produce a FAIL finding and normalise to false.
 
 The mutable result includes status, displayed root, admitted artifact count,
-normalized requirements, admitted entries, path/field/error findings, sorted
+normalised requirements, admitted entries, path/field/error findings, sorted
 case/backend counts and pair lists, required-pair coverage (`None` without
 pairs), admitted maximum gamma/frequency drift (`None` when empty), entry-digest
 multiset SHA-256 and report self digest. Entries remain visible when another
@@ -3830,7 +3830,7 @@ admission occurs. The standalone CLI maps supported output write/path errors
 into FAIL and refreshes the report digest; it can write refused reports.
 Public `write_jax_gk_parity_report` protects root/immediate selected direct,
 resolved, symlink and existing hardlink input aliases. JSON is sorted UTF8+LF
-and nonfinite report values refuse serialization. API path/IO errors propagate;
+and nonfinite report values refuse serialisation. API path/IO errors propagate;
 other destinations may replace. The standalone output failure report retains
 its `output_json` finding and updated digest. The registered root command uses
 fixed operational refusal one, and Click NUL output is usage two before IO.
@@ -4521,7 +4521,7 @@ The direct entry works from another directory without an installed package and
 uses only the standard library. Native examples inspect the actual Python owner
 as invalid JSON; they create no reference data or passing physical results.
 
-| Contract | Actual behavior |
+| Contract | Actual behaviour |
 | --- | --- |
 | Selection | A directory supplies sorted immediate `*.json` paths; one file is inspected regardless of suffix. Relative paths use the caller's working directory. Symlinks are followed; no containment or Git-tracking check occurs. |
 | JSON | Unique keys at every depth; finite floating-point tokens including unused metadata; nonzero tokens rounded to binary64 zero are refused. Required numbers must have representable finite float values; booleans are refused. Other unused fields are not schema-validated. |
@@ -4853,7 +4853,7 @@ of [validation](validation.md) for exact numeric domains and examples.
 `validation.validate_marfe_reference.validate_marfe_reference` checks persisted
 schema `scpn-control.marfe-reference.v1` identity, unit, source, scan, impurity,
 geometry, power and declared error-bound consistency. The original public
-`canonical_artifact_sha256` uses sorted compact ASCII body serialization
+`canonical_artifact_sha256` uses sorted compact ASCII body serialisation
 excluding `payload_sha256`. A matching body hash does not authenticate its
 producer or four referenced artifacts. URI prefix/relative-path checks retain
 the original lexical rules without URL parsing or retrieval.
@@ -4894,7 +4894,7 @@ bounds. Reference SHA format and URI/citation presence do not authenticate
 external bytes or physics. The writer protects selected input aliases; both
 registered and script CLIs provide authored operational refusal. See the
 [validation guide](validation.md) for original numeric domains, unit labels,
-selection and exit behavior, and an executable report-persistence example.
+selection and exit behaviour, and an executable report-persistence example.
 
 ::: validation.validate_volt_second_reference
 
@@ -5178,7 +5178,7 @@ The declaration reader retains its original schema, identities, inclusive metric
 unit labels and positive source/grid rules. Nonzero binary64 underflow refuses
 globally. Original authored duplicate/nonfinite/read/JSON findings remain unchanged.
 No referenced digest authentication, external solver or genuine positive physics
-reference is added. Public writer refuses nonfinite report serialization and selected
+reference is added. Public writer refuses nonfinite report serialisation and selected
 input aliases before writing; API failures propagate. Original script write refusal
 remains2 with fixed text; root ClickException1 retains Error prefix. Directory/NUL
 output is Click usage2. Checks are sequential without locks or snapshots.
@@ -5196,7 +5196,7 @@ output is Click usage2. Checks are sequential without locks or snapshots.
 fresh real kernels on a fixed 65x65 grid and returns raw diagnostics. Its
 single-coil expression copies the current vacuum solver's grouping, so equality
 checks implementation consistency. It provides no independent physical
-normalization witness. The Helmholtz field sample is at R=0.5, Z=0 while the
+normalisation witness. The Helmholtz field sample is at R=0.5, Z=0 while the
 reference is on R=0, which the grid excludes. No same-point tolerance is applied;
 the API preserves a legacy unconditional qualitative `pass=True` marker.
 
@@ -5266,13 +5266,13 @@ The density producer advances one imposed gas-source model step with requested
 dt=1 s and the defining CFL clamp. It separately computes a controller command
 from the initial profile; that command is not applied to the resulting profile.
 The report grants no facility density claim. The current-drive producer samples
-80 normalized radial points using density in 1e19 m^-3 and temperatures in keV,
+80 normalised radial points using density in 1e19 m^-3 and temperatures in keV,
 with 8/3/14 MW ECCD/LHCD/NBI powers. It grants no external deposition claim.
 
 Reports use UTF-8 sequential JSON/Markdown writes under `validation/reports`.
 Current-drive writes the same JSON both before and after its Markdown write.
 Producer writes have no transaction, atomic replacement or locks; partial output
-can remain after failure. The wrapper's reservation/custody behavior is distinct
+can remain after failure. The wrapper's reservation/custody behaviour is distinct
 from these writes. See the [temporary output example](benchmarks.md#bounded-particle-report-software-check)
 and the [recorded current-drive command](validation.md).
 
@@ -5294,7 +5294,7 @@ logarithmic growth rate. Neither field establishes a physical Dimits shift or
 asymptotic convergence. The API prints diagnostics and writes no file. Its
 fixed five-case `main()` requests three 5000-step and two 10000-step experiments,
 then replaces a caller-relative raw JSON report under `gpu_results` using the
-legacy serializer. It provides no campaign, digest or atomic-write custody.
+legacy serialiser. It provides no campaign, digest or atomic-write custody.
 
 See the [short CPU example](benchmarks.md#manual-nonlinear-gk-software-check).
 
@@ -5372,9 +5372,9 @@ public alias tests to these source-tree entry points.
 
 ::: validation.report_output_paths
 
-The repository-local `validation` initializer exposes no eager submodule API.
+The repository-local `validation` initialiser exposes no eager submodule API.
 Select the defining reader, writer or campaign entry point for its documented
-inputs, output/error behavior and evidence limitations.
+inputs, output/error behaviour and evidence limitations.
 
 ::: validation
 
@@ -5474,7 +5474,7 @@ source revision or operator approval. production_claim_allowed must remain
 False. The digest is canonical sorted compact ASCII JSON without its own field,
 not a raw-file hash or signature. Duplicate JSON keys retain json.load's last
 value; unknown fields remain checksum inputs. Native I/O/UTF-8/JSON and legacy
-large-integer/serialization errors propagate. The reader does not mutate files.
+large-integer/serialisation errors propagate. The reader does not mutate files.
 
 The standalone command takes a report, `--allow-local-unqualified`,
 `--max-e2e-p95-us` and `--json-out`; it prints the existing six result
@@ -5493,7 +5493,7 @@ FusionKernel. nr/nz need a nonempty interior (>=3); native errors propagate for
 invalid grids. max_iter is a Python range cap; zero/negative performs no sweep
 and reports iterations=0. Residual is inspected at sweep indices0,200,... and
 compared strictly to tol. Cap exhaustion has no separate convergence flag.
-The result carries interior RMSE/max error, NRMSE normalized by full-grid exact
+The result carries interior RMSE/max error, NRMSE normalised by full-grid exact
 range, radial h, count and sweep-only wall seconds; these are mathematical
 benchmark scales, not discharge calibration.
 
@@ -5559,7 +5559,7 @@ evidence destinations require recorded-runner custody; the default claim
 remains bounded. A deployment request additionally requires native parity and
 target count/refinement checks.
 
-Resilience normalizes the legacy integer/float inputs before its actual
+Resilience normalises the legacy integer/float inputs before its actual
 synthetic fault campaign. Bit flips affect binary64 mantissa bits; risk errors
 and tolerances are dimensionless, while recovery offsets are samples.
 Generation timestamps and measured duration vary; fixed-seed campaign metrics
@@ -5599,7 +5599,7 @@ profile arithmetic, report declarations and optional-provider preparation.
 R0/a are metres, B0 tesla, I_p amperes, P_aux MW, temperature keV and local
 density 10^19 m^-3; TORAX configuration density is converted to m^-3.
 Strict integer n_rho sets the actual radial length. Fixed dt is seconds and
-t_final must equal n_steps*dt; zero steps/zero final time observes initialization.
+t_final must equal n_steps*dt; zero steps/zero final time observes initialisation.
 
 Both adapters now receive linear axis-to-edge temperature/density inputs.
 D/T each start at half the local electron density and helium at zero.
@@ -5617,7 +5617,7 @@ Numeric strings, booleans and nonrepresentable scalars/differences are refused.
 Optional ion metrics require both ion profiles; full reference payload checks
 require both temperature channels.
 
-Schema v3 binds normalized scenario/report declarations to SHA-256 and exposes
+Schema v3 binds normalised scenario/report declarations to SHA-256 and exposes
 diagnostic_comparison_available separately from always-blocked physical
 admission under the current configured model contract. Recomputed self-digests
 cannot authenticate an external provider. Reader fixtures derived from local
@@ -5675,7 +5675,7 @@ at construction; callers remain responsible for valid later attribute changes.
 HInfinityErrorController converts target-minus-position error to the actual
 DGKF positive measurement convention. Its nonzero-target tracking is not
 admitted. The local MPC retains an approximate one-step-sensitivity gradient
-and zero action initialization on each call; no optimal MPC claim is made.
+and zero action initialisation on each call; no optimal MPC claim is made.
 SNN reset reconstructs the real SC-NeuroCore pool, including cells and RNG;
 legacy NumPy fallback and quantum entropy are disabled. Plant dt does not
 control the provider neuron clock, and the provider uses its own neuron seeds.
@@ -5704,8 +5704,8 @@ The full real `FusionKernel` cohort has eighteen four-step scenarios and twelve
 sweeps. Its 12-by-12 fixtures set permeability and plasma-current target to 1.0,
 sample targets from the same solver and subtract exact supplied measurement
 errors in corrected cases. Tracking norms combine configured objectives; flux
-residuals follow this normalization. These outcomes establish local regression
-behavior without independent equilibrium, calibration, actuator or safety proof.
+residuals follow this normalisation. These outcomes establish local regression
+behaviour without independent equilibrium, calibration, actuator or safety proof.
 
 `generate_report()` returns schema v2 with the legacy timestamp, elapsed runtime
 and campaign mappings plus an explicit model contract and false physical
@@ -5713,7 +5713,7 @@ reference admission. Elapsed time includes campaign and UTC timestamp
 construction, excluding rendering and writes. Numerical exceptions propagate.
 Temporary configuration paths in summaries name files removed after execution.
 Nested mappings and the shared public thresholds remain mutable; callers must
-serialize access and changes themselves. Reports do not authenticate origin.
+serialise access and changes themselves. Reports do not authenticate origin.
 
 `render_markdown()` accepts a complete legacy or schema-v2 declaration and
 returns Markdown ending in a newline. It neither executes a campaign nor
@@ -5809,7 +5809,7 @@ actual `RealtimeMonitor.from_paper27` with seed 42, external driver 0, PAC 0 and
 model dt 0.001. Positive nonboolean integer counts, finite nonnegative gain and
 integer playback FPS in [1,100] are required. Layers beyond 16 repeat the factory
 frequency table modulo 16. The numerical model and its optional Rust UPDE remain
-unchanged; this Python visualization has no Rust/TypeScript renderer counterpart.
+unchanged; this Python visualisation has no Rust/TypeScript renderer counterpart.
 
 The output directory is caller-relative or absolute, must be new and must have
 an existing directory parent. Existing files, directories and symlinks refuse
@@ -5835,7 +5835,7 @@ gif_only=False, ffmpeg_path=None)` revalidates snapshots and options, then retur
 paths. The original selection is stride=max(1,n_ticks//(fps*10)), starting at
 index 0 and appending n_ticks-1 when absent. This targets about ten playback
 seconds. Traces use actual ticks 1..n, with visible markers for single samples.
-Saved frames include the model-value/guard footer. GIF durations are quantized to centiseconds;
+Saved frames include the model-value/guard footer. GIF durations are quantised to centiseconds;
 MP4 uses requested FPS, H.264 and bitrate 2000 with Matplotlib encoder arguments.
 
 `phase_video.json` schema `scpn-control.phase-video.v1` records all displayed
@@ -5883,19 +5883,19 @@ this renderer, and its displayed tick latency is not an export benchmark.
 ## Manual JAX CBC grid study
 
 `tools.gk_convergence_benchmark` exposes `run_benchmark(name, config)`,
-`save(results)` and the original fixed `main()`. Import eagerly initializes the
+`save(results)` and the original fixed `main()`. Import eagerly initialises the
 configured JAX backend and prints its devices. Missing JAX refuses import;
 CPU is permitted. The caller must arrange the checkout/package dependencies.
 `RESULTS_FILE` is a mutable string, initially `/tmp/gk_convergence.json`; an
 assigned relative path follows cwd and the parent must exist.
 
 `run_benchmark` borrows a mutable `NonlinearGKConfig` without adding domain/grid
-validation and constructs a fresh `JaxNonlinearGKSolver`. Initialization retains
+validation and constructs a fresh `JaxNonlinearGKSolver`. Initialisation retains
 seed 42 and configured JAX precision/device; no NumPy fallback is requested.
 The state axes are species,kx,ky,theta,vpar,mu. `BenchmarkResult` contains four
 raw diagnostic fields: `chi_i_gB`, `converged`, `wall_s`, and `Q_i`.
 `Q_i` is a list of saved post-step ion heat-flux values in the solver's code
-normalization, with neither times/config nor authenticated physical reference.
+normalisation, with neither times/config nor authenticated physical reference.
 `chi_i_gB` is the provider's second-half saved mean divided by
 max(R_L_Ti,0.01). Empty histories return 0; one saved sample has an empty second
 half and produces NaN, which becomes None. Infinity and nonfinite flux samples
@@ -5904,7 +5904,7 @@ one finite flux sample, without proving saturation, completed integration,
 final-state validity or grid convergence. This report cannot admit CBC transport.
 
 The system wall clock brackets construction and `run()`, including allocation,
-first-use compilation and synchronized diagnostics; import, result formatting,
+first-use compilation and synchronised diagnostics; import, result formatting,
 printing and writes are excluded. `wall_s` is rounded to one decimal; clock
 adjustments, compilation caches, precision, configured device and shared load
 prevent treating it as a controlled speed comparison. Provider/configuration,
@@ -5915,10 +5915,10 @@ no file and retains no solver for reuse.
 legacy `json.dump(indent=2)`, platform text encoding and allow_nan=True. Thus
 None becomes JSON null while arbitrary supplied NaN/Infinity remain nonstandard
 JSON floats. No input/authenticity/alias/ownership check is added. The existing
-file is truncated before serialization; unsupported or circular input can leave
+file is truncated before serialisation; unsupported or circular input can leave
 a partial file. OSError/TypeError/ValueError propagate. Writes are sequential
 without atomic replacement or locking. Callers must own their scratch target
-and serialize module-global changes. The producer registry classifies this
+and serialise module-global changes. The producer registry classifies this
 output as temporary scratch, never canonical validation evidence.
 
 ```python
@@ -6006,8 +6006,8 @@ This reported unavailability is neither a measured result nor a successful GPU r
 Each `elapsed_s` uses a monotonic clock around the actual provider call. Linear
 excludes imports/species construction. TGLF includes solver construction and solve
 but excludes imports/parameter construction. Nonlinear excludes config/solver
-construction and includes run initialization, diagnostics and, for JAX, first-use
-compilation/synchronization. Printing and report writes are excluded throughout.
+construction and includes run initialisation, diagnostics and, for JAX, first-use
+compilation/synchronisation. Printing and report writes are excluded throughout.
 The differing model/timing scopes, cache/device/precision and shared host load
 prevent treating these fields as a controlled speedup comparison.
 
@@ -6333,7 +6333,7 @@ remain in solver units. Scalar nonfinite chi becomes `None`, while histories
 retain their original values. The copied `converged` flag supplies no nonlinear
 saturation or finite-final-state certificate. Existing output files are
 overwritten after the cases return, and JSON retains default nonfinite-number
-behavior. The two summary printers can fail on `None` after writing their files.
+behaviour. The two summary printers can fail on `None` after writing their files.
 
 ::: tools.kinetic_e_dual_test
 
@@ -6363,7 +6363,7 @@ assert targets.shape == (5000, 3)
 without learning. Supplying `--synthetic` or a loadable `--data-dir` invokes
 the learner and creates weights. Synthetic targets use a scale-one
 critical-gradient proxy and supply no real QuaLiKiz provenance. The original
-learner normalizes all rows before splitting, retains the last weights after
+learner normalises all rows before splitting, retains the last weights after
 early stopping and returns metrics that share preprocessing with test rows.
 Those metrics are not an independent holdout certificate.
 
@@ -6394,7 +6394,7 @@ assert all(reference.line >= 1 for reference in references)
 
 `python tools/document_link_audit.py --list-external` lists screened HTTP URLs
 without requesting them. Actual availability requires explicit `--external`.
-HTTP/cache classifications, restricted/transient zero-status behavior, report
+HTTP/cache classifications, restricted/transient zero-status behaviour, report
 overwrite/provenance limits and site-build prerequisites are described in the
 [development contract](development.md#documentation-links). These observations
 do not authenticate documentation contents or certify remote cited claims.
@@ -6504,10 +6504,10 @@ assert validate_evidence_payload(failed) is False
 
 ## Bounded normalized DGKF reports
 
-The H-infinity validator runs the actual normalized flight-simulator factory,
+The H-infinity validator runs the actual normalised flight-simulator factory,
 Riccati/controller identities and a fixed 20002-frequency sweep. The result is
 a frozen local observation; finite sampling corroborates the sampled gain and
-does not prove an exact norm or facility-control behavior.
+does not prove an exact norm or facility-control behaviour.
 
 The decoder requires the exact v1 structure, finite domains, original numerical
 thresholds, peak/gamma agreement and literal consistent verdicts. It checks the
@@ -6516,7 +6516,7 @@ decoder. The capture-time Git label is checked for object-ID format; it need not
 equal a later HEAD with unchanged source bytes. Matching hashes and a self-seal
 authenticate no producer or actual run.
 
-Coherent failing results serialize with local `scientific_admission=False` and
+Coherent failing results serialise with local `scientific_admission=False` and
 are refused by `validate_evidence_payload`. `public_claim_allowed` and
 `production_admission` must always be literal `False`; the fixed model,
 exclusions and finite-sweep classification cannot be widened by resealing.
@@ -6593,7 +6593,7 @@ raise `NotADirectoryError`; existing empty directories are supported.
 
 Top-level `test_` functions and `test_` methods of top-level `Test` classes supply
 entry points. Calls and assertion references resolve visible imports, named
-called local helpers and visible import re-exports in initializers and ordinary
+called local helpers and visible import re-exports in initialisers and ordinary
 module files. A referenced file facade and its selected export target both count;
 unused facade imports do not. Export cycles terminate and traversed files are
 parsed once per inspection. Scope-wide rebindings and conflicting aliases are
@@ -6601,7 +6601,7 @@ refused conservatively.
 Named, unambiguous class declarations follow imported or locally declared base
 identities, without crediting an unreferenced class. Class decorators/keywords,
 wildcard imports and rebinding prevent class attribution; dynamic bases are ignored.
-This establishes type references without evaluating class initialization or inherited
+This establishes type references without evaluating class initialisation or inherited
 method dispatch. A selected plain method follows named lexical body references;
 decorated, conflicting or source-mutated methods do not. A single direct assignment
 from a visible constructor name identifies a receiver for later references in that
@@ -6708,16 +6708,16 @@ downloads, simulation state, numeric units, array shapes, or timing inputs.
 
 Missing files and empty/whitespace-only files receive `MISSING:` and `EMPTY:`
 findings respectively. Present-file read failures and invalid UTF-8 raise the
-native `OSError` or `UnicodeError`. Symlinks retain ordinary pathlib behavior;
+native `OSError` or `UnicodeError`. Symlinks retain ordinary pathlib behaviour;
 this tool does not establish a sandbox or authenticate input provenance.
 
 Required manuscript and pointer markers are case-sensitive substrings after
-Unicode whitespace normalization. The first regex-matched `title:` line must
-be within the manuscript's initial literal `---`-delimited block; its normalized
+Unicode whitespace normalisation. The first regex-matched `title:` line must
+be within the manuscript's initial literal `---`-delimited block; its normalised
 text must appear in the pointer. This is lexical title extraction: YAML escaping,
 metadata types, duplicate metadata keys, and the complete JOSS schema are outside
-the check. The bibliography must have at least one recognized `@word{key,`
-entry, no repeated case-sensitive keys, and all manuscript keys recognized
+the check. The bibliography must have at least one recognised `@word{key,`
+entry, no repeated case-sensitive keys, and all manuscript keys recognised
 inside Pandoc-style brackets. Keys begin with an ASCII letter and can contain
 letters, digits, underscores, colons, or hyphens. Bare narrative citations,
 documentation citations, and full BibTeX syntax are outside the scan. Comments
@@ -6929,7 +6929,7 @@ assert header[0] == "/-" and header[-1] == "-/"
 `tools.check_rust_toolchain_contract.check_rust_toolchain_contract(root: Path = ROOT)
 -> list[str]` checks one repository's `rust-toolchain.toml` and seven fixed
 workflow files. The default root resolves from this script; explicitly supplied
-relative paths resolve from caller cwd. Reads retain ordinary symlink behavior.
+relative paths resolve from caller cwd. Reads retain ordinary symlink behaviour.
 The fresh returned list belongs to the caller. No files are written, compiler or
 network process is launched, or numerical/controller state is inspected.
 
@@ -7322,7 +7322,7 @@ the fixed FAIR-MAST endpoint; it creates the directory, but does not prove netwo
 availability or Zarr-v3 support. The default opener bridges synchronous
 simplecache through fsspec's async wrapper so cached S3 operations stay on their
 own I/O loop when called by Zarr 3. Other filesystem protocols retain their
-mapper behavior. `mirror_shot(fs, shot_id, open_group=...,
+mapper behaviour. `mirror_shot(fs, shot_id, open_group=...,
 metadata_out=None)` reads four selected xarray groups without resampling, clock
 alignment or numerical calibration. Present values keep source dtype/shape and
 may alias provider buffers. Object dtype and absent/empty/non-2D saddle arrays
@@ -7467,7 +7467,7 @@ through `2**32 - 1`. Booleans and other types refuse. Payloads are buffered in
 memory; modes and duplicate names are retained. Member inspection finishes
 before rewriting. An exclusively created sibling temporary file is closed
 before native replacement and cleaned afterward. Existing legacy fixed-name
-temporary files are preserved. Native filesystem/symlink behavior applies;
+temporary files are preserved. Native filesystem/symlink behaviour applies;
 callers coordinate directories, and no fsync or directory lock is provided.
 
 `validate_artifact` accepts `.whl` and `.tar.gz`. Both refuse absolute, parent,
@@ -7485,7 +7485,7 @@ refuses existing `.whl`/`.tar.gz` files. It launches `sys.executable -m build`
 with native argv, the script repository as cwd and the inherited environment
 with `SOURCE_DATE_EPOCH` replaced. The real backend may install isolated build
 requirements and execute project hooks. The result must contain two artifacts,
-or one with `sdist_only=True`; produced sdists are normalized and every
+or one with `sdist_only=True`; produced sdists are normalised and every
 artifact is inspected. Summaries follow filename order. No build timeout,
 coherent source snapshot, directory lock or cross-backend/platform byte
 reproducibility guarantee is supplied. Failure retains produced artifacts.

@@ -196,12 +196,12 @@ def train_mlp(
         Numeric arrays expected to have matching row counts and shapes(n,10)
         and(n,3). Shapes, dtypes, finite values and physical units are unchecked.
     hidden_sizes
-        Two layer widths, default 128/64; weights use He initialization.
+        Two layer widths, default 128/64; weights use He initialisation.
     n_epochs, batch_size, lr
         Maximum epochs 300, batches 64 and learning rate1e-3. No positive-limit
-        admission occurs; zero epochs returns randomly initialized weights.
+        admission occurs; zero epochs returns randomly initialised weights.
     seed
-        Local random seed for splitting, initialization and shuffled batches.
+        Local random seed for splitting, initialisation and shuffled batches.
 
     Returns
     -------

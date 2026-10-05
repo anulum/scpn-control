@@ -29,7 +29,7 @@ from validation.code_to_code_scenario import initial_profiles, validate_scenario
 
 
 def run_local_transport(scenario: dict[str, Any]) -> dict[str, Any]:
-    """Initialize and advance the real CONTROL transport solver.
+    """Initialise and advance the real CONTROL transport solver.
 
     Parameters
     ----------
@@ -43,8 +43,8 @@ def run_local_transport(scenario: dict[str, Any]) -> dict[str, Any]:
     dict
         Actual initial/final rho-aligned vectors and initial D/T/He densities,
         solver conservation diagnostics, arithmetic profile means, elapsed
-        evolution time and a digest of normalized declared inputs. Zero steps
-        returns the actual initialized state. Wall time excludes initialization.
+        evolution time and a digest of normalised declared inputs. Zero steps
+        returns the actual initialised state. Wall time excludes initialisation.
 
     Raises
     ------

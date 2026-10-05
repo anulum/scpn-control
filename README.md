@@ -451,7 +451,7 @@ coupled plant and actuator model.
 
 **Rust acceleration:** `upde_tick()` in `control-math` + `PyRealtimeMonitor` PyO3 binding.
 
-**Historical phase-model visualization** ([GIF](docs/phase_sync_live.gif)):
+**Historical phase-model visualisation** ([GIF](docs/phase_sync_live.gif)):
 
 <p align="center">
   <video src="docs/phase_sync_live.mp4" autoplay loop muted playsinline width="100%">

@@ -60,7 +60,7 @@ def test_reason_parser_accepts_hyphen_colon_and_dash_reasons(pragma_tool: Module
     Parameters
     ----------
     pragma_tool : ModuleType
-        Actual guard for the retained private-parser characterization.
+        Actual guard for the retained private-parser characterisation.
     """
     assert pragma_tool._is_reasoned(" - optional dependency path") is True
     assert pragma_tool._is_reasoned(": defensive guard") is True
@@ -124,7 +124,7 @@ def test_main_fails_closed_when_unreasoned_pragmas_are_reported(
     pragma_tool : ModuleType
         Retained legacy CLI subject.
     monkeypatch : pytest.MonkeyPatch
-        Substitutes a diagnostic in this legacy unit characterization only.
+        Substitutes a diagnostic in this legacy unit characterisation only.
     capsys : pytest.CaptureFixture[str]
         Captures the retained summary and diagnostic assertion.
     """
@@ -311,7 +311,7 @@ def test_real_public_invalid_request(tmp_path: Path, pragma_tool: ModuleType, mo
 
 
 def test_real_public_native_constructor_and_decode_errors(tmp_path: Path, pragma_tool: ModuleType) -> None:
-    """Public dataclass initialization and UTF-8 reading retain native errors.
+    """Public dataclass initialisation and UTF-8 reading retain native errors.
 
     Parameters
     ----------

@@ -8,9 +8,9 @@
 
 """Repository-local evidence readers, report writers and validation campaigns.
 
-The initializer declares package documentation without eager submodule exports.
+The initialiser declares package documentation without eager submodule exports.
 Evidence scans, file writes, optional backends and campaign execution belong to
 the explicit defining submodule APIs and command-line entry points. Their
 contracts distinguish declared, synthetic and independently verified evidence;
-the package initializer supplies no validation verdict or scientific admission.
+the package initialiser supplies no validation verdict or scientific admission.
 """

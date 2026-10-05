@@ -29,7 +29,7 @@ class CollisionComparisonResult(TypedDict):
 
     collision_model records the supplied name; only the exact string sugama
     selects that model in the current backends, while other names take Krook.
-    chi_i_gB is normalized mean ion flux or None, not a calibrated physical
+    chi_i_gB is normalised mean ion flux or None, not a calibrated physical
     diffusivity. Histories and converged are copied without admission checks.
     """
 
@@ -64,8 +64,8 @@ def run(label: str, coll: str, ke: bool, implicit: bool, mr: float) -> Collision
     Returns
     -------
     CollisionComparisonResult
-        Requested switches, scalar flux normalization, run() wall time,
-        producer flag and saved phi/ion-flux/normalized-time histories. Grid is
+        Requested switches, scalar flux normalisation, run() wall time,
+        producer flag and saved phi/ion-flux/normalised-time histories. Grid is
         128 x 16 x 32 x 16 x 8; dt 0.05 is CFL-adaptive and samples save every 100 steps.
 
     Raises
@@ -152,7 +152,7 @@ def main() -> None:
     Krook/adiabatic and Sugama/adiabatic request JAX; Sugama/kinetic uses
     implicit NumPy. All use mass 1/400 and 5,000 steps. No CLI options are parsed.
     After all calls return, gpu_results/sugama_comparison.json is overwritten
-    with default JSON nonfinite-number behavior. The subsequent scalar console
+    with default JSON nonfinite-number behaviour. The subsequent scalar console
     summary can raise on None after writing the report. Native and filesystem
     errors propagate. This entrypoint may run a long NumPy campaign.
     """

@@ -80,7 +80,7 @@ def validate_jax_gk_parity(
     -------
     dict[str, Any]
         ``status`` pass/fail, root display path, admitted ``parity_artifacts``,
-        normalized requirements, admitted ``entries`` and path/field/error
+        normalised requirements, admitted ``entries`` and path/field/error
         findings, sorted counts/pair lists, coverage bool (None without pairs),
         maximum admitted gamma/frequency drift (None when empty), entry-digest
         multiset digest and canonical report digest. Admitted entries remain
@@ -192,7 +192,7 @@ def write_jax_gk_parity_report(report: dict[str, Any], output_path: str | Path, 
     """Persist sorted UTF8 JSON+LF while refusing root/immediate selected direct/resolved/hardlink aliases.
 
     Aliases raise ValueError before writing. Other destinations may replace;
-    parent creation and path/IO/encoding/serialization failures propagate.
+    parent creation and path/IO/encoding/serialisation failures propagate.
     Sequential checks provide no pathname lock against concurrent replacement.
     No source/parser/run evidence is resealed or independently admitted.
     """

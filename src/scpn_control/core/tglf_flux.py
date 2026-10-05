@@ -74,17 +74,17 @@ class TGLFFluxResult:
     run_dir : Path
         Directory containing the input and output evidence.
     particle_flux_gb, energy_flux_gb, momentum_flux_gb, exchange_gb : tuple
-        One value per species, electron first then ions. These are normalized
+        One value per species, electron first then ions. These are normalised
         fluxes integrated from full-precision, already weighted spectral rows,
         not diffusivities; negative values are retained. Momentum is toroidal
         stress, not the separate parallel-stress column. Reference
         density, temperature, length, mass, magnetic field and flux coordinate
         must be supplied separately before conversion to physical units.
     k_y : tuple
-        Positive increasing normalized perpendicular wavenumbers.
+        Positive increasing normalised perpendicular wavenumbers.
     growth_rate, frequency : tuple of tuples
         Rows follow k_y; columns follow the provider's mode order. Both use
-        the provider's normalized frequency convention. No mode relabelling,
+        the provider's normalised frequency convention. No mode relabelling,
         clipping, physical calibration or solver-convergence claim is made.
     """
 
@@ -330,7 +330,7 @@ class TGLFFluxSolver:
     -----
     Input is the provider's key=value deck, not GKLocalParams or a namelist.
     The provider owns defaults and input validation. This class deliberately
-    returns normalized signed fluxes rather than the coefficient-only GKOutput.
+    returns normalised signed fluxes rather than the coefficient-only GKOutput.
     Runtime coupling must specify reference units and a conservation contract.
     """
 
@@ -352,7 +352,7 @@ class TGLFFluxSolver:
         ----------
         input_deck : Path
             Existing standalone input.tglf-format file. Its bytes are copied;
-            neighboring outputs are never imported.
+            neighbouring outputs are never imported.
         timeout_s : float
             Positive finite child-process timeout in seconds; booleans are
             rejected. On timeout the

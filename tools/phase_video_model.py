@@ -51,7 +51,7 @@ def sample_frame_indices(n_ticks: int, fps: int) -> tuple[int, ...]:
     Positive nonboolean n_ticks and integer fps in [1,100] are required. The
     stride is max(1, n_ticks // (fps*10)); select range(0,n_ticks,stride) and append
     n_ticks-1 when absent. This targets about ten playback seconds, not exactly
-    ten. GIF durations are quantized to centiseconds by its encoder.
+    ten. GIF durations are quantised to centiseconds by its encoder.
     """
     if not _positive_int(n_ticks) or not _positive_int(fps) or fps > 100:
         raise ValueError("Ticks must be positive and playback fps must be an integer in [1,100]")

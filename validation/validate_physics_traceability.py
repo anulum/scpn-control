@@ -80,7 +80,7 @@ def validate_physics_traceability(registry_path: str | Path) -> dict[str, Any]:
         false-claim counts, resolved module/evidence counts, accepted tracker
         metadata/count, dictionary-entry summaries, findings with path/field/
         error and optional index, plus total/covered/missing marker coverage.
-        Dictionary entries are summarized even when invalid. Nondictionary
+        Dictionary entries are summarised even when invalid. Nondictionary
         entries count in total but have no summary. Counters are observations,
         not independent scientific admission; raw claim flags remain visible.
 

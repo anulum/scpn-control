@@ -728,7 +728,7 @@ def local_traceability_repository(tmp_path: Path) -> tuple[Path, dict[str, Any]]
     """Copy real defining source/evidence bytes into an isolated declared registry root.
 
     The single historical bounded entry retains its no-public-claim boundary.
-    The copied files establish local path/marker/schema behavior only; neither
+    The copied files establish local path/marker/schema behaviour only; neither
     the copy nor later metadata mutations establish new scientific evidence.
     """
     base: dict[str, Any] = json.loads((ROOT / "validation/physics_traceability.json").read_text())

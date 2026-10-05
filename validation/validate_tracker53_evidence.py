@@ -76,7 +76,7 @@ class Tracker53EvidenceResult:
     four builders assign fixed unqualified classes. evidence_classes maps
     module paths to their assigned labels, never registry-supplied qualification.
     require_production_claim records the requested boolean; invalid runtime
-    argument types produce FAIL and normalize to false.
+    argument types produce FAIL and normalise to false.
     """
 
     status: str
@@ -359,7 +359,7 @@ def validate_tracker53_evidence(
         followed. Only actual metadata readers run; no proof/control operation.
     require_production_claim : bool
         Request complete qualification; current four fixed bounded classes make
-        this fail. Invalid runtime types record FAIL and normalize to false.
+        this fail. Invalid runtime types record FAIL and normalise to false.
     output_json : str, Path or None
         Explicit output path. Create parents and write a sorted UTF-8 v1 manifest
         even for refused declarations. Supported output errors become result

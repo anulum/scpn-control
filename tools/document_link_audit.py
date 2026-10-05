@@ -27,7 +27,7 @@ hashes; those set hashes do not bind source contents. Report writes replace the
 selected path through a same-directory temporary file without fsync or signing.
 Local findings, permanent HTTP failures and observed redirect-policy failures
 give CLI status one. Restricted/transient HTTP results alone give status zero.
-Argparse, Git, decoding and IO failures retain their native failure behavior.
+Argparse, Git, decoding and IO failures retain their native failure behaviour.
 """
 
 from __future__ import annotations

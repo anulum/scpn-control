@@ -195,7 +195,7 @@ def canonical_artifact_sha256(payload: dict[str, object]) -> str:
     """Return SHA256 of original compact sorted ASCII-escaped JSON excluding payload_sha256.
 
     This is caller-recomputable consistency without weight, producer or artifact
-    authentication; original serialization domain and errors remain unchanged.
+    authentication; original serialisation domain and errors remain unchanged.
 
     Examples
     --------

@@ -194,12 +194,12 @@ python tools/check_runtime_wiring.py
 ```
 
 `check_test_module_linkage.py` checks bounded static test references or exact
-allowlist paths. It follows recognized test functions/methods, called local
-helpers and visible import aliases in initializers and ordinary module files,
+allowlist paths. It follows recognised test functions/methods, called local
+helpers and visible import aliases in initialisers and ordinary module files,
 crediting the referenced facade and selected export target while conservatively refusing
 shadowed names. Missing/non-directory roots fail; empty existing roots are
 supported. Named class references follow unambiguous imported/local base identities;
-class initialization and inherited method dispatch are not evaluated. Selected plain
+class initialisation and inherited method dispatch are not evaluated. Selected plain
 methods follow lexical body references. A single direct constructor assignment can
 identify a receiver for subsequent references. Unrelated data-field writes preserve
 the binding; selected-member writes/deletions and receiver type/dictionary changes
@@ -217,7 +217,7 @@ add body-call edges. This remains static reference evidence. Fixtures, subproces
 dynamic imports, dynamic mutator calls, inherited descriptors, assignment exports and
 argument/return flow are outside this scan, and syntactic calls in unreachable branches
 can count. See the [complete linkage API contract](api.md#static-test-ownership-linkage)
-for path/error/allowlist behavior. This does not prove exercised coverage. `check_runtime_wiring.py` parses static imports
+for path/error/allowlist behaviour. This does not prove exercised coverage. `check_runtime_wiring.py` parses static imports
 across `src`, `tests`, `benchmarks`, `examples`, `tools`, and `validation`; it
 fails if a non-exempt source module has no import reference in those files.
 
@@ -230,11 +230,11 @@ guard does not infer Click registration or callback execution from decorators.
 Missing-owner strings use forward slashes on every OS, as specified by the API.
 Native directory-read errors remain platform specific: Windows refuses the
 allowlist directory with `PermissionError`, while Linux uses `IsADirectoryError`.
-Package initializers and the declared root exemptions do not require a reference.
+Package initialisers and the declared root exemptions do not require a reference.
 Nested imports count even in branches that never execute, and the importer may
 itself be unreferenced. Dynamic imports and external library consumers are not
 discovered. A positive report therefore establishes static source references;
-it does not establish entrypoint reachability, importability or exercised behavior.
+it does not establish entrypoint reachability, importability or exercised behaviour.
 Review orphan names before deciding whether to wire, test or remove a public API.
 
 Use `--repo PATH` to inspect a selected checkout and `--json` for the unchanged
@@ -331,7 +331,7 @@ variant classification are reviewed. Runtime skips are not accepted as
 coverage success merely because the configured context excludes them.
 
 The [ownership API contract](api.md#coverage-exception-ownership-ledger)
-describes the exact lexical/AST scope and native failure behavior. Lane labels
+describes the exact lexical/AST scope and native failure behaviour. Lane labels
 and workflow-substring checks declare evidence requirements; they do not
 establish that a variant executed. `--print-summary` is informational and
 bypasses count/digest admission, including when combined with `--check`.
@@ -402,7 +402,7 @@ These checks inspect archive declarations. They do not execute console
 callables, authenticate artifacts, verify all wheel RECORD/CRC entries, lock
 directories, guarantee arbitrary-backend reproducibility or approve publication.
 Failures retain backend outputs. See the [release-artifact API](api.md#release-artifact-builder)
-for caller-visible interfaces and failure behavior.
+for caller-visible interfaces and failure behaviour.
 
 ## GitHub Token Format Guard
 
@@ -491,7 +491,7 @@ Version-one ABI and the maintained declaration-count requirements still apply.
 The write refuses aliases of either input; `--check` leaves missing or stale
 output untouched and returns 1. Success returns 0, operational or source-contract
 refusal returns 1, and parser usage returns 2. The [API contract](api.md#public-surface-hygiene)
-describes the selected-file behavior and lexical scope in full.
+describes the selected-file behaviour and lexical scope in full.
 
 ## Changelog Mirror
 
@@ -692,10 +692,10 @@ external JOSS workflow. The read-only guard checks the canonical
 `papers/submissions/001_neuro_symbolic_tokamak_control_software/manuscript.md`
 and its `references.bib` bibliography, plus the `docs/joss_paper.md` pointer.
 All three UTF-8 files must exist and contain non-whitespace text. Required
-editorial markers are case-sensitive substrings after whitespace normalization.
+editorial markers are case-sensitive substrings after whitespace normalisation.
 The first lexical `title:` line must be inside the initial `---`-delimited
 front matter and appear in the documentation pointer. The bibliography must
-have at least one recognized `@word{key,` entry, no duplicate keys, and entries
+have at least one recognised `@word{key,` entry, no duplicate keys, and entries
 for all bracketed manuscript citation keys.
 
 This is a local consistency check. It does not parse the complete YAML/JOSS or
@@ -704,7 +704,7 @@ brackets or citations in the documentation pointer, render the PDF, resolve
 links, or authenticate scientific evidence. Comments and code fences can contain
 lexically matched markers or keys. Missing/blank inputs and consistency findings
 return status one; present-file read and UTF-8 decode errors retain their native
-exception behavior. Success does not mean the paper has been submitted or
+exception behaviour. Success does not mean the paper has been submitted or
 accepted. Paths come from the resolved script location, independent of caller
 working directory; the standalone script has no option parser.
 

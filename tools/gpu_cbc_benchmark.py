@@ -111,7 +111,7 @@ def run_linear_benchmark() -> LinearBenchmark:
     gamma is provider-normalised growth, ky is k_y*rho_s, mode_type has one
     string per bin; peak fields identify the largest growth, not acceptance.
     Monotonic elapsed_s brackets solve_linear_gk only, excluding imports/species
-    construction, console and serialization. No files/state persist; provider
+    construction, console and serialisation. No files/state persist; provider
     errors propagate. This native linear path does not require JAX or a GPU.
     """
     from scpn_control.core.gk_eigenvalue import solve_linear_gk
@@ -161,7 +161,7 @@ def run_nonlinear_numpy(n_steps: int = 500, label: str = "numpy") -> NonlinearBe
     n_steps does not prove completed integration. Finite saved ion flux plus
     no detected divergence supplies converged, not saturation/reference admission.
     Run-only monotonic elapsed_s excludes imports/config/solver construction,
-    console and writes, but includes initialization and diagnostics. No file or
+    console and writes, but includes initialisation and diagnostics. No file or
     final state persists. Provider/allocation errors propagate unchanged.
     """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig, NonlinearGKSolver
@@ -222,7 +222,7 @@ def run_nonlinear_jax(n_steps: int = 500, label: str = "jax") -> NonlinearBenchm
     Other errors propagate. Available reports retain raw NaN/Infinity values.
     Provider converged tests multiple finite saved ion fluxes; unlike NumPy it
     has no separate divergence flag and proves no final-state validity.
-    Monotonic elapsed_s covers run initialization, first-use JIT, synchronization
+    Monotonic elapsed_s covers run initialisation, first-use JIT, synchronisation
     and diagnostic conversion, excluding imports/config/solver construction,
     printing/writes. Separate clocks are not isolated matched-throughput or
     backend-parity evidence. The actual configured precision/cache affects results.

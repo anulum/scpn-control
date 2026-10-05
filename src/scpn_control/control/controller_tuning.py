@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Controller Tuning
-"""Controller tuning through actual rollout and normalized-plant synthesis.
+"""Controller tuning through actual rollout and normalised-plant synthesis.
 
 Optimises PID and H-infinity parameters against Gymnasium environments to
 minimise tracking error. The PID objective evaluates the full parallel-form
@@ -16,7 +16,7 @@ integral and derivative gains are the ones actually applied during the rollout
 Optuna is an optional dependency for PID rollout optimisation; install the
 ``tuning`` extra (``pip install scpn-control[tuning]``) to enable it. When it is
 absent PID tuning refuses to fabricate gains.
-H-infinity attenuation comes from the normalized DGKF plant, independent of
+H-infinity attenuation comes from the normalised DGKF plant, independent of
 Optuna. No bandwidth value is inferred from the plant matrices.
 """
 
@@ -183,7 +183,7 @@ def tune_pid(env: Any, n_trials: int = 50, dt: float | None = None) -> dict[str,
     Returns
     -------
     dict[str, float]
-        Optimized ``{"Kp", "Ki", "Kd"}`` gains for the supplied environment.
+        Optimised ``{"Kp", "Ki", "Kd"}`` gains for the supplied environment.
 
     Raises
     ------
@@ -215,11 +215,11 @@ def tune_pid(env: Any, n_trials: int = 50, dt: float | None = None) -> dict[str,
 
 
 def tune_hinf(plant: dict[str, Any]) -> dict[str, float]:
-    """Return a feasible near-infimum DGKF attenuation for a normalized plant.
+    """Return a feasible near-infimum DGKF attenuation for a normalised plant.
 
     The plant must supply exactly ``A``, ``B1``, ``B2``, ``C1``, ``C2``,
     ``D12`` and ``D21``. The public synthesis constructor validates shapes,
-    finite values, normalization, stabilizability and strict feasibility.
+    finite values, normalisation, stabilisability and strict feasibility.
     There is no data-independent default or inferred bandwidth. The returned
     attenuation applies to the unsaturated linear continuous-time model.
     """

@@ -6,7 +6,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — JarvisLabs training workflow
-"""Orchestrate an explicitly authorized JarvisLabs PPO training campaign.
+"""Orchestrate an explicitly authorised JarvisLabs PPO training campaign.
 
 Importing performs no cloud action. Running main requires JARVISLABS_TOKEN,
 optional JLClient, existing upload sources/parents, fresh local artifacts and

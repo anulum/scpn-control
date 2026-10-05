@@ -164,7 +164,7 @@ class TransportSolver(FusionKernel):
         Legacy approximation flags require the global opt-in. Species arrays
         exist only in multi-ion mode; their densities use the electron profile
         units of 10^19 m^-3. No equilibrium or transport convergence is implied
-        by initialization.
+        by initialisation.
         """
         super().__init__(config_path)
         dims = self.cfg["dimensions"]
@@ -478,7 +478,7 @@ class TransportSolver(FusionKernel):
 
         Every evolve_profiles call resets it, including invalid and zero-time
         calls. A later thermal rejection retains an already completed species
-        record. Subsequent thermal sanitization or external profile mutation
+        record. Subsequent thermal sanitisation or external profile mutation
         cannot rewrite it; it is not a final thermal-state inventory certificate.
         Single-ion mode has no species-stage record.
         """
@@ -639,21 +639,21 @@ class TransportSolver(FusionKernel):
         chi is held fixed across this call, while conductive face weights use
         their respective old/new densities. In temperature-rate form, the RHS
         storage is (n0/n1)*T0 and Q/(H*n1) is in keV/s. Auxiliary power is
-        volume-normalized on the completed densities. Radiation uses incoming
+        volume-normalised on the completed densities. Radiation uses incoming
         temperatures and completed species/charge state. Helium pumping uses
         actual integrated removed counts and incoming temperatures, yielding
         step-average ion/electron heat sinks. These frozen source evaluations
         and split exchange limit combined temporal accuracy to first order.
 
         The pumping model removes mean thermal ion energy and that of two
-        accompanying electrons per He, assuming thermalized ash and local
+        accompanying electrons per He, assuming thermalised ash and local
         quasineutral removal. It is not a velocity-selective pump, sheath,
         flowing-plasma enthalpy or fast-alpha model. No separate particle heat
         convection, pressure-work or fusion-product energy closure is supplied.
         Discrete heat conservation does not validate these missing physics.
 
         Internal exchange follows the conductive solve; pedestal overrides and
-        sanitization follow exchange. Boundary energy uses the old/new face
+        sanitisation follow exchange. Boundary energy uses the old/new face
         fluxes and edge capacities. Admission describes the final thermal state
         and retains numerical recovery or unmodeled pedestal energy in its
         residual. Large timesteps may require recovery or fail admission.

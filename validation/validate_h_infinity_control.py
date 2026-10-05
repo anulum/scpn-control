@@ -54,7 +54,7 @@ class HInfinityValidationResult:
     gain units. The dominant pole real part uses s^-1; gamma and sweep peak use
     normalized gain units. ``frequency_samples`` counts the fixed sweep and
     ``passed`` declares its bounded checks. Construction is unchecked; report
-    serialization verifies domains and verdict consistency before returning.
+    serialisation verifies domains and verdict consistency before returning.
     """
 
     gamma: float
@@ -194,7 +194,7 @@ def build_evidence(
     *,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
-    """Serialize consistent metrics with actual HEAD/source-byte observations.
+    """Serialise consistent metrics with actual HEAD/source-byte observations.
 
     ``generated_at=None`` observes the UTC clock; a supplied timestamp must be
     aware UTC. Returned v1 data is detached and sealed with historical compact

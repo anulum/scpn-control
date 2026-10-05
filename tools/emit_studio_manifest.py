@@ -33,7 +33,7 @@ _ARTIFACT = Path(__file__).resolve().parents[1] / "docs" / "_generated" / "studi
 
 
 def render() -> str:
-    """Serialize the actual CONTROL/Studio SDK producer as sorted finite Unicode JSON.
+    """Serialise the actual CONTROL/Studio SDK producer as sorted finite Unicode JSON.
 
     Return indented JSON with a trailing LF. The installed distribution version
     (or source sentinel) is included, so bytes can differ across environments.

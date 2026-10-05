@@ -7,7 +7,7 @@
 # SCPN Control — Capability inventory output.
 """Render and compare local inventory snapshots and publish selected files.
 
-This owner formats a supplied inventory, compares UTF-8 snapshot text with universal newline normalization,
+This owner formats a supplied inventory, compares UTF-8 snapshot text with universal newline normalisation,
 and replaces the designated README block. Filesystem write failures may leave
 partial outputs; rendering and marker validation must finish before writes.
 The fragments describe source inventory, not implementation execution.
@@ -26,10 +26,10 @@ README_END = "<!-- capability-snapshot:end -->"
 
 
 def render_json(manifest: dict[str, Any]) -> str:
-    """Serialize a supplied mapping as deterministic indented Unicode JSON text.
+    """Serialise a supplied mapping as deterministic indented Unicode JSON text.
 
     Sort keys, preserve non-ASCII characters and append one LF. NaN/Infinity
-    raise ValueError; unsupported JSON values raise TypeError. This serializer
+    raise ValueError; unsupported JSON values raise TypeError. This serialiser
     does not validate inventory counts/schema or execute listed capabilities.
     """
     return json.dumps(manifest, indent=2, ensure_ascii=False, sort_keys=True, allow_nan=False) + "\n"
@@ -104,7 +104,7 @@ def extract_readme_block(readme: str) -> str:
     Remove at most one leading LF after the start marker and retain the rest
     exactly as supplied. Missing/duplicate/reversed markers raise ValueError.
     Callers that read files with read_text apply universal newline conversion;
-    the extractor itself neither parses Markdown nor normalizes other text.
+    the extractor itself neither parses Markdown nor normalises other text.
     """
     start, end = _readme_bounds(readme)
     start += len(README_START)
@@ -145,7 +145,7 @@ def write_outputs(repo_root: Path | str | None = None) -> None:
         Inventory inspection/invariants or README markers fail. Build all
         output text and validate the marker pair before creating directories
         or writing outputs, so those preparation failures preserve existing
-        files. Filesystem/decode/configuration/serialization errors propagate.
+        files. Filesystem/decode/configuration/serialisation errors propagate.
 
     Notes
     -----
@@ -185,7 +185,7 @@ def check_outputs(repo_root: Path | str | None = None) -> list[str]:
     -------
     list[str]
         Missing/stale generated files followed by invalid/stale README block
-        diagnostics, in deterministic order. Empty means normalized UTF-8 text
+        diagnostics, in deterministic order. Empty means normalised UTF-8 text
         matches current rendering; read_text permits LF/CRLF equivalence, not
         arbitrary whitespace or JSON reformatting. No runtime readiness follows.
 

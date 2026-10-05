@@ -32,7 +32,7 @@ def _valid_utc_timestamp(value: object) -> bool:
 
     Notes
     -----
-    No freshness, clock synchronization or authenticity check is performed.
+    No freshness, clock synchronisation or authenticity check is performed.
     """
     if not isinstance(value, str) or not value.strip():
         return False
@@ -67,7 +67,7 @@ def _validate_loadavg(payload: dict[str, Any], key: str, errors: list[str]) -> N
 
     Notes
     -----
-    Negative values retain the legacy reader behavior. No host observation or
+    Negative values retain the legacy reader behaviour. No host observation or
     load threshold is inferred from declarations.
     """
     value = payload.get(key)
@@ -105,7 +105,7 @@ def _validate_benchmark_context(payload: dict[str, Any], errors: list[str]) -> N
     -----
     Command matching uses a substring, CPU IDs need only be nonnegative ints
     and governor needs only be present, including null. Duplicated IDs and any
-    nonblank job/isolation labels retain legacy behavior. Nothing is executed;
+    nonblank job/isolation labels retain legacy behaviour. Nothing is executed;
     hardware identity, actual isolation and trustworthy clocks are not verified.
     """
     command = payload.get("command")

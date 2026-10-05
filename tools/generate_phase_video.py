@@ -7,7 +7,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Capture and render the Paper 27 phase-model trajectory.
 
-"""Create a fresh GIF/MP4 model visualization and its displayed-value JSON.
+"""Create a fresh GIF/MP4 model visualisation and its displayed-value JSON.
 
 The CLI uses a fresh caller-relative phase-video directory, preserving existing
 documentation media. Both formats are required by default; --gif-only explicitly

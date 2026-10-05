@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Code-to-code declared inputs and profile initialization.
+# SCPN Control — Code-to-code declared inputs and profile initialisation.
 
 """Define and validate the bounded high-level transport scenario.
 
@@ -50,13 +50,13 @@ def validate_scenario(scenario: dict[str, Any]) -> dict[str, Any]:
     scenario : dict
         ITER_SCENARIO keys with finite real scalars, excluding booleans.
         n_rho is an integer >=3; n_steps is an integer >=0. Zero steps with
-        zero t_final observes initialization without evolution. Other scalar
+        zero t_final observes initialisation without evolution. Other scalar
         domains are positive except nonnegative power/time and |delta|<1.
 
     Returns
     -------
     dict
-        Independent copy with normalized numeric fields; finite JSON-compatible
+        Independent copy with normalised numeric fields; finite JSON-compatible
         extra metadata keys are retained.
 
     Raises
@@ -105,14 +105,14 @@ def initial_profiles(scenario: dict[str, Any], rho: NDArray[np.float64]) -> dict
     scenario : dict
         Validated required inputs, also checked here.
     rho : numpy.ndarray
-        Finite ordered normalized coordinates in [0,1], shape (N,), N>=2.
+        Finite ordered normalised coordinates in [0,1], shape (N,), N>=2.
 
     Returns
     -------
     dict
         Te_initial/Ti_initial in keV and ne_initial in 10^19 m^-3, shape (N,).
         Each thermal edge is max(0.1,min(0.05*axis,1.0)) keV. Density edge
-        is 0.1*axis. These positive edges initialize both adapters' profiles.
+        is 0.1*axis. These positive edges initialise both adapters' profiles.
 
     Raises
     ------

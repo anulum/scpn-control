@@ -160,7 +160,7 @@ def acquire(
     Returns
     -------
     dict
-        Finalized source-object manifest with complete, partial or empty status,
+        Finalised source-object manifest with complete, partial or empty status,
         per-shot source/value/file bindings and retained source metadata. Arrays
         keep native sample resolution and flattened ``<group>.<variable>`` names;
         the compressed NPZ is a derived container, not the native Zarr source.

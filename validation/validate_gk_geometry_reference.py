@@ -123,7 +123,7 @@ def write_gk_geometry_reference_report(
     """Write sorted UTF8 JSON after refusing direct/resolved/symlink/existing-hardlink aliases of the reference.
 
     Output parents are created and unrelated output replaced. API path/IO/
-    serialization failures propagate; no locks or coherent pathname snapshot
+    serialisation failures propagate; no locks or coherent pathname snapshot
     are promised. The reference is a single file, not a scanned input directory.
     """
     output = Path(output_path)

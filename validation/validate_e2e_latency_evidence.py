@@ -114,7 +114,7 @@ def validate_e2e_latency_evidence(
     OSError, UnicodeError
         The report cannot be read as UTF-8.
     OverflowError, TypeError, RecursionError
-        Legacy report numeric conversion or canonical JSON serialization fails.
+        Legacy report numeric conversion or canonical JSON serialisation fails.
 
     Notes
     -----

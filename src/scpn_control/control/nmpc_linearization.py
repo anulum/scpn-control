@@ -30,7 +30,7 @@ from .nmpc_types import (
 class NMPCLinearization:
     """SQP-based NMPC with validated plant linearization contracts.
 
-    Each SQP outer iteration linearizes f around the nominal trajectory with an
+    Each SQP outer iteration linearises f around the nominal trajectory with an
     optional analytic Jacobian provider. When no provider is configured, the
     controller falls back to bounded finite differences. The condensed QP is
     solved by either SciPy SLSQP or curvature-scaled projected gradient.

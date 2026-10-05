@@ -10,7 +10,7 @@
 """Inspect static test-to-implementation links without importing inspected code.
 
 The package name is always ``scpn_control``, including custom source roots.
-Implementation files are recursively sorted ``*.py`` files except initializers;
+Implementation files are recursively sorted ``*.py`` files except initialisers;
 test inputs are recursively sorted ``test_*.py`` files decoded as UTF-8 and
 parsed with the native AST. Existing empty directories are supported. Missing
 roots and ordinary files are refused; native Path symlink semantics apply.
@@ -19,7 +19,7 @@ Only top-level ``test_`` functions and ``test_`` methods of top-level ``Test``
 classes are entry points. Named local helpers called from those scopes are
 followed with their lexical import environment, including async functions.
 Calls and names/attributes inside assertions establish static references.
-Visible import re-exports in initializers and implementation files are resolved,
+Visible import re-exports in initialisers and implementation files are resolved,
 including at the package root. A referenced implementation facade and its selected
 export target both count; other imports in the facade do not. Cycles terminate.
 Named class references also follow visible imported or locally declared base
@@ -32,7 +32,7 @@ instance receiver for subsequent references in that scope. Ordinary data-field
 writes preserve that binding. Writes/deletions to the selected member, runtime
 type/dictionary or imported constructor hooks conservatively refuse the edge.
 Imported member writes are resolved through visible aliases. Plain source methods
-that reassign a selected member or customize attribute access remain opaque.
+that reassign a selected member or customise attribute access remain opaque.
 Rebinding, conditional assignment and receiver parameters prevent instance links.
 
 Assignments, parameters, deletion, exception/pattern bindings, global/nonlocal
@@ -75,7 +75,7 @@ def _resolve(path_value: str) -> Path:
     Returns
     -------
     Path
-        Repository-prefixed relative path, without normalization or confinement.
+        Repository-prefixed relative path, without normalisation or confinement.
     """
     path = Path(path_value)
     if not path.is_absolute():
@@ -90,7 +90,7 @@ def collect_source_modules(source_root: Path) -> list[Path]:
     ----------
     source_root : Path
         Existing directory searched recursively; relative paths follow the caller's
-        working directory. Initializers and directories named ``*.py`` are omitted.
+        working directory. Initialisers and directories named ``*.py`` are omitted.
 
     Returns
     -------
@@ -105,7 +105,7 @@ def collect_source_modules(source_root: Path) -> list[Path]:
     Notes
     -----
     This inventories names only; implementation syntax and importability are not
-    checked. Native directory traversal and symlink behavior apply.
+    checked. Native directory traversal and symlink behaviour apply.
     """
     if not source_root.is_dir():
         raise NotADirectoryError(f"Source root must be a directory: {source_root}")
@@ -215,7 +215,7 @@ def _source_exports(path: Path, module: str, package: str) -> _ExportBindings:
 
     Notes
     -----
-    Class initialization, decorators, metaclasses and runtime MRO dispatch are not followed.
+    Class initialisation, decorators, metaclasses and runtime MRO dispatch are not followed.
     Selected function bodies use lexical imports and unambiguous module helpers;
     defaults, annotations and unused function bodies establish no call edges.
     Selected plain methods use module imports, without class-namespace lookup or
@@ -323,7 +323,7 @@ def _owners(
     -------
     set of str
         Referenced facades, selected exports, bases and function-call owners. Files take
-        precedence over initializers; API attribute existence is not checked.
+        precedence over initialisers; API attribute existence is not checked.
 
     Notes
     -----
@@ -655,7 +655,7 @@ def _class_method_writes(declaration: ast.ClassDef) -> set[str]:
 
     Notes
     -----
-    Only the first positional receiver parameter is recognized. Aliases, dynamic
+    Only the first positional receiver parameter is recognised. Aliases, dynamic
     mutators, inherited descriptors and runtime dispatch remain outside this scan.
     """
     writes: set[str] = set()
@@ -777,7 +777,7 @@ def _test_links(tree: ast.Module) -> set[str]:
 
 
 def collect_unlinked_modules(*, source_root: Path, test_root: Path) -> list[str]:
-    """Find inventoried owners without recognized static test references.
+    """Find inventoried owners without recognised static test references.
 
     Parameters
     ----------
@@ -838,8 +838,8 @@ def load_allowlist(path: Path) -> set[str]:
     -------
     set of str
         Exact path strings; duplicate list entries collapse. No slash/whitespace
-        normalization or metadata review is performed. Extra fields are ignored;
-        JSON object duplicate keys retain the native decoder's last-value behavior.
+        normalisation or metadata review is performed. Extra fields are ignored;
+        JSON object duplicate keys retain the native decoder's last-value behaviour.
 
     Raises
     ------

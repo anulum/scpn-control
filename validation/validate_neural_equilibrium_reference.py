@@ -233,7 +233,7 @@ def write_neural_equilibrium_reference_report(
 
     Caller-relative output parents are created; an ordinary non-alias output may
     be replaced. Resolved paths, symlinks and existing hard links to the root or
-    its current immediate JSON inputs raise NeuralReferenceReportRefusal (a ValueError). IO/encoding/serialization
+    its current immediate JSON inputs raise NeuralReferenceReportRefusal (a ValueError). IO/encoding/serialisation
     errors propagate. Input discovery is a fresh observation, not a transaction
     with prior validation or protection against concurrent pathname replacement.
     """

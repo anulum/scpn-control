@@ -49,7 +49,7 @@ def main() -> None:
     for a nonfinite scalar. Histories retain native nonfinite values. Printed
     late_growth is a fractional endpoint difference per code time rather than
     logarithmic growth. The converged flag means more than one finite flux
-    sample, not physical or asymptotic convergence. The legacy serializer uses
+    sample, not physical or asymptotic convergence. The legacy serialiser uses
     indent=2/default=str and its nonfinite-float convention, via the platform
     text codec. Existing output may be replaced without atomic replacement,
     locks, campaign custody or authenticated source digests. The raw report

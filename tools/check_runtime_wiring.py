@@ -10,7 +10,7 @@
 
 Inspect UTF-8 Python source below src, tests, benchmarks, examples, tools and
 validation. Nested imports count even in code that never executes; dynamic
-imports and external consumers are not discovered. Package initializers and
+imports and external consumers are not discovered. Package initialisers and
 the declared ROOTS are exempt. This is not entrypoint reachability, importability,
 test execution, maintenance classification or scientific-readiness evidence.
 An orphan is a review candidate, not proof that a public API should be removed.
@@ -65,7 +65,7 @@ def _all_modules(repo_root: Path = REPO) -> dict[str, Path]:
 
 
 def _resolve_relative(current: str, level: int, module: str | None, *, is_package: bool) -> str:
-    """Resolve lexical relative imports from a module or package initializer context.
+    """Resolve lexical relative imports from a module or package initialiser context.
 
     Level one retains the containing package; deeper levels remove parents.
     Excessive levels yield an empty base instead of validating Python's import

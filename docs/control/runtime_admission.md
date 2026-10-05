@@ -111,7 +111,7 @@ and PREEMPT_RT assumptions that governed the campaign.
 `validation.validate_runtime_admission_evidence.validate_runtime_admission_evidence`
 reads reports from `benchmarks/bench_runtime_admission.py`. Its default input is
 the historical `runtime_admission_release_20260605T000000Z.json` local regression
-report. Reading that file does not inspect the current host or authorize an
+report. Reading that file does not inspect the current host or authorise an
 execution campaign. The top-level `scpn-control validate` command invokes the
 reader by default; its runtime summary is one of several release declarations.
 

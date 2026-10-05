@@ -64,7 +64,7 @@ class PublicDataFile:
 class PublicDataAcquisitionManifest:
     """Frozen validated acquisition declaration with immutable file tuple.
 
-    Fields path/doi/title/licence/record_sha256 retain normalized declaration
+    Fields path/doi/title/licence/record_sha256 retain normalised declaration
     provenance. large_numeric_files_downloaded is a literal policy boolean;
     large_numeric_files_policy records deferred storage policy. Files enumerate
     advertised identities, not authenticated remote availability. A missing raw

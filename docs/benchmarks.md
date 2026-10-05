@@ -42,9 +42,9 @@ inherits the native environment and standard streams, with
 runner can launch Python, Rust or other native producers.
 
 Before launch, the runner reserves the campaign and cooperating writers' output
-destinations, then retains and displaces old materializations. After the direct
+destinations, then retains and displaces old materialisations. After the direct
 child exits, it seals every recreated declared artifact and releases its output
-lease. Missing artifacts cause a failed manifest; their old materializations are
+lease. Missing artifacts cause a failed manifest; their old materialisations are
 restored. Failed runs retain available partial artifacts and never advance
 `latest`. A successful no-op cannot reuse stale output as fresh evidence.
 
@@ -59,8 +59,8 @@ restored. Failed runs retain available partial artifacts and never advance
 
 POSIX signal termination gives a negative child code through the imported
 `main(argv)` API; the script's `SystemExit` uses the platform's command-line
-mapping. Reservation, archival or finalization errors propagate rather than
-becoming the launch code. An unresolved finalization failure may retain a lease
+mapping. Reservation, archival or finalisation errors propagate rather than
+becoming the launch code. An unresolved finalisation failure may retain a lease
 for explicit recovery. The runner provides no timeout or descendant-process
 supervisor; use it with producers whose direct child owns their lifecycle.
 An interrupt does not guarantee that the OS has immediately reaped the child.
@@ -885,7 +885,7 @@ The Helmholtz sample is off-axis and its reference is on-axis. Their differing
 values are diagnostic, with no same-point tolerance or quantitative PASS.
 Single-coil equality uses the solver's own expression; the reported X-point is
 a grid-gradient minimum with a Z-only test. These checks provide no independent
-flux normalization or validated magnetic-null witness. The raw diagnostic API
+flux normalisation or validated magnetic-null witness. The raw diagnostic API
 retains its historical qualitative marker; the report writer explicitly records
 that marker as unassessed. The [API contract](api.md#vacuum-software-diagnostic-reports)
 describes output order, temporary config cleanup and native error propagation.
@@ -1136,7 +1136,7 @@ not resolve the current source-backed model limitations. Historical report
 numbers are retained in their original artifacts; they are not a fresh run of
 this adapter or a controlled cross-code performance comparison.
 
-The following temporary source-checkout example observes actual initialization,
+The following temporary source-checkout example observes actual initialisation,
 executes two real transport steps and compares those local observations as
 declared reader inputs. It does not invoke or substitute TORAX:
 
@@ -2020,14 +2020,14 @@ complete integration. Read the [API contract](api.md#fixed-cbc-model-comparison)
 for every field, fixed parameter, actual error and executable short example.
 
 `elapsed_s` clocks have different boundaries: nonlinear run-only time excludes
-solver/config construction but includes initialization and JAX first-use JIT/
-synchronization; SAT1 includes construction/solve, linear includes solve alone.
+solver/config construction but includes initialisation and JAX first-use JIT/
+synchronisation; SAT1 includes construction/solve, linear includes solve alone.
 Console/imports/writes are excluded. Host contention, caches, device and precision
 prevent interpreting these raw fields as an isolated throughput comparison.
 No speedup or physical-performance claim follows from a short local observation.
 
 Main writes cwd-relative `gpu_results/gk_nonlinear_cbc_gpu.json` once after all
-six stages, with raw NaN/Infinity serialization and no partial-stage checkpoint.
+six stages, with raw NaN/Infinity serialisation and no partial-stage checkpoint.
 Canonical persistent use requires `tools/run_recorded_benchmark.py` and the
 matching declared artifact; outside-source scratch follows the existing guard
 exemption. Existing output replacement/partial I/O and missing-JAX skipped reports

@@ -113,7 +113,7 @@ def design_riccati_state_feedback_with_static_mu_analysis(
     The reduced plant uses ``B`` both as the state-feedback input channel and as
     the disturbance channel of the static transfer map; ``C`` is both the CARE
     state weighting source and the performance output. This is not the
-    partitioned generalized plant required by H-infinity or D-K synthesis.
+    partitioned generalised plant required by H-infinity or D-K synthesis.
 
     Parameters
     ----------

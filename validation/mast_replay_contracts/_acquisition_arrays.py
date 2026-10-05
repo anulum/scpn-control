@@ -65,8 +65,8 @@ def _open_group(fs: Any, shot_id: int, group: str) -> Any:
     """Open a consolidated group, bridging synchronous simplecache explicitly.
 
     The async wrapper calls the cache's synchronous methods on worker threads,
-    preserving the S3 client's own I/O loop and whole-object cache behavior.
-    Other caller-supplied filesystem protocols retain their mapper behavior.
+    preserving the S3 client's own I/O loop and whole-object cache behaviour.
+    Other caller-supplied filesystem protocols retain their mapper behaviour.
     """
     import xarray as xr
 

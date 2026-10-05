@@ -63,7 +63,7 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
     Returns
     -------
     KineticDualResult
-        Fresh-run summary, phi RMS, ion-flux and normalized solver-time lists.
+        Fresh-run summary, phi RMS, ion-flux and normalised solver-time lists.
         Grid is128 x 16 x 32 x 16 x 8 with two species; nominal dt 0.05 is CFL-adaptive,
         so neither sample times nor elapsed_s are a fixed physical duration.
 
@@ -78,7 +78,7 @@ def run_case(label: str, ke: bool, implicit: bool, mass_ratio: float, n_steps: i
     Notes
     -----
     Timing includes work in run(), including JAX work first triggered there.
-    chi_i_gB is a code-normalized quantity, not an independently calibrated
+    chi_i_gB is a code-normalised quantity, not an independently calibrated
     m^2/s measurement. Late growth is a last-quarter endpoint fractional
     change per saved solver-time span, not a fitted exponential growth rate.
     The returned flag and finite saved traces do not certify the final state.

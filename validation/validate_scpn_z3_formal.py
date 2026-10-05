@@ -142,7 +142,7 @@ def publish_report(*, json_path: Path, markdown_path: Path, require_z3: bool) ->
     OSError
         Sequential directory/writes fail; earlier output can remain.
     ValueError, TypeError, KeyError
-        Unconverted defining model/schema/serialization failures propagate.
+        Unconverted defining model/schema/serialisation failures propagate.
 
     Notes
     -----

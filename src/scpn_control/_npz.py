@@ -57,7 +57,7 @@ def save_npz_arrays(
     compressed : bool
         Use ZIP deflate when true; the default stores uncompressed members.
     allow_pickle : bool
-        Permit object-array serialization when true. The default rejects arrays
+        Permit object-array serialisation when true. The default rejects arrays
         that require pickling. This option is separate from the array names, so
         an array named ``allow_pickle`` remains an ordinary archive member.
 

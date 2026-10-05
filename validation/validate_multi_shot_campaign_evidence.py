@@ -11,7 +11,7 @@ This standard-library reader admits two report schemas, their canonical
 self-digests and declared surface/count/context fields. It does not execute
 a campaign, reopen per-shot decision digests, authenticate a producer or
 qualify hardware, a controller or production timing. A resealed report is
-still a declaration. The Python and native Rust context serializations differ.
+still a declaration. The Python and native Rust context serialisations differ.
 
 Use the standalone script with --python-report, --rust-report and optional
 --json-out, or the registered scpn-control validate consumer. Paths follow
@@ -268,7 +268,7 @@ def _validate_rust_report(
     errors: list[str],
     minimum_digest_count: int,
 ) -> bool:
-    """Check the Rust summary while retaining native textual context serialization.
+    """Check the Rust summary while retaining native textual context serialisation.
 
     Affinity is nonblank text; recorded non-None loads are not parsed. Linux
     list syntax, live host availability and isolation qualification are not

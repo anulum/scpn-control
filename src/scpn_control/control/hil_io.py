@@ -45,10 +45,10 @@ class DACConfig:
 
 
 class SensorInterface:
-    """Abstract sensor/actuator interface with ADC quantization and noise.
+    """Abstract sensor/actuator interface with ADC quantisation and noise.
 
     Simulates realistic data acquisition:
-    - ADC quantization (configurable bit depth)
+    - ADC quantisation (configurable bit depth)
     - Gaussian measurement noise
     - DAC output with slew-rate limiting
     """
@@ -75,7 +75,7 @@ class SensorInterface:
         noise = self._rng.normal(0.0, self.adc.noise_rms_lsb * self.adc.lsb_voltage)
         v += noise
 
-        # Quantize
+        # Quantise
         code = round((v - vmin) / (vmax - vmin) * self.adc.n_levels)
         code = int(np.clip(code, 0, self.adc.n_levels))
         quantized = vmin + code * self.adc.lsb_voltage

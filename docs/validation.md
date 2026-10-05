@@ -331,7 +331,7 @@ parsed with unique keys and the TOML threshold is read as a number. A passing
 declaration check does not establish executed CI or authenticate coverage data.
 
 `python tools/coverage_exception_ledger.py --check` independently seals every
-current lexical pragma, configured exclusion pattern, and the three recognized
+current lexical pragma, configured exclusion pattern, and the three recognised
 AST calls `pytest.skip`, `pytest.mark.skipif` and `pytest.mark.xfail`.
 It does not inventory aliases, `pytest.mark.skip` or `pytest.importorskip`, or
 validate xfail strictness; see the
@@ -491,7 +491,7 @@ even when decoded empty. It refuses malformed class types, duplicate keys and
 nonfinite floating JSON tokens, checks each canonical payload self-digest, and
 requires positive integer passed/sample counts and the configured minimum
 declared decision-digest count. It does not reopen the decision chain. Python
-and Rust context serialization differs; affinity shape and load-field presence
+and Rust context serialisation differs; affinity shape and load-field presence
 are checked, while their contents and actual host qualification are unverified.
 See the [persisted campaign contract](control/multi_shot_campaign.md#persisted-benchmark-report-admission).
 Neither lower-reader PASS nor top-level summary admission grants deployment,
@@ -576,7 +576,7 @@ Missing, malformed or non-PASS Z3 status refuses aggregate admission.
 
 Registry/Z3 duplicate keys and nonfinite floating JSON tokens are rejected at
 all depths. An invalid runtime `require_production_claim` argument produces FAIL
-and normalizes to false. Explicit manifest output creates parent directories
+and normalises to false. Explicit manifest output creates parent directories
 and writes sorted UTF-8 JSON, including refused declarations. Output failures
 return FAIL with an output finding; a partial/failed write is not valid custody.
 The manifest digest hashes sorted compact JSON with only `manifest_sha256`
@@ -650,7 +650,7 @@ python validation/validate_data_manifests.py --require-real-acquisition --output
 
 This strict mode fails when a valid acquisition specification has no matching
 real `mdsplus` declaration with a local artifact list. Matching requires the
-expected dataset ID, exact tree/machine, integer-normalized shot, source URI,
+expected dataset ID, exact tree/machine, integer-normalised shot, source URI,
 access policy and licence, and every requested signal's name, node/path, units
 and timebase. Extra signals are allowed. A matching ID alone cannot realise a
 spec. Duplicate manifest/spec dataset identities are findings. Invalid specs
@@ -740,7 +740,7 @@ The producer draws fresh local-seed phase/frequency vectors, runs one wrapped
 Euler step and two half steps, and writes sorted UTF-8 JSON. The default claim
 is bounded even when native parity is available; enabling the deployment
 flag requests the core's additional admission checks. This flag does not
-authorize a device, facility controller or safety claim. The numerical
+authorise a device, facility controller or safety claim. The numerical
 Python/Rust/PyO3 kernels are shared unchanged.
 
 ### Synthetic resilience and ROC diagnostics
@@ -937,7 +937,7 @@ iteration if SciPy validation fails; zero gain is reserved for fail-closed cases
 where both designs fail. Facility-validated vertical-control claims still
 require a matched RZIP/CREATE-L/TSC or measured vertical-displacement benchmark.
 
-The normalized DGKF H-infinity report producer and checker use the bounded
+The normalised DGKF H-infinity report producer and checker use the bounded
 flight-simulator factory with the original numerical residual, feasibility,
 stability and sampled-gain thresholds. Run without replacing stored reports:
 
@@ -1539,7 +1539,7 @@ bytes, including CRLF. Invalid UTF-8/JSON, duplicate keys, IO and nonzero decima
 tokens collapsed to binary64 zero yield authored findings. Input schema `1.0`,
 seven nonblank header declarations, circular/shaped/high-shear required cases
 and their original numeric domains remain. Eight required parameters refuse
-boolean/nonnumber values; recognized optional parameters retain original float
+boolean/nonnumber values; recognised optional parameters retain original float
 coercion, including numeric strings and booleans, while unknown extras are ignored.
 Actual Miller physical-domain failures become fixed parameter findings.
 
@@ -1702,11 +1702,11 @@ Stored parity declarations also refuse nonzero decimal tokens that collapse
 to zero in binary64. Decode/read findings use fixed authored IO/UTF8/JSON/
 duplicate/nonfinite/underflow text, with no raw exception or private duplicate
 member name. The original digest algorithms, drift formulas, ordered modes,
-case/backend requirement normalization and declared bounds remain unchanged.
+case/backend requirement normalisation and declared bounds remain unchanged.
 
 Public `write_jax_gk_parity_report` and both commands protect the root and
 immediate selected direct/resolved/symlink/existing hardlink aliases before
-writing sorted UTF8 JSON plus LF with nonfinite serialization refused. Other
+writing sorted UTF8 JSON plus LF with nonfinite serialisation refused. Other
 destinations may replace. Reads and checks are sequential, not pathname locks
 or snapshots. API failures propagate. The standalone CLI retains its original
 output failure contract: append an `output_json` finding, set FAIL, update the
@@ -1843,7 +1843,7 @@ fixed IO/UTF8/JSON findings expose no raw exception or duplicate member name.
 
 Public `write_gk_interface_artifacts_report` and both commands protect the root
 and immediate selected direct/resolved/symlink/existing hardlink aliases before
-writing sorted UTF8 JSON plus LF with nonfinite serialization refused. Other
+writing sorted UTF8 JSON plus LF with nonfinite serialisation refused. Other
 destinations may replace. Reads and alias checks are sequential; they are not
 pathname locks or snapshots. API path/IO failures propagate; script/root emit
 fixed operational refusal one. Click NUL output is usage two before filesystem
@@ -2540,7 +2540,7 @@ Three reference/profile/detector hashes require exact 64-hex format and fetch
 no referenced bytes. The public `canonical_artifact_sha256` retains compact,
 sorted, ASCII-escaped JSON excluding `payload_sha256`; matching the declared
 body hash establishes caller-recomputable consistency, without producer or
-reference-byte authentication. Uppercase body digests are normalized; malformed
+reference-byte authentication. Uppercase body digests are normalised; malformed
 or non-ASCII digests refuse before comparison without raising an exception.
 
 Reference/profile/detector URI text retains lexical NUL/absolute/parent-path
@@ -2691,9 +2691,9 @@ Schema `scpn-control.eped-reference.v1` admits
 or `documented_public_reference` with nonblank URL/DOI presence. Dataset and
 time are strings without authentication. Four artifact SHA256 strings require
 exact 64-character hexadecimal formatting. `payload_sha256` is compared
-case-insensitively against SHA256 of the body excluding that field, serialized
+case-insensitively against SHA256 of the body excluding that field, serialised
 with sorted keys, compact separators and ASCII escaping. The public
-`canonical_artifact_sha256` retains this original serialization. This binds the
+`canonical_artifact_sha256` retains this original serialisation. This binds the
 supplied body without authenticating its producer or referenced artifact bytes.
 
 The four URI fields retain EPED's lexical contract: trimmed nonblank strings
@@ -2758,7 +2758,7 @@ with nonblank machine and shot/campaign identity, or
 strings and citation presence are unauthenticated. Four artifact SHA256 fields
 require exactly 64 hexadecimal characters. The canonical `payload_sha256`
 compares case-insensitively with SHA256 of the body excluding that field, using
-original sorted compact ASCII-escaped JSON serialization. The public hash
+original sorted compact ASCII-escaped JSON serialisation. The public hash
 function retains this original format. Body consistency does not authenticate
 the producer or referenced artifact bytes.
 
@@ -2822,7 +2822,7 @@ The neural-equilibrium, orbit, uncertainty, VMEC, EPED, MARFE and NTM reference
 commands reject cyclic report-output paths with an authored operational failure
 and exit 1 through both the actual script and registered root CLI. Their public
 report writers propagate path-resolution errors; declaration consistency still
-does not qualify referenced physics or model behavior.
+does not qualify referenced physics or model behaviour.
 
 NTM island-dynamics validation claims require measured NTM campaign or
 documented public reference artifacts for q-profile reconstruction,
@@ -2848,7 +2848,7 @@ with nonblank URL/DOI presence. Dataset/time/citation identity is unauthenticate
 Four artifact SHA256 fields require exactly 64 hexadecimal characters. The
 canonical `payload_sha256` compares case-insensitively against SHA256 of the
 body excluding that field, using original sorted compact ASCII-escaped JSON.
-The public hash function retains this serialization; matching it establishes
+The public hash function retains this serialisation; matching it establishes
 body consistency without authenticating the producer or referenced bytes.
 
 Four artifact URI fields retain trimmed nonblank/no-NUL lexical checks:
@@ -2875,7 +2875,7 @@ API, actual script and registered root CLI use `write_ntm_reference_report` to
 protect direct, resolved, symbolic and existing hard-link aliases of the root
 or selected JSON inputs before writing sorted UTF8 output. Parents are created,
 unrelated outputs replaced and actual cyclic output paths produce fixed CLI
-operational refusal. API path/IO/serialization errors propagate; supported CLI
+operational refusal. API path/IO/serialisation errors propagate; supported CLI
 failures return exit1 and fixed stderr without exception details. Parser
 help/usage retain exits0/2. Path discovery is sequential; concurrent changes are
 outside this protection. Identity/hash and numeric predicates live in
@@ -3242,7 +3242,7 @@ flat-top duration, Ejima term, bootstrap or margin comparison is recomputed.
 parents, refusing direct, resolved, symbolic or hard-link aliases of the root
 or selected inputs before mutation. Unrelated output is replaced. Inspection
 and output discovery are sequential observations, without a concurrent
-snapshot guarantee. API path/IO/encoding/serialization failures propagate;
+snapshot guarantee. API path/IO/encoding/serialisation failures propagate;
 argparse and registered `validate-volt-second-reference` translate supported
 operational failures, including cyclic output paths, to fixed stderr and exit
 one. Parser help/usage retain exits zero/two, and declaration pass/findings
@@ -3377,7 +3377,7 @@ bounded claim; declared metrics do not open independent reference admission.
 `write_static_mu_analysis_reference_report` creates parents, writes sorted UTF-8
 JSON and refuses direct/resolved/symbolic/existing hardlink aliases of supplied
 root or selected inputs before writing. Other outputs may replace. API IO/path/
-serialization failures propagate; script and both registered Click routes use
+serialisation failures propagate; script and both registered Click routes use
 fixed authored operational stderr, pass/findings 0/1 and parser help/usage 0/2.
 Sequential alias checks do not guard concurrent pathname changes.
 
@@ -3614,7 +3614,7 @@ PYTHONPATH=src python tools/run_recorded_benchmark.py \
 ```
 
 The generated JSON and Markdown use schema
-`scpn-control.code-to-code-benchmark.v3`. Digests bind normalized declared
+`scpn-control.code-to-code-benchmark.v3`. Digests bind normalised declared
 scenario/report bytes; they authenticate no provider. The initial temperature/
 density profiles, radial count and fixed dt now share explicit mappings.
 Comparison uses actual rho coordinates and refuses malformed vectors, missing
@@ -3802,7 +3802,7 @@ The fixed cohort contains eighteen four-step scenarios and twelve sweeps on a
 12-by-12 grid. Permeability and plasma-current target are configured as 1.0.
 Shape, X-point and divertor targets are sampled from the same solver; corrected
 measurements subtract the exact injected bias/drift. Flux residuals use that
-normalization, and tracking norms combine configured objectives. This is
+normalisation, and tracking norms combine configured objectives. This is
 same-model regression evidence with no independent physical-reference,
 observer-calibration, facility-control or safety admission. Schema v2 records
 these limits and retains the existing timestamp/runtime/campaign fields.
@@ -4042,7 +4042,7 @@ binary64 underflow are refused globally, including unused fields. The original
 
 `write_density_reference_report` and both commands protect the root and immediate
 selected direct/resolved/symlink/existing hardlink aliases before sorted UTF8 JSON
-plus LF. Nonfinite report serialization refuses. Other output may replace and API
+plus LF. Nonfinite report serialisation refuses. Other output may replace and API
 errors propagate; commands use fixed operational refusal one. Click directory/NUL
 output remains usage two. Checks are sequential without locks or snapshots.
 
@@ -4067,7 +4067,7 @@ at every JSON depth. Original authored decoding findings remain unchanged.
 
 `write_current_drive_reference_report` and both commands protect root/immediate
 selected direct/resolved/symlink/existing hardlink inputs before sorted UTF8 JSON+LF,
-with nonfinite serialization refused. Other output may replace; API failures
+with nonfinite serialisation refused. Other output may replace; API failures
 propagate. Script write refusal2 and root ClickException1 with its Error prefix
 remain original; Click directory/NUL output uses usage2. Reads and checks are
 sequential without locks, snapshots or atomic writes. The actual bounded analytic
@@ -4135,7 +4135,7 @@ specification/required DIII-D files and resolvable local artifacts in
 metadata-valid manifests. Invalid/unresolvable artifact declarations add no
 additional paths. A physics report protects its selected registry, rather than
 all source/evidence files referenced by that registry. Unrelated report files
-retain ordinary replacement behavior. These checks are sequential and supply
+retain ordinary replacement behaviour. These checks are sequential and supply
 no concurrent snapshot, lock, atomic write or authenticated report custody.
 
 The registered 'scpn-control validate-data-manifests' and
@@ -4148,7 +4148,7 @@ formula, threshold or admission flag changes here.
 
 'tests/test_report_output_paths.py' exercises actual normal and stdlib-only
 scripts, public Python APIs and registered commands using copied canonical
-registry bytes and existing synthetic DIII-D metadata. Direct, normalized,
+registry bytes and existing synthetic DIII-D metadata. Direct, normalised,
 symbolic-link, hard-link and linked-parent aliases preserve copied input bytes.
 Non-pattern artifacts such as the original FreeGS coilset JSON are protected;
 unrelated existing destinations receive actual UTF-8 JSON or Markdown. No
@@ -4172,7 +4172,7 @@ native JSON errors. Normal docs enforcement includes all three reader modules
 and their fixtures/tests, including private helpers; genuine removed-doc cases
 exercise the ordinary command. No mocks, skipped cases, private production
 calls or hardware claims are used. The tiny observation establishes software
-behavior, not a statistically useful p95 or a comparative speedup.
+behaviour, not a statistically useful p95 or a comparative speedup.
 
 
 ### Manufactured mesh and differentiable reader checks
@@ -4237,7 +4237,7 @@ It excludes `docs/internal`, Git-ignored files and symlink inputs. Nonignored
 untracked public source is included; the archive is not tied to a commit. The
 metadata version only names the ZIP prefix. The recovered 527-row ML350 NPZ,
 weights, native binaries and videos are outside its selection, and this command
-does not validate scientific provenance or authorize publication/training.
+does not validate scientific provenance or authorise publication/training.
 
 Exit 0 means creation completed. Exit 2 means an input, Git selection or output
 refusal; argparse usage errors also return 2. Existing outputs are preserved and
@@ -4286,7 +4286,7 @@ The [MAST native source acquisition contract](api.md#mast-native-source-acquisit
 now rejects empty/descending/duplicate selections and invalid reproducibility
 labels before outputs, reserves isolated per-shot caches, and refuses source
 identity drift/object arrays before NPZ publication. Direct writes retain explicit
-partial-I/O behavior. API/CLI refusals and self-consistent source-object declarations
+partial-I/O behaviour. API/CLI refusals and self-consistent source-object declarations
 do not establish a live Zarr-v3/S3 acquisition or scientific training admission.
 The `mast-acquisition` extra supplies Zarr 3, xarray, fsspec and s3fs in a separate
 source-checkout environment. `mast-data`, `all` and `dev` use the Zarr 2 conversion

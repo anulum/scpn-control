@@ -53,7 +53,7 @@ class MachineConfig:
         Parameters
         ----------
         rho
-            Finite, strictly increasing one-dimensional normalized radius from
+            Finite, strictly increasing one-dimensional normalised radius from
             exactly zero to one, with at least three points. Each callback gets
             an independent copy; its output is captured before the next call.
 
@@ -149,7 +149,7 @@ class MachineConfig:
 def iter_15ma() -> MachineConfig:
     """Return the analytic ITER example with Ip=15 MA and P_aux=50 MW.
 
-    Profiles use normalized rho in [0, 1], density in 1e19 m^-3 and temperatures
+    Profiles use normalised rho in [0, 1], density in 1e19 m^-3 and temperatures
     in keV. All profiles vanish at the edge. No shot identity, measured profile,
     boundary/coils or external reference is attached; the name is not provenance.
     """
@@ -171,7 +171,7 @@ def iter_15ma() -> MachineConfig:
 def jet_high_performance() -> MachineConfig:
     """Return the analytic JET example with Ip=3.5 MA and P_aux=30 MW.
 
-    Profiles use normalized rho in [0, 1], density in 1e19 m^-3 and temperatures
+    Profiles use normalised rho in [0, 1], density in 1e19 m^-3 and temperatures
     in keV. All profiles vanish at the edge. No shot identity, measured profile,
     boundary/coils or external reference is attached; the name is not provenance.
     """
@@ -193,7 +193,7 @@ def jet_high_performance() -> MachineConfig:
 def diiid_h_mode() -> MachineConfig:
     """Return the analytic DIII-D example with Ip=1.5 MA and P_aux=15 MW.
 
-    Profiles use normalized rho in [0, 1], density in 1e19 m^-3 and temperatures
+    Profiles use normalised rho in [0, 1], density in 1e19 m^-3 and temperatures
     in keV. All profiles vanish at the edge. No shot identity, measured profile,
     boundary/coils or external reference is attached; the name is not provenance.
     """
@@ -215,7 +215,7 @@ def diiid_h_mode() -> MachineConfig:
 def sparc_baseline() -> MachineConfig:
     """Return the analytic SPARC example with Ip=8.7 MA and P_aux=25 MW.
 
-    Profiles use normalized rho in [0, 1], density in 1e19 m^-3 and temperatures
+    Profiles use normalised rho in [0, 1], density in 1e19 m^-3 and temperatures
     in keV. All profiles vanish at the edge. No shot identity, measured profile,
     boundary/coils or external reference is attached; the name is not provenance.
     """
@@ -237,7 +237,7 @@ def sparc_baseline() -> MachineConfig:
 def nstx_u_standard() -> MachineConfig:
     """Return the analytic NSTX-U example with Ip=1 MA and P_aux=10 MW.
 
-    Profiles use normalized rho in [0, 1], density in 1e19 m^-3 and temperatures
+    Profiles use normalised rho in [0, 1], density in 1e19 m^-3 and temperatures
     in keV. All profiles vanish at the edge. No shot identity, measured profile,
     boundary/coils or external reference is attached; the name is not provenance.
     """

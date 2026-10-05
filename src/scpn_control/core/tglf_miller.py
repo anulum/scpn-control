@@ -66,7 +66,7 @@ class TGLFSpecies:
     density_gradient_m4 : float
         Signed dn/dr [m^-4], with physical minor radius r in metres.
     temperature_gradient_kev_m : float
-        Signed dT/dr [keV/m]. No R/L or normalized-coordinate gradient is inferred.
+        Signed dT/dr [keV/m]. No R/L or normalised-coordinate gradient is inferred.
     """
 
     charge_e: float
@@ -180,7 +180,7 @@ def miller_tglf_deck(
     Returns
     -------
     str
-        Key=value input with 17-digit float serialization. All species and shape
+        Key=value input with 17-digit float serialisation. All species and shape
         values and zero-flow assumptions are explicit; unlisted numerical
         defaults remain provider-owned and are captured in input.tglf.gen.
 
@@ -188,7 +188,7 @@ def miller_tglf_deck(
     ------
     ValueError
         Invalid composition, charge/gradient balance, geometry, switches or
-        unrepresentable normalization. Tiny radii that GACODE clamps are refused.
+        unrepresentable normalisation. Tiny radii that GACODE clamps are refused.
 
     Notes
     -----
@@ -198,7 +198,7 @@ def miller_tglf_deck(
     isotropic; all parallel/ExB velocities and shears are zero. This builder
     supplies no rotation, MXH harmonics, anisotropic-pressure closure, radial
     sampling or equilibrium/calibration certificate. SAT1/2/3 require a separate
-    qualified model/normalization contract and are not silently substituted.
+    qualified model/normalisation contract and are not silently substituted.
     """
     _finite(electron_collision_rate_s, "electron_collision_rate_s")
     if electron_collision_rate_s < 0:

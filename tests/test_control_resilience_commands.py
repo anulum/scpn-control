@@ -88,7 +88,7 @@ def test_actual_metrics_and_reports_precede_strict_exit(tmp_path: Path, entry: s
     ],
 )
 def test_actual_public_producer_input_refusals(kwargs: dict[str, Any], diagnostic: str) -> None:
-    """Named invalid scalars fail through the public adapter, never a private normalizer.
+    """Named invalid scalars fail through the public adapter, never a private normaliser.
 
     Parameters
     ----------

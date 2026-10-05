@@ -234,7 +234,7 @@ def _command(root: Path, args: list[str]) -> subprocess.CompletedProcess[str]:
     root : Path
         Physical fixture repository with the maintained CLI copy.
     args : list[str]
-        Native command options, retaining actual argparse behavior.
+        Native command options, retaining actual argparse behaviour.
 
     Returns
     -------

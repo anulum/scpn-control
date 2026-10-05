@@ -129,7 +129,7 @@ def write_gk_crosscode_report(report: dict[str, Any], output_path: str | Path, *
 
     Resolved/symlink/existing hardlink aliases raise ValueError before writing.
     Unrelated destinations may replace; parents are created. IO/path/encoding/
-    serialization failures propagate. Sequential alias checks provide no lock
+    serialisation failures propagate. Sequential alias checks provide no lock
     against concurrent pathname replacement. No scientific source is resealed.
     """
     output = Path(output_path)

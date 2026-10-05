@@ -111,7 +111,7 @@ def _payload_digest(payload: dict[str, Any]) -> str:
     Parameters
     ----------
     payload : dict[str, Any]
-        JSON-serializable report mapping; its top-level entries are copied.
+        JSON-serialisable report mapping; its top-level entries are copied.
 
     Returns
     -------
@@ -121,13 +121,13 @@ def _payload_digest(payload: dict[str, Any]) -> str:
     Raises
     ------
     TypeError, ValueError, RecursionError
-        Standard JSON serialization cannot encode the supplied mapping.
+        Standard JSON serialisation cannot encode the supplied mapping.
 
     Notes
     -----
     Nested values are shared and input is not mutated. This is a parsed-payload
     checksum, not a raw-file hash, signature or proof of measured timing.
-    Standard JSON serialization semantics, including NaN tokens, are retained.
+    Standard JSON serialisation semantics, including NaN tokens, are retained.
     """
     canonical = dict(payload)
     canonical.pop("payload_sha256", None)
@@ -141,7 +141,7 @@ def build_e2e_latency_evidence_payload(payload: dict[str, Any]) -> dict[str, Any
     Parameters
     ----------
     payload : dict[str, Any]
-        JSON-serializable report fields. Existing evidence_class and
+        JSON-serialisable report fields. Existing evidence_class and
         production_claim_allowed declarations are preserved for validation.
 
     Returns
@@ -154,7 +154,7 @@ def build_e2e_latency_evidence_payload(payload: dict[str, Any]) -> dict[str, Any
     Raises
     ------
     TypeError, ValueError, RecursionError
-        Canonical JSON serialization fails.
+        Canonical JSON serialisation fails.
 
     Notes
     -----

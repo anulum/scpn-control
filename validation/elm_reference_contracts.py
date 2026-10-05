@@ -195,12 +195,12 @@ def canonical_artifact_sha256(payload: dict[str, object]) -> str:
     Parameters
     ----------
     payload : dict[str, object]
-        JSON-serializable declared artifact body.
+        JSON-serialisable declared artifact body.
 
     Returns
     -------
     str
-        Lowercase hexadecimal digest of the original canonical serialization.
+        Lowercase hexadecimal digest of the original canonical serialisation.
     """
     canonical_payload = dict(payload)
     canonical_payload.pop("payload_sha256", None)

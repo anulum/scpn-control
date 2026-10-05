@@ -8,7 +8,7 @@
 
 """Check self-declared bounded DGKF reports against supplied source observations.
 
-The seal detects changed serialized values. Source equality uses observations
+The seal detects changed serialised values. Source equality uses observations
 provided by the caller, without producer authentication or a coherent filesystem
 snapshot. Finite-frequency corroboration does not establish an exact norm, a
 measured facility reference or production-control admission.
@@ -81,7 +81,7 @@ _BOUNDARY_FIELDS = {
 def canonical_payload_bytes(payload: Mapping[str, Any]) -> bytes:
     """Return historical sorted compact UTF-8 JSON bytes for the supplied object.
 
-    The caller removes the seal when hashing. This serializer does not validate
+    The caller removes the seal when hashing. This serialiser does not validate
     domains; nonfinite metrics are refused by ``inspect_evidence_payload``.
     Nonserializable or circular values raise authored ValueError. No IO occurs.
     """

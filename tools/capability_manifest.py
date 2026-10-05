@@ -7,7 +7,7 @@
 # SCPN Control — Capability manifest command.
 """Expose the source-inventory API and its local generation/check command.
 
-Use --check to compare normalized UTF-8 text in the two generated files and README block without
+Use --check to compare normalised UTF-8 text in the two generated files and README block without
 writing. The no-flag command publishes configured local outputs after complete
 input/render validation. All paths follow the configured working-directory
 root. Source declaration counts do not establish executable feature readiness.

@@ -114,7 +114,7 @@ def _display_path(path: Path) -> str:
 
 
 def _is_sha256_hex(value: object) -> bool:
-    """Recognize exactly 64 ASCII hex characters without normalizing case.
+    """Recognise exactly 64 ASCII hex characters without normalising case.
 
     A syntactically accepted uppercase digest still fails case-sensitive
     equality against a computed lowercase canonical SHA-256 string.

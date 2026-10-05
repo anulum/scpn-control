@@ -594,7 +594,7 @@ def test_filesystem_change_during_capture_is_rejected(real_solver: TGLFFluxSolve
     """A FIFO rendezvous changes retained grid bytes after capture, before final validation.
 
     An actual completed provider run supplies the artifacts and receipt. The last
-    captured member temporarily becomes a FIFO; a real writer process synchronizes
+    captured member temporarily becomes a FIFO; a real writer process synchronises
     with the public reader without patching its capture or parser helpers.
     """
     result = real_solver.run(_FIXTURE / "input.tglf")

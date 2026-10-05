@@ -62,7 +62,7 @@ class Finding:
 
     Notes
     -----
-    Fields are frozen. Native dataclass initialization rejects missing or
+    Fields are frozen. Native dataclass initialisation rejects missing or
     unexpected arguments but does not coerce or validate supplied values.
     """
 
@@ -98,7 +98,7 @@ class Exemption:
     Notes
     -----
     Construction freezes fields and preserves supplied values. Validation,
-    normalization and overlap checks occur in ``load_policy``, not here.
+    normalisation and overlap checks occur in ``load_policy``, not here.
     """
 
     category: str
@@ -234,7 +234,7 @@ def load_policy(path: Path) -> Policy:
     Notes
     -----
     Enforced/exemption suffixes and names must be disjoint; exact paths cannot
-    repeat, contain traversal/backslashes, use absolute or normalized spellings,
+    repeat, contain traversal/backslashes, use absolute or normalised spellings,
     or overlap any declared suffix/basename. Unknown keys are ignored. Empty
     match sets are valid. This checks declaration syntax, not rationale quality,
     license correctness, source content or filesystem containment.
@@ -460,7 +460,7 @@ def header_finding(root: Path, path: Path) -> Finding | None:
     Parameters
     ----------
     root : Path
-        Base joined with ``path``; absolute paths retain native Path behavior.
+        Base joined with ``path``; absolute paths retain native Path behaviour.
     path : Path
         File path and reported diagnostic spelling. The function does not check
         whether the file is tracked or belongs to enforced scope.
@@ -481,7 +481,7 @@ def header_finding(root: Path, path: Path) -> Finding | None:
     One leading shebang is accepted. ``splitlines`` accepts native newline
     spellings; the six identity lines are exact. The final purpose must have
     the native prefix/closing syntax and nonblank text. Later file content is
-    ignored. This read follows native path/symlink behavior without containment,
+    ignored. This read follows native path/symlink behaviour without containment,
     legal-content review, mutation or atomic snapshot guarantees.
     """
     try:

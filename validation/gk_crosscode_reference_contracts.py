@@ -156,7 +156,7 @@ def _sha256_json(payload: dict[str, Any]) -> str:
     """Hash original compact sorted ASCII JSON excluding payload_sha256 without mutation.
 
     The public reader has already required an object and refused nonfinite JSON.
-    The original dict filtering and serialization algorithm remain unchanged.
+    The original dict filtering and serialisation algorithm remain unchanged.
     It proves author-supplied consistency, not binary/reference authentication.
     """
     digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}

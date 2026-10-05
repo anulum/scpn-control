@@ -119,7 +119,7 @@ def _valid_parity_report() -> dict[str, object]:
 
 
 def _payload_sha256(payload: object, *, include_payload_field: bool = False) -> str:
-    """Hash the independent test canonicalization, excluding the artifact self key.
+    """Hash the independent test canonicalisation, excluding the artifact self key.
 
     Include mode preserves nested metadata keys; no production helper is called.
     """
@@ -405,7 +405,7 @@ def historical_parity_payload() -> dict[str, Any]:
 
 
 def _write_declaration(tmp_path: Path, payload: dict[str, Any]) -> Path:
-    """Reseal a copied declaration with independent test canonicalization.
+    """Reseal a copied declaration with independent test canonicalisation.
 
     Nested digests are retained to expose mismatches when metadata is changed.
     """

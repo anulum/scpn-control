@@ -1,7 +1,7 @@
 # Standalone signed TGLF fluxes
 
 `TGLFFluxSolver` executes an existing GACODE `key=value` input deck and
-returns signed normalized species fluxes with all reported spectral modes.
+returns signed normalised species fluxes with all reported spectral modes.
 It creates a fresh directory for each execution and retains the input, output,
 stdout, stderr and a hashed execution receipt. It requires POSIX and a
 configured GACODE installation.
@@ -10,7 +10,7 @@ The output is electron-first, followed by ions. Particle, energy, momentum
 and exchange fluxes retain their signs. They are **not diffusivities**.
 Physical conversion requires the deck's reference density, temperature,
 length, mass, magnetic field and coordinate convention. `physical_tglf_flux` converts particle and energy moments to SI when given
-explicit `TGLFReferenceUnits` matching the GYRO-normalized deck. It uses
+explicit `TGLFReferenceUnits` matching the GYRO-normalised deck. It uses
 Gamma_GB = n0*cs*(rho_s/a0)^2 and Q_GB = T0*Gamma_GB, retains signs, and
 returns flux across physical minor-radius surfaces. A different coordinate
 requires its matching derivative and volume Jacobian. It does not infer the
@@ -68,7 +68,7 @@ rejects changed input/output files. A receipt-free directory is parsed for
 structural consistency only. These are point-in-time custody checks, not a
 filesystem lock or a promise against changes after return.
 
-A nonzero normalized particle or energy moment that rounds to zero during SI
+A nonzero normalised particle or energy moment that rounds to zero during SI
 conversion is rejected. Exact zero and representable subnormal results remain
 valid; no epsilon threshold or clipping is applied.
 
@@ -90,7 +90,7 @@ moments. A disagreement is refused; a passing comparison is an artifact
 consistency check, not an error bound on the physical turbulence model.
 
 The resolved `input.tglf.gen` is also required and hashed. The supported
-contract is GYRO normalization, kinetic electrons, transport-model flux
+contract is GYRO normalisation, kinetic electrons, transport-model flux
 output, matching species/spatial/mode dimensions, and complete ordered
 species/field blocks. `USE_BPER` selects two fields and `USE_BPAR` selects
 three, matching the upstream writer. Each block must contain exactly the

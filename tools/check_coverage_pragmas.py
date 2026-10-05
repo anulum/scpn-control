@@ -54,7 +54,7 @@ class CoveragePragmaViolation:
 
     Notes
     -----
-    The fields are frozen after construction. Native dataclass initialization
+    The fields are frozen after construction. Native dataclass initialisation
     rejects missing or unexpected arguments; supplied values are not coerced.
     """
 

@@ -12,7 +12,7 @@
 # ──────────────────────────────────────────────────────────────────────
 """Vacuum software diagnostics with solver-expression and off-axis field limits.
 
-These local samples do not provide independent physical flux normalization,
+These local samples do not provide independent physical flux normalisation,
 Helmholtz-axis agreement or a validated magnetic-null location.
 """
 
@@ -50,7 +50,7 @@ def jackson_psi(Rc: float, Zc: float, R: float, Z: float, I: float = 1.0) -> flo
         Scalar raw Psi from the displayed expression. k2 is clipped to
         [1e-9, 0.999999], so singular/axis limits are not exact evaluations.
         The formula grouping matches the current vacuum-field implementation;
-        agreement is self-consistency, not an independent normalization check.
+        agreement is self-consistency, not an independent normalisation check.
 
     Raises
     ------
@@ -108,7 +108,7 @@ def run_free_boundary_benchmark() -> dict[str, Any]:
     R=0 axis, so no same-point error or tolerance is evaluated. The reported
     X-point is a whole-grid gradient-norm minimum, with only abs(Z)<0.1 checked;
     it is not a saddle/null test and expected R=0 lies outside the grid.
-    These diagnostics establish no independent physical unit normalization,
+    These diagnostics establish no independent physical unit normalisation,
     analytic/external-code validation, topology or facility-control admission.
     NumPy/runtime resources are shared; no timing or concurrency guarantee.
     """
@@ -237,7 +237,7 @@ def main() -> None:
     retains its nonfinite convention. Shared output paths have no producer
     locking or atomic replacement. Numeric diagnostics and flags other than
     the unassessed Helmholtz report marker retain their original arithmetic.
-    No physical normalization, axis agreement or topology admission is granted.
+    No physical normalisation, axis agreement or topology admission is granted.
     """
     report_dir = Path("validation/reports")
     json_path = report_dir / "free_boundary_benchmark.json"

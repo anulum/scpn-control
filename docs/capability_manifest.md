@@ -61,7 +61,7 @@ Compare current snapshots without rewriting them:
 python tools/capability_manifest.py --check
 ```
 
-The comparison uses normalized UTF-8 text: LF and CRLF are equivalent, but
+The comparison uses normalised UTF-8 text: LF and CRLF are equivalent, but
 other whitespace/formatting changes can make a snapshot stale. Exit zero means
 current text matches the fresh source catalog or generation succeeded. Exit one
 means stale/missing output or a configuration, inspection, read/decode or write

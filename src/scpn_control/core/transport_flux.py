@@ -125,7 +125,7 @@ def advance_face_flux(
     Parameters
     ----------
     rho : array
-        Uniform normalized grid from zero to one, at least three nodes.
+        Uniform normalised grid from zero to one, at least three nodes.
     major_radius_m, minor_radius_m : float
         Positive finite physical geometry [m].
     density : array, shape (4, nr)

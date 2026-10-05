@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Free-boundary tracking acceptance.
 
-"""Run and report the full normalized same-model tracking diagnostic.
+"""Run and report the full normalised same-model tracking diagnostic.
 
 Legacy run_campaign/generate_report/render_markdown and fixed threshold names
 remain importable here. Persistent outputs require recorded campaign custody;

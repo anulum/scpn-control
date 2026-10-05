@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Resilience campaign scalar normalization.
+# SCPN Control — Resilience campaign scalar normalisation.
 """Coerce legacy adapter inputs without changing core campaign computations."""
 
 from __future__ import annotations
@@ -36,7 +36,7 @@ def _normalize_campaign_inputs(
     Returns
     -------
     tuple of int and float
-        Normalized values in argument order. Seed validity is left to the
+        Normalised values in argument order. Seed validity is left to the
         public core campaign, which requires a non-negative integer.
 
     Raises

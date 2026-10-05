@@ -125,7 +125,7 @@ def write_derivative(observed: Path, destination: Path, field: str, value: objec
     Returns
     -------
     pathlib.Path
-        JSON destination written with the standard serializer.
+        JSON destination written with the standard serialiser.
     """
     payload: dict[str, Any] = json.loads(observed.read_text(encoding="utf-8"))
     parent = payload

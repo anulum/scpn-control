@@ -86,9 +86,9 @@ class MPCController:
     gamma_growth : float
         Positive plant coefficient in s^-1; damping remains 10 s^-1.
     horizon, iterations : int
-        Positive prediction-step and optimization-iteration counts.
+        Positive prediction-step and optimisation-iteration counts.
     q_weight, r_weight : float
-        Nonnegative position weight and positive action regularization weight.
+        Nonnegative position weight and positive action regularisation weight.
     learning_rate, u_max : float
         Positive update scale and acceleration bound in m/s^2.
 
@@ -169,7 +169,7 @@ class HInfinityErrorController:
     The defining factory closes feedback on positive measured position. With
     the benchmark's zero target, feed negative error into that same controller.
     A nonzero target is an offset diagnostic, not an admitted tracking design.
-    Synthesis/discretization and reset remain the defining public implementation.
+    Synthesis/discretisation and reset remain the defining public implementation.
     """
 
     def __init__(self, gamma_growth: float = 100.0) -> None:
@@ -196,7 +196,7 @@ class SNNControllerWrapper:
     n_neurons, tau_window : int
         Positive neuron-per-population and rate-history sample counts.
     gain : float
-        Finite acceleration gain multiplying the normalized rate difference.
+        Finite acceleration gain multiplying the normalised rate difference.
     seed : int
         Nonnegative declared seed. The SC-NeuroCore provider uses its own
         fixed neuron seeds; this wrapper does not claim native seed control.
@@ -247,7 +247,7 @@ def build_controllers() -> dict[str, ControllerProtocol]:
     -----
     Optional failures omit their named controller with a fixed warning; they
     never install, train or relabel another algorithm. Report metadata must
-    retain missing names. The native SNN clock is not synchronized to plant dt.
+    retain missing names. The native SNN clock is not synchronised to plant dt.
     """
     controllers: dict[str, ControllerProtocol] = {"PID": PIDController()}
     try:

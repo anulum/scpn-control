@@ -114,7 +114,7 @@ def validate(
     Raises
     ------
     click.exceptions.Exit
-        Code1 when transport import fails, a prohibited visualization/ML module
+        Code1 when transport import fails, a prohibited visualisation/ML module
         is loaded, or any enabled gate fails. Skipped gates cannot support a
         complete release-evidence admission.
 

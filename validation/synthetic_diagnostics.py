@@ -8,7 +8,7 @@
 
 """Generate legacy noisy diagnostic examples without physical calibration.
 
-This defining owner retains NumPy global-RNG behavior and the documented ignored
+This defining owner retains NumPy global-RNG behaviour and the documented ignored
 inputs/proxy geometry. Samples do not establish measured diagnostic fidelity.
 """
 
@@ -39,7 +39,7 @@ class SyntheticDiagnosticSuite:
         must supply compatible one-dimensional arrays. Channel counts larger
         than the profile can repeat indices. Independent multiplicative normal
         noise has standard deviations 5% and 3%; no spatial response, calibration
-        or positivity clipping is modeled.
+        or positivity clipping is modelled.
         """
         indices = np.linspace(0, len(Te) - 1, n_channels, dtype=int)
 
@@ -92,7 +92,7 @@ class SyntheticDiagnosticSuite:
         a is in meters; output units are input units times meters. Callers must
         specify what P_rad_profile represents; the method does not convert a
         volume power density into calibrated detector power. rho is ignored and
-        no radial line integration, solid angle or spectral response is modeled.
+        no radial line integration, solid angle or spectral response is modelled.
         """
         avg_P = np.mean(P_rad_profile)
         path_lengths = 2.0 * a * np.sqrt(1.0 - np.linspace(0, 0.9, n_chords) ** 2)
@@ -115,7 +115,7 @@ class SyntheticDiagnosticSuite:
         Te is in keV and ne in 1e19 m^-3, but output is an uncalibrated proxy,
         not watts or detected photon counts. rho is ignored; all chord lengths
         are set to one. A 5% multiplicative normal factor is applied independently
-        per channel. Negative temperatures propagate NumPy invalid-value behavior;
+        per channel. Negative temperatures propagate NumPy invalid-value behaviour;
         no atomic emissivity, geometry or detector response is calculated.
         """
         emissivity = ne**2 * np.sqrt(Te)
@@ -127,9 +127,9 @@ class SyntheticDiagnosticSuite:
 
     def magnetics(self, R0: float, a: float) -> dict[str, Any]:
         # Just mock standard sensors
-        """Return random constants labeled as magnetic sensor examples.
+        """Return random constants labelled as magnetic sensor examples.
 
-        R0 and a are ignored. Twenty flux-loop values center on 1, thirty probe
+        R0 and a are ignored. Twenty flux-loop values centre on 1, thirty probe
         values on 0.5 and the scalar Ip on 1, with relative normal noise of
         0.1%, 0.5% and 1%. No physical units or calibration are established by
         these constants; Ip is unrelated to MachineConfig.Ip_MA. This method

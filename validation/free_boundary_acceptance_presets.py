@@ -6,13 +6,13 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Free-boundary acceptance presets.
 
-"""Construct fixed normalized free-boundary fixtures and real tracking invocations.
+"""Construct fixed normalised free-boundary fixtures and real tracking invocations.
 
 Permeability/current target are 1.0 on a 12-by-12 grid. Targets are sampled
 from the same FusionKernel; exact supplied measurement errors are subtracted
 in corrected cases. Limits/scales remain the original mutable declarations.
 Coordinates use the model's metre labels, currents its configured convention,
-and flux residuals its normalization, not independently calibrated SI flux.
+and flux residuals its normalisation, not independently calibrated SI flux.
 """
 
 from __future__ import annotations

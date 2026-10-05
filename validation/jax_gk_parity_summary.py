@@ -19,7 +19,7 @@ from validation.jax_gk_parity_domains import _display_path, _sha256_json
 def _normalise_required_values(
     values: tuple[str, ...] | list[str] | set[str] | None, allowed: set[str], label: str
 ) -> set[str]:
-    """Normalize supported requirement names, ignoring blanks and repeats.
+    """Normalise supported requirement names, ignoring blanks and repeats.
 
     None means no requirement. Each value is converted to text and stripped;
     a nonblank unsupported value raises ValueError rather than a report finding.

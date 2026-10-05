@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — GK declaration contract behavior
+# SCPN Control — GK declaration contract behaviour
 
 """Exercise stored author declarations through the public reader without authenticating external runs."""
 

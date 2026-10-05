@@ -4,7 +4,7 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — GK OOD declared campaign contract behavior
+# SCPN Control — GK OOD declared campaign contract behaviour
 
 """Exercise actual stored OOD author identities, hashes and inclusive acceptance without installing calibration."""
 

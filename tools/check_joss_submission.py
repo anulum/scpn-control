@@ -12,7 +12,7 @@
 The script-relative repository owns three fixed UTF-8 inputs. Missing or blank
 files are findings. The title is a lexical ``title:`` line in the initial
 ``---``-delimited front matter; required prose is compared after whitespace
-normalization. Bibliography keys and bracketed Pandoc citation keys are regular
+normalisation. Bibliography keys and bracketed Pandoc citation keys are regular
 expression matches, not a complete YAML, BibTeX, or Markdown parser.
 
 These read-only checks do not render a PDF, resolve hyperlinks, authenticate
@@ -89,7 +89,7 @@ def _read_text(path: Path, errors: list[str]) -> str:
     Parameters
     ----------
     path : pathlib.Path
-        Required input. Symlinks retain normal pathlib read behavior.
+        Required input. Symlinks retain normal pathlib read behaviour.
     errors : list[str]
         Caller-owned list receiving one diagnostic for a missing or blank file.
 
@@ -121,7 +121,7 @@ def _bib_keys(text: str) -> tuple[set[str], list[str]]:
     Parameters
     ----------
     text : str
-        Bibliography text. The pattern recognizes ``@word{key,`` occurrences.
+        Bibliography text. The pattern recognises ``@word{key,`` occurrences.
 
     Returns
     -------
@@ -157,7 +157,7 @@ def _citation_keys(text: str) -> set[str]:
 
 
 def _missing_markers(label: str, text: str, markers: tuple[str, ...]) -> list[str]:
-    """Check case-sensitive editorial substrings after whitespace normalization.
+    """Check case-sensitive editorial substrings after whitespace normalisation.
 
     Parameters
     ----------
@@ -230,7 +230,7 @@ def check_repository() -> list[str]:
         Findings in input, marker, title, then bibliography/citation order.
         An empty fresh list means only the documented local lexical checks
         passed. All three inputs must be nonblank, the bibliography must contain
-        a recognized entry key, and manuscript citation keys must exist in it.
+        a recognised entry key, and manuscript citation keys must exist in it.
         Documentation citations are outside the canonical manuscript scan.
 
     Raises

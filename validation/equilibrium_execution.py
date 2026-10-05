@@ -29,7 +29,7 @@ from scpn_control.core.fusion_kernel import FusionKernel
 class EquilibriumExecution:
     """Run a hash-bound equilibrium configuration and retain numerical evidence.
 
-    This measures configured-unit solver behavior. It does not infer a physical
+    This measures configured-unit solver behaviour. It does not infer a physical
     machine from a reactor name or compare against an external equilibrium.
     """
 

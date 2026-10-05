@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Bounded RZIP vertical validation evidence contracts.
 
-"""Serialize and check self-declared RZIP validation reports.
+"""Serialise and check self-declared RZIP validation reports.
 
 A seal detects changed bytes; it does not authenticate a producer. These
 contracts check finite domains, fixed report structure and agreement between
@@ -217,7 +217,7 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def build_evidence(result: RzipValidationResult, *, target_id: str) -> dict[str, Any]:
-    """Serialize a bounded numerical result with its UTC receipt and JSON seal.
+    """Serialise a bounded numerical result with its UTC receipt and JSON seal.
 
     Parameters
     ----------

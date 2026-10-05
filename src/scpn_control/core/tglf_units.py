@@ -21,7 +21,7 @@ _KEV_J = 1e3 * _ELEMENTARY_CHARGE
 
 @dataclass(frozen=True)
 class TGLFReferenceUnits:
-    """Explicit reference units matching the GACODE input normalization.
+    """Explicit reference units matching the GACODE input normalisation.
 
     Parameters
     ----------
@@ -30,7 +30,7 @@ class TGLFReferenceUnits:
     temperature_kev : float
         Reference temperature [keV], typically electron temperature.
     length_m : float
-        Reference length [m], the minor-radius normalization used for gradients.
+        Reference length [m], the minor-radius normalisation used for gradients.
     mass_kg : float
         Reference ion mass [kg], not the electron mass.
     magnetic_field_t : float
@@ -41,7 +41,7 @@ class TGLFReferenceUnits:
     -----
     All references must be finite and positive. Supplying them is a caller
     assertion of agreement with the deck; this object cannot infer or certify
-    that agreement. GENE-normalized outputs require their own conversion.
+    that agreement. GENE-normalised outputs require their own conversion.
     """
 
     density_m3: float
@@ -87,7 +87,7 @@ class TGLFPhysicalFlux:
 
 
 def physical_tglf_flux(raw: TGLFFluxResult, reference: TGLFReferenceUnits) -> TGLFPhysicalFlux:
-    """Convert signed GYRO-normalized particle and energy moments to SI.
+    """Convert signed GYRO-normalised particle and energy moments to SI.
 
     Parameters
     ----------

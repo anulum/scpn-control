@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Transport profile coordinates and finite comparison.
 
-"""Compare observed temperature profiles on a common normalized radial grid.
+"""Compare observed temperature profiles on a common normalised radial grid.
 
 Returned metrics are arithmetic diagnostics. Neither finite arrays nor their
 self-digests authenticate a provider, match transport closures, or validate
@@ -29,7 +29,7 @@ def _canonical_json(value: Any) -> str:
     Parameters
     ----------
     value : object
-        JSON-serializable payload; NumPy arrays and scalars require conversion.
+        JSON-serialisable payload; NumPy arrays and scalars require conversion.
 
     Returns
     -------
@@ -131,7 +131,7 @@ def compare_transport_profiles(scpn: dict[str, Any], torax: dict[str, Any] | Non
     ----------
     scpn : dict
         Local rho and Te_final vectors; Ti_final is compared when both inputs
-        contain it. Normalized rho is strictly increasing in [0,1].
+        contain it. Normalised rho is strictly increasing in [0,1].
     torax : dict or None
         Reference vectors in keV and their actual rho coordinates. None returns
         empty metrics. The reference domain must cover every local coordinate;

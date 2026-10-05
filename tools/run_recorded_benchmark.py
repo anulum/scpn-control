@@ -67,7 +67,7 @@ def _parse_artifact(value: str, repository_root: Path) -> BenchmarkOutput:
 
 
 def _command_measurement(command: Sequence[str]) -> dict[str, Any]:
-    """Extract the last spelling of recognized producer measurement options.
+    """Extract the last spelling of recognised producer measurement options.
 
     Parameters
     ----------
@@ -162,7 +162,7 @@ def main(argv: list[str] | None = None) -> int:
     SystemExit
         Native argparse help/usage exits zero/two before campaign reservation.
     ValueError, RuntimeError, OSError
-        Native record reservation, archival, finalization or filesystem failure;
+        Native record reservation, archival, finalisation or filesystem failure;
         errors outside the producer wait are not mapped to return codes.
 
     Notes
@@ -175,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
     supervisor is provided. Native subprocess.run owns direct-child waiting and
     interrupted cleanup; interruption does not guarantee immediate OS reaping.
     Failed/incomplete manifests cannot
-    advance latest. Record-finalization errors can retain a recovery reservation.
+    advance latest. Record-finalisation errors can retain a recovery reservation.
     Direct negative POSIX child return codes are retained by this API; Python
     SystemExit maps such integers to the platform's command-line exit status.
     Command/sample metadata and successful custody do not grant production or

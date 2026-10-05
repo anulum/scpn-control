@@ -30,7 +30,7 @@ class KineticElectronResult(TypedDict):
 
     Scalar chi values become None when nonfinite; histories and late_growth
     are not finite-filtered. chi_i_raw is the mean saved ion-flux quantity,
-    chi_i_gB divides it by R_L_Ti. Time lists use normalized solver time and
+    chi_i_gB divides it by R_L_Ti. Time lists use normalised solver time and
     elapsed_s measures run() wall time, excluding construction.
     """
 
@@ -81,7 +81,7 @@ def run_case(label: str, kinetic_e: bool, n_steps: int = 5000) -> KineticElectro
     -----
     run() wall time includes JAX work triggered there. The producer's converged
     flag concerns saved fluxes and is not proof of saturation or finite final
-    state. The ion-flux normalization is not an independent m^2/s measurement.
+    state. The ion-flux normalisation is not an independent m^2/s measurement.
     """
     from scpn_control.core.gk_nonlinear import NonlinearGKConfig
     from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
@@ -159,7 +159,7 @@ def main() -> None:
     No CLI options are parsed. JAX device printing is best effort; both cases
     still require JAX. Results overwrite gpu_results/kinetic_electron_comparison.json
     after both calls return, using json.dumps with its default NaN/Infinity
-    behavior. The final console summary requires finite scalar chi and a saved
+    behaviour. The final console summary requires finite scalar chi and a saved
     phi sample; None or empty histories can raise after the file was written.
     Native and filesystem errors propagate; this is a long campaign entrypoint.
     """
