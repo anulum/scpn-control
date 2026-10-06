@@ -22,8 +22,10 @@ from pathlib import Path
 import pytest
 from _pytest.capture import CaptureFixture
 
-import tools.sync_studio_web_manifest as syncer
-from tools.emit_studio_manifest import render
+pytest.importorskip("scpn_studio_platform", reason="the studio platform SDK is not installed in this lane")
+
+import tools.sync_studio_web_manifest as syncer  # noqa: E402 - follows the skip above
+from tools.emit_studio_manifest import render  # noqa: E402 - follows the skip above
 
 ROOT = Path(__file__).resolve().parents[1]
 

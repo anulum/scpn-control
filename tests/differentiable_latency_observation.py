@@ -49,6 +49,7 @@ def observed_transport_reports(tmp_path_factory: pytest.TempPathFactory) -> tupl
     so no canonical science report is overwritten. No external reference,
     source authentication, controlled comparison or hardware admission follows.
     """
+    pytest.importorskip("jax", reason="the producer runs on installed JAX; the coverage lane installs it")
     root = tmp_path_factory.mktemp("differentiable-observation")
     source = root / "validation/benchmark_differentiable_transport_latency.py"
     source.parent.mkdir(parents=True)

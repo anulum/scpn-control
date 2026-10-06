@@ -14,12 +14,13 @@ import math
 from contextlib import chdir
 from pathlib import Path
 
-import jax
 import pytest
 
-from scpn_control.core.gk_nonlinear import NonlinearGKConfig
-from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver
-from tools.em_and_dimits import run_jax
+jax = pytest.importorskip("jax", reason="JAX is not installed; the coverage lane installs it")
+
+from scpn_control.core.gk_nonlinear import NonlinearGKConfig  # noqa: E402 - follows the skip above
+from scpn_control.core.jax_gk_nonlinear import JaxNonlinearGKSolver  # noqa: E402 - follows the skip above
+from tools.em_and_dimits import run_jax  # noqa: E402 - follows the skip above
 
 GRID = dict(n_kx=8, n_ky=4, n_theta=8, n_vpar=4, n_mu=2, save_interval=1)
 
