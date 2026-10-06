@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import socket
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -18,6 +19,10 @@ import pytest
 from tools.jarvislabs_train import run_ssh_command, scp_download, scp_upload
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="on the macOS runner a bound, non-listening loopback port is not refused; the connection times out",
+)
 def test_actual_native_transport_failure_preserves_files(tmp_path: Path) -> None:
     """A bound non-listening loopback socket forces real SSH and SCP failures."""
     source = tmp_path / "source.dat"

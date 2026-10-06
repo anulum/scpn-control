@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 133,
+    "pytest-skipif": 134,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4298,6 +4298,21 @@
       "status": "external-blocked"
     },
     {
+      "classification": "macos",
+      "condition": "sys.platform == \"darwin\"",
+      "execution_lane": "python-tests: macos-latest / Python 3.12",
+      "external_dependency": "macOS runtime",
+      "id": "covexc-9fc9fe08b776cdab",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 22,
+      "owner": "tests/jarvislabs_transport",
+      "path": "tests/test_jarvislabs_transport.py",
+      "reason": "on the macOS runner a bound, non-listening loopback port is not refused; the connection times out",
+      "removal_condition": "Remove when macOS support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "jax",
       "condition": "not _HAS_JAX",
       "execution_lane": "jax-parity plus Python coverage lane",
@@ -5618,8 +5633,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 374,
-  "entry_sha256": "8ba06801d4875b768a7de7bc7b6b2135c7e37e3b76cef7b421a9757ec91ceb6f",
+  "entry_count": 375,
+  "entry_sha256": "12102b567249479f05e969ca85c1536d50ecbf14e8d19499bac0182594a212cb",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

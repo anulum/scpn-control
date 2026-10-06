@@ -53,6 +53,7 @@ from validation.jax_gk_parity_summary import (
     _normalise_required_values,
     _validate_required_coverage,
 )
+from validation.report_output_paths import refuse_link_loop
 
 
 def validate_jax_gk_parity(
@@ -200,6 +201,8 @@ def write_jax_gk_parity_report(report: dict[str, Any], output_path: str | Path, 
     root = Path(artifact_root)
     inputs = [root, *(sorted(root.glob("*.json")) if root.is_dir() else [])]
     for source in inputs:
+        refuse_link_loop(output)
+        refuse_link_loop(source)
         if output.resolve() == source.resolve() or (output.exists() and source.exists() and output.samefile(source)):
             raise ValueError("JAX GK parity report output must not overwrite selected input")
     text = json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n"

@@ -172,7 +172,13 @@ def test_root_reader_and_decoder_refuse_identity_before_network(identity: object
         acquisition.decode_source_generation(cast(int, identity), raw)
 
 
-@pytest.mark.parametrize("raw", [None, "{}", bytearray(b"{}"), b" " * ((16 << 20) + 1)])
+# Explicit ids: the default id of the oversized case is its 16 MiB value, which
+# exceeds the length Windows allows for the variable that names the current test.
+@pytest.mark.parametrize(
+    "raw",
+    [None, "{}", bytearray(b"{}"), b" " * ((16 << 20) + 1)],
+    ids=["none", "text", "bytearray", "oversized-bytes"],
+)
 def test_root_decoder_refuses_type_and_physical_size(raw: object) -> None:
     """Bound the actual supplied byte buffer without decoding an oversized input."""
     with pytest.raises(acquisition.SourceGenerationError):

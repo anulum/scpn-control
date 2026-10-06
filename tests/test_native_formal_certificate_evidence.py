@@ -410,7 +410,9 @@ def test_non_aot_and_missing_summary_shapes(tmp_path: Path) -> None:
 
 def test_native_example_and_public_main(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Execute the real documented example and public JSON CLI, including parsing refusal."""
-    examples = doctest.testmod(native_module)
+    # A verbose test run puts -v in sys.argv, and doctest would then print its
+    # transcript into the output that is read as JSON below.
+    examples = doctest.testmod(native_module, verbose=False)
     assert examples.attempted == 2 and examples.failed == 0
     assert main([]) == 0
     assert json.loads(capsys.readouterr().out)["status"] == "pass"

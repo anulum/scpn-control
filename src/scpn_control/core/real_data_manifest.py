@@ -25,6 +25,7 @@ Run these examples from the repository root against the actual fixture corpus.
 
 from __future__ import annotations
 
+import errno
 import json
 import math
 import re
@@ -536,6 +537,7 @@ def _resolve_local_artifact(uri: str, manifest_path: Path) -> Path:
     roots = _artifact_resolution_roots(manifest_path)
     for root in roots:
         root_resolved = root.resolve(strict=False)
+        _refuse_link_loop(root_resolved / candidate)
         resolved = (root_resolved / candidate).resolve(strict=False)
         try:
             resolved.relative_to(root_resolved)
@@ -544,6 +546,20 @@ def _resolve_local_artifact(uri: str, manifest_path: Path) -> Path:
         if resolved.is_file():
             return resolved
     raise RealDataManifestError(f"artifact file not found: {uri}")
+
+
+def _refuse_link_loop(path: Path) -> None:
+    """Raise for a path whose symbolic links never resolve.
+
+    ``Path.resolve`` raised ``RuntimeError`` for a link loop before Python 3.13
+    and returns the path unresolved since. The loop is asked for explicitly, so
+    the refusal is the same on every supported interpreter.
+    """
+    try:
+        path.stat()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RuntimeError(f"Symlink loop from {str(path)!r}") from exc
 
 
 def _artifact_resolution_roots(manifest_path: Path) -> tuple[Path, ...]:

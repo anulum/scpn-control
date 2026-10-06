@@ -10,8 +10,39 @@
 
 from __future__ import annotations
 
+import errno
 from collections.abc import Sequence
 from pathlib import Path
+
+
+def refuse_link_loop(path: Path) -> None:
+    """Raise for a path whose symbolic links never resolve.
+
+    ``Path.resolve`` raised ``RuntimeError`` for a link loop before Python 3.13
+    and returns the path unresolved since. The loop is asked for explicitly, so
+    callers get the same refusal on every supported interpreter.
+
+    Parameters
+    ----------
+    path : Path
+        Path to inspect; a missing path is not a loop and is left to the caller.
+
+    Raises
+    ------
+    RuntimeError
+        A symbolic link on the path refers back to itself.
+    """
+    try:
+        path.stat()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RuntimeError(f"Symlink loop from {str(path)!r}") from exc
+
+
+def _resolve_or_refuse_loop(path: Path) -> Path:
+    """Refuse a link loop, then resolve the path."""
+    refuse_link_loop(path)
+    return path.resolve()
 
 
 def checked_report_destination(destination: str | Path, *, inputs: Sequence[str | Path]) -> Path:
@@ -45,10 +76,10 @@ def checked_report_destination(destination: str | Path, *, inputs: Sequence[str 
     coherent snapshot or protection against concurrent pathname replacement.
     """
     target = Path(destination)
-    resolved_target = target.resolve()
+    resolved_target = _resolve_or_refuse_loop(target)
     for value in inputs:
         source = Path(value)
-        if resolved_target == source.resolve():
+        if resolved_target == _resolve_or_refuse_loop(source):
             raise ValueError("report output aliases a selected input")
         if target.exists() and source.exists() and target.samefile(source):
             raise ValueError("report output aliases a selected input")

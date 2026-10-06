@@ -27,6 +27,13 @@
 
 ### Changed
 
+- A path whose symbolic links never resolve is refused the same way on every
+  supported Python. Path resolution raised for a link loop before Python 3.13
+  and returns the path unresolved since, so seven refusals had turned into a
+  later, different failure there: the manifest artifact resolver, the JAX
+  parity report writer, the training evidence check of the weights path, the
+  repository argument of three governance commands, and the API inventory's
+  source enumeration. Each now asks for the loop explicitly.
 - The `mast-data`, `all` and `dev` extras allowed xarray 2026.9 together with
   Zarr-Python 2. That xarray release passes a Zarr-Python 3 argument when it
   opens a store, so the pair cannot write or open one. The extras now require

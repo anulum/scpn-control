@@ -122,6 +122,12 @@ def _tree(path: Path) -> ast.Module:
 def _files(repo: Path, relative: str, pattern: str) -> list[Path]:
     """Require a nonempty sorted source family, excluding Rust target paths."""
     try:
+        # Directory walking raised for an unusable family root before Python
+        # 3.13 and yields nothing since, so the root is inspected explicitly.
+        try:
+            (repo / relative).stat()
+        except FileNotFoundError:
+            pass
         paths = sorted((repo / relative).rglob(pattern))
         if pattern == "*.rs":
             paths = [p for p in paths if "target" not in p.relative_to(repo).parts]

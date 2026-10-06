@@ -46,6 +46,7 @@ from validation.neural_equilibrium_training_inputs import (
     _path_is_relative_to,
     _sha256_file,
 )
+from validation.report_output_paths import refuse_link_loop
 
 
 def _sha256_json(payload: dict[str, Any]) -> str:
@@ -194,6 +195,7 @@ def validate_training_report(report: dict[str, Any], *, require_executed: bool =
     else:
         weights_path = Path(path_text)
         try:
+            refuse_link_loop(weights_path)
             weights_path.resolve()
         except (OSError, ValueError, RuntimeError) as exc:
             errors.append({"field": "weights_path", "error": f"cannot resolve weights path: {exc}"})

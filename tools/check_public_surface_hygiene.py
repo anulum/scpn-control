@@ -27,6 +27,7 @@ readiness, scientific validity or a coherent concurrent repository snapshot.
 from __future__ import annotations
 
 import argparse
+import errno
 import os
 import re
 import subprocess
@@ -561,6 +562,20 @@ def scan_repository(repo: Path) -> list[Finding]:
     return findings
 
 
+def _refuse_link_loop(path: Path) -> None:
+    """Raise for a path whose symbolic links never resolve.
+
+    ``Path.resolve`` raised ``RuntimeError`` for a link loop before Python 3.13
+    and returns the path unresolved since. The loop is asked for explicitly, so
+    the refusal is the same on every supported interpreter.
+    """
+    try:
+        path.stat()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RuntimeError(f"Symlink loop from {str(path)!r}") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     """Inspect a resolved Git/worktree scope through the stdlib CLI.
 
@@ -588,6 +603,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        _refuse_link_loop(args.repo)
         repo = args.repo.resolve()
     except (OSError, RuntimeError, ValueError):
         print("FAIL: could not resolve public surface repository")

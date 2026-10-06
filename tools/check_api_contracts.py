@@ -15,6 +15,7 @@ The registry remains an operator-supplied local file; it is not authenticated.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import re
 import sys
@@ -193,6 +194,20 @@ def check_contracts(repo: Path = ROOT, registry_path: Path | None = None) -> lis
     return errors
 
 
+def _refuse_link_loop(path: Path) -> None:
+    """Raise for a path whose symbolic links never resolve.
+
+    ``Path.resolve`` raised ``RuntimeError`` for a link loop before Python 3.13
+    and returns the path unresolved since. The loop is asked for explicitly, so
+    the refusal is the same on every supported interpreter.
+    """
+    try:
+        path.stat()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RuntimeError(f"Symlink loop from {str(path)!r}") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     """Inspect local declarations through the operator CLI.
 
@@ -221,6 +236,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         try:
+            _refuse_link_loop(args.repo)
             repo = args.repo.resolve()
         except (OSError, RuntimeError):
             raise ApiContractInspectionError("could not resolve the API repository root") from None

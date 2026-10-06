@@ -22,6 +22,7 @@ No tools, hooks, workflows or generated ledgers are run or rewritten by the API.
 from __future__ import annotations
 
 import argparse
+import errno
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final
@@ -163,6 +164,20 @@ def lint_contract_errors(repo: Path) -> list[str]:
     return errors
 
 
+def _refuse_link_loop(path: Path) -> None:
+    """Raise for a path whose symbolic links never resolve.
+
+    ``Path.resolve`` raised ``RuntimeError`` for a link loop before Python 3.13
+    and returns the path unresolved since. The loop is asked for explicitly, so
+    the refusal is the same on every supported interpreter.
+    """
+    try:
+        path.stat()
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RuntimeError(f"Symlink loop from {str(path)!r}") from exc
+
+
 def main(argv: list[str] | None = None) -> int:
     """Inspect lint declarations through the stdlib command-line entrypoint.
 
@@ -188,6 +203,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=ROOT)
     args = parser.parse_args(argv)
     try:
+        _refuse_link_loop(args.repo)
         repo = args.repo.resolve()
     except (OSError, RuntimeError, ValueError):
         print("FAIL: could not resolve Python lint contract repository")
