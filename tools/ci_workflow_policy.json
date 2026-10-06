@@ -285,7 +285,7 @@
       "Install phase-video encoders (Windows)",
       "Install studio platform SDK (ubuntu 3.12 only)",
       "Install IMAS-Python and OMAS backends (ubuntu 3.12 only)",
-      "Keep temporary files on the checkout's drive (Windows)",
+      "Prepare the Windows test environment",
       "Mypy (ubuntu 3.12 only)",
       "Test quality policy",
       "Coverage (ubuntu 3.12 only)",

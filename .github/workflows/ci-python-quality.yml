@@ -87,15 +87,24 @@ jobs:
         # This lane exercises real IDSFactory, NetCDF DBEntry, and ODS objects;
         # the remaining matrix jobs verify the backend-neutral package surface.
         run: pip install --require-hashes -r requirements/ci-imas.txt
-      - name: Keep temporary files on the checkout's drive (Windows)
-        # The runner's default temporary directory is on another drive than the
-        # checkout. Many tests hard-link a checkout file into their temporary
-        # directory, which Windows cannot do across drives.
+      - name: Prepare the Windows test environment
+        # Temporary files go to the checkout's drive: the runner's default
+        # temporary directory is on another drive, and many tests hard-link a
+        # checkout file into their temporary directory, which Windows cannot
+        # do across drives.
+        #
+        # Text files are read and written as UTF-8 unless a call says
+        # otherwise: Python's UTF-8 mode, the default from Python 3.15. Without
+        # it Windows decodes with the ANSI code page, and tests that read the
+        # repository's UTF-8 files without naming an encoding fail. Calls in
+        # the package that name no encoding still need one for users outside
+        # this mode; that is tracked separately.
         if: runner.os == 'Windows'
         shell: bash
         run: |
           echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
           echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "PYTHONUTF8=1" >> "$GITHUB_ENV"
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
