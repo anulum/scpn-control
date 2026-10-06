@@ -27,6 +27,9 @@
 
 ### Changed
 
+- The benchmark regression gate writes its JSON verdict with line feeds on
+  every platform. Text mode had turned them into CR LF on Windows, so the
+  verdict's bytes, and any digest of them, depended on where it was written.
 - A path whose symbolic links never resolve is refused the same way on every
   supported Python. Path resolution raised for a link loop before Python 3.13
   and returns the path unresolved since, so seven refusals had turned into a

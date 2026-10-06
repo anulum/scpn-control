@@ -211,7 +211,9 @@ def main(argv: list[str] | None = None) -> int:
             target = checked_report_destination(args.json_out, inputs=[args.report, args.baseline, args.thresholds])
             encoded = json.dumps(verdict, indent=2, sort_keys=True, allow_nan=False) + "\n"
             target.parent.mkdir(parents=True, exist_ok=True)
-            target.write_text(encoded, encoding="utf-8")
+            # Text mode would turn each line feed into CR LF on Windows; the
+            # verdict's bytes must not depend on the platform that wrote them.
+            target.write_text(encoded, encoding="utf-8", newline="\n")
         except (OSError, ValueError, RuntimeError):
             print("benchmark gate FAILED: cannot write JSON verdict", file=sys.stderr)
             return 1
