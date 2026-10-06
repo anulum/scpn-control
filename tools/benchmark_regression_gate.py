@@ -18,6 +18,7 @@ Evidence-only reports rejection with exit zero; file and output errors still fai
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import sys
 import tomllib
@@ -171,6 +172,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.json_out is not None:
         try:
+            # A destination whose symbolic links never resolve is refused here.
+            # Path resolution raised for one before Python 3.13 and returns it
+            # unresolved since, so the loop is asked for explicitly.
+            try:
+                args.json_out.stat()
+            except OSError as exc:
+                if exc.errno == errno.ELOOP:
+                    raise
             require_recorded_campaign(args.json_out, repository_root=REPO_ROOT)
         except (OSError, ValueError, RuntimeError) as exc:
             print(f"benchmark gate FAILED: output custody error: {exc}", file=sys.stderr)

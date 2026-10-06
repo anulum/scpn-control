@@ -7,5 +7,5 @@
 # SCPN Control — Real MAST Zarr conversion test dependencies.
 
 -c ci-deps.txt
-xarray>=2024.7,<2027
+xarray>=2024.7,<2026.9
 zarr>=2.18.7,<3

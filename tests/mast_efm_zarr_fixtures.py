@@ -14,6 +14,7 @@ from typing import Any
 
 import numpy as np
 import xarray as xr
+import zarr
 
 
 def sample_dataset() -> xr.Dataset:
@@ -50,10 +51,17 @@ def sample_dataset() -> xr.Dataset:
 
 
 def write_zarr(path: Path, ds: xr.Dataset | None = None) -> Path:
-    """Write a genuine consolidated v2 store using the declared optional runtime."""
+    """Write a genuine consolidated v2 store using the declared optional runtime.
+
+    Zarr-Python 3 writes format 3 unless told otherwise, so format 2 is named
+    there. Zarr-Python 2 writes only format 2 and does not know the argument.
+    """
     values = sample_dataset() if ds is None else ds
     path.parent.mkdir(parents=True, exist_ok=True)
-    values.to_zarr(path, mode="w", consolidated=True, zarr_format=2)
+    if int(zarr.__version__.split(".", 1)[0]) >= 3:
+        values.to_zarr(path, mode="w", consolidated=True, zarr_format=2)
+    else:
+        values.to_zarr(path, mode="w", consolidated=True)
     return path
 
 

@@ -27,6 +27,16 @@
 
 ### Changed
 
+- The `mast-data`, `all` and `dev` extras allowed xarray 2026.9 together with
+  Zarr-Python 2. That xarray release passes a Zarr-Python 3 argument when it
+  opens a store, so the pair cannot write or open one. The extras now require
+  `xarray<2026.9` beside `zarr<3`; `mast-acquisition` keeps xarray 2026.9 with
+  Zarr-Python 3. The project lock and the MAST test lock follow (xarray
+  2026.7.0).
+- The benchmark regression gate names a destination whose symbolic links
+  never resolve as a custody refusal on every supported Python. Python 3.13
+  no longer raises for such a path during resolution, and the refusal had
+  turned into a write failure there.
 - The replay-channel and MAST dataset builders no longer enable pickling when
   they save their archives. The payloads hold numeric and string arrays only,
   and the archives are read back with pickling disabled.

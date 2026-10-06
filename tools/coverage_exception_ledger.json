@@ -2,7 +2,7 @@
   "counts": {
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
-    "pytest-runtime-skip": 54,
+    "pytest-runtime-skip": 55,
     "pytest-skipif": 133,
     "pytest-xfail": 2
   },
@@ -2766,6 +2766,21 @@
       "reason": "the transition relation is linear in rationals, so Z3 models are always rational",
       "removal_condition": "Remove when the defensive branch becomes reachable through an admitted public/runtime input or the branch is deleted.",
       "status": "reasoned-control-flow"
+    },
+    {
+      "classification": "filesystem-capability",
+      "condition": "runtime call",
+      "execution_lane": "python-tests: Ubuntu, Windows, and macOS",
+      "external_dependency": "operating-system filesystem capability",
+      "id": "covexc-71a037eb4df281b9",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-10-06",
+      "line": 81,
+      "owner": "tests/acquisition_inputs",
+      "path": "tests/mast_replay_contracts/test_acquisition_inputs.py",
+      "reason": "the filesystem cannot hard-link the checkout into the temporary directory: other volume",
+      "removal_condition": "Remove when the capability is guaranteed on every supported filesystem or the guarded feature is retired.",
+      "status": "variant-ci-lane"
     },
     {
       "classification": "rust",
@@ -5603,8 +5618,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 373,
-  "entry_sha256": "bd53731bef65bf204663a6784587d4e613a78b33ab1a9e81468f84843fa1f5f2",
+  "entry_count": 374,
+  "entry_sha256": "8ba06801d4875b768a7de7bc7b6b2135c7e37e3b76cef7b421a9757ec91ceb6f",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

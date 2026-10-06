@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import os
 import subprocess
@@ -72,7 +73,12 @@ def test_acquire_protects_actual_runtime_source_alias(tmp_path: Path, link: str)
     if link == "symlink":
         target.symlink_to(source)
     else:
-        os.link(source, target)
+        try:
+            os.link(source, target)
+        except OSError as error:
+            if error.errno != errno.EXDEV and getattr(error, "winerror", None) != 17:
+                raise
+            pytest.skip("the filesystem cannot hard-link the checkout into the temporary directory: other volume")
     with pytest.raises(ValueError, match="aliases a selected input"):
         acquisition.acquire(
             [30421], out_dir=material, cache_dir=tmp_path / "cache", generated_at="fixed", retrieved_at="fixed"
