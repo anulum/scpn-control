@@ -13,4 +13,4 @@ notebook==7.6.3
 jupyterlab==4.6.4
 jupyter-server>=2.21.0,<3
 setuptools==84.0.0
-soupsieve>=2.9.2,<3
+soupsieve>=2.10,<3
