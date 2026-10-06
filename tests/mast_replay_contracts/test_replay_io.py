@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -57,6 +58,8 @@ def test_dangling_destination_is_refused_without_temporary_leak(tmp_path: Path) 
     destination.symlink_to(target)
     with pytest.raises(ValueError, match="refusing to overwrite an existing replay archive"):
         build_channels(material, out_dir=output, generated_at=STAMP, locked_window=3)
-    assert destination.is_symlink() and destination.readlink() == target
+    # Windows reports an absolute link target with its extended-length prefix.
+    link_target = Path(os.fspath(destination.readlink()).removeprefix("\\\\?\\"))
+    assert destination.is_symlink() and link_target == target
     assert list(output.glob(".channels.*.npz")) == []
     assert source.read_bytes() == before
