@@ -87,6 +87,15 @@ jobs:
         # This lane exercises real IDSFactory, NetCDF DBEntry, and ODS objects;
         # the remaining matrix jobs verify the backend-neutral package surface.
         run: pip install --require-hashes -r requirements/ci-imas.txt
+      - name: Keep temporary files on the checkout's drive (Windows)
+        # The runner's default temporary directory is on another drive than the
+        # checkout. Many tests hard-link a checkout file into their temporary
+        # directory, which Windows cannot do across drives.
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
