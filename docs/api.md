@@ -4262,7 +4262,9 @@ Use this page as the public contract boundary for `scpn_control` exports and imp
 These APIs preserve raw signed provider moments, explicit SI reference scales
 and conservative face-flux evolution. See [TGLF fluxes](tglf_flux.md) and
 [face transport](transport_flux.md) for units, boundaries and remaining
-physical admission requirements.
+physical admission requirements. The package reads retained provider output;
+the launcher that executes the provider is a validation command of the
+repository and is described on the TGLF page.
 
 ::: scpn_control.core.tglf_flux
 

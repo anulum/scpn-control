@@ -1,10 +1,17 @@
 # Standalone signed TGLF fluxes
 
-`TGLFFluxSolver` executes an existing GACODE `key=value` input deck and
-returns signed normalised species fluxes with all reported spectral modes.
-It creates a fresh directory for each execution and retains the input, output,
-stdout, stderr and a hashed execution receipt. It requires POSIX and a
-configured GACODE installation.
+The installed package reads retained GACODE output: `read_tglf_fluxes` returns
+signed normalised species fluxes with all reported spectral modes from a run
+directory, and needs no provider.
+
+The launcher that produces such a directory is `TGLFFluxSolver` in
+`validation/tglf_launcher.py`, a validation command of the repository and not
+part of the installed package. It executes an existing GACODE `key=value` input
+deck, creates a fresh directory for each execution and retains the input,
+output, stdout, stderr and a hashed execution receipt. It requires POSIX, a
+repository checkout and a configured GACODE installation. It lives outside the
+package because the hosted test environments have no provider, so its code
+cannot be exercised there.
 
 The output is electron-first, followed by ions. Particle, energy, momentum
 and exchange fluxes retain their signs. They are **not diffusivities**.
@@ -24,7 +31,9 @@ calibration or proof of numerical convergence.
 
 ```python
 from pathlib import Path
-from scpn_control.core.tglf_flux import TGLFFluxSolver
+
+from scpn_control.core.tglf_flux import read_tglf_fluxes
+from validation.tglf_launcher import TGLFFluxSolver  # repository checkout only
 
 solver = TGLFFluxSolver(
     work_dir=Path("/path/to/owned/run-evidence"),
@@ -32,6 +41,9 @@ solver = TGLFFluxSolver(
 )
 flux = solver.run(Path("/path/to/input.tglf"), timeout_s=30)
 print(flux.particle_flux_gb)
+
+# Any later reader needs only the retained directory.
+assert read_tglf_fluxes(flux.run_dir) == flux
 ```
 
 An optional `environment` mapping supplies child-only GACODE/dependency
@@ -39,10 +51,12 @@ settings. Environment values are not included in execution receipts.
 Timeouts kill the process group; failures retain their run directories.
 Callers own evidence retention. The captured test specimen comes from an
 actual upstream default run; its provenance and SHA-256 values accompany it.
-Real execution tests require `SCPN_TGLF_BINARY` and optionally
-`SCPN_TGLF_ENV_JSON`. Without them those tests are explicitly skipped.
+Real execution tests are in `tests/test_tglf_launcher.py`. They require
+`SCPN_TGLF_BINARY` and optionally `SCPN_TGLF_ENV_JSON`; without them those
+tests are explicitly skipped. The reader tests in `tests/test_tglf_flux.py`
+run everywhere on the captured specimen.
 
-See the [TGLF flux API][scpn_control.core.tglf_flux] for execution and result
+See the [TGLF flux API][scpn_control.core.tglf_flux] for the reader and result
 contracts.
 
 See the [TGLF unit API][scpn_control.core.tglf_units] for reference units and SI

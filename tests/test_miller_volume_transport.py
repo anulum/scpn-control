@@ -161,9 +161,9 @@ def test_real_tglf_on_distinct_miller_faces_advances_metric_profiles(tmp_path: P
     import json
     import os
 
-    from scpn_control.core.tglf_flux import TGLFFluxSolver
     from scpn_control.core.tglf_miller import TGLFSpecies, miller_tglf_deck
     from scpn_control.core.tglf_units import TGLFReferenceUnits, physical_tglf_flux
+    from validation.tglf_launcher import TGLFFluxSolver
 
     binary = os.environ.get("SCPN_TGLF_BINARY")
     if not binary:

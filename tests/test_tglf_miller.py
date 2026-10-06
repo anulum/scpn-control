@@ -18,10 +18,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control.core.tglf_flux import TGLFFluxSolver
 from scpn_control.core.tglf_miller import TGLFMillerGeometry, TGLFSpecies, miller_tglf_deck
 from scpn_control.core.tglf_units import TGLFReferenceUnits, physical_tglf_flux
 from scpn_control.core.transport_flux import TransportFaceFlux, advance_face_flux
+from validation.tglf_launcher import TGLFFluxSolver
 
 _REFERENCE = TGLFReferenceUnits(5e19, 2.0, 2.0, 2 * 1.67262192369e-27, 2.0)
 _ELECTRON = TGLFSpecies(-1, 9.1093837139e-31, 5e19, 2.0, -2.5e19, -3.0)

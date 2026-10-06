@@ -626,10 +626,13 @@ clipping that signed flux or labelling it a positive diffusivity would change
 its physical meaning. A flux-aware coupling and normalisation contract is
 required before the external path can be admitted.
 
-The [standalone signed-flux API](tglf_flux.md) now executes actual GACODE
-decks in fresh directories and preserves normalised signed fluxes and
-multi-mode spectra with hashed execution evidence. It does not infer
-diffusivities or supply the outstanding conservative runtime coupling.
+The [standalone signed-flux reader](tglf_flux.md) preserves normalised signed
+fluxes and multi-mode spectra from retained GACODE output and checks a present
+execution receipt. The launcher that executes actual decks in fresh
+directories with hashed execution evidence is a validation command of the
+repository, outside the installed package, because it needs an installed
+provider. Neither infers diffusivities or supplies the outstanding
+conservative runtime coupling.
 
 The current adapter also emits a Fortran namelist where the standalone parser
 requires key=value records, supplies unsupported SHAT/ALPHA_MHD keys, and uses

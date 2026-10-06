@@ -285,7 +285,7 @@ def test_committed_ledger_matches_schema() -> None:
 @pytest.mark.parametrize("helper", ["_instrumented_launcher", "interrupt", "signal_when_ready"])
 def test_cli_rejects_missing_private_or_nested_test_helper_docstring(tmp_path: Path, helper: str) -> None:
     """Remove one real helper docstring in a copied test owner and exercise the unmocked CLI."""
-    original = rdg.REPO_ROOT / "tests/test_tglf_flux.py"
+    original = rdg.REPO_ROOT / "tests/test_tglf_launcher.py"
     tree = ast.parse(original.read_text())
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name == helper:
@@ -294,7 +294,7 @@ def test_cli_rejects_missing_private_or_nested_test_helper_docstring(tmp_path: P
             break
     else:
         pytest.fail(f"Real helper {helper} missing from source")
-    mutated = tmp_path / "test_tglf_flux.py"
+    mutated = tmp_path / "test_tglf_launcher.py"
     mutated.write_text(ast.unparse(tree))
     result = subprocess.run(
         [sys.executable, str(rdg.REPO_ROOT / "tools/run_docstring_gate.py"), "--all-definitions", str(mutated)],

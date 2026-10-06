@@ -27,6 +27,16 @@
 
 ### Changed
 
+- Moved the standalone TGLF provider launcher `TGLFFluxSolver` out of the
+  installed package into the validation command `validation/tglf_launcher.py`.
+  It needs an installed GACODE provider, which the hosted test environments do
+  not have, so its code could not be exercised there. The package keeps the
+  reader: `read_tglf_fluxes`, and the two functions the launcher shares with
+  it, `capture_tglf_outputs` and `parse_captured_tglf_fluxes`. Callers that
+  imported `TGLFFluxSolver` from `scpn_control.core.tglf_flux` now import it
+  from `validation.tglf_launcher` in a repository checkout. Two unreachable
+  nonfinite checks in the reader are removed: every decoded token is already
+  required to be finite and the summation raises on overflow.
 - Forward actual PPO training seeds through the shell recipe, validate candidate
   metrics before best selection, and refuse existing weights/reports. Add explicit
   configuration-only plans and separate tutorial learning from default inference.

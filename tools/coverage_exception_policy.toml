@@ -7,9 +7,9 @@
 # SCPN Control — Coverage exception policy.
 
 schema = "scpn-control.coverage-exception-policy.v1"
-last_review = "2026-09-05"
-expected_total = 365
-expected_sha256 = "bad9b705e7be487fa980cc6066e0a79527891f5fd2cc79921caabec90e04e208"
+last_review = "2026-10-06"
+expected_total = 366
+expected_sha256 = "8b6d8b62966ff601670e6b25180b3458b545a1cb37cb94ffeeb8b7304e573c0b"
 
 [[rules]]
 id = "spo-installation-boundary"

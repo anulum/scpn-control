@@ -19,7 +19,8 @@ from pathlib import Path
 
 import pytest
 
-from scpn_control.core.tglf_flux import TGLFFluxError, TGLFFluxSolver, read_tglf_fluxes
+from scpn_control.core.tglf_flux import TGLFFluxError, read_tglf_fluxes
+from validation.tglf_launcher import TGLFFluxSolver
 
 _FIXTURE = Path(__file__).parent / "data/tglf/default"
 
