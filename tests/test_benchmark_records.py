@@ -20,6 +20,7 @@ from contextlib import contextmanager
 from pathlib import Path
 
 import pytest
+from child_coverage import CHILD_COVERAGE_PRELUDE, child_environment
 
 import scpn_control.benchmark_records as records_module
 from scpn_control.benchmark_records import (
@@ -662,8 +663,8 @@ assert not (run.run_directory / "manifest.json").exists()
 assert load_verified_latest(root / "records", "source-stability")[0]["campaign_id"] == "stable"
 """
     result = subprocess.run(
-        [sys.executable, "-c", script, str(tmp_path)],
-        env=dict(os.environ, PYTHONPATH=str(REPO_ROOT / "src")),
+        [sys.executable, "-c", CHILD_COVERAGE_PRELUDE + script, str(tmp_path)],
+        env=child_environment(source_root=REPO_ROOT / "src"),
         capture_output=True,
         text=True,
         timeout=30,

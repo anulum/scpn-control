@@ -15,12 +15,19 @@ from typing import cast
 
 import pytest
 from safety_case_support import (
+    _codac_runtime_payload,
     _controller_artifact,
     _digital_twin_evidence,
+    _hdl_export_payload,
+    _qualified_hil_replay_payload,
     _readiness_artifacts,
     _transport_evidence,
+    _websocket_runtime_payload,
+    _write_readiness_file,
 )
 
+from scpn_control.control import codac_evidence
+from scpn_control.control.codac_evidence import CODAC_RUNTIME_EVIDENCE_QUALIFIED
 from scpn_control.control.safety_case import (
     ReadinessArtifactEvidence,
     assert_controller_safety_case_readiness_admissible,
@@ -397,3 +404,142 @@ def test_controller_safety_case_readiness_manifest_rejects_unreadable_and_malfor
     missing_payload.write_text(json.dumps({"schema_version": 1, "readiness": []}), encoding="utf-8")
     with pytest.raises(ValueError, match="payload"):
         load_controller_safety_case_readiness(missing_payload)
+
+
+def _checked_before_hil(
+    artifacts: tuple[ReadinessArtifactEvidence, ...], first: str | None = None
+) -> tuple[ReadinessArtifactEvidence, ...]:
+    """Order the artifacts so that the in-process HIL replay is checked last.
+
+    Artifacts are checked in the caller's order and the first refusal ends the
+    evaluation. A HIL replay produced in this process is never admissible, so
+    in the usual order nothing behind it is reached. ``first`` names the kind
+    that a test wants checked before all others.
+    """
+
+    def rank(artifact: ReadinessArtifactEvidence) -> int:
+        """Place the selected kind first and the HIL replay last."""
+        return 0 if artifact.kind == first else 2 if artifact.kind == "hil_replay_evidence" else 1
+
+    return tuple(sorted(artifacts, key=rank))
+
+
+def test_readiness_resolves_custody_only_artifacts_before_a_later_refusal(tmp_path: Path) -> None:
+    """The two custody-only artifacts are resolved and re-hashed, then the HIL replay is refused.
+
+    External physics validation and the independent review have no verifier
+    of their own; their files are located and hashed. Checked first, they
+    pass, and the refusal that ends the evaluation is the HIL one behind them.
+    """
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    custody_only = ("external_physics_validation", "independent_safety_review")
+    supplied = _readiness_artifacts(tmp_path, controller_sha256)
+    # The HDL export of this controller is checked too and passes: it is bound
+    # to the controller artifact of the safety case.
+    first = (*custody_only, "hdl_export_evidence")
+    ordered = (
+        tuple(item for kind in first for item in supplied if item.kind == kind)
+        + tuple(item for item in supplied if item.kind == "hil_replay_evidence")
+        + tuple(item for item in supplied if item.kind not in (*first, "hil_replay_evidence"))
+    )
+    assert [item.kind for item in ordered[:4]] == [*first, "hil_replay_evidence"]
+    with pytest.raises(ValueError, match="HIL replay artifact is not admissible"):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, ordered, artifact_root=tmp_path)
+    # A custody-only artifact whose file changed is refused where it is resolved.
+    target = tmp_path / ordered[0].artifact_uri
+    target.write_bytes(target.read_bytes() + b"\n")
+    with pytest.raises(ValueError) as refused:
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, ordered, artifact_root=tmp_path)
+    assert "HIL replay" not in str(refused.value)
+
+
+@pytest.mark.parametrize(
+    ("kind", "fault", "message"),
+    [
+        ("hdl_export_evidence", "local", "HDL export artifact is not admissible"),
+        ("hdl_export_evidence", "other-controller", "not bound to the safety-case controller artifact"),
+        ("codac_runtime_evidence", "local", "CODAC runtime artifact is not admissible"),
+        ("websocket_runtime_evidence", "local", "WebSocket runtime artifact is not admissible"),
+    ],
+)
+def test_readiness_refuses_unqualified_runtime_and_export_artifacts(
+    tmp_path: Path, kind: str, fault: str, message: str
+) -> None:
+    """A local-only or wrongly bound HDL, CODAC or WebSocket artifact ends the evaluation."""
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_checked_before_hil(_readiness_artifacts(tmp_path, controller_sha256), first=kind))
+    assert artifacts[0].kind == kind
+    if kind == "hdl_export_evidence":
+        payload = (
+            _hdl_export_payload(tmp_path, controller_sha256, facility_claim_allowed=False)
+            if fault == "local"
+            else _hdl_export_payload(tmp_path, "b" * 64)
+        )
+    elif kind == "codac_runtime_evidence":
+        payload = _codac_runtime_payload(facility_claim_allowed=False)
+    else:
+        payload = _websocket_runtime_payload(facility_claim_allowed=False)
+    digest = _write_readiness_file(tmp_path, artifacts[0].artifact_uri, payload)
+    artifacts[0] = ReadinessArtifactEvidence(
+        kind=kind,
+        artifact_sha256=digest,
+        artifact_uri=artifacts[0].artifact_uri,
+        producer=artifacts[0].producer,
+        generated_utc=artifacts[0].generated_utc,
+    )
+    with pytest.raises(ValueError, match=message):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, tuple(artifacts), artifact_root=tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("kind", "message"),
+    [
+        ("hil_replay_evidence", "HIL replay artifact is not admissible: .*independent target hardware provenance"),
+        ("codac_runtime_evidence", "CODAC runtime artifact is not admissible: .*independent runtime"),
+    ],
+)
+def test_readiness_refuses_a_claimed_qualification_it_cannot_verify(tmp_path: Path, kind: str, message: str) -> None:
+    """A HIL or CODAC artifact that claims qualification is refused for lack of independent evidence.
+
+    The payloads are formed as an external qualifier would issue them, with
+    consistent digests. This package has no verifier for either claim, so no
+    set of artifacts completes the evaluation.
+    """
+    artifact = _controller_artifact()
+    controller_sha256 = compute_artifact_payload_sha256(artifact)
+    evidence = controller_safety_case_evidence(
+        artifact,
+        _transport_evidence(controller_sha256),
+        _digital_twin_evidence(controller_sha256),
+    )
+    artifacts = list(_checked_before_hil(_readiness_artifacts(tmp_path, controller_sha256), first=kind))
+    assert artifacts[0].kind == kind
+    if kind == "hil_replay_evidence":
+        payload = _qualified_hil_replay_payload()
+    else:
+        payload = _codac_runtime_payload(facility_claim_allowed=False)
+        payload["facility_claim_allowed"] = True
+        payload["claim_status"] = CODAC_RUNTIME_EVIDENCE_QUALIFIED
+        payload["payload_sha256"] = codac_evidence._payload_sha256(payload)
+    digest = _write_readiness_file(tmp_path, artifacts[0].artifact_uri, payload)
+    artifacts[0] = ReadinessArtifactEvidence(
+        kind=kind,
+        artifact_sha256=digest,
+        artifact_uri=artifacts[0].artifact_uri,
+        producer=artifacts[0].producer,
+        generated_utc=artifacts[0].generated_utc,
+    )
+    with pytest.raises(ValueError, match=message):
+        evaluate_controller_safety_case_readiness_from_artifacts(evidence, tuple(artifacts), artifact_root=tmp_path)

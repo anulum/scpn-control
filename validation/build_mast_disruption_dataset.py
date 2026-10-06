@@ -189,7 +189,7 @@ def build_shot_npz(
     )
     out_dir.mkdir(parents=True, exist_ok=True)
     npz_path = out_dir / f"shot_{shot_id}.npz"
-    save_npz_arrays(npz_path, payload, allow_pickle=True)
+    save_npz_arrays(npz_path, payload)
     return {
         "shot_id": shot_id,
         "npz": npz_path.name,

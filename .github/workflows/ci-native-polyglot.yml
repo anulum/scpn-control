@@ -106,6 +106,19 @@ jobs:
             tests/test_snn_pyo3_bridge.py -v
           mkdir -p artifacts/coverage/rust
           mv .coverage.rust artifacts/coverage/rust/.coverage.rust
+      - name: Build the debug extension image that the command tests load by path
+        run: |
+          . .venv/bin/activate
+          cargo build --manifest-path scpn-control-rs/crates/control-python/Cargo.toml --features extension-module
+          test -f scpn-control-rs/target/debug/libscpn_control_rs.so
+      - name: Command tests against the debug extension image
+        # These tests load the built image by its path and skip where it is
+        # absent, so this is the hosted lane that executes them.
+        run: |
+          . .venv/bin/activate
+          PYTHONPATH=$PWD/src PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -p hypothesis.extra.pytestplugin \
+            tests/test_benchmark_full_stack_public.py \
+            tests/test_kuramoto_evidence_command.py -v -rs
       - name: Upload Rust-present coverage data
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
         with:

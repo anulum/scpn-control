@@ -48,7 +48,7 @@ def test_validate_reports_contaminated_import_without_external_evidence(
         ],
     )
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     payload = json.loads(result.output)
     assert isinstance(payload, dict)
     data = dict[str, Any](payload)

@@ -99,6 +99,8 @@ def test_actual_existing_native_claim_and_target_refusal(tmp_path: Path, mode: s
     mode : str
         External and mean-field driver parity are both exercised.
     """
+    if not (ROOT / "scpn-control-rs/target/debug/libscpn_control_rs.so").is_file():
+        pytest.skip("needs the locally built debug Rust extension; there is no mock or automatic install")
     output = tmp_path / "native.json"
     command = campaign_command(MODULE, "script", native=True)
     args = [

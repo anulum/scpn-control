@@ -46,6 +46,8 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
+          # The docstring debt ratchet and its tests measure with the pinned linter.
+          pip install --require-hashes -r requirements/ci-lint.txt
           pip install --require-hashes -r requirements/ci-mast.txt
           # Real phase-video tests need Matplotlib and Pillow before the matrix Test step.
           pip install --require-hashes -r requirements/ci-viz.txt

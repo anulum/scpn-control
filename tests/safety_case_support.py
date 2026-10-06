@@ -16,6 +16,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control.control import hil_evidence
 from scpn_control.control.codac_interface import CODACConfig, CODACInterface, codac_runtime_evidence
 from scpn_control.control.digital_twin_online_update import (
     BayesianUpdateResult,
@@ -261,6 +262,28 @@ def _target_hardware_hil_replay_payload() -> dict[str, object]:
         deployment_claim_allowed=False,
         generated_at="2026-05-31T00:00:00Z",
     )
+
+
+def _qualified_hil_replay_payload() -> dict[str, object]:
+    """Return a HIL replay payload as an external qualifier would issue it.
+
+    The producer in this package never qualifies its own replay. The payload is
+    therefore the target-hardware replay with the admission block set to the
+    qualified status and both digests recomputed over the changed content, the
+    way ``tests/test_hil_evidence.py`` builds its qualified specimen.
+    """
+    payload = _target_hardware_hil_replay_payload()
+    admission = payload["admission"]
+    assert isinstance(admission, dict)
+    admission["deployment_claim_allowed"] = True
+    admission["claim_status"] = "qualified_target_hardware_deployment_evidence"
+    payload["replay_digest"] = hil_evidence._sha256_json(
+        {key: payload[key] for key in ("controller_id", "target_hardware", "timing", "safety_events", "admission")}
+    )
+    payload["payload_sha256"] = hil_evidence._sha256_json(
+        {key: value for key, value in payload.items() if key != "payload_sha256"}
+    )
+    return payload
 
 
 def _codac_runtime_payload(*, facility_claim_allowed: bool = False) -> dict[str, object]:

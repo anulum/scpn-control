@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import doctest
+import importlib.util
 import os
 import pydoc
 import shutil
@@ -199,7 +200,13 @@ def _live_hook() -> dict[str, object]:
 def _run_actual_hook(
     root: Path, filename: str, *, remove_ci_fragment: bool = False
 ) -> subprocess.CompletedProcess[str]:
-    """Run the production local hook through pre-commit without unrelated remote hooks or canonical Git writes."""
+    """Run the production local hook through pre-commit without unrelated remote hooks or canonical Git writes.
+
+    The calling test is skipped where pre-commit is not installed; among the
+    hosted jobs only static governance installs it.
+    """
+    if importlib.util.find_spec("pre_commit") is None:
+        pytest.skip("pre-commit is not installed here; among the hosted jobs only static governance installs it")
     _write_contract_surfaces(root)
     shutil.copy2(gate.ROOT / "tools/check_python_lint_contract.py", root / "tools/check_python_lint_contract.py")
     if remove_ci_fragment:

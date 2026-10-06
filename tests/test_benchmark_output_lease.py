@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from child_coverage import CHILD_COVERAGE_PRELUDE, child_environment
 
 from scpn_control.benchmark_output_lease import BenchmarkOutputLease
 
@@ -110,9 +111,9 @@ assert first.read_text() == "new occupant" if occupied else not first.exists()
 assert second.read_text() == "second original"
 assert (root / "records/runs/recovery/denied-recovery/prior-output/first").read_text() == "first original"
 """
-    env = dict(os.environ, PYTHONPATH=str(Path(__file__).parents[1] / "src"))
+    env = child_environment(source_root=Path(__file__).parents[1] / "src")
     result = subprocess.run(
-        [sys.executable, "-c", script, str(tmp_path), str(occupied)],
+        [sys.executable, "-c", CHILD_COVERAGE_PRELUDE + script, str(tmp_path), str(occupied)],
         env=env,
         capture_output=True,
         text=True,

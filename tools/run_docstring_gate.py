@@ -391,6 +391,7 @@ ALL_DEFINITION_TARGETS = (
     "src/scpn_control/core/tglf_flux.py",
     "validation/tglf_launcher.py",
     "tests/test_tglf_launcher.py",
+    "tests/child_coverage.py",
     "src/scpn_control/core/tglf_units.py",
     "src/scpn_control/core/tglf_miller.py",
     "tests/test_tglf_miller.py",

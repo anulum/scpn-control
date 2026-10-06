@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import configparser
 import hashlib
+import importlib.metadata
 import io
 import json
 import os
@@ -110,6 +111,20 @@ def _project(tmp_path: Path, *, backend: str = "setuptools.build_meta") -> Path:
         encoding="utf-8",
     )
     return root
+
+
+def _require_build_frontend() -> None:
+    """Skip the calling test where the PEP 517 build frontend is not installed.
+
+    These tests run real builds through ``python -m build``. The frontend is
+    part of the packaging environment and not of the general test environment.
+    """
+    try:
+        # A directory named ``build`` in the working directory imports as a
+        # namespace package, so the installed distribution is asked for instead.
+        importlib.metadata.distribution("build")
+    except importlib.metadata.PackageNotFoundError:
+        pytest.skip("the build frontend is not installed here; only the packaging environment installs it")
 
 
 def _run(
@@ -271,6 +286,7 @@ def test_public_wheel_declarations_and_format_errors(tmp_path: Path) -> None:
 
 def test_actual_frontend_reproducible_pair_and_installed_console(tmp_path: Path) -> None:
     """Real setuptools builds two identical pairs and the built wheel's CLI runs."""
+    _require_build_frontend()
     root = _project(tmp_path)
     first = _run(root, ["--outdir", "out-a", "--source-date-epoch", str(EPOCH)])
     second = _run(root, ["--outdir", "out-b", "--source-date-epoch", str(EPOCH)])
@@ -303,6 +319,7 @@ def test_actual_frontend_reproducible_pair_and_installed_console(tmp_path: Path)
 
 def test_actual_public_build_api_propagates_epoch_cwd_and_environment(tmp_path: Path) -> None:
     """The public API runs a real sdist backend with observed inherited inputs."""
+    _require_build_frontend()
     root = _project(tmp_path)
     output = tmp_path / "artifacts with spaces"
     report = tmp_path / "backend-inputs.json"
@@ -327,6 +344,7 @@ def test_actual_public_build_api_propagates_epoch_cwd_and_environment(tmp_path: 
 
 def test_actual_backend_failure_and_extra_outputs_are_retained(tmp_path: Path) -> None:
     """A failing real backend and an extra setup-hook artifact refuse honestly."""
+    _require_build_frontend()
     root = _project(tmp_path, backend="missing_backend_for_real_refusal")
     failed = _run(root, ["--outdir", "failed", "--source-date-epoch", str(EPOCH)])
     assert failed.returncode != 0 and "CalledProcessError" in failed.stderr
@@ -348,6 +366,7 @@ def test_actual_backend_failure_and_extra_outputs_are_retained(tmp_path: Path) -
 
 def test_actual_cli_epoch_routes_and_usage_refusals(tmp_path: Path) -> None:
     """Real Git/environment/explicit routes select epochs before invoking builds."""
+    _require_build_frontend()
     root = _project(tmp_path)
     git = shutil.which("git")
     assert git is not None, "Git is a required native builder test dependency"

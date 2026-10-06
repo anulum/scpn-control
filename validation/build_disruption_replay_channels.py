@@ -300,7 +300,7 @@ def build_channels(material_dir: Path, *, out_dir: Path, generated_at: str, lock
     with tempfile.NamedTemporaryFile(prefix=".channels.", suffix=".npz", dir=out_dir, delete=False) as handle:
         temporary_path = Path(handle.name)
     try:
-        save_npz_arrays(temporary_path, payload, allow_pickle=True)
+        save_npz_arrays(temporary_path, payload)
         archive_binding = inspect_replay_archive(temporary_path, expected_shot_ids=shot_ids)
         try:
             os.link(temporary_path, npz_path)

@@ -24,7 +24,7 @@ def _registry_lock(root: Path) -> Iterator[None]:
     """Serialise reservation updates with a process-owned operating-system lock."""
     root.mkdir(parents=True, exist_ok=True)
     with (root / "registry.lock").open("a+b") as handle:
-        if sys.platform == "win32":
+        if sys.platform == "win32":  # pragma: no cover - win32 byte-range lock; the Windows lane runs it
             import msvcrt
 
             if handle.tell() == 0:
@@ -39,7 +39,7 @@ def _registry_lock(root: Path) -> Iterator[None]:
         try:
             yield
         finally:
-            if sys.platform == "win32":
+            if sys.platform == "win32":  # pragma: no cover - win32 byte-range unlock; the Windows lane runs it
                 handle.seek(0)
                 msvcrt.locking(handle.fileno(), msvcrt.LK_UNLCK, 1)
             else:

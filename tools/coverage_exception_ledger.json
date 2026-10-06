@@ -1,8 +1,8 @@
 {
   "counts": {
     "coverage-exclude-pattern": 11,
-    "pragma-no-cover": 170,
-    "pytest-runtime-skip": 50,
+    "pragma-no-cover": 173,
+    "pytest-runtime-skip": 54,
     "pytest-skipif": 133,
     "pytest-xfail": 2
   },
@@ -170,6 +170,36 @@
       "path": "pyproject.toml",
       "reason": "configured coverage.py exclusion pattern",
       "removal_condition": "Remove when visualisation dependencies become baseline requirements or the guarded feature is retired.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "windows",
+      "condition": "if sys.platform == \"win32\":",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-1e278d9e7c3958aa",
+      "kind": "pragma-no-cover",
+      "last_review": "2026-10-06",
+      "line": 27,
+      "owner": "repository/coverage-policy",
+      "path": "src/scpn_control/benchmark_output_lease.py",
+      "reason": "win32 byte-range lock; the Windows lane runs it",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "windows",
+      "condition": "if sys.platform == \"win32\":",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-98d66d7fd7f5de96",
+      "kind": "pragma-no-cover",
+      "last_review": "2026-10-06",
+      "line": 42,
+      "owner": "repository/coverage-policy",
+      "path": "src/scpn_control/benchmark_output_lease.py",
+      "reason": "win32 byte-range unlock; the Windows lane runs it",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
       "status": "variant-ci-lane"
     },
     {
@@ -966,6 +996,21 @@
       "reason": "casadi optional dep, absent on CI",
       "removal_condition": "Remove when the package is installed in a named executing lane or the optional feature is retired.",
       "status": "explicit-environment-blocker"
+    },
+    {
+      "classification": "facility-data",
+      "condition": "return evaluate_controller_safety_case_readiness(",
+      "execution_lane": "none: external data authority required",
+      "external_dependency": "licensed or facility-hosted data/service",
+      "id": "covexc-71c97f3c4b2c1a1f",
+      "kind": "pragma-no-cover",
+      "last_review": "2026-10-06",
+      "line": 485,
+      "owner": "python/control",
+      "path": "src/scpn_control/control/safety_case.py",
+      "reason": "needs verified facility HIL and CODAC claims",
+      "removal_condition": "Remove after redistributable data or an authenticated facility lane exercises the exact path with provenance.",
+      "status": "external-blocked"
     },
     {
       "classification": "rust",
@@ -2723,6 +2768,21 @@
       "status": "reasoned-control-flow"
     },
     {
+      "classification": "rust",
+      "condition": "runtime call",
+      "execution_lane": "rust-python-interop",
+      "external_dependency": "compiled Rust/PyO3 extension",
+      "id": "covexc-a3b76998cd9646a6",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-10-06",
+      "line": 30,
+      "owner": "tests/benchmark_full_stack_public",
+      "path": "tests/test_benchmark_full_stack_public.py",
+      "reason": "needs the locally built debug Rust extension; there is no mock or automatic install",
+      "removal_condition": "Remove when the Rust extension becomes mandatory in the baseline wheel or the guarded compatibility path is retired.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "optional-package",
       "condition": "runtime call",
       "execution_lane": "baseline or named optional-owner lane",
@@ -3113,6 +3173,21 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "rust",
+      "condition": "runtime call",
+      "execution_lane": "rust-python-interop",
+      "external_dependency": "compiled Rust/PyO3 extension",
+      "id": "covexc-3bac61b3578fb1b1",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-10-06",
+      "line": 103,
+      "owner": "tests/kuramoto_evidence_command",
+      "path": "tests/test_kuramoto_evidence_command.py",
+      "reason": "needs the locally built debug Rust extension; there is no mock or automatic install",
+      "removal_condition": "Remove when the Rust extension becomes mandatory in the baseline wheel or the guarded compatibility path is retired.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "tglf-external-runtime",
       "condition": "runtime call",
       "execution_lane": "manual focused tests with an actual configured GACODE launcher",
@@ -3379,6 +3454,36 @@
       "owner": "tests/pulsed_scenario_scheduler_formal",
       "path": "tests/test_pulsed_scenario_scheduler_formal.py",
       "reason": "Lean lake executable is not installed in this environment",
+      "removal_condition": "Remove when the package is installed in a named executing lane or the optional feature is retired.",
+      "status": "explicit-environment-blocker"
+    },
+    {
+      "classification": "optional-package",
+      "condition": "runtime call",
+      "execution_lane": "baseline or named optional-owner lane",
+      "external_dependency": "optional Python package not admitted to every CI context",
+      "id": "covexc-4a4a365ab9edaefc",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-10-06",
+      "line": 209,
+      "owner": "tests/python_lint_contract",
+      "path": "tests/test_python_lint_contract.py",
+      "reason": "pre-commit is not installed here; among the hosted jobs only static governance installs it",
+      "removal_condition": "Remove when the package is installed in a named executing lane or the optional feature is retired.",
+      "status": "explicit-environment-blocker"
+    },
+    {
+      "classification": "optional-package",
+      "condition": "runtime call",
+      "execution_lane": "baseline or named optional-owner lane",
+      "external_dependency": "optional Python package not admitted to every CI context",
+      "id": "covexc-8e33f0c9fd1c8bdc",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-10-06",
+      "line": 127,
+      "owner": "tests/release_artifact_contract",
+      "path": "tests/test_release_artifact_contract.py",
+      "reason": "the build frontend is not installed here; only the packaging environment installs it",
       "removal_condition": "Remove when the package is installed in a named executing lane or the optional feature is retired.",
       "status": "explicit-environment-blocker"
     },
@@ -5228,19 +5333,19 @@
       "status": "external-blocked"
     },
     {
-      "classification": "intrinsic-control-flow",
+      "classification": "windows",
       "condition": "not hasattr(os, \"mkfifo\")",
-      "execution_lane": "python-tests: Ubuntu 3.12 coverage",
-      "external_dependency": "none; defensive, protocol, or interpreter-only control flow",
-      "id": "covexc-17dc067c7496aac3",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-a0daae9b0405b9d2",
       "kind": "pytest-skipif",
       "last_review": "2026-10-06",
       "line": 315,
       "owner": "tests/tglf_flux",
       "path": "tests/test_tglf_flux.py",
-      "reason": "the rendezvous needs a POSIX FIFO",
-      "removal_condition": "Remove when the defensive branch becomes reachable through an admitted public/runtime input or the branch is deleted.",
-      "status": "reasoned-control-flow"
+      "reason": "the rendezvous needs a POSIX FIFO, which Windows does not provide",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
     },
     {
       "classification": "facility-data",
@@ -5498,8 +5603,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 366,
-  "entry_sha256": "8b6d8b62966ff601670e6b25180b3458b545a1cb37cb94ffeeb8b7304e573c0b",
+  "entry_count": 373,
+  "entry_sha256": "bd53731bef65bf204663a6784587d4e613a78b33ab1a9e81468f84843fa1f5f2",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

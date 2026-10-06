@@ -477,7 +477,12 @@ def evaluate_controller_safety_case_readiness_from_artifacts(
     # The external physics and independent-review files have no signed,
     # distinct-identity attestation verifier. Their hashes establish custody
     # only, so this result must retain promotion_admissible=False.
-    return evaluate_controller_safety_case_readiness(
+    #
+    # No artifact set reaches this point today: the HIL and CODAC checks
+    # require a qualified claim, and both loaders refuse every such claim
+    # because this package cannot verify the independent evidence behind it.
+    # The return is kept for the day a verifier exists.
+    return evaluate_controller_safety_case_readiness(  # pragma: no cover - needs verified facility HIL and CODAC claims
         safety_case,
         external_physics_validation_sha256=by_kind["external_physics_validation"].artifact_sha256,
         target_hardware_timing_sha256=by_kind["target_hardware_timing"].artifact_sha256,

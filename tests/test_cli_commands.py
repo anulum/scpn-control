@@ -16,6 +16,7 @@
 from __future__ import annotations
 
 import json
+import sys
 
 import pytest
 from click.testing import CliRunner
@@ -28,14 +29,26 @@ def runner():
     return CliRunner()
 
 
+@pytest.fixture()
+def clean_optional_imports(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Hide the optional plotting and ML modules that earlier tests may have loaded.
+
+    The validate command fails when one of them is loaded. These tests are
+    about its output for an interpreter that has not loaded them, whatever ran
+    before in the same session.
+    """
+    for name in ("matplotlib", "torch", "streamlit"):
+        monkeypatch.delitem(sys.modules, name, raising=False)
+
+
 class TestValidateCommand:
-    def test_validate_text(self, runner):
+    def test_validate_text(self, runner, clean_optional_imports):
         result = runner.invoke(main, ["validate"])
         assert result.exit_code == 0
         assert "Transport solver:" in result.output
         assert "Status:" in result.output
 
-    def test_validate_json(self, runner):
+    def test_validate_json(self, runner, clean_optional_imports):
         result = runner.invoke(main, ["validate", "--json-out"])
         assert result.exit_code == 0
         data = json.loads(result.output)

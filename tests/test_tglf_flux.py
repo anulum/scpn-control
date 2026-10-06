@@ -312,7 +312,9 @@ def test_unverifiable_retained_receipt_is_rejected(tmp_path: Path, fault: str) -
     assert _files(directory) == before
 
 
-@pytest.mark.skipif(not hasattr(os, "mkfifo"), reason="the rendezvous needs a POSIX FIFO")
+@pytest.mark.skipif(
+    not hasattr(os, "mkfifo"), reason="the rendezvous needs a POSIX FIFO, which Windows does not provide"
+)
 def test_retained_file_change_during_capture_is_rejected(tmp_path: Path) -> None:
     """A FIFO rendezvous changes retained grid bytes after capture, before the final check.
 

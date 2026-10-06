@@ -27,6 +27,16 @@
 
 ### Changed
 
+- The replay-channel and MAST dataset builders no longer enable pickling when
+  they save their archives. The payloads hold numeric and string arrays only,
+  and the archives are read back with pickling disabled.
+- The validate-command tests state the documented exit code 1 for a prohibited
+  loaded module and no longer depend on which optional modules earlier tests
+  imported.
+- Four safety-case tests lost when the test module was split are restored:
+  unqualified HDL, CODAC and WebSocket artifacts and an HDL export bound to
+  another controller are refused. Artifacts are checked in the caller's order,
+  and the tests order them so that the kind under test is reached.
 - Moved the standalone TGLF provider launcher `TGLFFluxSolver` out of the
   installed package into the validation command `validation/tglf_launcher.py`.
   It needs an installed GACODE provider, which the hosted test environments do
