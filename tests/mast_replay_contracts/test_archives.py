@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import os
 from io import BytesIO
 from pathlib import Path
 from zipfile import ZipFile
@@ -96,6 +97,10 @@ def test_duplicate_member_names_are_refused(tmp_path: Path) -> None:
         inspect_replay_archive_bytes(stream.getvalue(), path_name="duplicate.npz")
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows does not enforce POSIX permission bits, so the path stays accessible",
+)
 def test_unreadable_real_file_has_authored_refusal(tmp_path: Path) -> None:
     """Real filesystem permission refusal exposes no underlying OS message."""
     source = tmp_path / "channels.npz"

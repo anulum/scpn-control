@@ -647,6 +647,10 @@ def test_non_repository_and_missing_git_have_authored_refusals(tmp_path: Path, c
     )
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows does not enforce POSIX permission bits, so the path stays accessible",
+)
 def test_actual_read_denial_refuses_api_and_cli(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """A tracked regular file with denied read permissions aborts inspection without partial success or an OS traceback."""
     repo = _tracked_repo(tmp_path)
@@ -668,6 +672,10 @@ def test_actual_read_denial_refuses_api_and_cli(tmp_path: Path, capsys: CaptureF
         target.chmod(mode)
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows does not enforce POSIX permission bits, so the path stays accessible",
+)
 def test_actual_parent_search_denial_is_an_inspection_refusal(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
     """An indexed file inside a genuinely inaccessible directory cannot produce success or leak a stat traceback."""
     repo = _tracked_repo(tmp_path)

@@ -373,6 +373,10 @@ def test_standalone_stdlib_script_from_other_directory(tmp_path: Path, passing: 
     assert not result.stderr and json.loads(result.stdout)["status"] == ("pass" if passing else "fail")
 
 
+@pytest.mark.skipif(
+    not hasattr(os, "sched_getaffinity"),
+    reason="no CPU affinity interface on this platform (macOS, Windows); the reader requires a reported affinity",
+)
 def test_actual_admission_probe_producer_is_readable(tmp_path: Path) -> None:
     """Read a fresh two-sample actual host probe report without turning its local timings into a production claim."""
     root = DEFAULT_REPORT.parents[2]

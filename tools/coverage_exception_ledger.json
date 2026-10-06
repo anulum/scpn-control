@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 134,
+    "pytest-skipif": 138,
     "pytest-xfail": 2
   },
   "entries": [
@@ -3593,6 +3593,21 @@
       "status": "external-blocked"
     },
     {
+      "classification": "windows",
+      "condition": "os.name == \"nt\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-3936794ed9e31d8c",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 100,
+      "owner": "tests/archives",
+      "path": "tests/mast_replay_contracts/test_archives.py",
+      "reason": "Windows does not enforce POSIX permission bits, so the path stays accessible",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "rust",
       "condition": "not hasattr(rust, \"aer_decode_rate\")",
       "execution_lane": "rust-python-interop",
@@ -4793,6 +4808,36 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "windows",
+      "condition": "os.name == \"nt\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-fb980a55258d7890",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 650,
+      "owner": "tests/public_surface_hygiene",
+      "path": "tests/test_public_surface_hygiene.py",
+      "reason": "Windows does not enforce POSIX permission bits, so the path stays accessible",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "windows",
+      "condition": "os.name == \"nt\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-a9671727decff426",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 675,
+      "owner": "tests/public_surface_hygiene",
+      "path": "tests/test_public_surface_hygiene.py",
+      "reason": "Windows does not enforce POSIX permission bits, so the path stays accessible",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "rust",
       "condition": "not HAS_RUST",
       "execution_lane": "rust-python-interop",
@@ -4849,6 +4894,21 @@
       "owner": "tests/runtime_admission",
       "path": "tests/test_runtime_admission.py",
       "reason": "resource module is POSIX-only",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "windows",
+      "condition": "not hasattr(os, \"sched_getaffinity\")",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-e1749a5331da096f",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 376,
+      "owner": "tests/runtime_admission_evidence_validation",
+      "path": "tests/test_runtime_admission_evidence_validation.py",
+      "reason": "no CPU affinity interface on this platform (macOS, Windows); the reader requires a reported affinity",
       "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
       "status": "variant-ci-lane"
     },
@@ -5633,8 +5693,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 375,
-  "entry_sha256": "12102b567249479f05e969ca85c1536d50ecbf14e8d19499bac0182594a212cb",
+  "entry_count": 379,
+  "entry_sha256": "42bfbb0746410334cbf7fe95af5a6b33d516fec3da2b2cf3164aeb1f82c27802",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",
