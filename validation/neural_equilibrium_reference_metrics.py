@@ -12,7 +12,7 @@
 from __future__ import annotations
 
 import math
-from pathlib import Path
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -101,7 +101,8 @@ def _artifact_uri_error(value: object) -> str | None:
         return "artefact URI must not contain NUL bytes"
     if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
         return None
-    path = Path(ref)
+    # The declaration is a document, not a path on this machine: POSIX rules on every platform.
+    path = PurePosixPath(ref)
     if path.is_absolute():
         return "artefact URI must be relative or an admitted external reference URI"
     if any(part == ".." for part in path.parts):

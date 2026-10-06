@@ -11,7 +11,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 import numpy as np
@@ -153,7 +153,8 @@ def _migrate_shot(
 
 def _resolve_legacy_artifact(root: Path, local_path: str, *, index: int) -> Path:
     candidate = Path(local_path)
-    if candidate.is_absolute() or ".." in candidate.parts:
+    # A rooted POSIX spelling is absolute in the document on every platform.
+    if candidate.is_absolute() or PurePosixPath(local_path).is_absolute() or ".." in candidate.parts:
         raise SourceObjectManifestError(f"legacy shots[{index}].npz must stay beneath the artefact root")
     resolved_root = root.resolve()
     resolved = (resolved_root / candidate).resolve()

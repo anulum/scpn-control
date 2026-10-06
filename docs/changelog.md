@@ -27,6 +27,11 @@
 
 ### Changed
 
+- Ten reference validators judged a declared artifact path with the running
+  platform's path rules, so a rooted POSIX spelling such as `/absolute/data`
+  was refused on Linux and macOS and accepted on Windows. A declaration is a
+  document, not a path on the validating machine: the lexical check now uses
+  POSIX rules on every platform. Results on Linux and macOS do not change.
 - The benchmark regression gate writes its JSON verdict with line feeds on
   every platform. Text mode had turned them into CR LF on Windows, so the
   verdict's bytes, and any digest of them, depended on where it was written.

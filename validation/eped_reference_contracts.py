@@ -15,7 +15,7 @@ import hashlib
 import hmac
 import json
 import re
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from validation.eped_reference_geometry import _validate_geometry
 
@@ -149,7 +149,8 @@ def _artifact_uri_error(value: object) -> str | None:
         return "artifact URI must not contain NUL bytes"
     if ref.startswith(("http://", "https://", "doi:", "s3://", "gs://")):
         return None
-    artifact_path = Path(ref)
+    # The declaration is a document, not a path on this machine: POSIX rules on every platform.
+    artifact_path = PurePosixPath(ref)
     if artifact_path.is_absolute():
         return "artifact URI must be relative or an admitted external reference URI"
     if any(part == ".." for part in artifact_path.parts):

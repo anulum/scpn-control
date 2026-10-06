@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from pathlib import Path, PureWindowsPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any
 
 CANDIDATE_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-reference-candidate.v1"
@@ -80,7 +80,8 @@ def storage_path(root: Path, value: object) -> Path:
     if not isinstance(value, str) or not value.strip() or "\\" in value or "\x00" in value:
         raise ValueError("shot local_path must be a relative storage path")
     path = Path(value)
-    if path.is_absolute() or PureWindowsPath(value).drive or ".." in path.parts:
+    # A rooted POSIX spelling is absolute in the document on every platform.
+    if path.is_absolute() or PurePosixPath(value).is_absolute() or PureWindowsPath(value).drive or ".." in path.parts:
         raise ValueError("shot local_path must remain inside dataset_root")
     resolved = (root / path).resolve()
     if not resolved.is_relative_to(root.resolve()):
