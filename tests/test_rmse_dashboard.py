@@ -18,9 +18,13 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 from pathlib import Path
 
 import pytest
+
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "validation" / "rmse_dashboard.py"
@@ -313,7 +317,7 @@ def test_renderer_closes_real_figure_after_output_refusal(
     expected: type[Exception]
     if failure == "output":
         (tmp_path / filename).mkdir()
-        expected = IsADirectoryError
+        expected = DIRECTORY_AS_FILE_ERROR
     else:
         del report[lane]["rows"][0][field]
         expected = KeyError

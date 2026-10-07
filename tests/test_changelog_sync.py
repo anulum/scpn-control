@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,9 @@ from pathlib import Path
 import pytest
 
 from tools.check_changelog_sync import changelog_sync_errors, main
+
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -122,7 +126,7 @@ def test_api_preserves_byte_and_read_error_contract(tmp_path: Path) -> None:
     assert changelog_sync_errors(tmp_path) == []
     right.unlink()
     right.mkdir()
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(DIRECTORY_AS_FILE_ERROR):
         changelog_sync_errors(tmp_path)
 
 

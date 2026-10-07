@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from typing import Any, cast
@@ -20,6 +21,9 @@ import pytest
 
 from scpn_control.control import rzip_model as model
 from scpn_control.core.vessel_model import VesselElement, VesselModel
+
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
 
 
 @pytest.fixture(scope="module")
@@ -241,7 +245,7 @@ def test_writer_replaces_after_validation_and_propagates_io(
     out.write_text("old")
     model.save_rzip_calibration_evidence(declared, out)
     assert json.loads(out.read_text()) == asdict(declared)
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(DIRECTORY_AS_FILE_ERROR):
         model.save_rzip_calibration_evidence(declared, tmp_path)
 
 

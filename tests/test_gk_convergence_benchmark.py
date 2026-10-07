@@ -21,6 +21,9 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
+
 
 def test_actual_provider_workflow_and_public_scratch(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     """Compare actual zero/one/two-sample providers, then exercise the real declared writer and failures."""
@@ -94,7 +97,7 @@ def test_actual_provider_workflow_and_public_scratch(tmp_path: Path, capsys: pyt
         with pytest.raises(FileNotFoundError):
             tool.save(results)
         tool.RESULTS_FILE = str(tmp_path)
-        with pytest.raises(IsADirectoryError):
+        with pytest.raises(DIRECTORY_AS_FILE_ERROR):
             tool.save(results)
     finally:
         tool.RESULTS_FILE = original_path

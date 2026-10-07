@@ -13,6 +13,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 from dataclasses import replace
 from pathlib import Path
 from typing import Any, Callable, Mapping, cast
@@ -21,6 +22,9 @@ import pytest
 
 from validation import rzip_vertical_evidence as evidence
 from validation import validate_rzip_vertical_stability as rzip
+
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
 
 
 @pytest.fixture(scope="module")
@@ -191,7 +195,7 @@ def test_writer_native_filesystem_refusals(result: rzip.RzipValidationResult, tm
     assert not absent.parent.exists()
     partial = tmp_path / "partial.json"
     partial.with_suffix(".md").mkdir()
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(DIRECTORY_AS_FILE_ERROR):
         evidence.write_report(payload, partial)
     assert json.loads(partial.read_text()) == payload
     assert partial.with_suffix(".md").is_dir()

@@ -23,6 +23,9 @@ import pytest
 from validation import h_infinity_evidence as evidence
 from validation import validate_h_infinity_control as h
 
+# Windows reports a directory opened as a file as a permission error.
+DIRECTORY_AS_FILE_ERROR: type[OSError] = PermissionError if os.name == "nt" else IsADirectoryError
+
 
 @pytest.fixture(scope="module")
 def result() -> h.HInfinityValidationResult:
@@ -209,7 +212,7 @@ def test_writer_checked_roundtrip_and_partial_pair(payload: dict[str, Any], tmp_
     partial = tmp_path / "partial.json"
     directory = tmp_path / "markdown-directory"
     directory.mkdir()
-    with pytest.raises(IsADirectoryError):
+    with pytest.raises(DIRECTORY_AS_FILE_ERROR):
         h.write_reports(payload, partial, directory)
     assert evidence.read_report(partial) == payload and directory.is_dir()
 
