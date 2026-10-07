@@ -98,7 +98,7 @@ def test_committed_lock_inventory_requires_audit_ownership_for_every_lock() -> N
     }
     python_locks = {
         "uv.lock",
-        *[str(p.relative_to(REPOSITORY_ROOT)) for p in (REPOSITORY_ROOT / "requirements").glob("ci-*.txt")],
+        *[p.relative_to(REPOSITORY_ROOT).as_posix() for p in (REPOSITORY_ROOT / "requirements").glob("ci-*.txt")],
     }
     assert locks <= python_locks | {
         "scpn-control-rs/Cargo.lock",

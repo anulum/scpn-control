@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import os
 from collections.abc import Callable
 from copy import deepcopy
 from hashlib import sha256
@@ -633,6 +634,10 @@ def test_public_mapping_api_refuses_nonobject_root() -> None:
         validate_real_data_manifest(cast(Any, []))
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows has a root per drive, so no path is relative to a single filesystem root",
+)
 def test_public_resolver_handles_a_manifest_at_filesystem_root(tmp_path: Path) -> None:
     """A root-level manifest has one lookup root and no ancestor-marker search."""
     artifact = tmp_path / "owned.bin"
