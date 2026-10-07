@@ -94,7 +94,7 @@ def _write_dataset_report(path: Path, references: list[str]) -> None:
         "shots": [
             {
                 "shot_id": shot,
-                "output_path": str(ref),
+                "output_path": ref.as_posix(),
                 "source_path": "engineering_schema_contract",
                 "sha256": hashlib.sha256(ref.read_bytes()).hexdigest(),
                 "selected_time_count": 1,

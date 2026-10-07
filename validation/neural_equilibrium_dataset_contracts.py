@@ -235,11 +235,16 @@ def safe_storage_reference(path_text: str, storage_root: Path) -> str:
 
 
 def candidate_reference(value: Any, storage_root: Path) -> Path:
-    """Resolve producer absolute or safe storage-relative references, rejecting traversal/foreign drives/escapes."""
+    """Resolve producer absolute or safe storage-relative references, rejecting traversal/foreign drives/escapes.
+
+    The producer records absolute paths with forward slashes. A drive is
+    foreign unless it makes the path absolute on this platform, which only a
+    Windows host's own drive does; containment in storage is checked after.
+    """
     value = text(value, "shot.output_path")
     path = Path(value)
     if (
-        PureWindowsPath(value).drive
+        (PureWindowsPath(value).drive and not path.is_absolute())
         or "\\" in value
         or any(part in ("", ".", "..") for part in value.split("/")[int(path.is_absolute()) :])
     ):

@@ -95,6 +95,11 @@
   remain preserved and explicitly refused by the current upstream decoder.
 
 ### Fixed
+- The neural equilibrium dataset builder refused the converter's own
+  report on Windows: the converter records the absolute path of each
+  reference file, and the builder treated any drive letter as foreign. A
+  drive is now accepted where it makes the path absolute on the host, and
+  the path must still lie within the storage root.
 - The Zenodo dataset export ordered its files by comparing path objects,
   which ignores letter case on Windows, so the archive's member order
   depended on the platform that built it. The files are now ordered by

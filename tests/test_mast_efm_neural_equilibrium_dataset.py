@@ -155,7 +155,7 @@ def _candidate_payload(references: list[tuple[int, Path]]) -> dict[str, Any]:
             shots.append(
                 {
                     "shot_id": shot_id,
-                    "output_path": str(path),
+                    "output_path": path.as_posix(),
                     "source_path": "schema_contract_fixture",
                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                     "selected_time_count": count,

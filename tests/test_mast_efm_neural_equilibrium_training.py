@@ -85,7 +85,7 @@ def _complete_source_declarations(dataset: Path, report_path: Path, plan_path: P
         declarations.append(
             {
                 "shot_id": shot_id,
-                "output_path": str(path),
+                "output_path": path.as_posix(),
                 "source_path": "retained_engineering_numerical_fixture",
                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                 "selected_time_count": int(np.count_nonzero(selected)),
