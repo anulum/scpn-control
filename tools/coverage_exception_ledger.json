@@ -3522,10 +3522,10 @@
       "condition": "runtime call",
       "execution_lane": "manual focused tests with an actual configured GACODE launcher",
       "external_dependency": "configured GACODE launcher and its runtime environment",
-      "id": "covexc-c9214f55df4c3a3c",
+      "id": "covexc-8178f43f1f90d98a",
       "kind": "pytest-runtime-skip",
       "last_review": "2026-09-23",
-      "line": 48,
+      "line": 50,
       "owner": "tests/tglf_launcher",
       "path": "tests/test_tglf_launcher.py",
       "reason": "SCPN_TGLF_BINARY must name an actual configured GACODE launcher",
@@ -5784,7 +5784,7 @@
     }
   ],
   "entry_count": 385,
-  "entry_sha256": "62abab18663ed4d23d727324c2a98f5075e1aecdc2de638c1875f785db07901a",
+  "entry_sha256": "320d3976e494e91c07e11d48bcb2fc3019d8252f2aca4821a0410d21eca159d0",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

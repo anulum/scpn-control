@@ -33,9 +33,11 @@ _FIXTURE = Path(__file__).parent / "data/tglf/default"
 
 
 def test_missing_launcher_creates_no_execution(tmp_path: Path) -> None:
-    """Executable discovery fails before an execution directory is created."""
+    """Executable discovery, or the platform refusal before it, creates no execution directory."""
     solver = TGLFFluxSolver(tmp_path / "runs", binary=str(tmp_path / "missing"))
-    with pytest.raises(TGLFFluxError, match="unavailable"):
+    # The launcher needs POSIX process groups and says so before it looks for the executable.
+    refusal = "unavailable" if os.name == "posix" else "requires POSIX"
+    with pytest.raises(TGLFFluxError, match=refusal):
         solver.run(_FIXTURE / "input.tglf")
     assert not solver.work_dir.exists()
 
