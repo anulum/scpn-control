@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 140,
+    "pytest-skipif": 141,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4268,6 +4268,21 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "windows",
+      "condition": "os.name == \"nt\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-62399dff2aa19430",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 299,
+      "owner": "tests/docs_internal_private_guard",
+      "path": "tests/test_docs_internal_private_guard.py",
+      "reason": "a file name cannot contain a line feed on Windows, so the index entry cannot be staged",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "reference-artifact",
       "condition": "not SPARC_DIR.exists()",
       "execution_lane": "none unless an admitted manifest supplies the artifact",
@@ -5723,8 +5738,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 381,
-  "entry_sha256": "f4dda1094575be8dca8bff2e9232b1848d014682bf30e0f4f52fc8b1ec31ab18",
+  "entry_count": 382,
+  "entry_sha256": "446dff9e460c9d7be44b270db0ea76bbf3d8c8f3184efe23b996b1ade1d24707",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

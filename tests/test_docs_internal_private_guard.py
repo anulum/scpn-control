@@ -293,7 +293,14 @@ def test_real_multiple_declaration_findings_cli(repository: Path) -> None:
     [
         ("docs/internal/private.md", True),
         ("docs/internal/á.txt", True),
-        ("docs/internal/new\nline.md", True),
+        pytest.param(
+            "docs/internal/new\nline.md",
+            True,
+            marks=pytest.mark.skipif(
+                os.name == "nt",
+                reason="a file name cannot contain a line feed on Windows, so the index entry cannot be staged",
+            ),
+        ),
         ("\ndocs/internal/outside.md", False),
     ],
 )
