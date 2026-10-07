@@ -573,7 +573,19 @@ def _cli(
     )
 
 
-@pytest.mark.parametrize("filename", ["docs/release\nnotes.md", "docs/résumé.md", "docs/a\tb.md"])
+_CONTROL_CHARACTER_NAME = pytest.mark.skipif(
+    os.name == "nt", reason="a file name cannot contain a control character on Windows"
+)
+
+
+@pytest.mark.parametrize(
+    "filename",
+    [
+        pytest.param("docs/release\nnotes.md", marks=_CONTROL_CHARACTER_NAME),
+        "docs/résumé.md",
+        pytest.param("docs/a\tb.md", marks=_CONTROL_CHARACTER_NAME),
+    ],
+)
 def test_actual_index_path_spellings_reach_api_and_cli(tmp_path: Path, filename: str) -> None:
     """Git-quoted Unicode, newline and tab paths cannot hide claims in real copied documentation."""
     repo = _tracked_repo(tmp_path)
