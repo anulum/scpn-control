@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 143,
+    "pytest-skipif": 144,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4947,6 +4947,21 @@
       "condition": "sys.platform == \"win32\"",
       "execution_lane": "python-tests: windows-2025 / Python 3.12",
       "external_dependency": "Windows runtime",
+      "id": "covexc-c891e8d087bb7661",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 38,
+      "owner": "tests/rl_training_workflow",
+      "path": "tests/test_rl_training_workflow.py",
+      "reason": "the campaign script is a POSIX shell script; the runner's bash is the WSL stub",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "windows",
+      "condition": "sys.platform == \"win32\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
       "id": "covexc-a271bcae1acf28d1",
       "kind": "pytest-skipif",
       "last_review": "2026-10-06",
@@ -5768,8 +5783,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 384,
-  "entry_sha256": "def53bb0985abd0c288de2ff1ce71960a5d81f28e4fc220c9fc447972ab4e861",
+  "entry_count": 385,
+  "entry_sha256": "62abab18663ed4d23d727324c2a98f5075e1aecdc2de638c1875f785db07901a",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

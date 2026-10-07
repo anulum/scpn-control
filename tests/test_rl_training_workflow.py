@@ -35,6 +35,12 @@ def _pins() -> dict[str, str]:
     return {str(p): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths if p.is_file()}
 
 
+_POSIX_SHELL = pytest.mark.skipif(
+    sys.platform == "win32", reason="the campaign script is a POSIX shell script; the runner's bash is the WSL stub"
+)
+
+
+@_POSIX_SHELL
 def test_actual_three_seed_api_and_native_shell_plans(tmp_path: Path) -> None:
     """Three native child CLIs accept distinct real SB3 constructor seed maps."""
     before = _pins()
@@ -159,6 +165,7 @@ def test_actual_termination_and_evaluation_input_refusals() -> None:
         evaluate_agent(GymTokamakEnv(max_steps=3, T_target=1e308), PIDController().act, 1)
 
 
+@_POSIX_SHELL
 def test_actual_shell_preflight_without_campaign_preserves_custody(tmp_path: Path) -> None:
     """The actual execution entry refuses absent campaign before models/directories."""
     before = _pins()
