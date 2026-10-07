@@ -169,6 +169,21 @@ def test_e2e_latency_evidence_rejects_benchmark_context_regressions(tmp_path: Pa
     assert "context.loadavg_start must contain three finite load-average values" in result.errors
 
 
+def test_e2e_latency_evidence_accepts_native_windows_script_path(tmp_path: Path) -> None:
+    """A command recorded with backslash separators names the same producer."""
+    report = tmp_path / "e2e_latency.json"
+    payload = _latency_payload()
+    payload["command"] = (
+        r"python.exe 'D:\checkout\benchmarks\e2e_control_latency.py' --iterations 1000 --warmup 50 --json"
+    )
+    report.write_text(json.dumps(build_e2e_latency_evidence_payload(payload)), encoding="utf-8")
+
+    result = validate_e2e_latency_evidence(report, max_e2e_p95_us=1000.0)
+
+    assert result.status == "pass"
+    assert result.errors == ()
+
+
 def test_e2e_latency_evidence_rejects_tampered_payload_digest(tmp_path: Path) -> None:
     payload = build_e2e_latency_evidence_payload(_latency_payload())
     payload["e2e_us"]["p95"] = 999.0

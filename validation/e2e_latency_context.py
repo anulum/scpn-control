@@ -103,13 +103,14 @@ def _validate_benchmark_context(payload: dict[str, Any], errors: list[str]) -> N
 
     Notes
     -----
-    Command matching uses a substring, CPU IDs need only be nonnegative ints
+    Command matching uses a substring and accepts either path separator, as
+    the producer records its native script path. CPU IDs need only be nonnegative ints
     and governor needs only be present, including null. Duplicated IDs and any
     nonblank job/isolation labels retain legacy behaviour. Nothing is executed;
     hardware identity, actual isolation and trustworthy clocks are not verified.
     """
     command = payload.get("command")
-    if not isinstance(command, str) or "benchmarks/e2e_control_latency.py" not in command:
+    if not isinstance(command, str) or "benchmarks/e2e_control_latency.py" not in command.replace("\\", "/"):
         errors.append("command must record the E2E benchmark invocation")
 
     if not _valid_utc_timestamp(payload.get("generated_utc")):

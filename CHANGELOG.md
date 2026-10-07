@@ -95,6 +95,10 @@
   remain preserved and explicitly refused by the current upstream decoder.
 
 ### Fixed
+- The end-to-end latency validator refused a report produced on Windows:
+  the producer records its script path with the platform's separator, and
+  the validator looked for the path with forward slashes only. It now
+  accepts either separator.
 - Made sampled sliding-mode vertical control reject invalid and overflowing
   inputs before integral-state publication. The public gain and time helpers
   now refuse invalid conditions, and documentation distinguishes their
