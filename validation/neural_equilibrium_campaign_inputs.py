@@ -244,7 +244,7 @@ def summarise_campaign_public_data(root: Path, repository: Path) -> dict[str, An
     for manifest in report["manifests"]:
         item = dict(manifest)
         try:
-            item["path"] = str(Path(item["path"]).relative_to(repository))
+            item["path"] = Path(item["path"]).relative_to(repository).as_posix()
         except ValueError:
             pass
         manifests.append(item)

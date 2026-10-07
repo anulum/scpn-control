@@ -245,6 +245,6 @@ def _is_finite_number(value: object) -> TypeGuard[int | float]:
 def _portable_path(path: Path) -> str:
     """Preserve repo-relative/outside lexical paths; failed filesystem resolution uses lexical fallback."""
     try:
-        return str(path.resolve().relative_to(ROOT))
+        return path.resolve().relative_to(ROOT).as_posix()
     except (ValueError, OSError, RuntimeError):
         return path.as_posix()

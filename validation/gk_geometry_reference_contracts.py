@@ -94,7 +94,7 @@ def _json_sha256(payload: object) -> str:
 def _portable_path(path: Path) -> str:
     """Render resolved repository-relative paths when possible; retain raw paths for outside or unresolved references."""
     try:
-        return str(path.resolve().relative_to(ROOT))
+        return path.resolve().relative_to(ROOT).as_posix()
     except (OSError, ValueError, RuntimeError):
         return str(path)
 

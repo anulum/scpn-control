@@ -169,6 +169,6 @@ def _is_hex(value: str) -> bool:
 def _portable_path(path: Path) -> str:
     """Keep original repo-relative/outside lexical path shape; filesystem resolution failures use lexical fallback."""
     try:
-        return str(path.resolve().relative_to(ROOT))
+        return path.resolve().relative_to(ROOT).as_posix()
     except (ValueError, OSError, RuntimeError):
         return path.as_posix()

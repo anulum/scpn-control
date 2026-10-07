@@ -186,6 +186,6 @@ def canonical_artifact_sha256(payload: dict[str, object]) -> str:
 def _portable_path(path: Path) -> str:
     """Return resolved canonical-relative spelling when contained, otherwise preserve supplied path spelling."""
     try:
-        return str(path.resolve().relative_to(ROOT))
+        return path.resolve().relative_to(ROOT).as_posix()
     except ValueError:
         return path.as_posix()

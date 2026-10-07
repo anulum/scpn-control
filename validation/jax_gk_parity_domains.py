@@ -108,7 +108,7 @@ def _display_path(path: Path) -> str:
     OSError or RuntimeError, falls back to the supplied path spelling.
     """
     try:
-        return str(path.resolve(strict=False).relative_to(ROOT))
+        return path.resolve(strict=False).relative_to(ROOT).as_posix()
     except (ValueError, OSError, RuntimeError):
         return str(path)
 

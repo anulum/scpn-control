@@ -425,7 +425,7 @@ def _pragma_entries(policy: dict[str, Any]) -> list[ExceptionEntry]:
                 continue
             reason = match.group("tail").strip().lstrip("-:;.,#) ]–—").strip()
             if not reason:
-                raise ValueError(f"unreasoned coverage pragma: {path.relative_to(ROOT)}:{line_number}")
+                raise ValueError(f"unreasoned coverage pragma: {path.relative_to(ROOT).as_posix()}:{line_number}")
             entries.append(
                 _entry(
                     kind="pragma-no-cover",
@@ -692,13 +692,13 @@ def main(argv: list[str] | None = None) -> int:
     rendered = json.dumps(ledger, indent=2, sort_keys=True) + "\n"
     if args.check:
         if not OUTPUT_PATH.is_file() or OUTPUT_PATH.read_text(encoding="utf-8") != rendered:
-            print(f"stale coverage exception ledger: {OUTPUT_PATH.relative_to(ROOT)}")
+            print(f"stale coverage exception ledger: {OUTPUT_PATH.relative_to(ROOT).as_posix()}")
             return 1
         print(f"coverage exception ledger current: {ledger['entry_count']} owned entries")
         return 0
     OUTPUT_PATH.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT_PATH.write_text(rendered, encoding="utf-8")
-    print(f"wrote {OUTPUT_PATH.relative_to(ROOT)}")
+    print(f"wrote {OUTPUT_PATH.relative_to(ROOT).as_posix()}")
     return 0
 
 

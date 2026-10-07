@@ -130,7 +130,7 @@ def _canonical_digest(payload: dict[str, Any]) -> str:
 def _display_path(path: Path) -> str:
     """Show lexical repository-relative paths when possible, otherwise caller paths."""
     try:
-        return str(path.relative_to(ROOT))
+        return path.relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
 

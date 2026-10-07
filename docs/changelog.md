@@ -27,6 +27,10 @@
 
 ### Changed
 
+- Repository-relative paths in diagnostics and in report fields are written
+  with forward slashes on every platform. Twelve modules rendered them with
+  the running platform's separator, so the same report or message differed
+  between Windows and the other systems.
 - Ten reference validators judged a declared artifact path with the running
   platform's path rules, so a rooted POSIX spelling such as `/absolute/data`
   was refused on Linux and macOS and accepted on Windows. A declaration is a

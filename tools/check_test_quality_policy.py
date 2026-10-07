@@ -67,9 +67,10 @@ class Violation:
     def format(self) -> str:
         """Return ``path:line:reason``, using repository-relative paths where possible."""
         if self.path.is_absolute() and self.path.is_relative_to(REPO_ROOT):
-            rel = self.path.relative_to(REPO_ROOT)
+            # A repository path is printed with forward slashes on every platform.
+            rel = self.path.relative_to(REPO_ROOT).as_posix()
         else:
-            rel = self.path
+            rel = str(self.path)
         return f"{rel}:{self.line}: {self.reason}"
 
 

@@ -33,7 +33,7 @@ from validation.validate_jax_gk_parity import validate_jax_gk_parity
 def _display_path(path: Path) -> str:
     """Render repository paths relative to the checkout for stable reports."""
     try:
-        return str(path.resolve(strict=False).relative_to(ROOT))
+        return path.resolve(strict=False).relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
 

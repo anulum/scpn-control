@@ -285,7 +285,7 @@ def _display_path(path: Path) -> str:
     if not path.is_absolute():
         return str(path)
     try:
-        return str(path.resolve(strict=False).relative_to(ROOT))
+        return path.resolve(strict=False).relative_to(ROOT).as_posix()
     except ValueError:
         return str(path)
 

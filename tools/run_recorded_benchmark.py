@@ -249,7 +249,7 @@ def main(argv: list[str] | None = None) -> int:
     except KeyboardInterrupt:
         exit_code = 130
     manifest = run.finish(exit_code=exit_code)
-    print(f"benchmark record: {manifest.relative_to(repository_root)}", file=sys.stderr)
+    print(f"benchmark record: {manifest.relative_to(repository_root).as_posix()}", file=sys.stderr)
     if exit_code == 0 and json.loads(manifest.read_text())["status"] != "succeeded":
         return 1
     return exit_code
