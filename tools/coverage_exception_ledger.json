@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 139,
+    "pytest-skipif": 140,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4193,6 +4193,21 @@
       "status": "external-blocked"
     },
     {
+      "classification": "windows",
+      "condition": "os.name == \"nt\"",
+      "execution_lane": "python-tests: windows-2025 / Python 3.12",
+      "external_dependency": "Windows runtime",
+      "id": "covexc-25ec9955ca8849b7",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 24,
+      "owner": "tests/disruption_checkpoint_race",
+      "path": "tests/test_disruption_checkpoint_race.py",
+      "reason": "Windows refuses to replace a file that is open, so the substitution this test stages cannot happen there",
+      "removal_condition": "Remove when Windows support is retired or the branch no longer differs by operating system.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "torch",
       "condition": "not _HAS_TORCH",
       "execution_lane": "python-tests: Ubuntu 3.12 coverage",
@@ -5708,8 +5723,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 380,
-  "entry_sha256": "2e21128869a79833b5abe820dcd73059f9000f41a3603ae6be1a89aa32f76492",
+  "entry_count": 381,
+  "entry_sha256": "f4dda1094575be8dca8bff2e9232b1848d014682bf30e0f4f52fc8b1ec31ab18",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

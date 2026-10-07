@@ -9,6 +9,7 @@
 """Exercise a path swap while the public checkpoint loader uses real Torch."""
 
 import hashlib
+import os
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,10 @@ from scpn_control.control.disruption_predictor import DisruptionTransformer
 torch = pytest.importorskip("torch")
 
 
+@pytest.mark.skipif(
+    os.name == "nt",
+    reason="Windows refuses to replace a file that is open, so the substitution this test stages cannot happen there",
+)
 def test_loaded_weights_match_the_digest_when_path_is_replaced(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """A rename between hashing and Torch load cannot substitute other weights."""
     torch.manual_seed(11)
