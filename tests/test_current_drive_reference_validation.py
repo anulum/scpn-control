@@ -231,7 +231,11 @@ def test_report_output_filesystem_refusal_is_fixed(tmp_path: Path, installed: bo
     assert result.stdout == ""
     if installed and not parent_failure:
         assert result.returncode == 2
-        assert result.stderr.endswith(f"Error: Invalid value for '--output-json': File '{output}' is a directory.\n")
+        # The command line library quotes the path as a Python literal, which
+        # doubles the backslashes of a Windows path.
+        assert result.stderr.endswith(
+            f"Error: Invalid value for '--output-json': File {str(output)!r} is a directory.\n"
+        )
     else:
         assert result.returncode == (1 if installed else 2)
         assert result.stderr == ("Error: " if installed else "") + "could not write current-drive reference report\n"
