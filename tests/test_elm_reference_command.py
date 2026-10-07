@@ -14,6 +14,7 @@ import json
 import os
 import subprocess
 import sys
+import sysconfig
 from pathlib import Path
 
 import pytest
@@ -194,12 +195,7 @@ def test_actual_source_checkout_without_editable_install(tmp_path: Path) -> None
     path = tmp_path / "reference.json"
     path.write_text(json.dumps(declaration()))
     output = tmp_path / "report.json"
-    dependencies = (
-        Path(sys.executable).parent.parent
-        / "lib"
-        / f"python{sys.version_info.major}.{sys.version_info.minor}"
-        / "site-packages"
-    )
+    dependencies = Path(sysconfig.get_paths()["purelib"])
     assert dependencies.is_dir()
     # -S bypasses all .pth setup; supply real installed dependencies only.
     # The public coverage startup preserves optional instrumentation in this
