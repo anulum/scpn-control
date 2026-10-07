@@ -27,7 +27,16 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install packaging tools
-        run: pip install --require-hashes -r requirements/ci-build.txt
+        run: |
+          pip install --require-hashes -r requirements/ci-build.txt
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+      - name: Test real packaging contracts
+        env:
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          python -m build --version
+          python -m pytest tests/test_release_artifact_contract.py tests/test_tools/test_build_release_artifacts.py -v --tb=short
       - name: Build package
         run: |
           python tools/build_release_artifacts.py --outdir dist-a
