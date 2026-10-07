@@ -331,7 +331,7 @@ def test_actual_public_candidate_contract_refusals(tmp_path: Path, kind: str, me
     elif kind == "count":
         report["reference_equilibria_count"] = 7
     elif kind == "escape":
-        report["shots"][0]["output_path"] = str(tmp_path / "outside.npz")
+        report["shots"][0]["output_path"] = (tmp_path / "outside.npz").as_posix()
     elif kind == "relative_traversal":
         report["shots"][0]["output_path"] = "../outside.npz"
     else:
