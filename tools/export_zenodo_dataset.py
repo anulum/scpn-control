@@ -120,7 +120,9 @@ def collect_files(root: pathlib.Path = ROOT) -> list[pathlib.Path]:
     files: set[pathlib.Path] = set()
     for pattern in INCLUDE_PATTERNS:
         files.update(root.glob(pattern))
-    eligible = sorted(path for path in files if _eligible(path, root))
+    # Order by the spelled name: path objects compare without case on Windows,
+    # which would order the archive members differently there.
+    eligible = sorted((path for path in files if _eligible(path, root)), key=pathlib.Path.as_posix)
     ignored = _ignored(eligible, root)
     return [path for path in eligible if path.relative_to(root).as_posix() not in ignored]
 

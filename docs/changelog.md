@@ -95,6 +95,10 @@
   remain preserved and explicitly refused by the current upstream decoder.
 
 ### Fixed
+- The Zenodo dataset export ordered its files by comparing path objects,
+  which ignores letter case on Windows, so the archive's member order
+  depended on the platform that built it. The files are now ordered by
+  their spelled names on every platform.
 - The end-to-end latency validator refused a report produced on Windows:
   the producer records its script path with the platform's separator, and
   the validator looked for the path with forward slashes only. It now
