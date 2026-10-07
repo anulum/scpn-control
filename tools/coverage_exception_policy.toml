@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-10-06"
-expected_total = 382
-expected_sha256 = "446dff9e460c9d7be44b270db0ea76bbf3d8c8f3184efe23b996b1ade1d24707"
+expected_total = 383
+expected_sha256 = "1ccbd9ffc7bf1ec1b8109c0d35b53bdf4a621beb74355b472160e523b386f0e0"
 
 [[rules]]
 id = "spo-installation-boundary"

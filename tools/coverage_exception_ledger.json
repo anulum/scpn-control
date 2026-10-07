@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 141,
+    "pytest-skipif": 142,
     "pytest-xfail": 2
   },
   "entries": [
@@ -4688,6 +4688,21 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "facility-data",
+      "condition": "not hasattr(os, \"mkfifo\")",
+      "execution_lane": "none: external data authority required",
+      "external_dependency": "licensed or facility-hosted data/service",
+      "id": "covexc-299d3374e5f5fdcc",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 107,
+      "owner": "tests/mast_efm_zarr_store",
+      "path": "tests/test_mast_efm_zarr_store.py",
+      "reason": "the platform has no named pipe in the file system",
+      "removal_condition": "Remove after redistributable data or an authenticated facility lane exercises the exact path with provenance.",
+      "status": "external-blocked"
+    },
+    {
       "classification": "reference-artifact",
       "condition": "not ITER_WEIGHTS.exists()",
       "execution_lane": "none unless an admitted manifest supplies the artifact",
@@ -5738,8 +5753,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 382,
-  "entry_sha256": "446dff9e460c9d7be44b270db0ea76bbf3d8c8f3184efe23b996b1ade1d24707",
+  "entry_count": 383,
+  "entry_sha256": "1ccbd9ffc7bf1ec1b8109c0d35b53bdf4a621beb74355b472160e523b386f0e0",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

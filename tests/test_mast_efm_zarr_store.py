@@ -97,7 +97,19 @@ def test_consolidated_source_metadata_refuses_ambiguous_or_nonfinite_contracts(p
         consolidated_metadata(payload)
 
 
-@pytest.mark.parametrize("kind", ["symlink_file", "symlink_directory", "fifo"])
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "symlink_file",
+        "symlink_directory",
+        pytest.param(
+            "fifo",
+            marks=pytest.mark.skipif(
+                not hasattr(os, "mkfifo"), reason="the platform has no named pipe in the file system"
+            ),
+        ),
+    ],
+)
 def test_source_capture_refuses_nonregular_or_linked_entries(tmp_path: Path, kind: str) -> None:
     """Source byte capture must not follow linked payloads or block on a nonregular FIFO."""
     store = write_zarr(tmp_path / "original.zarr")
