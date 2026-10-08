@@ -121,24 +121,43 @@ def read_tglf_fluxes(run_dir: Path) -> TGLFFluxResult:
     Raises
     ------
     TGLFFluxError
-        Missing, nonfinite or structurally inconsistent output. The contract
-        follows GACODE tglf.f90 and tglf_inout.f90 standalone writers.
+        Missing, nonfinite or structurally inconsistent output, or retained
+        input/receipt bytes changed or became unreadable during parsing. The
+        contract follows GACODE tglf.f90 and tglf_inout.f90 standalone writers.
+
+    Notes
+    -----
+    Receipt, input and output checks are sequential snapshots, not a filesystem
+    lock. They cannot prevent replacement after the last check or after return.
     """
     captured = capture_tglf_outputs(run_dir)
     receipt_path = run_dir / "execution.json"
+    retained_admission: dict[Path, bytes] = {}
     if receipt_path.exists():
         try:
-            receipt = json.loads(receipt_path.read_text())
+            input_path = run_dir / "input.tglf"
+            retained_admission = {
+                receipt_path: receipt_path.read_bytes(),
+                input_path: input_path.read_bytes(),
+            }
+            receipt = json.loads(retained_admission[receipt_path].decode("utf-8"))
             expected = {name: hashlib.sha256(data).hexdigest() for name, data in captured.items()}
             if (
                 receipt["output_validated"] is not True
                 or receipt["output_sha256"] != expected
-                or receipt["input_sha256"] != hashlib.sha256((run_dir / "input.tglf").read_bytes()).hexdigest()
+                or receipt["input_sha256"] != hashlib.sha256(retained_admission[input_path]).hexdigest()
             ):
                 raise TGLFFluxError("TGLF retained artifacts do not match the validated receipt")
         except (OSError, ValueError, KeyError, TypeError) as exc:
             raise TGLFFluxError("Cannot verify TGLF execution receipt") from exc
-    return parse_captured_tglf_fluxes(run_dir, captured)
+    result = parse_captured_tglf_fluxes(run_dir, captured)
+    for path, admitted_bytes in retained_admission.items():
+        try:
+            if path.read_bytes() != admitted_bytes:
+                raise TGLFFluxError("TGLF retained admission changed during validation")
+        except OSError as exc:
+            raise TGLFFluxError("Cannot recheck TGLF retained admission") from exc
+    return result
 
 
 def capture_tglf_outputs(run_dir: Path) -> dict[str, bytes]:

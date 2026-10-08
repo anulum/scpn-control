@@ -11,9 +11,13 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
+import sys
 from collections import Counter
 from pathlib import Path
 
+import pytest
 from pytest import CaptureFixture
 
 from tools.evidence_gap_matrix import ROOT, build_evidence_gap_matrix, main
@@ -100,3 +104,124 @@ def test_evidence_gap_matrix_docs_include_entrypoint() -> None:
 
     assert "python tools/evidence_gap_matrix.py --output-json artifacts/evidence_gap_matrix.json" in validation_docs
     assert "scpn-control.evidence-gap-matrix.v1" in validation_docs
+
+
+@pytest.mark.parametrize(
+    "kind",
+    [
+        "registry",
+        "same",
+        "hardlink-input",
+        "hardlink-outputs",
+        "directory",
+        "blocked-parent",
+        "selected-ledger-existing",
+        "selected-ledger-missing",
+        "reports",
+        "refresh",
+        "new-report",
+    ],
+)
+@pytest.mark.parametrize("isolated", [True, False])
+def test_cold_cli_refuses_outputs_and_preserves_inputs(tmp_path: Path, kind: str, isolated: bool) -> None:
+    """A cold standalone command preserves actual declaration bytes before any replacement."""
+    selected = tmp_path / "selected/validation"
+    selected.mkdir(parents=True)
+    registry = selected / "physics_traceability.json"
+    registry.write_bytes((ROOT / "validation/physics_traceability.json").read_bytes())
+    first, second = tmp_path / "matrix.json", tmp_path / "matrix.md"
+    first.write_bytes(b"original first output")
+    second.write_bytes(b"original second output")
+    options = ["--output-json", str(first), "--output-md", str(second)]
+    if kind == "registry":
+        options[1] = str(registry)
+    elif kind == "same":
+        options[3] = str(first)
+    elif kind == "hardlink-input":
+        first.unlink()
+        first.hardlink_to(registry)
+    elif kind == "hardlink-outputs":
+        second.unlink()
+        second.hardlink_to(first)
+    elif kind == "directory":
+        second.unlink()
+        second.mkdir()
+    elif kind == "blocked-parent":
+        options[3] = str(second / "matrix.md")
+    elif kind.startswith("selected-ledger"):
+        ledger = selected / "public_claim_ledger.json"
+        if kind.endswith("existing"):
+            ledger.write_bytes((ROOT / "validation/public_claim_ledger.json").read_bytes())
+        options[1] = str(ledger)
+    elif kind in {"reports", "refresh", "new-report"}:
+        namespace = selected / ("report_refreshes" if kind == "refresh" else "reports")
+        if kind != "new-report":
+            namespace.mkdir()
+            (namespace / "existing.json").write_bytes(b"preserved evidence")
+        options[1] = str(namespace / "new.json")
+    else:
+        raise AssertionError(kind)
+    before = {path.relative_to(tmp_path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()}
+    env = {key: value for key, value in os.environ.items() if key != "PYTHONPATH"}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run(
+        [
+            sys.executable,
+            *(["-S"] if isolated else []),
+            str(ROOT / "tools/evidence_gap_matrix.py"),
+            "--registry",
+            str(registry),
+            *options,
+        ],
+        cwd=tmp_path,
+        env=env,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1 and not result.stdout
+    assert "Traceback" not in result.stderr and str(tmp_path) not in result.stderr
+    if kind == "blocked-parent":
+        assert result.stderr == "Evidence gap matrix failed: inputs or outputs could not be inspected\n"
+    else:
+        assert result.stderr.startswith("Evidence gap matrix failed: Inventory outputs must")
+    assert {path.relative_to(tmp_path): path.read_bytes() for path in tmp_path.rglob("*") if path.is_file()} == before
+
+
+@pytest.mark.parametrize("isolated", [True, False])
+def test_cold_cli_keeps_stdout_precedence_and_complete_file_pair(tmp_path: Path, isolated: bool) -> None:
+    """Cold startup renders canonical declarations through both files and JSON stdout."""
+    first, second = tmp_path / "matrix.json", tmp_path / "matrix.md"
+    result = subprocess.run(
+        [
+            sys.executable,
+            *(["-S"] if isolated else []),
+            str(ROOT / "tools/evidence_gap_matrix.py"),
+            "--json-out",
+            "--markdown-out",
+            "--output-json",
+            str(first),
+            "--output-md",
+            str(second),
+        ],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+    assert not result.stderr
+    expected = build_evidence_gap_matrix(ROOT / "validation/physics_traceability.json")
+    assert result.stdout.encode() == first.read_bytes()
+    assert json.loads(result.stdout) == expected.to_dict()
+    assert second.read_text() == expected.to_markdown()
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["matrix.json", "matrix.md"]
+
+
+def test_public_cli_markdown_stdout_matches_complete_registry(capsys: CaptureFixture[str]) -> None:
+    """Markdown-only stdout exposes the same complete declared planning inventory."""
+    expected = build_evidence_gap_matrix(ROOT / "validation/physics_traceability.json")
+    assert main(["--markdown-out"]) == 0
+    captured = capsys.readouterr()
+    assert captured.out == expected.to_markdown()
+    assert not captured.err

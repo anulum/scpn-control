@@ -95,6 +95,8 @@ custody_infrastructure = [
   # Pure baseline/policy/verdict inspection; no measurement or output writer.
   "tools/benchmark_gate_policy.py",
   "tools/benchmark_gate_verdict.py",
+  "tools/benchmark_suite_metrics.py",
+  "tools/benchmark_suite_provenance.py",
   "tools/promote_benchmark_baseline.py",
   "tools/run_recorded_benchmark.py",
 ]

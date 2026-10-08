@@ -16,6 +16,7 @@ import sys
 from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -387,3 +388,137 @@ def test_report_source_set_hash_does_not_certify_source_contents(tmp_path: Path)
     second = json.loads(report.read_text())
     assert first["provenance"]["source_set_sha256"] == second["provenance"]["source_set_sha256"]
     assert first["source_count"] == second["source_count"] == 1
+
+
+def test_repository_loop_refuses_before_network_or_report_work(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Refuse an actual root loop with external/report flags before either operation."""
+    from tools import document_link_audit as link_tool
+
+    loop = tmp_path / "repository-loop"
+    loop.symlink_to(loop.name, target_is_directory=True)
+    output = tmp_path / "report.json"
+    output.write_bytes(b"retained preexisting report\n")
+    arguments = ["--root", str(loop), "--external", "--json-out", str(output)]
+    assert link_tool.main(arguments) == 2
+    captured = capsys.readouterr()
+    assert captured.err == "Document link audit refused: repository root could not be resolved\n"
+    assert not captured.out
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/document_link_audit.py"), *arguments],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and result.stderr == captured.err and not result.stdout
+    assert output.read_bytes() == b"retained preexisting report\n"
+
+
+def test_actual_indexed_document_graph_checks_escape_and_url_boundaries(tmp_path: Path) -> None:
+    """Inspect altered actual prose through the public graph and cold CLI without HTTP."""
+    original = (ROOT / "docs/tglf_flux.md").read_text(encoding="utf-8")
+    readme = tmp_path / "README.md"
+    readme.write_text(
+        original
+        + "\n[escape](../outside.md)\n[directory](assets/)\n[empty](<>)\n"
+        + "[hostless](https:///missing-host)\n[internal](https://node.internal/reference)\n"
+        + "[user-info](https://test-user:test-value@reference.invalid:not-a-port/report)\n"
+        + "[global-ip](https://1.1.1.1/reference)\n[network-relative](//reference.invalid/item)\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "assets").mkdir()
+    _git_track(tmp_path, "README.md")
+    findings, refs = audit_local(tmp_path, _read_policy(DEFAULT_POLICY))
+    reasons = {finding.reason for finding in findings}
+    assert reasons == {
+        "relative target escapes repository root",
+        "URL has no public host",
+        "URL targets a non-public host",
+        "URL contains user-info credentials",
+    }
+    assert not any(ref.target == "" for ref in refs)
+    assert not any(finding.target == "assets/" for finding in findings)
+    result = _audit_cli(tmp_path)
+    assert result.returncode == 1 and "test-value" not in result.stdout
+    assert "relative target escapes repository root" in result.stdout
+
+
+def test_rendered_site_path_boundaries_use_real_files(tmp_path: Path) -> None:
+    """Accept present base-root targets and ignore foreign roots while refusing escapes."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "index.html").write_text(
+        '<a href="/docs">Base root</a><a href="/elsewhere/page">Other deployment</a>'
+        '<a href="">Empty</a><a href="../outside.html">Escape</a>',
+        encoding="utf-8",
+    )
+    findings = audit_site(site, "/docs/")
+    assert [(finding.target, finding.reason) for finding in findings] == [
+        ("../outside.html", "rendered target escapes site root")
+    ]
+    (site / "index.html").write_text('<a href="/index.html">Existing</a>', encoding="utf-8")
+    assert audit_site(site) == ()
+
+
+def test_configured_source_glob_exclusion_precedes_suffix_admission(tmp_path: Path) -> None:
+    """A real indexed auxiliary file stays excluded even when its suffix is allowed."""
+    policy = _read_policy(DEFAULT_POLICY)
+    policy = replace(policy, include_suffixes=(*policy.include_suffixes, ".aux"))
+    (tmp_path / "papers").mkdir()
+    excluded = tmp_path / "papers" / "document.aux"
+    excluded.write_bytes((ROOT / "docs/tglf_flux.md").read_bytes())
+    _git_track(tmp_path, "papers/document.aux")
+    assert public_sources(tmp_path, policy) == ()
+
+
+@pytest.mark.parametrize("retry", [-1, True, False, 1.5, "2", None])
+def test_public_policy_refuses_non_integer_or_negative_retry_budget(retry: object) -> None:
+    """A public policy cannot suppress all HTTP work or coerce another scalar type."""
+    with pytest.raises(ValueError, match="retries must be a nonnegative integer"):
+        replace(_read_policy(DEFAULT_POLICY), retries=cast(int, retry))
+
+
+@pytest.mark.parametrize("retry", ["-1", "true", "false", "1.5", '"2"'])
+def test_invalid_native_retry_policy_refuses_before_cache_replacement(tmp_path: Path, retry: str) -> None:
+    """A malformed actual TOML budget refuses the cold CLI before reports or requests."""
+    (tmp_path / "README.md").write_text("[reference](https://reference.invalid/item)\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    policy = tmp_path / "policy.toml"
+    policy.write_text(
+        DEFAULT_POLICY.read_text(encoding="utf-8").replace("retries = 2", f"retries = {retry}"),
+        encoding="utf-8",
+    )
+    cache = tmp_path / "cache.json"
+    original = b"retained actual cache carrier\n"
+    cache.write_bytes(original)
+    process = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools/document_link_audit.py"),
+            "--root",
+            str(tmp_path),
+            "--policy",
+            str(policy),
+            "--external",
+            "--cache",
+            str(cache),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode != 0 and "retries must be a nonnegative integer" in process.stderr
+    assert "Document link audit passed" not in process.stdout and cache.read_bytes() == original
+
+
+def test_cli_site_url_base_and_same_page_query_are_resolved(tmp_path: Path) -> None:
+    """Use actual site_url metadata and generated-file paths through the cold audit CLI."""
+    (tmp_path / "README.md").write_text("# Reference\n", encoding="utf-8")
+    (tmp_path / "mkdocs.yml").write_text("site_url: https://reference.invalid/docs/\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md", "mkdocs.yml")
+    site = tmp_path / "rendered"
+    site.mkdir()
+    (site / "index.html").write_text('<a href="/docs/index.html">Home</a><a href="?filter=all">Filter</a>')
+    result = _audit_cli(tmp_path, "--site-dir", str(site))
+    assert result.returncode == 0 and not result.stderr

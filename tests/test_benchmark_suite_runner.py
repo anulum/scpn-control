@@ -89,36 +89,21 @@ def test_provenance_helpers_return_expected_types() -> None:
     assert _affinity() is None or isinstance(_affinity(), list)
     assert _loadavg() is None or isinstance(_loadavg(), list)
     assert isinstance(_git_commit(), str) and _git_commit()
-    assert isinstance(_peak_rss_mb(), float)
+    assert _peak_rss_mb() is None or isinstance(_peak_rss_mb(), float)
 
 
-def test_cpu_model_falls_back_when_cpuinfo_unreadable(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Use the platform CPU description if procfs cannot be read."""
-
-    class _BoomPath:
-        def __init__(self, *_args: object) -> None: ...
-
-        def read_text(self, *_args: object, **_kwargs: object) -> str:
-            raise OSError("no /proc")
-
-    monkeypatch.setattr(rbs, "Path", _BoomPath)
+def test_cpu_model_falls_back_when_cpuinfo_unreadable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Use the platform CPU description when a real selected source is absent."""
     monkeypatch.setattr(platform, "processor", lambda: "fallback-cpu")
-    assert _cpu_model() == "fallback-cpu"
+    assert _cpu_model(tmp_path / "missing-cpuinfo") == "fallback-cpu"
 
 
-def test_cpu_model_falls_back_when_cpuinfo_has_no_model_name(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Use the platform description when procfs lacks a model-name field."""
-
-    class _NoModelPath:
-        def __init__(self, *_args: object) -> None:
-            pass
-
-        def read_text(self, *_args: object, **_kwargs: object) -> str:
-            return "processor: 0\n"
-
-    monkeypatch.setattr(rbs, "Path", _NoModelPath)
+def test_cpu_model_falls_back_when_cpuinfo_has_no_model_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Use the platform description when an actual input file has no model name."""
+    cpuinfo = tmp_path / "cpuinfo"
+    cpuinfo.write_text("processor: 0\n", encoding="utf-8")
     monkeypatch.setattr(platform, "processor", lambda: "fallback-cpu")
-    assert _cpu_model() == "fallback-cpu"
+    assert _cpu_model(cpuinfo) == "fallback-cpu"
 
 
 def test_affinity_returns_none_without_sched_getaffinity(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -164,10 +149,9 @@ def test_git_commit_falls_back_on_oserror(monkeypatch: pytest.MonkeyPatch) -> No
     assert _git_commit() == "unknown"
 
 
-def test_rust_release_profile_falls_back_when_manifest_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_rust_release_profile_falls_back_when_manifest_missing(tmp_path: Path) -> None:
     """Return an empty release profile when the workspace manifest is absent."""
-    monkeypatch.setattr(rbs, "RUST_CARGO", Path("/nonexistent/Cargo.toml"))
-    assert _rust_release_profile() == {}
+    assert _rust_release_profile(tmp_path / "missing-Cargo.toml") == {}
 
 
 # ── capacitor benchmark adapter ───────────────────────────────────────
@@ -239,8 +223,8 @@ def test_run_suite_assembles_a_valid_report() -> None:
     assert report["provenance"]["rust_backend"] in {"present", "absent"}
     assert report["benchmarks"]["capacitor_bank_discharge"]["languages"]["python"]["p50_us"] > 0.0
     # payload digest is self-consistent
-    digest = report.pop("payload_sha256")
-    assert digest == rbs._payload_digest(report)
+    digest = report["payload_sha256"]
+    assert digest == rbs._payload_digest({key: value for key, value in report.items() if key != "payload_sha256"})
 
 
 def test_main_writes_report(tmp_path: Path) -> None:

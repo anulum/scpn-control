@@ -10,6 +10,8 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
+from typing import Callable
 
 import pytest
 
@@ -37,7 +39,7 @@ from validation.validate_density_control import (
 
 @pytest.fixture(scope="module")
 def config() -> DensityConfig:
-    """The ITER-like default geometry."""
+    """Build the default bounded particle-balance geometry."""
     return default_config()
 
 
@@ -51,34 +53,42 @@ def result() -> DensityValidationResult:
 
 
 def test_greenwald_limit_matches_closed_form(config: DensityConfig) -> None:
+    """Greenwald limit matches closed form."""
     assert greenwald_limit_rel_error(config) < 1e-12
 
 
 def test_greenwald_fraction_matches_volume_average(config: DensityConfig) -> None:
+    """Greenwald fraction matches volume average."""
     assert greenwald_fraction_rel_error(config) < 1e-12
 
 
 def test_volume_elements_match_closed_form(config: DensityConfig) -> None:
+    """Volume elements match closed form."""
     assert volume_element_rel_error(config) < 1e-12
 
 
 def test_gas_puff_source_conserves_particles(config: DensityConfig) -> None:
+    """Gas puff source conserves particles."""
     assert gas_puff_conservation_rel_error(config) < 1e-9
 
 
 def test_nbi_source_conserves_particles(config: DensityConfig) -> None:
+    """Nbi source conserves particles."""
     assert nbi_conservation_rel_error(config) < 1e-9
 
 
 def test_recycling_source_conserves_particles(config: DensityConfig) -> None:
+    """Recycling source conserves particles."""
     assert recycling_conservation_rel_error(config) < 1e-9
 
 
 def test_cryopump_sink_matches_closed_form(config: DensityConfig) -> None:
+    """Cryopump sink matches closed form."""
     assert cryopump_sink_rel_error(config) < 1e-12
 
 
 def test_diffusion_leaves_uniform_interior_unchanged(config: DensityConfig) -> None:
+    """Diffusion leaves uniform interior unchanged."""
     assert diffusion_uniform_invariance_abs_error(config) == 0.0
 
 
@@ -93,6 +103,7 @@ def test_interferometer_projection_is_even_in_signed_impact(config: DensityConfi
 
 
 def test_greenwald_scaling_laws_are_exact(config: DensityConfig) -> None:
+    """Greenwald scaling laws are exact."""
     checks = {c.name: c for c in greenwald_scaling_checks(config)}
     assert checks["current_linear"].measured_ratio == pytest.approx(2.0, rel=1e-12)
     assert checks["minor_radius_inverse_square"].measured_ratio == pytest.approx(0.25, rel=1e-12)
@@ -103,6 +114,7 @@ def test_greenwald_scaling_laws_are_exact(config: DensityConfig) -> None:
 
 
 def test_overall_validation_passes(result: DensityValidationResult) -> None:
+    """Overall validation passes."""
     assert result.passed is True
     assert result.greenwald_passed is True
     assert result.sources_passed is True
@@ -113,6 +125,7 @@ def test_overall_validation_passes(result: DensityValidationResult) -> None:
 
 
 def test_validation_is_deterministic() -> None:
+    """Validation is deterministic."""
     a = validate_density_control()
     b = validate_density_control()
     assert a.greenwald_limit_rel_error == b.greenwald_limit_rel_error
@@ -140,18 +153,26 @@ def _kwargs() -> dict[str, object]:
     }
 
 
+def _runtime_config(values: dict[str, object]) -> DensityConfig:
+    """Call the production constructor with runtime JSON-like inputs."""
+    constructor: Callable[..., DensityConfig] = DensityConfig
+    return constructor(**values)
+
+
 def test_config_rejects_small_grid() -> None:
+    """Config rejects small grid."""
     kwargs = _kwargs()
     kwargs["n_rho"] = 2
     with pytest.raises(ValueError, match="n_rho must be at least 4"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_non_integer_grid() -> None:
+    """Config rejects non integer grid."""
     kwargs = _kwargs()
     kwargs["n_rho"] = 64.0
     with pytest.raises(ValueError, match="n_rho must be an integer"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_too_few_chords() -> None:
@@ -159,48 +180,54 @@ def test_config_rejects_too_few_chords() -> None:
     kwargs = _kwargs()
     kwargs["n_chords"] = 1
     with pytest.raises(ValueError, match="n_chords must be at least 2"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_non_positive_current() -> None:
+    """Config rejects non positive current."""
     kwargs = _kwargs()
     kwargs["plasma_current_ma"] = 0.0
     with pytest.raises(ValueError, match="plasma_current_ma must be positive"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_non_finite_value() -> None:
+    """Config rejects non finite value."""
     kwargs = _kwargs()
     kwargs["nbi_power_mw"] = float("inf")
     with pytest.raises(ValueError, match="nbi_power_mw must be finite"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_bool_value() -> None:
+    """Config rejects bool value."""
     kwargs = _kwargs()
     kwargs["edge_density_m3"] = True
     with pytest.raises(ValueError, match="edge_density_m3 must be a finite number"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_recycling_coeff_out_of_range() -> None:
+    """Config rejects recycling coeff out of range."""
     kwargs = _kwargs()
     kwargs["recycling_coeff"] = 1.5
     with pytest.raises(ValueError, match="recycling_coeff must lie in"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 def test_config_rejects_minor_not_smaller_than_major() -> None:
+    """Config rejects minor not smaller than major."""
     kwargs = _kwargs()
     kwargs["minor_radius_m"] = 6.2
     with pytest.raises(ValueError, match="minor radius must be smaller"):
-        DensityConfig(**kwargs)  # type: ignore[arg-type]
+        _runtime_config(kwargs)
 
 
 # ── Evidence seal ────────────────────────────────────────────────────
 
 
 def test_evidence_roundtrip_is_sealed_and_passing(result: DensityValidationResult) -> None:
+    """Evidence roundtrip is sealed and passing."""
     evidence = build_evidence(result, target_id="test-target")
     assert evidence["schema_version"] == DENSITY_CONTROL_SCHEMA_VERSION
     assert validate_evidence_payload(evidence) is True
@@ -209,11 +236,14 @@ def test_evidence_roundtrip_is_sealed_and_passing(result: DensityValidationResul
     assert set(evidence["runtime_source_sha256"]) == {
         "src/scpn_control/control/density_controller.py",
         "validation/validate_density_control.py",
+        "validation/density_control_evidence.py",
+        "tools/inventory_file_output.py",
     }
     assert len(evidence["scaling"]) == 2
 
 
 def test_evidence_tamper_is_rejected(result: DensityValidationResult) -> None:
+    """Evidence tamper is rejected."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["greenwald_limit_rel_error"] = 1.0
     with pytest.raises(ValueError, match="payload_sha256 does not match"):
@@ -221,11 +251,13 @@ def test_evidence_tamper_is_rejected(result: DensityValidationResult) -> None:
 
 
 def test_evidence_rejects_empty_target_id(result: DensityValidationResult) -> None:
+    """Evidence rejects empty target id."""
     with pytest.raises(ValueError, match="target_id"):
         build_evidence(result, target_id="   ")
 
 
 def test_evidence_rejects_unknown_schema(result: DensityValidationResult) -> None:
+    """Evidence rejects unknown schema."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["schema_version"] = "scpn-control.unknown.v9"
     with pytest.raises(ValueError, match="unsupported"):
@@ -233,6 +265,7 @@ def test_evidence_rejects_unknown_schema(result: DensityValidationResult) -> Non
 
 
 def test_evidence_rejects_non_hex_seal(result: DensityValidationResult) -> None:
+    """Evidence rejects non hex seal."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["payload_sha256"] = "notadigest"
     with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
@@ -240,6 +273,7 @@ def test_evidence_rejects_non_hex_seal(result: DensityValidationResult) -> None:
 
 
 def test_evidence_rejects_wrong_length_hex_lookalike(result: DensityValidationResult) -> None:
+    """Evidence rejects wrong length hex lookalike."""
     evidence = build_evidence(result, target_id="test-target")
     evidence["payload_sha256"] = "z" * 64
     with pytest.raises(ValueError, match="must be a SHA-256 hex digest"):
@@ -249,7 +283,8 @@ def test_evidence_rejects_wrong_length_hex_lookalike(result: DensityValidationRe
 # ── CLI / report writer ──────────────────────────────────────────────
 
 
-def test_main_text_output_passes(capsys) -> None:
+def test_main_text_output_passes(capsys: pytest.CaptureFixture[str]) -> None:
+    """Main text output passes."""
     import validation.validate_density_control as mod
 
     assert mod.main([]) == 0
@@ -259,7 +294,8 @@ def test_main_text_output_passes(capsys) -> None:
     assert "chords:" in out
 
 
-def test_main_json_output_and_report(capsys, tmp_path) -> None:
+def test_main_json_output_and_report(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+    """Main json output and report."""
     import validation.validate_density_control as mod
 
     report = tmp_path / "dc.json"
@@ -273,10 +309,9 @@ def test_main_json_output_and_report(capsys, tmp_path) -> None:
     assert "Runtime source SHA-256" in markdown
 
 
-def test_main_returns_one_on_failure(monkeypatch, capsys) -> None:
+def test_main_returns_one_on_failure(capsys: pytest.CaptureFixture[str]) -> None:
+    """Fail a genuine precision gate through the public CLI API."""
     import validation.validate_density_control as mod
 
-    # The closed-form errors are exactly zero, so force a Greenwald-limit mismatch.
-    monkeypatch.setattr(mod, "greenwald_limit_rel_error", lambda config: 1.0)
-    assert mod.main([]) == 1
+    assert mod.main(["--exact-tol", "1e-30"]) == 1
     assert "Status: fail" in capsys.readouterr().out

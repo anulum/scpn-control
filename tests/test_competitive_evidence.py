@@ -30,16 +30,19 @@ PAGE = ROOT / "docs/competitive_analysis.md"
 
 
 def _payload() -> dict[str, Any]:
+    """Decode the maintained source registry through its public loader."""
     return check_competitive_evidence.load_manifest(MANIFEST)
 
 
 def _write_manifest(tmp_path: Path, payload: object) -> Path:
+    """Serialise a caller-altered registry to the owned input carrier."""
     path = tmp_path / "competitive_evidence.json"
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
     return path
 
 
 def _write_project(tmp_path: Path, text: str) -> Path:
+    """Persist the selected metadata bytes as the audit's explicit project input."""
     path = tmp_path / "pyproject.toml"
     path.write_text(text, encoding="utf-8")
     return path
@@ -258,3 +261,86 @@ def test_help_is_side_effect_free(tmp_path: Path) -> None:
     assert completed.returncode == 0
     assert "competitive evidence registry" in completed.stdout
     assert tuple(tmp_path.iterdir()) == before
+
+
+@pytest.mark.parametrize("version", ["0.23", "٠.٢٣.٠"])
+def test_actual_project_version_primitive_is_refused_without_changing_inputs(tmp_path: Path, version: str) -> None:
+    """An altered actual metadata/registry/page triple cannot admit a malformed release."""
+    canonical = check_competitive_evidence.load_project_version(ROOT / "pyproject.toml")
+    project = _write_project(
+        tmp_path,
+        (ROOT / "pyproject.toml")
+        .read_text(encoding="utf-8")
+        .replace(f'version = "{canonical}"', f'version = "{version}"', 1),
+    )
+    payload = _payload()
+    payload["project_version"] = version
+    manifest = _write_manifest(tmp_path, payload)
+    page = tmp_path / "competitive_analysis.md"
+    page.write_text(
+        PAGE.read_text(encoding="utf-8") + f"\nAssessed package version: {version}\n",
+        encoding="utf-8",
+    )
+    before = {path: path.read_bytes() for path in (project, manifest, page)}
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(TOOL),
+            "--manifest",
+            str(manifest),
+            "--page",
+            str(page),
+            "--project",
+            str(project),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and not result.stdout and "Traceback" not in result.stderr
+    assert {path: path.read_bytes() for path in before} == before
+    with pytest.raises(ValueError, match="exact major.minor.patch"):
+        check_competitive_evidence.load_project_version(project)
+    assert "project_version must be an exact major.minor.patch release" in (
+        check_competitive_evidence.validate_manifest(payload)
+    )
+
+
+@pytest.mark.parametrize("kind", [[], {}])
+def test_actual_registry_unhashable_kind_is_a_finding_on_api_and_cli(tmp_path: Path, kind: object) -> None:
+    """Valid JSON containers in one actual kind field yield findings without a traceback."""
+    payload = _payload()
+    payload["systems"][1]["artifact_kind"] = kind
+    manifest = _write_manifest(tmp_path, payload)
+    before = manifest.read_bytes()
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--manifest", str(manifest), "--page", str(PAGE), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1 and not result.stderr
+    report = json.loads(result.stdout)
+    assert not report["passed"] and "systems[1].artifact_kind is unsupported" in report["errors"]
+    assert manifest.read_bytes() == before
+    assert "systems[1].artifact_kind is unsupported" in check_competitive_evidence.validate_manifest(payload)
+    assert not check_competitive_evidence.audit(manifest, PAGE)["passed"]
+
+
+@pytest.mark.parametrize("carrier", ["missing", "invalid-json"])
+def test_cli_native_input_failure_uses_fixed_text_without_echoing_the_path(tmp_path: Path, carrier: str) -> None:
+    """Filesystem and decoding failures refuse with authored text and leave inputs alone."""
+    manifest = tmp_path / "caller-private-carrier.json"
+    if carrier == "invalid-json":
+        manifest.write_bytes(MANIFEST.read_bytes()[:-1] + b" invalid JSON\n")
+    before = manifest.read_bytes() if manifest.exists() else None
+    result = subprocess.run(
+        [sys.executable, str(TOOL), "--manifest", str(manifest), "--page", str(PAGE), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and not result.stdout
+    assert result.stderr == "competitive evidence error: inputs could not be inspected\n"
+    assert (manifest.read_bytes() if manifest.exists() else None) == before

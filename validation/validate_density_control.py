@@ -61,12 +61,14 @@ import numpy.typing as npt
 
 from scpn_control.control.density_controller import DensityController, KalmanDensityEstimator, ParticleTransportModel
 
-DENSITY_CONTROL_SCHEMA_VERSION = "scpn-control.density-control-validation.v2"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.inventory_file_output import publish_guarded_outputs
+from validation.density_control_evidence import SCHEMA_VERSION, SOURCE_PATHS, _validate_payload
+
+DENSITY_CONTROL_SCHEMA_VERSION = SCHEMA_VERSION
 _ROOT = Path(__file__).resolve().parents[1]
-_RUNTIME_SOURCE_PATHS = (
-    "src/scpn_control/control/density_controller.py",
-    "validation/validate_density_control.py",
-)
+_RUNTIME_SOURCE_PATHS = SOURCE_PATHS
 
 
 @dataclass(frozen=True)
@@ -88,6 +90,7 @@ class DensityConfig:
     uniform_density_m3: float
 
     def __post_init__(self) -> None:
+        """Validate the finite geometry, actuator and grid domains."""
         _positive_int("n_rho", self.n_rho, minimum=4)
         _positive_int("n_chords", self.n_chords, minimum=2)
         _positive_float("major_radius_m", self.major_radius_m)
@@ -100,6 +103,7 @@ class DensityConfig:
         _positive_float("pump_speed_m3_s", self.pump_speed_m3_s)
         _positive_float("edge_density_m3", self.edge_density_m3)
         _positive_float("uniform_density_m3", self.uniform_density_m3)
+        _finite_float("recycling_coeff", self.recycling_coeff)
         if not 0.0 < self.recycling_coeff <= 1.0:
             raise ValueError("recycling_coeff must lie in (0, 1]")
         if self.minor_radius_m >= self.major_radius_m:
@@ -315,6 +319,8 @@ def validate_density_control(
     ``exact_tol``; the diffusion operator must leave a uniform interior unchanged
     to ``invariance_tol``.
     """
+    exact_tol = _positive_float("exact_tol", exact_tol)
+    invariance_tol = _positive_float("invariance_tol", invariance_tol)
     config = config or default_config()
 
     gw_limit = greenwald_limit_rel_error(config)
@@ -364,7 +370,7 @@ def validate_density_control(
 
 def build_evidence(result: DensityValidationResult, *, target_id: str) -> dict[str, Any]:
     """Build a tamper-evident, schema-versioned validation evidence payload."""
-    if not target_id.strip():
+    if not isinstance(target_id, str) or not target_id.strip():
         raise ValueError("target_id must be non-empty")
     payload: dict[str, Any] = {
         "schema_version": DENSITY_CONTROL_SCHEMA_VERSION,
@@ -417,19 +423,32 @@ def build_evidence(result: DensityValidationResult, *, target_id: str) -> dict[s
         "payload_sha256": "",
     }
     payload["payload_sha256"] = _payload_sha256(payload)
+    validate_evidence_payload(payload)
     return payload
 
 
-def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
-    """Return ``True`` when a payload is well-formed, sealed, and passing."""
-    if payload.get("schema_version") != DENSITY_CONTROL_SCHEMA_VERSION:
-        raise ValueError("unsupported density control evidence schema_version")
-    declared = payload.get("payload_sha256")
-    if not _is_sha256(declared):
-        raise ValueError("payload_sha256 must be a SHA-256 hex digest")
-    if declared != _payload_sha256(payload):
-        raise ValueError("payload_sha256 does not match payload")
-    return bool(payload.get("passed"))
+def validate_evidence_payload(payload: Mapping[str, object]) -> bool:
+    """Check complete v3 fields, finite domains and literal verdict consistency.
+
+    Parameters
+    ----------
+    payload : mapping of str to object
+        Content-hashed declaration with all configuration, metric, scaling and
+        runtime source digest fields. Earlier v2 reports are refused.
+
+    Returns
+    -------
+    bool
+        Literal consistent aggregate result; genuine failed reports return False.
+        Declared hashes do not establish producer authenticity, current source
+        identity, freshness or independent physical/facility/control admission.
+
+    Raises
+    ------
+    ValueError
+        Schema, content hash, fields, domains or verdicts are inconsistent.
+    """
+    return _validate_payload(payload)
 
 
 def _utc_now() -> str:
@@ -453,14 +472,13 @@ def _runtime_source_sha256() -> dict[str, str]:
     }
 
 
-def _is_sha256(value: object) -> bool:
-    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
-
-
 def _finite_float(name: str, value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
@@ -483,7 +501,8 @@ def _positive_int(name: str, value: object, *, minimum: int = 1) -> int:
 
 def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
     """Persist the sealed JSON evidence and a human-readable Markdown summary."""
-    json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    validate_evidence_payload(evidence)
+    json_bytes = (json.dumps(evidence, indent=2, sort_keys=True) + "\n").encode("utf-8")
     md_path = json_path.with_suffix(".md")
     lines = [
         "# Density-Control and Interferometry Validation",
@@ -521,7 +540,25 @@ def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
         "",
         *[f"- `{path}`: `{digest}`" for path, digest in evidence["runtime_source_sha256"].items()],
     ]
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    validation = _ROOT / "validation"
+    protected = tuple(path for path in (*_ROOT.iterdir(), *validation.iterdir()) if path.is_file())
+    roots = tuple(
+        _ROOT / name for name in ("src", "tools", "tests", "docs", "papers", "weights", "scpn-control-rs", ".git")
+    )
+    roots += tuple(path for path in validation.iterdir() if path.is_dir() and path.name != "reports")
+    publish_guarded_outputs(
+        ((json_path, json_bytes), (md_path, ("\n".join(lines) + "\n").encode("utf-8"))),
+        protected_files=protected,
+        protected_roots=roots,
+    )
+
+
+def _threshold(text: str) -> float:
+    """Read a positive finite tolerance with an authored CLI refusal."""
+    try:
+        return _positive_float("tolerance", float(text))
+    except ValueError:
+        raise argparse.ArgumentTypeError("Tolerance must be a finite positive number") from None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -532,13 +569,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--target-id", type=str, default="local-density-control")
     parser.add_argument("--json-out", action="store_true", help="emit the evidence payload as JSON")
     parser.add_argument("--report", type=str, default=None, help="write sealed JSON evidence and a Markdown summary")
+    parser.add_argument("--exact-tol", type=_threshold, default=1e-9, help="positive relative-error tolerance")
+    parser.add_argument("--invariance-tol", type=_threshold, default=1e-12, help="positive uniform-interior tolerance")
     args = parser.parse_args(argv)
 
-    result = validate_density_control()
+    result = validate_density_control(exact_tol=args.exact_tol, invariance_tol=args.invariance_tol)
     evidence = build_evidence(result, target_id=args.target_id)
 
     if args.report:
-        _write_report(evidence, Path(args.report))
+        try:
+            _write_report(evidence, Path(args.report))
+        except (OSError, ValueError, TypeError):
+            print("Density report could not be published", file=sys.stderr)
+            return 2
 
     if args.json_out:
         print(json.dumps(evidence, indent=2, sort_keys=True))

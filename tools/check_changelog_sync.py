@@ -89,15 +89,23 @@ def main(argv: list[str] | None = None) -> int:
     Returns
     -------
     int
-        Zero for byte equality; one for drift, missing files or an OS read
-        failure. Print a PASS or FAIL diagnostic to stdout; argument errors
+        Zero for byte equality; one for drift, missing files, an unresolvable
+        root or an OS read failure. Print a PASS or FAIL diagnostic to stdout; argument errors
         exit two through argparse. No files, Git state or releases are changed.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=ROOT)
     args = parser.parse_args(argv)
 
-    repo = args.repo.resolve()
+    try:
+        try:
+            args.repo.stat()
+        except FileNotFoundError:
+            pass  # Missing roots retain the normal missing-carrier diagnostics.
+        repo = args.repo.resolve()
+    except (OSError, ValueError, RuntimeError):
+        print("FAIL: could not resolve changelog repository")
+        return 1
     try:
         errors = changelog_sync_errors(repo)
     except OSError:

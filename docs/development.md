@@ -2,6 +2,49 @@
 
 ## Local Setup
 
+The validation inventory's supported API remains in
+`tools.validation_report_freshness`: the matrix builder, lifecycle loader,
+timestamp parser and record types retain their public imports. Cohesive modules
+handle lifecycle values, registry/corpus validation, refresh/admission
+declarations, inventory rendering and paired file publication. The public
+`tools.report_inventory_output.write_inventory_outputs` accepts a validated
+matrix and optional JSON/Markdown destinations, with the consumed registry
+explicitly protected. It delegates publication to
+`tools.report_inventory_output.publish_inventory_outputs`, which accepts the
+validated matrix, a tuple of `(Path, bytes)` payloads, the consumed registry,
+and optional additional protected files. The public-claim ledger CLI uses the
+same publisher with its version-one JSON payload. The generic publisher also
+accepts `exclusive_files`, a subset of requested destinations whose names must
+be absent and are atomically created from complete staged sibling bytes.
+Benchmark baseline promotion uses this mode for new history archives and
+receipts, while the baseline remains mutable. The facade retains its public
+imports; cohesive modules inspect source buffers, construct finite declarations
+and apply history/output policy. Exclusive creation has no unsafe overwrite
+fallback, and short sibling names avoid expanding long digest filenames into
+unsupported paths. This mode needs the same actual native/API/CLI recovery gates
+as the default inventory publisher. The matrix adapter derives
+its actual consumed inputs and delegates to
+`tools.inventory_file_output.publish_guarded_outputs(outputs, protected_files=...,
+protected_roots=...)`. This byte publisher is also used directly by the evidence
+gap CLI, without constructing a freshness matrix. `InventoryOutputError` retains
+its canonical `tools.report_inventory_output` import, exception identity and
+pickle address. The evidence gap records similarly retain their public facade
+imports and stored addresses; parsing checks planning metadata without replacing
+the full traceability validator. Its supported
+`build_public_claim_ledger` signature and return schema remain unchanged.
+Use the builder to validate records before rendering;
+record dataclasses do not validate direct construction, and a frozen lifecycle
+record does not deeply freeze its provenance dictionary.
+
+For focused inventory verification, run the retained freshness owner tests and
+the `test_report_lifecycle_*`, `test_report_inventory_*` and
+`test_public_claim_ledger` suites under
+`tests/test_tools/`. They exercise the actual CLI and public APIs against
+maintained evidence copies, input aliases, output pairing and recovery. Runtime
+audit permissions in isolated subprocesses interrupt real filesystem
+publication to test handled failure recovery. These checks do not attest
+scientific experiments or guarantee recovery after power loss.
+
 ### Python
 
 ```bash
@@ -541,15 +584,48 @@ native functions and includes an executable rendering example.
 python tools/check_competitive_evidence.py
 ```
 
-The competitive-evidence gate treats
-`docs/_data/competitive_evidence.json` as the dated source registry for
-`docs/competitive_analysis.md`. Release-backed entries require exact tags and
-commit SHAs; papers require stable DOI sources. The public page must carry every
-source, state the empty numeric-comparison set when no matched protocol is
-admitted, use `not assessed` instead of inferred absence, and exclude ranking
-language and private planning markers. Any quantitative row must declare the
-same problem, inputs, precision, tolerances, convergence, warm-up, samples,
-hardware/load, isolation, failures, and result artifact.
+The gate reads `docs/_data/competitive_evidence.json`,
+`docs/competitive_analysis.md` and `pyproject.toml`. JSON duplicate keys are
+refused at every nesting depth. Package identity must be `scpn-control`; the
+registry and metadata must have the same ASCII `major.minor.patch` version.
+The evidence date must be between today and 120 days ago, inclusive. The API's
+`today` argument fixes the evaluation date; the CLI uses the local calendar.
+
+Release-backed entries require 40-character lowercase hexadecimal SHA strings,
+an allowed HTTPS source host and source paths without the checked moving-ref
+markers. Paper entries require a null SHA. These are declaration checks: the
+gate does not fetch a source, resolve a SHA to a tag, check cited content or run
+a comparison. Artifact dates are parsed without an age or ordering check.
+
+The page is checked for literal date, version, name and URL substrings, the
+empty comparison-set sentence, and the configured ranking/private-marker
+patterns. This includes strings in comments or code blocks. `not assessed` is
+the registry's declared absence state. Quantitative rows must provide the exact
+problem, inputs, precision, tolerances, convergence, warm-up, samples,
+hardware/load, isolation, failures and result-artifact fields with at least two
+trimmed characters of text. Field shape does not establish a matched or
+independently qualified numerical comparison.
+
+The public APIs are `load_manifest`, `load_project_version`,
+`validate_manifest`, `validate_page`, `audit` and `main` in
+`tools.check_competitive_evidence`. For example:
+
+```python
+from tools.check_competitive_evidence import DEFAULT_MANIFEST, DEFAULT_PAGE, audit, load_manifest
+
+registry = load_manifest(DEFAULT_MANIFEST)
+result = audit(DEFAULT_MANIFEST, DEFAULT_PAGE)
+assert result["quantitative_comparison_count"] == len(registry["quantitative_comparisons"])
+```
+
+CLI defaults are script-relative. Explicit `--manifest`, `--page` and
+`--project` paths resolve from caller cwd; replacing one does not replace the
+others. Inputs are read sequentially without locking and are never changed.
+Exit zero means no declaration findings, one means findings, and two means a
+read/decode/value failure. `--json` emits the result on stdout for zero/one;
+input failures emit fixed stderr text and no JSON. API callers receive native
+input errors; malformed URL parsing can raise `ValueError` instead of returning
+a schema finding. Neither API nor CLI writes a report or makes a network call.
 
 ## Python lint scope
 
@@ -647,14 +723,70 @@ python tools/check_studio_deploy_key.py
 python tools/check_studio_offline_sealing.py
 ```
 
-`check_studio_deploy_key.py` validates the tracked Studio deploy public key, the
-CI rsync deploy workflow, and private deploy-key exclusion.
+`check_studio_deploy_key.py` reads the script-relative Studio public-key file and
+the workflow selected by the distributed CI policy. `parse_public_key(line)`
+requires three whitespace-separated fields, the fixed deployment comment,
+ASCII base64, and the Ed25519 wire structure in [RFC 8709 section 4](https://www.rfc-editor.org/rfc/rfc8709.html#section-4):
+the algorithm string and exactly 32 key bytes. `validate_public_key(path)` reads
+the selected UTF-8 carrier; it does not itself check Git membership. These
+checks do not pin a fingerprint, validate a curve point or signature, prove
+private-key possession, or authenticate the deployment host.
+
+`tracked_files(root)` uses NUL-framed Git index names, including non-ASCII and
+whitespace-containing names. `validate_tracked_files(paths)` applies the
+declared key-like basename/suffix exclusions after lowercasing without reading any
+key contents. Declared names include `id_ed25519`, `id_rsa`, `id_ecdsa` and the
+deployment-key name, plus `.pem`/`.key` suffixes. Other extensions, backup suffixes
+and trailing whitespace remain outside this classifier. It does not scan source
+contents, history or untracked files for secrets. `validate_deploy_workflow(path)`
+checks literal substrings; comments can
+satisfy it, and it does not parse or execute the complete YAML. Explicit API
+paths resolve from caller cwd. Inputs are sequential observations, not an
+atomic Git/worktree snapshot.
+
+The source CLI and no-argument `main()` return zero for these local checks or
+one on a caught read/decode/Git/validation failure. Both modes print one fixed
+stdout line; API validators raise specific native/validation exceptions. No
+key generation, private-key read, SSH connection, signing, file write or
+deployment occurs.
 `check_studio_offline_sealing.py` keeps Studio publication signing custody
 offline: workflows, Studio surfaces, docs, and tools must not reference
 Hub/Studio sealing or signing private-key secrets, and tracked policy surfaces
 must not contain private-key blocks. The guard deliberately allows deploy-only
 SSH credentials because they do not sign evidence; sealed evidence keys stay
 with the Studio keeper.
+
+The sealing guard reads NUL-framed Git index names with filesystem decoding.
+`tracked_files(root)` and `validate_policy_files(paths, root)` accept explicit
+repository roots; the standalone command and `main()` retain their no-argument,
+script-relative defaults. Explicit signing/sealing markers override a deploy
+label, and signing/sealing key-like paths remain forbidden below deploy
+directories. A forbidden key-like path is reported without opening its content.
+Transport-only deploy names, including deploy-private names without explicit
+signing/sealing markers, remain allowed.
+
+Policy text uses UTF-8, accepting a leading byte-order mark. Undecodable known
+text formats, workflow paths and maintained text basenames refuse; other opaque
+binary formats retain their skip behaviour. This includes binary image/video
+assets and the supported `.bin` case. Valid UTF-8 files still receive the
+existing lexical reference/private-block checks. The guard does not parse a
+complete workflow schema, inspect unknown opaque contents, scan untracked files
+or history, inspect remote secrets, or prove actual key roles or cryptographic
+keeper custody. Index and worktree observations are not an atomic snapshot.
+Literal secret names are checked in dot and quoted-index forms; GitHub documents
+both [context access forms](https://docs.github.com/en/actions/reference/workflows-and-actions/contexts#available-contexts).
+Dynamic or malformed secret indexes refuse because their names cannot be
+classified. The scanner does not evaluate expressions or workflow execution.
+Workflow key-shaped tokens include quoted names and flow mappings. These are
+lexical findings, so matching text inside comments or script strings can also
+refuse; this is not a complete YAML environment parser.
+
+The CLI returns one and prints violation counts while withholding contextual
+findings. Caught native IO/Git/decode/path failures return one with fixed stdout
+`FAIL: Studio sealing policy files could not be inspected`; native exception
+text and private paths are not printed. Successful lexical checks retain status
+zero with `PASS: Studio offline-sealing lexical checks passed`. The success line
+reports lexical scanning. No signing, deployment or publication occurs.
 
 ---
 
@@ -707,6 +839,9 @@ return status one; present-file read and UTF-8 decode errors retain their native
 exception behaviour. Success does not mean the paper has been submitted or
 accepted. Paths come from the resolved script location, independent of caller
 working directory; the standalone script has no option parser.
+The no-argument guard has no environment or path-constant configuration API.
+Its diagnostic paths are lexically contained in the script-derived repository;
+changing module globals is outside this contract.
 
 The guard runs in local preflight and CI lint. Its public API and real fixture
 CLI checks are documented in the [API reference](api.md#joss-local-editorial-and-citation-guard).
@@ -816,3 +951,70 @@ older MAST data profiles use Zarr 2, and FUSION requires NumPy below 2. The
 `tool.uv.conflicts` declaration preserves these separate resolutions in
 `uv.lock`; selecting incompatible extras together is refused. This does not
 change an existing installed environment or admit acquired data for training.
+
+## PyPI download history
+
+`python tools/pypi_downloads.py --print-package` reads the PEP 621 package
+identity without fetching or writing. Snapshot mode requires `--csv`; the
+scheduled writer adds `--project-csv-only` to require `scpn-control` and the
+lexical relative path `downloads/scpn-control.csv`. It publishes only that
+metrics branch CSV, separately from source history.
+
+The fixed HTTPS endpoint returns an overall-downloads object with the exact
+package identity, canonical ISO dates and non-negative integer counts. Each
+day requires `with_mirrors`; absent `without_mirrors` stays blank in CSV.
+Duplicate JSON members or day/category pairs, malformed fields and reversed
+mirror ordering refuse the update. HTTP media type must be exactly
+`application/json`, with optional parameters. Counts remain upstream
+declarations; local fixtures and tests do not independently measure downloads.
+
+Four transient attempts use a 30-second socket timeout and 15, 30 and 60
+second delays. The nominal 225-second arithmetic is not a total wall deadline:
+multiple socket operations or supplied callbacks can take longer. The scheduled
+job supplies its separate ten-minute limit. Exhausted transient failures
+soft-skip with exit zero and preserve existing history; permanent refusals and
+caught native failures return one.
+
+Authored validation refusals are displayed. Native input, decoding, HTTP and
+CSV failures never contribute exception text to CLI output. A validated
+snapshot upserts complete days into validated history, writes sorted sparse
+rows to a sibling file, flushes and fsyncs, then replaces the destination.
+Handled replacement failure preserves existing bytes and removes staging when
+possible. Cooperating writers own directory custody; this is single-file
+publication, without a crash recovery or hostile concurrent-writer guarantee.
+
+
+## Local release metadata and publication
+
+`tools/publish.py` retains the local release workflow: read/bump metadata, run
+pytest unless `--skip-tests`, replace the selected distribution directory,
+invoke `tools/build_release_artifacts.py`, run Twine metadata checks and upload
+unless `--dry-run`. TestPyPI is the default. PyPI upload requires `--confirm`.
+Dry-run still performs all preceding operations, including a requested bump;
+it is not a read-only preview. A later failure does not restore the old version.
+
+`read_version()` selects the nonempty string at `project.version` by parsing
+complete TOML. Duplicate fields, malformed UTF-8/TOML and missing/non-string
+versions refuse. `bump_version(part)` delegates to `tools.publish_metadata`;
+major/minor/patch require plain three-component decimal versions without
+leading zeroes or a suffix. Quoted, dotted and inline declarations resolve by
+reparsing candidate token edits. Other metadata tokens/comments and newline
+spelling remain unchanged. Unrelated NaN values remain valid TOML values.
+The singleton replacement enforces exactly one matching project version token;
+its parsed document must equal the original except for that field.
+
+The metadata writer checks unchanged input before guarded per-file atomic
+publication; symlink outputs and protected source aliases refuse. Handled
+failures preserve predecessors, while callers coordinate concurrent changes.
+There is no crash transaction or hostile-writer guarantee. Other release
+carriers, including citation, Zenodo, README/API versions and release notes,
+need separate reconciliation; this command does not invent release history.
+
+Distribution selection requires a real directory and nonempty regular files
+ending in `.whl` or `.tar.gz`. Spaces and metacharacters remain one argv entry;
+selection does not validate archives or authenticate issuers. Twine owns later
+metadata/archive checks. Cleanup refuses linked/non-directory roots and source
+namespaces. Native workflow faults receive a fixed CLI refusal; supported
+index names are exact and unknown direct `upload(target)` calls refuse before
+file/process access. The direct upload API requires operator authority and
+credentials; the CLI confirmation flag is not an authentication mechanism.

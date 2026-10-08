@@ -24,35 +24,31 @@ digest-verifying explicit promotion tool may change a regression baseline.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import importlib.util
 import json
 import os
-import platform
-import subprocess
 import sys
 import time
-import tomllib
+from collections.abc import Callable
 from pathlib import Path
 from types import ModuleType
-from typing import Any, Callable
-
-from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign
-
-try:
-    import resource
-except ModuleNotFoundError:  # pragma: no cover - resource is Unix-only (absent on Windows).
-    resource = None  # type: ignore[assignment]
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RUST_CARGO = REPO_ROOT / "scpn-control-rs" / "Cargo.toml"
 
 
 def _ensure_repo_on_path(search_path: list[str] | None = None) -> None:
-    """Put the repo root and `src` on the import path for standalone runs.
+    """Insert the source tree and harness root once for standalone invocation.
 
-    Makes the in-repo `benchmarks` harnesses and the `scpn_control` package
-    importable when this runner is invoked directly rather than via pytest.
+    Parameters
+    ----------
+    search_path : list of str or None, optional
+        List to update, or sys.path when omitted. Existing entries retain order.
+
+    Notes
+    -----
+    This changes only import lookup. It does not install packages or authenticate
+    loaded sources; scientific dependencies must already be available.
     """
     target = sys.path if search_path is None else search_path
     for path in (REPO_ROOT, REPO_ROOT / "src"):
@@ -62,78 +58,105 @@ def _ensure_repo_on_path(search_path: list[str] | None = None) -> None:
 
 _ensure_repo_on_path()
 
+import scpn_control
+from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign
+from tools.benchmark_suite_metrics import (
+    AdapterResult,
+    BenchmarkBlock,
+    SuiteReport,
+    SuiteReportBody,
+    check_suite_settings,
+    checked_adapter_result,
+    checked_mapping,
+)
+from tools.benchmark_suite_metrics import (
+    BenchmarkSuiteRefusal as BenchmarkSuiteRefusal,
+)
+from tools.benchmark_suite_metrics import (
+    _language_metrics as _language_metrics,
+)
+from tools.benchmark_suite_metrics import (
+    _payload_digest as _payload_digest,
+)
+from tools.inventory_file_output import InventoryOutputError, publish_guarded_outputs
+from validation.report_output_paths import checked_report_destination
+
+
+def _protected_suite_inputs() -> tuple[Path, ...]:
+    """List producer, harness, manifest and baseline files protected from publication.
+
+    Returns
+    -------
+    tuple of pathlib.Path
+        Existing and reserved selected input spellings. Native input aliases are
+        checked before timing and again before complete byte publication.
+
+    Notes
+    -----
+    These sequential checks require cooperating writers; they are not a sandbox.
+    """
+    return (
+        Path(__file__),
+        Path(__file__).with_name("benchmark_suite_metrics.py"),
+        Path(__file__).with_name("benchmark_suite_provenance.py"),
+        RUST_CARGO,
+        REPO_ROOT / "benchmarks/bench_capacitor_bank_energy.py",
+        REPO_ROOT / "benchmarks/baselines/capacitor_bank.json",
+        REPO_ROOT / "benchmarks/regression_thresholds.toml",
+        Path(scpn_control.__file__).parent / "control/capacitor_bank_state.py",
+        REPO_ROOT / "scpn-control-rs/crates/control-control/src/capacitor_bank.rs",
+        REPO_ROOT / "scpn-control-rs/Cargo.lock",
+    )
+
+
+import platform
+
+from tools.benchmark_suite_provenance import (
+    _affinity as _affinity,
+)
+from tools.benchmark_suite_provenance import (
+    _cpu_model as _cpu_model,
+)
+from tools.benchmark_suite_provenance import (
+    _git_commit as _git_commit,
+)
+from tools.benchmark_suite_provenance import (
+    _loadavg as _loadavg,
+)
+from tools.benchmark_suite_provenance import (
+    _peak_rss_mb as _peak_rss_mb,
+)
+from tools.benchmark_suite_provenance import (
+    _rust_release_profile as _rust_release_profile,
+)
+
 REPORT_SCHEMA = "scpn-control.benchmark-regression.v1"
 
 
-def _cpu_model() -> str:
-    try:
-        for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines():
-            if line.startswith("model name"):
-                return line.split(":", 1)[1].strip()
-    except OSError:
-        pass
-    return platform.processor() or "unknown"
-
-
-def _affinity() -> list[int] | None:
-    try:
-        return sorted(os.sched_getaffinity(0))
-    except AttributeError:
-        return None
-
-
-def _loadavg() -> list[float] | None:
-    try:
-        return list(os.getloadavg())
-    except (OSError, AttributeError):  # getloadavg is absent on Windows.
-        return None
-
-
-def _git_commit() -> str:
-    try:
-        out = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO_ROOT, capture_output=True, text=True, check=False)
-        return out.stdout.strip() or "unknown"
-    except OSError:
-        return "unknown"
-
-
-def _rust_release_profile() -> dict[str, Any]:
-    """Read the workspace [profile.release] so flags are recorded, not guessed."""
-    try:
-        with RUST_CARGO.open("rb") as handle:
-            data = tomllib.load(handle)
-        profile: dict[str, Any] = data.get("profile", {}).get("release", {})
-        return profile
-    except (OSError, tomllib.TOMLDecodeError):
-        return {}
-
-
-def _peak_rss_mb() -> float:
-    if resource is None:  # pragma: no cover - Windows has no resource module.
-        return 0.0
-    # ru_maxrss is kibibytes on Linux.
-    return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0, 1)
-
-
-def _language_metrics(stats: dict[str, Any]) -> dict[str, float]:
-    """Map a harness stats block to the gate's metric names."""
-    mean_us = float(stats["mean_us"])
-    throughput = 1.0e6 / mean_us if mean_us > 0.0 else 0.0
-    return {
-        "p50_us": float(stats["median_us"]),
-        "p95_us": float(stats["p95_us"]),
-        "p99_us": float(stats["p99_us"]),
-        "throughput_ops_s": throughput,
-    }
-
-
 def _load_control_benchmark_module(module_file_name: str) -> ModuleType:
-    """Load a CONTROL ``benchmarks/*.py`` harness by file path.
+    """Load an owning CONTROL harness by its source-tree file path.
 
-    Dual-home environments often put SCPN-FUSION-CORE on ``sys.path``. FUSION
-    ships a regular ``benchmarks`` package (``__init__.py``), which shadows the
-    CONTROL harness namespace and breaks ``import benchmarks.*``. Path-based
-    loading keeps this runner bound to the CONTROL tree.
+    Parameters
+    ----------
+    module_file_name : str
+        Harness filename under this source root's benchmarks directory.
+
+    Returns
+    -------
+    types.ModuleType
+        Loaded or process-cached harness, independent of a sibling benchmarks package.
+
+    Raises
+    ------
+    ImportError
+        Import machinery cannot create a file specification.
+    OSError, Exception
+        Native module loading or module initialization fails.
+
+    Notes
+    -----
+    Callers select maintained harness names; the process cache is not an immutable
+    source snapshot or authentication mechanism.
     """
     harness_path = Path(__file__).resolve().parent.parent / "benchmarks" / module_file_name
     module_name = f"_scpn_control_bench_{harness_path.stem}"
@@ -148,49 +171,106 @@ def _load_control_benchmark_module(module_file_name: str) -> ModuleType:
     return module
 
 
-def _capacitor_bank_discharge(steps: int, warmup: int) -> dict[str, Any]:
-    """Polyglot capacitor-bank discharge benchmark via the existing harness."""
+def _capacitor_bank_discharge(steps: int, warmup: int) -> AdapterResult:
+    """Delegate actual capacitor timing and normalize the consumed statistics.
+
+    Parameters
+    ----------
+    steps : int
+        Number of measured samples.
+    warmup : int
+        Number of unrecorded samples before timing.
+
+    Returns
+    -------
+    dict of str to object
+        Per-language metrics, the declared three-energy parity and Rust availability.
+
+    Raises
+    ------
+    BenchmarkSuiteRefusal
+        Consumed harness maps or latency statistics are malformed.
+    Exception
+        Native harness execution fails.
+
+    Notes
+    -----
+    The existing kernel uses200discharge steps at1e-7seconds. Timing, RLC dynamics
+    and parity arithmetic stay in the harness; declarations do not grant admission.
+    """
     bench = _load_control_benchmark_module("bench_capacitor_bank_energy.py")
     _measure = bench._measure
 
-    measured = _measure(steps=steps, warmup=warmup, discharge_steps=200, dt_s=1.0e-7)
-    languages_raw = measured["languages"]
-    languages: dict[str, Any] = {"python": _language_metrics(languages_raw["python"]["stats"])}
+    observed: object = _measure(steps=steps, warmup=warmup, discharge_steps=200, dt_s=1.0e-7)
+    measured = checked_mapping(observed, "harness result")
+    languages_raw = checked_mapping(measured.get("languages"), "harness languages")
+    python = checked_mapping(languages_raw.get("python"), "Python measurement")
+    languages = {"python": _language_metrics(checked_mapping(python.get("stats"), "Python statistics"))}
     rust = languages_raw.get("rust")
-    parity = languages_raw.get("cross_language_parity")
     if rust is not None:
-        languages["rust"] = _language_metrics(rust["stats"])
-    return {
-        "languages": languages,
-        "cross_language_parity": parity,
-        "rust_available": rust is not None,
-    }
+        block = checked_mapping(rust, "Rust measurement")
+        languages["rust"] = _language_metrics(checked_mapping(block.get("stats"), "Rust statistics"))
+    return checked_adapter_result(
+        {
+            "languages": languages,
+            "cross_language_parity": languages_raw.get("cross_language_parity"),
+            "rust_available": rust is not None,
+        }
+    )
 
 
 # name -> callable(steps, warmup) -> {"languages": {...}, ...}
-BENCHMARKS: dict[str, Callable[[int, int], dict[str, Any]]] = {
+BENCHMARKS: dict[str, Callable[[int, int], object]] = {
     "capacitor_bank_discharge": _capacitor_bank_discharge,
 }
 
 
-def _payload_digest(payload: dict[str, Any]) -> str:
-    serialised = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
-    return hashlib.sha256(serialised).hexdigest()
+def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str, generated_utc: str) -> SuiteReport:
+    """Measure selected adapters and build a finite digest-bound V1 report.
 
+    Parameters
+    ----------
+    names : list of str
+        Nonempty distinct registered benchmark names, in execution order.
+    steps : int
+        Positive integer measured sample count, excluding bool.
+    warmup : int
+        Nonnegative integer unrecorded sample count, excluding bool.
+    evidence_class : str
+        Nonblank caller declaration, not an independently qualified claim level.
+    generated_utc : str
+        Caller-supplied timezone-aware UTC receipt string.
 
-def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str, generated_utc: str) -> dict[str, Any]:
-    """Run selected benchmark adapters and assemble a digest-bound report."""
+    Returns
+    -------
+    dict of str to object
+        V1 report with checked consumed metrics, declared host context, optional
+        campaign and SHA256. Production claims remain false.
+
+    Raises
+    ------
+    BenchmarkSuiteRefusal
+        Settings or consumed adapter declarations are inconsistent or nonfinite.
+    Exception
+        Measurement, provenance capture or finite serialization fails.
+
+    Notes
+    -----
+    This API writes no report or baseline. Real timing varies with execution
+    conditions. A digest authenticates neither source, host nor measured physics.
+    """
+    check_suite_settings(names, steps, warmup, evidence_class, generated_utc, registered=BENCHMARKS)
     load_start = _loadavg()
-    benchmarks: dict[str, Any] = {}
+    benchmarks: dict[str, BenchmarkBlock] = {}
     rust_seen = False
     for name in names:
-        result = BENCHMARKS[name](steps, warmup)
-        rust_seen = rust_seen or result.get("rust_available", False)
+        result = checked_adapter_result(BENCHMARKS[name](steps, warmup))
+        rust_seen = rust_seen or result["rust_available"]
         benchmarks[name] = {
             "languages": result["languages"],
             "cross_language_parity": result.get("cross_language_parity"),
         }
-    report = {
+    report: SuiteReportBody = {
         "schema_version": REPORT_SCHEMA,
         "campaign_id": os.environ.get(CAMPAIGN_ENV),
         "generated_utc": generated_utc,
@@ -212,12 +292,35 @@ def run_suite(*, names: list[str], steps: int, warmup: int, evidence_class: str,
         "settings": {"steps": steps, "warmup": warmup},
         "benchmarks": benchmarks,
     }
-    report["payload_sha256"] = _payload_digest(report)
-    return report
+    return SuiteReport(**report, payload_sha256=_payload_digest(report))
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the command-line benchmark suite and optionally write its report."""
+    """Execute a selected suite and publish one protected complete JSON report.
+
+    Parameters
+    ----------
+    argv : list of str or None, optional
+        Process arguments when omitted; default400samples and40warmup iterations.
+
+    Returns
+    -------
+    int
+        Zero after a completed suite/publication; one after authored refusal or
+        a caught native settings, measurement or output failure.
+
+    Raises
+    ------
+    SystemExit
+        Argument parsing requested help or refused malformed options/unknown names.
+
+    Notes
+    -----
+    No output path prints finite sorted JSON. Persistent paths retain recorded-
+        campaign custody; input aliases refuse before timing. Publication uses sibling
+    staging/fsync/replacement with handled-failure recovery, not crash atomicity or
+    hostile concurrency protection. Baseline promotion remains separate.
+    """
     parser = argparse.ArgumentParser(description="Run the polyglot benchmark suite.")
     parser.add_argument("--benchmarks", nargs="*", default=list(BENCHMARKS))
     parser.add_argument("--steps", type=int, default=400)
@@ -229,22 +332,32 @@ def main(argv: list[str] | None = None) -> int:
     unknown = [b for b in args.benchmarks if b not in BENCHMARKS]
     if unknown:
         parser.error(f"unknown benchmark(s): {', '.join(unknown)}")
-    if args.json_out is not None:
-        require_recorded_campaign(args.json_out, repository_root=REPO_ROOT)
-
-    report = run_suite(
-        names=args.benchmarks,
-        steps=args.steps,
-        warmup=args.warmup,
-        evidence_class=args.evidence_class,
-        generated_utc=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-    )
-
-    if args.json_out is not None:
-        args.json_out.parent.mkdir(parents=True, exist_ok=True)
-        args.json_out.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    if args.json_out is None:
-        print(json.dumps(report, indent=2, sort_keys=True))
+    generated_utc = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+    try:
+        check_suite_settings(
+            args.benchmarks, args.steps, args.warmup, args.evidence_class, generated_utc, registered=BENCHMARKS
+        )
+        if args.json_out is not None:
+            checked_report_destination(args.json_out, inputs=_protected_suite_inputs())
+            require_recorded_campaign(args.json_out, repository_root=REPO_ROOT)
+        report = run_suite(
+            names=args.benchmarks,
+            steps=args.steps,
+            warmup=args.warmup,
+            evidence_class=args.evidence_class,
+            generated_utc=generated_utc,
+        )
+        payload = (json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n").encode("utf-8")
+        if args.json_out is not None:
+            publish_guarded_outputs(((args.json_out, payload),), protected_files=_protected_suite_inputs())
+        else:
+            print(payload.decode("utf-8"), end="")
+    except (BenchmarkSuiteRefusal, InventoryOutputError) as exc:
+        print(f"benchmark suite FAILED: {exc}", file=sys.stderr)
+        return 1
+    except Exception:
+        print("benchmark suite FAILED: inputs, measurement or output could not be processed", file=sys.stderr)
+        return 1
     return 0
 
 

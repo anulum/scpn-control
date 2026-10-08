@@ -661,6 +661,16 @@ python tools/publish.py --target testpypi               # upload to TestPyPI
 python tools/publish.py --bump minor --target pypi --confirm  # version bump + PyPI
 ```
 
+The local command reads the actual `project.version` from complete TOML metadata.
+`--bump` changes only that field and preserves unrelated metadata and comments;
+it accepts plain `major.minor.patch` versions. Reconcile `CITATION.cff`,
+`.zenodo.json`, API/version documentation and release notes separately before a
+release. `--dry-run` omits upload but still runs tests, replaces `dist`, builds
+and checks distributions, and may change metadata when used with `--bump`.
+`--skip-tests` omits only pytest. A later failure does not undo a version bump.
+PyPI upload requires `--confirm`; unknown direct API targets refuse before
+artifact inspection or process launch.
+
 CI workflow `.github/workflows/publish-pypi.yml` handles tag-triggered trusted
 publishing (no tokens needed).
 

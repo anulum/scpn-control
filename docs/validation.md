@@ -1233,8 +1233,40 @@ remaining flux at `tau_flat`, the ramp/flat-top/ramp-down scenario decomposition
 and the budget margin, the `V_loop dt` consumption integrator, and the uniform
 linear ramp optimiser — all to machine precision. The bootstrap-current proxy
 remains a documented rough scaling outside this exact-closed-form scope. This
-validates the flux-accounting physics; facility pulse-design or central-solenoid
-commissioning claims still require measured loop-voltage or scenario references.
+checks the declared bounded model's algebra; facility pulse-design or central-solenoid
+commissioning claims still require independent measured references and their
+source/metric qualification.
+
+The v1 consumer now requires the complete schema, valid circuit configuration,
+finite nonnegative errors, positive tolerances, known unique scaling laws and
+literal boolean verdicts consistent with every metric. A well-formed failing
+report returns `False`; missing, contradictory or malformed fields raise an
+authored `ValueError` even when their content hash is valid. The SHA-256 field
+checks content consistency; it does not establish a producer, source revision,
+freshness, experimental provenance or facility/control admission.
+
+For zero analytical phase flux, relative errors use the available positive flux
+budget as their reference scale. Ordinary nonzero references keep their prior
+normalisation. Zero loop voltage similarly uses the flux budget for consumption
+error and unit scale for the dimensionless fraction. The zero phase and
+zero-consumption cases are computed, rather than omitted. Iteration counts and
+ramp segment counts must define a nonempty integration and a two-point ramp.
+
+The existing API tolerances are also available as `--exact-tol` (default `1e-9`)
+and `--margin-abs-tol` (default `1e-6` volt-seconds). Both must be finite and
+positive. Choosing a stricter tolerance can produce a genuine failed report;
+these declarations do not replace any external acceptance threshold. CLI status
+is 0 for agreement, 1 for a failed declared gate and 2 for invalid arguments or
+report publication refusal.
+
+JSON and Markdown reports are validated before guarded publication. Source,
+configuration and reference-data paths are protected; the documented
+`validation/reports/` output directory remains available. Destinations must be
+distinct regular files. Each replacement is atomic; handled failures recover
+unchanged predecessors, without a crash-transaction or concurrent-writer claim.
+`validation.volt_second_models`, `volt_second_evidence` and `volt_second_report`
+own the records, report checks and publication; the original
+`validation.validate_volt_second` public exports remain available.
 
 Density-control particle-balance evidence against exact closed forms can be
 regenerated with:
@@ -1244,7 +1276,7 @@ python -m validation.validate_density_control \
   --report validation/reports/density_control.json
 ```
 
-The produced JSON uses `scpn-control.density-control-validation.v1` and binds its
+The produced JSON uses `scpn-control.density-control-validation.v3` and binds its
 own payload by SHA-256. It checks the production `ParticleTransportModel` and
 `DensityController` against their exact closed forms: the Greenwald limit
 `n_GW = I_p/(pi a^2)` (with linear `I_p` and inverse-square `a` scaling), the
@@ -1256,8 +1288,29 @@ cryopump edge sink, and the finite-volume diffusion operator vanishing on a
 spatially uniform interior — all to machine precision. The pellet
 neutral-gas-shielding ablation profile remains a separate bounded model outside
 this exact-closed-form scope. This validates the particle-balance physics;
-facility-calibrated fuelling or exhaust claims still require measured
-particle-balance references.
+facility-calibrated fuelling or exhaust claims still require independent measured
+particle-balance references and their source/metric qualification.
+
+Density v3 requires the complete configuration, finite nonnegative errors,
+positive tolerances, both known Greenwald scaling laws and literal stage/aggregate
+verdicts consistent with every metric. A valid content hash alone cannot admit
+missing or contradictory data. Earlier v2 declarations are refused: v3 records
+the additional checker and guarded publisher source digests. These labels and
+hashes are declarations, not producer authentication, verified current source,
+freshness, independent physical provenance or facility/control admission.
+
+The existing tolerances are available through `--exact-tol` (default `1e-9`)
+and `--invariance-tol` (default `1e-12`), both finite and positive. CLI status0
+means agreement with the declared bounded model, status1 a failed declared
+tolerance and status2 invalid arguments or report publication refusal. The
+original numerical functions and particle-balance model remain unchanged.
+
+JSON/Markdown output pairs are checked before guarded per-file atomic
+publication. Source, configuration and reference-data namespaces are protected;
+`validation/reports/` remains the documented output directory. Handled failures
+recover unchanged predecessors, without a crash-transaction or concurrent
+hostile-writer guarantee. Boolean recycling coefficients are refused as invalid
+numbers rather than treated as one.
 
 The density claim evidence helper records numerical comparison separately from
 facility admission in schema version 2. A caller can supply its own reference
@@ -1341,6 +1394,25 @@ clear the tracker work package with real external-code, facility, benchmark, or
 hardware evidence, then update `validation/physics_traceability.json` and
 regenerate `docs/physics_traceability.md`.
 
+`build_evidence_gap_matrix(registry)` validates the fields consumed by planning:
+known fidelity statuses, positive nonboolean issue numbers, unique tracker IDs,
+boolean claim declarations, and nonblank strings. JSON with repeated member
+names or nonfinite numbers is refused. Finite unused metadata remains supported.
+Missing or unresolved positive tracker links remain visible through
+`untracked_open_entries`; planning does not execute the full source/path/marker
+validator or independently authenticate evidence or physical fidelity.
+The public record imports and stored pickle addresses remain in
+`tools.evidence_gap_matrix`.
+
+The gap CLI protects its consumed registry, the command and selected repository's
+lifecycle registry and claim ledger, and their report/refresh namespaces.
+Symlink or nonregular outputs, aliases to protected files and overlapping output
+paths are refused before publication. Distinct JSON/Markdown files share the
+same staged publication and handled-failure recovery described below. JSON
+stdout takes precedence when both stdout modes are requested. Metadata and
+output refusals use authored field-level messages; other caught read/decode or
+publication failures return a fixed sentence without interpreter details.
+
 The validation report freshness inventory uses
 `scpn-control.validation-report-freshness.v2` and consumes the versioned
 `scpn-control.validation-report-lifecycle.v1` registry in
@@ -1350,6 +1422,47 @@ lifecycle bucket, evidence class, refresh state, provenance fields, and an
 explicit fail-closed claim boundary. The immutable source payload can therefore
 remain historical even when it predates embedded claim metadata; the registry
 records that source limitation separately instead of rewriting the artifact.
+
+Inventory generation reads report, refresh and registry bytes without changing
+them. A relative reports root is first anchored to the working directory. Its
+lexical containing directory determines the refresh repository root for both
+reading and output protection. Linking the reports directory to another corpus
+does not relocate the refresh tree to that link's target repository.
+Both file-output options reject those input files, their hard links and
+the report/refresh namespaces, as well as symlinks, nonregular destinations
+and two options resolving to the same file. Freshness output also protects
+`validation/public_claim_ledger.json` in both the command's repository and the
+selected reports root's containing repository, including an absent ledger's
+reserved path and hard links to an existing ledger. Existing regular inventory outputs
+outside those namespaces may be replaced. Both requested formats are staged
+before replacement. Directory identities also protect aliased input namespaces.
+The writer checks again after creating output parents and before replacing a
+later destination. This detects aliases that become visible only when the first
+new output exists, including names on case-insensitive volumes. A handled
+publication failure restores predecessor bytes
+or removes newly published files. If recovery cannot finish or another writer
+changes a published output, staging and predecessor files are retained for
+inspection. Replacement is atomic per file; this does not provide a transaction
+across a power loss or hostile concurrent namespace changes. Concurrent callers
+must coordinate publication themselves.
+The shared byte publisher can also create selected immutable output names
+exclusively from complete staging files. Existing/racing names remain intact;
+unsupported filesystem operations fail without an overwrite fallback.
+
+`--max-age-days` selects a nonnegative integer advisory window, including broad
+historical windows. It does not rewrite or waive the registry's recorded
+21-day policy. Invalid timestamps, including an explicitly blank `--as-of`,
+are refused before output publication. Authored lifecycle/output refusals may
+describe the rejected declaration; other caught input and output exceptions
+return fixed messages without native exception text. With `--fail-on-stale`,
+an otherwise valid inventory is published before the stale exit status is
+returned.
+
+The reader verifies available report/refresh digests and consistency of
+declared provenance and claim boundaries. It does not resolve declared Git
+objects, attest host identity, execute preserved commands, recompute a producer
+payload seal or independently establish scientific admission. Missing
+owner-local artifacts remain indexed by their frozen declarations.
 
 Classification is declarative, not inferred from filenames or report prose.
 The three lifecycle buckets are `rerunnable_local`,
@@ -1392,6 +1505,21 @@ through documentation or release prose.
 python tools/public_claim_ledger.py
 python tools/public_claim_ledger.py --check
 ```
+
+The ledger CLI validates one matrix and publishes its complete UTF-8 payload
+through the same guarded writer as the freshness inventory. Its output cannot
+replace consumed registry/report/refresh files, their aliases or the reserved
+report/refresh namespaces. Existing regular ledger outputs elsewhere may be
+replaced with the shared staging, backup and handled-failure recovery described
+above. `--check` only reads and compares; it does not create or replace output.
+Authored lifecycle and output refusals return status one with their deliberate
+messages. Other caught input/output errors return status one with
+`Public claim ledger inputs or output could not be inspected`.
+
+The ledger records validated admission declarations; it does not establish
+independent experimental truth. It rereads the registry for its byte digest
+after validating the matrix. Callers must coordinate input changes because
+these reads are not an atomic snapshot of concurrent registry updates.
 
 Z3-backed SCPN formal evidence is published as schema-versioned JSON and
 Markdown. The JSON uses `scpn-control.z3-formal-report.v2`, binds the proof
@@ -4293,3 +4421,9 @@ source-checkout environment. `mast-data`, `all` and `dev` use the Zarr 2 convers
 profile and cannot be combined with it. Follow the linked API's installation and
 source-module command; dependency installation alone does not prove upstream
 availability, an immutable chunk snapshot or original acquisition provenance.
+
+The checked-in `validation/reports/density_control.json` remains a historical
+v2 artifact with public claims disabled in the lifecycle registry. Generate a
+separate v3 report with the current validator; the v3 consumer refuses that
+older schema. A successful bounded calculation alone does not admit it as
+current scientific or control evidence.

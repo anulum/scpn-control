@@ -6,7 +6,15 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Competitive evidence manifest and public-page gate.
 
-"""Validate the dated competitive evidence registry and its public rendering."""
+"""Validate the dated competitive evidence registry and its public rendering.
+
+This reads local JSON, TOML and UTF-8 Markdown without fetching cited sources,
+resolving commit SHAs or running a quantitative comparison. Version/date/field
+checks and literal page-presence checks establish declaration consistency, not
+the truth of a competitor assessment. Defaults are script-relative; explicit
+paths are relative to caller cwd. Inputs are read sequentially without locking.
+The CLI writes only stdout/stderr and refuses input failures with fixed text.
+"""
 
 from __future__ import annotations
 
@@ -60,7 +68,7 @@ COMPARISON_FIELDS: Final = frozenset(
 )
 FULL_SHA: Final = re.compile(r"[0-9a-f]{40}")
 SYSTEM_ID: Final = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*")
-VERSION: Final = re.compile(r"v\d+\.\d+(?:\.\d+)?")
+VERSION: Final = re.compile(r"v[0-9]+\.[0-9]+\.[0-9]+")
 FORBIDDEN_TONE: Final = re.compile(
     r"\b(?:superior|inferior|best[- ]in[- ]class|beats?|crush(?:es|ed)?|"
     r"no competitor|uniquely dominant|obsolete)\b",
@@ -73,7 +81,13 @@ PRIVATE_MARKER: Final = re.compile(
 
 
 class AuditResult(TypedDict):
-    """Stable machine-readable competitive-evidence audit result."""
+    """Declaration findings, selected paths and counts from the loaded registry.
+
+    ``passed`` means ``errors`` is empty. Counts describe supplied lists, even
+    when findings exist; they are not independently qualified evidence totals.
+    Paths retain their supplied spelling. This result is not signed or a proof
+    that cited sources, comparison results or page claims are correct.
+    """
 
     schema: str
     passed: bool
@@ -96,7 +110,12 @@ def _unique_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def load_manifest(path: Path) -> dict[str, Any]:
-    """Load a duplicate-key-safe competitive evidence manifest."""
+    """Decode a UTF-8 JSON object, refusing duplicate keys at any nesting depth.
+
+    Return the mutable decoded mapping without semantic validation or a digest.
+    Filesystem and decoding errors propagate. ``ValueError`` covers duplicate
+    keys and a non-object root; duplicate-key errors include the supplied key.
+    """
     payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
     if not isinstance(payload, dict):
         raise ValueError("competitive evidence manifest must be a JSON object")
@@ -104,7 +123,14 @@ def load_manifest(path: Path) -> dict[str, Any]:
 
 
 def load_project_version(path: Path) -> str:
-    """Return the exact SCPN Control version from project metadata."""
+    """Read an ASCII major.minor.patch version for the named SCPN package.
+
+    TOML must identify ``project.name = "scpn-control"`` and provide three
+    decimal components without a leading ``v``. Return the original spelling;
+    this does not apply packaging-version normalisation or fetch a release.
+    Filesystem/TOML errors propagate; invalid identity/version raises
+    ``ValueError`` with an authored message.
+    """
     with path.open("rb") as stream:
         payload = tomllib.load(stream)
     project = payload.get("project")
@@ -117,6 +143,7 @@ def load_project_version(path: Path) -> str:
 
 
 def _parse_date(value: object, label: str, errors: list[str]) -> date | None:
+    """Parse the standard-library ISO date forms or append the labelled finding."""
     if not isinstance(value, str):
         errors.append(f"{label} must be an ISO date")
         return None
@@ -128,11 +155,35 @@ def _parse_date(value: object, label: str, errors: list[str]) -> date | None:
 
 
 def _meaningful(value: object, minimum: int = 20) -> bool:
+    """Check trimmed string length without interpreting its evidential meaning."""
     return isinstance(value, str) and len(value.strip()) >= minimum
 
 
 def validate_manifest(payload: dict[str, Any], *, today: date | None = None) -> list[str]:
-    """Return every deterministic manifest-contract error."""
+    """Collect schema, age, version, entry and comparison-declaration findings.
+
+    Parameters
+    ----------
+    payload : dict
+        Decoded registry, inspected without mutation. System/comparison fields
+        must match their declared sets; other top-level fields are not rejected.
+    today : date, optional
+        Evaluation day. Defaults to the local calendar date; evidence ages from
+        zero through 120 days are accepted. Artifact dates are parsed only.
+
+    Returns
+    -------
+    list of str
+        Findings in check order. Source SHAs are syntax-checked; admitted HTTPS
+        hosts and path markers are checked without fetching or SHA resolution.
+        A complete quantitative row checks field shape and text length, without
+        comparing results, participants or tolerances. No ranking is established.
+
+    Notes
+    -----
+    Malformed URL strings can raise ``ValueError`` from the URL parser rather
+    than becoming a finding. The CLI maps such failures to status two.
+    """
     errors: list[str] = []
     current_date = today or date.today()
     if payload.get("schema") != SCHEMA:
@@ -184,14 +235,14 @@ def validate_manifest(payload: dict[str, Any], *, today: date | None = None) -> 
         if not _meaningful(name, 2):
             errors.append(f"{label}.name is required")
         kind = system.get("artifact_kind")
-        if kind not in ALLOWED_KINDS:
+        if not isinstance(kind, str) or kind not in ALLOWED_KINDS:
             errors.append(f"{label}.artifact_kind is unsupported")
         assessed_version = system.get("assessed_version")
         if not _meaningful(assessed_version, 4):
             errors.append(f"{label}.assessed_version is required")
         _parse_date(system.get("artifact_date"), f"{label}.artifact_date", errors)
         commit_sha = system.get("commit_sha")
-        if kind in {"release", "repository-snapshot"} and (
+        if kind in ("release", "repository-snapshot") and (
             not isinstance(commit_sha, str) or FULL_SHA.fullmatch(commit_sha) is None
         ):
             errors.append(f"{label}.commit_sha must bind source evidence")
@@ -217,7 +268,7 @@ def validate_manifest(payload: dict[str, Any], *, today: date | None = None) -> 
                     errors.append(f"{label}.source_urls must use HTTPS")
                 elif urlsplit(url).hostname not in PRIMARY_SOURCE_HOSTS:
                     errors.append(f"{label}.source_urls must use an admitted primary-source host")
-                elif kind in {"release", "repository-snapshot"} and (
+                elif kind in ("release", "repository-snapshot") and (
                     "/latest" in url or "/main/" in url or "/master/" in url
                 ):
                     errors.append(f"{label}.source_urls must bind the assessed release")
@@ -244,7 +295,14 @@ def validate_manifest(payload: dict[str, Any], *, today: date | None = None) -> 
 
 
 def validate_page(page: str, payload: dict[str, Any]) -> list[str]:
-    """Return public-rendering errors against the admitted manifest."""
+    """Collect literal page-presence, vocabulary and disclosure findings.
+
+    Expected dates, versions, system names and URLs are tested as substrings,
+    including text in comments or code blocks. The fixed ranking/private-marker
+    regexes do not constitute semantic review. Empty comparisons require the
+    declared empty-set sentence. No Markdown rendering, URL fetching or input
+    mutation occurs; malformed registry types are handled by manifest validation.
+    """
     errors: list[str] = []
     if str(payload.get("as_of")) not in page:
         errors.append("public page must display the manifest evidence date")
@@ -286,7 +344,24 @@ def audit(
     *,
     today: date | None = None,
 ) -> AuditResult:
-    """Audit the manifest and page as one public evidence surface."""
+    """Inspect the selected registry, metadata and page as one declaration set.
+
+    Read the registry, collect its findings, read package metadata, compare its
+    exact version, then inspect the page. Relative paths resolve from caller cwd;
+    replacing manifest/page paths does not change the script-relative default
+    project metadata path. Files are observed sequentially, without mutation or
+    a snapshot guarantee. Native input failures propagate to API callers.
+
+    Return an ``AuditResult`` containing both finding sets and supplied-list
+    counts. ``passed`` establishes local declaration consistency only.
+
+    Examples
+    --------
+    >>> registry = load_manifest(DEFAULT_MANIFEST)
+    >>> result = audit(DEFAULT_MANIFEST, DEFAULT_PAGE)
+    >>> result["quantitative_comparison_count"] == len(registry["quantitative_comparisons"])
+    True
+    """
     payload = load_manifest(manifest_path)
     errors = validate_manifest(payload, today=today)
     project_version = load_project_version(project_path)
@@ -308,7 +383,13 @@ def audit(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the competitive evidence audit and return a shell status."""
+    """Audit selected files and return zero/pass, one/findings or two/input failure.
+
+    ``--json`` emits ``AuditResult`` on stdout for zero/one; text mode sends
+    findings to stderr. Caught filesystem, decoding, TOML/JSON and value errors
+    produce fixed stderr text and no JSON. No report file or remote request is
+    created. Argparse help/usage follows its native ``SystemExit`` behaviour.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     parser.add_argument("--page", type=Path, default=DEFAULT_PAGE)
@@ -317,8 +398,8 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         result = audit(args.manifest, args.page, args.project)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError, tomllib.TOMLDecodeError, ValueError) as exc:
-        print(f"competitive evidence error: {exc}", file=sys.stderr)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError, tomllib.TOMLDecodeError, ValueError):
+        print("competitive evidence error: inputs could not be inspected", file=sys.stderr)
         return 2
     if args.as_json:
         print(json.dumps(result, indent=2, sort_keys=True))

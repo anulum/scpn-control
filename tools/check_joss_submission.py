@@ -64,23 +64,25 @@ _TITLE_RE = re.compile(r"^title:\s*['\"]?(.+?)['\"]?\s*$", re.MULTILINE)
 
 
 def _relative(path: Path) -> str:
-    """Format a path relative to the script's repository when possible.
+    """Format a diagnostic path owned by the script's repository.
 
     Parameters
     ----------
     path : pathlib.Path
-        Diagnostic path; no symlink resolution is performed here.
+        Repository-contained diagnostic path; no symlink resolution occurs.
 
     Returns
     -------
     str
-        POSIX repository-relative spelling, or the original POSIX spelling
-        when the path is outside the repository.
+        POSIX repository-relative spelling for the guard's fixed input paths.
+
+    Raises
+    ------
+    ValueError
+        The supplied path is outside the repository. Such paths are not part
+        of the public no-argument guard's fixed-input contract.
     """
-    try:
-        return path.relative_to(ROOT).as_posix()
-    except ValueError:
-        return path.as_posix()
+    return path.relative_to(ROOT).as_posix()
 
 
 def _read_text(path: Path, errors: list[str]) -> str:
@@ -171,7 +173,7 @@ def _missing_markers(label: str, text: str, markers: tuple[str, ...]) -> list[st
     Returns
     -------
     list[str]
-        One diagnostic per absent normalized marker; this is not a semantic
+        One diagnostic per absent normalised marker; this is not a semantic
         assessment of the claims surrounding a present marker.
     """
     normalized = _normalize_prose(text)

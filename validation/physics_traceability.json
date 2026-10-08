@@ -485,7 +485,7 @@
         "tests/test_rzip_model.py calibration evidence, facility-claim admission, and persisted evidence checks",
         "validation/benchmark_rzip_calibration.py bounded local RZIP calibration benchmark",
         "validation/reports/rzip_calibration.json bounded local calibration report with evidence payload digest",
-        "validation/validate_rzip_vertical_stability.py validates the production state-space growth rate against the exact no-wall rigid-mode eigenvalue sqrt(-K/M_eff), the stable-index oscillation frequency, the growth-time identity, exact Ip/index/inertia scaling laws, and resistive-wall stabilisation, with tamper-evident sealed evidence",
+        "validation/validate_rzip_vertical_stability.py validates the production state-space growth rate against the exact no-wall rigid-mode eigenvalue sqrt(-K/M_eff), the stable-index oscillation frequency, the growth-time identity, exact Ip/index/inertia scaling laws, and resistive-wall stabilisation, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_rzip_vertical_stability_validation.py no-wall growth, oscillation-frequency, scaling-law, wall-stabilisation, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -536,7 +536,7 @@
         "tests/test_rwm_feedback.py claim-evidence provenance, external tolerance admission, and invalid-domain checks",
         "validation/benchmark_rwm_claims.py bounded local RWM claim-admission benchmark",
         "validation/reports/rwm_claims.json bounded local RWM claim report",
-        "validation/validate_rwm_feedback.py validates the Bondeson-Ward growth rate, wall-gap tau_eff, Fitzpatrick rotation stabilisation, critical-rotation marginality, required-feedback-gain marginalisation, ideal-kink and no-wall boundaries, and 1/tau_wall scaling against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_rwm_feedback.py validates the Bondeson-Ward growth rate, wall-gap tau_eff, Fitzpatrick rotation stabilisation, critical-rotation marginality, required-feedback-gain marginalisation, ideal-kink and no-wall boundaries, and 1/tau_wall scaling against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_rwm_feedback_validation.py growth-rate, rotation, critical-rotation, feedback-marginality, boundary, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -719,9 +719,9 @@
         "tests/test_halo_validation_paths.py validation-path guard checks",
         "validation/benchmark_disruption_mitigation_claims.py deterministic bounded halo/runaway claim-admission benchmark",
         "validation/validate_disruption_reference.py provenance and declared-metric metadata validator; it does not independently recompute comparisons",
-        "validation/validate_runaway_electron.py validates the Connor-Hastie critical and Dreicer fields, the collision and avalanche time constants, the impurity-aware critical field, and the Rosenbluth-Putvinski avalanche growth rate (threshold, linearity, and RMP deconfinement) against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_runaway_electron.py validates the Connor-Hastie critical and Dreicer fields, the collision and avalanche time constants, the impurity-aware critical field, and the Rosenbluth-Putvinski avalanche growth rate (threshold, linearity, and RMP deconfinement) against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_runaway_electron_validation.py critical-field, Dreicer, avalanche-rate, threshold, linearity, scaling, and evidence-seal checks",
-        "validation/validate_halo_current.py validates the Fitzpatrick halo L/R circuit (halo resistance, halo inductance, mutual inductance, and L/R time constant), the halo-resistance scaling laws, the electromagnetic wall force and toroidal-peaking product, and the fast-circuit quasi-static tracking limit against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_halo_current.py validates the Fitzpatrick halo L/R circuit (halo resistance, halo inductance, mutual inductance, and L/R time constant), the halo-resistance scaling laws, the electromagnetic wall force and toroidal-peaking product, and the fast-circuit quasi-static tracking limit against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_halo_current_validation.py halo-resistance, inductance, mutual-inductance, time-constant, scaling-law, wall-force, TPF-product, quasi-static-tracking, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -766,7 +766,7 @@
         "validation/validate_halo_current.py schema-versioned digest-bound Fitzpatrick halo L/R circuit, scaling-law, wall-force, TPF, and quasi-static-tracking validator",
         "validation/reports/halo_current.json sealed exact-closed-form halo-circuit and quasi-static evidence",
         "validation/reports/halo_current.md human-readable halo-circuit, load, and quasi-static-tracking summary",
-        "tests/test_halo_current_validation.py halo-circuit, scaling, wall-force, TPF, quasi-static, configuration-guard, and tamper checks",
+        "tests/test_halo_current_validation.py halo-circuit, scaling, wall-force, TPF, quasi-static, configuration-guard, malformed-content and consistency checks",
         "The static reference metadata validator is insufficient for admission; the public claim builder, assertion, and saver reject unverified promotion"
       ],
       "validity_domain": "Bounded halo-current and runaway-electron ensemble regression plus fail-closed disruption-mitigation claim-admission evidence, with the production Connor-Hastie critical and Dreicer fields, collision and avalanche time constants, impurity-aware critical field, Rosenbluth-Putvinski avalanche growth rate, and the Fitzpatrick halo L/R circuit (halo resistance, inductance, mutual inductance, time constant, scaling laws, wall force, toroidal-peaking product, and fast-circuit quasi-static tracking) now validated against their exact closed forms to machine precision; not measured disruption-campaign, external-MHD, or facility mitigation validation unless strict reference artifacts pass declared tolerances.",
@@ -960,7 +960,7 @@
         "validation/benchmark_density_control_claims.py publishes deterministic bounded synthetic claim evidence with explicit facility-calibrated claim exclusion",
         "validation/reports/density_control_claims.json records bounded geometry, transport, actuator, diagnostic, CFL, Greenwald, source-integral, and inventory evidence",
         "validation/validate_density_reference.py strict density reference artefact gate",
-        "validation/validate_density_control.py validates the Greenwald limit I_p/(pi a^2), the volume-averaged Greenwald fraction, the circular flux-surface volume elements V' and V, the gas-puff, neutral-beam, and recycling source normalisation (particle conservation of the source integral), the cryopump edge sink, the diffusion operator vanishing on a uniform interior, the Greenwald scaling laws, and the exact uniform-density circular chord projection and signed-impact symmetry, with tamper-evident sealed evidence and runtime source SHA-256",
+        "validation/validate_density_control.py validates the Greenwald limit I_p/(pi a^2), the volume-averaged Greenwald fraction, the circular flux-surface volume elements V' and V, the gas-puff, neutral-beam, and recycling source normalisation (particle conservation of the source integral), the cryopump edge sink, the diffusion operator vanishing on a uniform interior, the Greenwald scaling laws, and the exact uniform-density circular chord projection and signed-impact symmetry, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget and runtime source SHA-256",
         "tests/test_density_control_validation.py Greenwald-limit, Greenwald-fraction, volume-element, source-conservation, cryopump-sink, diffusion-invariance, interferometer-projection, scaling-law, configuration-guard, runtime-source-digest, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1275,7 +1275,7 @@
         "tests/test_burn_controller.py alpha-heating, Lawson, burn-fraction, profile-domain, control, and claim-admission checks",
         "validation/validate_burn_reference.py strict burn-control reference artifact gate",
         "validation/benchmark_burn_control_claims.py bounded claim-admission benchmark",
-        "validation/validate_burn_control.py validates the alpha-energy partition E_fus/E_alpha = 5, the alpha power density (n_e/2)^2 <sigma v> E_alpha, the alpha-power volume integral, the energy gain Q = 5 P_alpha/P_aux with its ignition limits, the Lawson triple product and ignition margin, the burn fraction, the reactivity-exponent centred finite difference, and the energy-gain/Lawson/burn-fraction scaling laws against exact closed forms (holding the separately validated Bosch-Hale reactivity as the shared input), with tamper-evident sealed evidence",
+        "validation/validate_burn_control.py validates the alpha-energy partition E_fus/E_alpha = 5, the alpha power density (n_e/2)^2 <sigma v> E_alpha, the alpha-power volume integral, the energy gain Q = 5 P_alpha/P_aux with its ignition limits, the Lawson triple product and ignition margin, the burn fraction, the reactivity-exponent centred finite difference, and the energy-gain/Lawson/burn-fraction scaling laws against exact closed forms (holding the separately validated Bosch-Hale reactivity as the shared input), with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_burn_control_validation.py energy-partition, power-density, volume-integral, energy-gain, ignition-limit, Lawson, burn-fraction, reactivity-exponent, scaling-law, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1297,7 +1297,7 @@
         "validation/validate_burn_control.py schema-versioned digest-bound alpha-power, energy-gain, Lawson, burn-fraction, and reactivity-exponent validator",
         "validation/reports/burn_control.json sealed exact-closed-form burn-control algebra evidence",
         "validation/reports/burn_control.md human-readable alpha-power, Lawson, and stability summary",
-        "tests/test_burn_control_validation.py energy-partition, power-density, volume-integral, energy-gain, Lawson, burn-fraction, reactivity-exponent, scaling, configuration-guard, and tamper checks"
+        "tests/test_burn_control_validation.py energy-partition, power-density, volume-integral, energy-gain, Lawson, burn-fraction, reactivity-exponent, scaling, configuration-guard, malformed-content and consistency checks"
       ],
       "validity_domain": "Bounded DT burn-control and alpha-heating regression plus fail-closed claim-admission evidence, with the production alpha-energy partition, alpha power density, alpha-power volume integral, energy gain and ignition limits, Lawson triple product and margin, burn fraction, and reactivity-exponent finite difference now validated against their exact closed forms to machine precision (the Bosch-Hale DT reactivity is validated separately and held as the shared input); not a validated reactor burn-control design unless strict reference artifacts pass declared tolerances.",
       "external_validation_tracker_issue": 51
@@ -1323,7 +1323,7 @@
         "tests/test_volt_second_manager.py flux budget, scenario analysis, bootstrap-profile, domain-boundary, and claim-admission checks",
         "validation/validate_volt_second_reference.py strict volt-second reference artifact gate",
         "validation/benchmark_volt_second_claims.py bounded claim-admission benchmark",
-        "validation/validate_volt_second.py validates the inductive flux L_p I_p, the Ejima startup flux C_E mu0 R0 I_p, the resistive ramp integral, the flat-top budget closure (flat-top resistive consumption equals remaining flux at tau_flat), the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling laws against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_volt_second.py validates the inductive flux L_p I_p, the Ejima startup flux C_E mu0 R0 I_p, the resistive ramp integral, the flat-top budget closure (flat-top resistive consumption equals remaining flux at tau_flat), the ramp/flat-top/ramp-down scenario decomposition and margin, the consumption integrator, the linear ramp optimiser, and the inductive and Ejima flux scaling laws against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_volt_second_validation.py inductive-flux, Ejima-flux, resistive-ramp, flat-top-closure, scenario-decomposition, consumption-integrator, ramp-optimiser, scaling-law, configuration-guard, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1351,9 +1351,9 @@
       ],
       "evidence": [
         "validation/validate_volt_second.py schema-versioned digest-bound inductive, Ejima, resistive, flat-top-closure, decomposition, integrator, optimiser, and scaling validator",
-        "validation/reports/volt_second.json sealed exact-closed-form flux-budget evidence",
+        "validation/reports/volt_second.json content-hashed bounded exact-closed-form flux-budget declarations",
         "validation/reports/volt_second.md human-readable flux-relation, optimiser, and margin summary",
-        "tests/test_volt_second_validation.py flux-relation, decomposition, integrator, optimiser, scaling, configuration-guard, and tamper checks"
+        "tests/test_volt_second_validation.py flux-relation, decomposition, integrator, optimiser, scaling, configuration-guard, malformed-content and consistency checks"
       ],
       "validity_domain": "Scenario-level volt-second accounting regression plus fail-closed claim-admission evidence, with the production inductive flux, Ejima startup flux, resistive ramp integral, flat-top budget closure, scenario flux decomposition, consumption integrator, linear ramp optimiser, and inductive/Ejima scaling laws now validated against their exact closed forms to machine precision; not a validated pulse-design or central-solenoid commissioning model while the current structural reference validator has no independent byte-pinned source and recomputed metrics.",
       "external_validation_tracker_issue": 51
@@ -1381,7 +1381,7 @@
         "tests/test_integrated_transport_solver.py",
         "tests/test_transport_energy_conservation.py",
         "tests/test_transport_neoclassical_guards.py",
-        "validation/validate_transport_diffusion.py validates the production cylindrical heat-diffusion operator against the exact Bessel eigenvalue and the Crank-Nicolson tridiagonal solve against a manufactured steady state, both at second order, and checks Python/Rust Thomas-solver parity, with tamper-evident sealed evidence",
+        "validation/validate_transport_diffusion.py validates the production cylindrical heat-diffusion operator against the exact Bessel eigenvalue and the Crank-Nicolson tridiagonal solve against a manufactured steady state, both at second order, and checks Python/Rust Thomas-solver parity, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_transport_diffusion_validation.py operator-eigenvalue, manufactured-steady-state, Python/Rust Thomas-parity, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1558,7 +1558,7 @@
       "validation_evidence": [
         "tests/test_momentum_transport.py verifies NBI torque direction, viscous diffusion damping, implicit bounded collisional damping, fail-closed damping-profile validation, force-balance helpers, and diagnostic guards",
         "tests/test_momentum_integration.py",
-        "validation/validate_momentum_transport.py validates the NBI torque, the Hinton-Hazeltine radial electric field (constant and linear pressure), the Burrell E x B shearing rate, the Biglari-Diamond-Terry suppression factor, the Rice intrinsic-rotation scaling, and the toroidal Mach number against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_momentum_transport.py validates the NBI torque, the Hinton-Hazeltine radial electric field (constant and linear pressure), the Burrell E x B shearing rate, the Biglari-Diamond-Terry suppression factor, the Rice intrinsic-rotation scaling, and the toroidal Mach number against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_momentum_transport_validation.py NBI-torque, force-balance, E x B-shearing, Rice-scaling, Mach, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1608,7 +1608,7 @@
         "validation/validate_eped_reference.py strict digest-bound EPED pedestal reference gate",
         "tests/test_cross_module_physics.py",
         "tests/test_transport_hmode_edge.py",
-        "validation/validate_eped_pedestal.py validates the q95 formula, alpha-inversion pedestal pressure, poloidal-beta definition, ideal-gas temperature, collisionality width narrowing, shaping-factor reference, and the KBM width constraint against exact construction relations, with tamper-evident sealed evidence",
+        "validation/validate_eped_pedestal.py validates the q95 formula, alpha-inversion pedestal pressure, poloidal-beta definition, ideal-gas temperature, collisionality width narrowing, shaping-factor reference, and the KBM width constraint against exact construction relations, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_eped_pedestal_validation.py construction-relation, collisionality, shaping, KBM-fixed-point, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1659,7 +1659,7 @@
         "tests/test_integrated_scenario.py",
         "tests/test_elm_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_elm_reference.py strict digest-bound ELM/RMP reference gate",
-        "validation/validate_elm_peeling_ballooning.py validates the ballooning and peeling limits and scalings, the elliptical peeling-ballooning boundary margin and flag consistency, and the Type-I ELM crash energy conservation (W_post = (1-f) W_ped) against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_elm_peeling_ballooning.py validates the ballooning and peeling limits and scalings, the elliptical peeling-ballooning boundary margin and flag consistency, and the Type-I ELM crash energy conservation (W_post = (1-f) W_ped) against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_elm_peeling_ballooning_validation.py ballooning, peeling-scaling, elliptical-boundary, crash-energy, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1707,7 +1707,7 @@
         "tests/test_marfe.py",
         "tests/test_marfe_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_marfe_reference.py strict digest-bound MARFE reference gate",
-        "validation/validate_marfe_onset.py validates the Greenwald limit, bounded MARFE density-limit scaling, edge connection length, radiation-condensation critical density, onset cooling-slope membership, stability-diagram boundary, and front-temperature detector thresholds against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_marfe_onset.py validates the Greenwald limit, bounded MARFE density-limit scaling, edge connection length, radiation-condensation critical density, onset cooling-slope membership, stability-diagram boundary, and front-temperature detector thresholds against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "validation/reports/marfe_onset.json sealed exact-closed-form MARFE evidence",
         "validation/reports/marfe_onset.md human-readable MARFE onset and density-limit summary",
         "validation/benchmark_marfe_onset_claims.py bounded local-regression benchmark with production_claim_allowed=false",
@@ -1759,7 +1759,7 @@
         "tests/test_ntm_reference_validation.py strict reference-artifact admission checks",
         "validation/validate_ntm_reference.py strict digest-bound NTM reference gate",
         "tests/test_cross_module_physics.py",
-        "validation/validate_ntm_island_dynamics.py validates the production Modified Rutherford Equation solver against the exact classical-only separable trajectory and the closed-form classical+bootstrap saturated-width fixed point, with tamper-evident sealed evidence",
+        "validation/validate_ntm_island_dynamics.py validates the production Modified Rutherford Equation solver against the exact classical-only separable trajectory and the closed-form classical+bootstrap saturated-width fixed point, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_ntm_island_dynamics_validation.py classical-trajectory, saturated-width-attractor, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1809,7 +1809,7 @@
         "tests/test_current_drive.py ECCD, LHCD, and NBI deposition, scaling, source superposition, total-current integration, and claim-admission checks",
         "validation/validate_current_drive_reference.py strict current-drive reference artifact gate",
         "validation/benchmark_current_drive_claims.py bounded claim-admission benchmark",
-        "validation/validate_current_drive.py validates grid-normalised deposition power conservation, the deposition centroid, the Stix critical energy and slowing-down formulae and scalings, the Prater ECCD efficiency and launch-angle maximisation, the ECCD/LHCD driven-current proportionality, and the neutral-beam current chain against exact closed forms, with tamper-evident sealed evidence",
+        "validation/validate_current_drive.py validates grid-normalised deposition power conservation, the deposition centroid, the Stix critical energy and slowing-down formulae and scalings, the Prater ECCD efficiency and launch-angle maximisation, the ECCD/LHCD driven-current proportionality, and the neutral-beam current chain against exact closed forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_current_drive_validation.py deposition-conservation, Stix-formula, Prater-efficiency, j_cd-proportionality, NBI-chain, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -1860,7 +1860,7 @@
         "tests/test_stability_mhd.py",
         "tests/test_ballooning_solver.py",
         "tests/test_cross_module_physics.py",
-        "validation/validate_mhd_stability.py validates the Troyon beta_N limit and scalings, the Mercier interchange index, the Connor-Hastie-Taylor ballooning boundary, and the Kruskal-Shafranov criterion against exact closed forms with consistent stability flags, with tamper-evident sealed evidence",
+        "validation/validate_mhd_stability.py validates the Troyon beta_N limit and scalings, the Mercier interchange index, the Connor-Hastie-Taylor ballooning boundary, and the Kruskal-Shafranov criterion against exact closed forms with consistent stability flags, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_mhd_stability_validation.py Troyon, Mercier, ballooning, Kruskal-Shafranov, and evidence-seal checks",
         "validation/validate_stability_mhd_ballooning.py cross-checks the analytic s-alpha ballooning boundary against a structurally independent NUMERICAL solve of the ballooning ODE (validation/ballooning_independent_reference.py): the analytic alpha_crit(s) approximation tracks the numerically resolved marginal boundary to within ~5% across the first-stability regime s in [0.5, 2.0] (low-shear second stability excluded and recorded)"
       ],
@@ -1939,7 +1939,7 @@
       "unit_contract": "Normalised radius dimensionless, temperature in keV, density in 10^19 m^-3, q dimensionless, helical-flux proxy dimensionless, and major/minor radii in metres.",
       "validation_evidence": [
         "tests/test_sawtooth.py crash, trigger, monitor, and cycle checks",
-        "validation/validate_sawtooth_kadomtsev.py validates volume-integral energy and particle conservation, the helical-flux mixing condition, profile flattening and q reset inside the mixing radius, outside invariance, the analytic q=1-radius convergence, and the no-crash guard against exact references, with tamper-evident sealed evidence",
+        "validation/validate_sawtooth_kadomtsev.py validates volume-integral energy and particle conservation, the helical-flux mixing condition, profile flattening and q reset inside the mixing radius, outside invariance, the analytic q=1-radius convergence, and the no-crash guard against exact references, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_sawtooth_kadomtsev_validation.py conservation, helical-flux, flattening, outside-invariance, q1-convergence, no-crash, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -2084,7 +2084,7 @@
       "validation_evidence": [
         "tests/test_disruption_sequence.py post-quench cooling, phase ordering, current quench, runaway, and halo-force checks",
         "tests/test_disruption_safe_api.py",
-        "validation/validate_disruption_sequence.py validates the bounded phase-ordering, total-duration, wall-heat-load, current-trace, halo-force, post-TQ temperature, and SPI mitigation-branch contracts against exact repository-owned identities, with tamper-evident sealed evidence",
+        "validation/validate_disruption_sequence.py validates the bounded phase-ordering, total-duration, wall-heat-load, current-trace, halo-force, post-TQ temperature, and SPI mitigation-branch contracts against exact repository-owned identities, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_disruption_sequence_validation.py exact phase-order, current-trace, mitigation-branch, CLI, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -2134,7 +2134,7 @@
         "tests/test_fusion_kernel.py",
         "tests/test_geqdsk_regression.py",
         "tests/test_rust_python_parity.py",
-        "validation/validate_grad_shafranov_solovev.py production discrete-operator, SOR-solver, and Python-multigrid second-order convergence against the exact Solov'ev equilibrium with tamper-evident sealed evidence plus informational Rust multigrid record",
+        "validation/validate_grad_shafranov_solovev.py production discrete-operator, SOR-solver, and Python-multigrid second-order convergence against the exact Solov'ev equilibrium with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget plus informational Rust multigrid record",
         "tests/test_grad_shafranov_solovev_validation.py analytic-identity, operator-convergence, SOR-reconstruction, Python-multigrid reconstruction, Rust-backend-record, and evidence-seal checks"
       ],
       "evidence_paths": [
@@ -2158,7 +2158,7 @@
         "validation/reports/grad_shafranov_solovev.md human-readable convergence and backend summary",
         "tests/test_grad_shafranov_solovev_validation.py digest, tamper, analytic-identity, convergence-order, and unconverged-budget checks"
       ],
-      "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with tamper-evident sealed evidence; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding now reconstruct the same analytic equilibrium to the second-order discretisation floor (the V-cycle defect sign was corrected and the Rust binding is fed the negated forcing for its -Delta*psi sign convention). Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
+      "validity_domain": "The production discrete Grad-Shafranov operator (FusionKernel._apply_gs_operator, sharing the _mg_residual stencil) and the production Red-Black SOR smoother (_sor_step) are validated to second-order convergence against the exact Solov'ev analytic equilibrium with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget; the Python _multigrid_vcycle and the Rust py_multigrid_solve binding now reconstruct the same analytic equilibrium to the second-order discretisation floor (the V-cycle defect sign was corrected and the Rust binding is fed the negated forcing for its -Delta*psi sign convention). Local equilibrium-kernel regression and analytic-benchmark convergence only; not a facility-grade equilibrium reconstruction claim against EFIT or GEQDSK.",
       "external_validation_tracker_issue": 48
     },
     {
@@ -2379,7 +2379,7 @@
       "unit_contract": "SI metres, seconds, tesla, electronvolts, kg, coulombs, pitch angle in radians on [0, pi], and ensemble probabilities dimensionless.",
       "validation_evidence": [
         "tests/test_orbit_following.py verifies guiding-centre domain checks, classifier boundaries, Stix slowing-down, banana-width scaling, first-orbit-loss scaling, ensemble counts, and fail-closed orbit-following claim evidence admission",
-        "validation/validate_guiding_centre_conservation.py integrates the production GuidingCenterOrbit RK4 stepper in a static analytic axisymmetric field and verifies exact conservation of kinetic energy and canonical toroidal momentum over passing and trapped orbits for deuterons and 3.5 MeV alphas, with tamper-evident sealed evidence",
+        "validation/validate_guiding_centre_conservation.py integrates the production GuidingCenterOrbit RK4 stepper in a static analytic axisymmetric field and verifies exact conservation of kinetic energy and canonical toroidal momentum over passing and trapped orbits for deuterons and 3.5 MeV alphas, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_guiding_centre_conservation_validation.py divergence-free-field, energy/momentum-conservation, passing/trapped-coverage, degenerate-baseline, and evidence-seal checks",
         "validation/benchmark_orbit_following_claims.py publishes deterministic bounded synthetic claim evidence with explicit external-code claim exclusion",
         "validation/reports/orbit_following_claims.json records bounded geometry, particle, collision, loss-boundary, banana-width, first-orbit-loss, and ensemble-count evidence",
@@ -2470,7 +2470,7 @@
       "unit_contract": "SI metres, tesla, pascals, amperes, webers, dimensionless rotational transform, and Fourier coefficients with declared length units.",
       "validation_evidence": [
         "tests/test_vmec_lite.py verifies finite spectral reconstruction, bounded force residuals, physical domains, and fail-closed VMEC-lite claim evidence admission",
-        "validation/validate_vmec_lite_geometry.py validates spectral mode count, direct Fourier evaluation, axisymmetric boundary coefficients, fixed-boundary radial scaling, q/iota reciprocity, B-coefficient construction, and positive sampled major radius against exact repository forms, with tamper-evident sealed evidence",
+        "validation/validate_vmec_lite_geometry.py validates spectral mode count, direct Fourier evaluation, axisymmetric boundary coefficients, fixed-boundary radial scaling, q/iota reciprocity, B-coefficient construction, and positive sampled major radius against exact repository forms, with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_vmec_lite_geometry_validation.py exact-geometry, evidence-seal, CLI, and failure-path checks",
         "validation/reports/vmec_lite_geometry.json sealed exact-geometry VMEC-lite evidence",
         "validation/reports/vmec_lite_geometry.md human-readable VMEC-lite exact-geometry summary",
@@ -2552,7 +2552,7 @@
       "validation_evidence": [
         "tests/test_static_mu_analysis.py D-scaled upper-bound behaviour, uncertainty-bound scaling, finite-domain rejection, closed-loop plant dependence, claim-admission, persisted digest, tamper, and duplicate-key checks",
         "tests/test_static_mu_analysis_contract.py canonical naming, algorithm-parameter, independent DC-map, compatibility, and 100 percent owner coverage checks",
-        "validation/validate_mu_structured_singular_value.py closed-form exact-identity validation of compute_static_mu_upper_bound (full-block mu=sigma_max, diagonal mu=max|M_ii|, rank-one mu=sum|u_i v_i|, and the rho<=mu<=sigma_max sandwich) with tamper-evident sealed evidence",
+        "validation/validate_mu_structured_singular_value.py closed-form exact-identity validation of compute_static_mu_upper_bound (full-block mu=sigma_max, diagonal mu=max|M_ii|, rank-one mu=sum|u_i v_i|, and the rho<=mu<=sigma_max sandwich) with complete finite content-hashed reports and explicit stage/aggregate consistency; zero-reference flux errors normalised by the available positive flux budget",
         "tests/test_mu_structured_singular_value_validation.py exact-identity, sandwich, determinism, diagnostic-not-gated, and evidence-seal checks",
         "validation/validate_static_mu_analysis_reference.py strict static mu-analysis reference artefact gate",
         "validation/benchmark_static_mu_analysis_claims.py bounded claim-admission benchmark",

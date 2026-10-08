@@ -19,6 +19,43 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize("shape", ["loop", "missing", "file"])
+def test_repository_root_fault_is_an_authored_api_and_cli_refusal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], shape: str
+) -> None:
+    """Refuse actual invalid repository carriers through both maintained commands."""
+    from tools import check_version_sync
+
+    repository = tmp_path / "repository"
+    if shape == "loop":
+        repository.symlink_to(repository.name, target_is_directory=True)
+    elif shape == "file":
+        repository.write_bytes(b"not a repository directory\n")
+    assert check_version_sync.main(["--repo", str(repository)]) == 1
+    direct = capsys.readouterr()
+    assert not direct.err and "FAIL:" in direct.out
+    if shape == "loop":
+        assert direct.out == "FAIL: repository root could not be resolved\n"
+    else:
+        assert "repository root is not a directory" in direct.out
+    process = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_version_sync.py"), "--repo", str(repository)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert process.stdout == direct.out and not process.stderr
+
+
+def test_public_command_refuses_invalid_root_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Refuse an embedded NUL through the real API without exposing a traceback."""
+    from tools import check_version_sync
+
+    assert check_version_sync.main(["--repo", "\0"]) == 1
+    assert capsys.readouterr().out == "FAIL: repository root could not be resolved\n"
+
+
 @pytest.fixture
 def checkout(tmp_path: Path) -> Path:
     """Copy the actual guard and its declared text inputs into an isolated checkout."""

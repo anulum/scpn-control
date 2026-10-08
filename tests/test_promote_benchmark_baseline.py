@@ -11,14 +11,19 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
 import pytest
+from baseline_promotion_fixtures import make_corpus
 
 import tools.promote_benchmark_baseline as promoter
 from scpn_control.benchmark_records import BenchmarkOutput, BenchmarkRun
-from tools.promote_benchmark_baseline import BASELINE_SCHEMA, PROMOTION_SCHEMA, promote
+from tools.baseline_promotion_records import load_promotion_source
+from tools.promote_benchmark_baseline import BASELINE_SCHEMA, PROMOTION_SCHEMA, REPO_ROOT, promote
 
 
 def _digest(payload: dict[str, object]) -> str:
@@ -194,18 +199,18 @@ def test_repository_paths_and_manifest_shape_fail_closed(tmp_path: Path) -> None
     repository = tmp_path / "repository"
     repository.mkdir()
     with pytest.raises(ValueError, match="inside the repository"):
-        promoter._repository_path(tmp_path / "outside.json", "source", repository)
+        load_promotion_source(tmp_path / "outside.json", "report", "0" * 64, repository)
 
     invalid_location = repository / "manifest.json"
     invalid_location.write_text("{}", encoding="utf-8")
     with pytest.raises(ValueError, match="immutable runs"):
-        promoter._artifact_from_manifest(invalid_location, "report", repository)
+        load_promotion_source(invalid_location, "report", "0" * 64, repository)
 
     invalid_run = repository / "records" / "runs" / "suite" / "run" / "manifest.json"
     invalid_run.parent.mkdir(parents=True)
     invalid_run.write_text(json.dumps({"schema_version": "wrong", "status": "failed"}), encoding="utf-8")
     with pytest.raises(ValueError, match="successful benchmark run"):
-        promoter._artifact_from_manifest(invalid_run, "report", repository)
+        load_promotion_source(invalid_run, "report", "0" * 64, repository)
 
 
 def test_manifest_digest_role_kind_path_and_artifact_digest_are_verified(tmp_path: Path) -> None:
@@ -219,11 +224,13 @@ def test_manifest_digest_role_kind_path_and_artifact_digest_are_verified(tmp_pat
     tampered["campaign_id"] = "edited"
     manifest_path.write_text(json.dumps(tampered), encoding="utf-8")
     with pytest.raises(ValueError, match="manifest payload digest"):
-        promoter._artifact_from_manifest(manifest_path, "report", repository)
+        load_promotion_source(manifest_path, "report", str(original_manifest["artifacts"][0]["sha256"]), repository)
 
     manifest_path.write_text(json.dumps(original_manifest), encoding="utf-8")
     with pytest.raises(ValueError, match="exactly one"):
-        promoter._artifact_from_manifest(manifest_path, "missing-role", repository)
+        load_promotion_source(
+            manifest_path, "missing-role", str(original_manifest["artifacts"][0]["sha256"]), repository
+        )
 
     def _write_manifest(manifest: dict[str, object]) -> None:
         unsigned = {key: value for key, value in manifest.items() if key != "payload_sha256"}
@@ -236,19 +243,19 @@ def test_manifest_digest_role_kind_path_and_artifact_digest_are_verified(tmp_pat
     wrong_kind["artifacts"][0]["kind"] = "directory"
     _write_manifest(wrong_kind)
     with pytest.raises(ValueError, match="must be a file"):
-        promoter._artifact_from_manifest(manifest_path, "report", repository)
+        load_promotion_source(manifest_path, "report", str(original_manifest["artifacts"][0]["sha256"]), repository)
 
     escaped = json.loads(json.dumps(original_manifest))
     escaped["artifacts"][0]["immutable_path"] = str(repository / "outside.json")
     _write_manifest(escaped)
     with pytest.raises(ValueError, match="escapes"):
-        promoter._artifact_from_manifest(manifest_path, "report", repository)
+        load_promotion_source(manifest_path, "report", str(original_manifest["artifacts"][0]["sha256"]), repository)
 
     _write_manifest(original_manifest)
     artifact_path = repository / original_manifest["artifacts"][0]["immutable_path"]
     artifact_path.write_text("tampered", encoding="utf-8")
     with pytest.raises(ValueError, match="artifact digest"):
-        promoter._artifact_from_manifest(manifest_path, "report", repository)
+        load_promotion_source(manifest_path, "report", str(original_manifest["artifacts"][0]["sha256"]), repository)
 
 
 @pytest.mark.parametrize(
@@ -266,10 +273,21 @@ def test_report_validation_rejects_schema_metrics_and_digest(
     tmp_path: Path, report: dict[str, object], message: str
 ) -> None:
     """Only self-digesting regression reports with metrics can be promoted."""
-    path = tmp_path / "report.json"
-    path.write_text(json.dumps(report), encoding="utf-8")
+    repository = tmp_path / "repository"
+    repository.mkdir()
+    manifest_path, _ = _immutable_report(repository)
+    manifest = json.loads(manifest_path.read_bytes())
+    artifact = repository / manifest["artifacts"][0]["immutable_path"]
+    artifact.write_text(json.dumps(report), encoding="utf-8")
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+    manifest["artifacts"][0]["sha256"] = digest
+    unsigned = {key: value for key, value in manifest.items() if key != "payload_sha256"}
+    manifest["payload_sha256"] = hashlib.sha256(
+        (json.dumps(unsigned, indent=2, sort_keys=True) + "\n").encode()
+    ).hexdigest()
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
     with pytest.raises(ValueError, match=message):
-        promoter._validated_report(path)
+        load_promotion_source(manifest_path, "report", digest, repository)
 
 
 def test_existing_identical_baseline_archive_is_reused(tmp_path: Path) -> None:
@@ -327,3 +345,35 @@ def test_promotion_cli_reports_success_and_failure(tmp_path: Path, capsys: pytes
     assert "baseline promotion receipt" in capsys.readouterr().out
     assert promoter.main(arguments) == 1
     assert "baseline promotion FAILED" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("kind", ["valid", "alias", "missing", "blocked-parent"])
+def test_standalone_public_promotion_cli_preserves_captured_source(tmp_path: Path, kind: str) -> None:
+    """Ordinary source CLI startup publishes or refuses actual owned-corpus input paths safely."""
+    corpus = make_corpus(tmp_path / "corpus")
+    arguments = corpus.arguments()
+    if kind == "alias":
+        arguments[arguments.index("--baseline") + 1] = str(corpus.artifact)
+    elif kind == "missing":
+        arguments[arguments.index("--source-manifest") + 1] = str(
+            corpus.root / "records/runs/custody/missing/manifest.json"
+        )
+    if kind == "blocked-parent":
+        blocked = corpus.root / "blocked-parent"
+        blocked.write_bytes(b"preserved regular parent")
+        arguments[arguments.index("--baseline") + 1] = str(blocked / "copied.json")
+    before = corpus.manifest.read_bytes(), corpus.artifact.read_bytes()
+    result = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "tools/promote_benchmark_baseline.py"), *arguments],
+        cwd=corpus.root,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == (0 if kind == "valid" else 1)
+    assert before == (corpus.manifest.read_bytes(), corpus.artifact.read_bytes())
+    if kind == "valid":
+        assert result.stdout.startswith("baseline promotion receipt:") and not result.stderr
+    else:
+        assert not result.stdout and str(corpus.root) not in result.stderr and "Traceback" not in result.stderr

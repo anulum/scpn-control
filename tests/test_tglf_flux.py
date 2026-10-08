@@ -365,3 +365,78 @@ def test_retained_file_change_during_capture_is_rejected(tmp_path: Path) -> None
     expected = dict(before)
     expected["out.tglf.grid"] += b"\n"
     assert _files(directory) == expected
+
+
+@pytest.mark.parametrize("member", ["input.tglf", "execution.json"])
+@pytest.mark.parametrize("operation", ["replace", "remove"])
+def test_retained_admission_change_during_parsing_is_rejected(tmp_path: Path, member: str, operation: str) -> None:
+    """Refuse input or receipt changes after admission, using the real parser.
+
+    A profile event at the public parsing call replaces or removes the actual
+    retained file. Neither the reader nor parser is replaced, and the original
+    provider outputs remain unchanged. The prior profile is restored on every
+    exit so the rendezvous works without a platform-specific filesystem API.
+    """
+    directory = _retained_run(tmp_path)
+    outputs = capture_tglf_outputs(directory)
+    changed = False
+
+    def change_admission(frame: object, event: str, argument: object) -> None:
+        """Mutate the retained admission file when the real public parser starts."""
+        nonlocal changed
+        code = getattr(frame, "f_code", None)
+        if (
+            not changed
+            and event == "call"
+            and getattr(code, "co_name", None) == "parse_captured_tglf_fluxes"
+            and getattr(code, "co_filename", None) == read_tglf_fluxes.__code__.co_filename
+        ):
+            path = directory / member
+            if operation == "replace":
+                replacement = directory / f"{member}.replacement"
+                replacement.write_bytes(path.read_bytes() + b"\n")
+                replacement.replace(path)
+            else:
+                path.unlink()
+            changed = True
+
+    previous_profile = sys.getprofile()
+    try:
+        sys.setprofile(change_admission)
+        with pytest.raises(TGLFFluxError, match="retained admission"):
+            read_tglf_fluxes(directory)
+    finally:
+        sys.setprofile(previous_profile)
+    assert changed
+    assert capture_tglf_outputs(directory) == outputs
+
+
+@pytest.mark.parametrize("token", ["0e999999999999999999999999999", "-0e999999999999999999999999999"])
+def test_provider_numeric_exponent_outside_decimal_range_is_rejected(tmp_path: Path, token: str) -> None:
+    """Refuse signed zero tokens whose exponent exceeds the decimal decoder's range.
+
+    Binary64 accepts these spellings as zero, but the exact decimal comparison
+    cannot represent their exponents. The actual captured-output reader must
+    produce its authored parse refusal rather than admit an unverified token.
+    """
+    directory = _retained_run(tmp_path)
+    (directory / "execution.json").unlink()
+    flux_path = directory / "out.tglf.gbflux"
+    tokens = flux_path.read_text(encoding="utf-8").split()
+    tokens[0] = token
+    flux_path.write_text(" ".join(tokens) + "\n", encoding="utf-8")
+    with pytest.raises(TGLFFluxError, match="Cannot parse standalone TGLF output"):
+        read_tglf_fluxes(directory)
+
+
+@pytest.mark.parametrize("token", ["1e-400", "-1e-400", "1D-400", "-1D-400"])
+def test_provider_nonzero_token_underflow_is_rejected(tmp_path: Path, token: str) -> None:
+    """Preserve the documented refusal of signed nonzero tokens that round to zero."""
+    directory = _retained_run(tmp_path)
+    (directory / "execution.json").unlink()
+    flux_path = directory / "out.tglf.gbflux"
+    tokens = flux_path.read_text(encoding="utf-8").split()
+    tokens[0] = token
+    flux_path.write_text(" ".join(tokens) + "\n", encoding="utf-8")
+    with pytest.raises(TGLFFluxError, match="Cannot parse standalone TGLF output"):
+        read_tglf_fluxes(directory)

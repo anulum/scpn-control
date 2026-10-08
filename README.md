@@ -211,9 +211,9 @@ blocked until the required external artefacts exist.
 | Python public classes | 598 |
 | Rust source files | 67 |
 | Rust PyO3 exports | 39 |
-| Validation scripts | 269 |
+| Validation scripts | 273 |
 | Optional extras | 25 |
-| Python test files | 806 |
+| Python test files | 827 |
 | Public documentation pages | 78 |
 | GitHub Actions workflows | 22 |
 
@@ -414,7 +414,7 @@ scpn-control-rs/       # Rust workspace (5 crates)
 +-- control-control/   # PID, MPC, H-inf, SNN controller
 +-- control-python/    # PyO3 bindings (PyRealtimeMonitor, PySnnPool, ...)
 
-tests/                 # 806 Python test files (generated inventory)
+tests/                 # 827 Python test files (generated inventory)
 +-- mock_diiid.py      # Synthetic DIII-D shot generator (NOT real MDSplus data)
 +-- test_e2e_phase_diiid.py  # E2E: shot-driven monitor + HDF5/NPZ export
 +-- test_phase_kuramoto.py   # 50 Kuramoto/UPDE/Guard/Monitor tests
@@ -609,6 +609,16 @@ python tools/publish.py --target testpypi
 # Bump version + publish to PyPI
 python tools/publish.py --bump minor --target pypi --confirm
 ```
+
+The local command reads the actual `project.version` from complete TOML metadata.
+`--bump` changes only that field and preserves unrelated metadata and comments;
+it accepts plain `major.minor.patch` versions. Reconcile `CITATION.cff`,
+`.zenodo.json`, API/version documentation and release notes separately before a
+release. `--dry-run` omits upload but still runs tests, replaces `dist`, builds
+and checks distributions, and may change metadata when used with `--bump`.
+`--skip-tests` omits only pytest. A later failure does not undo a version bump.
+PyPI upload requires `--confirm`; unknown direct API targets refuse before
+artifact inspection or process launch.
 
 **CI workflow** (tag-triggered trusted publishing):
 

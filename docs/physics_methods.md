@@ -474,8 +474,14 @@ $$\int V_{\rm loop}\,\mathrm{d}t = L_p\,\mathrm{d}I_p + R_p I_p\,\mathrm{d}t,
   $V_{\rm loop}\,\mathrm{d}t$ consumption integrator, and the linear ramp
   optimiser — all to machine precision, in
   `validation/validate_volt_second.py` with tests in
-  `tests/test_volt_second_validation.py`. The bootstrap-current proxy remains a
-  documented rough scaling. The current claim builder retains caller-declared
+  `tests/test_volt_second_validation.py` and the owning model/evidence/report
+  tests. Zero phase flux is checked with the available positive flux budget as
+  its normalisation scale; nonzero reference errors keep their original scale.
+  Complete finite report fields and stage/aggregate consistency are checked
+  independently of their SHA-256 content hash. This establishes bounded model
+  algebra and declared-report consistency, not producer/source authentication
+  or experimental validation. The bootstrap-current proxy remains a documented
+  rough scaling. The current claim builder retains caller-declared
   reference metadata without admitting a facility claim; pulse-design or
   central-solenoid commissioning requires independently bound source bytes,
   recomputed comparison metrics and the affected formulation owner's contract.
@@ -554,6 +560,15 @@ $$n_{\rm GW} = \frac{I_p}{\pi a^2}, \qquad
   shielding ablation profile remains a separate bounded model, and facility-
   calibrated fuelling or exhaust claims still require measured particle-balance
   references.
+
+
+The density-control analytic report consumer uses the complete v3 data
+contract: finite configuration/metrics, exact scaling identities and literal
+verdict consistency are checked separately from its SHA-256 content hash.
+Recorded runtime source digests are declarations and do not admit a facility
+claim. The particle-balance and interferometry numerical functions retain their
+original formulas and default parameters; the upgraded report and guarded
+publication do not establish independent physical calibration.
 
 ### Kuramoto-Sakaguchi Phase Dynamics
 $$\frac{d\theta_i}{dt} = \omega_i + K R \sin(\psi - \theta_i - \alpha) + \zeta \sin(\Psi - \theta_i)$$

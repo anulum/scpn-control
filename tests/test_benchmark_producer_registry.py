@@ -72,7 +72,7 @@ def test_cli_reports_the_live_inventory_count() -> None:
 def test_imported_cli_reports_live_inventory_count(capsys: pytest.CaptureFixture[str]) -> None:
     """The imported command surface returns a successful live verdict."""
     assert producer_audit.main([]) == 0
-    assert "68 producers classified" in capsys.readouterr().out
+    assert "70 producers classified" in capsys.readouterr().out
 
 
 def test_registry_fails_when_one_real_producer_is_unclassified(tmp_path: Path) -> None:
@@ -285,3 +285,21 @@ def test_public_parser_help_and_usage() -> None:
         with pytest.raises(SystemExit) as failure:
             producer_audit.main(args)
         assert failure.value.code == code
+
+
+def test_repository_loop_is_an_authored_api_and_cli_refusal(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Refuse a real repository link loop before inspection, with no traceback or writes."""
+    loop = tmp_path / "repository-loop"
+    loop.symlink_to(loop.name, target_is_directory=True)
+    assert producer_audit.main(["--repo", str(loop)]) == 1
+    captured = capsys.readouterr()
+    assert not captured.out and captured.err.startswith("benchmark producer registry FAILED:")
+    source_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(source_root / "tools/check_benchmark_producers.py"), "--repo", str(loop)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1 and not result.stdout
+    assert result.stderr.startswith("benchmark producer registry FAILED:") and "Traceback" not in result.stderr

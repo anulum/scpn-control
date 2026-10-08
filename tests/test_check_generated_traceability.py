@@ -173,3 +173,53 @@ def test_freshness_native_examples_execute() -> None:
     """Execute actual missing-input native boolean refusal with no private helper call."""
     result = doctest.testmod(freshness_module, raise_on_error=True)
     assert result.failed == 0 and result.attempted >= 2
+
+
+@pytest.mark.parametrize("newline", [b"\r\n", b"\r"])
+def test_freshness_refuses_newline_byte_drift_through_api_and_cli(tmp_path: Path, newline: bytes) -> None:
+    """Refuse actual canonical report bytes rewritten with another newline convention."""
+    registry = ROOT / "validation/physics_traceability.json"
+    expected = expected_traceability_markdown(registry).encode("utf-8")
+    report = tmp_path / "report.md"
+    changed = expected.replace(b"\n", newline)
+    assert changed != expected
+    report.write_bytes(changed)
+    assert not generated_traceability_is_current(registry, report)
+    process = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_generated_traceability.py"), "--report", str(report)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1 and "is stale" in process.stderr and not process.stdout
+    assert report.read_bytes() == changed
+
+
+def test_real_generator_to_freshness_cli_preserves_exact_utf8_lf(tmp_path: Path) -> None:
+    """Run both maintained commands and compare the generated artifact's exact bytes."""
+    registry = ROOT / "validation/physics_traceability.json"
+    report = tmp_path / "report.md"
+    generated = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "validation/generate_physics_traceability_report.py"),
+            "--registry",
+            str(registry),
+            "--output-md",
+            str(report),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert generated.returncode == 0, generated.stderr
+    expected = expected_traceability_markdown(registry).encode("utf-8")
+    assert report.read_bytes() == expected and b"\r\n" not in expected
+    checked = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_generated_traceability.py"), "--report", str(report)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert checked.returncode == 0 and not checked.stderr
+    assert "Generated traceability documentation is current:" in checked.stdout

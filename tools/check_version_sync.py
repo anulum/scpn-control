@@ -151,7 +151,7 @@ def main(argv: list[str] | None = None) -> int:
     -------
     int
         Zero only when all required local text checks pass; one for missing,
-        unreadable, undecodable or mismatched input, or a non-directory root.
+        unreadable, undecodable or mismatched input, or an unresolved/non-directory root.
         Invalid command arguments exit two via argparse. No files are written
         and no external registry state is admitted.
 
@@ -168,7 +168,15 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Check local release version and metadata text.")
     parser.add_argument("--repo", type=Path, default=ROOT, help="Checkout root; defaults to the script's repository.")
     args = parser.parse_args([] if argv is None else argv)
-    root = args.repo.resolve()
+    try:
+        try:
+            args.repo.stat()
+        except FileNotFoundError:
+            pass  # The existing non-directory refusal handles a missing root.
+        root = args.repo.resolve()
+    except (OSError, ValueError, RuntimeError):
+        print("FAIL: repository root could not be resolved")
+        return 1
     if not root.is_dir():
         print(f"FAIL: repository root is not a directory: {root}")
         return 1

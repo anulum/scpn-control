@@ -47,81 +47,53 @@ References
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
-import math
 import sys
-from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Sequence
 
 import numpy as np
 
 from scpn_control.control.volt_second_manager import (
     C_EJIMA,
     MU_0,
-    FluxBudget,
     FluxConsumptionMonitor,
     ScenarioFluxAnalysis,
     VoltSecondOptimizer,
 )
 
-VOLT_SECOND_SCHEMA_VERSION = "scpn-control.volt-second-validation.v1"
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from validation.volt_second_evidence import SCHEMA_VERSION
+from validation.volt_second_evidence import build_evidence as build_evidence
+from validation.volt_second_evidence import validate_evidence_payload as validate_evidence_payload
+from validation.volt_second_models import (
+    DecompositionCheck as DecompositionCheck,
+)
+from validation.volt_second_models import (
+    MonitorCheck as MonitorCheck,
+)
+from validation.volt_second_models import (
+    RampOptimizerCheck as RampOptimizerCheck,
+)
+from validation.volt_second_models import (
+    ScalingCheck as ScalingCheck,
+)
+from validation.volt_second_models import (
+    VoltSecondConfig as VoltSecondConfig,
+)
+from validation.volt_second_models import (
+    VoltSecondValidationResult as VoltSecondValidationResult,
+)
+from validation.volt_second_models import (
+    _positive_float,
+)
+from validation.volt_second_models import (
+    default_config as default_config,
+)
+from validation.volt_second_report import write_report as _write_report
 
-@dataclass(frozen=True)
-class VoltSecondConfig:
-    """Pulse and circuit parameters for the volt-second budget."""
-
-    flux_budget_vs: float
-    plasma_inductance_uh: float
-    plasma_resistance_uohm: float
-    major_radius_m: float
-    plasma_current_ma: float
-    bootstrap_current_ma: float
-    ramp_duration_s: float
-    flat_duration_s: float
-    ramp_down_duration_s: float
-    standalone_ramp_flux_vs: float
-
-    def __post_init__(self) -> None:
-        _positive_float("flux_budget_vs", self.flux_budget_vs)
-        _positive_float("plasma_inductance_uh", self.plasma_inductance_uh)
-        _positive_float("plasma_resistance_uohm", self.plasma_resistance_uohm)
-        _positive_float("major_radius_m", self.major_radius_m)
-        _positive_float("plasma_current_ma", self.plasma_current_ma)
-        _nonnegative_float("bootstrap_current_ma", self.bootstrap_current_ma)
-        _nonnegative_float("ramp_duration_s", self.ramp_duration_s)
-        _nonnegative_float("flat_duration_s", self.flat_duration_s)
-        _nonnegative_float("ramp_down_duration_s", self.ramp_down_duration_s)
-        _nonnegative_float("standalone_ramp_flux_vs", self.standalone_ramp_flux_vs)
-        if self.bootstrap_current_ma >= self.plasma_current_ma:
-            raise ValueError("bootstrap current must be smaller than the plasma current")
-
-    def budget(self) -> FluxBudget:
-        """Build the flux-budget model for this flat-top configuration."""
-        return FluxBudget(
-            Phi_CS_Vs=self.flux_budget_vs,
-            L_plasma_uH=self.plasma_inductance_uh,
-            R_plasma_uOhm=self.plasma_resistance_uohm,
-        )
-
-
-def default_config() -> VoltSecondConfig:
-    """Build an ITER-like flat-top flux budget with positive margin."""
-    return VoltSecondConfig(
-        flux_budget_vs=300.0,
-        plasma_inductance_uh=10.0,
-        plasma_resistance_uohm=5.0,
-        major_radius_m=6.2,
-        plasma_current_ma=15.0,
-        bootstrap_current_ma=2.0,
-        ramp_duration_s=10.0,
-        flat_duration_s=100.0,
-        ramp_down_duration_s=10.0,
-        standalone_ramp_flux_vs=5.0,
-    )
+VOLT_SECOND_SCHEMA_VERSION = SCHEMA_VERSION
 
 
 def inductive_flux_rel_error(config: VoltSecondConfig) -> float:
@@ -141,6 +113,9 @@ def ejima_flux_rel_error(config: VoltSecondConfig) -> float:
 
 def resistive_ramp_rel_error(config: VoltSecondConfig, *, n_steps: int = 100, dt: float = 0.01) -> float:
     """Relative error of ``resistive_flux_ramp`` against the exact Riemann sum."""
+    if isinstance(n_steps, bool) or not isinstance(n_steps, int) or n_steps < 1:
+        raise ValueError("n_steps must be a positive integer")
+    dt = _positive_float("dt", dt)
     budget = config.budget()
     trace = np.full(n_steps, config.plasma_current_ma)
     analytic = budget.R_plasma_Ohm * (config.plasma_current_ma * 1e6) * n_steps * dt
@@ -156,19 +131,7 @@ def flat_top_closure_rel_error(config: VoltSecondConfig) -> float:
     )
     i_drive = (config.plasma_current_ma - config.bootstrap_current_ma) * 1e6
     flat_flux = budget.R_plasma_Ohm * i_drive * tau_flat
-    return float(abs(flat_flux - remaining) / remaining)
-
-
-@dataclass(frozen=True)
-class DecompositionCheck:
-    """Scenario flux-decomposition closed-form agreement."""
-
-    ramp_rel_error: float
-    flat_top_rel_error: float
-    ramp_down_rel_error: float
-    sum_rel_error: float
-    margin_abs_error: float
-    max_rel_error: float
+    return float(abs(flat_flux - remaining) / (abs(remaining) or budget.Phi_CS_Vs))
 
 
 def scenario_decomposition_check(config: VoltSecondConfig) -> DecompositionCheck:
@@ -190,10 +153,10 @@ def scenario_decomposition_check(config: VoltSecondConfig) -> DecompositionCheck
     exp_down = budget.R_plasma_Ohm * (ip_a * 0.5) * config.ramp_down_duration_s - l_term * 0.5
     exp_total = exp_ramp + exp_flat + exp_down
 
-    ramp_err = abs(report.ramp_flux - exp_ramp) / abs(exp_ramp)
-    flat_err = abs(report.flat_top_flux - exp_flat) / abs(exp_flat)
-    down_err = abs(report.ramp_down_flux - exp_down) / abs(exp_down)
-    sum_err = abs(report.total_flux - exp_total) / abs(exp_total)
+    ramp_err = abs(report.ramp_flux - exp_ramp) / (abs(exp_ramp) or budget.Phi_CS_Vs)
+    flat_err = abs(report.flat_top_flux - exp_flat) / (abs(exp_flat) or budget.Phi_CS_Vs)
+    down_err = abs(report.ramp_down_flux - exp_down) / (abs(exp_down) or budget.Phi_CS_Vs)
+    sum_err = abs(report.total_flux - exp_total) / (abs(exp_total) or budget.Phi_CS_Vs)
     margin_err = abs(report.margin_Vs - (budget.Phi_CS_Vs - report.total_flux))
     return DecompositionCheck(
         ramp_rel_error=float(ramp_err),
@@ -205,32 +168,24 @@ def scenario_decomposition_check(config: VoltSecondConfig) -> DecompositionCheck
     )
 
 
-@dataclass(frozen=True)
-class MonitorCheck:
-    """Consumption-integrator closed-form agreement."""
-
-    consumed_rel_error: float
-    remaining_rel_error: float
-    fraction_rel_error: float
-    max_rel_error: float
-
-
 def monitor_integration_check(
     config: VoltSecondConfig, *, n_steps: int = 50, v_loop: float = 1.5, dt: float = 0.02
 ) -> MonitorCheck:
     """Verify ``FluxConsumptionMonitor`` integrates ``V_loop dt`` exactly."""
+    if isinstance(n_steps, bool) or not isinstance(n_steps, int) or n_steps < 1:
+        raise ValueError("n_steps must be a positive integer")
+    dt = _positive_float("dt", dt)
     budget = config.budget()
     monitor = FluxConsumptionMonitor(budget)
-    status = None
-    for _ in range(n_steps):
+    status = monitor.step(config.plasma_current_ma, v_loop, dt)
+    for _ in range(1, n_steps):
         status = monitor.step(config.plasma_current_ma, v_loop, dt)
-    assert status is not None
     consumed = v_loop * dt * n_steps
     remaining = budget.Phi_CS_Vs - consumed
     fraction = consumed / budget.Phi_CS_Vs
-    consumed_err = abs(status.flux_consumed_Vs - consumed) / consumed
-    remaining_err = abs(status.flux_remaining_Vs - remaining) / remaining
-    fraction_err = abs(status.fraction_consumed - fraction) / fraction
+    consumed_err = abs(status.flux_consumed_Vs - consumed) / (abs(consumed) or budget.Phi_CS_Vs)
+    remaining_err = abs(status.flux_remaining_Vs - remaining) / (abs(remaining) or budget.Phi_CS_Vs)
+    fraction_err = abs(status.fraction_consumed - fraction) / (abs(fraction) or 1.0)
     return MonitorCheck(
         consumed_rel_error=float(consumed_err),
         remaining_rel_error=float(remaining_err),
@@ -239,18 +194,10 @@ def monitor_integration_check(
     )
 
 
-@dataclass(frozen=True)
-class RampOptimizerCheck:
-    """Linear ramp optimiser agreement."""
-
-    start_abs_error: float
-    end_rel_error: float
-    spacing_max_rel_error: float
-    is_linear: bool
-
-
 def ramp_optimizer_check(config: VoltSecondConfig, *, n_segments: int = 11, t_ramp: float = 5.0) -> RampOptimizerCheck:
     """Verify the ramp optimiser returns a uniform linear ramp to the target current."""
+    if isinstance(n_segments, bool) or not isinstance(n_segments, int) or n_segments < 2:
+        raise ValueError("n_segments must be an integer of at least two")
     budget = config.budget()
     optimiser = VoltSecondOptimizer(budget)
     trace = optimiser.optimize_ramp(config.plasma_current_ma, t_ramp, n_segments)
@@ -265,16 +212,6 @@ def ramp_optimizer_check(config: VoltSecondConfig, *, n_segments: int = 11, t_ra
         spacing_max_rel_error=spacing_err,
         is_linear=bool(spacing_err < 1e-12),
     )
-
-
-@dataclass(frozen=True)
-class ScalingCheck:
-    """One flux scaling-law observation."""
-
-    name: str
-    measured_ratio: float
-    expected_ratio: float
-    rel_error: float
 
 
 def flux_scaling_checks(config: VoltSecondConfig) -> tuple[ScalingCheck, ...]:
@@ -317,30 +254,6 @@ def flux_scaling_checks(config: VoltSecondConfig) -> tuple[ScalingCheck, ...]:
     )
 
 
-@dataclass(frozen=True)
-class VoltSecondValidationResult:
-    """Outcome of the volt-second flux-budget validation."""
-
-    config: VoltSecondConfig
-    inductive_rel_error: float
-    ejima_rel_error: float
-    resistive_ramp_rel_error: float
-    flat_top_closure_rel_error: float
-    decomposition: DecompositionCheck
-    monitor: MonitorCheck
-    ramp_optimizer: RampOptimizerCheck
-    scaling: tuple[ScalingCheck, ...]
-    max_scaling_rel_error: float
-    exact_tol: float
-    margin_abs_tol: float
-    fluxes_passed: bool
-    decomposition_passed: bool
-    monitor_passed: bool
-    optimizer_passed: bool
-    scaling_passed: bool
-    passed: bool
-
-
 def validate_volt_second(
     *, config: VoltSecondConfig | None = None, exact_tol: float = 1e-9, margin_abs_tol: float = 1e-6
 ) -> VoltSecondValidationResult:
@@ -350,6 +263,8 @@ def validate_volt_second(
     the ramp optimiser, and the scaling laws must hold to ``exact_tol`` (the
     budget margin to ``margin_abs_tol`` volt-seconds).
     """
+    exact_tol = _positive_float("exact_tol", exact_tol)
+    margin_abs_tol = _positive_float("margin_abs_tol", margin_abs_tol)
     config = config or default_config()
 
     ind_err = inductive_flux_rel_error(config)
@@ -397,165 +312,12 @@ def validate_volt_second(
     )
 
 
-def build_evidence(result: VoltSecondValidationResult, *, target_id: str) -> dict[str, Any]:
-    """Build a tamper-evident, schema-versioned validation evidence payload."""
-    if not target_id.strip():
-        raise ValueError("target_id must be non-empty")
-    payload: dict[str, Any] = {
-        "schema_version": VOLT_SECOND_SCHEMA_VERSION,
-        "generated_utc": _utc_now(),
-        "target_id": target_id,
-        "config": {
-            "flux_budget_vs": result.config.flux_budget_vs,
-            "plasma_inductance_uh": result.config.plasma_inductance_uh,
-            "plasma_resistance_uohm": result.config.plasma_resistance_uohm,
-            "major_radius_m": result.config.major_radius_m,
-            "plasma_current_ma": result.config.plasma_current_ma,
-            "bootstrap_current_ma": result.config.bootstrap_current_ma,
-            "ramp_duration_s": result.config.ramp_duration_s,
-            "flat_duration_s": result.config.flat_duration_s,
-            "ramp_down_duration_s": result.config.ramp_down_duration_s,
-            "standalone_ramp_flux_vs": result.config.standalone_ramp_flux_vs,
-        },
-        "exact_tol": result.exact_tol,
-        "margin_abs_tol": result.margin_abs_tol,
-        "inductive_rel_error": result.inductive_rel_error,
-        "ejima_rel_error": result.ejima_rel_error,
-        "resistive_ramp_rel_error": result.resistive_ramp_rel_error,
-        "flat_top_closure_rel_error": result.flat_top_closure_rel_error,
-        "decomposition": {
-            "ramp_rel_error": result.decomposition.ramp_rel_error,
-            "flat_top_rel_error": result.decomposition.flat_top_rel_error,
-            "ramp_down_rel_error": result.decomposition.ramp_down_rel_error,
-            "sum_rel_error": result.decomposition.sum_rel_error,
-            "margin_abs_error": result.decomposition.margin_abs_error,
-            "max_rel_error": result.decomposition.max_rel_error,
-        },
-        "monitor": {
-            "consumed_rel_error": result.monitor.consumed_rel_error,
-            "remaining_rel_error": result.monitor.remaining_rel_error,
-            "fraction_rel_error": result.monitor.fraction_rel_error,
-            "max_rel_error": result.monitor.max_rel_error,
-        },
-        "ramp_optimizer": {
-            "start_abs_error": result.ramp_optimizer.start_abs_error,
-            "end_rel_error": result.ramp_optimizer.end_rel_error,
-            "spacing_max_rel_error": result.ramp_optimizer.spacing_max_rel_error,
-            "is_linear": result.ramp_optimizer.is_linear,
-        },
-        "scaling": [
-            {
-                "name": check.name,
-                "measured_ratio": check.measured_ratio,
-                "expected_ratio": check.expected_ratio,
-                "rel_error": check.rel_error,
-            }
-            for check in result.scaling
-        ],
-        "max_scaling_rel_error": result.max_scaling_rel_error,
-        "fluxes_passed": result.fluxes_passed,
-        "decomposition_passed": result.decomposition_passed,
-        "monitor_passed": result.monitor_passed,
-        "optimizer_passed": result.optimizer_passed,
-        "scaling_passed": result.scaling_passed,
-        "passed": result.passed,
-        "payload_sha256": "",
-    }
-    payload["payload_sha256"] = _payload_sha256(payload)
-    return payload
-
-
-def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
-    """Return ``True`` when a payload is well-formed, sealed, and passing."""
-    if payload.get("schema_version") != VOLT_SECOND_SCHEMA_VERSION:
-        raise ValueError("unsupported volt-second evidence schema_version")
-    declared = payload.get("payload_sha256")
-    if not _is_sha256(declared):
-        raise ValueError("payload_sha256 must be a SHA-256 hex digest")
-    if declared != _payload_sha256(payload):
-        raise ValueError("payload_sha256 does not match payload")
-    return bool(payload.get("passed"))
-
-
-def _utc_now() -> str:
-    return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
-
-
-def _canonical_json(payload: Mapping[str, Any]) -> str:
-    return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
-
-
-def _payload_sha256(payload: Mapping[str, Any]) -> str:
-    unsigned = dict(payload)
-    unsigned["payload_sha256"] = ""
-    return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
-
-
-def _is_sha256(value: object) -> bool:
-    return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
-
-
-def _finite_float(name: str, value: object) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise ValueError(f"{name} must be a finite number")
-    result = float(value)
-    if not math.isfinite(result):
-        raise ValueError(f"{name} must be finite")
-    return result
-
-
-def _positive_float(name: str, value: object) -> float:
-    result = _finite_float(name, value)
-    if result <= 0.0:
-        raise ValueError(f"{name} must be positive")
-    return result
-
-
-def _nonnegative_float(name: str, value: object) -> float:
-    result = _finite_float(name, value)
-    if result < 0.0:
-        raise ValueError(f"{name} must be nonnegative")
-    return result
-
-
-def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
-    """Persist the sealed JSON evidence and a human-readable Markdown summary."""
-    json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    md_path = json_path.with_suffix(".md")
-    decomposition = evidence["decomposition"]
-    monitor = evidence["monitor"]
-    lines = [
-        "",
-        "# Volt-Second Flux-Budget Validation",
-        "",
-        f"- Schema: `{evidence['schema_version']}`",
-        f"- Generated (UTC): {evidence['generated_utc']}",
-        f"- Target: `{evidence['target_id']}`",
-        f"- Status: **{'pass' if evidence['passed'] else 'fail'}**",
-        "",
-        f"## Exact flux relations (relative error, gate < {evidence['exact_tol']:.1e})",
-        "",
-        "| relation | value |",
-        "| --- | --- |",
-        f"| inductive flux L_p I_p | {evidence['inductive_rel_error']:.3e} |",
-        f"| Ejima startup flux C_E mu0 R0 I_p | {evidence['ejima_rel_error']:.3e} |",
-        f"| resistive ramp integral | {evidence['resistive_ramp_rel_error']:.3e} |",
-        f"| flat-top budget closure | {evidence['flat_top_closure_rel_error']:.3e} |",
-        f"| scenario decomposition (max) | {decomposition['max_rel_error']:.3e} |",
-        f"| consumption integrator (max) | {monitor['max_rel_error']:.3e} |",
-        f"| flux scaling laws (max) | {evidence['max_scaling_rel_error']:.3e} |",
-        "",
-        "## Ramp optimiser",
-        "",
-        f"- linear ramp: {evidence['ramp_optimizer']['is_linear']}; "
-        f"endpoint relative error: {evidence['ramp_optimizer']['end_rel_error']:.3e}",
-        "",
-        "## Budget margin",
-        "",
-        f"- margin closed-form absolute error: {decomposition['margin_abs_error']:.3e} V s "
-        f"(gate < {evidence['margin_abs_tol']:.1e})",
-    ]
-    md_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+def _threshold(text: str) -> float:
+    """Read a finite positive CLI tolerance with an authored input refusal."""
+    try:
+        return _positive_float("tolerance", float(text))
+    except ValueError:
+        raise argparse.ArgumentTypeError("Tolerance must be a finite positive number") from None
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -564,13 +326,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--target-id", type=str, default="local-volt-second")
     parser.add_argument("--json-out", action="store_true", help="emit the evidence payload as JSON")
     parser.add_argument("--report", type=str, default=None, help="write sealed JSON evidence and a Markdown summary")
+    parser.add_argument("--exact-tol", type=_threshold, default=1e-9, help="positive relative-error tolerance")
+    parser.add_argument(
+        "--margin-abs-tol", type=_threshold, default=1e-6, help="positive margin tolerance in volt-seconds"
+    )
     args = parser.parse_args(argv)
 
-    result = validate_volt_second()
+    result = validate_volt_second(exact_tol=args.exact_tol, margin_abs_tol=args.margin_abs_tol)
     evidence = build_evidence(result, target_id=args.target_id)
 
     if args.report:
-        _write_report(evidence, Path(args.report))
+        try:
+            _write_report(evidence, Path(args.report))
+        except (OSError, ValueError, TypeError):
+            print("Volt-second report could not be published", file=sys.stderr)
+            return 2
 
     if args.json_out:
         print(json.dumps(evidence, indent=2, sort_keys=True))

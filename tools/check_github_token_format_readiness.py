@@ -20,6 +20,7 @@ from __future__ import annotations
 import argparse
 import re
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Final, Iterable
@@ -99,14 +100,16 @@ class Finding:
 
 
 def _git_ls_files(repo: Path) -> list[str]:
-    """Return tracked paths in ``repo`` from Git's index."""
+    """Return literal NUL-framed index names without Git quoting or whitespace stripping."""
     completed = subprocess.run(
-        ["git", "-C", str(repo), "ls-files"],
+        ["git", "-C", str(repo), "ls-files", "-z"],
         check=True,
         text=True,
         capture_output=True,
+        encoding="utf-8",
+        errors="surrogateescape",
     )
-    return [line for line in completed.stdout.splitlines() if line]
+    return [path for path in completed.stdout.split("\0") if path]
 
 
 def _is_scanned_path(path: str) -> bool:
@@ -201,12 +204,22 @@ def scan_repository(repo: Path) -> list[Finding]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Run the command-line token-format readiness guard."""
+    """Inspect tracked source: clean0, findings1, root/Git/read failure2.
+
+    Expected inspection failures use a fixed stderr refusal without exposing
+    source contents or credentials. Argparse retains help0/usage2. No source,
+    Git state or credentials are changed.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO_ROOT)
     args = parser.parse_args(argv)
 
-    findings = scan_repository(args.repo.resolve())
+    try:
+        args.repo.stat()
+        findings = scan_repository(args.repo.resolve())
+    except (OSError, ValueError, RuntimeError, subprocess.CalledProcessError):
+        print("GitHub token-format inspection refused: could not inspect repository source", file=sys.stderr)
+        return 2
     if not findings:
         print("PASS: no brittle GitHub installation-token format assumptions found")
         return 0

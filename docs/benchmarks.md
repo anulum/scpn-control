@@ -1680,7 +1680,34 @@ registered Python/Rust comparison benchmarks — currently the capacitor-bank
 discharge ledger — and emits a `scpn-control.benchmark-regression.v1` report:
 per-benchmark, per-language p50/p95/p99 latency and throughput, plus provenance
 (CPU model, Rust release profile read from the workspace manifest, commit digest,
-CPU affinity, load average, peak RSS, and whether the Rust backend was built).
+CPU affinity, load average, peak RSS, and whether the Rust backend was available).
+
+Selections must be nonempty and distinct, with positive integer samples and
+nonnegative warmup. Each consumed latency/throughput must be finite and
+nonnegative; percentiles must be ordered. Rust availability must agree with
+its language row, and a Rust row requires a finite nonnegative relative
+parity difference. A coherent failing parity remains in the report; this
+runner does not invent a physical admission threshold. The current harness
+compares delivered, resistive-loss and load energy. Zero mean retains the
+historical zero-throughput convention.
+
+The runner's stable CLI and V1 report remain in `tools.run_benchmark_suite`;
+checked records/statistics live in `tools.benchmark_suite_metrics`, and host
+observations in `tools.benchmark_suite_provenance`. Host strings, release
+manifest flags, campaign and digests are declarations, not authentication of
+source, execution conditions or a loaded extension. Unknown resource memory
+is `null`, rather than a fabricated zero. The historical `peak_rss_mb` key
+reports MiB: Linux supplies KiB, Darwin supplies bytes. See the
+[Linux resource contract](https://www.man7.org/linux/man-pages/man2/getrusage.2.html)
+and [current Apple kernel contract](https://github.com/apple/darwin-xnu/blob/main/bsd/man/man2/getrusage.2).
+
+Source, harness, selected model, manifest, lock and baseline aliases are
+refused before measurement. Complete finite sorted JSON is staged, fsynced
+and replaced through the shared guarded writer. Handled failure recovers
+only unchanged own bytes; cooperating writers must coordinate. This is
+single-file publication, not a crash transaction or hostile-writer sandbox.
+Authored setting/record refusals are displayed; other caught native faults
+use a fixed sentence without interpreter text. Baseline promotion is separate.
 
 The gate (`tools/benchmark_regression_gate.py`) compares a fresh report against
 the tracked baseline (`benchmarks/baselines/capacitor_bank.json`) under an
@@ -1732,6 +1759,29 @@ PYTHONPATH=src python tools/promote_benchmark_baseline.py \
   --authority-ref <review-or-change-reference> \
   --hardware-compatibility matched
 ```
+
+The promotion API retains `promote(...) -> Path` and
+`build_baseline(report, ...) -> dict` in `tools.promote_benchmark_baseline`.
+Source JSON must have unique member names, finite values and valid consumed
+run/report fields. The artifact digest and decoded report use one captured
+buffer. Authority references and hardware decisions remain caller declarations;
+matching digests do not authenticate an owner, producer, host or Git object.
+
+Baseline destinations must remain inside the selected repository and outside
+its source-run and baseline-history namespaces. Source files and their aliases,
+unsafe output types and overlapping outputs are refused. An existing
+previous-baseline archive is reused only when its actual bytes match the digest.
+Every output is staged before publication; new archive/receipt names are created
+exclusively from complete sibling files. Existing or racing names cannot be
+clobbered. Unsupported exclusive filesystem operations fail closed.
+
+A handled later failure restores predecessor baseline bytes and removes only
+this writer's unchanged new files. Recovery retains staging/predecessor files
+when it cannot safely finish. This is per-file atomic publication with handled
+recovery, not a power-loss transaction or a hostile namespace sandbox. Callers
+must coordinate concurrent source/baseline writers. Collision refusals remain
+catchable as `FileExistsError`; only explicit authored refusal types are exposed
+by the CLI, and other caught failures return a fixed sentence.
 
 Absolute-latency comparison is only valid on the same CPU as the baseline: the
 gate emits a `hardware_mismatch` failure when the report and baseline CPU models

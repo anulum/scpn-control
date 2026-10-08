@@ -186,7 +186,7 @@ def main(argv: list[str] | None = None) -> int:
     -------
     int
         Zero for a completed measurement within the ceiling, one for a debt
-        regression or refused increase, two for measurement/ledger failure.
+        regression or refused increase, two for root/measurement/ledger failure.
         Argparse exits with two on unsupported arguments.
     """
     parser = argparse.ArgumentParser(description=__doc__)
@@ -197,12 +197,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--repo", type=Path, default=ROOT, help="Repository root whose scope and ledger are checked.")
     args = parser.parse_args(argv)
-    repo = args.repo.resolve()
-    ledger = repo / "tools" / LEDGER.name
     try:
+        try:
+            args.repo.stat()
+        except FileNotFoundError:
+            pass
+        repo = args.repo.resolve()
+        ledger = repo / "tools" / LEDGER.name
         counts = measure(repo)
         ceiling = read_ceiling(ledger)
-    except RuntimeError as exc:
+    except (OSError, ValueError, RuntimeError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 2
     total = sum(counts.values())

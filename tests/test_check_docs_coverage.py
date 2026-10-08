@@ -21,6 +21,29 @@ from tools import check_docs_coverage as coverage_tool
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.parametrize("shape", ["loop", "missing", "file"])
+def test_repository_root_fault_is_an_authored_api_and_cli_refusal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], shape: str
+) -> None:
+    """Refuse real unresolved or empty source roots with no partial coverage report."""
+    repository = tmp_path / "repository"
+    if shape == "loop":
+        repository.symlink_to(repository.name, target_is_directory=True)
+    elif shape == "file":
+        repository.write_bytes(b"not a repository directory\n")
+    assert coverage_tool.main(["--repo", str(repository)]) == 1
+    direct = capsys.readouterr()
+    assert not direct.out and direct.err.startswith("Documentation coverage refused:")
+    process = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_docs_coverage.py"), "--repo", str(repository)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert process.stderr == direct.err and not process.stdout
+
+
 @pytest.fixture
 def copied_documented_tree(tmp_path: Path) -> Path:
     """Copy the real guard, API reference and two referenced source owners.

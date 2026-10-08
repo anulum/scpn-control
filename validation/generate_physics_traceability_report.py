@@ -307,7 +307,8 @@ def main(argv: list[str] | None = None) -> int:
     int
         0 after writing valid Markdown, or 1 after reporting an invalid registry
         or supported IO/path failure to stderr. Successful output is UTF-8 with
-        a trailing newline; missing parent directories are created.
+        LF line endings and a trailing newline on every supported platform;
+        missing parent directories are created.
 
     Raises
     ------
@@ -339,7 +340,7 @@ def main(argv: list[str] | None = None) -> int:
         markdown = generate_physics_traceability_markdown(args.registry, require_valid_registry=True)
         output_path = checked_report_destination(args.output_md, inputs=[args.registry])
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(markdown, encoding="utf-8")
+        output_path.write_text(markdown, encoding="utf-8", newline="\n")
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"Physics traceability report refused: {exc}", file=sys.stderr)
         return 1

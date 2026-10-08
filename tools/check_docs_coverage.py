@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> int:
     -------
     int
         Zero for a nonempty source inventory with module docstrings and matched
-        reference prefixes; one for either missing list or an inspection error.
+        reference prefixes; one for either missing list or a root/source inspection error.
         Print missing-reference then missing-docstring names in sorted source
         order to stderr. Inspection failures have a fixed refusal sentence;
         only success prints to stdout. Argument errors exit two via argparse.
@@ -122,13 +122,17 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", type=Path, default=ROOT)
     args = parser.parse_args(argv)
     try:
+        try:
+            args.repo.stat()
+        except FileNotFoundError:
+            pass  # The nonempty source-scope contract refuses a missing root.
         repo_root = args.repo.resolve()
         module_paths = iter_public_modules(repo_root)
         modules = [module_name(path, repo_root) for path in module_paths]
         represented = api_module_directives((repo_root / "docs/api.md").read_text(encoding="utf-8"), repo_root)
         missing_api = [name for name in modules if name not in represented]
         missing_docs = modules_missing_docstrings(module_paths, repo_root)
-    except (OSError, UnicodeError, SyntaxError):
+    except (OSError, UnicodeError, SyntaxError, RuntimeError):
         print("Documentation coverage refused: could not inspect UTF-8 source and API reference.", file=sys.stderr)
         return 1
     except ValueError:

@@ -77,10 +77,12 @@ The receipt hashes the same immutable byte snapshots that the parser consumes.
 Retained outputs, the copied input and launcher identity are checked before
 publishing success. The launcher hash is captured before launch and does not
 authenticate the dependent executable or libraries. Evidence directories remain
-mutable: `read_tglf_fluxes` verifies a present successful execution receipt and
-rejects changed input/output files. A receipt-free directory is parsed for
-structural consistency only. These are point-in-time custody checks, not a
-filesystem lock or a promise against changes after return.
+mutable: `read_tglf_fluxes` verifies a present successful UTF-8 execution receipt
+against captured input/output bytes. After parsing it rechecks every captured
+output, the copied input and the receipt itself; changed or unreadable admission
+members are refused. A receipt-free directory is parsed for structural
+consistency only. These sequential point-in-time custody checks do not lock the
+filesystem or prevent replacement after a member's last check or after return.
 
 A nonzero normalised particle or energy moment that rounds to zero during SI
 conversion is rejected. Exact zero and representable subnormal results remain

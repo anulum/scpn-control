@@ -202,8 +202,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--registry", type=Path)
     args = parser.parse_args(argv)
     try:
+        args.repo.stat()
         findings = audit_registry(args.registry or args.repo / "benchmarks/producer_registry.toml", args.repo)
-    except (OSError, UnicodeError, ValueError, SyntaxError) as exc:
+    except (OSError, UnicodeError, ValueError, SyntaxError, RuntimeError) as exc:
         print(f"benchmark producer registry FAILED: {exc}", file=sys.stderr)
         return 1
     if findings:

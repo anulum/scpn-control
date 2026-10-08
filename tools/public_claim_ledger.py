@@ -21,9 +21,11 @@ from typing import cast
 _IMPORT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(_IMPORT_ROOT))
 
+from tools.report_inventory_output import InventoryOutputError, publish_inventory_outputs
 from tools.validation_report_freshness import (
     DEFAULT_LIFECYCLE_REGISTRY,
     ROOT,
+    LifecycleRegistryError,
     ValidationReportFreshness,
     ValidationReportFreshnessMatrix,
     build_validation_report_freshness_matrix,
@@ -35,7 +37,19 @@ DEFAULT_OUTPUT = ROOT / "validation" / "public_claim_ledger.json"
 
 
 def _repo_relative(path: Path) -> str:
-    """Return a stable repository-relative path when possible."""
+    """Return a canonical repository-relative path or the supplied external name.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        Registry or artifact path selected by the caller.
+
+    Returns
+    -------
+    str
+        Resolved repository-relative POSIX spelling when contained, otherwise the
+        original POSIX spelling. No external containment is implied.
+    """
     try:
         return path.resolve().relative_to(ROOT.resolve()).as_posix()
     except ValueError:
@@ -43,10 +57,30 @@ def _repo_relative(path: Path) -> str:
 
 
 def _claim_record(report: ValidationReportFreshness) -> dict[str, object]:
-    """Return one immutable, admitted public-claim record."""
+    """Serialise one validated report's declared public claim.
+
+    Parameters
+    ----------
+    report : ValidationReportFreshness
+        Fresh report selected by the validated matrix's declaration filter.
+
+    Returns
+    -------
+    dict of str to object
+        Source/refresh digests, UTC evidence time and retained claim/provenance.
+
+    Raises
+    ------
+    LifecycleRegistryError
+        Selected report lacks its required immutable report commit declaration.
+
+    Notes
+    -----
+    This serialises declarations; it does not independently attest an experiment.
+    """
     lifecycle = report.lifecycle
     if lifecycle.report_commit is None:
-        raise ValueError(f"public claim report lacks immutable report commit: {lifecycle.path}")
+        raise LifecycleRegistryError(f"public claim report lacks immutable report commit: {lifecycle.path}")
     return {
         "report_path": lifecycle.path,
         "report_sha256": lifecycle.report_sha256,
@@ -68,14 +102,37 @@ def _claim_record(report: ValidationReportFreshness) -> dict[str, object]:
 
 
 def _registry_metadata(registry_path: Path) -> tuple[str, str]:
-    """Return the registry digest and its declared source commit."""
+    """Read the registry's digest and its declared source commit.
+
+    Parameters
+    ----------
+    registry_path : pathlib.Path
+        Consumed UTF-8 JSON registry, opened again for the ledger byte binding.
+
+    Returns
+    -------
+    tuple of (str, str)
+        SHA-256 digest and nonblank declared source commit.
+
+    Raises
+    ------
+    LifecycleRegistryError
+        Top-level object or source commit declaration is absent.
+    OSError, ValueError
+        Registry cannot be read or decoded.
+
+    Notes
+    -----
+    This is a second read after matrix validation. Callers must coordinate input
+    changes; it is not a transaction across concurrent registry modification.
+    """
     raw = registry_path.read_bytes()
     payload: object = json.loads(raw)
     if not isinstance(payload, dict):
-        raise ValueError("lifecycle registry must contain a JSON object")
+        raise LifecycleRegistryError("lifecycle registry must contain a JSON object")
     source_commit = payload.get("registry_source_commit")
     if not isinstance(source_commit, str) or not source_commit.strip():
-        raise ValueError("lifecycle registry requires registry_source_commit")
+        raise LifecycleRegistryError("lifecycle registry requires registry_source_commit")
     return hashlib.sha256(raw).hexdigest(), source_commit
 
 
@@ -84,7 +141,32 @@ def _ledger_from_matrix(
     *,
     registry_path: Path,
 ) -> dict[str, object]:
-    """Build a deterministic public-claim ledger from validated lifecycle data."""
+    """Select the validated matrix's declared public claims for the ledger schema.
+
+    Parameters
+    ----------
+    matrix : ValidationReportFreshnessMatrix
+        Digest-validated inventory with the caller's advisory freshness window.
+    registry_path : pathlib.Path
+        Consumed registry, reread for its digest and declared source commit.
+
+    Returns
+    -------
+    dict of str to object
+        Version-one ledger with sorted claims and explicit admission requirements.
+
+    Raises
+    ------
+    LifecycleRegistryError
+        Registry metadata or a selected report's commit declaration is invalid.
+    OSError, ValueError
+        Registry bytes cannot be read or parsed.
+
+    Notes
+    -----
+    Selection requires fresh/current/scientific/public declarations, not production
+    admission. Declaration consistency does not establish independent physical truth.
+    """
     registry_sha256, registry_source_commit = _registry_metadata(registry_path)
     claims = sorted(
         (_claim_record(report) for report in matrix.current_admitted_reports),
@@ -115,7 +197,36 @@ def build_public_claim_ledger(
     as_of: datetime | None = None,
     max_age_days: int = 21,
 ) -> dict[str, object]:
-    """Validate lifecycle metadata and return the admitted public-claim ledger."""
+    """Validate lifecycle inputs and return the declared public-claim ledger.
+
+    Parameters
+    ----------
+    reports_root : pathlib.Path, optional
+        Selected report directory, defaulting to the canonical validation corpus.
+    registry_path : pathlib.Path, optional
+        Lifecycle registry binding the selected report and refresh bytes.
+    as_of : datetime.datetime or None, optional
+        Evaluation time; null uses the current UTC clock and naive values denote UTC.
+    max_age_days : int, optional
+        Exact nonnegative advisory window; the registry retains its audited 21 days.
+
+    Returns
+    -------
+    dict of str to object
+        Version-one ledger, preserving the public API and canonical field meanings.
+
+    Raises
+    ------
+    LifecycleRegistryError
+        Lifecycle, provenance, digest, scalar or selected-claim declarations fail.
+    OSError, ValueError
+        Inputs cannot be read or decoded.
+
+    Notes
+    -----
+    No producer is executed and no file is published. Git/host fields remain
+    validated declarations. The registry is reread for its digest after validation.
+    """
     matrix = build_validation_report_freshness_matrix(
         reports_root,
         as_of=as_of or datetime.now(tz=UTC),
@@ -126,7 +237,30 @@ def build_public_claim_ledger(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Generate or verify the canonical public-claim ledger."""
+    """Generate or check the ledger through the actual public CLI.
+
+    Parameters
+    ----------
+    argv : list of str or None, optional
+        Process options for input roots, output, time/window and read-only check mode.
+
+    Returns
+    -------
+    int
+        Zero on publication or exact check; one on drift or input/output refusal.
+
+    Raises
+    ------
+    SystemExit
+        Argument parsing rejects syntax or displays help.
+
+    Notes
+    -----
+    Builds one validated matrix and serialises its ledger once. Publication shares
+    source protection and handled-failure recovery with the freshness inventory.
+    Authored refusal types retain their deliberate messages; other caught exceptions
+    use fixed caller-safe text. Check mode reads without replacing any file.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--reports-root", default=str(DEFAULT_REPORTS_ROOT))
     parser.add_argument("--registry", default=str(DEFAULT_LIFECYCLE_REGISTRY))
@@ -137,12 +271,14 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        payload = build_public_claim_ledger(
+        registry_path = Path(args.registry)
+        matrix = build_validation_report_freshness_matrix(
             Path(args.reports_root),
-            registry_path=Path(args.registry),
-            as_of=parse_datetime(args.as_of) if args.as_of else None,
+            registry_path=registry_path,
+            as_of=parse_datetime(args.as_of) if args.as_of is not None else datetime.now(tz=UTC),
             max_age_days=args.max_age_days,
         )
+        payload = _ledger_from_matrix(matrix, registry_path=registry_path)
         rendered = json.dumps(payload, indent=2, sort_keys=True) + "\n"
         output = Path(args.output)
         if args.check:
@@ -150,10 +286,12 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"Public claim ledger drift: {output}", file=sys.stderr)
                 return 1
         else:
-            output.parent.mkdir(parents=True, exist_ok=True)
-            output.write_text(rendered, encoding="utf-8")
-    except (OSError, TypeError, ValueError) as exc:
+            publish_inventory_outputs(matrix, ((output, rendered.encode("utf-8")),), registry_path=registry_path)
+    except (LifecycleRegistryError, InventoryOutputError) as exc:
         print(f"Public claim ledger failed: {exc}", file=sys.stderr)
+        return 1
+    except (OSError, TypeError, ValueError):
+        print("Public claim ledger inputs or output could not be inspected", file=sys.stderr)
         return 1
 
     print(f"Public claim ledger: claims={payload['public_claim_count']} output={output}")

@@ -44,14 +44,14 @@ def expected_traceability_markdown(registry: Path) -> str:
 
 
 def generated_traceability_is_current(registry: Path, report_path: Path) -> bool:
-    """Require valid source and exact readable UTF-8 output, returning a boolean.
+    """Require valid source and exact generated UTF-8 bytes, returning a boolean.
 
     Invalid registry, supported generator/path/read/decode failure, missing or
     mismatching report returns false. No write, publication or freshness clock check.
     """
     try:
-        expected = expected_traceability_markdown(registry)
-        actual = report_path.read_text(encoding="utf-8")
+        expected = expected_traceability_markdown(registry).encode("utf-8")
+        actual = report_path.read_bytes()
     except (OSError, ValueError):
         return False
     return actual == expected

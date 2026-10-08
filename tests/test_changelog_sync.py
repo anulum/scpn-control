@@ -130,6 +130,39 @@ def test_api_preserves_byte_and_read_error_contract(tmp_path: Path) -> None:
         changelog_sync_errors(tmp_path)
 
 
+@pytest.mark.parametrize("shape", ["loop", "missing", "file"])
+def test_repository_root_fault_is_an_authored_api_and_cli_refusal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], shape: str
+) -> None:
+    """Refuse actual invalid root carriers without a traceback or changelog mutation."""
+    repository = tmp_path / "repository"
+    if shape == "loop":
+        repository.symlink_to(repository.name, target_is_directory=True)
+    elif shape == "file":
+        repository.write_bytes(b"not a repository directory\n")
+    assert main(["--repo", str(repository)]) == 1
+    direct = capsys.readouterr()
+    assert not direct.err and "FAIL:" in direct.out
+    if shape == "loop":
+        assert direct.out == "FAIL: could not resolve changelog repository\n"
+    else:
+        assert "missing CHANGELOG.md" in direct.out
+    process = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_changelog_sync.py"), "--repo", str(repository)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert process.stdout == direct.out and not process.stderr
+
+
+def test_public_command_refuses_invalid_root_value(capsys: pytest.CaptureFixture[str]) -> None:
+    """Refuse an embedded NUL through the real API before attempting a file read."""
+    assert main(["--repo", "\0"]) == 1
+    assert capsys.readouterr().out == "FAIL: could not resolve changelog repository\n"
+
+
 def test_script_root_selection_and_argv_ownership(tmp_path: Path) -> None:
     """The default script root works from another cwd; direct argv stays unchanged."""
     result = subprocess.run(

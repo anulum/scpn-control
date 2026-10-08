@@ -27,7 +27,8 @@ hashes; those set hashes do not bind source contents. Report writes replace the
 selected path through a same-directory temporary file without fsync or signing.
 Local findings, permanent HTTP failures and observed redirect-policy failures
 give CLI status one. Restricted/transient HTTP results alone give status zero.
-Argparse, Git, decoding and IO failures retain their native failure behaviour.
+An unresolvable root is refused with status two before policy or network work.
+Other argparse, Git, decoding and IO failures retain their native failure behaviour.
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ import ipaddress
 import json
 import re
 import subprocess
+import sys
 import tempfile
 import time
 import tomllib
@@ -125,9 +127,12 @@ class Policy:
     """Converted TOML settings and the SHA-256 of their original policy bytes.
 
     Suffix/prefix/glob selectors control indexed source discovery. Boolean
-    settings use Python conversion; loading does not validate ranges, types or
-    cross-field consistency beyond those conversions. External time values are
-    seconds, cache TTLs are seconds and the URL cap counts the supplied sequence.
+    settings use Python conversion; apart from the retry count, loading does not
+    validate ranges, types or cross-field consistency beyond those conversions.
+    External time values and cache TTLs are seconds; the URL cap counts the
+    supplied sequence.
+    The retry count must be a nonnegative integer, excluding booleans, so every
+    requested HTTP observation has at least one attempt.
     """
 
     source_sha256: str
@@ -151,13 +156,18 @@ class Policy:
     permanent_statuses: frozenset[int]
     secret_query_keys: frozenset[str]
 
+    def __post_init__(self) -> None:
+        """Refuse retry budgets that could suppress all requested HTTP attempts."""
+        if type(self.retries) is not int or self.retries < 0:
+            raise ValueError("document-link retries must be a nonnegative integer")
+
 
 class UnsafeExternalTarget(RuntimeError):
     """Raised when an already followed final URL violates the string policy."""
 
 
 def _read_policy(path: Path) -> Policy:
-    """Read exact policy bytes and convert declared sections without range checks."""
+    """Convert exact TOML bytes and validate the nonnegative integer retry budget."""
     source_bytes = path.read_bytes()
     payload = tomllib.loads(source_bytes.decode("utf-8"))
     scan = payload["scan"]
@@ -173,7 +183,7 @@ def _read_policy(path: Path) -> Policy:
         allowed_schemes=tuple(str(item) for item in external["allowed_schemes"]),
         ignored_schemes=tuple(str(item) for item in external["ignored_schemes"]),
         timeout_seconds=float(external["timeout_seconds"]),
-        retries=int(external["retries"]),
+        retries=external["retries"],
         retry_backoff_seconds=float(external["retry_backoff_seconds"]),
         per_host_delay_seconds=float(external["per_host_delay_seconds"]),
         cache_ttl_seconds=int(external["cache_ttl_seconds"]),
@@ -571,21 +581,18 @@ def _check_external(url: str, policy: Policy) -> ExternalResult:
     """Observe one supplied URL through bounded retry and authored failure text."""
     checked_at = datetime.now(UTC).isoformat()
     attempts = 0
-    last_detail = ""
-    for attempt in range(policy.retries + 1):
+    while True:
         attempts += 1
         try:
             status, final_url = _request_once(url, policy, "HEAD")
             if status in {403, 405, 501}:
                 status, final_url = _request_once(url, policy, "GET")
             classification = _classify_http(status, policy)
-            if classification != "transient" or attempt == policy.retries:
+            if classification != "transient" or attempts > policy.retries:
                 return ExternalResult(url, classification, status, attempts, checked_at, final_url, "HTTP response")
-            last_detail = f"transient HTTP {status}"
         except (TimeoutError, URLError, OSError):
-            last_detail = "Public URL request failed."
-            if attempt == policy.retries:
-                return ExternalResult(url, "transient", None, attempts, checked_at, None, last_detail)
+            if attempts > policy.retries:
+                return ExternalResult(url, "transient", None, attempts, checked_at, None, "Public URL request failed.")
         except UnsafeExternalTarget:
             return ExternalResult(
                 url,
@@ -596,8 +603,7 @@ def _check_external(url: str, policy: Policy) -> ExternalResult:
                 None,
                 "redirect target violates public URL policy",
             )
-        time.sleep(policy.retry_backoff_seconds * (attempt + 1))
-    return ExternalResult(url, "transient", None, attempts, checked_at, None, last_detail)
+        time.sleep(policy.retry_backoff_seconds * attempts)
 
 
 def _tool_sha256() -> str:
@@ -749,12 +755,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     existing files and are written even when findings produce status one.
 
     Return zero for no local/permanent/redirect-policy findings, including a
-    restricted or transient-only HTTP campaign; otherwise return one. Native
+    restricted or transient-only HTTP campaign; otherwise return one. Root
+    resolution failure returns two with an authored stderr refusal; other native
     argparse/Git/text/IO errors propagate rather than producing a success report.
     A site tree must be produced/verified independently before ``--site-dir``.
     """
     args = _parser().parse_args(argv)
-    root = args.root.resolve()
+    try:
+        args.root.stat()
+        root = args.root.resolve()
+    except (OSError, ValueError, RuntimeError):
+        print("Document link audit refused: repository root could not be resolved", file=sys.stderr)
+        return 2
     policy_path = args.policy.resolve()
     policy = _read_policy(policy_path)
     sources = public_sources(root, policy)

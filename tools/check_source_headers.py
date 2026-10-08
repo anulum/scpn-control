@@ -621,8 +621,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true", dest="as_json")
     args = parser.parse_args(argv)
     try:
+        args.root.stat()
         result = audit(args.root, args.policy)
-    except (OSError, subprocess.CalledProcessError, ValueError, tomllib.TOMLDecodeError) as exc:
+    except (OSError, subprocess.CalledProcessError, ValueError, RuntimeError, tomllib.TOMLDecodeError) as exc:
         print(f"source-header policy error: {exc}", file=sys.stderr)
         return 2
     if args.as_json:

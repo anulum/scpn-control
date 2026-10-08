@@ -111,11 +111,18 @@ def test_joss_submission_guard_reports_missing_files(
     assert "MISSING: papers/submissions/001_neuro_symbolic_tokamak_control_software/references.bib" in output
 
 
-def test_joss_submission_guard_handles_non_repo_paths() -> None:
-    """Path diagnostics must remain stable when a checked path is outside ROOT."""
-    outside_path = Path("/tmp/scpn-control-outside-paper.md")
-
-    assert check_joss_submission._relative(outside_path) == outside_path.as_posix()
+def test_joss_submission_guard_uses_script_relative_inputs_from_unrelated_cwd(tmp_path: Path) -> None:
+    """Use the script's real repository inputs from an unrelated caller directory."""
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/check_joss_submission.py")],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "canonical JOSS package and documentation pointer" in result.stdout
+    assert not result.stderr
 
 
 def test_joss_submission_guard_reports_editorial_and_citation_drift(

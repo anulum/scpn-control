@@ -270,6 +270,8 @@ def test_generate_physics_traceability_report_writes_file(tmp_path: Path) -> Non
     )
 
     assert exit_code == 0
+    expected = generate_physics_traceability_markdown(ROOT / "validation/physics_traceability.json")
+    assert output.read_bytes() == expected.encode("utf-8")
     content = output.read_text(encoding="utf-8")
     assert "Resolved evidence paths:" in content
     assert "validation/physics_traceability.json" in content
@@ -281,6 +283,7 @@ def test_repository_physics_traceability_report_is_current() -> None:
     actual = (ROOT / "docs" / "physics_traceability.md").read_text(encoding="utf-8")
 
     assert actual == expected
+    assert (ROOT / "docs/physics_traceability.md").read_bytes() == expected.encode("utf-8")
 
 
 @pytest.fixture

@@ -388,3 +388,50 @@ def test_actual_source_header_command_argparse(native_repository: Path, args: li
     assert result.returncode == exit_code
     assert "usage:" in result.stdout + result.stderr
     assert "source-header policy error:" not in result.stderr
+
+
+def test_repository_loop_is_an_authored_api_and_cli_refusal(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Refuse a real repository link loop before inspection, with no traceback or writes."""
+    loop = tmp_path / "repository-loop"
+    loop.symlink_to(loop.name, target_is_directory=True)
+    assert guard.main(["--root", str(loop)]) == 2
+    captured = capsys.readouterr()
+    assert not captured.out and captured.err.startswith("source-header policy error:")
+    source_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(source_root / "tools/check_source_headers.py"), "--root", str(loop)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and not result.stdout
+    assert result.stderr.startswith("source-header policy error:") and "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("fault", ["missing_enforced", "scalar_exemption", "missing_category", "short_reason"])
+def test_actual_policy_primitive_corruption_refuses_api_and_cli(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], fault: str
+) -> None:
+    """Reject corrupted actual policy structure before it can change the header scan scope."""
+    source = (ROOT / "tools/source_header_policy.toml").read_text(encoding="utf-8")
+    if fault == "missing_enforced":
+        source = source.replace("[enforced]", "[renamed_enforced]", 1)
+        expected = "requires an [enforced] table"
+    elif fault == "scalar_exemption":
+        source = source.split("[[exemptions]]", 1)[0]
+        source = source.replace(SCHEMA, SCHEMA + 'exemptions = ["not a table"]\n', 1)
+        expected = "every exemption must be a TOML table"
+    elif fault == "missing_category":
+        source = source.replace('category = "prose-or-venue-source"', 'category = ""', 1)
+        expected = "requires a category"
+    else:
+        reason = next(line for line in source.splitlines() if line.startswith("reason = "))
+        source = source.replace(reason, 'reason = "short"', 1)
+        expected = "requires a specific reason"
+    policy = tmp_path / "policy.toml"
+    policy.write_text(source, encoding="utf-8")
+    with pytest.raises(ValueError, match=expected.replace("[", r"\[").replace("]", r"\]")):
+        guard.load_policy(policy)
+    assert guard.main(["--root", str(ROOT), "--policy", str(policy)]) == 2
+    assert expected in capsys.readouterr().err
+    assert policy.read_text(encoding="utf-8") == source

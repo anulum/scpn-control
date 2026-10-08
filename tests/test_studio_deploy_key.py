@@ -9,12 +9,55 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import subprocess
 from pathlib import Path
 
 import pytest
 from _pytest.capture import CaptureFixture
 
 import tools.check_studio_deploy_key as guard
+
+
+@pytest.mark.parametrize("fault", ["truncated", "trailing", "algorithm", "key-size"])
+def test_actual_public_key_wire_corruption_is_refused(tmp_path: Path, fault: str) -> None:
+    """Reject structural mutations of the tracked public blob through both public APIs."""
+    key_type, encoded, comment = guard.PUBLIC_KEY.read_text(encoding="utf-8").split()
+    body = base64.b64decode(encoded)
+    if fault == "truncated":
+        body = body[:-1]
+    elif fault == "trailing":
+        body += b"\x00"
+    elif fault == "algorithm":
+        body = body[:4] + b"ssh-ed25518" + body[15:]
+    else:
+        body = body[:15] + (31).to_bytes(4, "big") + body[19:]
+    line = f"{key_type} {base64.b64encode(body).decode('ascii')} {comment}\n"
+    path = tmp_path / "mutated-public.pub"
+    path.write_text(line, encoding="utf-8")
+    before = hashlib.sha256(path.read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="32-byte ssh-ed25519"):
+        guard.parse_public_key(line)
+    with pytest.raises(ValueError, match="32-byte ssh-ed25519"):
+        guard.validate_public_key(path)
+    assert hashlib.sha256(path.read_bytes()).hexdigest() == before
+
+
+@pytest.mark.parametrize("filename", ["clé.key", "clé.KEY", "ID_ED25519", "id_ecdsa"])
+def test_actual_unicode_index_name_cannot_hide_a_key_like_path(tmp_path: Path, filename: str) -> None:
+    """Inspect real Git names without opening any private-key-like content."""
+    payload = b"public regression carrier, not a credential\n"
+    (tmp_path / filename).write_bytes(payload)
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    excludes = tmp_path / "empty-excludes"
+    excludes.write_bytes(b"")
+    subprocess.run(["git", "-c", f"core.excludesFile={excludes}", "add", "--", filename], cwd=tmp_path, check=True)
+    paths = guard.tracked_files(tmp_path)
+    assert paths == [filename]
+    with pytest.raises(ValueError, match="private key-like tracked path"):
+        guard.validate_tracked_files(paths)
+    assert (tmp_path / filename).read_bytes() == payload
 
 
 def test_parse_public_key_accepts_generated_key() -> None:
@@ -113,4 +156,4 @@ def test_main_reports_validation_failures(
     monkeypatch.setattr(guard, "validate_public_key", fail_public_key)
 
     assert guard.main() == 1
-    assert "FAIL: bad public key" in capsys.readouterr().out
+    assert capsys.readouterr().out == "FAIL: Studio deploy inputs could not be inspected\n"

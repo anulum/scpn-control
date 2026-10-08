@@ -312,3 +312,38 @@ def test_public_measure_refuses_corrupted_real_ruff_response(
     monkeypatch.setattr(subprocess, "run", capture_with_fault)
     with pytest.raises(RuntimeError, match="ruff"):
         gate.measure(repository_scope)
+
+
+def test_repository_loop_is_an_authored_api_and_cli_refusal(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """Refuse a real repository link loop before inspection, with no traceback or writes."""
+    loop = tmp_path / "repository-loop"
+    loop.symlink_to(loop.name, target_is_directory=True)
+    assert gate.main(["--repo", str(loop)]) == 2
+    captured = capsys.readouterr()
+    assert not captured.out and captured.err.startswith("FAIL:")
+    source_root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(source_root / "tools/check_docstring_debt.py"), "--repo", str(loop)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and not result.stdout
+    assert result.stderr.startswith("FAIL:") and "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize("update", [False, True])
+def test_missing_root_refuses_without_creating_a_ledger(tmp_path: Path, update: bool) -> None:
+    """A missing debt scope refuses through the actual API and CLI, including update mode."""
+    missing = tmp_path / "absent-repository"
+    arguments = ["--repo", str(missing), *(["--update"] if update else [])]
+    assert gate.main(arguments) == 2
+    result = subprocess.run(
+        [sys.executable, str(gate.ROOT / "tools/check_docstring_debt.py"), *arguments],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and "debt scope missing" in result.stderr
+    assert not result.stdout and "Traceback" not in result.stderr
+    assert not missing.exists()

@@ -154,3 +154,47 @@ def test_module_entrypoint_uses_main() -> None:
     """The module keeps the standard ``python file.py`` entrypoint."""
     script = Path("tools/check_github_token_format_readiness.py")
     assert script.read_text(encoding="utf-8").rstrip().endswith("raise SystemExit(main())")
+
+
+def test_repository_loop_is_an_authored_api_and_cli_refusal(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """Refuse a real root loop without reading or printing repository source."""
+    import sys
+
+    loop = tmp_path / "repository-loop"
+    loop.symlink_to(loop.name, target_is_directory=True)
+    assert main(["--repo", str(loop)]) == 2
+    captured = capsys.readouterr()
+    assert captured.err == "GitHub token-format inspection refused: could not inspect repository source\n"
+    assert not captured.out
+    root = Path(__file__).resolve().parents[1]
+    result = subprocess.run(
+        [sys.executable, str(root / "tools/check_github_token_format_readiness.py"), "--repo", str(loop)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 2 and result.stderr == captured.err and not result.stdout
+
+
+def test_real_git_unicode_name_cannot_hide_a_fixed_width_predicate(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """Scan a real indexed Unicode filename containing an altered actual source owner."""
+    import sys
+
+    root = Path(__file__).resolve().parents[1]
+    name = "tökén.py"
+    path = tmp_path / name
+    original = (root / "src/scpn_control/core/tglf_flux.py").read_bytes()
+    path.write_bytes(original + b"\nif len(installation_token) == 40:\n    pass\n")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "--", name], check=True)
+    findings = scan_repository(tmp_path)
+    assert any(finding.path == name and finding.category == "fixed-token-length" for finding in findings)
+    assert main(["--repo", str(tmp_path)]) == 1
+    assert name in capsys.readouterr().out
+    result = subprocess.run(
+        [sys.executable, str(root / "tools/check_github_token_format_readiness.py"), "--repo", str(tmp_path)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 1 and name in result.stdout and not result.stderr

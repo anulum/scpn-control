@@ -11,6 +11,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 from types import SimpleNamespace
@@ -18,8 +21,8 @@ from typing import Any, cast
 
 import pytest
 from pytest import CaptureFixture
+from report_lifecycle_fixtures import copy_corpus
 
-from tools import public_claim_ledger
 from tools.public_claim_ledger import (
     DEFAULT_REPORTS_ROOT,
     _claim_record,
@@ -28,7 +31,7 @@ from tools.public_claim_ledger import (
     build_public_claim_ledger,
     main,
 )
-from tools.validation_report_freshness import DEFAULT_LIFECYCLE_REGISTRY
+from tools.validation_report_freshness import DEFAULT_LIFECYCLE_REGISTRY, ROOT
 
 AUDIT_AS_OF = datetime(2026, 9, 5, 13, 0, 1, tzinfo=UTC)
 
@@ -138,13 +141,73 @@ def test_main_writes_checks_and_detects_drift(tmp_path: Path, capsys: CaptureFix
     assert "ledger drift" in captured.err
 
 
-def test_main_reports_validation_failure(monkeypatch: pytest.MonkeyPatch, capsys: CaptureFixture[str]) -> None:
-    """Validation errors produce a concise non-zero CLI result."""
+def test_main_reports_validation_failure(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """Actual malformed registry input produces an authored non-zero CLI refusal."""
+    registry = tmp_path / "invalid-registry.json"
+    registry.write_text("[]\n", encoding="utf-8")
+    assert main(["--registry", str(registry)]) == 1
+    assert "must contain a JSON object" in capsys.readouterr().err
 
-    def fail(*_args: object, **_kwargs: object) -> dict[str, object]:
-        raise ValueError("broken lifecycle")
 
-    monkeypatch.setattr(public_claim_ledger, "build_public_claim_ledger", fail)
+@pytest.mark.parametrize("target", ["registry", "report", "refresh", "new-refresh"])
+def test_ledger_cli_preserves_consumed_sources(tmp_path: Path, target: str) -> None:
+    """The actual cold CLI refuses all consumed files and reserved refresh namespaces."""
+    corpus = copy_corpus(tmp_path / "corpus")
+    destinations = {
+        "registry": corpus.registry,
+        "report": corpus.reports / "gk_interface_artifacts.json",
+        "refresh": next((corpus.root / "validation/report_refreshes").rglob("*.json")),
+        "new-refresh": corpus.root / "validation/report_refreshes/new.json",
+    }
+    before = corpus.snapshot()
+    result = subprocess.run(
+        [
+            sys.executable,
+            str(ROOT / "tools/public_claim_ledger.py"),
+            *corpus.arguments(),
+            "--output",
+            str(destinations[target]),
+        ],
+        cwd=corpus.root,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 1
+    assert "Public claim ledger failed:" in result.stderr
+    assert corpus.snapshot() == before
 
-    assert main([]) == 1
-    assert "broken lifecycle" in capsys.readouterr().err
+
+@pytest.mark.parametrize("failure", ["missing-check", "malformed-time", "blank-time", "blocked-parent"])
+def test_ledger_native_errors_use_fixed_message(tmp_path: Path, failure: str) -> None:
+    """Real read, time and publication failures hide native errors and preserve prior bytes."""
+    corpus = copy_corpus(tmp_path / "corpus")
+    output = corpus.root / "ledger.json"
+    output.write_bytes(b"predecessor ledger")
+    options = ["--output", str(output)]
+    if failure == "missing-check":
+        options = ["--check", "--output", str(corpus.root / "private-missing.json")]
+    elif failure == "malformed-time":
+        options += ["--as-of", "private invalid timestamp"]
+    elif failure == "blank-time":
+        options += ["--as-of", ""]
+    else:
+        blocker = corpus.root / "private-parent"
+        blocker.write_bytes(b"blocking regular file")
+        options = ["--output", str(blocker / "ledger.json")]
+    before = corpus.snapshot()
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "tools/public_claim_ledger.py"), *corpus.arguments(), *options],
+        cwd=corpus.root,
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+    assert result.returncode == 1
+    assert result.stderr == "Public claim ledger inputs or output could not be inspected\n"
+    assert output.read_bytes() == b"predecessor ledger"
+    assert corpus.snapshot() == before

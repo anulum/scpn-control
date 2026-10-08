@@ -168,7 +168,7 @@ def main(argv: list[str] | None = None) -> int:
 
     --repo selects a root relative to cwd; default to the script repository.
     --json preserves total_modules/orphans fields; otherwise emit a human report.
-    Return one for orphans or inspection failure, with a fixed stderr refusal and
+    Return one for orphans or root/source inspection failure, with a fixed stderr refusal and
     no report on failure. Unknown flags exit two via argparse. No files are written
     and process argv is unchanged; success does not prove runtime reachability.
     """
@@ -178,8 +178,12 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
+        try:
+            args.repo.stat()
+        except FileNotFoundError:
+            pass  # The nonempty source-scope contract refuses a missing root.
         orphans, total = find_orphans(args.repo.resolve())
-    except (OSError, UnicodeError, SyntaxError):
+    except (OSError, UnicodeError, SyntaxError, RuntimeError):
         print("Wiring inspection refused: could not inspect UTF-8 Python source.", file=sys.stderr)
         return 1
     except ValueError:

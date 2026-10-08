@@ -25,6 +25,31 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 TOOL_PATH = REPO_ROOT / "tools" / "check_runtime_wiring.py"
 
 
+@pytest.mark.parametrize("shape", ["loop", "missing", "file"])
+def test_repository_root_fault_is_an_authored_api_and_cli_refusal(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], shape: str
+) -> None:
+    """Refuse real invalid source roots without emitting partial success JSON."""
+    from tools import check_runtime_wiring
+
+    repository = tmp_path / "repository"
+    if shape == "loop":
+        repository.symlink_to(repository.name, target_is_directory=True)
+    elif shape == "file":
+        repository.write_bytes(b"not a repository directory\n")
+    assert check_runtime_wiring.main(["--repo", str(repository), "--json"]) == 1
+    direct = capsys.readouterr()
+    assert not direct.out and direct.err.startswith("Wiring inspection refused:")
+    process = subprocess.run(
+        [sys.executable, str(TOOL_PATH), "--repo", str(repository), "--json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert process.returncode == 1
+    assert process.stderr == direct.err and not process.stdout
+
+
 def _load_tool() -> ModuleType:
     """Load the actual checker without importing any inspected production modules."""
     spec = importlib.util.spec_from_file_location("check_runtime_wiring", TOOL_PATH)
