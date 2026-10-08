@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -316,6 +317,30 @@ def test_cleanup_refuses_selected_source_namespaces_and_invalid_roots(
     with pytest.raises(SystemExit, match="Distribution cleanup"):
         publish.clean_dist()
     assert retained.read_text(encoding="utf-8") == "retained source"
+
+
+@pytest.mark.parametrize("aliased", [False, True], ids=["nested-package", "aliased-parent"])
+def test_cleanup_preserves_full_source_descendant(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, aliased: bool
+) -> None:
+    """Configured cleanup refuses a real package and its resolved parent alias."""
+    repository = Path(publish.__file__).parents[1]
+    root = tmp_path / "repository"
+    source = root / "src" / "scpn_control"
+    shutil.copytree(repository / "src" / "scpn_control", source, ignore=shutil.ignore_patterns("__pycache__"))
+    shutil.copyfile(repository / "pyproject.toml", root / "pyproject.toml")
+    before = {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()}
+    selected = source
+    if aliased:
+        alias = tmp_path / "source-link"
+        alias.symlink_to(root / "src", target_is_directory=True)
+        selected = alias / "scpn_control"
+    monkeypatch.setattr(publish, "ROOT", root)
+    monkeypatch.setattr(publish, "PYPROJECT", root / "pyproject.toml")
+    monkeypatch.setattr(publish, "DIST", selected)
+    with pytest.raises(SystemExit, match="must not remove repository sources"):
+        publish.clean_dist()
+    assert {path.relative_to(root): path.read_bytes() for path in root.rglob("*") if path.is_file()} == before
 
 
 def test_direct_upload_refuses_unknown_index_without_reading_artifacts() -> None:

@@ -210,6 +210,34 @@ def test_native_csv_failures_are_fixed_and_keep_inputs(
     assert {str(p.relative_to(tmp_path)): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
 
 
+@pytest.mark.parametrize("depth", [1100, 100_000])
+def test_deep_json_public_main_refuses_without_changing_history(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], depth: int
+) -> None:
+    """Native JSON depth limits and invalid schemas reach authored CLI refusals."""
+    raw = b"[" * depth + b"0" + b"]" * depth
+    target = tmp_path / "history.csv"
+    target.write_bytes(HISTORY)
+    assert downloads.main(["--package", "scpn-control", "--csv", str(target)], fetch=lambda package: raw) == 1
+    output = capsys.readouterr()
+    assert output.out == ""
+    assert output.err in {
+        "snapshot failed: pypistats returned invalid JSON\n",
+        "snapshot failed: pypistats response must be a JSON object\n",
+    }
+    assert target.read_bytes() == HISTORY and list(tmp_path.iterdir()) == [target]
+
+
+def test_transport_recursion_is_not_misclassified_as_invalid_json() -> None:
+    """Programming faults in an injected transport remain outside decoder refusal."""
+
+    def fetch(package: str) -> bytes:
+        raise RecursionError("transport programming fault")
+
+    with pytest.raises(RecursionError, match="transport programming fault"):
+        downloads.fetch_overall("scpn-control", fetch=fetch)
+
+
 def test_summary_refuses_inconsistent_rows_without_native_key_error() -> None:
     """The public summary applies the same row contract before indexing categories."""
     with pytest.raises(downloads.DownloadRowsError, match="missing with_mirrors"):

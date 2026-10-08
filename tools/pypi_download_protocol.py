@@ -296,11 +296,12 @@ def fetch_overall(package: str, fetch: Fetch = _http_get) -> DownloadRows:
     Injected transports own their timing and faults. This function does not retry,
     write files or authenticate externally supplied counts.
     """
+    response = fetch(package)
     try:
-        decoded: object = json.loads(fetch(package), object_pairs_hook=_reject_duplicate_object_keys)
+        decoded: object = json.loads(response, object_pairs_hook=_reject_duplicate_object_keys)
     except DuplicateJSONObjectKeyError as exc:
         raise DownloadSnapshotError("pypistats returned invalid JSON: duplicate JSON object name") from exc
-    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+    except (UnicodeDecodeError, json.JSONDecodeError, RecursionError) as exc:
         raise DownloadSnapshotError("pypistats returned invalid JSON") from exc
     return validate_overall(decoded, package)
 

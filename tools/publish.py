@@ -134,6 +134,8 @@ def clean_dist() -> None:
     protected = (ROOT, PYPROJECT, ROOT / "src", ROOT / "tools", ROOT / "tests", ROOT / "docs", ROOT / "scpn-control-rs")
     if any(path.resolve().is_relative_to(selected) for path in protected):
         raise SystemExit("Distribution cleanup must not remove repository sources")
+    if any(selected.is_relative_to(path.resolve()) for path in protected[2:]):
+        raise SystemExit("Distribution cleanup must not remove repository sources")
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir()
