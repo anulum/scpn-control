@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import copy
 import json
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -311,11 +312,27 @@ def test_actual_cli_source_alias_is_refused_before_loading_harness(tmp_path: Pat
     """A copied runner cannot replace itself even with otherwise valid settings."""
     root = tmp_path / "owned"
     (root / "tools").mkdir(parents=True)
+    for relative in (
+        "tools/__init__.py",
+        "tools/benchmark_suite_metrics.py",
+        "tools/benchmark_suite_provenance.py",
+        "tools/inventory_file_output.py",
+        "validation/__init__.py",
+        "validation/report_output_paths.py",
+    ):
+        destination = root / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes((ROOT / relative).read_bytes())
+    shutil.copytree(
+        ROOT / "src/scpn_control",
+        root / "src/scpn_control",
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc"),
+    )
     target = root / "tools/run_benchmark_suite.py"
     original = (ROOT / "tools/run_benchmark_suite.py").read_bytes()
     target.write_bytes(original)
     result = subprocess.run(
-        [sys.executable, str(target), "--steps", "2", "--warmup", "0", "--json-out", str(target)],
+        [sys.executable, "-I", str(target), "--steps", "2", "--warmup", "0", "--json-out", str(target)],
         cwd=root,
         capture_output=True,
         text=True,
