@@ -1757,7 +1757,33 @@ Existing files and directories are first copied into the verified legacy archive
 then moved into the invocation's `prior-output` directory. The producer must
 recreate every declared destination. Writing identical deterministic bytes is
 valid; merely leaving an older file in place cannot establish a successful run.
-Directory producers must recreate the directory and its complete result set.
+Each file result must contain data. Directory producers must recreate the
+directory and its complete result set, including at least one nonempty regular
+file. Symlinks and special entries such as named pipes are refused.
+
+New directory receipts use `sha256-directory-tree.v2`: case-sensitive POSIX
+relative-name order, node types, empty directories and file digests determine the
+hash. Permissions and timestamps are not part of this content digest. Historical
+directory receipts retain their explicitly supported file-only v1 algorithm;
+they do not bind empty-directory structure or establish portable ordering.
+New `legacy_inputs` also name their digest algorithm; historical directory
+predecessors without that label use the file-only v1 digest.
+
+New predecessor archives use `legacy/<digest-algorithm>/<digest>/artifact`.
+Reuse requires both the expected filesystem kind and matching content digest;
+equal file/tree digests cannot alias across the named algorithms. Role labels
+do not select archive names. Prior and failed outputs use zero-based declaration
+indices without suffixes; `invocation.json` records each role and exact prior
+path. This preserves case-distinct roles on Windows. Existing manifests retain
+their explicit legacy paths unchanged; no historical archive is renamed. The
+verified-latest reader checks sealed artifacts, not predecessor archives.
+
+Family and campaign identifiers are native filename components and retain their
+supplied case. Case-distinct family names do not provide independent carriers
+on a case-insensitive filesystem; a later successful campaign can select the
+same latest path, after which the reader refuses a different declared family.
+Use one consistent spelling for each family. Native filename restrictions,
+including Windows trailing-dot and reserved-name handling, still apply.
 
 Disjoint output destinations can run concurrently. Identical or overlapping
 file/directory destinations are rejected across recorded campaigns in the same
@@ -1765,12 +1791,41 @@ canonical repository, even when they use different records roots. The reservatio
 registry is `artifacts/benchmarks/output-leases`; it coordinates cooperating
 recorded producers, not unrelated processes writing directly to those paths.
 Each invocation records its command, reservation and original/prior-output paths
-in `invocation.json` before any old destination is moved.
+in `invocation.json` before any old destination is moved. Complete UTF-8 lease
+markers are flushed before atomic publication; interrupted temporary writes are
+not markers. Publication requires hard-link support in the registry filesystem.
+An undecodable or invalid existing marker blocks new reservations
+until explicit recovery. A refused reservation does not consume the campaign id.
 
 A failed or incomplete run keeps its immutable partial artifacts and cannot
-advance the digest-bound `latest` index. Missing destinations are restored from
-the run's prior outputs. If the producer exits zero but an output is absent, the
-runner returns exit code 1. Nonzero producer exit codes are preserved.
+advance the digest-bound `latest` index. Its recreated destinations are moved to
+`failed-output` after checking their sealed digests, then every prior destination
+is restored. New failed results without predecessors leave no live destination;
+their raw and immutable bytes remain in the run. This avoids mixing failed fresh
+results with prior results. If the producer exits zero but an output is missing
+or empty, the runner returns exit code 1. Nonzero producer exit codes are preserved.
+
+`latest` identifies the last successful atomic publication, even when that run
+started earlier than another concurrent run. `load_verified_latest()` checks
+the manifest family/status, canonical payload digest, role/type/size declarations
+and actual immutable artifact bytes against both manifest and index. The runner
+uses this verification before returning success. Consumers should read that
+immutable set; mutable producer destinations can be incomplete during a run.
+Concurrent publication can select another successful run of the same family
+before verification; verification checks the selected index's integrity.
+Digest integrity does not authenticate the producer, prove dirty-source identity
+or admit scientific or production claims.
+
+New immutable artefacts use `artifacts/<declaration-index><file-suffix>` for
+files, with `.bin` when the source has no suffix, and
+`artifacts/<declaration-index>` for directories. The zero-based index comes from
+the declared output order, including missing outputs. It is independent of role
+spelling: file role `report` and directory role `report.json` therefore remain
+distinct in either order. Read each role's explicit `immutable_path_in_run`
+instead of deriving a filename from the role. The schemas and digest algorithms
+are unchanged; the reader still verifies historical role-named artefacts and
+legacy path observations without rewriting those records. Reservation, prior
+output retention, failed-output recovery and latest publication are unchanged.
 
 If finalisation or the process is interrupted, its reservation remains in place.
 Recover the invocation and its original/prior-output paths before releasing that

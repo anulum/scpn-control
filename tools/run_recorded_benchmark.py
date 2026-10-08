@@ -29,7 +29,7 @@ import sys
 from pathlib import Path
 from typing import Any, Sequence
 
-from scpn_control.benchmark_records import CAMPAIGN_ENV, BenchmarkOutput, BenchmarkRun
+from scpn_control.benchmark_records import CAMPAIGN_ENV, BenchmarkOutput, BenchmarkRun, load_verified_latest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -155,7 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     int
         Producer return code, 127 for native launch failure, or 130 for an
         interrupt caught while waiting. A zero-exit producer with missing
-        declared output returns one. Success returns zero after sealing.
+        declared output, or a zero-byte/empty directory result, returns one.
+        Success returns zero after sealing and verifying the current latest carrier.
 
     Raises
     ------
@@ -175,7 +176,10 @@ def main(argv: list[str] | None = None) -> int:
     supervisor is provided. Native subprocess.run owns direct-child waiting and
     interrupted cleanup; interruption does not guarantee immediate OS reaping.
     Failed/incomplete manifests cannot
-    advance latest. Record-finalisation errors can retain a recovery reservation.
+    advance latest. Failed fresh destinations move to the invocation's
+    failed-output directory before all original destinations are restored;
+    restoration errors retain their recovery reservation. Record-finalisation
+    errors can retain a recovery reservation.
     Direct negative POSIX child return codes are retained by this API; Python
     SystemExit maps such integers to the platform's command-line exit status.
     Command/sample metadata and successful custody do not grant production or
@@ -252,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"benchmark record: {manifest.relative_to(repository_root).as_posix()}", file=sys.stderr)
     if exit_code == 0 and json.loads(manifest.read_text())["status"] != "succeeded":
         return 1
+    if exit_code == 0:
+        load_verified_latest(run.records_root, run.family)
     return exit_code
 
 

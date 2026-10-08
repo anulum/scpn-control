@@ -3651,6 +3651,39 @@ interrupted-run handling.
 
 ::: scpn_control.benchmark_output_lease.BenchmarkOutputLease
 
+Directory artefact inspection binds node types, empty directories and
+case-sensitive POSIX relative-name ordering with an explicit digest algorithm.
+The latest reader verifies stored payload bytes and the canonical manifest
+binding; it does not authenticate a producer or establish scientific validity.
+
+New stored names use the zero-based output declaration index, followed by the
+source suffix for files (`.bin` if absent); directory names use the index alone.
+Role labels remain separate manifest fields, so file `report` and directory
+`report.json` cannot share a stored name. Resolve artefacts through their role
+and explicit `immutable_path_in_run`; do not infer a filename from the role.
+Schema and digest algorithms are unchanged, and legacy role-named records remain
+readable without mutation. Missing outputs retain their declared index slots.
+
+New predecessor archives use `legacy/<digest-algorithm>/<digest>/artifact`.
+Reuse requires both the expected filesystem kind and matching content digest;
+equal file/tree digests cannot alias across the named algorithms. Role labels
+do not select archive names. Prior and failed outputs use zero-based declaration
+indices without suffixes; `invocation.json` records each role and exact prior
+path. This preserves case-distinct roles on Windows. Existing manifests retain
+their explicit legacy paths unchanged; no historical archive is renamed. The
+verified-latest reader checks sealed artifacts, not predecessor archives.
+
+Family and campaign identifiers are native filename components and retain their
+supplied case. Case-distinct family names do not provide independent carriers
+on a case-insensitive filesystem; a later successful campaign can select the
+same latest path, after which the reader refuses a different declared family.
+Use one consistent spelling for each family. Native filename restrictions,
+including Windows trailing-dot and reserved-name handling, still apply.
+
+::: scpn_control.benchmark_artifacts
+
+::: scpn_control.benchmark_record_integrity
+
 The source-checkout runner executes an argument vector without a shell, from the
 resolved repository root, and passes the reserved campaign through
 `SCPN_BENCHMARK_CAMPAIGN_ID`. Each repeated `--artifact ROLE=PATH` describes one

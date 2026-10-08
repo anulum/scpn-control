@@ -15,64 +15,39 @@ import os
 import platform
 import re
 import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 from uuid import uuid4
 
+from scpn_control.benchmark_artifacts import DIRECTORY_DIGEST_ALGORITHM
+from scpn_control.benchmark_artifacts import path_size as _path_size
+from scpn_control.benchmark_artifacts import sha256_path as _sha256_path
 from scpn_control.benchmark_output_lease import BenchmarkOutputLease
+from scpn_control.benchmark_record_integrity import (
+    _IDENTIFIER,
+    _json_bytes,
+    _sha256_bytes,
+)
+from scpn_control.benchmark_record_integrity import (
+    LATEST_SCHEMA as LATEST_SCHEMA,
+)
+from scpn_control.benchmark_record_integrity import (
+    RUN_SCHEMA as RUN_SCHEMA,
+)
+from scpn_control.benchmark_record_integrity import (
+    load_verified_latest as load_verified_latest,
+)
 
-RUN_SCHEMA = "scpn-control.benchmark-run.v1"
-LATEST_SCHEMA = "scpn-control.benchmark-latest.v1"
 CAMPAIGN_ENV = "SCPN_BENCHMARK_CAMPAIGN_ID"
 
-_IDENTIFIER = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$")
 _SECRET_OPTION = re.compile(r"(?i)(token|secret|password|credential|api[-_]?key)")
 
 
 def _utc_now() -> str:
     return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
-
-
-def _sha256_bytes(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
-
-
-def _sha256_file(path: Path) -> str:
-    digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
-
-
-def _directory_files(path: Path) -> list[Path]:
-    files = sorted(candidate for candidate in path.rglob("*") if candidate.is_file())
-    if any(candidate.is_symlink() for candidate in path.rglob("*")):
-        raise ValueError(f"benchmark artifact directories cannot contain symlinks: {path}")
-    return files
-
-
-def _sha256_path(path: Path) -> str:
-    if path.is_file():
-        return _sha256_file(path)
-    if not path.is_dir():
-        raise FileNotFoundError(path)
-    digest = hashlib.sha256()
-    for file_path in _directory_files(path):
-        relative = file_path.relative_to(path).as_posix()
-        digest.update(relative.encode("utf-8"))
-        digest.update(b"\0")
-        digest.update(bytes.fromhex(_sha256_file(file_path)))
-        digest.update(b"\0")
-    return digest.hexdigest()
-
-
-def _path_size(path: Path) -> int:
-    if path.is_file():
-        return path.stat().st_size
-    return sum(file_path.stat().st_size for file_path in _directory_files(path))
 
 
 def _validate_identifier(value: str, label: str) -> str:
@@ -213,13 +188,12 @@ def _cpu_model() -> str:
 
 
 def _host_context() -> dict[str, Any]:
+    affinity_getter: Callable[[int], set[int]] | None = getattr(os, "sched_getaffinity", None)
+    load_getter: Callable[[], tuple[float, float, float]] | None = getattr(os, "getloadavg", None)
+    affinity = sorted(affinity_getter(0)) if affinity_getter is not None else None
     try:
-        affinity: list[int] | None = sorted(os.sched_getaffinity(0))
-    except AttributeError:
-        affinity = None
-    try:
-        load_average: list[float] | None = list(os.getloadavg())
-    except (AttributeError, OSError):
+        load_average = list(load_getter()) if load_getter is not None else None
+    except OSError:
         load_average = None
     return {
         "cpu_model": _cpu_model(),
@@ -239,10 +213,6 @@ def _display_path(path: Path, repository_root: Path) -> str:
         return resolved.relative_to(repository_root.resolve()).as_posix()
     except ValueError:
         return str(resolved)
-
-
-def _json_bytes(payload: Mapping[str, Any]) -> bytes:
-    return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def _write_exclusive(path: Path, data: bytes) -> None:
@@ -329,17 +299,49 @@ class BenchmarkRun:
 
         Producers must recreate every declared file or directory. Existing bytes
         remain in the legacy archive and the run's ``prior-output`` directory.
-        Missing destinations are restored after a failed finalisation. Overlapping
+        Archives are keyed by digest algorithm and digest, with a fixed basename;
+        reuse verifies kind and content. Prior/failed custody uses declaration
+        indices, so case-distinct role labels remain distinct on Windows.
+        Failed runs quarantine recreated outputs and restore every predecessor.
+        Overlapping
         recorded campaigns refuse before any destination is changed. Relative
         destinations are resolved against the current directory once at begin;
         later working-directory changes cannot redirect custody or recovery.
+
+        Parameters
+        ----------
+        repository_root, records_root : Path
+            Repository identity/lease root and immutable campaign storage. Paths
+            resolve against cwd; custody must not overlap any output namespace.
+        family : str
+            Descriptive identifier, shared by its latest-completed index.
+        outputs : sequence of BenchmarkOutput
+            Distinct regular-file or directory destinations. Existing data is
+            preserved; symlinks and special entries refuse before displacement.
+        command : sequence of str
+            Recorded argument vector. This API does not execute it.
+        campaign_id : str or None
+            Unique invocation identifier; environment or generated default when
+            absent. A lease refusal does not consume an unstarted identifier.
+        evidence_class : str
+            Caller-supplied evidence label; it grants no measurement authority.
+        measurement : mapping or None
+            Caller-supplied metadata, copied into the record without inference.
+
+        Returns
+        -------
+        BenchmarkRun
+            Reserved invocation with displaced originals and observed host context.
 
         Raises
         ------
         FileExistsError
             If the requested campaign identifier already exists.
         ValueError
-            If identifiers or output roles are invalid or duplicated.
+            Invalid identifiers, output roles/types or overlapping custody.
+        RuntimeError, OSError
+            Reservation, verified archival or recovery fails. An incomplete
+            recovery retains its lease and bytes for explicit inspection.
         """
         root = repository_root.resolve()
         custody = records_root.resolve()
@@ -355,15 +357,20 @@ class BenchmarkRun:
 
         normalised_outputs = tuple(BenchmarkOutput(output.role, output.path.resolve()) for output in normalised_outputs)
         run_directory = custody / "runs" / run_family / run_id
-        run_directory.mkdir(parents=True, exist_ok=False)
+        if run_directory.exists():
+            raise FileExistsError(f"benchmark campaign already exists: {run_directory}")
         if any(
             custody.is_relative_to(output.path.resolve()) or output.path.resolve().is_relative_to(custody)
             for output in normalised_outputs
         ):
             raise ValueError("benchmark outputs must not overlap the records root")
+        for output in normalised_outputs:
+            if output.path.exists():
+                _path_size(output.path)
         lease = BenchmarkOutputLease.acquire(root, [output.path for output in normalised_outputs], run_directory)
         displaced: list[tuple[Path, Path]] = []
         try:
+            run_directory.mkdir(parents=True, exist_ok=False)
             _write_exclusive(
                 run_directory / "invocation.json",
                 _json_bytes(
@@ -377,9 +384,9 @@ class BenchmarkRun:
                             {
                                 "role": output.role,
                                 "path": str(output.path.resolve()),
-                                "prior_output": str(run_directory / "prior-output" / output.role),
+                                "prior_output": str(run_directory / "prior-output" / str(ordinal)),
                             }
-                            for output in normalised_outputs
+                            for ordinal, output in enumerate(normalised_outputs)
                         ],
                     }
                 ),
@@ -389,11 +396,12 @@ class BenchmarkRun:
                 if not output.path.exists():
                     continue
                 digest = _sha256_path(output.path)
-                suffix = (output.path.suffix or ".bin") if output.path.is_file() else ""
-                legacy_path = custody / "legacy" / digest / f"{output.role}{suffix}"
+                directory = output.path.is_dir()
+                algorithm = DIRECTORY_DIGEST_ALGORITHM if directory else "sha256"
+                legacy_path = custody / "legacy" / algorithm / digest / "artifact"
                 if not legacy_path.exists():
                     legacy_path.parent.mkdir(parents=True, exist_ok=True)
-                    if output.path.is_dir():
+                    if directory:
                         try:
                             shutil.copytree(output.path, legacy_path)
                         except FileExistsError:
@@ -403,14 +411,19 @@ class BenchmarkRun:
                             _copy_file_exclusive(output.path, legacy_path)
                         except FileExistsError:
                             pass
-                if _sha256_path(legacy_path) != digest:
-                    raise RuntimeError(f"legacy benchmark digest mismatch at {legacy_path}")
+                if (
+                    legacy_path.is_symlink()
+                    or not (legacy_path.is_dir() if directory else legacy_path.is_file())
+                    or _sha256_path(legacy_path) != digest
+                ):
+                    raise RuntimeError(f"legacy benchmark kind or digest mismatch at {legacy_path}")
                 legacy_entries.append(
                     {
                         "role": output.role,
                         "source_path": _display_path(output.path, root),
                         "archived_path": _display_path(legacy_path, root),
                         "sha256": digest,
+                        "digest_algorithm": algorithm,
                     }
                 )
 
@@ -436,16 +449,27 @@ class BenchmarkRun:
             )
 
             try:
-                for output in normalised_outputs:
+                for ordinal, output in enumerate(normalised_outputs):
                     if output.path.exists():
-                        destination = run_directory / "prior-output" / output.role
+                        destination = run_directory / "prior-output" / str(ordinal)
                         destination.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.move(str(output.path), destination)
                         displaced.append((output.path, destination))
+                        shutil.move(str(output.path), destination)
             except BaseException:
                 while displaced:
                     original, saved = displaced[-1]
+                    if not saved.exists():
+                        if not original.exists():
+                            raise RuntimeError(f"benchmark recovery cannot locate original output: {original}")
+                        displaced.pop()
+                        continue
                     if original.exists() or original.is_symlink():
+                        if not original.is_symlink() and _sha256_path(original) == _sha256_path(saved):
+                            retained = run_directory / "failed-displacement" / f"{saved.name}-{uuid4().hex}"
+                            retained.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.move(str(saved), retained)
+                            displaced.pop()
+                            continue
                         raise RuntimeError(f"benchmark recovery destination is occupied: {original}")
                     shutil.move(str(saved), original)
                     displaced.pop()
@@ -462,10 +486,56 @@ class BenchmarkRun:
 
         A zero exit code with every reserved destination recreated is successful.
         Failed or incomplete runs remain preserved but cannot update the
-        digest-bound latest index.
+        digest-bound latest index. Their recreated destinations are moved into
+        ``failed-output`` after digest verification; all displaced originals
+        are restored, so destinations cannot mix successful and failed cohorts.
+        Recovery failures retain the reservation for explicit inspection.
+
+        Immutable names use each output's zero-based declaration index, plus
+        its file suffix (or ``.bin``); directory names use the index alone.
+        Role labels remain in the manifest and cannot collide with file suffixes.
+        Consumers resolve the explicit paths by role rather than guessing names;
+        legacy role-named records remain readable.
+
+        Parameters
+        ----------
+        exit_code : int
+            Observed producer status. Only zero with every declared output
+            recreated and containing data can advance latest.
+
+        Returns
+        -------
+        Path
+            Immutable JSON manifest, including failed runs and empty/missing roles.
+
+        Raises
+        ------
+        FileExistsError
+            The invocation was already sealed; records are never rewritten.
+        ValueError, RuntimeError, OSError
+            Artifact inspection, stable copying or recovery failed. The lease
+            remains until an owner resolves the retained recovery state.
         """
+        if type(exit_code) is not int:
+            raise ValueError("benchmark exit code must be an integer, not a boolean or coerced value")
         manifest_path = self._seal(exit_code=exit_code)
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        failed = manifest["status"] != "succeeded"
+        if failed:
+            sealed = {entry["role"]: entry["sha256"] for entry in manifest["artifacts"]}
+            for ordinal, output in enumerate(self.outputs):
+                if output.role not in sealed:
+                    continue
+                if _sha256_path(output.path) != sealed[output.role]:
+                    raise RuntimeError("failed benchmark output changed before recovery")
+                destination = self.run_directory / "failed-output" / str(ordinal)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                if destination.exists() or destination.is_symlink():
+                    raise RuntimeError(f"failed benchmark recovery destination is occupied: {destination}")
+                shutil.move(str(output.path), destination)
         for original, saved in self.displaced_outputs:
+            if failed and (original.exists() or original.is_symlink()):
+                raise RuntimeError(f"benchmark recovery destination is occupied: {original}")
             if not original.exists():
                 original.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(saved), original)
@@ -480,7 +550,8 @@ class BenchmarkRun:
 
         artifact_entries: list[dict[str, Any]] = []
         missing_roles: list[str] = []
-        for output in self.outputs:
+        empty_roles: list[str] = []
+        for ordinal, output in enumerate(self.outputs):
             if output.path.is_symlink():
                 raise ValueError("benchmark outputs cannot be symlinks")
             if not output.path.exists():
@@ -488,25 +559,30 @@ class BenchmarkRun:
                 continue
             source_digest = _sha256_path(output.path)
             suffix = (output.path.suffix or ".bin") if output.path.is_file() else ""
-            immutable_path = self.run_directory / "artifacts" / f"{output.role}{suffix}"
+            immutable_path = self.run_directory / "artifacts" / f"{ordinal}{suffix}"
             if output.path.is_dir():
                 shutil.copytree(output.path, immutable_path)
             else:
                 _write_exclusive(immutable_path, output.path.read_bytes())
             if _sha256_path(immutable_path) != source_digest or _sha256_path(output.path) != source_digest:
                 raise RuntimeError("benchmark output changed while being sealed")
+            size = _path_size(immutable_path)
+            if size == 0:
+                empty_roles.append(output.role)
             artifact_entries.append(
                 {
                     "role": output.role,
                     "kind": "directory" if output.path.is_dir() else "file",
                     "source_path": _display_path(output.path, self.repository_root),
                     "immutable_path": _display_path(immutable_path, self.repository_root),
-                    "size_bytes": _path_size(immutable_path),
+                    "immutable_path_in_run": immutable_path.relative_to(self.run_directory).as_posix(),
+                    "digest_algorithm": DIRECTORY_DIGEST_ALGORITHM if output.path.is_dir() else "sha256",
+                    "size_bytes": size,
                     "sha256": _sha256_path(immutable_path),
                 }
             )
 
-        succeeded = exit_code == 0 and not missing_roles
+        succeeded = exit_code == 0 and not missing_roles and not empty_roles
         manifest: dict[str, Any] = {
             "schema_version": RUN_SCHEMA,
             "campaign_id": self.campaign_id,
@@ -526,6 +602,7 @@ class BenchmarkRun:
             "host_end": _host_context(),
             "artifacts": artifact_entries,
             "missing_output_roles": missing_roles,
+            "empty_output_roles": empty_roles,
             "legacy_inputs": list(self.legacy),
             "output_custody": {
                 "protocol": "reserved-empty-destination.v1",
@@ -550,39 +627,6 @@ class BenchmarkRun:
             }
             _atomic_replace(self.records_root / "latest" / f"{self.family}.json", _json_bytes(latest))
         return manifest_path
-
-
-def load_verified_latest(records_root: Path, family: str) -> tuple[dict[str, Any], dict[str, Any]]:
-    """Load a latest index and its manifest after verifying the bound digest.
-
-    Returns
-    -------
-    tuple[dict[str, Any], dict[str, Any]]
-        The latest index and the referenced immutable run manifest.
-
-    Raises
-    ------
-    ValueError
-        If the index schema, family, path, or digest is invalid.
-    """
-    run_family = _validate_identifier(family, "benchmark family")
-    root = records_root.resolve()
-    latest_path = root / "latest" / f"{run_family}.json"
-    latest: dict[str, Any] = json.loads(latest_path.read_text(encoding="utf-8"))
-    if latest.get("schema_version") != LATEST_SCHEMA or latest.get("benchmark_family") != run_family:
-        raise ValueError("benchmark latest index schema or family mismatch")
-    manifest_path = root / Path(str(latest.get("manifest_path", "")))
-    resolved_manifest = manifest_path.resolve()
-    runs_root = (root / "runs").resolve()
-    if not resolved_manifest.is_relative_to(runs_root):
-        raise ValueError("benchmark latest manifest escapes the immutable runs root")
-    manifest_bytes = resolved_manifest.read_bytes()
-    if _sha256_bytes(manifest_bytes) != latest.get("manifest_sha256"):
-        raise ValueError("benchmark latest manifest digest mismatch")
-    manifest: dict[str, Any] = json.loads(manifest_bytes)
-    if manifest.get("status") != "succeeded" or manifest.get("campaign_id") != latest.get("campaign_id"):
-        raise ValueError("benchmark latest references an inadmissible run")
-    return latest, manifest
 
 
 __all__ = [

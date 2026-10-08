@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import tempfile
 from collections.abc import Iterator, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -88,7 +89,14 @@ class BenchmarkOutputLease:
         ValueError
             If no outputs, duplicate/overlapping paths or custody overlap exist.
         RuntimeError
-            If an active or interrupted campaign already owns an output.
+            If an active or interrupted campaign already owns an output, or
+            any marker cannot be decoded/validated. Unknown reservations block
+            every campaign until explicit recovery; they are never discarded.
+
+        Notes
+        -----
+        A complete UTF-8 marker is flushed before exclusive atomic publication
+        under the registry lock. Interrupted temporary writes are not markers.
         """
         root = repository_root.resolve() / "artifacts/benchmarks/output-leases"
         paths = tuple(path.resolve() for path in outputs)
@@ -101,7 +109,10 @@ class BenchmarkOutputLease:
                 raise ValueError("benchmark output paths must not overlap")
         with _registry_lock(root):
             for marker in root.glob("*.json"):
-                record = json.loads(marker.read_text())
+                try:
+                    record = json.loads(marker.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, ValueError) as exc:
+                    raise RuntimeError(f"invalid benchmark reservation: {marker}") from exc
                 held = record.get("outputs") if isinstance(record, dict) else None
                 if (
                     not isinstance(held, list)
@@ -116,11 +127,26 @@ class BenchmarkOutputLease:
                 ):
                     raise RuntimeError(f"benchmark outputs already reserved: {marker}")
             marker = root / f"{uuid4().hex}.json"
-            with marker.open("x") as handle:
-                json.dump(
-                    {"outputs": [str(path) for path in paths], "run_directory": str(run_directory), "pid": os.getpid()},
-                    handle,
-                )
+            temporary: Path | None = None
+            try:
+                with tempfile.NamedTemporaryFile(
+                    mode="w", encoding="utf-8", dir=root, prefix=".reservation-", suffix=".tmp", delete=False
+                ) as handle:
+                    temporary = Path(handle.name)
+                    json.dump(
+                        {
+                            "outputs": [str(path) for path in paths],
+                            "run_directory": str(run_directory),
+                            "pid": os.getpid(),
+                        },
+                        handle,
+                    )
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.link(temporary, marker)
+            finally:
+                if temporary is not None:
+                    temporary.unlink(missing_ok=True)
         return cls(marker)
 
     def release(self) -> None:

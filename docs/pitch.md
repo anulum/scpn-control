@@ -133,7 +133,7 @@ The architecture *could* support future integration, but:
 
 ```
 285 Python control/physics modules | 5 Rust crates / 67 Rust source files
-804 Python test files | 22 GitHub Actions workflows
+806 Python test files | 22 GitHub Actions workflows
 ```
 
 ```
@@ -162,9 +162,7 @@ Interactive controls for coupling strength, oscillator count, and Psi driver.
 
 **Historical phase-model visualisation (labelled 500 ticks, 16 layers x 50 oscillators):**
 
-<p align="center">
-  <img src="phase_sync_live.gif" alt="Historical phase-model visualization" width="100%">
-</p>
+![Historical phase-model visualisation](phase_sync_live.gif)
 
 The current seeded default gives R≈0.154 and V≈0.846 at tick500. Generate new
 media in a fresh directory with `python tools/generate_phase_video.py --output-dir phase-video`;

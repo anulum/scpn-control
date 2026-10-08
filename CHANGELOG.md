@@ -27,6 +27,11 @@
 
 ### Changed
 
+- Failed benchmark campaigns retain fresh outputs outside live destinations
+  and restore every predecessor together. Empty results cannot advance latest;
+  reservation publication is atomic and refused reservations remain retryable.
+  New directory digests bind types, empty directories and portable name ordering.
+  The recorded runner verifies latest manifests and their actual stored payloads.
 - Repository-relative paths in diagnostics and in report fields are written
   with forward slashes on every platform. Twelve modules rendered them with
   the running platform's separator, so the same report or message differed

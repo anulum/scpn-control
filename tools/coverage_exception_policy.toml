@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-10-06"
-expected_total = 385
-expected_sha256 = "320d3976e494e91c07e11d48bcb2fc3019d8252f2aca4821a0410d21eca159d0"
+expected_total = 387
+expected_sha256 = "3d028618e3c949f0054dada5ccfd8bde694f0e4d760821061e6a822efca76948"
 
 [[rules]]
 id = "spo-installation-boundary"
@@ -228,6 +228,16 @@ execution_lane = "manual focused tests on a verified wider-longdouble host"
 status = "explicit-environment-blocker"
 removal_condition = "Remove when a named CI lane executes these exact range tests on a verified wider-longdouble host, or the variant is no longer supported."
 workflow_evidence = ""
+
+[[rules]]
+id = "linux-kernel-sandbox"
+pattern = "Linux x86_64 kernel sandbox"
+last_review = "2026-10-07"
+external_dependency = "Linux x86_64 process-local seccomp filter and native sysinfo syscall"
+execution_lane = "python-tests: Ubuntu 3.12; focused A05 Linux raw coverage"
+status = "variant-ci-lane"
+removal_condition = "Remove when this Linux-specific host-metadata diagnostic is retired or every supported platform supplies the same native kernel interface. Other platforms must report the case as inapplicable, not passed."
+workflow_evidence = "os: [ubuntu-latest]"
 
 [[rules]]
 id = "intrinsic-control-flow"

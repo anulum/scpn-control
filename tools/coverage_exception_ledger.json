@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 173,
     "pytest-runtime-skip": 55,
-    "pytest-skipif": 144,
+    "pytest-skipif": 146,
     "pytest-xfail": 2
   },
   "entries": [
@@ -177,10 +177,10 @@
       "condition": "if sys.platform == \"win32\":",
       "execution_lane": "python-tests: windows-2025 / Python 3.12",
       "external_dependency": "Windows runtime",
-      "id": "covexc-1e278d9e7c3958aa",
+      "id": "covexc-ef8a179f3f899cb5",
       "kind": "pragma-no-cover",
       "last_review": "2026-10-06",
-      "line": 27,
+      "line": 28,
       "owner": "repository/coverage-policy",
       "path": "src/scpn_control/benchmark_output_lease.py",
       "reason": "win32 byte-range lock; the Windows lane runs it",
@@ -192,10 +192,10 @@
       "condition": "if sys.platform == \"win32\":",
       "execution_lane": "python-tests: windows-2025 / Python 3.12",
       "external_dependency": "Windows runtime",
-      "id": "covexc-98d66d7fd7f5de96",
+      "id": "covexc-64e68bd289e51a93",
       "kind": "pragma-no-cover",
       "last_review": "2026-10-06",
-      "line": 42,
+      "line": 43,
       "owner": "repository/coverage-policy",
       "path": "src/scpn_control/benchmark_output_lease.py",
       "reason": "win32 byte-range unlock; the Windows lane runs it",
@@ -3623,6 +3623,36 @@
       "status": "variant-ci-lane"
     },
     {
+      "classification": "filesystem-capability",
+      "condition": "not hasattr(os, \"mkfifo\")",
+      "execution_lane": "python-tests: Ubuntu, Windows, and macOS",
+      "external_dependency": "operating-system filesystem capability",
+      "id": "covexc-4058d4b3d5dd04f8",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-06",
+      "line": 92,
+      "owner": "tests/benchmark_artifacts",
+      "path": "tests/test_benchmark_artifacts.py",
+      "reason": "Named-pipe filesystem capability requires os.mkfifo",
+      "removal_condition": "Remove when the capability is guaranteed on every supported filesystem or the guarded feature is retired.",
+      "status": "variant-ci-lane"
+    },
+    {
+      "classification": "linux-kernel-sandbox",
+      "condition": "sys.platform != \"linux\" or platform.machine() != \"x86_64\"",
+      "execution_lane": "python-tests: Ubuntu 3.12; focused A05 Linux raw coverage",
+      "external_dependency": "Linux x86_64 process-local seccomp filter and native sysinfo syscall",
+      "id": "covexc-fa369f3a04eb1e5f",
+      "kind": "pytest-skipif",
+      "last_review": "2026-10-07",
+      "line": 109,
+      "owner": "tests/benchmark_records",
+      "path": "tests/test_benchmark_records.py",
+      "reason": "Linux x86_64 kernel sandbox is required for native sysinfo denial",
+      "removal_condition": "Remove when this Linux-specific host-metadata diagnostic is retired or every supported platform supplies the same native kernel interface. Other platforms must report the case as inapplicable, not passed.",
+      "status": "variant-ci-lane"
+    },
+    {
       "classification": "rust",
       "condition": "not HAS_BORIS_API",
       "execution_lane": "rust-python-interop",
@@ -5783,8 +5813,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 385,
-  "entry_sha256": "320d3976e494e91c07e11d48bcb2fc3019d8252f2aca4821a0410d21eca159d0",
+  "entry_count": 387,
+  "entry_sha256": "3d028618e3c949f0054dada5ccfd8bde694f0e4d760821061e6a822efca76948",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

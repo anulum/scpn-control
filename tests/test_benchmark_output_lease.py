@@ -65,7 +65,9 @@ else:
         lease.release()
 
 
-@pytest.mark.parametrize("record", ['{"outputs":null}', '{"outputs":[]}', '{"outputs":["relative"]}', "[]"])
+@pytest.mark.parametrize(
+    "record", ['{"outputs":null}', '{"outputs":[]}', '{"outputs":["relative"]}', "[]", "", "{", "\ufffd"]
+)
 def test_unrecognised_reservation_metadata_fails_closed(tmp_path: Path, record: str) -> None:
     """Malformed reservation metadata cannot silently release another owner."""
     root = tmp_path / "artifacts/benchmarks/output-leases"
@@ -73,6 +75,60 @@ def test_unrecognised_reservation_metadata_fails_closed(tmp_path: Path, record: 
     (root / "interrupted.json").write_text(record)
     with pytest.raises(RuntimeError, match="invalid benchmark reservation"):
         BenchmarkOutputLease.acquire(tmp_path, [tmp_path / "report"], tmp_path / "run")
+
+
+def test_invalid_utf8_reservation_is_retained_and_refused(tmp_path: Path) -> None:
+    """Undecodable real marker bytes block unknown ownership without being removed."""
+    root = tmp_path / "artifacts/benchmarks/output-leases"
+    root.mkdir(parents=True)
+    marker = root / "interrupted.json"
+    marker.write_bytes(b"\xff")
+    with pytest.raises(RuntimeError, match="invalid benchmark reservation"):
+        BenchmarkOutputLease.acquire(tmp_path, [tmp_path / "report"], tmp_path / "run")
+    assert marker.read_bytes() == b"\xff"
+
+
+@pytest.mark.parametrize("event", ["tempfile.mkstemp", "os.link"])
+def test_real_audit_denial_cannot_publish_partial_reservation(tmp_path: Path, event: str) -> None:
+    """Actual allocation/publication refusals leave no marker and permit a later retry."""
+    script = """
+import json, sys
+from pathlib import Path
+from scpn_control.benchmark_output_lease import BenchmarkOutputLease
+root = Path(sys.argv[1])
+denied_event = sys.argv[2]
+denial_pending = True
+def deny_once(event: str, args: tuple[object, ...]) -> None:
+    "Deny the selected actual Python audit operation once."
+    global denial_pending
+    if not denial_pending or event != denied_event:
+        return
+    path = Path(str(args[0 if event == "tempfile.mkstemp" else 1]))
+    if path.parent == root / "artifacts/benchmarks/output-leases":
+        denial_pending = False
+        raise PermissionError("reservation operation denied by runtime audit policy")
+sys.addaudithook(deny_once)
+try:
+    BenchmarkOutputLease.acquire(root, [root / "report"], root / "run")
+except PermissionError as error:
+    assert "audit policy" in str(error)
+else:
+    raise AssertionError("actual runtime denial was not enforced")
+registry = root / "artifacts/benchmarks/output-leases"
+assert not list(registry.glob("*.json"))
+assert not list(registry.glob(".reservation-*.tmp"))
+lease = BenchmarkOutputLease.acquire(root, [root / "report"], root / "retry")
+assert json.loads(lease.marker.read_text(encoding="utf-8"))["outputs"] == [str(root / "report")]
+lease.release()
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", CHILD_COVERAGE_PRELUDE + script, str(tmp_path), event],
+        env=child_environment(source_root=Path(__file__).parents[1] / "src"),
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 @pytest.mark.parametrize("occupied", [False, True])
@@ -109,7 +165,7 @@ else:
     raise AssertionError("audit denial was not enforced")
 assert first.read_text() == "new occupant" if occupied else not first.exists()
 assert second.read_text() == "second original"
-assert (root / "records/runs/recovery/denied-recovery/prior-output/first").read_text() == "first original"
+assert (root / "records/runs/recovery/denied-recovery/prior-output/0").read_text() == "first original"
 """
     env = child_environment(source_root=Path(__file__).parents[1] / "src")
     result = subprocess.run(
