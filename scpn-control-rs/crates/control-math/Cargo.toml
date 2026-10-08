@@ -25,7 +25,7 @@ rayon = { workspace = true }
 rustfft = { workspace = true }
 num-complex = { workspace = true }
 approx = { workspace = true }
-lapack-sys = "=0.14.0"
+lapack-sys = "=0.15.0"
 thiserror = { workspace = true }
 
 [dev-dependencies]

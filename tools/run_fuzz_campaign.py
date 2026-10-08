@@ -51,6 +51,7 @@ CORPUS_ROOT = FUZZ_ROOT / "corpus"
 ARTIFACTS_ROOT = FUZZ_ROOT / "artifacts"
 
 SCHEMA_VERSION = "scpn-control.fuzz-campaign-evidence.v1"
+FUZZ_TOOLCHAIN = "nightly-2026-08-18"
 
 # Each target maps to the untrusted/high-volume Rust surface it exercises.
 FUZZ_TARGETS: dict[str, str] = {
@@ -413,7 +414,7 @@ def toolchain_metadata() -> tuple[dict[str, str], str]:
     Returns
     -------
     tuple[dict[str, str], str]
-        rustup nightly rustc --version, cargo fuzz --version and rustc -vV
+        Pinned nightly rustc --version, cargo fuzz --version and rustc -vV
         observations from successful commands with nonempty output and one
         nonempty host line. This does not qualify the pinned hosted toolchain.
 
@@ -424,9 +425,9 @@ def toolchain_metadata() -> tuple[dict[str, str], str]:
     RuntimeError
         A version command fails, produces empty output or omits its host.
     """
-    rustc = _toolchain_output(["rustup", "run", "nightly", "rustc", "--version"], "Rust compiler version")
-    cargo_fuzz = _toolchain_output(["cargo", "fuzz", "--version"], "cargo-fuzz version")
-    host = _toolchain_output(["rustup", "run", "nightly", "rustc", "-vV"], "Rust compiler host")
+    rustc = _toolchain_output(["rustup", "run", FUZZ_TOOLCHAIN, "rustc", "--version"], "Rust compiler version")
+    cargo_fuzz = _toolchain_output(["cargo", f"+{FUZZ_TOOLCHAIN}", "fuzz", "--version"], "cargo-fuzz version")
+    host = _toolchain_output(["rustup", "run", FUZZ_TOOLCHAIN, "rustc", "-vV"], "Rust compiler host")
     triples = [line.split(":", 1)[1].strip() for line in host.splitlines() if line.startswith("host:")]
     if len(triples) != 1 or not triples[0]:
         raise RuntimeError("Rust compiler host metadata is missing or ambiguous")
@@ -495,7 +496,7 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
     -------
     TargetRun
         Native status, elapsed seconds, parsed summary and currently observed
-        reproducer names. cargo +nightly fuzz run can implicitly compile; the
+        reproducer names. The pinned nightly fuzz run can implicitly compile; the
         libFuzzer limit does not include build time. Existing corpus and
         artefacts are reused. Missing statistics parse to zero and triage
         refuses a zero executed-unit count.
@@ -518,7 +519,7 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
     _seed_corpus(target)
     cmd = [
         "cargo",
-        "+nightly",
+        f"+{FUZZ_TOOLCHAIN}",
         "fuzz",
         "run",
         target,
@@ -546,7 +547,7 @@ def run_target(target: str, max_total_time_s: int, rss_limit_mb: int) -> TargetR
 
 
 def build_all() -> int:
-    """Invoke cargo +nightly fuzz build for every harness.
+    """Invoke cargo fuzz build with the pinned nightly for every harness.
 
     Returns
     -------
@@ -562,7 +563,7 @@ def build_all() -> int:
     -----
     Compilation is not bounded by the per-target libFuzzer time setting.
     """
-    proc = subprocess.run(["cargo", "+nightly", "fuzz", "build"], cwd=RUST_ROOT, check=False)
+    proc = subprocess.run(["cargo", f"+{FUZZ_TOOLCHAIN}", "fuzz", "build"], cwd=RUST_ROOT, check=False)
     return proc.returncode
 
 
