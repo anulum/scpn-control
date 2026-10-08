@@ -197,7 +197,8 @@ def test_public_report_converts_a_valid_declared_resource_observation(monkeypatc
 
     observer = ModuleType("declared-resource-observer")
     observer.__dict__["RUSAGE_SELF"] = 0
-    observer.__dict__["getrusage"] = lambda who: SimpleNamespace(ru_maxrss=4096)
+    peak_rss = 4 * 1024 * 1024 if sys.platform == "darwin" else 4 * 1024
+    observer.__dict__["getrusage"] = lambda who: SimpleNamespace(ru_maxrss=peak_rss)
     monkeypatch.setattr(context, "resource_module", observer)
     monkeypatch.setattr(suite, "BENCHMARKS", {"declared-test-record": lambda steps, warmup: DECLARED})
     report = suite.run_suite(
