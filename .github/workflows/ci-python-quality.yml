@@ -102,9 +102,11 @@ jobs:
         if: runner.os == 'Windows'
         shell: bash
         run: |
-          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
-          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
-          echo "PYTHONUTF8=1" >> "$GITHUB_ENV"
+          {
+            echo "TEMP=$RUNNER_TEMP"
+            echo "TMP=$RUNNER_TEMP"
+            echo "PYTHONUTF8=1"
+          } >> "$GITHUB_ENV"
       - name: Test
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
@@ -245,6 +247,7 @@ jobs:
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        if: always()
         with:
           name: bounded-reference-evidence
           path: |
