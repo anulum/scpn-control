@@ -252,3 +252,73 @@ def test_design_rmse_above_indicative_target_is_not_a_physics_failure(carriers: 
     result = _cli(carriers)
     assert result.returncode == 0
     assert "design beta_N RMSE 0.5000" in result.stdout and "indicative" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("reference_kind", "measured"),
+        ("design_rmse_is_binding", True),
+        ("physical_validation_claim", True),
+        ("rows", None),
+        ("rows", []),
+        ("rows", [None, None]),
+        ("rows", [{}, {}]),
+    ],
+)
+def test_gate_refuses_malformed_beta_admission(carriers: Path, field: str, value: object) -> None:
+    """A beta report must retain its claim boundary and populated evidence rows."""
+    report = _dashboard(carriers)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta[field] = value
+    _write_dashboard(carriers, report)
+    result = _cli(carriers)
+    assert result.returncode == 1 and "beta_iter_sparc" in result.stdout
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("model_provenance", None),
+        ("numerical_limits", {}),
+        ("physical_validation_claim", True),
+    ],
+)
+def test_gate_refuses_changed_model_evidence_contract(carriers: Path, field: str, value: object) -> None:
+    """The numerical evidence cannot omit source identity or promote physical admission."""
+    report = _dashboard(carriers)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta["rows"][0]["model_evidence"][field] = value
+    _write_dashboard(carriers, report)
+    assert _cli(carriers).returncode == 1
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("package", "unverified-provider"),
+        ("version", "0.0.0"),
+        ("source_commit_pin", "unknown"),
+    ],
+)
+def test_gate_refuses_different_provider_identity(carriers: Path, field: str, value: str) -> None:
+    """Each independent provider identity field is required at the consumer boundary."""
+    report = _dashboard(carriers)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta["rows"][0]["model_evidence"]["model_provenance"][field] = value
+    _write_dashboard(carriers, report)
+    assert _cli(carriers).returncode == 1
+
+
+@pytest.mark.parametrize("field,value", [("tau_rmse_s", 0.0), ("tau_rmse_s", 1e-300)])
+def test_gate_accepts_finite_json_metrics_without_coercion(carriers: Path, field: str, value: float) -> None:
+    """Finite float tokens, including zero and small values, preserve their real numeric meaning."""
+    report = _dashboard(carriers)
+    lane = report["confinement_itpa"]
+    assert isinstance(lane, dict)
+    lane[field] = value
+    _write_dashboard(carriers, report)
+    assert _cli(carriers).returncode == 0

@@ -258,8 +258,7 @@ jobs:
         run: >-
           python -m pytest -q tests/test_burn_model_checks.py tests/test_ci_rmse_gate.py
           --cov-config=tools/burn_model_coverage.toml
-          --cov=validation.burn_model_checks --cov=validation.burn_model_provider
-          --cov=tools.ci_rmse_gate --cov-report=term-missing
+          --cov= --cov-report=term-missing
           --cov-report=json:artifacts/burn_model_coverage.json --cov-fail-under=100
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py

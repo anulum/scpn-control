@@ -89,6 +89,25 @@ def test_real_source_bound_provider_or_explicit_unavailability(reference_name: s
     assert evidence["run_checks"][1]["beta_energy_time_s"] == 200.0
     assert evidence["run_checks"][1]["power_sample_time_s"] == pytest.approx(199.995)
     assert evidence["Q_unclipped"] == pytest.approx(refined["P_fus_MW"][-1] / reference["P_aux_MW"])
+    inputs = evidence["model_inputs"]
+    operating = BurnPoint(
+        inputs["r_m"],
+        inputs["a_m"],
+        inputs["b_t"],
+        inputs["ip_ma"],
+        inputs["kappa"],
+        inputs["ne20"],
+        inputs["p_aux_mw"],
+    )
+    for channel in ("T_keV", "tau_E_s"):
+        damaged = dict(coarse)
+        damaged[channel] = [0.0, *coarse[channel][1:]]
+        with pytest.raises(ValueError, match="must be positive"):
+            check_history(damaged, operating, 200.0, 0.01)
+    damaged = dict(coarse)
+    damaged["temperature_cap_events"] = 1
+    with pytest.raises(ValueError, match="disagrees"):
+        check_history(damaged, operating, 200.0, 0.01)
 
 
 def test_reference_beta_is_never_a_model_input() -> None:
@@ -120,7 +139,7 @@ def test_invalid_numerical_observation_cannot_pass_fidelity(value: object) -> No
     """Public evidence admission refuses malformed or nonrepresentable error observations."""
     from validation.burn_model_checks import CLOSURE_COUNTS, NUMERICAL_LIMITS
 
-    checks = {**NUMERICAL_LIMITS, **dict.fromkeys(CLOSURE_COUNTS, 0)}
+    checks: dict[str, object] = {**NUMERICAL_LIMITS, **dict.fromkeys(CLOSURE_COUNTS, 0)}
     checks["energy_balance_relative_error"] = value
     assert any("energy_balance_relative_error" in error for error in evidence_failures(checks))
     assert evidence_failures(None)
@@ -150,7 +169,9 @@ def test_real_provider_copy_refuses_wrong_version_or_changed_source(tmp_path: Pa
     shutil.copytree(Path(spec.origin).parent, site / "scpn_fusion")
     dist = distribution("scpn-fusion")
     metadata = next(
-        Path(dist.locate_file(file)).parent for file in dist.files or [] if str(file).endswith(".dist-info/METADATA")
+        Path(str(dist.locate_file(file))).parent
+        for file in dist.files or []
+        if str(file).endswith(".dist-info/METADATA")
     )
     shutil.copytree(metadata, site / metadata.name)
     if defect == "version":

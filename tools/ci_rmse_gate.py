@@ -151,9 +151,9 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         beta = data.get("beta_iter_sparc")
-        value = _metric(beta, "beta_n_rmse", "count")
         if not isinstance(beta, dict):
             raise ValueError("model lane must be an object")
+        value = _metric(beta, "beta_n_rmse", "count")
         if (
             beta.get("reference_kind") != "design"
             or beta.get("design_rmse_is_binding") is not False

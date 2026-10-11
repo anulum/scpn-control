@@ -8,7 +8,7 @@
 
 [tool.coverage.run]
 branch = true
-source = ["validation.burn_model_checks", "validation.burn_model_provider", "tools.ci_rmse_gate"]
+include = ["*/validation/burn_model_checks.py", "*/validation/burn_model_provider.py", "*/tools/ci_rmse_gate.py"]
 patch = ["subprocess"]
 
 [tool.coverage.report]
