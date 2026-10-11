@@ -56,7 +56,8 @@ pip install -e ".[dev]"
 
 ### Rust (optional)
 
-Requires Rust 1.70+ and maturin:
+Use the Rust toolchain pinned in `rust-toolchain.toml` and maturin. Rustup
+selects the pinned toolchain automatically inside the repository:
 
 ```bash
 pip install maturin
