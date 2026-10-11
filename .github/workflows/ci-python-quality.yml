@@ -243,7 +243,6 @@ jobs:
       - name: Install source-bound burn runtime
         run: |
           pip install --require-hashes -r requirements/ci-burn.txt
-          pip install --require-hashes -r requirements/ci-test.txt
           pip install --no-deps --no-build-isolation .ci-dependencies/fusion-provider
           pip check
       - name: RMSE Dashboard

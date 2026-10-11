@@ -8,6 +8,7 @@
 
 # FUSION2fe16 package runtime contract; this isolated Python3.12 job uses NumPy1.
 -r ci-deps.in
+-r ci-test.in
 numpy<2
 matplotlib>=3.5,<4
 pandas>=1.5,<4

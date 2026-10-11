@@ -182,9 +182,7 @@
     "release-env-smoke"
   ],
   "dependency_graph": {
-    "rmse-gate": [
-      "python-tests"
-    ],
+    "rmse-gate": [],
     "rust-python-interop": [
       "rust-tests"
     ],
