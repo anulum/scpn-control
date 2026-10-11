@@ -9,8 +9,8 @@
 
 CSV/JSON/GEQDSK inputs mix reference, calibration and design records.
 Calculations retain their historical formulas and units; no held-out facility
-accuracy is inferred. Historical optional CONTROL burn imports remain distinct
-from the modern FUSION contract, whose beta conversion has no approval.
+accuracy is inferred. The pinned FUSION 0D burn diagnostic declares its closure limitations and
+checks numerical consistency independently of informational design targets.
 Unavailable models yield an explicitly skipped lane rather than target values.
 """
 
@@ -27,10 +27,6 @@ import numpy as np
 
 from scpn_control.core.eqdsk import GEqdsk, read_geqdsk
 
-try:
-    from scpn_control.core.fusion_ignition_sim import FusionBurnPhysics
-except ImportError:
-    FusionBurnPhysics = None
 try:
     from scpn_control.diagnostics.forward import generate_forward_channels
 except ImportError:
@@ -282,153 +278,68 @@ def estimate_beta_n_from_burn(
     reference: dict[str, Any],
     config_path: Path,
 ) -> tuple[float, dict[str, Any]]:
-    """Estimate beta_N from dynamic burn model steady-state.
+    """Execute the pinned FUSION 0D diagnostic with unfitted total-pressure beta.
 
-    Uses ``DynamicBurnModel`` which evolves temperature self-consistently
-    with Bosch-Hale D-T reactivity and IPB98(y,2) confinement scaling,
-    then converts the steady-state stored energy to ``beta_N`` via the
-    Troyon-like definition:
-
-        beta_N = 100 * beta_t * a * B_t / I_p
-
-    A profile-peaking correction factor (``PROFILE_PEAKING_FACTOR``) is
-    applied to account for the volume-averaged 0-D model underestimating
-    peak pressure.  The factor was calibrated as the geometric mean of
-    the per-machine corrections for ITER (target 1.8) and SPARC
-    (target 1.0):
-
-        c_ITER  = 1.8 / beta_n_raw_ITER  = 1.488
-        c_SPARC = 1.0 / beta_n_raw_SPARC = 1.404
-        PROFILE_PEAKING_FACTOR = sqrt(c_ITER * c_SPARC) ~= 1.446
-
-    The adapter does not evolve a radial pressure profile or derive this
-    correction from one; it is a historical design-target calibration.
-
-    Falls back to an actual legacy ``FusionBurnPhysics`` run if the dynamic
-    model fails. Both models are optional historical imports.
-
-    Parameters
-    ----------
-    reference
-        Design inputs: R_m/a_m in metres, B_t_T in tesla, I_p_MA in MA,
-        P_aux_MW in MW, n_e_1e19 in 1e19 m^-3 and dimensionless kappa.
-    config_path
-        Legacy model equilibrium configuration, used only on that fallback.
-
-    Returns
-    -------
-    tuple[float, dict[str, Any]]
-        Dimensionless beta_N and actual model fusion power (MW), Q and stored
-        energy (MJ). Calibration against these design targets prevents a
-        held-out prediction claim.
-
-    Raises
-    ------
-    RuntimeError
-        Neither actual model can supply a result. Reference beta/Q/power are
-        never substituted for unavailable predictions.
-    KeyError, ValueError
-        Required reference fields are missing or cannot be converted.
+    The historical config_path parameter is retained for API compatibility;
+    the uniform model uses explicit reference operating inputs. Returned
+    metrics retain original staggered coarse/refined histories, numerical
+    consistency checks and limitations. No measured accuracy is inferred.
+    Missing or invalid provider execution raises RuntimeError; design values
+    never replace predictions. Invalid input fields raise KeyError/ValueError.
     """
-    # Profile peaking correction: geometric mean calibration against
-    # ITER (beta_N = 1.8) and SPARC (beta_N = 1.0) targets.
-    PROFILE_PEAKING_FACTOR = 1.446
+    from validation.burn_model_provider import evaluate_burn_model
 
-    r_m = float(reference["R_m"])
-    a_m = float(reference["a_m"])
-    kappa = float(reference["kappa"])
-    b_t = float(reference["B_t_T"])
-    i_p = float(reference["I_p_MA"])
-    n_e20 = float(reference["n_e_1e19"]) / 10.0  # 10^19 -> 10^20
-    p_aux = float(reference["P_aux_MW"])
-
-    try:
-        from scpn_control.core.fusion_ignition_sim import DynamicBurnModel
-
-        model = DynamicBurnModel(
-            R0=r_m,
-            a=a_m,
-            B_t=b_t,
-            I_p=i_p,
-            kappa=kappa,
-            n_e20=n_e20,
-            M_eff=2.5,
-        )
-        result = model.simulate(P_aux_mw=p_aux, duration_s=100.0, dt_s=0.01)
-
-        # beta_N from steady-state W_thermal
-        w_thermal_j = float(result["W_MJ"][-1]) * 1e6
-        volume = model.V_plasma
-        p_avg = w_thermal_j / (3.0 * volume) if volume > 0 else 0.0
-        mu0 = 4.0 * math.pi * 1e-7
-        beta_t = (2.0 * mu0 * p_avg / (b_t * b_t)) if b_t > 0 else 0.0
-        beta_n = (100.0 * beta_t) * a_m * b_t / i_p if i_p > 0 else 0.0
-        beta_n *= PROFILE_PEAKING_FACTOR
-
-        metrics: dict[str, Any] = {
-            "P_fusion_MW": result["P_fus_final_MW"],
-            "Q": result["Q_final"],
-            "W_MJ": result["W_MJ"][-1],
-        }
-        return beta_n, metrics
-    except Exception as exc:
-        if FusionBurnPhysics is None:
-            raise RuntimeError("burn model unavailable; reference values cannot replace model predictions") from exc
-
-        sim = FusionBurnPhysics(str(config_path))
-        sim.solve_equilibrium()
-        metrics = sim.calculate_thermodynamics(P_aux_MW=p_aux)
-
-        w_thermal_j = float(metrics["W_MJ"]) * 1e6
-        volume = 2.0 * math.pi * math.pi * r_m * a_m * a_m * kappa
-        p_avg = w_thermal_j / (3.0 * volume) if volume > 0 else 0.0
-        mu0 = 4.0 * math.pi * 1e-7
-        beta_t_val = (2.0 * mu0 * p_avg / (b_t * b_t)) if b_t > 0 else 0.0
-        beta_n = (100.0 * beta_t_val) * a_m * b_t / i_p if i_p > 0 else 0.0
-        return beta_n, metrics
+    return evaluate_burn_model(reference)
 
 
 def beta_rmse_iter_sparc(reference_dir: Path, validation_dir: Path) -> dict[str, Any]:
-    """Compare actual burn-model beta_N estimates to the two design targets.
+    """Report real 0D predictions and informational deviations from design beta.
 
-    Read iter_reference.json and sparc_reference.json from reference_dir,
-    pairing the legacy equilibrium configurations from validation_dir. A
-    missing model returns count zero, null beta_n_rmse, no prediction rows,
-    skipped true and a reason. Available results are calibrated design
-    comparisons, not independent validation. File/field failures propagate.
+    Fixed design RMSE0.10 is indicative; numerical fidelity is assessed from
+    source-bound histories independently of targets. Unavailable providers
+    yield count0/null/empty rows. All actual numerical failures remain in
+    diagnostic rows and are refused by the separate CI consistency gate.
     """
-    pairs = [
-        ("iter_reference.json", "iter_validated_config.json"),
-        ("sparc_reference.json", "sparc_config.json"),
-    ]
-    beta_true: list[float] = []
-    beta_pred: list[float] = []
-    rows: list[dict[str, Any]] = []
+    import hashlib
 
+    pairs = [("iter_reference.json", "iter_validated_config.json"), ("sparc_reference.json", "sparc_config.json")]
+    beta_reference: list[float] = []
+    beta_predicted: list[float] = []
+    rows: list[dict[str, Any]] = []
     for ref_name, cfg_name in pairs:
-        ref = load_json(reference_dir / ref_name)
-        beta_obs = float(ref["beta_N"])
+        reference_path = reference_dir / ref_name
+        ref = load_json(reference_path)
+        design_beta = float(ref["beta_N"])
         try:
-            beta_est, metrics = estimate_beta_n_from_burn(ref, validation_dir / cfg_name)
+            beta, model = estimate_beta_n_from_burn(ref, validation_dir / cfg_name)
         except RuntimeError as exc:
             return {"count": 0, "beta_n_rmse": None, "rows": [], "skipped": True, "reason": str(exc)}
-        beta_true.append(beta_obs)
-        beta_pred.append(beta_est)
+        beta_reference.append(design_beta)
+        beta_predicted.append(beta)
         rows.append(
             {
                 "scenario": ref["scenario"],
-                "beta_n_measured": beta_obs,
-                "beta_n_estimated": beta_est,
-                "relative_error_pct": ((beta_est - beta_obs) / beta_obs * 100.0) if beta_obs else 0.0,
-                "model_q": float(metrics["Q"]),
-                "model_p_fusion_mw": float(metrics["P_fusion_MW"]),
+                "beta_n_reference": design_beta,
+                "beta_n_estimated": beta,
+                "relative_error_pct": (beta - design_beta) / design_beta * 100 if design_beta else None,
+                "model_q": float(model["Q"]),
+                "model_p_fusion_mw": float(model["P_fusion_MW"]),
+                "reference_artifact_sha256": hashlib.sha256(reference_path.read_bytes()).hexdigest(),
+                "reference_h98": ref.get("H98y2"),
+                "reference_q": ref.get("Q"),
+                "reference_power_ratio_q": float(ref["P_fusion_MW"]) / float(ref["P_aux_MW"]),
+                "model_evidence": model,
             }
         )
-
     return {
-        "count": len(beta_true),
-        "beta_n_rmse": rmse(beta_true, beta_pred),
+        "count": len(rows),
+        "beta_n_rmse": rmse(beta_reference, beta_predicted),
         "rows": rows,
+        "reference_kind": "design",
+        "design_rmse_target": 0.10,
+        "design_rmse_is_binding": False,
+        "evidence_class": "bounded_0d_numerical_consistency",
+        "physical_validation_claim": False,
     }
 
 

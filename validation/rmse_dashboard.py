@@ -9,7 +9,8 @@
 
 Metrics, presentation and local publication have separate owning modules.
 Design/reference comparisons do not admit held-out facility accuracy.
-Unavailable beta remains null/skipped pending a version-bound approved model.
+Unavailable beta remains null/skipped; the pinned 0D provider preserves explicit
+closure limits and numerical evidence rather than substituting design values.
 CLI success records output generation; the separate CI guard admits regressions.
 
 Examples

@@ -11,7 +11,9 @@
 
 Read both JSON carriers from ``artifacts`` relative to the working directory,
 or from ``--artifact-dir``. Require populated, available confinement, magnetic
-axis and beta lanes plus a sampled synthetic disruption false-positive rate.
+axis and actual source-bound beta lanes plus a sampled synthetic disruption FPR.
+Beta design error is informational; its guard checks numerical consistency and
+inactive closures without claiming empirical model accuracy.
 Missing or invalid evidence fails; no metric defaults to zero. Thresholds are
 repository regression limits, not facility or publication acceptance criteria.
 Byte/content checks here do not attest how a supplied report was generated.
@@ -22,7 +24,14 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from pathlib import Path
+
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from validation.burn_model_checks import NUMERICAL_LIMITS, evidence_failures
+from validation.burn_model_provider import SOURCE_COMMIT, SOURCE_HASHES
 
 THRESHOLDS: dict[str, float] = {
     "confinement_itpa_tau_rmse_s": 0.20,
@@ -83,7 +92,7 @@ def _metric(lane: object, key: str, count_key: str) -> float:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Read all required carriers and compare four metrics to fixed regression limits.
+    """Require complete carriers, fixed regression limits and actual burn-model consistency.
 
     Parameters
     ----------
@@ -97,13 +106,14 @@ def main(argv: list[str] | None = None) -> int:
     -------
     int
         Zero only when every required lane is available, populated, finite and
-        within its inclusive limit. One for invalid/missing carriers or any
+        within its numerical criterion. Beta design error remains informational.
+        One for invalid/missing carriers, active model closures or any
         regression. Argparse exits with two for unsupported arguments. Every
         independently invalid metric is reported; source files are unchanged.
 
     Notes
     -----
-    The dashboard must use ``scpn-control.rmse-dashboard.v1``; unversioned
+    The dashboard must use ``scpn-control.rmse-dashboard.v2``; unversioned
     legacy carriers are refused because they could substitute references for
     unavailable predictions. The reference carrier must use its bounded v1 schema.
     ``disruption_synthetic.n_safe`` must be positive and FPR must lie in [0, 1].
@@ -117,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         data = _read_report(artifact_dir / "rmse_dashboard_ci.json")
         reference = _read_report(artifact_dir / "reference_evidence_validation.json")
-        if data.get("schema") != "scpn-control.rmse-dashboard.v1":
+        if data.get("schema") != "scpn-control.rmse-dashboard.v2":
             raise ValueError("unsupported RMSE dashboard schema; regenerate the dashboard")
     except (OSError, UnicodeError, ValueError) as exc:
         print(f"ERROR: invalid RMSE regression carrier: {exc}")
@@ -127,7 +137,6 @@ def main(argv: list[str] | None = None) -> int:
     for lane_name, metric_name, threshold_key, unit in (
         ("confinement_itpa", "tau_rmse_s", "confinement_itpa_tau_rmse_s", "s"),
         ("sparc_axis", "axis_rmse_m", "sparc_axis_rmse_m", "m"),
-        ("beta_iter_sparc", "beta_n_rmse", "beta_iter_sparc_beta_n_rmse", "dimensionless"),
     ):
         try:
             value = _metric(data.get(lane_name), metric_name, "count")
@@ -139,6 +148,47 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(f"{lane_name}: {metric_name} {value:.4f} {unit} > {threshold:.4f} {unit}")
         else:
             print(f"PASS  {lane_name}: {metric_name} {value:.4f} {unit} <= {threshold:.4f} {unit}")
+
+    try:
+        beta = data.get("beta_iter_sparc")
+        value = _metric(beta, "beta_n_rmse", "count")
+        if not isinstance(beta, dict):
+            raise ValueError("model lane must be an object")
+        if (
+            beta.get("reference_kind") != "design"
+            or beta.get("design_rmse_is_binding") is not False
+            or beta.get("physical_validation_claim") is not False
+        ):
+            raise ValueError("beta lane must declare informational design comparison and no physical validation")
+        rows = beta.get("rows")
+        if not isinstance(rows, list) or len(rows) != beta["count"] or not rows:
+            raise ValueError("actual model evidence rows must match the positive count")
+        model_errors = []
+        for row in rows:
+            if not isinstance(row, dict) or not isinstance(row.get("model_evidence"), dict):
+                raise ValueError("every beta row requires source-bound model evidence")
+            evidence = row["model_evidence"]
+            provenance = evidence.get("model_provenance")
+            if (
+                not isinstance(provenance, dict)
+                or provenance.get("package") != "scpn-fusion"
+                or provenance.get("version") != "4.0.0"
+                or provenance.get("source_commit_pin") != SOURCE_COMMIT
+                or provenance.get("source_files_sha256") != SOURCE_HASHES
+            ):
+                raise ValueError("unsupported or missing FUSION numerical source provenance")
+            if (
+                evidence.get("numerical_limits") != NUMERICAL_LIMITS
+                or evidence.get("physical_validation_claim") is not False
+            ):
+                raise ValueError("numerical criterion provenance or claim boundary changed")
+            model_errors.extend(evidence_failures(evidence.get("checks")))
+        if model_errors:
+            raise ValueError("; ".join(model_errors))
+        print(f"INFO  beta_iter_sparc: design beta_N RMSE {value:.4f}; target0.10 indicative")
+        print("PASS  beta_iter_sparc: source-bound 0D numerical consistency and inactive closures")
+    except ValueError as exc:
+        failures.append(f"beta_iter_sparc: {exc}")
 
     try:
         if reference.get("schema") != "scpn-control.reference-evidence-validation.v1":

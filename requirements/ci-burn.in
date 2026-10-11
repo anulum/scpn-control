@@ -1,0 +1,16 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Pinned-provider burn diagnostic runtime.
+
+# FUSION2fe16 package runtime contract; this isolated Python3.12 job uses NumPy1.
+-r ci-deps.in
+numpy<2
+matplotlib>=3.5,<4
+pandas>=1.5,<4
+requests>=2.31,<3
+setuptools==84.0.0
+wheel==0.48.0

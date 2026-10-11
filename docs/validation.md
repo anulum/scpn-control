@@ -4096,25 +4096,48 @@ PCS.
 - Controller safety-case readiness resolves typed readiness artifacts under an explicit artifact root and verifies their SHA-256 bytes. HIL replay schema v2 and CODAC runtime schema v3 refuse caller-authored qualified claims without independent hardware/runtime origin; these artifacts currently block promotion admission. The `target_hardware_timing`, `hdl_export_evidence`, and `websocket_runtime_evidence` gates retain their own strict validators.
 - `notebook-smoke` (executes CI notebook set; full neuro notebook only if `sc_neurocore` is available)
 - `package-quality` (`build` + `twine check`)
-- `rmse-gate` consumes `scpn-control.rmse-dashboard.v1` and the bounded
-  reference-evidence v1 report. It requires populated, available confinement
-  tau RMSE (seconds), SPARC grid-axis consistency RMSE (metres), beta_N RMSE
-  (dimensionless) and synthetic disruption FPR with a positive safe-shot count.
-  Missing, skipped, nonfinite, malformed or unversioned legacy input fails;
-  none of these comparisons grants held-out physics or facility validation.
-  Missing historical burn models produce an unavailable beta lane with a null
-  metric rather than using reference targets as predictions. Report generation
-  may succeed while this regression gate fails. `scpn-control validate-rmse`
-  writes the report and puts optional figures beside its JSON destination.
-  The historical `validation/rmse_dashboard.py` script also exposes the same
-  public functions. Calculations belong to `rmse_dashboard_metrics.py`, report
-  presentation to `rmse_dashboard_rendering.py`, and argument parsing and local
-  output generation to `rmse_dashboard_command.py`. The renderer accepts supplied
-  comparison mappings; populated beta rows do not prove a model run. Its display
-  thresholds remain separate from regression admission. PNG generation closes
-  each figure even if preparing rows or writing its file fails; earlier output
-  files can remain after a later write failure. Missing optional Matplotlib
-  produces no figures while Markdown generation remains available.
+- `rmse-gate` consumes `scpn-control.rmse-dashboard.v2` and the bounded
+  reference-evidence v1 report. Confinement tau RMSE (seconds), SPARC grid-axis
+  consistency RMSE (metres) and synthetic disruption FPR retain fixed regression
+  limits. Every lane must be populated, available and finite; legacy unversioned
+  or v1 dashboards are refused. Missing models yield beta count0/null/empty rows,
+  never reference values substituted as predictions.
+- Beta design RMSE is **informational**: ITER1.8/SPARC1.0 and RMSE0.10 are
+  indicative targets. The required beta guard instead admits source-bound
+  **0D numerical consistency**, with no empirical/facility/species/profile claim.
+  The hosted Python3.12 job checks out immutable FUSION
+  `2fe16dfbe939658e16dcd3302546ebfbf1115d75`, installs hash-locked compatible
+  runtime dependencies and verifies installed numerical source hashes.
+  `burn_model_provider.py` executes `DynamicBurnModel`; `burn_model_checks.py`
+  independently reconstructs total heat capacity, radiation, transport loss,
+  IPB98 scaling, energy balance and pre/post-step alignment. Relative algebraic
+  tolerances are `1e-10`, time alignment `1e-9 s`, and time-step sensitivity and
+  terminal power imbalance/state drift `1e-3`. These numerical budgets are independent of
+  design beta values and are not measured predictive-accuracy limits.
+- Each reference diagnostic executes200s at0.01s and0.005s, starting at5keV
+  and helium fraction0.02, helium confinement factor5 and pumping efficiency0.8.
+  Pressure is `2W_total/(3V)` and beta_N uses the conventional MA/tesla/metre
+  normalisation; no design-fit1.446 multiplier is applied. Original histories,
+  all inputs, source hashes, closure counters and numerical errors remain in
+  the JSON artifact. Temperature/ash/powers are pre-step; stored energy is
+  post-step. Power samples at199.995s and beta energy at200s are labelled
+  separately; a last-ten-second power-balance check assesses stationarity.
+- Temperature/Q/ash clipping or an energy floor refuses numerical-fidelity
+  admission, even when a design deviation is small. Uniform use of line density,
+  Te=Ti and fixed3neT heat capacity despite ash dilution remain explicit model
+  approximations. No H98 input exists: SPARC's declaredH98=1.7 is unmatched.
+  Its designQ11 and140MW/25MW ratio5.6 must not be treated as simultaneous
+  measured outputs. Independent matched measurements and uncertainty evidence
+  remain necessary for empirical accuracy or facility qualification.
+- `scpn-control validate-rmse` and the historical `validation/rmse_dashboard.py`
+  facade publish identical diagnostics and optional plots beside the JSON
+  destination. Report generation can succeed while CI consistency fails.
+  Metrics, presentation and output parsing remain in their owning dashboard
+  modules. Rendering supplied carriers does not attest execution. Figures close
+  on output failures; missing optional Matplotlib omits figures while Markdown
+  remains available. The live report source and dedicated hosted native tests
+  exercise actual provider execution, rather than asserting model availability
+  from an installation or source receipt alone.
 - `e2e-diiid` (end-to-end DIII-D replay plumbing with synthetic fixtures, not public physics evidence)
 - `synthetic-diiid-reference` (DIII-D-like synthetic fixture replay plumbing,
   not public physics evidence)

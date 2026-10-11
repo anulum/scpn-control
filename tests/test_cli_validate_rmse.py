@@ -31,13 +31,21 @@ def test_validate_rmse_command_generates_real_bounded_report(tmp_path: Path, jso
     result = CliRunner().invoke(main, args)
     assert result.exit_code == 0, result.output
     payload = json.loads(report.read_text())
-    assert payload["schema"] == "scpn-control.rmse-dashboard.v1"
-    assert payload["beta_iter_sparc"]["skipped"] is True
-    assert payload["beta_iter_sparc"]["beta_n_rmse"] is None
+    assert payload["schema"] == "scpn-control.rmse-dashboard.v2"
+    beta = payload["beta_iter_sparc"]
+    if beta.get("skipped", False):
+        assert beta["beta_n_rmse"] is None and beta["rows"] == []
+    else:
+        assert beta["count"] == 2 and beta["physical_validation_claim"] is False
+        assert beta["design_rmse_is_binding"] is False
     assert (
-        '"schema": "scpn-control.rmse-dashboard.v1"' in result.output if json_out else '"schema"' not in result.output
+        '"schema": "scpn-control.rmse-dashboard.v2"' in result.output if json_out else '"schema"' not in result.output
     )
-    assert "Unavailable:" in markdown.read_text()
+    assert (
+        "Unavailable:" in markdown.read_text()
+        if beta.get("skipped", False)
+        else "indicative target" in markdown.read_text()
+    )
     assert sys.argv == argv_before
 
 

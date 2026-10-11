@@ -39,7 +39,8 @@ THRESHOLDS: dict[str, dict[str, Any]] = {
         "warn": 0.08,
         "fail": 0.10,
         "direction": "lower_better",
-        "label": "beta_N RMSE",
+        "label": "beta_N design RMSE (indicative)",
+        "binding": False,
     },
     "sparc_axis_rmse_m": {
         "warn": 0.08,
@@ -133,8 +134,6 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
         ("SPARC axis RMSE (m)", sparc_axis["axis_rmse_m"], "sparc_axis_rmse_m", f"{sparc_axis['axis_rmse_m']:.6f}"),
     ]
 
-    if not beta.get("skipped", False):
-        flag_rows.insert(1, ("beta_N RMSE", beta["beta_n_rmse"], "beta_n_rmse", f"{beta['beta_n_rmse']:.4f}"))
     lines.append("## Auto-Flag Summary")
     lines.append("")
     lines.append("| Metric | Value | Flag |")
@@ -169,14 +168,18 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     lines.append("")
 
     # ── Beta_N ────────────────────────────────────────────────────────
-    beta_flag = "" if beta.get("skipped", False) else _flag(beta["beta_n_rmse"], "beta_n_rmse")
     lines.append("## Beta_N RMSE (ITER + SPARC references)")
     lines.append("")
     lines.append(f"- Samples: `{beta['count']}`")
     if beta.get("skipped", False):
         lines.append(f"- Unavailable: {beta['reason']}")
     else:
-        lines.append(f"- `beta_N` RMSE: `{beta['beta_n_rmse']:.4f}` **{_FLAG_EMOJI[beta_flag]}**")
+        lines.append(
+            f"- Design `beta_N` RMSE: `{beta['beta_n_rmse']:.4f}`; indicative target `0.10`, not an acceptance limit."
+        )
+        lines.append(
+            "- Numerical consistency, time-step refinement, stationarity and inactive closures are assessed separately."
+        )
     lines.append("")
 
     if plot_dir and beta.get("rows"):
@@ -221,9 +224,9 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     if beta.get("skipped", False):
         lines.append("- No beta_N model prediction was available; the lane cannot pass its regression guard.")
     else:
-        lines.append("- Supplied beta_N comparison rows do not establish a model run or physical validity.")
+        lines.append("- Supplied beta_N comparison rows do not establish empirical accuracy or facility validity.")
         lines.append(
-            "- The historical dynamic-model path uses target-calibrated correction factor 1.446; modern FUSION conversion requires separate version-bound approval."
+            "- The pinned FUSION 0D diagnostic uses total pressure 2W/(3V), without a design-fit multiplier. Uniform density/Te=Ti and unmatched H98/design power assumptions remain limitations."
         )
     lines.append("- Use this report for trend tracking; not as a replacement for full transport/MHD validation.")
     lines.append("")
@@ -276,7 +279,7 @@ def render_plots(report: dict[str, Any], output_dir: Path) -> list[Path]:
     if beta.get("rows"):
         fig, ax = plt.subplots(figsize=(6, 6))
         try:
-            bm = [r["beta_n_measured"] for r in beta["rows"]]
+            bm = [r["beta_n_reference"] for r in beta["rows"]]
             bp = [r["beta_n_estimated"] for r in beta["rows"]]
             labels = [r["scenario"] for r in beta["rows"]]
             ax.scatter(bm, bp, s=80, edgecolors="black", linewidths=0.5, zorder=3)

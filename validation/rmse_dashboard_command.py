@@ -94,7 +94,7 @@ def main(argv: list[str] | None = None) -> int:
     sparc_eq_dir = reference_dir / "sparc"
 
     report: dict[str, Any] = {
-        "schema": "scpn-control.rmse-dashboard.v1",
+        "schema": "scpn-control.rmse-dashboard.v2",
         "claim_boundary": "Bounded regression comparisons; no held-out physics or facility validation admitted.",
         "generated_at_utc": datetime.now(UTC).isoformat(),
         "confinement_itpa": confinement_rmse_itpa(itpa_csv),

@@ -125,8 +125,8 @@ def test_render_markdown_contains_sections() -> None:
     assert "Confinement RMSE (ITPA H-mode)" in text
     assert "Beta_N RMSE (ITER + SPARC references)" in text
     assert "Forward Diagnostics RMSE" in text
-    assert "Supplied beta_N comparison rows do not establish a model run or physical validity." in text
-    assert "modern FUSION conversion requires separate version-bound approval" in text
+    assert "Supplied beta_N comparison rows do not establish empirical accuracy or facility validity." in text
+    assert "without a design-fit multiplier" in text
     assert "use an actual historical burn-model run" not in text
 
 
@@ -136,11 +136,17 @@ def test_missing_burn_models_never_substitute_reference_targets() -> None:
 
     reference_dir = ROOT / "validation/reference_data"
     reference = load_json(reference_dir / "iter_reference.json")
-    with pytest.raises(RuntimeError, match="reference values cannot replace"):
-        estimate_beta_n_from_burn(reference, ROOT / "validation/iter_validated_config.json")
-    result = beta_rmse_iter_sparc(reference_dir, ROOT / "validation")
-    assert result["skipped"] is True and result["count"] == 0
-    assert result["beta_n_rmse"] is None and result["rows"] == []
+    try:
+        beta, metrics = estimate_beta_n_from_burn(reference, ROOT / "validation/iter_validated_config.json")
+    except RuntimeError as exc:
+        assert "reference values cannot replace" in str(exc)
+        result = beta_rmse_iter_sparc(reference_dir, ROOT / "validation")
+        assert result["skipped"] is True and result["count"] == 0
+        assert result["beta_n_rmse"] is None and result["rows"] == []
+    else:
+        assert beta > 0 and metrics["physical_validation_claim"] is False
+        assert metrics["model_provenance"]["version"] == "4.0.0"
+        assert metrics["native_histories"]
 
 
 @pytest.mark.parametrize("explicit_plots", [False, True])
@@ -170,15 +176,19 @@ def test_real_dashboard_cli_exports_unavailable_beta_and_owned_plots(tmp_path: P
     )
     assert result.returncode == 0, result.stdout + result.stderr
     decoded = json.loads(report.read_text())
-    assert decoded["schema"] == "scpn-control.rmse-dashboard.v1"
-    assert decoded["beta_iter_sparc"]["beta_n_rmse"] is None
-    assert decoded["beta_iter_sparc"]["skipped"] is True
-    assert "beta_N RMSE=unavailable" in result.stdout
+    assert decoded["schema"] == "scpn-control.rmse-dashboard.v2"
+    beta = decoded["beta_iter_sparc"]
     text = markdown.read_text()
-    assert "Unavailable: burn model unavailable" in text
-    assert "No beta_N model prediction was available" in text
-    assert "beta_n_scatter.png" not in text
-    assert not (plot_dir / "beta_n_scatter.png").exists()
+    if beta.get("skipped", False):
+        assert beta["beta_n_rmse"] is None and beta["count"] == 0
+        assert "beta_N RMSE=unavailable" in result.stdout
+        assert "No beta_N model prediction was available" in text
+        assert not (plot_dir / "beta_n_scatter.png").exists()
+    else:
+        assert beta["count"] == 2 and beta["design_rmse_is_binding"] is False
+        assert beta["physical_validation_claim"] is False
+        assert all(row["model_evidence"]["native_histories"] for row in beta["rows"])
+        assert "indicative target" in text
     disruption = validate_disruption(ROOT / "validation/reference_data/diiid/disruption_shots")
     (tmp_path / "reference_evidence_validation.json").write_text(
         json.dumps(
@@ -192,8 +202,11 @@ def test_real_dashboard_cli_exports_unavailable_beta_and_owned_plots(tmp_path: P
         check=False,
         timeout=30,
     )
-    assert gate.returncode == 1, gate.stdout + gate.stderr
-    assert "beta_iter_sparc" in gate.stdout and "lane must be an available object" in gate.stdout
+    if beta.get("skipped", False):
+        assert gate.returncode == 1 and "lane must be an available object" in gate.stdout
+    else:
+        assert "beta_iter_sparc" in gate.stdout
+        assert gate.returncode == 0, gate.stdout + gate.stderr
     if (plot_dir / "tau_e_scatter.png").exists():
         prefix = "figures" if explicit_plots else "."
         assert f"{prefix}/tau_e_scatter.png" in text

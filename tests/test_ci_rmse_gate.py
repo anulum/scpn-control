@@ -8,7 +8,7 @@
 """Exercise required carrier/threshold contracts through the real RMSE CLI.
 
 Real producer calls on tracked reference inputs supply the JSON shape. The
-positive consumer boundary case inserts the exact beta threshold explicitly;
+positive consumer boundary case supplies numerical criterion bounds explicitly;
 it does not claim an available model prediction. Separate producer tests keep
 unavailable models from regenerating reference-as-prediction values. Mutation
 tests establish consumer refusal, not physics or facility validity.
@@ -24,7 +24,9 @@ from pathlib import Path
 import pytest
 
 from tools.ci_rmse_gate import THRESHOLDS, main
-from validation.rmse_dashboard import beta_rmse_iter_sparc, confinement_rmse_itpa, sparc_axis_rmse
+from validation.burn_model_checks import CLOSURE_COUNTS, NUMERICAL_LIMITS
+from validation.burn_model_provider import SOURCE_COMMIT, SOURCE_HASHES
+from validation.rmse_dashboard import confinement_rmse_itpa, sparc_axis_rmse
 from validation.validate_real_shots import validate_disruption
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -45,14 +47,31 @@ def carriers(tmp_path: Path, disruption_report: dict[str, object]) -> Path:
     artifacts = tmp_path / "artifacts"
     artifacts.mkdir()
     report = {
-        "schema": "scpn-control.rmse-dashboard.v1",
+        "schema": "scpn-control.rmse-dashboard.v2",
         "confinement_itpa": confinement_rmse_itpa(ROOT / "validation/reference_data/itpa/hmode_confinement.csv"),
         "sparc_axis": sparc_axis_rmse(ROOT / "validation/reference_data/sparc"),
-        "beta_iter_sparc": beta_rmse_iter_sparc(ROOT / "validation/reference_data", ROOT / "validation"),
     }
-    # This consumer boundary case substitutes a supplied threshold value for
-    # the unavailable lane; it is not evidence for a model prediction.
-    report["beta_iter_sparc"] = {"count": 2, "beta_n_rmse": THRESHOLDS["beta_iter_sparc_beta_n_rmse"], "rows": []}
+    # Explicit consumer boundary values do not attest an actual provider run.
+    checks = {**NUMERICAL_LIMITS, **dict.fromkeys(CLOSURE_COUNTS, 0)}
+    model = {
+        "model_provenance": {
+            "package": "scpn-fusion",
+            "version": "4.0.0",
+            "source_commit_pin": SOURCE_COMMIT,
+            "source_files_sha256": SOURCE_HASHES,
+        },
+        "checks": checks,
+        "numerical_limits": NUMERICAL_LIMITS,
+        "physical_validation_claim": False,
+    }
+    report["beta_iter_sparc"] = {
+        "count": 2,
+        "beta_n_rmse": 0.5,
+        "rows": [{"model_evidence": model}, {"model_evidence": model}],
+        "reference_kind": "design",
+        "design_rmse_is_binding": False,
+        "physical_validation_claim": False,
+    }
     (artifacts / "rmse_dashboard_ci.json").write_text(json.dumps(report))
     (artifacts / "reference_evidence_validation.json").write_text(json.dumps(disruption_report))
     return artifacts
@@ -163,16 +182,19 @@ def test_gate_refuses_invalid_reference_contract(carriers: Path, defect: str) ->
 
 
 def test_gate_reports_every_bounded_rmse_regression(carriers: Path) -> None:
-    """All four independent threshold regressions are reported in one completed scan."""
+    """Three fixed regressions plus actual model consistency failure are reported together."""
     report = _dashboard(carriers)
     for lane, metric, threshold in (
         ("confinement_itpa", "tau_rmse_s", "confinement_itpa_tau_rmse_s"),
         ("sparc_axis", "axis_rmse_m", "sparc_axis_rmse_m"),
-        ("beta_iter_sparc", "beta_n_rmse", "beta_iter_sparc_beta_n_rmse"),
     ):
         selected = report[lane]
         assert isinstance(selected, dict)
         selected[metric] = THRESHOLDS[threshold] * 2
+    _write_dashboard(carriers, report)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta["rows"][0]["model_evidence"]["checks"]["energy_balance_relative_error"] = 1.0
     _write_dashboard(carriers, report)
     path = carriers / "reference_evidence_validation.json"
     reference = json.loads(path.read_text())
@@ -199,3 +221,34 @@ def test_gate_refuses_unversioned_legacy_dashboard(carriers: Path) -> None:
     _write_dashboard(carriers, report)
     result = _cli(carriers)
     assert result.returncode == 1 and "regenerate" in result.stdout
+
+
+@pytest.mark.parametrize("closure", CLOSURE_COUNTS)
+def test_gate_refuses_active_burn_closures(carriers: Path, closure: str) -> None:
+    """An actual closure finding cannot be waived by a favourable design RMSE."""
+    report = _dashboard(carriers)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta["beta_n_rmse"] = 0.0
+    beta["rows"][0]["model_evidence"]["checks"][closure] = 1
+    _write_dashboard(carriers, report)
+    result = _cli(carriers)
+    assert result.returncode == 1 and closure in result.stdout
+
+
+def test_gate_refuses_unbound_model_source(carriers: Path) -> None:
+    """A populated model report needs the exact declared numerical source pin."""
+    report = _dashboard(carriers)
+    beta = report["beta_iter_sparc"]
+    assert isinstance(beta, dict)
+    beta["rows"][0]["model_evidence"]["model_provenance"]["source_files_sha256"] = {}
+    _write_dashboard(carriers, report)
+    result = _cli(carriers)
+    assert result.returncode == 1 and "source provenance" in result.stdout
+
+
+def test_design_rmse_above_indicative_target_is_not_a_physics_failure(carriers: Path) -> None:
+    """Owner-defined informational design error leaves numerical evidence mandatory."""
+    result = _cli(carriers)
+    assert result.returncode == 0
+    assert "design beta_N RMSE 0.5000" in result.stdout and "indicative" in result.stdout

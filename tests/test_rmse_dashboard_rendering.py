@@ -47,8 +47,12 @@ def actual_report(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Any]:
     )
     assert result.returncode == 0, result.stdout + result.stderr
     report: dict[str, Any] = json.loads(output.read_text(encoding="utf-8"))
-    assert report["schema"] == "scpn-control.rmse-dashboard.v1"
-    assert report["beta_iter_sparc"]["skipped"] and report["beta_iter_sparc"]["rows"] == []
+    assert report["schema"] == "scpn-control.rmse-dashboard.v2"
+    beta = report["beta_iter_sparc"]
+    if beta.get("skipped", False):
+        assert beta["rows"] == [] and beta["beta_n_rmse"] is None
+    else:
+        assert beta["count"] == 2 and beta["physical_validation_claim"] is False
     return report
 
 
@@ -56,8 +60,11 @@ def test_facade_and_owner_render_the_same_actual_carrier(actual_report: dict[str
     """Public facade/owner emit identical Markdown with explicit unavailable beta status."""
     text = rmse_dashboard.render_markdown(actual_report, plot_dir="figures")
     assert text == rmse_dashboard_rendering.render_markdown(actual_report, plot_dir="figures")
-    assert "No beta_N model prediction was available" in text
-    assert "beta_n_scatter.png" not in text
+    if actual_report["beta_iter_sparc"].get("skipped", False):
+        assert "No beta_N model prediction was available" in text
+        assert "beta_n_scatter.png" not in text
+    else:
+        assert "indicative target" in text
     assert "figures/tau_e_scatter.png" in text
     assert f"{actual_report['sparc_axis']['axis_rmse_m']:.6f}" in text
     assert f"{actual_report['confinement_itpa']['tau_rmse_s']:.4f} s" in text
@@ -75,14 +82,20 @@ def test_plot_owner_writes_actual_reference_charts_and_closes_figures(
     try:
         before = plt.get_fignums()
         paths = rmse_dashboard_rendering.render_plots(actual_report, tmp_path / "figures")
-        assert [p.name for p in paths] == ["tau_e_scatter.png", "sparc_axis_error.png"]
-        for path, shape in zip(paths, [(900, 900), (600, 1200)]):
+        expected = ["tau_e_scatter.png", "sparc_axis_error.png"]
+        if not actual_report["beta_iter_sparc"].get("skipped", False):
+            expected.insert(1, "beta_n_scatter.png")
+        assert [p.name for p in paths] == expected
+        for path in paths:
+            shape = (600, 1200) if path.name == "sparc_axis_error.png" else (900, 900)
             assert path.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
             pixels = image.imread(path)
             assert pixels.shape[:2] == shape
             assert float(pixels.min()) < float(pixels.max())
         assert plt.get_fignums() == before
-        assert not (tmp_path / "figures/beta_n_scatter.png").exists()
+        assert (tmp_path / "figures/beta_n_scatter.png").exists() is (
+            not actual_report["beta_iter_sparc"].get("skipped", False)
+        )
     finally:
         plt.close(caller_figure)
 
@@ -111,7 +124,11 @@ def test_renderer_without_matplotlib_uses_real_dependency_absence(
     )
     assert result.returncode == 0, result.stderr
     assert result.stdout.startswith("[]\n# SCPN RMSE Dashboard")
-    assert "Unavailable: burn model unavailable" in result.stdout
+    assert (
+        "No beta_N model prediction was available" in result.stdout
+        if actual_report["beta_iter_sparc"].get("skipped", False)
+        else "indicative target" in result.stdout
+    )
     assert not output_dir.exists()
 
 
