@@ -97,3 +97,86 @@ def test_reference_beta_is_never_a_model_input() -> None:
     reference.update(beta_N=0.0, B_t_T=0.0)
     with pytest.raises(ValueError, match="B_t_T"):
         evaluate_burn_model(reference)
+
+
+@pytest.mark.parametrize("duration,dt", [(0.0, 0.1), (1.0, 0.0), (float("nan"), 0.1), (0.05, 0.1)])
+def test_invalid_history_horizon_never_admits_empty_evidence(duration: float, dt: float) -> None:
+    """Zero, nonfinite and undersampled intervals refuse at the public history boundary."""
+    with pytest.raises(ValueError, match="time steps"):
+        check_history({}, point(), duration, dt)
+
+
+@pytest.mark.parametrize("field,value", [("B_t_T", True), ("B_t_T", "5.3"), ("n_e_1e19", float("nan"))])
+def test_reference_units_require_actual_positive_numbers(field: str, value: object) -> None:
+    """A malformed design input cannot be coerced or replaced by a target."""
+    reference = json.loads((ROOT / "validation/reference_data/iter_reference.json").read_text())
+    reference[field] = value
+    with pytest.raises(ValueError, match=field):
+        evaluate_burn_model(reference)
+
+
+@pytest.mark.parametrize("value", [None, True, -1.0, float("nan"), float("inf"), 10**400])
+def test_invalid_numerical_observation_cannot_pass_fidelity(value: object) -> None:
+    """Public evidence admission refuses malformed or nonrepresentable error observations."""
+    from validation.burn_model_checks import CLOSURE_COUNTS, NUMERICAL_LIMITS
+
+    checks = {**NUMERICAL_LIMITS, **dict.fromkeys(CLOSURE_COUNTS, 0)}
+    checks["energy_balance_relative_error"] = value
+    assert any("energy_balance_relative_error" in error for error in evidence_failures(checks))
+    assert evidence_failures(None)
+
+
+@pytest.mark.parametrize("defect", ["version", "source"])
+def test_real_provider_copy_refuses_wrong_version_or_changed_source(tmp_path: Path, defect: str) -> None:
+    """A real copied distribution with changed identity/source refuses at the public API.
+
+    The dedicated hosted job has the provider installed. Dependency-light jobs
+    assert its actual absence contract elsewhere; no modules or APIs are mocked.
+    Subprocess coverage follows this real filesystem/import boundary.
+    """
+    import importlib.util
+    import shutil
+    import subprocess
+    import sys
+    from importlib.metadata import distribution
+
+    spec = importlib.util.find_spec("scpn_fusion")
+    if spec is None:
+        assert os.environ.get("SCPN_REQUIRE_BURN_PROVIDER") != "1"
+        return
+    assert spec.origin is not None
+    site = tmp_path / "site"
+    site.mkdir()
+    shutil.copytree(Path(spec.origin).parent, site / "scpn_fusion")
+    dist = distribution("scpn-fusion")
+    metadata = next(
+        Path(dist.locate_file(file)).parent for file in dist.files or [] if str(file).endswith(".dist-info/METADATA")
+    )
+    shutil.copytree(metadata, site / metadata.name)
+    if defect == "version":
+        path = site / metadata.name / "METADATA"
+        original = path.read_text()
+        assert "Version: 4.0.0" in original
+        path.write_text(original.replace("Version: 4.0.0", "Version: 0.0.0"))
+        expected = "unsupported FUSION burn provider version/source"
+    else:
+        path = site / "scpn_fusion/core/dynamic_burn_model.py"
+        path.write_bytes(path.read_bytes() + b"\n# distinct source identity\n")
+        expected = "does not match the immutable pin"
+    script = (
+        "import sys,json; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
+        "from validation.burn_model_provider import evaluate_burn_model; "
+        "from tools.ci_rmse_gate import main; "
+        "r=json.loads(Path(sys.argv[2]).read_text()); "
+        "evaluate_burn_model(r)"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(site), str(ROOT / "validation/reference_data/iter_reference.json")],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode != 0 and expected in result.stderr
+    assert "reference values cannot replace model predictions" in result.stderr
