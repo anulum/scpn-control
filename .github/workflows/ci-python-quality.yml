@@ -140,13 +140,13 @@ jobs:
           g++ --version
       - name: Upload coverage artifact
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-report
           path: coverage.xml
       - name: Upload Python coverage data
         if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: coverage-data-python
           path: artifacts/coverage/python/.coverage.python
@@ -197,7 +197,7 @@ jobs:
           for nb in "${NOTEBOOKS[@]}"; do
             jupyter nbconvert --to notebook --execute --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec "$nb"
           done
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: executed-notebooks
           path: artifacts/notebook-exec/
@@ -262,7 +262,7 @@ jobs:
           --cov-report=json:artifacts/burn_model_coverage.json --cov-fail-under=100
       - name: RMSE Gate
         run: python tools/ci_rmse_gate.py
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         if: always()
         with:
           name: bounded-reference-evidence
@@ -289,7 +289,7 @@ jobs:
           pip install --require-hashes -r requirements/ci-hdf5.txt
       - name: E2E mock DIII-D + trajectory export
         run: PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 pytest tests/test_e2e_phase_diiid.py -v --tb=short
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: e2e-diiid-results
           path: "*.json"

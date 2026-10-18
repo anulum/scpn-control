@@ -28,7 +28,7 @@ jobs:
           python-version: "3.12"
       - name: Validate data manifests
         run: python validation/validate_data_manifests.py --output-json artifacts/data_manifest_report.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: data-manifest-report
           path: artifacts/data_manifest_report.json
@@ -48,7 +48,7 @@ jobs:
           mkdir -p artifacts
           python -m scpn_control.cli validate --json-out > artifacts/release_evidence_report.json
           python -m scpn_control.cli validate-release-evidence artifacts/release_evidence_report.json --json-out > artifacts/release_evidence_admission.json
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: release-evidence-report
           path: |
@@ -76,7 +76,7 @@ jobs:
           python tools/evidence_gap_matrix.py \
             --output-json evidence-inventory/evidence_gap_matrix.json \
             --output-md evidence-inventory/evidence_gap_matrix.md
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
         with:
           name: evidence-inventory
           path: evidence-inventory/
