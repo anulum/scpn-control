@@ -146,8 +146,21 @@ def _cli(*paths: Path | str, cwd: Path = ROOT) -> subprocess.CompletedProcess[st
 
 @pytest.mark.parametrize("ending", ["\n", "\r\n", ""])
 def test_real_git_commit_message_passes_without_rewriting(tmp_path: Path, ending: str) -> None:
-    """Read actual canonical Git history and preserve its message bytes through API/CLI checks."""
-    message = subprocess.check_output(["git", "log", "-1", "--format=%B", "HEAD"], cwd=ROOT, text=True)
+    """Preserve an authored Git message through API/CLI checks on native or PR histories."""
+    message = subprocess.check_output(
+        [
+            "git",
+            "log",
+            "-1",
+            "--no-merges",
+            "--format=%B",
+            "--fixed-strings",
+            "--grep=" + REQUIRED_AUTHORSHIP_LINE,
+            "HEAD",
+        ],
+        cwd=ROOT,
+        text=True,
+    )
     assert REQUIRED_AUTHORSHIP_LINE in message.splitlines()
     text = ending.join(message.rstrip("\n").splitlines()) if ending else message.rstrip("\n")
     path = tmp_path / "actual git message.txt"
