@@ -18,6 +18,8 @@
   <a href="https://codecov.io/gh/anulum/scpn-control"><img src="https://codecov.io/gh/anulum/scpn-control/branch/main/graph/badge.svg" alt="codecov"></a>
   <a href="https://doi.org/10.5281/zenodo.18804939"><img src="https://zenodo.org/badge/DOI/10.5281/zenodo.18804939.svg" alt="DOI"></a>
   <a href="https://buy.stripe.com/4gM00kbiMdjAberaYz5J601"><img src="https://img.shields.io/badge/sponsor-Stripe-635bff.svg" alt="Sponsor"></a>
+  <a href="https://github.com/sponsors/anulum"><img src="https://img.shields.io/github/sponsors/anulum?logo=github&label=Sponsor" alt="GitHub Sponsors"></a>
+  <a href="https://buymeacoffee.com/anulum"><img src="https://img.shields.io/badge/Buy%20Me%20a%20Coffee-anulum-ffdd00?logo=buymeacoffee&logoColor=black" alt="Buy Me a Coffee"></a>
 </p>
 
 ---
