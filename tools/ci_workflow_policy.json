@@ -274,6 +274,11 @@
       "name": "evidence-inventory",
       "producer": "evidence-inventory",
       "consumers": []
+    },
+    {
+      "name": "source-native-static-coverage",
+      "producer": "pre-commit",
+      "consumers": []
     }
   ],
   "conditional_steps": {

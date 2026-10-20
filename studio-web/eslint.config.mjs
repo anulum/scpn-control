@@ -12,18 +12,15 @@ import tseslint from 'typescript-eslint';
 
 export default tseslint.config(
   {
-    ignores: [
-      'coverage/**',
-      'dist/**',
-      'docs/**',
-      'node_modules/**',
-      '*.config.*',
-      'eslint.config.mjs',
-    ],
+    ignores: ['coverage/**', 'dist/**', 'docs/**', 'node_modules/**'],
   },
-  js.configs.recommended,
-  ...tseslint.configs.strictTypeChecked,
   {
+    files: ['**/*.{js,mjs}'],
+    extends: [js.configs.recommended],
+  },
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
     languageOptions: {
       parserOptions: {
         projectService: true,

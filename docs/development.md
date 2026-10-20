@@ -54,6 +54,116 @@ source .venv/bin/activate       # Linux/macOS
 pip install -e ".[dev]"
 ```
 
+### Declared Python dependency compatibility
+
+```bash
+python tools/python_dependency_compatibility.py
+```
+
+This standalone gate reads both common CI locks, `requirements/ci-deps.txt`
+and `requirements/ci-test.txt`, and compares every applicable exact release's
+published `requires_python` against the declared Python 3.11, 3.12 and 3.13
+minor floors. A minor floor means patch zero. PEP 440 upper bounds, exclusions
+and patch requirements are evaluated along with lower bounds. The aggregate
+`tools/preflight.py` uses the same public `python_compatibility_errors` API;
+the standalone command launches no other preflight gates.
+
+Repeat `--requirements PATH` or `--python-version VERSION` to select explicit
+inputs. Lockfiles must contain exact registry pins; SHA-256 hash options and
+Python-only environment markers are supported. Includes, URLs, ranges,
+non-Python markers, missing/empty files and an entirely marker-excluded release
+inventory refuse the measurement. Platform-specific profiles require separate
+qualification rather than being silently inspected as the local platform.
+
+Release JSON is fetched once per applicable name/version with verified HTTPS,
+no redirects or retries, a one MiB response limit and a positive finite
+per-socket `--timeout-s` (default ten seconds). The declared release identity
+must match the request; missing fields, invalid JSON or invalid constraints
+refuse inspection. An explicit null or empty Python constraint declares no
+restriction. `--metadata-base-url` can select an operator-owned HTTPS service
+or a loopback HTTP fixture; that response does not authenticate PyPI metadata.
+
+Exit zero means all selected declarations admit applicable targets, one means
+an incompatibility, and two means inspection was refused. These results do not
+validate artifact hashes, resolve dependencies or prove executable compatibility.
+Hash-verified installation and real tests on each supported interpreter and OS
+remain separate checks. Preflight's hash-pin check also refuses missing files
+in its declared `CI_REQUIREMENTS` inventory.
+
+### Studio frontend checks
+
+From `studio-web`, use the declared Node and pnpm versions in `package.json`:
+
+```bash
+pnpm typecheck
+pnpm lint
+pnpm format:check
+```
+
+The strict TypeScript program includes `src`, `test`, `vite.config.ts`,
+`vitest.config.ts` and `eslint.config.mjs`; JavaScript uses `allowJs` and
+`checkJs`. ESLint checks its own JavaScript configuration with the recommended
+JavaScript rules and both TypeScript configurations with the type-aware rules,
+along with the application and tests. Warnings fail the lint command. Formatting also
+checks the TypeScript/JavaScript tool configurations, `tsconfig.json` and
+`package.json`. These checks do not execute the browser application or tests.
+
+Changed Studio files also pass the `changed-studio-static` pre-commit and
+preflight gate:
+
+```bash
+python tools/studio_source_checks.py
+python -m pytest native_tests/test_studio_source_checks.py -q
+```
+
+Use the existing CI pins, Node 22.23.2 and pnpm 11.25.0, with the frozen Studio
+dependency install. The gate checks every declared direct package identity and
+the qualified compiler, ESLint, Prettier, Vitest, package and lock declarations.
+Changes to these declarations require native-profile requalification; the gate
+does not refresh its own bounds. Native tools run from their local package
+entrypoints, without falling back to a different global compiler or formatter.
+
+Every changed TypeScript/JavaScript file must occur in the actual compiler
+program. ESLint and Prettier receive explicit file arguments, lint warnings fail,
+and inline lint directives cannot disable rules. Native comment parsing rejects
+type-check and formatting waivers; strings that describe them remain valid.
+Source selections and configuration bindings are rechecked after execution.
+JavaScript/TypeScript outside Studio requires its own qualified native profile.
+The default original revision comes from the required owner ledger; `--base`
+accepts an explicit reviewed full ancestor commit. Status zero covers this
+static profile, one reports native findings, and two refuses unavailable input
+or measurement. Browser behaviour, runtime tests, coverage and builds retain
+their separate gates.
+
+`native_tests/` holds the native-tool Python integration contracts. Local
+preflight runs this explicit test partition, and the existing CI pre-commit job
+installs the pinned Node/pnpm graph and runs it with whole-module branch coverage
+at 100%, retaining original process data. The ordinary Python test matrix keeps
+its existing `tests/` partition.
+
+### Bash source checks
+
+```bash
+python tools/shell_source_checks.py
+python -m pytest native_tests/test_shell_source_checks.py -q
+```
+
+The always-run `changed-shell-static` hook and preflight gate select complete
+changed shell files using the same original Git revision. The qualified profile
+uses Bash 5.2.21, ShellCheck 0.9.0 and shfmt 3.8.0; CI installs the latter two
+from Ubuntu 24.04 packages. Other interpreters require a separate profile.
+Bash checks syntax without executing script bodies or startup files. ShellCheck
+uses its complete default severity scope without rc files; shfmt parses actual
+comments and declarations and checks four-space formatting with indented cases.
+
+Each script needs a Bash shebang, an initial `set -euo pipefail`, and an adjacent
+contract comment for each function. Inline tool directives and subsequent shell
+mode changes require profile review. Positional arguments may use `set --`.
+Source selection and digests must remain stable through the measurement. Exit
+zero covers this static profile, one reports findings, and two refuses input or
+measurement. Function-comment presence does not establish semantic correctness;
+operational runtime tests and coverage remain separate gates.
+
 ### Rust (optional)
 
 Use the Rust toolchain pinned in `rust-toolchain.toml` and maturin. Rustup
@@ -660,6 +770,69 @@ The separate public-API docstring gate below retains zero debt across
 selected tool, validation and test helpers; historical files outside that list
 are not claimed to have full private/test documentation. Native docstrings and
 actual lint/rendering tests remain separate from declaration inspection.
+
+The test/tool/validation debt gate enforces both its preserved aggregate ceiling
+and per-file, per-rule bounds in `tools/docstring_debt_ceiling.json`. Unrecorded
+files and rules have a zero allowance. A repair in one file cannot offset a
+regression in another, and replacing one rule violation with a different rule
+violation in the same file also fails. This counts Ruff-selected diagnostics;
+historical allowances additionally require unchanged source fingerprints.
+Changed files must have zero Ruff-selected documentation findings, so even an
+exchange between individual defects with the same rule/count cannot pass.
+These checks do not qualify code outside that configured scope.
+
+`source_fingerprints` covers every recorded owner. Its declared comparison
+protocol hashes UTF-8 source after universal CRLF/CR/LF newline normalisation;
+other whitespace, comments, definitions and docstrings remain significant.
+Unchanged legacy files can retain bounded debt. Changing one requires completing
+that file's current documentation profile rather than raising or refreshing its
+historical allowance. Missing/unreadable source refuses inspection.
+
+The ledger's `profile` binds the interpreter's Ruff distribution version and
+the complete root `pyproject.toml` bytes. A changed profile refuses inspection
+until comparable bounds are qualified; `--update` cannot reset it. This binding
+does not inspect nested configuration discovery or external ignore files.
+Source enrollment and new/changed-code acceptance remain separate requirements.
+The optional `origin_revision` names the original historical baseline, not the
+current source or an authenticated reviewer.
+
+The `changed-python-static` pre-commit hook and preflight gate automatically
+select complete changed Python files in every directory, including new roots.
+Static-governance CI fetches full history before running the same hook. Run it
+directly with:
+
+```bash
+python tools/changed_python_checks.py
+```
+
+The default anchor is the documentation ledger's `origin_revision`; `--base`
+accepts an explicitly reviewed full commit ID. Missing history or a nonancestor
+refuses inspection instead of falling back to HEAD. The selector includes
+committed, staged, unstaged and nonignored untracked changes, excludes deletions,
+and binds complete bytes. Symlinks, conflicts and unknown formats refuse.
+`tools/source_quality_scope.py --base <original-commit>` prints this selection
+as JSON, including other languages and supporting carriers, without a quality
+verdict. The format policy must retain its original bytes.
+
+For selected Python, the complete root `pyproject.toml` must also match the
+original revision. The checker requires module/class/callable docstrings,
+executes Ruff with explicit root configuration and noqa disabled, checks
+formatting, and runs strict mypy with repository source/test import roots.
+Nested Ruff configuration cannot remove rules. Type-ignore, mypy and format
+off/skip comment directives refuse; strings describing such controls do not.
+Native subprocesses retain interpreter isolation flags, and missing tools,
+unfinished checks or changed source hashes fail. Status zero covers this Python
+static profile only; runtime tests, coverage, other native families, benchmarks
+and independent review remain separate gates.
+
+`--update` rewrites the single ledger only after every owner/rule and aggregate
+comparison passes, lowering its bounds to current measured counts. It cannot
+raise debt or trade one owner against another. Ordinary checks do not write.
+Legacy aggregate-only files remain readable through the `read_ceiling` Python
+API but cannot clear CLI enforcement. Missing/malformed JSON, ambiguous keys,
+invalid owner identities, or an unavailable/mismatched profile refuse with
+status two; an owner or aggregate regression returns one. Writes retain the
+existing direct-file replacement behaviour rather than atomic publication.
 
 Documentation builds intentionally constrain MkDocs to `>=1.6.1,<2` and
 Material for MkDocs to `>=9.7.7,<10`. Material 9.x does not support MkDocs 2;

@@ -55,6 +55,27 @@ repos:
 
   - repo: local
     hooks:
+      - id: changed-python-static
+        name: Complete-file static checks for changed Python in every root
+        entry: python tools/changed_python_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: changed-studio-static
+        name: Compiler enrollment and native checks for changed Studio sources
+        entry: python tools/studio_source_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: changed-shell-static
+        name: Native checks and contracts for changed Bash sources
+        entry: python tools/shell_source_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: check-docs-internal-private
         name: private documentation declarations and Git paths
         entry: python tools/check_docs_internal_private.py

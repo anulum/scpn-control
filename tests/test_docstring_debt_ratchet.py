@@ -17,6 +17,7 @@ from __future__ import annotations
 import ast
 import doctest
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -25,6 +26,8 @@ from pathlib import Path
 import pytest
 
 from tools import check_docstring_debt as gate
+from tools import preflight
+from tools.docstring_debt_ledger import SOURCE_FINGERPRINT_PROTOCOL, measure_owner_sources, measurement_profile
 
 
 @pytest.fixture
@@ -47,7 +50,15 @@ def repository_scope(tmp_path: Path) -> Path:
 
 def _write_ledger(repo: Path, total: int, counts: dict[str, int] | None = None) -> Path:
     """Write the explicit scope ceiling without altering the canonical ledger."""
-    payload: dict[str, object] = {"total": total, "scope": list(gate.SCOPE)}
+    owners = gate.measure_owners(repo)
+    payload: dict[str, object] = {
+        "total": total,
+        "scope": list(gate.SCOPE),
+        "per_file": owners,
+        "profile": measurement_profile(repo),
+        "source_fingerprints": measure_owner_sources(repo, owners),
+        "source_fingerprint_protocol": SOURCE_FINGERPRINT_PROTOCOL,
+    }
     if counts is not None:
         payload["by_code"] = counts
     path = repo / "tools" / gate.LEDGER.name
@@ -57,8 +68,13 @@ def _write_ledger(repo: Path, total: int, counts: dict[str, int] | None = None) 
 
 def _cli(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     """Launch the actual script with its selected repository and a bounded runtime."""
+    command = [sys.executable]
+    coverage_rc = os.environ.get("SCPN_DOCSTRING_DEBT_COVERAGE_RC")
+    if coverage_rc:
+        command += ["-m", "coverage", "run", "--parallel-mode", f"--rcfile={coverage_rc}"]
+    command += [str(gate.ROOT / "tools/check_docstring_debt.py"), "--repo", str(repo), *args]
     return subprocess.run(
-        [sys.executable, str(gate.ROOT / "tools/check_docstring_debt.py"), "--repo", str(repo), *args],
+        command,
         cwd=gate.ROOT,
         capture_output=True,
         text=True,
@@ -67,17 +83,38 @@ def _cli(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     )
 
 
-def _remove_guard_docstring(repo: Path) -> Path:
-    """Remove the actual public collector contract from the copied production guard."""
-    source = repo / "tools/check_test_quality_policy.py"
-    tree = ast.parse(source.read_text())
-    collector = next(
-        node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "collect_violations"
-    )
+def _remove_guard_docstring(
+    repo: Path, owner: str = "tools/check_test_quality_policy.py", symbol: str = "collect_violations"
+) -> Path:
+    """Remove one actual public callable contract without reformatting other source."""
+    source = repo / owner
+    original = source.read_text()
+    tree = ast.parse(original)
+    collector = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == symbol)
     assert ast.get_docstring(collector)
-    collector.body.pop(0)
-    source.write_text(ast.unparse(tree), encoding="utf-8")
+    contract = collector.body[0]
+    assert contract.end_lineno is not None
+    lines = original.splitlines(keepends=True)
+    del lines[contract.lineno - 1 : contract.end_lineno]
+    source.write_text("".join(lines), encoding="utf-8")
     return source
+
+
+def _document_historical_test(source: Path) -> str:
+    """Repair one real copied test contract while preserving all other source text."""
+    original = source.read_text()
+    function = next(
+        node
+        for node in ast.parse(original).body
+        if isinstance(node, ast.FunctionDef) and node.name.startswith("test_") and not ast.get_docstring(node)
+    )
+    first = function.body[0]
+    lines = original.splitlines(keepends=True)
+    lines.insert(
+        first.lineno - 1, " " * first.col_offset + '"""Exercise the maintained electromagnetic regression case."""\n'
+    )
+    source.write_text("".join(lines), encoding="utf-8")
+    return function.name
 
 
 def test_live_repository_holds_its_ceiling() -> None:
@@ -277,7 +314,9 @@ def test_native_documentation_example_executes() -> None:
     assert result.failed == 0 and result.attempted == 2
 
 
-@pytest.mark.parametrize("fault", ["silence", "json", "object", "code"])
+@pytest.mark.parametrize(
+    "fault", ["silence", "json", "object", "code", "filename", "foreign_filename", "integer", "nesting"]
+)
 def test_public_measure_refuses_corrupted_real_ruff_response(
     repository_scope: Path, monkeypatch: pytest.MonkeyPatch, fault: str
 ) -> None:
@@ -291,10 +330,10 @@ def test_public_measure_refuses_corrupted_real_ruff_response(
     real_run = subprocess.run
 
     def capture_with_fault(
-        argv: list[str], *, capture_output: bool, text: bool, cwd: Path, check: bool
+        argv: list[str], *, capture_output: bool, text: bool, cwd: Path, check: bool, timeout: float
     ) -> subprocess.CompletedProcess[str]:
         """Execute the actual subprocess before corrupting its captured protocol bytes."""
-        result = real_run(argv, capture_output=capture_output, text=text, cwd=cwd, check=check)
+        result = real_run(argv, capture_output=capture_output, text=text, cwd=cwd, check=check, timeout=timeout)
         assert result.returncode == 1
         diagnostics = json.loads(result.stdout)
         assert any(finding["code"] == "D103" for finding in diagnostics)
@@ -304,9 +343,19 @@ def test_public_measure_refuses_corrupted_real_ruff_response(
             result.stdout += "trailing corruption"
         elif fault == "object":
             result.stdout = json.dumps({"diagnostics": diagnostics})
-        else:
+        elif fault == "code":
             diagnostics[0].pop("code")
             result.stdout = json.dumps(diagnostics)
+        elif fault == "filename":
+            diagnostics[0].pop("filename")
+            result.stdout = json.dumps(diagnostics)
+        elif fault == "foreign_filename":
+            diagnostics[0]["filename"] = str(repository_scope.parent / "outside.py")
+            result.stdout = json.dumps(diagnostics)
+        elif fault == "integer":
+            result.stdout = "[" + "9" * 5000 + "]"
+        else:
+            result.stdout = "[" * 20000 + "0" + "]" * 20000
         return result
 
     monkeypatch.setattr(subprocess, "run", capture_with_fault)
@@ -347,3 +396,108 @@ def test_missing_root_refuses_without_creating_a_ledger(tmp_path: Path, update: 
     assert result.returncode == 2 and "debt scope missing" in result.stderr
     assert not result.stdout and "Traceback" not in result.stderr
     assert not missing.exists()
+
+
+@pytest.mark.parametrize("update", [False, True])
+@pytest.mark.parametrize("new_owner", [False, True])
+def test_real_cli_refuses_flat_total_owner_exchange(repository_scope: Path, update: bool, new_owner: bool) -> None:
+    """Repairing a historical test cannot fund undocumented code in another owner."""
+    historical = repository_scope / "tests/test_gk_electromagnetic.py"
+    shutil.copy2(gate.ROOT / "tests/test_gk_electromagnetic.py", historical)
+    counts = gate.measure(repository_scope)
+    assert counts["D103"] > 0
+    ledger = _write_ledger(repository_scope, sum(counts.values()), counts)
+    before = ledger.read_bytes()
+    _document_historical_test(historical)
+    owner = "tools/new_guard.py" if new_owner else "tools/check_test_quality_policy.py"
+    if new_owner:
+        shutil.copy2(gate.ROOT / "tools/check_test_quality_policy.py", repository_scope / owner)
+    _remove_guard_docstring(repository_scope, owner)
+    assert sum(gate.measure(repository_scope).values()) == sum(counts.values())
+    result = _cli(repository_scope, *(["--update"] if update else []))
+    assert result.returncode == 1 and "owner/rule" in result.stdout and owner in result.stdout
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("update", [False, True])
+def test_real_cli_refuses_different_rule_within_same_owner(repository_scope: Path, update: bool) -> None:
+    """A missing-contract repair cannot buy a new punctuation defect in that file."""
+    source = _remove_guard_docstring(repository_scope)
+    counts = gate.measure(repository_scope)
+    ledger = _write_ledger(repository_scope, sum(counts.values()), counts)
+    before = ledger.read_bytes()
+    original = (gate.ROOT / "tools/check_test_quality_policy.py").read_text()
+    tree = ast.parse(original)
+    function = next(
+        node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "collect_violations"
+    )
+    contract = function.body[0]
+    lines = original.splitlines(keepends=True)
+    assert lines[contract.lineno - 1].endswith(".\n")
+    lines[contract.lineno - 1] = lines[contract.lineno - 1][:-2] + "\n"
+    source.write_text("".join(lines), encoding="utf-8")
+    after = gate.measure(repository_scope)
+    assert after.get("D400", 0) > counts.get("D400", 0)
+    assert sum(after.values()) == sum(counts.values())
+    result = _cli(repository_scope, *(["--update"] if update else []))
+    assert result.returncode == 1 and "owner/rule" in result.stdout
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("defect", ["configuration", "tool", "aggregate_only"])
+def test_real_cli_refuses_unqualified_profile_or_missing_owner_bounds(repository_scope: Path, defect: str) -> None:
+    """Changed selection/tool declarations need qualification, not an automatic baseline reset."""
+    ledger = repository_scope / "tools" / gate.LEDGER.name
+    payload = json.loads(ledger.read_text())
+    if defect == "configuration":
+        config = repository_scope / "pyproject.toml"
+        config.write_text(config.read_text() + "\n# changed profile bytes\n")
+    elif defect == "tool":
+        payload["profile"]["ruff_version"] = "0.0.1"
+        ledger.write_text(json.dumps(payload))
+    else:
+        payload.pop("per_file")
+        ledger.write_text(json.dumps(payload))
+    before = ledger.read_bytes()
+    result = _cli(repository_scope, "--update")
+    assert result.returncode == 2 and "FAIL:" in result.stderr and "Traceback" not in result.stderr
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("update", [False, True])
+@pytest.mark.parametrize("exchange", [False, True])
+def test_changed_file_cannot_retain_or_exchange_individual_old_cases(
+    repository_scope: Path, update: bool, exchange: bool
+) -> None:
+    """A smaller or flat same-rule count cannot clear a changed file's remaining debt."""
+    owner = "tests/test_gk_electromagnetic.py"
+    source = repository_scope / owner
+    shutil.copy2(gate.ROOT / owner, source)
+    previously_documented = _document_historical_test(source)
+    counts = gate.measure(repository_scope)
+    ledger = _write_ledger(repository_scope, sum(counts.values()), counts)
+    before = ledger.read_bytes()
+    assert _cli(repository_scope).returncode == 0
+    _document_historical_test(source)
+    if exchange:
+        _remove_guard_docstring(repository_scope, owner, previously_documented)
+    after = gate.measure(repository_scope)
+    assert sum(after.values()) == sum(counts.values()) - (0 if exchange else 1)
+    result = _cli(repository_scope, *(["--update"] if update else []))
+    assert result.returncode == 1 and "changed owners" in result.stdout and owner in result.stdout
+    assert ledger.read_bytes() == before
+
+
+@pytest.mark.parametrize("admitted", [False, True])
+def test_registered_preflight_command_propagates_default_owner_gate(
+    repository_scope: Path, admitted: bool, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The real registered command admits valid default input and propagates native rejection."""
+    for name in ["tools/check_docstring_debt.py", "tools/docstring_debt_ledger.py"]:
+        shutil.copy2(gate.ROOT / name, repository_scope / name)
+    if not admitted:
+        _remove_guard_docstring(repository_scope)
+    name, command, _cwd = next(row for row in preflight.GATES if row[0] == "docstring-debt-ratchet")
+    assert preflight.run_gate(name, command, repository_scope) is admitted
+    output = capsys.readouterr().out
+    assert name in output and ("PASS" if admitted else "FAIL") in output

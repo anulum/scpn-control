@@ -16,8 +16,8 @@
     "build": "vite build",
     "docs:api": "typedoc",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint .",
-    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"test/**/*.{ts,tsx}\"",
+    "lint": "eslint . --max-warnings 0",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"test/**/*.{ts,tsx}\" \"*.config.{ts,mjs}\" tsconfig.json package.json",
     "test": "vitest run"
   },
   "dependencies": {

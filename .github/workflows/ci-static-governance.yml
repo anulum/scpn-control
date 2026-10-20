@@ -90,9 +90,11 @@ jobs:
 
   # ─── Job 13: Pre-commit hooks ───
   pre-commit:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7  # 1.98.0
         with:
           toolchain: 1.98.0
@@ -112,6 +114,72 @@ jobs:
         run: |
           python -m pre_commit --version
           python -m pytest tests/test_python_lint_contract.py -v --tb=short
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: "22.23.2"
+      - name: Install the qualified Studio dependency graph
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm --dir studio-web install --frozen-lockfile
+      - name: Install qualified shell parsers
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends shellcheck=0.9.0-1 shfmt=3.8.0-1
+      - name: Test native source contracts
+        env:
+          SCPN_STUDIO_SOURCE_COVERAGE_RC: ${{ runner.temp }}/native-source.coveragerc
+          SCPN_SHELL_SOURCE_COVERAGE_RC: ${{ runner.temp }}/native-source.coveragerc
+        run: |
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          project = Path(os.environ.get('GITHUB_WORKSPACE', '.')).resolve()
+          outputs = Path('artifacts/coverage/native-tools')
+          outputs.mkdir(parents=True, exist_ok=True)
+          names = ['tools/studio_source_checks.py', 'tools/shell_source_checks.py']
+          (outputs / 'source_manifest.json').write_text(json.dumps({
+              name: hashlib.sha256((project / name).read_bytes()).hexdigest() for name in names
+          }))
+          Path(os.environ['SCPN_STUDIO_SOURCE_COVERAGE_RC']).write_text(
+              '[run]\nbranch = True\n'
+              'data_file = artifacts/coverage/native-tools/.coverage\n'
+              'include = */tools/studio_source_checks.py,*/tools/shell_source_checks.py\n'
+              '[report]\nexclude_lines =\nfail_under = 100\n'
+          )
+          PY
+          python -m coverage run --parallel-mode --rcfile "$SCPN_STUDIO_SOURCE_COVERAGE_RC" \
+            -m pytest native_tests/ -q
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+          import coverage
+          project = Path(os.environ.get('GITHUB_WORKSPACE', '.')).resolve()
+          cov = coverage.Coverage(config_file=os.environ['SCPN_STUDIO_SOURCE_COVERAGE_RC'])
+          cov.combine(keep=True)
+          cov.save()
+          expected = {project / name for name in ['tools/studio_source_checks.py', 'tools/shell_source_checks.py']}
+          observed = {Path(name).resolve() for name in cov.get_data().measured_files()}
+          if observed != expected:
+              raise SystemExit('Native coverage scope differs from the required complete files')
+          manifest = json.loads(Path('artifacts/coverage/native-tools/source_manifest.json').read_text())
+          if set(manifest) != {str(path.relative_to(project)) for path in expected}:
+              raise SystemExit('Native source manifest differs from the required complete files')
+          if any(hashlib.sha256((project / name).read_bytes()).hexdigest() != digest for name, digest in manifest.items()):
+              raise SystemExit('Native source changed after measurement')
+          total = cov.report(show_missing=True)
+          raise SystemExit(0 if total == 100 else 1)
+          PY
+      - name: Retain native source-tool coverage
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9  # v7.0.2
+        with:
+          name: source-native-static-coverage
+          path: artifacts/coverage/native-tools/
+          include-hidden-files: true
       - name: Run pre-commit
         run: pre-commit run --all-files
 

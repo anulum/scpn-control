@@ -83,6 +83,22 @@ ENFORCE_ZERO = True
 # private/nested functions, constructors and test helpers. This does not claim
 # that historical private/test definitions elsewhere have reached zero debt.
 ALL_DEFINITION_TARGETS = (
+    "tools/shell_source_checks.py",
+    "native_tests/test_shell_source_checks.py",
+    "tools/studio_source_checks.py",
+    "native_tests/test_studio_source_checks.py",
+    "tools/source_quality_scope.py",
+    "tools/changed_python_checks.py",
+    "tests/test_tools/test_source_quality_scope.py",
+    "tests/test_tools/test_changed_python_checks.py",
+    "tools/docstring_debt_ledger.py",
+    "tests/test_tools/test_docstring_owner_ledger.py",
+    "tools/preflight.py",
+    "tools/python_dependency_metadata.py",
+    "tools/python_dependency_compatibility.py",
+    "tests/dependency_metadata_server.py",
+    "tests/test_tools/test_python_dependency_metadata.py",
+    "tests/test_tools/test_python_dependency_compatibility.py",
     "tools/document_link_audit.py",
     "tests/test_tools/test_document_link_audit.py",
     "tools/run_fuzz_campaign.py",

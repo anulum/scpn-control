@@ -332,6 +332,26 @@ def copied_gate_graph(tmp_path: Path) -> Path:
 @pytest.mark.parametrize(
     "owner,symbol",
     [
+        ("tools/shell_source_checks.py", "changed_shell_errors"),
+        ("native_tests/test_shell_source_checks.py", "shell_repo"),
+        ("tools/studio_source_checks.py", "changed_studio_errors"),
+        ("native_tests/test_studio_source_checks.py", "studio_repo"),
+        ("tools/source_quality_scope.py", "select_changed_files"),
+        ("tools/changed_python_checks.py", "changed_python_errors"),
+        ("tests/test_tools/test_source_quality_scope.py", "git_repo"),
+        ("tests/test_tools/test_changed_python_checks.py", "python_repo"),
+        ("tools/preflight.py", "run_python_compat_check"),
+        ("tools/python_dependency_metadata.py", "read_python_constraint"),
+        ("tools/python_dependency_compatibility.py", "python_compatibility_errors"),
+        ("tests/dependency_metadata_server.py", "metadata_service"),
+        (
+            "tests/test_tools/test_python_dependency_metadata.py",
+            "test_metadata_translates_an_actual_socket_timeout",
+        ),
+        (
+            "tests/test_tools/test_python_dependency_compatibility.py",
+            "test_actual_compatibility_cli_propagates_complete_verdict",
+        ),
         ("tools/train_rl_tokamak.py", "main"),
         ("tools/rl_training_config.py", "TrainingConfig"),
         ("tools/rl_tokamak_evaluation.py", "evaluate_agent"),

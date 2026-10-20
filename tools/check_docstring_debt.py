@@ -19,10 +19,13 @@ Division of labour with the two neighbouring gates:
   instead of blocking the gate on it.
 
 The count measures native docstring presence and style, not semantic accuracy
-or executable examples. A new undocumented owner can be offset by improvements
-elsewhere until the ceiling is explicitly lowered; the total is not a per-owner
-admission decision. Invalid Python and unreadable source refuse the measurement.
-The repository configuration still determines which documentation rules apply.
+or executable examples. Mandatory per-file/rule bounds prevent one repair from
+offsetting another owner's regression. Unrecorded files and rules have a zero
+bound. Historical debt is admitted only for unchanged fingerprinted source;
+a changed file must clear every Ruff-selected documentation finding. Invalid
+Python and unreadable source refuse the measurement. The root
+configuration and Ruff distribution version must match the recorded profile;
+configuration discovery and source enrollment remain separate qualifications.
 
 The CLI resolves ``--repo`` against the working directory and uses that root's
 ``tools/docstring_debt_ceiling.json``. Without it, the owning repository is used.
@@ -42,13 +45,27 @@ import sys
 from pathlib import Path
 from typing import Final
 
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
+from tools.docstring_debt_ledger import (
+    SCOPE as SCOPE,
+)
+from tools.docstring_debt_ledger import (
+    SOURCE_FINGERPRINT_PROTOCOL,
+    measure_owner_sources,
+    measurement_profile,
+    owner_path,
+    read_debt_ceiling,
+    read_owner_ledger,
+)
+
 ROOT: Final = Path(__file__).resolve().parents[1]
 LEDGER: Final = Path(__file__).resolve().parent / "docstring_debt_ceiling.json"
-SCOPE: Final = ("tests", "tools", "validation")
 
 
-def measure(repo: Path) -> dict[str, int]:
-    """Count current ``D`` findings per rule code across the debt scope.
+def measure_owners(repo: Path) -> dict[str, dict[str, int]]:
+    """Count current Ruff-selected ``D`` findings by repository file and rule.
 
     The scope is linted with the repository's own ruff configuration, so the
     project ``select`` and ``ignore`` lists both apply. Passing ``--select D``
@@ -61,8 +78,9 @@ def measure(repo: Path) -> dict[str, int]:
 
     Returns
     -------
-    dict[str, int]
-        Finding count keyed by ruff rule code, restricted to ``D`` rules.
+    dict[str, dict[str, int]]
+        Nonzero finding counts keyed by lexical relative owner and D-rule code.
+        Owners without diagnostics are omitted, not counted as undocumented.
 
     Raises
     ------
@@ -72,14 +90,6 @@ def measure(repo: Path) -> dict[str, int]:
         absent scope must fail loudly: reporting zero debt for a directory that
         has been renamed away would silently retire the ratchet.
 
-    Examples
-    --------
-    Measure the maintained repository without changing its ledger. A passing
-    count does not prove semantic contracts or executable documentation.
-
-    >>> counts = measure(ROOT)
-    >>> sum(counts.values()) <= read_ceiling(LEDGER)
-    True
     """
     repo = repo.resolve()
     missing = [part for part in SCOPE if not (repo / part).is_dir()]
@@ -92,8 +102,8 @@ def measure(repo: Path) -> dict[str, int]:
     argv = [sys.executable, "-m", "ruff", "check", "--output-format", "json", "--no-cache"]
     argv += [str(repo / part) for part in SCOPE]
     try:
-        completed = subprocess.run(argv, capture_output=True, text=True, cwd=repo, check=False)
-    except OSError as exc:
+        completed = subprocess.run(argv, capture_output=True, text=True, cwd=repo, check=False, timeout=60)
+    except (OSError, UnicodeError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(f"could not run ruff: {exc}") from exc
     if completed.returncode not in (0, 1):
         raise RuntimeError(f"ruff failed with exit {completed.returncode}: {completed.stderr.strip()}")
@@ -101,11 +111,11 @@ def measure(repo: Path) -> dict[str, int]:
         raise RuntimeError(f"ruff produced no output; stderr: {completed.stderr.strip()}")
     try:
         findings = json.loads(completed.stdout)
-    except json.JSONDecodeError as exc:
-        raise RuntimeError(f"could not parse ruff output: {exc}") from exc
+    except (ValueError, RecursionError):
+        raise RuntimeError("could not parse ruff output as JSON") from None
     if not isinstance(findings, list):
         raise RuntimeError("ruff output must be an array of diagnostics")
-    counts: dict[str, int] = {}
+    counts: dict[str, dict[str, int]] = {}
     for finding in findings:
         if not isinstance(finding, dict) or not isinstance(finding.get("code"), str):
             raise RuntimeError("ruff diagnostic must contain a string rule code")
@@ -113,18 +123,54 @@ def measure(repo: Path) -> dict[str, int]:
         if code in ("invalid-syntax", "E902", "E999"):
             raise RuntimeError(f"ruff could not inspect source: {finding.get('filename')}: {code}")
         if re.fullmatch(r"D[0-9]{3}", code):
-            counts[code] = counts.get(code, 0) + 1
+            filename = finding.get("filename")
+            if not isinstance(filename, str):
+                raise RuntimeError("ruff documentation diagnostic requires a string filename")
+            try:
+                owner = owner_path(Path(filename).relative_to(repo).as_posix())
+            except ValueError:
+                raise RuntimeError("ruff documentation diagnostic is outside the declared owner scope") from None
+            owner_counts = counts.setdefault(owner, {})
+            owner_counts[code] = owner_counts.get(code, 0) + 1
     return counts
 
 
-def _unique_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
-    """Reject ambiguous duplicate keys at every depth of the ledger JSON."""
-    result: dict[str, object] = {}
-    for key, value in pairs:
-        if key in result:
-            raise ValueError(f"duplicate ledger key: {key}")
-        result[key] = value
+def _rule_counts(owners: dict[str, dict[str, int]]) -> dict[str, int]:
+    """Aggregate already-measured file counts without changing their owner bounds."""
+    result: dict[str, int] = {}
+    for counts in owners.values():
+        for code, count in counts.items():
+            result[code] = result.get(code, 0) + count
     return result
+
+
+def measure(repo: Path) -> dict[str, int]:
+    """Retain the public aggregate measurement API over the same native owner probe.
+
+    Parameters
+    ----------
+    repo : pathlib.Path
+        Caller-relative or absolute root containing all three debt directories.
+
+    Returns
+    -------
+    dict of str to int
+        Ruff-selected documentation counts by rule, with zero-count rules omitted.
+
+    Raises
+    ------
+    RuntimeError
+        The scope, native Ruff process or diagnostic protocol cannot be inspected.
+
+    Examples
+    --------
+    Measurement alone is not owner admission or semantic qualification:
+
+    >>> counts = measure(ROOT)
+    >>> sum(counts.values()) <= read_ceiling(LEDGER)
+    True
+    """
+    return _rule_counts(measure_owners(repo))
 
 
 def read_ceiling(ledger: Path) -> int:
@@ -137,6 +183,8 @@ def read_ceiling(ledger: Path) -> int:
         booleans, numeric strings and floating-point values. ``scope`` must
         equal the ordered tests/tools/validation scope. Optional ``by_code``
         counts must be nonnegative integers for D-rule codes and sum to total.
+        Present owner/profile fields are validated; their absence remains
+        readable here but cannot clear mandatory CLI owner enforcement.
 
     Returns
     -------
@@ -149,29 +197,7 @@ def read_ceiling(ledger: Path) -> int:
         The file is missing, unreadable, ambiguous or violates the ledger
         contract. No default ceiling or numeric coercion is applied.
     """
-    try:
-        payload = json.loads(ledger.read_text(encoding="utf-8"), object_pairs_hook=_unique_object)
-        if not isinstance(payload, dict):
-            raise ValueError("ledger must be an object")
-        total = payload.get("total")
-        if type(total) is not int or total < 0:
-            raise ValueError("total must be a nonnegative integer")
-        if payload.get("scope") != list(SCOPE):
-            raise ValueError("scope must match tests/tools/validation")
-        if "by_code" in payload:
-            counts = payload["by_code"]
-            if not isinstance(counts, dict) or any(
-                not re.fullmatch(r"D[0-9]{3}", key) or type(value) is not int or value < 0
-                for key, value in counts.items()
-            ):
-                raise ValueError("by_code must contain nonnegative integer D-rule counts")
-            if sum(counts.values()) != total:
-                raise ValueError("by_code sum must equal total")
-        return total
-    except FileNotFoundError as exc:
-        raise RuntimeError(f"missing docstring debt ledger: {ledger}") from exc
-    except (OSError, UnicodeError, ValueError) as exc:
-        raise RuntimeError(f"malformed docstring debt ledger {ledger}: {exc}") from exc
+    return read_debt_ceiling(ledger)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -185,15 +211,15 @@ def main(argv: list[str] | None = None) -> int:
     Returns
     -------
     int
-        Zero for a completed measurement within the ceiling, one for a debt
-        regression or refused increase, two for root/measurement/ledger failure.
+        Zero for completed aggregate/owner comparisons within their bounds, one
+        for a debt regression, two for root/measurement/ledger/profile failure.
         Argparse exits with two on unsupported arguments.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Lower the ceiling to the measured value. Refuses to raise it.",
+        help="Lower aggregate and owner/rule bounds to measured counts; refuse any regression.",
     )
     parser.add_argument("--repo", type=Path, default=ROOT, help="Repository root whose scope and ledger are checked.")
     args = parser.parse_args(argv)
@@ -204,12 +230,38 @@ def main(argv: list[str] | None = None) -> int:
             pass
         repo = args.repo.resolve()
         ledger = repo / "tools" / LEDGER.name
-        counts = measure(repo)
-        ceiling = read_ceiling(ledger)
+        owners = measure_owners(repo)
+        counts = _rule_counts(owners)
+        bounds = read_owner_ledger(ledger)
+        ceiling = bounds.total
+        if bounds.profile != measurement_profile(repo):
+            raise RuntimeError("docstring debt profile changed; qualify comparable owner bounds before adoption")
+        sources = measure_owner_sources(repo, owners)
     except (OSError, ValueError, RuntimeError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 2
     total = sum(counts.values())
+
+    regressions = [
+        f"{path}: {code} {bounds.per_file.get(path, {}).get(code, 0)} -> {count}"
+        for path, values in sorted(owners.items())
+        for code, count in sorted(values.items())
+        if count > bounds.per_file.get(path, {}).get(code, 0)
+    ]
+    if regressions and total <= ceiling:
+        print("FAIL: docstring debt rose within an owner/rule; repairs cannot offset regressions")
+        print("\n".join(regressions))
+        return 1
+
+    changed_owners = [
+        path
+        for path, fingerprint in sources.items()
+        if path in bounds.per_file and fingerprint != bounds.source_fingerprints[path]
+    ]
+    if changed_owners and total <= ceiling:
+        print("FAIL: changed owners retain documentation debt; complete the native file profile")
+        print("\n".join(sorted(changed_owners)))
+        return 1
 
     if args.update:
         if total > ceiling:
@@ -219,6 +271,11 @@ def main(argv: list[str] | None = None) -> int:
             "total": total,
             "scope": list(SCOPE),
             "by_code": dict(sorted(counts.items())),
+            "per_file": {path: dict(sorted(values.items())) for path, values in sorted(owners.items())},
+            "profile": bounds.profile,
+            "source_fingerprints": sources,
+            "source_fingerprint_protocol": SOURCE_FINGERPRINT_PROTOCOL,
+            "origin_revision": bounds.origin_revision,
             "note": "Measured ceiling. Lower it by documenting code; never raise it.",
         }
         try:

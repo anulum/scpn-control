@@ -15,5 +15,1498 @@
     "D400": 3,
     "D401": 12
   },
-  "note": "Measured ceiling. Lower it by documenting code; never raise it."
+  "note": "Measured ceiling. Lower it by documenting code; never raise it.",
+  "per_file": {
+    "tests/test_adaptive_knm.py": {
+      "D100": 1,
+      "D101": 13,
+      "D102": 29
+    },
+    "tests/test_advanced_soc.py": {
+      "D101": 5,
+      "D102": 40
+    },
+    "tests/test_advanced_soc_verbose_plot.py": {
+      "D101": 1
+    },
+    "tests/test_aer_observation.py": {
+      "D103": 12
+    },
+    "tests/test_aer_observation_decode_strategies.py": {
+      "D103": 5
+    },
+    "tests/test_aer_observation_internals.py": {
+      "D205": 1,
+      "D101": 5,
+      "D102": 19
+    },
+    "tests/test_aer_observation_rust_parity.py": {
+      "D103": 3
+    },
+    "tests/test_alfven_eigenmodes.py": {
+      "D100": 1,
+      "D103": 19
+    },
+    "tests/test_analytic_solver.py": {
+      "D102": 38,
+      "D103": 8,
+      "D101": 12
+    },
+    "tests/test_analytic_solver_verbose.py": {
+      "D101": 2
+    },
+    "tests/test_anomalous_transport.py": {
+      "D101": 2
+    },
+    "tests/test_artifact_codec.py": {
+      "D103": 27,
+      "D101": 4,
+      "D102": 50
+    },
+    "tests/test_aux_heating.py": {
+      "D101": 1
+    },
+    "tests/test_ballooning_independent_reference.py": {
+      "D103": 7
+    },
+    "tests/test_ballooning_solver.py": {
+      "D100": 1,
+      "D103": 12
+    },
+    "tests/test_bench_runtime_admission.py": {
+      "D100": 1,
+      "D103": 1
+    },
+    "tests/test_bio_holonomic_controller.py": {
+      "D100": 1,
+      "D103": 3
+    },
+    "tests/test_blob_transport.py": {
+      "D100": 1,
+      "D103": 16
+    },
+    "tests/test_boris_pyo3_bridge.py": {
+      "D101": 6,
+      "D102": 1
+    },
+    "tests/test_boundary_variant_dispatch.py": {
+      "D103": 7
+    },
+    "tests/test_build_fairmast_disruption_manifest.py": {
+      "D103": 7
+    },
+    "tests/test_burn_control_validation.py": {
+      "D401": 1,
+      "D103": 28
+    },
+    "tests/test_burn_controller.py": {
+      "D100": 1,
+      "D103": 31
+    },
+    "tests/test_capacitor_bank_compatibility.py": {
+      "D103": 1
+    },
+    "tests/test_capacitor_bank_state.py": {
+      "D103": 23
+    },
+    "tests/test_capacitor_bank_state_pyo3.py": {
+      "D103": 2
+    },
+    "tests/test_checkpoint.py": {
+      "D200": 1
+    },
+    "tests/test_checkpoint_validation.py": {
+      "D101": 3,
+      "D102": 7
+    },
+    "tests/test_cli.py": {
+      "D103": 2
+    },
+    "tests/test_cli_acquire.py": {
+      "D103": 8
+    },
+    "tests/test_cli_benchmark.py": {
+      "D103": 3
+    },
+    "tests/test_cli_commands.py": {
+      "D103": 1,
+      "D101": 3,
+      "D102": 4
+    },
+    "tests/test_cli_demo.py": {
+      "D103": 5
+    },
+    "tests/test_cli_evidence_validators.py": {
+      "D103": 3
+    },
+    "tests/test_cli_info.py": {
+      "D103": 4
+    },
+    "tests/test_cli_run_hardware_campaign.py": {
+      "D100": 1,
+      "D103": 1
+    },
+    "tests/test_cli_runtime_admission.py": {
+      "D100": 1,
+      "D103": 1
+    },
+    "tests/test_cli_text_output_and_helpers.py": {
+      "D103": 17,
+      "D101": 2,
+      "D102": 6
+    },
+    "tests/test_cli_validate_gk.py": {
+      "D103": 12
+    },
+    "tests/test_cli_validate_paths.py": {
+      "D205": 1,
+      "D101": 2
+    },
+    "tests/test_cli_validate_reference.py": {
+      "D103": 3
+    },
+    "tests/test_cli_validate_reference_artifacts.py": {
+      "D103": 17
+    },
+    "tests/test_codac_action_mapping.py": {
+      "D103": 2
+    },
+    "tests/test_compiler_internals.py": {
+      "D101": 2,
+      "D102": 11
+    },
+    "tests/test_contracts_edge_guards.py": {
+      "D205": 1,
+      "D101": 3
+    },
+    "tests/test_control_init.py": {
+      "D101": 3,
+      "D102": 5
+    },
+    "tests/test_control_resilience_campaign.py": {
+      "D103": 5
+    },
+    "tests/test_controller.py": {
+      "D103": 4,
+      "D101": 6,
+      "D102": 63
+    },
+    "tests/test_controller_advanced_paths.py": {
+      "D205": 1,
+      "D101": 7,
+      "D102": 17
+    },
+    "tests/test_controller_delayed_transitions.py": {
+      "D205": 1,
+      "D101": 1
+    },
+    "tests/test_controller_logpath_passthrough.py": {
+      "D205": 1,
+      "D101": 3,
+      "D102": 8
+    },
+    "tests/test_controller_oracle_serve.py": {
+      "D205": 1,
+      "D400": 1,
+      "D101": 3,
+      "D102": 8
+    },
+    "tests/test_controller_zero_paths.py": {
+      "D205": 2,
+      "D101": 5
+    },
+    "tests/test_cross_module_physics.py": {
+      "D100": 1,
+      "D401": 1,
+      "D103": 9
+    },
+    "tests/test_current_diffusion.py": {
+      "D100": 1,
+      "D103": 14
+    },
+    "tests/test_current_drive.py": {
+      "D103": 5,
+      "D101": 5,
+      "D102": 19
+    },
+    "tests/test_current_drive_validation.py": {
+      "D103": 21
+    },
+    "tests/test_cyclone_nonlinear_chi_i_reference.py": {
+      "D103": 7
+    },
+    "tests/test_dashboard_benchmark_state.py": {
+      "D101": 1,
+      "D102": 1,
+      "D103": 4
+    },
+    "tests/test_dashboard_gk_state.py": {
+      "D103": 4
+    },
+    "tests/test_dashboard_phase_state.py": {
+      "D103": 3
+    },
+    "tests/test_dashboard_reference_shots.py": {
+      "D103": 5
+    },
+    "tests/test_dashboard_replay.py": {
+      "D103": 5
+    },
+    "tests/test_dashboard_state.py": {
+      "D103": 6
+    },
+    "tests/test_dashboard_synthetic_shots.py": {
+      "D103": 5
+    },
+    "tests/test_dashboard_trajectory.py": {
+      "D103": 5
+    },
+    "tests/test_detachment_controller.py": {
+      "D100": 1,
+      "D103": 10
+    },
+    "tests/test_differentiable_scenario.py": {
+      "D100": 1,
+      "D103": 18
+    },
+    "tests/test_differentiable_scenario_validation.py": {
+      "D103": 6
+    },
+    "tests/test_differentiable_transport.py": {
+      "D100": 1,
+      "D103": 105
+    },
+    "tests/test_differentiable_transport_latency_validation.py": {
+      "D103": 10
+    },
+    "tests/test_digital_twin_ingest_runtime.py": {
+      "D103": 5
+    },
+    "tests/test_digital_twin_physics.py": {
+      "D100": 1
+    },
+    "tests/test_diiid_freegs_reference.py": {
+      "D103": 5
+    },
+    "tests/test_diiid_jet_validation.py": {
+      "D200": 1,
+      "D101": 2,
+      "D102": 7
+    },
+    "tests/test_director_interface.py": {
+      "D100": 1,
+      "D101": 3,
+      "D102": 40
+    },
+    "tests/test_disruption_channel_recipes.py": {
+      "D103": 23
+    },
+    "tests/test_disruption_contracts.py": {
+      "D103": 16
+    },
+    "tests/test_disruption_contracts_pure.py": {
+      "D100": 1,
+      "D101": 10,
+      "D102": 41
+    },
+    "tests/test_disruption_edge_cases.py": {
+      "D101": 9,
+      "D102": 17
+    },
+    "tests/test_disruption_episode.py": {
+      "D101": 1,
+      "D102": 5
+    },
+    "tests/test_disruption_mitigation_controller.py": {
+      "D200": 1
+    },
+    "tests/test_disruption_predictor.py": {
+      "D101": 4,
+      "D102": 16,
+      "D103": 2
+    },
+    "tests/test_disruption_predictor_checkpoint_integrity.py": {
+      "D103": 18
+    },
+    "tests/test_disruption_predictor_evaluate.py": {
+      "D101": 4,
+      "D102": 6
+    },
+    "tests/test_disruption_predictor_extended.py": {
+      "D101": 10,
+      "D102": 41
+    },
+    "tests/test_disruption_predictor_fallbacks.py": {
+      "D101": 3,
+      "D102": 1
+    },
+    "tests/test_disruption_predictor_probabilistic.py": {
+      "D100": 1
+    },
+    "tests/test_disruption_predictor_pure.py": {
+      "D100": 1,
+      "D101": 5,
+      "D102": 22
+    },
+    "tests/test_disruption_predictor_rng.py": {
+      "D103": 5
+    },
+    "tests/test_disruption_roc.py": {
+      "D103": 23
+    },
+    "tests/test_disruption_safe_api.py": {
+      "D102": 15,
+      "D101": 2
+    },
+    "tests/test_disruption_sequence.py": {
+      "D100": 1,
+      "D103": 6
+    },
+    "tests/test_disruption_sequence_validation.py": {
+      "D103": 9
+    },
+    "tests/test_e2e_compile_to_control.py": {
+      "D101": 1
+    },
+    "tests/test_e2e_latency_evidence_validation.py": {
+      "D103": 8
+    },
+    "tests/test_e2e_phase_diiid.py": {
+      "D400": 1,
+      "D101": 4,
+      "D102": 9
+    },
+    "tests/test_elm_model.py": {
+      "D100": 1,
+      "D103": 17
+    },
+    "tests/test_elm_peeling_ballooning_validation.py": {
+      "D103": 19
+    },
+    "tests/test_eped_pedestal.py": {
+      "D100": 1,
+      "D103": 12
+    },
+    "tests/test_eped_pedestal_validation.py": {
+      "D103": 18
+    },
+    "tests/test_eqdsk.py": {
+      "D102": 13
+    },
+    "tests/test_eqdsk_psi_to_norm.py": {
+      "D101": 2,
+      "D102": 3
+    },
+    "tests/test_equilibrium_shape.py": {
+      "D103": 18
+    },
+    "tests/test_evaluate_mast_disruption.py": {
+      "D103": 11
+    },
+    "tests/test_external_profile_mode.py": {
+      "D100": 1,
+      "D102": 4
+    },
+    "tests/test_fault_tolerant_control.py": {
+      "D100": 1,
+      "D103": 8
+    },
+    "tests/test_federated_disruption.py": {
+      "D101": 14,
+      "D102": 40
+    },
+    "tests/test_force_balance_3d.py": {
+      "D101": 1,
+      "D102": 8
+    },
+    "tests/test_formal_safety_certificate.py": {
+      "D103": 12,
+      "D101": 8,
+      "D102": 42
+    },
+    "tests/test_fpga_export.py": {
+      "D101": 14,
+      "D102": 49
+    },
+    "tests/test_free_boundary_tracking.py": {
+      "D103": 16,
+      "D102": 32
+    },
+    "tests/test_free_boundary_tracking_acceptance.py": {
+      "D103": 23
+    },
+    "tests/test_free_boundary_tracking_claims.py": {
+      "D103": 18
+    },
+    "tests/test_free_boundary_tracking_variants.py": {
+      "D102": 12
+    },
+    "tests/test_full_chain_uq.py": {
+      "D100": 1,
+      "D101": 2,
+      "D102": 15
+    },
+    "tests/test_fusion_control_room.py": {
+      "D103": 5,
+      "D101": 5,
+      "D102": 38
+    },
+    "tests/test_fusion_kernel.py": {
+      "D100": 1,
+      "D103": 4,
+      "D101": 13,
+      "D102": 69
+    },
+    "tests/test_fusion_kernel_coil_ops.py": {
+      "D205": 2,
+      "D103": 1,
+      "D101": 8,
+      "D102": 27
+    },
+    "tests/test_fusion_kernel_fail_on_diverge.py": {
+      "D100": 1,
+      "D103": 2
+    },
+    "tests/test_fusion_kernel_profiles.py": {
+      "D205": 1,
+      "D101": 2
+    },
+    "tests/test_fusion_kernel_solver_paths.py": {
+      "D103": 20,
+      "D205": 1
+    },
+    "tests/test_fusion_neural_mpc.py": {
+      "D103": 11
+    },
+    "tests/test_fusion_neural_mpc_pulsed_adapter.py": {
+      "D100": 1,
+      "D103": 18
+    },
+    "tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py": {
+      "D100": 1,
+      "D103": 3
+    },
+    "tests/test_fusion_optimal_control.py": {
+      "D103": 10
+    },
+    "tests/test_geometry_neutral_contracts.py": {
+      "D100": 1,
+      "D103": 21
+    },
+    "tests/test_geometry_neutral_replay.py": {
+      "D100": 1,
+      "D103": 15
+    },
+    "tests/test_geometry_neutral_replay_v1_1.py": {
+      "D100": 1,
+      "D103": 10
+    },
+    "tests/test_geometry_neutral_replay_v1_backcompat.py": {
+      "D100": 1,
+      "D103": 2
+    },
+    "tests/test_geometry_neutral_replay_validation_paths.py": {
+      "D103": 30
+    },
+    "tests/test_geqdsk_regression.py": {
+      "D102": 4
+    },
+    "tests/test_gk_benchmark_linear.py": {
+      "D100": 1,
+      "D103": 6
+    },
+    "tests/test_gk_corrector.py": {
+      "D100": 1,
+      "D103": 16
+    },
+    "tests/test_gk_corrector_validation.py": {
+      "D101": 4,
+      "D102": 8
+    },
+    "tests/test_gk_cyclone_base.py": {
+      "D103": 3
+    },
+    "tests/test_gk_eigenvalue.py": {
+      "D100": 1,
+      "D103": 14,
+      "D102": 22
+    },
+    "tests/test_gk_electromagnetic.py": {
+      "D100": 1,
+      "D103": 15
+    },
+    "tests/test_gk_external_integration.py": {
+      "D100": 1,
+      "D401": 1
+    },
+    "tests/test_gk_external_solvers.py": {
+      "D100": 1,
+      "D103": 17,
+      "D205": 2
+    },
+    "tests/test_gk_geometry.py": {
+      "D100": 1,
+      "D103": 6
+    },
+    "tests/test_gk_geometry_independent_reference.py": {
+      "D103": 8
+    },
+    "tests/test_gk_hybrid_integration.py": {
+      "D100": 1,
+      "D103": 1
+    },
+    "tests/test_gk_interface.py": {
+      "D100": 1,
+      "D103": 7
+    },
+    "tests/test_gk_nonlinear.py": {
+      "D100": 1,
+      "D101": 12,
+      "D102": 39
+    },
+    "tests/test_gk_nonlinear_cyclone_validation.py": {
+      "D100": 1,
+      "D103": 8
+    },
+    "tests/test_gk_online_learner.py": {
+      "D100": 1,
+      "D103": 19,
+      "D401": 1
+    },
+    "tests/test_gk_ood_detector.py": {
+      "D100": 1,
+      "D103": 27
+    },
+    "tests/test_gk_quasilinear.py": {
+      "D100": 1,
+      "D103": 7
+    },
+    "tests/test_gk_scheduler.py": {
+      "D100": 1,
+      "D103": 16
+    },
+    "tests/test_gk_scheduler_validation.py": {
+      "D101": 4,
+      "D102": 11
+    },
+    "tests/test_gk_species.py": {
+      "D100": 1,
+      "D103": 20
+    },
+    "tests/test_gk_tglf.py": {
+      "D100": 1,
+      "D103": 14
+    },
+    "tests/test_gk_tglf_native.py": {
+      "D100": 1,
+      "D101": 7,
+      "D102": 27,
+      "D401": 1
+    },
+    "tests/test_gk_upde_bridge.py": {
+      "D100": 1,
+      "D103": 18
+    },
+    "tests/test_gk_verification_report.py": {
+      "D100": 1,
+      "D103": 11
+    },
+    "tests/test_grad_shafranov_solovev_validation.py": {
+      "D103": 30
+    },
+    "tests/test_gs_convergence.py": {
+      "D205": 1
+    },
+    "tests/test_gs_transport_coupling.py": {
+      "D205": 1
+    },
+    "tests/test_guiding_centre_conservation_validation.py": {
+      "D103": 27
+    },
+    "tests/test_gyrokinetic_transport.py": {
+      "D100": 1,
+      "D103": 18
+    },
+    "tests/test_halo_current_validation.py": {
+      "D401": 1,
+      "D103": 24
+    },
+    "tests/test_halo_nonfinite_guards.py": {
+      "D205": 1,
+      "D101": 4,
+      "D102": 3
+    },
+    "tests/test_halo_validation_paths.py": {
+      "D205": 1,
+      "D101": 3,
+      "D102": 5
+    },
+    "tests/test_hpc_bridge.py": {
+      "D103": 71
+    },
+    "tests/test_impurity_transport.py": {
+      "D100": 1,
+      "D103": 27
+    },
+    "tests/test_jax_gk_solver.py": {
+      "D100": 1,
+      "D103": 19
+    },
+    "tests/test_jax_gs_solver.py": {
+      "D102": 16
+    },
+    "tests/test_jax_neural_equilibrium.py": {
+      "D103": 5,
+      "D101": 7,
+      "D102": 11
+    },
+    "tests/test_jax_solvers.py": {
+      "D102": 9
+    },
+    "tests/test_jax_traceable_runtime.py": {
+      "D101": 11,
+      "D102": 56,
+      "D103": 2
+    },
+    "tests/test_jax_traceable_runtime_import.py": {
+      "D103": 1
+    },
+    "tests/test_kinetic_efit.py": {
+      "D100": 1,
+      "D103": 13
+    },
+    "tests/test_knm.py": {
+      "D100": 1,
+      "D101": 3,
+      "D102": 7
+    },
+    "tests/test_kuramoto_edge_paths.py": {
+      "D205": 1,
+      "D101": 2
+    },
+    "tests/test_kuramoto_runtime_evidence_admission.py": {
+      "D401": 1,
+      "D101": 7,
+      "D102": 33
+    },
+    "tests/test_kuramoto_synchronisation_validation.py": {
+      "D103": 17
+    },
+    "tests/test_lh_transition.py": {
+      "D100": 1,
+      "D103": 21
+    },
+    "tests/test_locked_mode.py": {
+      "D100": 1,
+      "D103": 17
+    },
+    "tests/test_lyapunov_guard.py": {
+      "D101": 3,
+      "D102": 21
+    },
+    "tests/test_marfe.py": {
+      "D100": 1,
+      "D103": 15,
+      "D205": 2
+    },
+    "tests/test_marfe_onset_validation.py": {
+      "D103": 21
+    },
+    "tests/test_mast_efm_neural_equilibrium_campaign.py": {
+      "D100": 1,
+      "D103": 2
+    },
+    "tests/test_mdsplus_acquisition.py": {
+      "D100": 1,
+      "D101": 2,
+      "D102": 2,
+      "D103": 13
+    },
+    "tests/test_mesh_convergence.py": {
+      "D205": 1
+    },
+    "tests/test_mhd_stability_validation.py": {
+      "D103": 18
+    },
+    "tests/test_mms_convergence.py": {
+      "D102": 1
+    },
+    "tests/test_momentum_integration.py": {
+      "D100": 1,
+      "D101": 2,
+      "D102": 6
+    },
+    "tests/test_momentum_transport.py": {
+      "D100": 1,
+      "D103": 33
+    },
+    "tests/test_momentum_transport_validation.py": {
+      "D103": 23
+    },
+    "tests/test_mu_structured_singular_value_validation.py": {
+      "D103": 17
+    },
+    "tests/test_multi_shot_campaign.py": {
+      "D100": 1,
+      "D103": 19
+    },
+    "tests/test_multi_shot_campaign_pyo3.py": {
+      "D100": 1,
+      "D103": 1
+    },
+    "tests/test_native_formal_modes_benchmark.py": {
+      "D100": 1,
+      "D103": 2
+    },
+    "tests/test_nengo_snn_wrapper.py": {
+      "D100": 1,
+      "D103": 24
+    },
+    "tests/test_neoclassical.py": {
+      "D200": 1
+    },
+    "tests/test_neural_eq_iter_weights.py": {
+      "D103": 3,
+      "D101": 2,
+      "D102": 9
+    },
+    "tests/test_neural_eq_surrogate.py": {
+      "D101": 4,
+      "D102": 16
+    },
+    "tests/test_neural_eq_training.py": {
+      "D103": 2,
+      "D101": 3,
+      "D102": 8
+    },
+    "tests/test_neural_equilibrium.py": {
+      "D101": 4,
+      "D102": 16
+    },
+    "tests/test_neural_equilibrium_core.py": {
+      "D100": 1,
+      "D101": 7,
+      "D102": 32
+    },
+    "tests/test_neural_transport.py": {
+      "D101": 7,
+      "D102": 39,
+      "D103": 3
+    },
+    "tests/test_neural_transport_core.py": {
+      "D101": 7,
+      "D102": 32
+    },
+    "tests/test_neural_turbulence.py": {
+      "D100": 1,
+      "D103": 37,
+      "D205": 1
+    },
+    "tests/test_neuro_cybernetic_controller.py": {
+      "D103": 28
+    },
+    "tests/test_neuro_cybernetic_extended.py": {
+      "D101": 5,
+      "D102": 11
+    },
+    "tests/test_neurocore_v3_detection.py": {
+      "D101": 1,
+      "D102": 3
+    },
+    "tests/test_nmpc_controller.py": {
+      "D100": 1,
+      "D205": 1,
+      "D400": 1,
+      "D103": 32,
+      "D401": 1
+    },
+    "tests/test_nmpc_controller_error_paths.py": {
+      "D101": 8,
+      "D102": 31
+    },
+    "tests/test_nmpc_transport_tuning_error_paths.py": {
+      "D101": 5,
+      "D102": 27
+    },
+    "tests/test_ntm_dynamics.py": {
+      "D100": 1,
+      "D103": 14
+    },
+    "tests/test_ntm_island_dynamics_validation.py": {
+      "D103": 26
+    },
+    "tests/test_orbit_following.py": {
+      "D100": 1,
+      "D103": 24,
+      "D205": 3
+    },
+    "tests/test_p0_regression.py": {
+      "D102": 14
+    },
+    "tests/test_particle_conservation.py": {
+      "D102": 5
+    },
+    "tests/test_pedestal.py": {
+      "D200": 1
+    },
+    "tests/test_pellet_injection.py": {
+      "D100": 1,
+      "D103": 17
+    },
+    "tests/test_phase_kuramoto.py": {
+      "D205": 1,
+      "D101": 12,
+      "D102": 71
+    },
+    "tests/test_phase_properties.py": {
+      "D100": 1,
+      "D101": 2,
+      "D102": 13
+    },
+    "tests/test_phase_properties_extended.py": {
+      "D103": 5
+    },
+    "tests/test_physics_debug_assistant.py": {
+      "D103": 20
+    },
+    "tests/test_physics_debug_validation_paths.py": {
+      "D103": 67
+    },
+    "tests/test_physics_invariants.py": {
+      "D101": 18
+    },
+    "tests/test_pid_controller.py": {
+      "D103": 11
+    },
+    "tests/test_plasma_knm.py": {
+      "D100": 1,
+      "D101": 10,
+      "D102": 32,
+      "D103": 2
+    },
+    "tests/test_plasma_power_terms.py": {
+      "D101": 3
+    },
+    "tests/test_plasma_startup.py": {
+      "D100": 1,
+      "D103": 10
+    },
+    "tests/test_plasma_wall_interaction.py": {
+      "D100": 1,
+      "D205": 3,
+      "D103": 11
+    },
+    "tests/test_predictor_edge_paths.py": {
+      "D205": 1,
+      "D101": 3,
+      "D102": 8
+    },
+    "tests/test_predictor_internals.py": {
+      "D205": 1,
+      "D101": 3,
+      "D102": 8
+    },
+    "tests/test_property_based.py": {
+      "D100": 1
+    },
+    "tests/test_pulsed_scenario_scheduler_pyo3.py": {
+      "D103": 2
+    },
+    "tests/test_pulsed_scenario_scheduler_v2.py": {
+      "D103": 9,
+      "D101": 4,
+      "D102": 15
+    },
+    "tests/test_qlknn_transport.py": {
+      "D101": 5,
+      "D102": 24
+    },
+    "tests/test_quantum_disruption_bridge.py": {
+      "D103": 44
+    },
+    "tests/test_realtime_monitor.py": {
+      "D100": 1,
+      "D103": 5
+    },
+    "tests/test_realtime_monitor_h5py.py": {
+      "D101": 1
+    },
+    "tests/test_runaway_electron_validation.py": {
+      "D103": 18
+    },
+    "tests/test_runaway_electrons.py": {
+      "D100": 1,
+      "D103": 11
+    },
+    "tests/test_runtime_admission.py": {
+      "D100": 1,
+      "D103": 5,
+      "D101": 2,
+      "D102": 19
+    },
+    "tests/test_runtime_safety_certificate.py": {
+      "D100": 1,
+      "D103": 46
+    },
+    "tests/test_runtime_sanitization.py": {
+      "D101": 1
+    },
+    "tests/test_rust_compat_wrapper.py": {
+      "D100": 1,
+      "D103": 39
+    },
+    "tests/test_rust_engine.py": {
+      "D100": 1,
+      "D103": 27
+    },
+    "tests/test_rust_engine_execution_paths.py": {
+      "D103": 34
+    },
+    "tests/test_rust_engine_runtime_admission.py": {
+      "D100": 1,
+      "D103": 4
+    },
+    "tests/test_rust_fallbacks.py": {
+      "D101": 3,
+      "D102": 17
+    },
+    "tests/test_rust_realtime_parity.py": {
+      "D103": 3
+    },
+    "tests/test_rwm_feedback.py": {
+      "D100": 1,
+      "D103": 10
+    },
+    "tests/test_rwm_feedback_validation.py": {
+      "D103": 26
+    },
+    "tests/test_rzip_model.py": {
+      "D100": 1,
+      "D103": 57
+    },
+    "tests/test_rzip_vertical_stability_validation.py": {
+      "D103": 26
+    },
+    "tests/test_safe_rl_controller.py": {
+      "D100": 1,
+      "D101": 3,
+      "D102": 3,
+      "D103": 4
+    },
+    "tests/test_sawtooth.py": {
+      "D100": 1,
+      "D103": 10
+    },
+    "tests/test_sawtooth_kadomtsev_validation.py": {
+      "D103": 27
+    },
+    "tests/test_scaling_laws.py": {
+      "D103": 1,
+      "D101": 7,
+      "D102": 37
+    },
+    "tests/test_scaling_laws_audit.py": {
+      "D100": 1
+    },
+    "tests/test_scaling_laws_edge.py": {
+      "D205": 1,
+      "D101": 2
+    },
+    "tests/test_scaling_laws_variance_guard.py": {
+      "D101": 1
+    },
+    "tests/test_scenario_scheduler.py": {
+      "D100": 1,
+      "D103": 5
+    },
+    "tests/test_scpn_compiler.py": {
+      "D103": 2,
+      "D101": 7,
+      "D102": 65
+    },
+    "tests/test_scpn_compiler_scforward.py": {
+      "D101": 3,
+      "D102": 4
+    },
+    "tests/test_scpn_formal_verification.py": {
+      "D103": 15
+    },
+    "tests/test_scpn_formal_verification_validation.py": {
+      "D101": 6,
+      "D102": 23
+    },
+    "tests/test_scpn_lean_formal_validation.py": {
+      "D103": 9
+    },
+    "tests/test_scpn_lean_verification.py": {
+      "D103": 9
+    },
+    "tests/test_scpn_lean_verification_validators.py": {
+      "D101": 7,
+      "D102": 33
+    },
+    "tests/test_scpn_package_exports.py": {
+      "D205": 1,
+      "D101": 5,
+      "D102": 12
+    },
+    "tests/test_snn_pyo3_bridge.py": {
+      "D101": 3,
+      "D102": 3
+    },
+    "tests/test_sol_model.py": {
+      "D100": 1,
+      "D103": 8,
+      "D205": 2
+    },
+    "tests/test_spi_mitigation.py": {
+      "D103": 20
+    },
+    "tests/test_stability_mhd.py": {
+      "D101": 7,
+      "D102": 41
+    },
+    "tests/test_stability_mhd_validation.py": {
+      "D205": 1,
+      "D101": 2,
+      "D102": 7
+    },
+    "tests/test_stellarator_geometry.py": {
+      "D100": 1,
+      "D103": 15
+    },
+    "tests/test_stress_campaign_regression.py": {
+      "D205": 1
+    },
+    "tests/test_structure_edge_paths.py": {
+      "D205": 1,
+      "D101": 6
+    },
+    "tests/test_structure_liveness_validation.py": {
+      "D103": 5
+    },
+    "tests/test_studio_adapters.py": {
+      "D103": 36
+    },
+    "tests/test_studio_package_exports.py": {
+      "D205": 1,
+      "D103": 4
+    },
+    "tests/test_studio_sealed_claim.py": {
+      "D205": 1,
+      "D103": 17
+    },
+    "tests/test_tearing_mode_coupling.py": {
+      "D100": 1,
+      "D103": 17
+    },
+    "tests/test_tokamak_config.py": {
+      "D103": 7
+    },
+    "tests/test_tokamak_digital_twin.py": {
+      "D103": 30,
+      "D101": 5,
+      "D102": 22
+    },
+    "tests/test_tokamak_digital_twin_ids.py": {
+      "D205": 2,
+      "D101": 3,
+      "D102": 3
+    },
+    "tests/test_tokamak_flight_sim.py": {
+      "D103": 8,
+      "D101": 5,
+      "D102": 11
+    },
+    "tests/test_torax_streak_disruption.py": {
+      "D101": 1
+    },
+    "tests/test_transport_diffusion_validation.py": {
+      "D103": 28
+    },
+    "tests/test_transport_energy_conservation.py": {
+      "D100": 1
+    },
+    "tests/test_transport_geometry.py": {
+      "D101": 4
+    },
+    "tests/test_transport_hmode_edge.py": {
+      "D205": 1,
+      "D103": 1,
+      "D101": 5,
+      "D102": 1
+    },
+    "tests/test_transport_neoclassical_guards.py": {
+      "D205": 1,
+      "D103": 1,
+      "D101": 2
+    },
+    "tests/test_uncertainty.py": {
+      "D100": 1,
+      "D101": 5,
+      "D102": 9
+    },
+    "tests/test_uncertainty_bosch_hale.py": {
+      "D100": 1
+    },
+    "tests/test_uncertainty_sigma_guard.py": {
+      "D101": 1
+    },
+    "tests/test_validate_gk_collision_independent.py": {
+      "D103": 13
+    },
+    "tests/test_validate_gk_geometry_independent.py": {
+      "D103": 11
+    },
+    "tests/test_validate_stability_mhd_ballooning.py": {
+      "D103": 10
+    },
+    "tests/test_validation_reference_configs.py": {
+      "D103": 2
+    },
+    "tests/test_validation_regression.py": {
+      "D103": 5,
+      "D401": 1
+    },
+    "tests/test_validators.py": {
+      "D103": 34
+    },
+    "tests/test_vessel_model.py": {
+      "D200": 1,
+      "D103": 4
+    },
+    "tests/test_visualization_paths.py": {
+      "D101": 9,
+      "D102": 24
+    },
+    "tests/test_vmec_lite.py": {
+      "D100": 1,
+      "D103": 13
+    },
+    "tests/test_vmec_lite_geometry_validation.py": {
+      "D103": 14
+    },
+    "tests/test_z3_formal_report.py": {
+      "D103": 39
+    },
+    "tests/test_z3_model_checking_paths.py": {
+      "D205": 1,
+      "D401": 1,
+      "D103": 48
+    }
+  },
+  "profile": {
+    "ruff_version": "0.16.10",
+    "configuration_sha256": "e69bfbec8f940487fca2d937a0df086c9602a163fc57efaa8d5ad734edf060db"
+  },
+  "origin_revision": "01c731e296cba88c1342fc85205ba974063a8338",
+  "source_fingerprints": {
+    "tests/test_adaptive_knm.py": "05244a5872a455cc4f16ae3ea9e86eae7f8a5d346eb512534935f61c4bb59f55",
+    "tests/test_advanced_soc.py": "364f63a51bd62e9487d630692145293fc1137c1d38bfb5a9e0d6c2760e0c4b4a",
+    "tests/test_advanced_soc_verbose_plot.py": "a8acbb290717f2d65d83608846c75366a7f58ac63ba6ec587fa44e5ff4c12edd",
+    "tests/test_aer_observation.py": "2938b30dc5a515b48cfef6683b1a4be91d881505d265283cffb8a2178f894370",
+    "tests/test_aer_observation_decode_strategies.py": "9091445a834f70b2694d0da7f40fc494db46d4f926131a48c2939ef04e8395bb",
+    "tests/test_aer_observation_internals.py": "8f375e5701bb6dc63762798647bf92bfb59371964111d99de0863b07adce233f",
+    "tests/test_aer_observation_rust_parity.py": "9add5a2a40db7448147fd14ab027e9f5ed35a72b6781e3473c6ec0f8a01ac24d",
+    "tests/test_alfven_eigenmodes.py": "4f5a0ed6518c24933f106f7fca758847128947f989f800154f467cded30791af",
+    "tests/test_analytic_solver.py": "6b23a3201742877c6453930a7786f8daa47ae12a81350931059ce76a587e439b",
+    "tests/test_analytic_solver_verbose.py": "af0d4793ed61060130eb74da6a71e16d94b2d8fd782353c633b009a4392b3b68",
+    "tests/test_anomalous_transport.py": "b899054c6b96713fd6632037afa4195a787d458301bc62955fa2d94ba2bbfa75",
+    "tests/test_artifact_codec.py": "b091be41ee8e0643ae648ca1887b5f970b3534626a5187b97eafaefdf7c55eeb",
+    "tests/test_aux_heating.py": "9cef98d103ccc144d0148489212b0365aa8b45ff6e5e312d61e5b14651aec722",
+    "tests/test_ballooning_independent_reference.py": "d5de1e209e0b1f71e0aedc4adc5253f6fdeb225d5af4267a343fc4042ec3e26c",
+    "tests/test_ballooning_solver.py": "a3aa1817a963354557af79555b08e6ebac46bb73a7ecf64d47b0c2362a42b747",
+    "tests/test_bench_runtime_admission.py": "790c6ce5f5cdbdcb87c8ce7428595d571b21c0aa86ae4f6b2941f8220e9e8b8a",
+    "tests/test_bio_holonomic_controller.py": "8fbbb564b42f6477da8e9b0af5593bf491ac2d16a717ba9b8f785375f5aa0091",
+    "tests/test_blob_transport.py": "fc8f0b6a2acad201d72953dceed083a06cf1af27db4abf8e4e722c808716641f",
+    "tests/test_boris_pyo3_bridge.py": "58302fe1dd9ff41f580447351eae0f112b31b839afa58501993c9dfd279ec1f3",
+    "tests/test_boundary_variant_dispatch.py": "76ed2071b89fac85f3aba05ef71d0fead736aba0d6ce8bd0c41b86a1139c4c80",
+    "tests/test_build_fairmast_disruption_manifest.py": "d67553c44c0a5be38c271e98e39a1189236d661402f4363f8218ab500d0fb5ee",
+    "tests/test_burn_control_validation.py": "504d5713e1246da4dcfed3cb95273f832a6368526a8c7f917fa5207cbccfcfa3",
+    "tests/test_burn_controller.py": "393e494d64211e819647cbead42d8b1ccf4ad719ef7282b965026603cd463ff7",
+    "tests/test_capacitor_bank_compatibility.py": "c419dcc638383442c8dc20162f3c316bbfa6a30aa8109b63698d0c97ffaeb4ba",
+    "tests/test_capacitor_bank_state.py": "3738b0b93fae9cdea04fde2721ab5c7ab4079f52c863f9cf9c73c66c6b1924b7",
+    "tests/test_capacitor_bank_state_pyo3.py": "3381c73f40ab9b16901083d70b9d0fd786daf940b894324d5597005474e8bf63",
+    "tests/test_checkpoint.py": "bf229a35395a55684785a899eb6e81989fdf841ced267c44e57f81e052561bc9",
+    "tests/test_checkpoint_validation.py": "6ea04e7ab22750a1a04127df332bd68fd292a43aa248647371343b0d9f8986cd",
+    "tests/test_cli.py": "12c00c8fcaeca56203a9ea1c5433c7eda36104dafc720eed974bbf5de1199c9f",
+    "tests/test_cli_acquire.py": "b236a2f80412494c37e6fba7e5464e1834d6a80bbd71173cd20b86969ecc997e",
+    "tests/test_cli_benchmark.py": "4a106b795662beb540cc71764fb5de63ed6b2ceca272464a0a08be0eaa89b793",
+    "tests/test_cli_commands.py": "11273c92ade72e2704ba4c5c58a6857d0bda4b9b45f753f43c56619462230545",
+    "tests/test_cli_demo.py": "4cb54bd24242d2bc338da7179996705969d857d80add247e9fd21703df946f36",
+    "tests/test_cli_evidence_validators.py": "362f9f73a3ca9ab65cf006f78cc80fb926405a9c44e919753cad9bbff53ca310",
+    "tests/test_cli_info.py": "b2270c39123240064c73eeb3e8625ccb452d17d00ced8bd0b8fdf4cfd902c97f",
+    "tests/test_cli_run_hardware_campaign.py": "cf9afb7e5598fb27045ec7917b82b20d7af0e2425f3d74078bb0c41dd675bead",
+    "tests/test_cli_runtime_admission.py": "3dcdd755555590cafe9756188bac9372691b78c554e576326616872fc6fe094e",
+    "tests/test_cli_text_output_and_helpers.py": "d1d5084c945bfa1b9378c79782a5f38211d7aa428fecda451df61148950452ea",
+    "tests/test_cli_validate_gk.py": "afa7d153eb9210f0f91e4cfa2d560d00b81310bfbbd8f640dfd3cf6e28f76126",
+    "tests/test_cli_validate_paths.py": "bc66b0bb94f02ee7a400bb2c04e0294cde7fe6c93cda32c5dcfe706022da8138",
+    "tests/test_cli_validate_reference.py": "548bb9436d45a5cd29002b831f306005507cc68e528b661f1dc40a72c0a8787b",
+    "tests/test_cli_validate_reference_artifacts.py": "706215806a91c051e3991037e24e9207e1477137c845012a42824b3ccb4101a0",
+    "tests/test_codac_action_mapping.py": "ab5d966525893ed05d3c9f8fdad59823f41e7a273dd12289c15866298c339292",
+    "tests/test_compiler_internals.py": "c2492d9e55c30c9293b45aa121da726c25eca5ffa9fce08ba6999d6f74e5ccca",
+    "tests/test_contracts_edge_guards.py": "0b93ca644223918f286d0c821b48da65ba6c33b477ea3e81f7a6ee5d9c0adfc4",
+    "tests/test_control_init.py": "d4a982f9920d309335ff365d72ca1626b4f75148343f754b7d1b3a7c059cbc01",
+    "tests/test_control_resilience_campaign.py": "514dc3ebf4814bc2c43c9b952f5c80a8aa8699eed92f68a812b44999808b0383",
+    "tests/test_controller.py": "396c3235e8df7a3ca127af20bd38c18a966cdc0693008befd5a8a1e7bdbee5f6",
+    "tests/test_controller_advanced_paths.py": "604c744bf92156ba2278ffae76c991cfb348eaffa28e432cc39effddd98aac28",
+    "tests/test_controller_delayed_transitions.py": "778a6d8d3c56ee7b40f04bd68a3af1e5863dc73788c16ccb2b22622a124c4888",
+    "tests/test_controller_logpath_passthrough.py": "8a0820d6d47e196212ee3b9edab1e8578af4fbe9642e288b4f39258221e59e8f",
+    "tests/test_controller_oracle_serve.py": "9e71aafe600304bdb925df8be3d578e38c6f052fbc3e32ef72c03afbbf1ae0e5",
+    "tests/test_controller_zero_paths.py": "77a61057c0cef6be5b4fbb79dcf749c8a13eb8fa91e2f0bfbdc053cd57589ffb",
+    "tests/test_cross_module_physics.py": "177a32b83c46dc4b5215d707200a9b06fe69f66888decbabd1ee1df6a6fd3627",
+    "tests/test_current_diffusion.py": "c30a6dca5472faa18bd5138b6adf628e79793f03453eb3a1375db99996e07cb7",
+    "tests/test_current_drive.py": "2d4d6ab6eb784d70bcda1bc8afce13036950542c957ff8e25d1efbbb283665b8",
+    "tests/test_current_drive_validation.py": "778176edae2a68c13897237ddc15650085f212c77271d102a5cd4125349a63c4",
+    "tests/test_cyclone_nonlinear_chi_i_reference.py": "02d64e9b08e335feaa3c9e6d0946b351f2a4389e3154404dca94e25bad273632",
+    "tests/test_dashboard_benchmark_state.py": "f25eb5816b84336cf2335f8536d14a4dda28026b9be01440ca9facbf2e1b6386",
+    "tests/test_dashboard_gk_state.py": "5271d8e2306f38914f337e205d7863e26d3e14ff8566cef7e9439c4063e9125a",
+    "tests/test_dashboard_phase_state.py": "0b6923576bafb148c07ef2a592ecc10c041189cb5c1702f459949bec42f3c119",
+    "tests/test_dashboard_reference_shots.py": "c59d9fdcb061c30410097519c0842aba7d15ad53e30774d13f1247d7951bafbe",
+    "tests/test_dashboard_replay.py": "a9e226d42f3b2f85944adc48a5f9ac31f51cc540529de9fc47dd0dba8636a89b",
+    "tests/test_dashboard_state.py": "d6d6a9b895a220c3dfcadfe01f998fce2486305a081b740711db19d703e0fef9",
+    "tests/test_dashboard_synthetic_shots.py": "2c0593830f0923a50f4a0538d469a6ecda30fa7e55f7478ec9f28dc81dc66e72",
+    "tests/test_dashboard_trajectory.py": "f3d882c22cb530673519f01969645e042a78018ebaaae1fd1ade8e7eb5d27a02",
+    "tests/test_detachment_controller.py": "f68f4eb0d97e6a66893c4f86d1d1e3865a141f8b1d89019787bd6ec8db7922af",
+    "tests/test_differentiable_scenario.py": "17da0c3af372d87c1c972905e8e4b36c68c6d85a9930cdb8141bb301b24d6372",
+    "tests/test_differentiable_scenario_validation.py": "667f8c879d218310324490eb52d4b0ca614b9fb20e97cb1ed4df236e01a38120",
+    "tests/test_differentiable_transport.py": "3ff166e9fd3fb617db00e64cc4ed82f55b4983830f13f22344980c28075bb11c",
+    "tests/test_differentiable_transport_latency_validation.py": "5241e469441dc1292f04636c2ba68818738bcadeec5aad8be06fbea42cf49724",
+    "tests/test_digital_twin_ingest_runtime.py": "a2ec238aee72a74c55986cd028fa375aa5a4f81f6b2ac309fee687ca9aac8f62",
+    "tests/test_digital_twin_physics.py": "90bfe7e91f029276abba93349bd7fbabe648d15ad72d73fbb5d236142242de37",
+    "tests/test_diiid_freegs_reference.py": "946d8cbee651f89bf32d4fb0b4a1520d55a814259b0346800d873146db9a3e39",
+    "tests/test_diiid_jet_validation.py": "b653e79537070cc1d9270e02768861399140e7adbf8ba522c7990a00c7e61400",
+    "tests/test_director_interface.py": "c85c2ceedc43447f1783a5ef2c072083821577ec8dede17e53599ce574401aa7",
+    "tests/test_disruption_channel_recipes.py": "1cb5c8843712e758b4c930222c3858bef4faf36e642c8f0f64d0bfc599ac52e1",
+    "tests/test_disruption_contracts.py": "b7031c72dcc0d101d1f278029f4ed5a83832c6da293cbd524e1bdc9c4a4f93a6",
+    "tests/test_disruption_contracts_pure.py": "4c73d35cff2eb8562c26b32f628030aa0303d518356731b9355c45b34b8bb923",
+    "tests/test_disruption_edge_cases.py": "8dc2af3b6265ed046593094e6c4a0d45b2c3fe7298dd25bcc3ae0c82491f1c44",
+    "tests/test_disruption_episode.py": "7288cb1f0a7b2158f057bcbb753f86ca4b4351490efeae820e38461d6b035ec5",
+    "tests/test_disruption_mitigation_controller.py": "bb4bf32e519b08c952a87389d01b88abc42ea3f621415ea4f195ee3abbcea1fe",
+    "tests/test_disruption_predictor.py": "b7fc0ffea8fd8e49ea94422956c9044689ad4c739001e46352f86815587cf6cf",
+    "tests/test_disruption_predictor_checkpoint_integrity.py": "d1ac13cd862b70241b4e4a539f41f586d908875558a047e22ca74081e20889ff",
+    "tests/test_disruption_predictor_evaluate.py": "9a8cf6014410be297fa9bf45cd3faebe550c1039cd48a430b4d2fc5c6b6d6306",
+    "tests/test_disruption_predictor_extended.py": "49a1cfe050214f92ffae758cf4e8586ee82feb2c967e8a45efe43582de3b77ef",
+    "tests/test_disruption_predictor_fallbacks.py": "0891127d61fec62849c8faabf686c85143b919fa41daeac81e3a8c986f44e7bb",
+    "tests/test_disruption_predictor_probabilistic.py": "cb37e8cd0122585c0f5d1a3498e00dc9ebe6b369f8c782ae3921905a3b7c293f",
+    "tests/test_disruption_predictor_pure.py": "529907e8faadcda61eabded4be43c6f7946b4a1a11c8c8392decae0b8e7c6a57",
+    "tests/test_disruption_predictor_rng.py": "43351a24ed2a44d8047442afe204f5db64ad606c68144537ce953b4df3499a06",
+    "tests/test_disruption_roc.py": "45b29f9eeade24a7faacf2d053cc5666ec133f3012f8f5c1187c085a8316906f",
+    "tests/test_disruption_safe_api.py": "8c9e009bacea7f86d1dd141062e3f3cea38cd15b627815c17c0b77edc5862c80",
+    "tests/test_disruption_sequence.py": "061a04dbc1d9176002f2ad2b047a8de93b1dd8e41073b4368139120e826dc753",
+    "tests/test_disruption_sequence_validation.py": "d29d271cf94d1535622cd92f800d2dcdb77a3102ff501db68535cd445f197b58",
+    "tests/test_e2e_compile_to_control.py": "4fdadfe8160e3bb9b9e6890eca16604cd751b4d7b42d221511465fd6c9152962",
+    "tests/test_e2e_latency_evidence_validation.py": "8273eac32d0a45f00968c104e5c801470ee1f9d67563461596061ddccb0b9742",
+    "tests/test_e2e_phase_diiid.py": "8705bd5510fd3eaf9f2ffa055373b1d31f747b2cff72498331a1a135f5ffcb74",
+    "tests/test_elm_model.py": "36bbeb5c2f258d91500b17df711b43e8b94ea410ee1d393a1f78dcad8177acc6",
+    "tests/test_elm_peeling_ballooning_validation.py": "5a5777414ea2738bea016af6f8438b5752865a1b83c67cc76bd2adfcc0d8977a",
+    "tests/test_eped_pedestal.py": "e47c6794d2a21b7092cc56509f970affaaedb46cad56f5ddf0101d96361bca35",
+    "tests/test_eped_pedestal_validation.py": "ecfd1395ba06a82a60811aa2162260e74216e27c42bb498b910d521df5be8c4d",
+    "tests/test_eqdsk.py": "d375f880d373f80c5c4192243c9fb2ef0cd3e7fde28e0fe34a2fd3e5046cd687",
+    "tests/test_eqdsk_psi_to_norm.py": "52d5cdc6d7e2c4667f0e430e5bca6de875900959b0b87aa1545a7d3d0adbff02",
+    "tests/test_equilibrium_shape.py": "4af6ac9c995277728d212601e4800b2b69d38a720495045b0adfd1ca5e46e0e9",
+    "tests/test_evaluate_mast_disruption.py": "e49722313980d36e7e5bedefcbe4703da584bacfc863ee37d1287132ceb64e7d",
+    "tests/test_external_profile_mode.py": "1a64a17ede55f5700892ab2aa89d5e4664549ec32846ff3b4efd4ebe0db581f1",
+    "tests/test_fault_tolerant_control.py": "263820ffa5d1a761da851da277697e9a1098566d0f261a76fa78a0a061bf0540",
+    "tests/test_federated_disruption.py": "23c68dcbff5f76bb46eff632dc3eaed39d58d9217e22ef121a4a75d37530989c",
+    "tests/test_force_balance_3d.py": "989886a71334d152ae05269286e8087f24b09588f4f17a531507ec34fd1a0e2c",
+    "tests/test_formal_safety_certificate.py": "2c5f1bd647fc45d971c535a89deeb5179349177b081e69b7cf741ad3c6440f11",
+    "tests/test_fpga_export.py": "ba167d2353b6a2a8a1bde77aac831739fe23ddfe3ebb664663d5f6b232113ac7",
+    "tests/test_free_boundary_tracking.py": "bedd19bc7779a614a8607faa9a24394bcd0c4ef14157727a1a86890c6c9012f6",
+    "tests/test_free_boundary_tracking_acceptance.py": "6ec45956a6e080283ee42fb4d91b00a1b0905cb00bb67f73c981c81d183d8b5f",
+    "tests/test_free_boundary_tracking_claims.py": "fd4558c7fe71aca530719893d6397ce4d65f69be581ed53a7cd2ef9213c113de",
+    "tests/test_free_boundary_tracking_variants.py": "8ba5a7ee2350cbb7f521f295a04b7c9165c7822ab3ccc6cb63950161c6cf4876",
+    "tests/test_full_chain_uq.py": "de2dc4cee1c95f5082b0fd6f7fd077ee0af99ef34b2fe4469abfa339b3545e5d",
+    "tests/test_fusion_control_room.py": "10614a20e8d88a74558f65fc257d46df029b70d8e9abb6a755854fe66628cac0",
+    "tests/test_fusion_kernel.py": "08b23c37b6bb3b1a0052220abbd0fd27444504209c131f5393f204436a73f62f",
+    "tests/test_fusion_kernel_coil_ops.py": "71526b2f48c438d91d7d17d195d4fd562123f2c7655d7d837f10e305c38a33ce",
+    "tests/test_fusion_kernel_fail_on_diverge.py": "5ff62b4726d36943474e93b82e20347a87f7b736bce72424e245e3b3e7d0aa31",
+    "tests/test_fusion_kernel_profiles.py": "1b7fcd81ecdc6b55bdb922f0e910b034a045bb8b23f4f2e465e850743f831647",
+    "tests/test_fusion_kernel_solver_paths.py": "224a352b26122a6866d131be02b0695057c4b4de3310c0e9b0452f26d23cbbfa",
+    "tests/test_fusion_neural_mpc.py": "c8123fc96217dfad0f6d3902cd27718b1c8bf5cc8c2fa4a04660266523df3bff",
+    "tests/test_fusion_neural_mpc_pulsed_adapter.py": "c73adefd671084bc1415d90ecc474fa06502bc989c4e7031f1a61555d3b8e3c9",
+    "tests/test_fusion_neural_mpc_pulsed_adapter_rust_parity.py": "bd81eb5f701cc9c9d7c66c6549522575cb9b82a0051a1cacadb20db8a6c34be8",
+    "tests/test_fusion_optimal_control.py": "49ba31f284dc749dbf6e20d5fba823f4751e88796b5e1778e42068e2e013859a",
+    "tests/test_geometry_neutral_contracts.py": "9b3f57e93fb214e550c4ee3dd24e4dbaf89f2db0005c27e548c566bd8e420789",
+    "tests/test_geometry_neutral_replay.py": "5814c53a1e2916cff2a9836a4550527416fbca73fe6c493537643d93f1d41472",
+    "tests/test_geometry_neutral_replay_v1_1.py": "3aec8a94ef9ba1218db49601b489b950a7bc36b1c662b9d75e751ee264b7882e",
+    "tests/test_geometry_neutral_replay_v1_backcompat.py": "232177f32ae4f2633867bfa2d9ef1bedbbc2e026da00afce5b89fe81cb6602fa",
+    "tests/test_geometry_neutral_replay_validation_paths.py": "b268ed5ce8e63b72a2b6045aeb442fc2df2aaf10e45299cebe75487f3c9c105d",
+    "tests/test_geqdsk_regression.py": "8612c7e2b8c93634c97a3800294042b8a65421b2c57c551db61fa20e492a4493",
+    "tests/test_gk_benchmark_linear.py": "d13f91a70ad7e91ec66c7af187fc69c07ae014324fc62eea55ca3632420af097",
+    "tests/test_gk_corrector.py": "05178eea2729422c43dc306538f672d1aacb5e9be7f1e2fc4bed4bcafd87b792",
+    "tests/test_gk_corrector_validation.py": "d6cd58e62a361f907528dcbbe48ddfb7ed45b24337124a9a81cee1c25792d30f",
+    "tests/test_gk_cyclone_base.py": "3484f7de29a272a82385be9a656e776a3819b31a64b05cc70623a071e1223229",
+    "tests/test_gk_eigenvalue.py": "f7d6eed4fb13265ad2c2f2750006c08b3099762d96802fe7c608dd3bc8d0860d",
+    "tests/test_gk_electromagnetic.py": "ea51f20ae9c1a919d2855764f3e1f576aeaeac37218344d8133d762ec5ca00fd",
+    "tests/test_gk_external_integration.py": "da451ea4ee1a7c8b46660a1e8f1e4db0ece75a76ceceb0ac437f51339f5cf63b",
+    "tests/test_gk_external_solvers.py": "0ccd1ca96227d64bc6ba5c831a7198ffa82081ad02d1825bdfc1acbe4d2a800a",
+    "tests/test_gk_geometry.py": "5c4adb037d2e6e63584aff3cd906809c521110b48001454fc975b6db5362f0db",
+    "tests/test_gk_geometry_independent_reference.py": "9a461c90be4e2484a7094243dcf5f863d466a9038b7f807afdfa3ae00d0ef3a4",
+    "tests/test_gk_hybrid_integration.py": "0498bce3a570cccd59da9fb656e4bd6d5741cf46dcfdcb2fc7060cd7d8c5b1e1",
+    "tests/test_gk_interface.py": "c661ffb77838c4ca824d1f3d0cbc985ed864d7cc68ae03a8d6dc463f492e1906",
+    "tests/test_gk_nonlinear.py": "13dbc8923b3737bdefd1282802f40cfc704c045f9759a96c55eff01828399d3b",
+    "tests/test_gk_nonlinear_cyclone_validation.py": "2ffb989c4437a1b777ac8ed69b5732f52244aad8d2c2e2ab7e3d555f8bd57df6",
+    "tests/test_gk_online_learner.py": "a1205041fec13bb98cfbfdcfdf8c43c54b7f65133051701c61586b0ef920b235",
+    "tests/test_gk_ood_detector.py": "cad67e9a048f0c177090a31f688e3775be78fcfc991b5d9e06ee6481692d161e",
+    "tests/test_gk_quasilinear.py": "3a10f672a6a62497d133a5d128cc455906d258a02863fcef656749c6d5d491e4",
+    "tests/test_gk_scheduler.py": "0e7e593da57a585e58ff0bb884f5cd8c52161c4b79084268a98c825bc58c3140",
+    "tests/test_gk_scheduler_validation.py": "b2e868e6b790911a5f08d430ac151e89021fdd00b92d937d67e2172e20125c60",
+    "tests/test_gk_species.py": "332b0f46191e0c2a633b4ae024f096ce5b69ef0935e4f7a680e11adf0d62c61b",
+    "tests/test_gk_tglf.py": "cb1e566bff60aa63542a8d64b4ad03aaa5d6dee65d6743c0483ffddc5ef908b8",
+    "tests/test_gk_tglf_native.py": "74732c7652ea3df2398f767e4542d026f64e11378bdf9cd5632a16af1c0c2db5",
+    "tests/test_gk_upde_bridge.py": "9b6d1219a9e9b4e26d81413009650168cbe312f865bbd5bdf3f6ea5f0042e054",
+    "tests/test_gk_verification_report.py": "e997704a7a55b1d0c059539ec48c5ca947e0acb137422a3614a87050c005a14c",
+    "tests/test_grad_shafranov_solovev_validation.py": "8409c4a1ddf280bca5dcda597fd3adef1921e256ce611990dc0fafc7608dcf08",
+    "tests/test_gs_convergence.py": "f96334abd5e4141da36e42f06780480e01645eda596126220bc966468a0f63b2",
+    "tests/test_gs_transport_coupling.py": "99580290fe5ef16d24d5718ca044fbd286e4303e94f1201c6ddd1c32b2b7de7e",
+    "tests/test_guiding_centre_conservation_validation.py": "c7230d6580b4ae7eb7e39c9c92194395f0a08cfa582043d1649ec56d24342377",
+    "tests/test_gyrokinetic_transport.py": "a3bb62363e2501f34759d47e352de9c0213bb533f235484b7464702bf730654a",
+    "tests/test_halo_current_validation.py": "de3d202e686a4875fc88d51f3af508f9ccaf8c9e1de928ffd47019fab4496d90",
+    "tests/test_halo_nonfinite_guards.py": "6d2ca8437a0115a54231d8bf8b40c799470c680f3c3ace3f6bd4888fa576c4e6",
+    "tests/test_halo_validation_paths.py": "ec6b16a3ba4fdd50462ec6c53b88fdef8baa8c2bb9539185c31a4a14c75d7097",
+    "tests/test_hpc_bridge.py": "488f54df6a65d7f38b1d85e7549c5e6f6479062daece7daa6d81b88e896f06dd",
+    "tests/test_impurity_transport.py": "0b5ce30ef43c0e5be53061143b7e7f26400a8f49af58efce9d7aa9694e0c6839",
+    "tests/test_jax_gk_solver.py": "6a44357b9a318286005d28863a37bcefdbcc194551e2f74dea9d260982298ab6",
+    "tests/test_jax_gs_solver.py": "9585a2552fa43460c20d7ff247a2588437d784f0b00a07b308358813f5b57ed0",
+    "tests/test_jax_neural_equilibrium.py": "2b753111909e4da25466995d012c12bd40f5239df1c95e9d90dc783bfa5b3105",
+    "tests/test_jax_solvers.py": "31288d4dc0628f4e67ac7bbb56f7a9c968e09cdd8d90dcf719ed2c7dde5a27c6",
+    "tests/test_jax_traceable_runtime.py": "9b8f9837617324a4ceea5f78891f30e1eaefb1f32a2ff530ec7bab45b2a9e90a",
+    "tests/test_jax_traceable_runtime_import.py": "56f303aa92e7516193573d9a963870788a50507a3d361ad1ad9203657e7ee2e3",
+    "tests/test_kinetic_efit.py": "44f065850f799d43df575a0d02712d0e037f69cbad1705f98e3e2588ed7d750a",
+    "tests/test_knm.py": "3e8e36f3344df2536db8fd1826d05db308f0720097207ebec310d8c21403ead8",
+    "tests/test_kuramoto_edge_paths.py": "84ce6cd669f0a05c35f3ccdf9e8ee7122dffe76f9d092da3aff2e6dce10a24e0",
+    "tests/test_kuramoto_runtime_evidence_admission.py": "dd0d812bfde2dd8a396fa6aee47b8d81b31334d45a9a4d339f991a34349e8fb9",
+    "tests/test_kuramoto_synchronisation_validation.py": "7b775d072cf6e7a5fed1aeed1610331b2fa148c5ab7c6ffa6739efdc5a3c6107",
+    "tests/test_lh_transition.py": "5cd3f78399a8db0dfb3e3c0478fb643ce9db4832bbb1d238178bc57c1ecd3ed3",
+    "tests/test_locked_mode.py": "6052159d4fe37a9f147f147c45e86aca0dbfa26b6a39a706fbd8493df80b60ea",
+    "tests/test_lyapunov_guard.py": "33bef7b96756e8781639e43cbd803c4085edc9ff81072ed03ad4d29f70265c14",
+    "tests/test_marfe.py": "797df4193f9f3f2146c4433d9b9f21866dbfd9a9b144ef0f83ae7ec22903c6fa",
+    "tests/test_marfe_onset_validation.py": "2bf6012470eaaef46f72d1e58295205a4a36fb2b76ebcf2ad56afdcb1769614d",
+    "tests/test_mast_efm_neural_equilibrium_campaign.py": "dbd5808cc4846a7c32ab3171a3711b2fbdea3f748cf52c99765eafddb72be443",
+    "tests/test_mdsplus_acquisition.py": "f313b85de2f16de5c18e27b5b340f568f579750b5a72b81beac3ab6cc8d93d23",
+    "tests/test_mesh_convergence.py": "c41ad21c190a0f8026429c3ab2013013862af6febd279abcd1c260c4f6231932",
+    "tests/test_mhd_stability_validation.py": "c3f3cfd4efe6078ed63154539e94a970de0ddf68cee95a38155322a0231219e5",
+    "tests/test_mms_convergence.py": "e95b420b4d002a2473b4d5e29bd72b4e2dfb17d2e9e5c5e949a816b3bdceff60",
+    "tests/test_momentum_integration.py": "401cb5b6eb5bbd783ea20be03269c21686eb159aa3b8b56571124ebbcdadd0ff",
+    "tests/test_momentum_transport.py": "97c31a138eaa91214e3ef5c810000df96d1384dd982245ba6e3689b419a78330",
+    "tests/test_momentum_transport_validation.py": "385eb3be65914c37fea2f23b26862934b5db6f1ed8c8fe16d2a31b30a0104f4a",
+    "tests/test_mu_structured_singular_value_validation.py": "f9f624e8d2ae71471ed1cd38ce5cf869b40b5441a271732fcaf7f391bfbc3769",
+    "tests/test_multi_shot_campaign.py": "b5f802d5d8fa7879d469e573080022121a5ee4736e1810ab9e0131c469e7ef8e",
+    "tests/test_multi_shot_campaign_pyo3.py": "a0411b52a9046f180b9aa615428afbf052d9b9ff426f531970a9b4bdcf4db7a9",
+    "tests/test_native_formal_modes_benchmark.py": "dc556d4c4f645929448615f762d15a05711a05f1e26be6b7240a454e80155246",
+    "tests/test_nengo_snn_wrapper.py": "a1222b0b4e21d9c2f526dd79c39170c52a06a166cf5efca8d4d59b4ad34f8d9b",
+    "tests/test_neoclassical.py": "149125717e570c9ef7f44b5e5d7bd7d3d2cae7ef62a277205a35b4d1a8429ba1",
+    "tests/test_neural_eq_iter_weights.py": "fa45658a1c605914c2b8cc66115f4dbfbdbebb0b1fac7358e7dd5345da7a1236",
+    "tests/test_neural_eq_surrogate.py": "27a3a9237a951a30ed010578ee782a3e28eba902bbcca8a5bac0618de6310249",
+    "tests/test_neural_eq_training.py": "900b92ecd1a863b9bf0fb64fa17ce297236d6a54bea94b19dd8e39a80dc42d7c",
+    "tests/test_neural_equilibrium.py": "541942de85178d1247c67eb09afadb411346911ae5e1d1ec4ba95296d8f30de3",
+    "tests/test_neural_equilibrium_core.py": "ebfdb146471d961fe2d00fce66bb22cf4a130e7156a98b0cd13351f7232690dc",
+    "tests/test_neural_transport.py": "c4eddaa752872054f5caaf528a398bfba3dbdfbe4d9c45a3a0f7a77e5de1476e",
+    "tests/test_neural_transport_core.py": "940f71dca51f120b043e1949c481c545fc76b99b32d14fab14f5fe6913122fd5",
+    "tests/test_neural_turbulence.py": "e5405b735102a6f8eb93c8f9baa6d03f3a71dfee391310ed6016efc278235122",
+    "tests/test_neuro_cybernetic_controller.py": "ed3c10f6f31fb1b5bdc13ae2da5ae2c086a7817a0235c48503f275d7fe2553da",
+    "tests/test_neuro_cybernetic_extended.py": "fb3274302dcf9c79308a01bbd15c4fe76256220b723fc056015012db0be159ee",
+    "tests/test_neurocore_v3_detection.py": "694a31d1e7eece92fe0e8f5be7ec92abd145c40950581faa9418183b39643dbe",
+    "tests/test_nmpc_controller.py": "a45174b0fc46aca69fd498c3b4e23c8de79b9422ebf2043850d0a245b935e838",
+    "tests/test_nmpc_controller_error_paths.py": "72d474fd17cf3dc80dbbe40001ec424cba07703de9583085fdb83e930ea793d1",
+    "tests/test_nmpc_transport_tuning_error_paths.py": "164058a49989c54a29624714646e13b814140143c57630b6784c97f7c4b5cbf4",
+    "tests/test_ntm_dynamics.py": "04e35213f586f552712c60579c1234eecdc9d0fcf99a07ef0eb3deba71b19eca",
+    "tests/test_ntm_island_dynamics_validation.py": "a2854007aa654fda20b45817b640258fbc58c736ae804d9623e84a42a5c3b908",
+    "tests/test_orbit_following.py": "10fcdd6103a8aa6ad4abf82dca01370a3fc85dbe1aef618ef053f3587906641d",
+    "tests/test_p0_regression.py": "b8c67a176938ba9219b053b138285a074b773d81bc0ade1700cff739fa3e97df",
+    "tests/test_particle_conservation.py": "3fd9a2f52ad1b7401f46c4117afc398ca64da583c4a782ecba10872ce3213348",
+    "tests/test_pedestal.py": "73b415a6d4cf2d5d84a68181a92d9cc236176c844682dec1e23988f918a2ab31",
+    "tests/test_pellet_injection.py": "b1eef552cd74305e220a48e5be77e38f2ae71a4a249aafa37baad0354568076b",
+    "tests/test_phase_kuramoto.py": "6cf7416580ceb9e7f8fbd287647cf081f96effaa4890564a662652594e6a57e5",
+    "tests/test_phase_properties.py": "5343d5358eade47fbb768ed7a2df78f491e8e530722d932b4cb00d46356fbd67",
+    "tests/test_phase_properties_extended.py": "d6b5f014e68142c688b6de54ec3896ea354051cd69d3e96e98e67400b545c330",
+    "tests/test_physics_debug_assistant.py": "a5a1d0494a91ae8ef26dbdae7a2b521c70c2e3a2e0b0848947d79ed87001c381",
+    "tests/test_physics_debug_validation_paths.py": "ed981643eb4db9dcbfcb657d4302de44c92aa270036d84235a71a3de3745ab42",
+    "tests/test_physics_invariants.py": "08f081117bd44bb65bf2cb932aef9ad42bd73dc90d6e4b448c3aa221a29f2c79",
+    "tests/test_pid_controller.py": "895b4c86fccfcacadef4b3d0b5bd72d0f898ff185a48b162b154b83676cd3a49",
+    "tests/test_plasma_knm.py": "155b636e058de1a9081890ecdf1033ffbb6ffb66e69cedcf70c19325b8515394",
+    "tests/test_plasma_power_terms.py": "bd79fc8036beb165923364847574b8a1cc303ea0c8d6109cc605ef13570ded7b",
+    "tests/test_plasma_startup.py": "3979cbaf3970ceb9f3f022ee750ce655182c4131a967940708fd200adbddffaa",
+    "tests/test_plasma_wall_interaction.py": "e83dfb698a5a61fd57a489c29e17e4ad2187a9f1cacc0cb9d2bc8fa153ac76ce",
+    "tests/test_predictor_edge_paths.py": "98dcdf394d32a9d753ef281c1beb02e4a67e387d3f3d922ba71e285429ec2f51",
+    "tests/test_predictor_internals.py": "f8bc09c7ac4ee103a456ac5af4d04f9f946713854a03ea1e7a680baa073ad691",
+    "tests/test_property_based.py": "5e0a3ead77ff50ffc3d942afdd2f6a5543b70ce766a1de36ac3c2057355ed57b",
+    "tests/test_pulsed_scenario_scheduler_pyo3.py": "080b6a3f7e4504f3d51ce25a461adea1a91afa5abc65534c3cf809acdb68a6a8",
+    "tests/test_pulsed_scenario_scheduler_v2.py": "3631be0e0c4713d4e002392161b1e91fcb1053066123cb62cfeb0ba0a88f9dbf",
+    "tests/test_qlknn_transport.py": "5c7a066b81aab078bb635781d203309833f9784e073e56029c4244972cfc97be",
+    "tests/test_quantum_disruption_bridge.py": "153790328eb9817ce6ce00c9e73d14f0f2953f9980eb48dfb46f26f9b77e56a9",
+    "tests/test_realtime_monitor.py": "cef57f085a43cd5c51326fa6b503b6756c0ffd084d34c5408a018b3557fffd21",
+    "tests/test_realtime_monitor_h5py.py": "65d93e684d4515f03c43cb7118017037af9de32a8d8634228e53e5f54d82d2ec",
+    "tests/test_runaway_electron_validation.py": "7a8b517f9d49550846f69e4861242411367968dbe9bd6e49a70e0278d768a9c3",
+    "tests/test_runaway_electrons.py": "d5a4101eff0838961cda008f78fa35e9b1e7b00cf5518034d93facd494e3b74f",
+    "tests/test_runtime_admission.py": "b3c7f9eb220b7c7f1eb9fad16748f9f74ef27b6bbe690ac7a9fe768d4bbbc5ac",
+    "tests/test_runtime_safety_certificate.py": "1df455a24ab62c920e0cc3a8d80b57cf16a5c26eb219650a659d8fdd324a37cd",
+    "tests/test_runtime_sanitization.py": "05b89f867e73b52f47c6e15bd972f05927d1d61d9ff721534eab5e7f90592f71",
+    "tests/test_rust_compat_wrapper.py": "dad3398b72a19f61092385292a930e45d42f93d110a12da252c6cf48e254eb14",
+    "tests/test_rust_engine.py": "48a3256fbaf919c39e0fd827fe834615146b6c685eb890f9c1ebc6716ac1c2ae",
+    "tests/test_rust_engine_execution_paths.py": "1f4e0948d5bf03d9e24470b6c7d2c1bfb9d811832c84b882ebdc1178d5eaf5f0",
+    "tests/test_rust_engine_runtime_admission.py": "c11eb853cf75bf2b2bd9c3a8fbb8612867bd1422014cba749f2dbf77b2160e81",
+    "tests/test_rust_fallbacks.py": "3c54f0f46c0170d2601b760d94579a182da7d9443cca70c1505d19678e89458f",
+    "tests/test_rust_realtime_parity.py": "b0f5568b3c7da113fb8b7d74ac9163b788aa7a38e70f5feed5ba839c41c5d3c8",
+    "tests/test_rwm_feedback.py": "414664b386c5adcd4be3a1a9a461832a255452a1109729e72a5c9332ceac3dcb",
+    "tests/test_rwm_feedback_validation.py": "defa97338706abce453e0356eeaace3fba974221fcf16be8f0f0780092571233",
+    "tests/test_rzip_model.py": "ab705f46791fa45e22609c22930e41b3b12ea2c12be222a1985d578a9a875ba3",
+    "tests/test_rzip_vertical_stability_validation.py": "36391fc46988dbff334f049ac03782141c4094f07d15390d83579e87d323a64e",
+    "tests/test_safe_rl_controller.py": "bf342ac33b32dc9fb1f61c0e4ab00b8e41cf7ae8f859b4c206658088e9a610f6",
+    "tests/test_sawtooth.py": "17a54198491ba421cdea67458d9de87f0d37df0a2cbe37e9f8900b829df95baa",
+    "tests/test_sawtooth_kadomtsev_validation.py": "03e33639f757b5abf56388b675967f1c4f1f358ebc5066cf766f2721bc2f4f11",
+    "tests/test_scaling_laws.py": "72a11d69f4698c741ed3ca90a3af84510c0c7efde1b7b11c217263c6135de869",
+    "tests/test_scaling_laws_audit.py": "213754b20716e951f12a0d542d642f1ff79fd1bcc6daadc68c01ca60a17f7c96",
+    "tests/test_scaling_laws_edge.py": "5a662ae8e94c1f92f9e2826d693b6ca184f430e5d7f8dc4ab320746ca0f545ec",
+    "tests/test_scaling_laws_variance_guard.py": "0520aeae7035be95387c4c3a9f91833b0f0774c4ebbd0cd27098f279bf31ec71",
+    "tests/test_scenario_scheduler.py": "dae082a8f40511db70cc74cb90f4116f6527af64f3d621a51a0eef3f96e1b6b4",
+    "tests/test_scpn_compiler.py": "e3a22c620e09977053f99fdde111df66ff6beaf6fcfdc10cc31d11656d4984e2",
+    "tests/test_scpn_compiler_scforward.py": "920a13edfd242d3a5ff6e1f83527bcae495e0c2c120cbfc8b64e050974194e54",
+    "tests/test_scpn_formal_verification.py": "80a23fae5c25fbf85ddb7c9ce459ed564fd0ce3cc772102389fe43ca128f9b2d",
+    "tests/test_scpn_formal_verification_validation.py": "691bc12897740759f7b29c1a5fb47ad4b32227b2eb4290138385986c9ceaa441",
+    "tests/test_scpn_lean_formal_validation.py": "f090fbc7aa26cb479ff65386644ca68d672a54298ec2b104311a9fa171901aea",
+    "tests/test_scpn_lean_verification.py": "e3d87ccad22e5826e6fe3605e744a1b13ede6154bdc0f4a9a42e4d3bfdfc1d5e",
+    "tests/test_scpn_lean_verification_validators.py": "2c9f0909efa746820a68a48bd30de9f2b09de9a33bd5d2aeaf209f0537f784fb",
+    "tests/test_scpn_package_exports.py": "0e212ab1070aae1ea763fa1c96f83652a8198042d3621522106d92889339fc6c",
+    "tests/test_snn_pyo3_bridge.py": "39d365b0c2226cb16ec8c775e6310b0982f766fb9fc9fb3663a5cc8821da0ef4",
+    "tests/test_sol_model.py": "db7d53051a06ec88907845bd37725e6c84fa408a770d6312ff2329f3b2803d1a",
+    "tests/test_spi_mitigation.py": "d1904c1b1c361e50be5bcf0c9c086c8658777aabe4936da3b981e9bc0a796f69",
+    "tests/test_stability_mhd.py": "3b8353097d6ab9dcc8a1fa520af03bc661c62a9399112c83765d42874367c027",
+    "tests/test_stability_mhd_validation.py": "d83d9f283e8200fb4d1c8c7769792c6a31507b9653cda61ff7dfe5cbe0bec141",
+    "tests/test_stellarator_geometry.py": "5c2efc6998087943ad56086aef20d26ada4517948d47e2d4b053691918cdf033",
+    "tests/test_stress_campaign_regression.py": "06ae954a6c5c54d2c4f03531aa09572313326ae55504d6cd9318456798eacd86",
+    "tests/test_structure_edge_paths.py": "b3ef263aaf9a4e8cf440b2590e27ef2fd7e55e7f3a8a42e2c940543e3149aa0d",
+    "tests/test_structure_liveness_validation.py": "b018d4c6a2fee9ab5451e23d6e5715e14ab6a55396f117e576f3f59fbf4b53bb",
+    "tests/test_studio_adapters.py": "8ffd121e9ddb7948daebb353c70185f9e553f8b7ab0e7af1029838a07606a09a",
+    "tests/test_studio_package_exports.py": "3e0ab13040df63d2b84b3466055911f88aecc5f3252caf365c214da00523e223",
+    "tests/test_studio_sealed_claim.py": "aaf3f3a5acb64f9a846a48381f9ca1aaa362deaf0d69a430f528a4e4223f96fd",
+    "tests/test_tearing_mode_coupling.py": "7e48a32715ac44e9d357a4a87d4081a57c50f97b8c40a551c6437f5ac74bda6f",
+    "tests/test_tokamak_config.py": "b4fc01fdc0e8b540c2ad8efef6bfe166e9a2cf53f8ad03b844d2718a2cd740ac",
+    "tests/test_tokamak_digital_twin.py": "14e54c12b81e5dd4022e63eb41107746c83a03e146d6e40237ace719ed1aee5d",
+    "tests/test_tokamak_digital_twin_ids.py": "82cebd613eb478e30cebb420da2f7d50ab2415851f6d24311c8b591d4d510224",
+    "tests/test_tokamak_flight_sim.py": "42acf0d517066709d4a859523d7073759b0c757b5773a15db2cc0df74440fcb9",
+    "tests/test_torax_streak_disruption.py": "2bc0f3a6eabb47a0964fa1897cca23919f8154b374171944a279f485f3acb4ac",
+    "tests/test_transport_diffusion_validation.py": "386ef9a81f5b014f037f8a548ed2183b2970afd00c5350e2a256987fef3a089b",
+    "tests/test_transport_energy_conservation.py": "c3c8746fa11bd49e1f679173a249ab0cabd97a6bc3f6523b19b9946956f5a5d8",
+    "tests/test_transport_geometry.py": "3f9176d4bf417d70b09d1daa771868e5195f70a10adfd24b69db0bbdc697a5f3",
+    "tests/test_transport_hmode_edge.py": "e1e3117b551a07168968b49321e88f26c62980cb7d78c140b1f7b1b5e6f1d8e6",
+    "tests/test_transport_neoclassical_guards.py": "bd0caef3f142ed22433c2167feb6b1ddeb87cc199f17646290cbd91db9d9eaf6",
+    "tests/test_uncertainty.py": "1577978928257e1a797c31bbeedc82842af6563ed2e9162ba4cc535a7720bd14",
+    "tests/test_uncertainty_bosch_hale.py": "bc49d5614950341a09f32ed89a7fada3e5c7325f8ef2fef619a7f7882c015382",
+    "tests/test_uncertainty_sigma_guard.py": "5bcb156a6f06e1a9e05162238fcd59c55c4e78118d23cd1a2c47d45ca82f82c8",
+    "tests/test_validate_gk_collision_independent.py": "11388331561d5b2434624480909288f2d185f07e8e0f96e78ae288a79b0bb377",
+    "tests/test_validate_gk_geometry_independent.py": "5bc1d9cb8032a9bf04bc3b83246ab62b63dfd94c5539600032b1ef7e448f8bc6",
+    "tests/test_validate_stability_mhd_ballooning.py": "2451703e3433f67091fee50f92bd9c5f692cbf5a3066f1d0f386b562ab459ce7",
+    "tests/test_validation_reference_configs.py": "ddb7e589016a2b54d60c2ed87ee727bf468a34786ea07a963b25ad5e0f1730fe",
+    "tests/test_validation_regression.py": "1e46844b39b108c5352d92e58a33952e525a6460db4b094910bde6d635ef544e",
+    "tests/test_validators.py": "2ef5417ce20fbbda48e982cfb6f336b31f21b29823257b5b9fd7ceef1aabc9a6",
+    "tests/test_vessel_model.py": "4731bddd0e7b1bfc7098a13248799897e0d71da4bc500cc9590ae5c04d8a8827",
+    "tests/test_visualization_paths.py": "983027fc3ea4b0fad4a3807fbac9e6893ffe597dcfc874ede0bcdab0f7f767f3",
+    "tests/test_vmec_lite.py": "5967e24bb00504144ded37b1b0ffac87a78034dce8b9902610f2fdabc1fdbabc",
+    "tests/test_vmec_lite_geometry_validation.py": "9b413760874c6fe7f163c73fb9e34a537c100338fcd6a0ce2cfdcb32311430d3",
+    "tests/test_z3_formal_report.py": "b76b22ff686c5baec36f808ad848c6ea5887f41cd6de63f052ea2ae6f9846378",
+    "tests/test_z3_model_checking_paths.py": "b75df61b4e373410c6cbae62f835fd26329ac00d8d7e3213c935b971131f5c77"
+  },
+  "source_fingerprint_protocol": "sha256-utf8-universal-newlines-v1"
 }

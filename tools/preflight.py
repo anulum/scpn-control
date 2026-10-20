@@ -10,16 +10,13 @@
 
 from __future__ import annotations
 
-import json
 import os
-import re
 import subprocess  # noqa: S404
 import sys
 import tempfile
 import time
 from pathlib import Path
 from typing import Any, cast
-from urllib.request import urlopen
 
 os.environ.setdefault("PYTHONIOENCODING", "utf-8")
 
@@ -28,14 +25,17 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8"):
     cast(Any, sys.stderr).reconfigure(encoding="utf-8", errors="replace")
 
 ROOT = Path(__file__).resolve().parent.parent
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(ROOT))
+
+from tools.python_dependency_compatibility import CI_PYTHON_VERSIONS, python_compatibility_errors
+from tools.python_dependency_metadata import PYPI_METADATA_URL, DependencyMetadataError
+
 RUST_DIR = ROOT / "scpn-control-rs"
 _PY = sys.executable
 
-# CI matrix minimum Python version — deps in COMPAT_REQUIREMENTS must support this.
-CI_MIN_PYTHON = (3, 11)
-
 # Requirements files used by every Python version in the CI matrix.
-# These must have version pins compatible with CI_MIN_PYTHON.
+# Their declarations must support every CI_PYTHON_VERSIONS minor floor.
 COMPAT_REQUIREMENTS = [
     "requirements/ci-deps.txt",
     "requirements/ci-test.txt",
@@ -55,6 +55,9 @@ CI_REQUIREMENTS = [
 ]
 
 GATES: list[tuple[str, list[str], Path | None]] = [
+    ("changed-python-static", [_PY, "tools/changed_python_checks.py"], None),
+    ("changed-studio-static", [_PY, "tools/studio_source_checks.py"], None),
+    ("changed-shell-static", [_PY, "tools/shell_source_checks.py"], None),
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
     (
         "ruff check debt scope",
@@ -107,6 +110,12 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("coverage-pragmas", [_PY, "tools/check_coverage_pragmas.py"], None),
     ("coverage-exception-ledger", [_PY, "tools/coverage_exception_ledger.py", "--check"], None),
     ("native-coverage-matrix", [_PY, "tools/native_coverage_matrix.py"], None),
+    (
+        "studio-source-contracts",
+        [_PY, "-m", "pytest", "native_tests/test_studio_source_checks.py", "-q"],
+        None,
+    ),
+    ("shell-source-contracts", [_PY, "-m", "pytest", "native_tests/test_shell_source_checks.py", "-q"], None),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
     ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),
@@ -134,10 +143,11 @@ COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
 )
 
 RUST_GATES = {"cargo fmt", "cargo clippy", "cargo doc", "cargo test"}
-TEST_GATES = {"pytest", "cargo test"}
+TEST_GATES = {"pytest", "cargo test", "studio-source-contracts", "shell-source-contracts"}
 
 
 def _subprocess_env() -> dict[str, str]:
+    """Retain caller settings while prepending the checkout's Python import roots."""
     env = os.environ.copy()
     source_paths = [str(ROOT / "src"), str(ROOT)]
     existing = env.get("PYTHONPATH")
@@ -197,6 +207,7 @@ def run_gate(name: str, cmd: list[str], cwd: Path | None) -> bool:
 
 
 def _print_command_failure(result: subprocess.CompletedProcess[str]) -> None:
+    """Print at most ten trailing lines from each captured command output stream."""
     tail = 10
     out = (result.stdout or "").strip()
     err = (result.stderr or "").strip()
@@ -274,45 +285,35 @@ def _requirements_changed() -> bool:
     return any("requirements/" in line for line in changed.splitlines())
 
 
-def _parse_pinned_packages(req_path: Path) -> list[tuple[str, str]]:
-    """Extract (name, version) from pinned requirements file."""
-    pkgs = []
-    for line in req_path.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^([a-zA-Z0-9_-]+)==([0-9][0-9a-zA-Z.]*)", line.strip())
-        if m:
-            pkgs.append((m.group(1), m.group(2)))
-    return pkgs
+def run_python_compat_check(root: Path = ROOT, *, metadata_base_url: str = PYPI_METADATA_URL) -> bool:
+    """Check every common exact pin against all declared Python minor floors.
 
+    Parameters
+    ----------
+    root : pathlib.Path
+        Repository containing both required common CI lockfiles.
+    metadata_base_url : str
+        Explicit JSON metadata origin; defaults to certificate-verified PyPI.
+        A custom origin supplies declarations, not upstream authenticity proof.
 
-def run_python_compat_check() -> bool:
-    """Verify pinned deps in ci-deps.txt support CI_MIN_PYTHON."""
+    Returns
+    -------
+    bool
+        True only after a complete, compatible measurement. Missing inputs,
+        invalid declarations and metadata failures print authored refusal and
+        return False before any later preflight gate can run.
+    """
     t0 = time.monotonic()
-    errors: list[str] = []
-
-    for req_file in COMPAT_REQUIREMENTS:
-        req_path = ROOT / req_file
-        if not req_path.exists():
-            continue
-        for pkg, ver in _parse_pinned_packages(req_path):
-            try:
-                url = f"https://pypi.org/pypi/{pkg}/{ver}/json"
-                with urlopen(url, timeout=10) as resp:  # noqa: S310
-                    data = json.loads(resp.read())
-                requires_python = data.get("info", {}).get("requires_python", "")
-                if not requires_python:
-                    continue
-                m_req = re.search(r">=\s*(\d+)\.(\d+)", requires_python)
-                if m_req:
-                    req_major, req_minor = int(m_req.group(1)), int(m_req.group(2))
-                    if (req_major, req_minor) > CI_MIN_PYTHON:
-                        errors.append(
-                            f"{pkg}=={ver} requires Python >={req_major}.{req_minor}"
-                            f", CI matrix includes {CI_MIN_PYTHON[0]}.{CI_MIN_PYTHON[1]}"
-                            f" ({req_file})"
-                        )
-            except Exception:
-                pass
-
+    try:
+        errors = python_compatibility_errors(
+            [root / path for path in COMPAT_REQUIREMENTS],
+            CI_PYTHON_VERSIONS,
+            metadata_base_url=metadata_base_url,
+        )
+    except DependencyMetadataError as error:
+        print(f"  FAIL  python-compat ({time.monotonic() - t0:.1f}s)")
+        print(f"        {error}")
+        return False
     elapsed = time.monotonic() - t0
     if errors:
         print(f"  FAIL  python-compat ({elapsed:.1f}s)")
@@ -323,18 +324,32 @@ def run_python_compat_check() -> bool:
     return True
 
 
-def run_hash_pin_check() -> bool:
-    """Validate CI requirements via pip --require-hashes --dry-run."""
+def run_hash_pin_check(root: Path = ROOT) -> bool:
+    """Validate every required hash lock through the interpreter's pip dry run.
+
+    Parameters
+    ----------
+    root : pathlib.Path
+        Repository containing all CI_REQUIREMENTS files. Missing files fail
+        the check instead of silently reducing its declared scope.
+
+    Returns
+    -------
+    bool
+        True when every required file is present and every native hash-pinned
+        dry run succeeds. No package is installed by this operation.
+    """
     t0 = time.monotonic()
     errors: list[str] = []
 
     for req_file in CI_REQUIREMENTS:
-        req_path = ROOT / req_file
+        req_path = root / req_file
         if not req_path.exists():
+            errors.append(f"{req_file}: required hash lock is missing")
             continue
         result = subprocess.run(  # noqa: S603
             [_PY, "-m", "pip", "install", "--require-hashes", "--dry-run", "-r", str(req_path)],
-            cwd=ROOT,
+            cwd=root,
             env=_subprocess_env(),
             capture_output=True,
             encoding="utf-8",
