@@ -83,6 +83,18 @@ ENFORCE_ZERO = True
 # private/nested functions, constructors and test helpers. This does not claim
 # that historical private/test definitions elsewhere have reached zero debt.
 ALL_DEFINITION_TARGETS = (
+    "tools/rust_source_ast.py",
+    "tools/rust_source_enrollment.py",
+    "tools/rust_source_profile.py",
+    "tools/rust_source_checks.py",
+    "native_tests/test_rust_source_ast.py",
+    "native_tests/test_rust_source_enrollment.py",
+    "native_tests/test_rust_source_checks.py",
+    "native_tests/test_rust_source_profile.py",
+    "tools/cpp_source_checks.py",
+    "tools/cpp_source_ast.py",
+    "native_tests/test_cpp_source_checks.py",
+    "native_tests/test_cpp_source_protocols.py",
     "tools/shell_source_checks.py",
     "native_tests/test_shell_source_checks.py",
     "tools/studio_source_checks.py",

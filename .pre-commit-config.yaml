@@ -76,6 +76,20 @@ repos:
         pass_filenames: false
         always_run: true
 
+      - id: changed-cpp-static
+        name: Native compiler, formatter and contract checks for changed C++ sources
+        entry: python tools/cpp_source_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
+      - id: changed-rust-static
+        name: Native AST and Cargo enrollment for changed Rust sources
+        entry: python tools/rust_source_checks.py
+        language: system
+        pass_filenames: false
+        always_run: true
+
       - id: check-docs-internal-private
         name: private documentation declarations and Git paths
         entry: python tools/check_docs_internal_private.py

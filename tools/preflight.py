@@ -58,6 +58,8 @@ GATES: list[tuple[str, list[str], Path | None]] = [
     ("changed-python-static", [_PY, "tools/changed_python_checks.py"], None),
     ("changed-studio-static", [_PY, "tools/studio_source_checks.py"], None),
     ("changed-shell-static", [_PY, "tools/shell_source_checks.py"], None),
+    ("changed-cpp-static", [_PY, "tools/cpp_source_checks.py"], None),
+    ("changed-rust-static", [_PY, "tools/rust_source_checks.py"], None),
     ("ruff check", [_PY, "-m", "ruff", "check", "src/scpn_control/"], None),
     (
         "ruff check debt scope",
@@ -116,10 +118,40 @@ GATES: list[tuple[str, list[str], Path | None]] = [
         None,
     ),
     ("shell-source-contracts", [_PY, "-m", "pytest", "native_tests/test_shell_source_checks.py", "-q"], None),
+    (
+        "cpp-source-contracts",
+        [
+            _PY,
+            "-m",
+            "pytest",
+            "native_tests/test_cpp_source_checks.py",
+            "native_tests/test_cpp_source_protocols.py",
+            "-q",
+        ],
+        None,
+    ),
+    (
+        "rust-source-contracts",
+        [
+            _PY,
+            "-m",
+            "pytest",
+            "native_tests/test_rust_source_ast.py",
+            "native_tests/test_rust_source_enrollment.py",
+            "native_tests/test_rust_source_checks.py",
+            "native_tests/test_rust_source_profile.py",
+            "-q",
+        ],
+        None,
+    ),
     ("pytest", [_PY, "-m", "pytest", "tests/", "-x", "--tb=short", "-q"], None),
     ("bandit", [_PY, "-m", "bandit", "-r", "src/scpn_control/", "-c", "pyproject.toml", "-ll"], None),
-    ("cargo fmt", ["cargo", "fmt", "--check"], RUST_DIR),
-    ("cargo clippy", ["cargo", "clippy", "--", "-D", "warnings"], RUST_DIR),
+    ("cargo fmt", ["cargo", "fmt", "--all", "--check"], RUST_DIR),
+    (
+        "cargo clippy",
+        ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--locked", "--", "-D", "warnings"],
+        RUST_DIR,
+    ),
     ("cargo doc", ["cargo", "doc", "--workspace", "--all-features", "--no-deps"], RUST_DIR),
     ("cargo test", ["cargo", "test", "--workspace", "--exclude", "scpn-control-rs"], RUST_DIR),
 ]
@@ -143,7 +175,14 @@ COVERAGE_PYTEST: tuple[str, list[str], Path | None] = (
 )
 
 RUST_GATES = {"cargo fmt", "cargo clippy", "cargo doc", "cargo test"}
-TEST_GATES = {"pytest", "cargo test", "studio-source-contracts", "shell-source-contracts"}
+TEST_GATES = {
+    "pytest",
+    "cargo test",
+    "studio-source-contracts",
+    "shell-source-contracts",
+    "cpp-source-contracts",
+    "rust-source-contracts",
+}
 
 
 def _subprocess_env() -> dict[str, str]:

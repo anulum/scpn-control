@@ -164,6 +164,83 @@ zero covers this static profile, one reports findings, and two refuses input or
 measurement. Function-comment presence does not establish semantic correctness;
 operational runtime tests and coverage remain separate gates.
 
+### C++ source and C ABI header checks
+
+```bash
+python tools/cpp_source_checks.py
+python -m pytest native_tests/test_cpp_source_checks.py native_tests/test_cpp_source_protocols.py -q
+```
+
+The always-run `changed-cpp-static` hook and preflight gate select complete
+changed `.cpp`, `.hpp` and `.h` files from the original Git revision. The profile
+requires Ubuntu Clang and clang-format 18.1.3 (1ubuntu1), plus GNU gcc/g++ 13.3.0
+on x86_64. Clang explicitly uses `/usr/lib/gcc/x86_64-linux-gnu/13` for its
+standard-library headers, avoiding discovery of incomplete competing toolchains.
+CI installs the Ubuntu 24.04 tools and verifies their actual version output.
+Other C-family extensions require explicit enrollment before acceptance.
+
+Both compiler families check C++17; `.h` additionally must compile as C11.
+GNU header probes include the physical header from empty stdin; Clang parses
+the header directly. These syntax-only probes create no precompiled headers.
+Syntax checks enable warnings as errors, conversion/shadow warnings and Clang
+documentation diagnostics. Fixed LLVM formatting uses four spaces and 110
+columns. Clang's actual AST binds attached prose to named functions, types,
+members, enum constants and global variables. Local variables are outside the
+comment-presence contract; semantic documentation review is a separate gate.
+
+Actual native raw tokens distinguish comments/directives from string data.
+Inline formatter/linter configuration and pragmas other than `once` require
+profile review, as do macro-generated declarations and source-location directives.
+Literal local `.h`/`.hpp` includes are recursively checked and
+bound, including inactive conditional branches. Macro include contracts and
+includes outside repository custody refuse. Each standalone file needs explicit
+declarations. Environment include/config overrides are removed; fixed compiler
+flags do not load compiler configuration overrides. Formatting reads the complete
+source from stdin with an explicit assumed filename and style, so directory
+`.clang-format` and `.clang-format-ignore` cannot suppress findings. Source/include
+bytes and final Git selection must remain stable throughout measurement.
+
+Exit zero covers this static profile, one reports findings and two refuses
+measurement. Commands neither execute source nor prove runtime, link/ABI,
+numerical correctness, coverage or performance; those gates remain separate.
+
+### Changed Rust sources and native target enrollment
+
+```bash
+rustup toolchain install nightly-2026-08-21 --profile minimal --no-self-update
+SCPN_RUST_SOURCE_TARGET_DIR="$PWD/artifacts/rust-source" python tools/rust_source_checks.py
+python -m pytest native_tests/test_rust_source_ast.py native_tests/test_rust_source_enrollment.py native_tests/test_rust_source_checks.py native_tests/test_rust_source_profile.py -q
+```
+
+The always-run `changed-rust-static` hook and preflight gate select full changed
+Rust files and Cargo manifest/lock contexts from the original Git revision.
+Compilation uses stable Rust 1.98.0 and Clippy with warnings denied, every target
+and every feature, locked offline dependency resolution and one build job.
+Fetch the two committed Cargo lock graphs before offline checks. Provide an
+explicit owned build directory through `--target-dir` or the environment shown
+above; in-repository output must be Git ignored. Native commands have finite
+timeouts and a two-GiB virtual-memory ceiling on Linux, applied by the system
+`nice` and `prlimit` executables before the native tool starts.
+
+Source parsing separately uses the pinned nightly 2026-08-21 compiler AST. This
+is a syntax parser, not the nightly 2026-08-18 runtime used by the fuzz campaign.
+Actual native declaration/comment records cover private, hidden, nested, test
+and inactive-cfg items that ordinary documentation lints omit. File/module,
+function, type, field and enum-variant contracts use genuine Rust doc comments.
+Normal doc attributes do not substitute for those contracts. Inline waiver,
+formatter/config changes and declaration-bearing macro tokens need explicit
+profile qualification; comment presence does not prove semantic correctness.
+
+Actual Cargo metadata covers independent workspaces, including excluded fuzz,
+and all target roots. Compiler dep-info must prove every changed physical Rust
+owner was consumed. A nearby manifest or syntax-only parse cannot enroll an
+orphan or inactive physical file. Physical source and manifest/lock snapshots,
+fixed configurations, exact native versions and final Git selection must remain
+stable. New workspace build scripts require qualification before execution;
+trusted dependency build scripts can run during ordinary Cargo compilation.
+Application and test bodies are not executed by this static profile. Runtime,
+ABI, generated-source, coverage and benchmark gates retain their own scope.
+
 ### Rust (optional)
 
 Use the Rust toolchain pinned in `rust-toolchain.toml` and maturin. Rustup

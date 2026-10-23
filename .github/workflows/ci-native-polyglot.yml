@@ -39,9 +39,9 @@ jobs:
         working-directory: .
         run: pip install --require-hashes -r requirements/ci-deps.txt
       - name: Format check
-        run: cargo fmt --check
+        run: cargo fmt --all --check
       - name: Clippy
-        run: cargo clippy -- -D warnings
+        run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
       - name: Strict API docs
         env:
           RUSTDOCFLAGS: -D warnings -D missing_docs

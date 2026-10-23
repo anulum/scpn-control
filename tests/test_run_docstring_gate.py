@@ -332,6 +332,18 @@ def copied_gate_graph(tmp_path: Path) -> Path:
 @pytest.mark.parametrize(
     "owner,symbol",
     [
+        ("tools/rust_source_ast.py", "rust_ast_errors"),
+        ("tools/rust_source_enrollment.py", "read_workspace"),
+        ("tools/rust_source_profile.py", "_profile"),
+        ("tools/rust_source_checks.py", "changed_rust_errors"),
+        ("native_tests/test_rust_source_ast.py", "_dump"),
+        ("native_tests/test_rust_source_enrollment.py", "test_actual_metadata_and_dependency_inputs"),
+        ("native_tests/test_rust_source_checks.py", "rust_repo"),
+        ("native_tests/test_rust_source_profile.py", "test_physical_profile_custody_refuses"),
+        ("tools/cpp_source_checks.py", "changed_cpp_errors"),
+        ("tools/cpp_source_ast.py", "documentation_errors"),
+        ("native_tests/test_cpp_source_checks.py", "cpp_repo"),
+        ("native_tests/test_cpp_source_protocols.py", "test_unreadable_encoding_refuses"),
         ("tools/shell_source_checks.py", "changed_shell_errors"),
         ("native_tests/test_shell_source_checks.py", "shell_repo"),
         ("tools/studio_source_checks.py", "changed_studio_errors"),
