@@ -33,6 +33,10 @@
 
 ### Fixed
 
+- The pre-commit job of static governance installs the typing environment
+  of the strict mypy lane. Its changed-Python hook could not import
+  `scpn_studio_platform` and refused every changed studio file.
+
 - `ci-imas` takes `ci-mast` as a constraint. The re-lock had moved its
   xarray to 2026.9, which the python-tests lane installed over the ci-mast
   xarray; that release passes `zarr_format` to zarr 2.18 and broke the MAST

@@ -108,6 +108,17 @@ jobs:
           pip install --require-hashes -r requirements/ci-lint.txt
           pip install --require-hashes -r requirements/ci-deps.txt
           pip install --require-hashes -r requirements/ci-test.txt
+      - name: Install the typing environment of the strict mypy lane
+        # changed-python-static runs strict mypy on every changed Python file,
+        # so it needs the packages those files import, as the python-tests
+        # mypy lane installs them.
+        run: |
+          pip install --require-hashes -r requirements/ci-mast.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes --no-build-isolation -r requirements/ci-neuro.txt
+          pip install --require-hashes -r requirements/ci-rl.txt
+          pip install --require-hashes -r requirements/ci-studio.txt
+          pip install --require-hashes -r requirements/ci-imas.txt
       - name: Test real hook contracts
         env:
           PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
