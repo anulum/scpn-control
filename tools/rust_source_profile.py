@@ -32,6 +32,14 @@ _CONFIG_NAMES = ("clippy.toml", ".clippy.toml", "rustfmt.toml", ".rustfmt.toml",
 _FORMAT = 'edition = "2021"\nstyle_edition = "2021"\n'
 
 
+_ADDRESS_SPACE = 4 * 1024**3
+"""Address-space cap for every native Rust command.
+
+2 GiB was too small for the production workspace: rust-lld could not map the
+intel-mkl-src build script while linking it. 4 GiB completes the CI Clippy
+command for the whole workspace, and the jobs stay serial and niced."""
+
+
 def _native(repo: Path, argv: Sequence[str], timeout_s: float, *, target_dir: Path) -> subprocess.CompletedProcess[str]:
     """Run one bounded Linux native command with controlled build/config environments."""
     env = os.environ.copy()
@@ -63,7 +71,7 @@ def _native(repo: Path, argv: Sequence[str], timeout_s: float, *, target_dir: Pa
 
     try:
         return subprocess.run(
-            ["/usr/bin/nice", "-n", "15", "/usr/bin/prlimit", "--as=2147483648:2147483648", "--", *argv],
+            ["/usr/bin/nice", "-n", "15", "/usr/bin/prlimit", f"--as={_ADDRESS_SPACE}:{_ADDRESS_SPACE}", "--", *argv],
             cwd=repo,
             input="",
             capture_output=True,

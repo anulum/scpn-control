@@ -168,6 +168,6 @@ def test_actual_child_resource_limits_and_timeout(rust_repo: tuple[Path, str, Pa
     )
     assert result.returncode == 0
     limits, nice = result.stdout.splitlines()
-    assert limits == "(2147483648, 2147483648)" and int(nice) >= 15
+    assert limits == "(4294967296, 4294967296)" and int(nice) >= 15
     with pytest.raises(RuntimeError, match="completed native"):
         _native(repo, [sys.executable, "-B", "-c", "import time; time.sleep(10)"], 0.001, target_dir=target)

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Security
+
+- The Rust workspace and fuzz locks move to patched releases:
+  - `ctutils` 0.4.7 (RUSTSEC-2026-0385), main lock;
+  - `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382), both locks;
+  - `webpki-roots` 1.0.11 (RUSTSEC-2026-0381), both locks.
+- `cargo audit` reports no vulnerabilities on either lock.
+- The CI Rust job passes locally with these locks: `cargo fmt --all --check`,
+  workspace Clippy over all targets and features with `-D warnings`, strict
+  API docs, and 377 workspace tests. The fuzz crate checks on nightly.
+- The changed-Rust commit hook now caps native commands at 4 GiB of address
+  space instead of 2 GiB. With 2 GiB, rust-lld could not map the
+  `intel-mkl-src` build script, so the hook failed on the first real
+  Cargo.lock change. 4 GiB completes the workspace Clippy command. Jobs stay
+  serial and niced.
+
 ### Added
 
 - Added `tools/check_docstring_debt.py`, a counting ratchet that holds the
