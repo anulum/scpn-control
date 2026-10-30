@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -208,8 +207,7 @@ class TGLFSolver(GKSolverBase):
         Path
             The working directory containing ``input.tglf``.
         """
-        base = self.work_dir or Path(tempfile.mkdtemp(prefix="tglf_"))
-        base.mkdir(parents=True, exist_ok=True)
+        base = self._input_directory(self.work_dir, "tglf_")
         input_file = base / "input.tglf"
         write_text_atomic(input_file, generate_tglf_input(params))
         return base

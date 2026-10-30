@@ -17,6 +17,8 @@ with Miller geometry fields for flux-tube solvers.
 from __future__ import annotations
 
 import abc
+import shutil
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -97,7 +99,9 @@ class GKSolverBase(abc.ABC):
     def prepare_input(self, params: GKLocalParams) -> Path:
         """Write solver-specific input deck to a temporary directory.
 
-        Returns the path to the input file or directory.
+        Returns the path to the input file or directory. A temporary
+        directory created here belongs to the solver; pass it to
+        :meth:`release_input` once its output has been read.
         """
 
     @abc.abstractmethod
@@ -109,6 +113,75 @@ class GKSolverBase(abc.ABC):
         """Return True if the solver binary/library is installed."""
 
     def run_from_params(self, params: GKLocalParams, *, timeout_s: float = 30.0) -> GKOutput:
-        """Prepare and run in one call."""
+        """Prepare and run in one call.
+
+        A temporary directory the solver created for the call is removed
+        afterwards, whether the run succeeds or fails. A configured working
+        directory is kept.
+
+        Parameters
+        ----------
+        params : GKLocalParams
+            Local plasma parameters at one flux surface.
+        timeout_s : float
+            Time limit for the solver run, in seconds.
+
+        Returns
+        -------
+        GKOutput
+            The parsed solver result.
+        """
         input_path = self.prepare_input(params)
-        return self.run(input_path, timeout_s=timeout_s)
+        try:
+            return self.run(input_path, timeout_s=timeout_s)
+        finally:
+            self.release_input(input_path)
+
+    def release_input(self, input_path: Path) -> None:
+        """Remove ``input_path`` if this solver created it as a temporary directory.
+
+        Anything else, such as a configured working directory, is left alone.
+
+        Parameters
+        ----------
+        input_path : pathlib.Path
+            A path returned by :meth:`prepare_input`.
+        """
+        owned = self._owned_directories()
+        if input_path in owned:
+            owned.discard(input_path)
+            shutil.rmtree(input_path, ignore_errors=True)
+
+    def _input_directory(self, work_dir: Path | None, prefix: str) -> Path:
+        """Return ``work_dir``, created if missing, or a new temporary directory.
+
+        Parameters
+        ----------
+        work_dir : pathlib.Path or None
+            The configured working directory, kept after every run.
+        prefix : str
+            Name prefix of the temporary directory used when ``work_dir`` is None.
+
+        Returns
+        -------
+        pathlib.Path
+            The directory that receives the input deck.
+        """
+        if work_dir is not None:
+            work_dir.mkdir(parents=True, exist_ok=True)
+            return work_dir
+        created = Path(tempfile.mkdtemp(prefix=prefix))
+        self._owned_directories().add(created)
+        return created
+
+    def _owned_directories(self) -> set[Path]:
+        """Return the temporary directories this solver created and has not removed.
+
+        The set lives on the instance and is created on first use, so
+        subclasses need not call a base constructor.
+        """
+        owned: set[Path] | None = self.__dict__.get("_gk_owned_directories")
+        if owned is None:
+            owned = set()
+            self.__dict__["_gk_owned_directories"] = owned
+        return owned

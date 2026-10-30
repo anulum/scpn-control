@@ -17,8 +17,8 @@ Reference: Bourdelle et al., Phys. Plasmas 14 (2007) 112501.
 
 from __future__ import annotations
 
+import importlib
 import logging
-import tempfile
 from pathlib import Path
 
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
@@ -65,6 +65,7 @@ class QuaLiKizSolver(GKSolverBase):
         allow_fallback: bool = False,
         allow_legacy_fallback: bool = False,
     ) -> None:
+        """Configure the QuaLiKiz binary, work directory and the explicit fallback policy."""
         if allow_fallback and not allow_legacy_fallback:
             raise ValueError(
                 "allow_fallback=True requires allow_legacy_fallback=True; "
@@ -78,11 +79,10 @@ class QuaLiKizSolver(GKSolverBase):
     def is_available(self) -> bool:
         """Return whether the ``qualikiz_tools`` Python package is importable."""
         try:
-            import qualikiz_tools  # noqa: F401
-
-            return True
+            importlib.import_module("qualikiz_tools")
         except ImportError:
             return False
+        return True
 
     def prepare_input(self, params: GKLocalParams) -> Path:
         """Stage the QuaLiKiz run directory and cache the input parameters.
@@ -97,8 +97,7 @@ class QuaLiKizSolver(GKSolverBase):
         Path
             The working directory for the run.
         """
-        base = self.work_dir or Path(tempfile.mkdtemp(prefix="qualikiz_"))
-        base.mkdir(parents=True, exist_ok=True)
+        base = self._input_directory(self.work_dir, "qualikiz_")
         # Store params for Python API path
         self._last_params = params
         return base

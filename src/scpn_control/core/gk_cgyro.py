@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -147,8 +146,7 @@ class CGYROSolver(GKSolverBase):
         Path
             The working directory containing ``input.cgyro``.
         """
-        base = self.work_dir or Path(tempfile.mkdtemp(prefix="cgyro_"))
-        base.mkdir(parents=True, exist_ok=True)
+        base = self._input_directory(self.work_dir, "cgyro_")
         write_text_atomic((base / "input.cgyro"), generate_cgyro_input(params))
         return base
 

@@ -33,6 +33,16 @@
 
 ### Fixed
 
+- Temporary solver inputs no longer outlive their use. The external
+  gyrokinetic solvers (TGLF, GS2, CGYRO, GENE, QuaLiKiz) left one input
+  directory per `run_from_params` call, which the anomalous-transport loop
+  makes once per radial point. `run_from_params` now removes a directory the
+  solver created, whether the run succeeds or fails, and the new
+  `GKSolverBase.release_input` does the same after a manual
+  `prepare_input`/`run`. A configured `work_dir` is never removed. The
+  integrated scenario's transport configuration file now lives exactly as
+  long as its solver, which may read it again, and is removed at once when
+  the solver fails to build.
 - The disruption-model checkpoint (`torch.save` into memory) and the
   control-room GIF publish atomically. The GIF goes through the new
   `publish_through_temporary`, which hands the writer a sibling path with

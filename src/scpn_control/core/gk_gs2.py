@@ -17,7 +17,6 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -156,8 +155,7 @@ class GS2Solver(GKSolverBase):
         Path
             The working directory containing ``gs2.in``.
         """
-        base = self.work_dir or Path(tempfile.mkdtemp(prefix="gs2_"))
-        base.mkdir(parents=True, exist_ok=True)
+        base = self._input_directory(self.work_dir, "gs2_")
         write_text_atomic((base / "gs2.in"), generate_gs2_input(params))
         return base
 

@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -183,8 +182,7 @@ class GENESolver(GKSolverBase):
         Path
             The working directory containing the ``parameters`` file.
         """
-        base = self.work_dir or Path(tempfile.mkdtemp(prefix="gene_"))
-        base.mkdir(parents=True, exist_ok=True)
+        base = self._input_directory(self.work_dir, "gene_")
         write_text_atomic((base / "parameters"), generate_gene_input(params))
         return base
 

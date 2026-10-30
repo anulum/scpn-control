@@ -51,6 +51,11 @@ class TGLFSolver(GKSolverBase):
     def is_available(self) -> bool: ...
 ```
 
+Without a `work_dir`, `prepare_input` writes the deck to a new temporary
+directory owned by the solver. `run_from_params` removes it after the run,
+whether it succeeds or fails. After a manual `prepare_input` and `run`, pass
+the path to `release_input`. A configured `work_dir` is always kept.
+
 ### Usage
 
 ```python

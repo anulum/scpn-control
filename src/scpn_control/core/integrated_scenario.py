@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -306,7 +307,13 @@ class IntegratedScenarioSimulator:
     # ── initialisation ────────────────────────────────────────────────────────
 
     def _setup_transport_solver(self) -> TransportSolver:
-        """Build the transport solver from a temporary reactor configuration of this scenario."""
+        """Build the transport solver from a temporary reactor configuration of this scenario.
+
+        The kernel may read its configuration file again later (the vacuum
+        field and the Rust multigrid bridge do), so the file lives exactly as
+        long as the solver: it is removed when the solver is collected, at
+        interpreter exit, or at once if construction fails.
+        """
         cfg_dict = {
             "reactor_name": "IntegratedScenario",
             "grid_resolution": [33, 33],
@@ -333,9 +340,14 @@ class IntegratedScenarioSimulator:
         }
         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".json") as f:
             json.dump(cfg_dict, f)
-            temp_path = f.name
+            config_path = Path(f.name)
 
-        solver = TransportSolver(temp_path, nr=self.nr, transport_model=self.config.transport_model)
+        try:
+            solver = TransportSolver(str(config_path), nr=self.nr, transport_model=self.config.transport_model)
+        except BaseException:
+            config_path.unlink(missing_ok=True)
+            raise
+        weakref.finalize(solver, config_path.unlink, missing_ok=True)
         solver.Te = np.ones(self.nr) * 1.0  # keV
         solver.Ti = np.ones(self.nr) * 1.0
         solver.ne = np.ones(self.nr) * 5.0  # 10^19 m^-3
