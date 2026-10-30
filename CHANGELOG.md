@@ -123,6 +123,13 @@
 
 ### Added
 
+- The package-quality CI job installs the built wheel into a clean virtual
+  environment. The environment holds only the hashed runtime lock
+  `requirements/ci-wheel-smoke.txt`, and the wheel goes in with `--no-deps`.
+  `pip check` must pass. From outside the checkout, the job checks that
+  `scpn_control.__version__` equals the project version, that the module
+  loads from `site-packages`, and that `scpn-control --help` runs.
+
 - `scpn_control._atomic` publishes files atomically through
   `write_bytes_atomic` and `write_text_atomic`. Each call writes a temporary
   file in the destination directory, syncs it to disk and moves it with

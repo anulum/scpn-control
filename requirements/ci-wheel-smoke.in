@@ -1,0 +1,18 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Commercial license available
+# © Concepts 1996–2026 Miroslav Šotek. All rights reserved.
+# © Code 2020–2026 Miroslav Šotek. All rights reserved.
+# ORCID: 0009-0009-3560-0851
+# Contact: www.anulum.li | protoscience@anulum.li
+# SCPN Control — Ci wheel smoke.
+# The runtime dependencies of [project].dependencies, locked for the clean
+# installation of the built wheel; tests/test_wheel_smoke_lock.py keeps the
+# two lists equal.
+-c ci-deps.txt
+
+click>=8.0
+numpy>=1.24
+osqp>=0.6
+pydantic>=2.0
+scipy>=1.10
+scpn-phase-orchestrator>=1.4.3,<1.5
