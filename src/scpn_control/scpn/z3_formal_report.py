@@ -38,6 +38,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
     AlwaysEventuallyMarked,
@@ -139,8 +140,8 @@ def write_z3_formal_report(
     json_target.parent.mkdir(parents=True, exist_ok=True)
     markdown_target.parent.mkdir(parents=True, exist_ok=True)
     payload = build_z3_formal_report_payload(report)
-    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    markdown_target.write_text(_render_markdown(payload), encoding="utf-8")
+    write_text_atomic(json_target, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(markdown_target, _render_markdown(payload))
 
 
 def build_z3_formal_report_payload(report: Z3FormalVerificationReport) -> dict[str, Any]:
@@ -186,6 +187,7 @@ def build_blocked_z3_formal_report_payload(reason: str) -> dict[str, Any]:
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
@@ -195,22 +197,26 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _reject_unknown_keys(payload: dict[str, Any], *, allowed: frozenset[str], context: str) -> None:
+    """Refuse fields outside ``allowed``."""
     unknown = sorted(set(payload) - allowed)
     if unknown:
         raise ValueError(f"{context} unknown fields: {', '.join(unknown)}")
 
 
 def _reject_missing_keys(payload: dict[str, Any], *, required: frozenset[str], context: str) -> None:
+    """Refuse a payload that lacks any ``required`` field."""
     missing = sorted(required - set(payload))
     if missing:
         raise ValueError(f"{context} missing fields: {', '.join(missing)}")
 
 
 def _is_finite_json_number(value: Any) -> bool:
+    """Return whether ``value`` is a finite JSON number that is not a boolean."""
     return not isinstance(value, bool) and isinstance(value, int | float) and math.isfinite(float(value))
 
 
 def _validate_z3_violation_record(violation: Any, *, context: str) -> None:
+    """Validate one violation record's exact fields and non-empty strings."""
     if not isinstance(violation, dict):
         raise ValueError(f"{context} violation must be an object")
     _reject_unknown_keys(violation, allowed=_Z3_REPORT_VIOLATION_KEYS, context=f"{context} violation")
@@ -237,6 +243,7 @@ def _validate_z3_violation_record(violation: Any, *, context: str) -> None:
 
 
 def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context: str, section_name: str) -> None:
+    """Refuse a section whose solver status, holds flag, violations and specs disagree."""
     solver_status = section["solver_status"]
     holds = section["holds"]
     violations = section["violations"]
@@ -285,6 +292,7 @@ def _validate_z3_section_solver_consistency(section: dict[str, Any], *, context:
 
 
 def _validate_z3_section_checked_specs(checked_specs: list[Any], *, context: str) -> None:
+    """Refuse empty, non-string or repeated checked specs."""
     if any(not isinstance(spec, str) or not spec for spec in checked_specs):
         raise ValueError(f"{context} checked_specs must contain non-empty strings")
     if len(checked_specs) != len(set(checked_specs)):
@@ -395,6 +403,7 @@ def validate_z3_formal_report_payload(payload: dict[str, Any]) -> dict[str, Any]
 
 
 def _checked_specs(safety: dict[str, Any], temporal: dict[str, Any]) -> list[str]:
+    """Return ``marking_bounds`` followed by each section's checked specs, without repeats."""
     specs = ["marking_bounds"]
     for section in (safety, temporal):
         for spec in section.get("checked_specs", []):
@@ -404,6 +413,7 @@ def _checked_specs(safety: dict[str, Any], temporal: dict[str, Any]) -> list[str
 
 
 def _payload_digest(payload: dict[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON payload without its own digest field."""
     canonical = dict(payload)
     canonical.pop("payload_sha256", None)
     blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -411,6 +421,7 @@ def _payload_digest(payload: dict[str, Any]) -> str:
 
 
 def _z3_solver_label() -> str:
+    """Return the installed z3-solver version label, or say it is unavailable."""
     try:
         import z3
     except ModuleNotFoundError:
@@ -420,6 +431,7 @@ def _z3_solver_label() -> str:
 
 
 def _render_markdown(payload: dict[str, Any]) -> str:
+    """Render the report payload as Markdown."""
     lines = [
         "# SCPN Z3 Formal Verification Report",
         "",

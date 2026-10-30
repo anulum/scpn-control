@@ -27,6 +27,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 _VMEC_LITE_CLAIM_SCHEMA_VERSION = 1
@@ -37,12 +38,14 @@ _BOUNDED_VMEC_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *
 
 
 def _positive_int(name: str, value: int, *, minimum: int = 1) -> int:
+    """Return an integer at least ``minimum``; refuse booleans and smaller values."""
     if not isinstance(value, int) or isinstance(value, bool) or value < minimum:
         raise ValueError(f"{name} must be an integer >= {minimum}")
     return value
 
 
 def _finite_float(name: str, value: float) -> float:
+    """Return ``value`` as a finite float; refuse non-finite values."""
     scalar = float(value)
     if not np.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -52,6 +55,7 @@ def _finite_float(name: str, value: float) -> float:
 def _profile_array(
     name: str, values: AnyFloatArray, *, nonnegative: bool = False, positive: bool = False
 ) -> FloatArray:
+    """Return a finite profile of two or more points, optionally non-negative or positive."""
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
@@ -130,12 +134,14 @@ class VMECLiteClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _relative_array_error(name: str, observed: AnyFloatArray, reference: AnyFloatArray | None) -> float | None:
+    """Return the relative L2 error against a matching finite reference, or ``None``."""
     if reference is None:
         return None
     obs = np.asarray(observed, dtype=float)
@@ -147,6 +153,7 @@ def _relative_array_error(name: str, observed: AnyFloatArray, reference: AnyFloa
 
 
 def _minimum_sampled_major_radius(result: VMECResult, basis: SpectralBasis) -> tuple[float, float]:
+    """Return the smallest major radius and largest ``|Z|`` sampled over all surfaces."""
     theta = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
     zeta = np.linspace(0.0, 2.0 * np.pi, 48, endpoint=False)
     theta_grid, zeta_grid = np.meshgrid(theta, zeta, indexing="ij")
@@ -272,7 +279,7 @@ def save_vmec_lite_claim_evidence(evidence: VMECLiteClaimEvidence, path: str | P
     """Persist VMEC-lite claim evidence as deterministic JSON."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 class SpectralBasis:
@@ -287,6 +294,7 @@ class SpectralBasis:
     """
 
     def __init__(self, m_pol: int, n_tor: int, n_fp: int):
+        """Validate the mode counts and list the retained (m, n) Fourier modes."""
         self.m_pol = _positive_int("m_pol", m_pol, minimum=0)
         self.n_tor = _positive_int("n_tor", n_tor, minimum=0)
         self.n_fp = _positive_int("n_fp", n_fp)
@@ -340,6 +348,7 @@ class VMECLiteSolver:
     """
 
     def __init__(self, n_s: int = 21, m_pol: int = 3, n_tor: int = 2, n_fp: int = 1):
+        """Validate the radial resolution and allocate the spectral coefficients and profiles."""
         self.n_s = _positive_int("n_s", n_s, minimum=3)
         self.basis = SpectralBasis(m_pol, n_tor, n_fp)
 
@@ -369,6 +378,7 @@ class VMECLiteSolver:
     def _initial_guess(self) -> None:
         # Linear radial interpolation from axis to boundary
         # Hirshman & Whitson 1983: s^(m/2) scaling for poloidal harmonics
+        """Fill the interior surfaces from the boundary with the s^(m/2) radial scaling."""
         idx_00 = self.basis.mn_modes.index((0, 0)) if (0, 0) in self.basis.mn_modes else -1
         R00_bound = self.R_mn[-1, idx_00] if idx_00 >= 0 else 0.0
 

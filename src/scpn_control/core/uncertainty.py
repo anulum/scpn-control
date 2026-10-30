@@ -27,6 +27,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.scaling_laws import load_ipb98y2_coefficients
 
@@ -78,6 +79,7 @@ def _validate_n_samples(n_samples: int) -> int:
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    """Return a finite float, optionally required positive or non-negative."""
     parsed = float(value)
     if not np.isfinite(parsed):
         raise ValueError(f"{name} must be finite")
@@ -106,6 +108,7 @@ class PlasmaScenario:
 
 
 def _validate_scenario(scenario: PlasmaScenario) -> PlasmaScenario:
+    """Refuse a scenario with non-finite, non-positive or inconsistent parameters."""
     _finite_scalar("I_p", scenario.I_p, positive=True)
     _finite_scalar("B_t", scenario.B_t, positive=True)
     _finite_scalar("P_heat", scenario.P_heat, positive=True)
@@ -187,17 +190,20 @@ class UQClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _ordered(values: AnyFloatArray) -> bool:
+    """Return whether ``values`` is a finite non-decreasing sequence of at least two."""
     arr = np.asarray(values, dtype=float)
     return bool(arr.ndim == 1 and arr.size >= 2 and np.all(np.isfinite(arr)) and np.all(np.diff(arr) >= -1e-12))
 
 
 def _relative_scalar_error(name: str, observed: float, reference: float | None) -> float | None:
+    """Return the relative error against a reference, or ``None`` without one."""
     if reference is None:
         return None
     ref = _finite_scalar(name, reference, nonnegative=True)
@@ -316,7 +322,7 @@ def save_uq_claim_evidence(evidence: UQClaimEvidence, path: str | Path) -> None:
     """Persist UQ claim evidence as deterministic JSON."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def ipb98_tau_e(scenario: PlasmaScenario, params: dict[str, Any] | None = None) -> float:
@@ -455,6 +461,7 @@ def compute_fusion_sensitivities(scenario: PlasmaScenario, tau_E: float) -> dict
     eps = 1e-3
 
     def get_p(n_e: float, p_heat: float) -> float:
+        """Return the fusion power at density ``n_e`` and heating ``p_heat`` for the fixed confinement time."""
         sc = PlasmaScenario(
             scenario.I_p,
             scenario.B_t,
@@ -593,6 +600,7 @@ def quantify_full_chain(
     n_samples = _validate_n_samples(n_samples)
 
     def _validate_sigma(name: str, value: float) -> float:
+        """Return a finite non-negative sigma; refuse anything else."""
         try:
             parsed = float(value)
         except (TypeError, ValueError) as exc:
@@ -736,9 +744,11 @@ def summarize_uq(result: FullChainUQResult) -> dict[str, Any]:
     """
 
     def _round(x: float, sig: int = 6) -> float:
+        """Round ``x`` to ``sig`` significant figures."""
         return float(f"{x:.{sig}g}")
 
     def _arr(a: AnyFloatArray) -> list[float]:
+        """Round every value of ``a`` to six significant figures."""
         return [_round(float(v)) for v in a]
 
     return {

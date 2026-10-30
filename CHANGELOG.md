@@ -33,6 +33,11 @@
 
 ### Fixed
 
+- These outputs now publish atomically:
+  - the uncertainty, VMEC-lite, burn-controller and current-drive claims;
+  - the Z3 formal report in JSON and Markdown;
+  - the JAX gyrokinetic parity record.
+
 - These writers now publish atomically:
   - the CODAC EPICS database, OPC UA node set and configuration;
   - the RZIP, orbit-following, kinetic-EFIT and free-boundary claims;

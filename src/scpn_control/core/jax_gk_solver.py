@@ -33,6 +33,7 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.gk_eigenvalue import EigenMode, LinearGKResult, solve_linear_gk
 from scpn_control.core.gk_geometry import circular_geometry
@@ -68,6 +69,7 @@ def has_jax() -> bool:
 
 
 def _require_jax() -> None:
+    """Refuse with an installation hint when JAX is unavailable."""
     if not _HAS_JAX:
         raise ImportError("JAX is required for jax_gk_solver but not installed. pip install jax jaxlib")
 
@@ -248,6 +250,7 @@ def _make_batched_builder(
     """Return a vmap'd function that builds response matrices for all k_y at once."""
 
     def _build_single(k_y_rho_s: Any) -> tuple[Any, Any, Any]:
+        """Build the response-matrix terms for one ``k_y rho_s``."""
         return _build_response_matrix_single_ky(
             k_y_rho_s,
             ion_R_L_n,
@@ -388,6 +391,7 @@ def _build_local_dispersion_payload(
     fm_grid = (2.0 / jnp.sqrt(jnp.pi)) * jnp.sqrt(energy_grid) * jnp.exp(-energy_grid) * weight_grid
 
     def _single(k_y_rho_s: Any) -> tuple[Any, Any, Any, Any]:
+        """Return the quasi-neutrality denominator and the flattened Bessel, diamagnetic and drift grids for one ``k_y rho_s``."""
         omega_star_n = k_y_rho_s * ion_R_L_n
         omega_star_T = k_y_rho_s * ion_R_L_T
         eta_i = jnp.where(jnp.abs(omega_star_n) > 1.0e-10, omega_star_T / jnp.abs(omega_star_n), 0.0)
@@ -416,10 +420,12 @@ def _solve_local_dispersion_from_payload(
     """Solve the same scalar local dispersion relation as the native path."""
 
     def _dispersion(omega: complex) -> complex:
+        """Return the dispersion function at complex frequency ``omega``."""
         denom = nu_eff + 1j * (wd_v - omega)
         return complex(qn_denom - np.sum(fj * (ws_v - omega) / denom))
 
     def _dispersion_deriv(omega: complex) -> complex:
+        """Return the derivative of the dispersion function at ``omega``."""
         denom = nu_eff + 1j * (wd_v - omega)
         return complex(-np.sum(fj * (-denom + 1j * (ws_v - wd_v)) / denom**2))
 
@@ -727,11 +733,12 @@ def write_jax_gk_parity_artifact(
         artifact_name = _safe_artifact_token(f"{payload['case']}_{payload['backend']}_{payload['device_kind']}")
         path = path / f"{artifact_name}.json"
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return payload, path
 
 
 def _safe_artifact_token(value: str) -> str:
+    """Return a lower-case alphanumeric token for artifact names."""
     token = "".join(char.lower() if char.isalnum() else "_" for char in value)
     while "__" in token:
         token = token.replace("__", "_")
@@ -739,6 +746,7 @@ def _safe_artifact_token(value: str) -> str:
 
 
 def _dominant_growth_and_frequency(result: LinearGKResult, label: str) -> tuple[float, float]:
+    """Return the largest growth rate (floored at zero) and its real frequency."""
     gamma = np.asarray(result.gamma, dtype=np.float64)
     omega = np.asarray(result.omega_r, dtype=np.float64)
     if gamma.ndim != 1 or omega.ndim != 1 or gamma.size == 0 or gamma.shape != omega.shape:
@@ -833,6 +841,7 @@ def _canonical_species(species: Any) -> dict[str, int | float | str | bool]:
 
 
 def _validate_parity_solver_kwargs(solver_kwargs: dict[str, Any]) -> None:
+    """Refuse non-finite geometry values and non-positive grid sizes in solver arguments."""
     for field in ("R0", "a", "B0", "q", "s_hat"):
         value = solver_kwargs.get(field)
         if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
@@ -844,6 +853,7 @@ def _validate_parity_solver_kwargs(solver_kwargs: dict[str, Any]) -> None:
 
 
 def _canonical_solver_kwargs(solver_kwargs: dict[str, Any]) -> dict[str, int | float]:
+    """Return the solver arguments sorted by key with plain int and float values."""
     canonical: dict[str, int | float] = {}
     for key in sorted(solver_kwargs):
         value = solver_kwargs[key]
@@ -859,6 +869,7 @@ def _canonical_solver_kwargs(solver_kwargs: dict[str, Any]) -> dict[str, int | f
 
 
 def _jax_backend_metadata() -> dict[str, str | bool]:
+    """Describe the active JAX backend, device kind, dtype and x64 mode."""
     backend = str(jax.default_backend()).lower()
     devices = list(jax.devices())
     device_kind = str(getattr(devices[0], "device_kind", backend)).lower() if devices else backend
@@ -879,6 +890,7 @@ def _jax_backend_metadata() -> dict[str, str | bool]:
 
 
 def _dist_version(package: str) -> str:
+    """Return an installed distribution's version, or ``unknown``."""
     try:
         return version(package)
     except PackageNotFoundError:
@@ -886,6 +898,7 @@ def _dist_version(package: str) -> str:
 
 
 def _sha256_json(payload: dict[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON payload without its own digest field."""
     digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}
     encoded = json.dumps(digest_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()

@@ -17,10 +17,13 @@ from typing import TypedDict
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray
 
 
 class CurrentDriveMetricsDict(TypedDict, total=False):
+    """Relative errors of a current-drive run against a facility reference."""
+
     total_power_relative_error: float
     total_current_relative_error: float
     deposition_centroid_abs_error: float
@@ -29,6 +32,8 @@ class CurrentDriveMetricsDict(TypedDict, total=False):
 
 
 class CurrentDriveArtifactDict(TypedDict, total=False):
+    """A facility current-drive reference artifact and its comparison metrics."""
+
     source: str
     reference_dataset_id: str
     reference_artifact_sha256: str
@@ -218,12 +223,14 @@ class CurrentDriveClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _positive_reference_scalar(name: str, value: object) -> float:
+    """Return a finite positive reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and positive")
     numeric = float(value)
@@ -233,6 +240,7 @@ def _positive_reference_scalar(name: str, value: object) -> float:
 
 
 def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    """Return a finite non-negative reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and non-negative")
     numeric = float(value)
@@ -242,6 +250,7 @@ def _nonnegative_reference_scalar(name: str, value: object) -> float:
 
 
 def _sha256_text(name: str, value: object) -> str:
+    """Return a 64-character hexadecimal SHA-256 text; refuse anything else."""
     text = _non_empty_text(name, str(value))
     if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
         raise ValueError(f"{name} must be a SHA-256 hex digest")
@@ -251,6 +260,7 @@ def _sha256_text(name: str, value: object) -> str:
 def _extract_current_drive_reference_artifact(
     reference_artifact: CurrentDriveArtifactDict | None,
 ) -> tuple[CurrentDriveArtifactDict | None, bool]:
+    """Validate an optional facility reference artifact and say whether one was supplied."""
     if reference_artifact is None:
         return None, False
     if not isinstance(reference_artifact, dict):
@@ -410,6 +420,7 @@ class ECCDSource:
         sigma_rho: float,
         eta_cd: float = _ETA_ECCD_DEFAULT,
     ):
+        """Validate the ECCD power, deposition radius, width and efficiency."""
         self.P_ec_MW = _require_nonnegative_scalar("P_ec_MW", P_ec_MW)
         self.rho_dep = _require_unit_interval("rho_dep", rho_dep)
         self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
@@ -449,6 +460,7 @@ class NBISource:
         A_beam: float = _A_BEAM_D,
         Z_beam: float = _Z_BEAM_D,
     ):
+        """Validate the NBI power, beam energy, tangency radius, width and beam species."""
         self.P_nbi_MW = _require_nonnegative_scalar("P_nbi_MW", P_nbi_MW)
         self.E_beam_keV = _require_positive_scalar("E_beam_keV", E_beam_keV)
         self.rho_tangency = _require_unit_interval("rho_tangency", rho_tangency)
@@ -516,6 +528,7 @@ class LHCDSource:
         sigma_rho: float,
         eta_cd: float = _ETA_LHCD_DEFAULT,
     ):
+        """Validate the LHCD power, deposition radius, width and efficiency."""
         self.P_lh_MW = _require_nonnegative_scalar("P_lh_MW", P_lh_MW)
         self.rho_dep = _require_unit_interval("rho_dep", rho_dep)
         self.sigma_rho = _require_nonnegative_scalar("sigma_rho", sigma_rho)
@@ -552,6 +565,7 @@ class CurrentDriveMix:
     """Superposition of multiple current-drive sources."""
 
     def __init__(self, a: float = 1.0):
+        """Start an empty source mix for a plasma of minor radius ``a``."""
         self.sources: list[ECCDSource | NBISource | LHCDSource] = []
         self.a = _require_positive_scalar("a", a)  # minor radius [m]
 
@@ -759,7 +773,7 @@ def save_current_drive_claim_evidence(evidence: CurrentDriveClaimEvidence, path:
         raise ValueError("evidence must be CurrentDriveClaimEvidence")
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 __all__ = [

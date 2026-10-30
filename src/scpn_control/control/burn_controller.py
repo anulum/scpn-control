@@ -16,6 +16,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.uncertainty import bosch_hale_reactivity
 
@@ -74,6 +75,7 @@ def _require_nonnegative_profile(name: str, values: AnyFloatArray, shape: tuple[
 
 
 def _require_normalised_rho(rho: AnyFloatArray) -> FloatArray:
+    """Return ``rho`` as a non-negative, strictly increasing profile within [0, 1]."""
     rho_arr = _require_nonnegative_profile("rho", rho)
     if np.any(rho_arr > 1.0):
         raise ValueError("rho must stay within the normalised interval [0, 1]")
@@ -128,12 +130,14 @@ class BurnControlClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _weighted_average(values: AnyFloatArray, rho: AnyFloatArray) -> float:
+    """Return the rho-weighted radial average of ``values``."""
     rho_arr = _require_normalised_rho(rho)
     value_arr = _require_nonnegative_profile("values", values, rho_arr.shape)
     weights = rho_arr.copy()
@@ -146,6 +150,7 @@ def _weighted_average(values: AnyFloatArray, rho: AnyFloatArray) -> float:
 
 
 def _sha256_text(name: str, value: object) -> str:
+    """Return a 64-character hexadecimal SHA-256 text; refuse anything else."""
     text = _non_empty_text(name, str(value))
     if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
         raise ValueError(f"{name} must be a SHA-256 hex digest")
@@ -153,6 +158,7 @@ def _sha256_text(name: str, value: object) -> str:
 
 
 def _positive_reference_scalar(name: str, value: object) -> float:
+    """Return a finite positive reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and positive")
     numeric = float(value)
@@ -162,6 +168,7 @@ def _positive_reference_scalar(name: str, value: object) -> float:
 
 
 def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    """Return a finite non-negative reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and non-negative")
     numeric = float(value)
@@ -171,6 +178,7 @@ def _nonnegative_reference_scalar(name: str, value: object) -> float:
 
 
 def _extract_burn_reference_artifact(reference_artifact: dict[str, Any] | None) -> tuple[dict[str, Any] | None, bool]:
+    """Validate an optional facility reference artifact and say whether one was supplied."""
     if reference_artifact is None:
         return None, False
     if not isinstance(reference_artifact, dict):
@@ -326,7 +334,7 @@ def save_burn_control_claim_evidence(evidence: BurnControlClaimEvidence, path: s
         raise ValueError("evidence must be BurnControlClaimEvidence")
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 class AlphaHeating:
@@ -338,6 +346,7 @@ class AlphaHeating:
     """
 
     def __init__(self, R0: float, a: float, kappa: float = 1.0):
+        """Validate the major and minor radius ordering and the elongation."""
         self.R0 = _require_positive_scalar("R0", R0)
         self.a = _require_positive_scalar("a", a)
         if self.a >= self.R0:
@@ -432,6 +441,7 @@ class BurnStabilityAnalysis:
     """
 
     def __init__(self, alpha_heating: AlphaHeating):
+        """Bind the alpha-heating model whose burn stability is analysed."""
         self.alpha_heating = alpha_heating
 
     def reactivity_exponent(self, Ti_keV: float) -> float:
@@ -487,6 +497,7 @@ class BurnController:
     """
 
     def __init__(self, Q_target: float = 10.0, T_target_keV: float = 20.0, P_aux_max_MW: float = 73.0):
+        """Validate the Q, temperature and auxiliary-power targets and set the PI gains."""
         self.Q_target = _require_positive_scalar("Q_target", Q_target)
         self.T_target = _require_positive_scalar("T_target_keV", T_target_keV)
         self.P_aux_max = _require_positive_scalar("P_aux_max_MW", P_aux_max_MW)
@@ -582,6 +593,7 @@ class SubignitedBurnPoint:
     """
 
     def __init__(self, alpha_heating: AlphaHeating):
+        """Bind the alpha-heating model and its burn stability analysis."""
         self.alpha = alpha_heating
         self.stability = BurnStabilityAnalysis(alpha_heating)
 
