@@ -29,6 +29,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
+
 CHANNEL_COUNT = 4
 CHANNELS = (
     "electron_temperature",
@@ -183,12 +185,14 @@ class TransportFullFidelityReadinessEvidence:
 
 
 def _canonical_sha256(value: Any) -> str:
+    """Return the SHA-256 of the canonical JSON of ``value`` (a dataclass or a mapping)."""
     payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
 
 def _is_sha256_hex(value: str) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal SHA-256 digest."""
     if len(value) != 64:
         return False
     try:
@@ -199,6 +203,7 @@ def _is_sha256_hex(value: str) -> bool:
 
 
 def _validate_optional_sha256(name: str, value: str | None) -> str | None:
+    """Return ``None`` unchanged, else a lower-case SHA-256 digest; refuse anything else."""
     if value is None:
         return None
     if not isinstance(value, str) or not _is_sha256_hex(value):
@@ -207,6 +212,7 @@ def _validate_optional_sha256(name: str, value: str | None) -> str | None:
 
 
 def _finite_float_field(name: str, value: Any, *, positive: bool = False) -> float:
+    """Return a finite metadata float, optionally required positive."""
     field = float(value)
     if not np.isfinite(field):
         raise ValueError(f"metadata field {name} must be finite")
@@ -216,12 +222,14 @@ def _finite_float_field(name: str, value: Any, *, positive: bool = False) -> flo
 
 
 def _optional_positive_float_field(name: str, value: Any) -> float | None:
+    """Return ``None`` unchanged, else a finite positive metadata float."""
     if value is None:
         return None
     return _finite_float_field(name, value, positive=True)
 
 
 def _transport_campaign_metadata_from_mapping(payload: dict[str, Any]) -> TransportCampaignMetadata:
+    """Build transport campaign metadata from a JSON mapping; refuse missing or malformed fields."""
     try:
         backend = str(payload["backend"]).strip().lower()
         dtype = str(payload["dtype"])
@@ -290,7 +298,7 @@ def save_transport_campaign_metadata(metadata: TransportCampaignMetadata, path: 
         "metadata": asdict(metadata),
     }
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
 
 def load_transport_campaign_metadata(path: str | Path) -> TransportCampaignMetadata:
@@ -309,6 +317,7 @@ def load_transport_campaign_metadata(path: str | Path) -> TransportCampaignMetad
 
 
 def _metadata_field_matches(archived: Any, current: Any) -> bool:
+    """Return whether an archived and a current metadata field agree, numbers within 1e-12 relative."""
     if archived is None or current is None:
         return archived is current
     if isinstance(archived, float | int) and isinstance(current, float | int):
@@ -523,6 +532,7 @@ def _assert_latency_report_matches_campaign(
     *,
     report_name: str,
 ) -> None:
+    """Refuse a latency report whose backend or grid differs from the campaign metadata."""
     if report.backend != metadata.backend:
         raise ValueError(f"campaign metadata and {report_name} backend mismatch")
     if report.dtype != metadata.dtype:
@@ -541,6 +551,7 @@ def _validate_transport_gradient_audit(
     metadata: TransportCampaignMetadata,
     audit: TransportGradientAudit | TransportRolloutGradientAudit,
 ) -> None:
+    """Refuse a gradient audit that misses the campaign's gradient tolerance or is inconsistent."""
     if metadata.gradient_tolerance is None:
         raise ValueError("transport differentiability evidence requires metadata.gradient_tolerance")
     loss = float(audit.loss)
@@ -573,6 +584,7 @@ def _validate_transport_gradient_audit(
 
 
 def _validate_parameter_audit_indices(indices: tuple[tuple[int, int], ...], n_rho: int) -> None:
+    """Refuse empty, repeated or out-of-range (channel, radius) audit indices."""
     if not indices:
         raise ValueError("transport gradient audit checked_indices must not be empty")
     if len(set(indices)) != len(indices):
@@ -583,6 +595,7 @@ def _validate_parameter_audit_indices(indices: tuple[tuple[int, int], ...], n_rh
 
 
 def _validate_rollout_audit_indices(indices: tuple[tuple[int, int, int], ...], n_rho: int) -> None:
+    """Refuse empty, repeated or out-of-range (step, channel, radius) rollout audit indices."""
     if not indices:
         raise ValueError("transport rollout gradient audit checked_indices must not be empty")
     if len(set(indices)) != len(indices):
@@ -597,7 +610,7 @@ def save_transport_gradient_latency_report(report: TransportGradientLatencyRepor
     _validate_transport_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(asdict(report), indent=2, sort_keys=True) + "\n")
 
 
 def save_transport_rollout_gradient_latency_report(
@@ -608,10 +621,11 @@ def save_transport_rollout_gradient_latency_report(
     _validate_transport_rollout_gradient_latency_report(report)
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(asdict(report), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(asdict(report), indent=2, sort_keys=True) + "\n")
 
 
 def _validate_transport_gradient_latency_report(report: TransportGradientLatencyReport) -> None:
+    """Validate a single-step transport gradient latency report."""
     if not isinstance(report, TransportGradientLatencyReport):
         raise ValueError("transport gradient latency report must be TransportGradientLatencyReport")
     _validate_latency_common(
@@ -647,6 +661,7 @@ def _validate_transport_gradient_latency_report(report: TransportGradientLatency
 
 
 def _validate_transport_rollout_gradient_latency_report(report: TransportRolloutGradientLatencyReport) -> None:
+    """Validate a rollout transport gradient latency report."""
     if not isinstance(report, TransportRolloutGradientLatencyReport):
         raise ValueError("transport rollout gradient latency report must be TransportRolloutGradientLatencyReport")
     _validate_latency_common(
@@ -694,6 +709,7 @@ def _validate_latency_common(
     p95_ms: float,
     max_ms: float,
 ) -> None:
+    """Validate the schema, backend, grid and run counts shared by both latency reports."""
     if schema_version != 1:
         raise ValueError("transport latency report schema_version is unsupported")
     if backend != "jax":
@@ -711,6 +727,7 @@ def _validate_latency_common(
 
 
 def _validate_transport_runtime_metadata(metadata: TransportRuntimeMetadata) -> None:
+    """Validate the runtime metadata recorded with a latency measurement."""
     if not isinstance(metadata, TransportRuntimeMetadata):
         raise ValueError("transport latency report runtime_metadata is invalid")
     if metadata.schema_version != 1:
@@ -738,6 +755,7 @@ def _validate_transport_runtime_metadata(metadata: TransportRuntimeMetadata) -> 
 
 
 def _require_nonnegative_finite(name: str, value: float) -> float:
+    """Return a finite non-negative float; refuse anything else."""
     result = float(value)
     if not np.isfinite(result) or result < 0.0:
         raise ValueError(f"{name} must be finite and non-negative")
@@ -745,6 +763,7 @@ def _require_nonnegative_finite(name: str, value: float) -> float:
 
 
 def _require_int(name: str, value: int, *, minimum: int) -> int:
+    """Return an integer at least ``minimum``; refuse booleans and smaller values."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{name} must be an integer")
     if value < minimum:

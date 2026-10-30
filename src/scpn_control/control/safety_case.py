@@ -22,6 +22,7 @@ from dataclasses import asdict, dataclass, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control.codac_interface import load_codac_runtime_evidence
 from scpn_control.control.digital_twin_online_update import DigitalTwinUpdateEvidence
 from scpn_control.core.differentiable_transport import TransportDifferentiabilityEvidence
@@ -96,12 +97,14 @@ class ReadinessArtifactEvidence:
 
 
 def _canonical_sha256(value: Any) -> str:
+    """Return the SHA-256 of the canonical JSON of ``value`` (a dataclass or a mapping)."""
     payload = asdict(value) if hasattr(value, "__dataclass_fields__") else value
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")
     return hashlib.sha256(blob).hexdigest()
 
 
 def _is_sha256_hex(value: str) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal SHA-256 digest."""
     if len(value) != 64:
         return False
     try:
@@ -112,6 +115,7 @@ def _is_sha256_hex(value: str) -> bool:
 
 
 def _optional_sha256(name: str, value: str | None) -> str | None:
+    """Return ``None`` unchanged, else a lower-case SHA-256 digest; refuse anything else."""
     if value is None:
         return None
     if not isinstance(value, str) or not _is_sha256_hex(value):
@@ -120,6 +124,7 @@ def _optional_sha256(name: str, value: str | None) -> str | None:
 
 
 def _safe_relative_artifact_uri(name: str, value: str) -> str:
+    """Return ``value`` when it is a safe relative POSIX path without schemes, roots or dot parts."""
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty safe relative path")
     if "\\" in value or "://" in value or "//" in value or value.startswith(("file:", "/", "~")):
@@ -131,6 +136,7 @@ def _safe_relative_artifact_uri(name: str, value: str) -> str:
 
 
 def _validate_readiness_artifact(artifact: ReadinessArtifactEvidence) -> ReadinessArtifactEvidence:
+    """Validate a readiness artifact's kind, digest and relative URI."""
     if not isinstance(artifact, ReadinessArtifactEvidence):
         raise ValueError("readiness artifact must be ReadinessArtifactEvidence")
     if artifact.kind not in _READINESS_ARTIFACT_KINDS:
@@ -149,6 +155,7 @@ def _resolve_readiness_artifact_path(
     artifact: ReadinessArtifactEvidence,
     artifact_root: str | Path,
 ) -> Path:
+    """Resolve an artifact inside ``artifact_root`` and refuse an escape, a missing file or a digest mismatch."""
     root = Path(artifact_root).resolve()
     rel = Path(artifact.artifact_uri)
     candidate = (root / rel).resolve()
@@ -170,6 +177,7 @@ def _validate_target_hardware_timing_artifact(
     *,
     max_e2e_p95_us: float,
 ) -> None:
+    """Admit a target-hardware timing report whose end-to-end p95 latency stays within the bound."""
     report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
     from validation.validate_e2e_latency_evidence import validate_e2e_latency_evidence
 
@@ -186,6 +194,7 @@ def _validate_hil_replay_artifact(
     artifact: ReadinessArtifactEvidence,
     artifact_root: str | Path,
 ) -> None:
+    """Admit a HIL replay artifact through its evidence loader."""
     report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
     from scpn_control.control.hil_harness import load_hil_replay_evidence
 
@@ -199,6 +208,7 @@ def _validate_codac_runtime_artifact(
     artifact: ReadinessArtifactEvidence,
     artifact_root: str | Path,
 ) -> None:
+    """Admit a CODAC runtime artifact that carries a facility claim."""
     report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
     try:
         load_codac_runtime_evidence(report_path, require_facility_claim=True)
@@ -210,6 +220,7 @@ def _validate_websocket_runtime_artifact(
     artifact: ReadinessArtifactEvidence,
     artifact_root: str | Path,
 ) -> None:
+    """Admit a WebSocket runtime artifact that carries a facility claim."""
     report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
     try:
         load_websocket_runtime_evidence(report_path, require_facility_claim=True)
@@ -223,6 +234,7 @@ def _validate_hdl_export_artifact(
     *,
     controller_artifact_sha256: str,
 ) -> None:
+    """Admit an HDL export artifact bound to the safety-case controller digest."""
     report_path = _resolve_readiness_artifact_path(artifact, artifact_root)
     try:
         evidence = load_hdl_export_evidence(report_path, require_facility_claim=True, artifact_root=artifact_root)
@@ -233,6 +245,7 @@ def _validate_hdl_export_artifact(
 
 
 def _controller_safety_case_evidence_from_mapping(payload: dict[str, Any]) -> ControllerSafetyCaseEvidence:
+    """Build controller safety-case evidence from a JSON mapping; refuse missing or malformed fields."""
     try:
         evidence = ControllerSafetyCaseEvidence(
             schema_version=int(payload["schema_version"]),
@@ -287,6 +300,7 @@ def _deserialised_promotion_admissible(payload: dict[str, Any]) -> bool:
 
 
 def _safety_case_readiness_from_mapping(payload: dict[str, Any]) -> SafetyCaseReadinessEvidence:
+    """Build safety-case readiness evidence from a JSON mapping; refuse missing or malformed fields."""
     try:
         readiness = SafetyCaseReadinessEvidence(
             schema_version=int(payload["schema_version"]),
@@ -506,7 +520,7 @@ def save_controller_safety_case_readiness(readiness: SafetyCaseReadinessEvidence
     }
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
 
 def load_controller_safety_case_readiness(path: str | Path) -> SafetyCaseReadinessEvidence:
@@ -577,6 +591,7 @@ def _require_same_controller_binding(
     transport_evidence: TransportDifferentiabilityEvidence,
     digital_twin_evidence: DigitalTwinUpdateEvidence,
 ) -> None:
+    """Refuse transport or digital-twin evidence bound to a different controller digest."""
     if transport_evidence.controller_formal_artifact_sha256 != controller_sha256:
         raise ValueError("transport evidence is not bound to the controller artifact digest")
     if digital_twin_evidence.controller_formal_artifact_sha256 != controller_sha256:
@@ -637,7 +652,7 @@ def save_controller_safety_case_evidence(evidence: ControllerSafetyCaseEvidence,
     }
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
 
 def load_controller_safety_case_evidence(path: str | Path) -> ControllerSafetyCaseEvidence:

@@ -1002,10 +1002,10 @@
       "condition": "return evaluate_controller_safety_case_readiness(",
       "execution_lane": "none: external data authority required",
       "external_dependency": "licensed or facility-hosted data/service",
-      "id": "covexc-71c97f3c4b2c1a1f",
+      "id": "covexc-e910678220adfc98",
       "kind": "pragma-no-cover",
       "last_review": "2026-10-06",
-      "line": 485,
+      "line": 499,
       "owner": "python/control",
       "path": "src/scpn_control/control/safety_case.py",
       "reason": "needs verified facility HIL and CODAC claims",
@@ -5874,7 +5874,7 @@
     }
   ],
   "entry_count": 391,
-  "entry_sha256": "028697fbc6ee59ca14c7a568735fa67e468a16aa6191b181c29cb3d82d6b5268",
+  "entry_sha256": "17556d9981d96c3ef6c035d47af5cfb02020cf277df3223f276f4fff11d5c9dc",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

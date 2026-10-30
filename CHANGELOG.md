@@ -34,6 +34,12 @@
 ### Fixed
 
 - These outputs now publish atomically:
+  - the static-mu claim;
+  - both safety-case manifests;
+  - Kuramoto runtime evidence;
+  - the three differentiable-transport evidence reports.
+
+- These outputs now publish atomically:
   - the uncertainty, VMEC-lite, burn-controller and current-drive claims;
   - the Z3 formal report in JSON and Markdown;
   - the JAX gyrokinetic parity record.

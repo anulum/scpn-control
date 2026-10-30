@@ -18,6 +18,7 @@ from typing import Any, Mapping
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control._static_mu_riccati import RiccatiStateFeedbackController, _validate_state_space
 from scpn_control.control._static_mu_structure import _VALID_BLOCK_TYPES
 
@@ -75,12 +76,14 @@ class StaticMuAnalysisClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _positive_reference_scalar(name: str, value: object) -> float:
+    """Return a finite positive reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and positive")
     numeric = float(value)
@@ -90,6 +93,7 @@ def _positive_reference_scalar(name: str, value: object) -> float:
 
 
 def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    """Return a finite non-negative reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not np.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and non-negative")
     numeric = float(value)
@@ -99,10 +103,12 @@ def _nonnegative_reference_scalar(name: str, value: object) -> float:
 
 
 def _is_finite_number(value: object) -> bool:
+    """Return whether ``value`` is a finite number that is not a boolean."""
     return not isinstance(value, bool) and isinstance(value, int | float) and np.isfinite(float(value))
 
 
 def _sha256_text(name: str, value: object) -> str:
+    """Return a lower-case SHA-256 hex digest; refuse anything else."""
     text = _non_empty_text(name, str(value))
     if len(text) != 64 or any(char not in "0123456789abcdefABCDEF" for char in text):
         raise ValueError(f"{name} must be a SHA-256 hex digest")
@@ -110,16 +116,19 @@ def _sha256_text(name: str, value: object) -> str:
 
 
 def _stable_json(payload: Mapping[str, Any]) -> str:
+    """Return ``payload`` as compact, key-sorted ASCII JSON."""
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
 def _claim_payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the claim payload with its digest field blanked."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_stable_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _reject_duplicate_claim_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     seen: set[str] = set()
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -131,24 +140,28 @@ def _reject_duplicate_claim_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]
 
 
 def _with_payload_digest(evidence: StaticMuAnalysisClaimEvidence) -> StaticMuAnalysisClaimEvidence:
+    """Return the evidence with its payload digest filled in."""
     payload = asdict(evidence)
     payload["payload_sha256"] = ""
     return replace(evidence, payload_sha256=_claim_payload_sha256(payload))
 
 
 def _require_bool(name: str, value: object) -> bool:
+    """Return ``value`` when it is a boolean; refuse anything else."""
     if not isinstance(value, bool):
         raise ValueError(f"{name} must be boolean")
     return value
 
 
 def _require_positive_claim_int(name: str, value: object) -> int:
+    """Return a positive integer; refuse booleans and other values."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return int(value)
 
 
 def _validate_claim_structure(evidence: StaticMuAnalysisClaimEvidence) -> list[tuple[int, str]]:
+    """Validate the uncertainty block structure against the declared block count."""
     if not isinstance(evidence.block_structure, list):
         raise ValueError("block_structure must be a list")
     if len(evidence.block_structure) != evidence.uncertainty_block_count:
@@ -172,6 +185,7 @@ def _validate_static_mu_analysis_claim_payload(
     *,
     require_validated_claim: bool,
 ) -> StaticMuAnalysisClaimEvidence:
+    """Rebuild static-mu claim evidence from a payload, refusing unknown, missing or inconsistent fields."""
     expected = {field.name for field in fields(StaticMuAnalysisClaimEvidence)}
     actual = set(payload)
     missing = sorted(expected - actual)
@@ -304,6 +318,7 @@ def _validate_static_mu_analysis_claim_payload(
 def _extract_static_mu_reference_artifact(
     reference_artifact: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, bool]:
+    """Validate an optional facility reference artifact and say whether one was supplied."""
     if reference_artifact is None:
         return None, False
     if not isinstance(reference_artifact, dict):
@@ -438,7 +453,7 @@ def save_static_mu_analysis_claim_evidence(evidence: StaticMuAnalysisClaimEviden
     admitted = _validate_static_mu_analysis_claim_payload(asdict(evidence), require_validated_claim=False)
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(admitted), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(admitted), indent=2, sort_keys=True) + "\n")
 
 
 def load_static_mu_analysis_claim_evidence(

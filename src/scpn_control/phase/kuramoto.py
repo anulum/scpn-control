@@ -31,6 +31,7 @@ from typing import Any, Mapping, Sequence
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import FloatArray
 
 logger = logging.getLogger(__name__)
@@ -100,24 +101,29 @@ def _normalise_rust_step_result(rust_out: Any) -> tuple[FloatArray, float, float
 
 
 def _utc_now() -> str:
+    """Return the current UTC time in ISO 8601 with a ``Z`` suffix, to the second."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return ``payload`` as compact, key-sorted ASCII JSON."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the payload with its digest field blanked."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a lower-case 64-character hexadecimal digest."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     seen: set[str] = set()
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -129,6 +135,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans and non-numbers."""
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be finite")
     try:
@@ -141,6 +148,7 @@ def _finite_float(name: str, value: object) -> float:
 
 
 def _nonnegative_float(name: str, value: object) -> float:
+    """Return a finite non-negative float; refuse anything else."""
     result = _finite_float(name, value)
     if result < 0.0:
         raise ValueError(f"{name} must be non-negative")
@@ -148,6 +156,7 @@ def _nonnegative_float(name: str, value: object) -> float:
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return a finite positive float; refuse anything else."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -155,23 +164,27 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _positive_int(name: str, value: object) -> int:
+    """Return a positive integer; refuse booleans and other values."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
 
 
 def _optional_nonnegative_float(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite non-negative float."""
     if value is None:
         return None
     return _nonnegative_float(name, value)
 
 
 def _array_sha256(values: FloatArray) -> str:
+    """Return the SHA-256 of an array's shape and float64 values as canonical JSON."""
     arr = np.asarray(values, dtype=np.float64)
     return hashlib.sha256(_canonical_json({"shape": arr.shape, "values": arr.tolist()}).encode("utf-8")).hexdigest()
 
 
 def _phase_max_abs_difference(a: FloatArray, b: FloatArray) -> float:
+    """Return the largest wrapped phase difference between ``a`` and ``b``."""
     return float(np.max(np.abs(wrap_phase(np.asarray(a, dtype=np.float64) - np.asarray(b, dtype=np.float64)))))
 
 
@@ -186,6 +199,7 @@ def _kuramoto_sakaguchi_step_numpy(
     Psi: float,
     wrap: bool,
 ) -> dict[str, Any]:
+    """Advance the phases one explicit Euler step of the Kuramoto-Sakaguchi model with the global driver."""
     R, psi_r = order_parameter(th)
     dtheta = om + (K * R) * np.sin(psi_r - th - alpha)
     if zeta != 0.0:
@@ -216,6 +230,7 @@ def _kuramoto_reference_step(
     psi_mode: str,
     wrap: bool,
 ) -> dict[str, Any]:
+    """Resolve the global driver phase and take one NumPy reference step."""
     Psi = GlobalPsiDriver(mode=psi_mode).resolve(theta, psi_driver)
     return _kuramoto_sakaguchi_step_numpy(
         theta,
@@ -429,6 +444,7 @@ def _validate_kuramoto_runtime_payload(
     *,
     require_deployment_claim: bool,
 ) -> KuramotoRuntimeEvidence:
+    """Rebuild Kuramoto runtime evidence from a payload, checking its schema and digest."""
     if payload.get("schema_version") != KURAMOTO_RUNTIME_EVIDENCE_SCHEMA_VERSION:
         raise ValueError("Kuramoto runtime evidence schema_version is unsupported")
     declared_digest = payload.get("payload_sha256")
@@ -700,7 +716,7 @@ def save_kuramoto_runtime_evidence(evidence: KuramotoRuntimeEvidence, output_pat
         raise ValueError("evidence must be KuramotoRuntimeEvidence")
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def load_kuramoto_runtime_evidence(
