@@ -20,7 +20,7 @@ from pathlib import Path
 
 import pytest
 
-from scpn_control._atomic import write_bytes_atomic, write_text_atomic
+from scpn_control._atomic import publish_through_temporary, write_bytes_atomic, write_text_atomic
 
 
 def _leftovers(directory: Path) -> list[str]:
@@ -74,3 +74,49 @@ def test_unwritable_directory_keeps_the_previous_file(tmp_path: Path) -> None:
         assert _leftovers(directory) == []
     finally:
         directory.chmod(0o700)
+
+
+def test_path_writer_publishes_with_the_destination_suffix(tmp_path: Path) -> None:
+    """Hand the writer a sibling path with the same suffix, then publish it."""
+    target = tmp_path / "loop.gif"
+    seen: list[Path] = []
+
+    def write(path: Path) -> None:
+        """Record the path and write a GIF header to it."""
+        seen.append(path)
+        path.write_bytes(b"GIF89a")
+
+    assert publish_through_temporary(target, write) == target
+    assert target.read_bytes() == b"GIF89a"
+    assert seen[0].parent == target.parent
+    assert seen[0].suffix == ".gif"
+    assert [p.name for p in target.parent.iterdir()] == ["loop.gif"]
+
+
+def test_failing_path_writer_keeps_the_previous_file(tmp_path: Path) -> None:
+    """A writer that fails half way leaves the previous bytes and no temporary file."""
+    target = tmp_path / "loop.gif"
+    target.write_bytes(b"previous")
+
+    def write(path: Path) -> None:
+        """Write part of a file, then fail like a broken encoder."""
+        path.write_bytes(b"partial")
+        raise RuntimeError("encoder failed")
+
+    with pytest.raises(RuntimeError, match="encoder failed"):
+        publish_through_temporary(target, write)
+    assert target.read_bytes() == b"previous"
+    assert [p.name for p in tmp_path.iterdir()] == ["loop.gif"]
+
+
+def test_path_writer_needs_an_existing_directory(tmp_path: Path) -> None:
+    """Leave directory creation to the caller: a missing directory fails the writer."""
+    target = tmp_path / "missing" / "loop.gif"
+
+    def write(path: Path) -> None:
+        """Write a GIF header the way an animation writer opens its file."""
+        path.write_bytes(b"GIF89a")
+
+    with pytest.raises(FileNotFoundError):
+        publish_through_temporary(target, write)
+    assert not (tmp_path / "missing").exists()

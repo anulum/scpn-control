@@ -33,6 +33,22 @@
 
 ### Fixed
 
+- The disruption-model checkpoint (`torch.save` into memory) and the
+  control-room GIF publish atomically. The GIF goes through the new
+  `publish_through_temporary`, which hands the writer a sibling path with
+  the same suffix and moves it into place. The destination's directory must
+  still exist, as before.
+- `tests/test_atomic_publication_guard.py` completes whole-surface P0
+  criterion V1. It finds every direct file-writing call in the package.
+  Each one that remains is listed with the reason it is not a publication:
+  - the helpers themselves;
+  - the lease lock and reservations;
+  - temporary solver configurations;
+  - savers that write into memory;
+  - the append-only controller audit log.
+
+  A new direct writer fails the test.
+
 - The neural-transport model reads its weights through `load_npz_capped`
   and publishes its claim atomically. With that, no raw `numpy.load` is left
   in the package; `tests/test_npz_capped_reads.py` enforces this.

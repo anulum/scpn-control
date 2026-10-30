@@ -16,6 +16,7 @@ owner; claim boundaries and physics proxies live in sibling leaves.
 
 from __future__ import annotations
 
+import io
 import logging
 import pickle
 from pathlib import Path
@@ -23,6 +24,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._atomic import write_bytes_atomic
 from scpn_control.control.disruption_checkpoint_integrity import (
     DisruptionCheckpointIntegrityError as DisruptionCheckpointIntegrityError,
 )
@@ -188,7 +190,9 @@ def train_predictor(
     logger.info(f"Test Shot Ground Truth: {'DISRUPTIVE' if test_lbl else 'SAFE'}")
     logger.info(f"AI Prediction Risk: {risk * 100:.1f}%")
 
-    torch.save({"state_dict": model.state_dict(), "seq_len": int(seq_len)}, model_path)
+    buffer = io.BytesIO()
+    torch.save({"state_dict": model.state_dict(), "seq_len": int(seq_len)}, buffer)
+    write_bytes_atomic(model_path, buffer.getvalue())
     logger.info(f"Saved model: {model_path}")
 
     plot_path = _repo_root() / "artifacts" / "Disruption_AI_Result.png"

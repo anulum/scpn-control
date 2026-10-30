@@ -18,10 +18,11 @@ previous bytes (or stays absent) and the temporary file is removed.
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 from uuid import uuid4
 
-__all__ = ["write_bytes_atomic", "write_text_atomic"]
+__all__ = ["publish_through_temporary", "write_bytes_atomic", "write_text_atomic"]
 
 
 def write_bytes_atomic(path: str | os.PathLike[str], data: bytes) -> Path:
@@ -88,3 +89,39 @@ def write_text_atomic(path: str | os.PathLike[str], text: str, *, encoding: str 
         then unchanged and no temporary file remains.
     """
     return write_bytes_atomic(path, text.encode(encoding))
+
+
+def publish_through_temporary(path: str | os.PathLike[str], write: Callable[[Path], None]) -> Path:
+    """Let ``write`` create a file beside ``path``, then move it over ``path``.
+
+    For writers that need a file name rather than bytes, such as Matplotlib
+    animation writers. The temporary name keeps the destination's suffix,
+    so writers that infer a format from it still see the right one.
+
+    Parameters
+    ----------
+    path : str or os.PathLike[str]
+        Destination file. Its directory must already exist, as for the
+        writer's own ``open``.
+    write : callable
+        Writes the complete content to the path it is given.
+
+    Returns
+    -------
+    pathlib.Path
+        The destination path.
+
+    Raises
+    ------
+    Exception
+        Whatever ``write`` raises, or ``OSError`` from the move. The
+        destination is then unchanged and no temporary file remains.
+    """
+    destination = Path(path)
+    temporary = destination.with_name(f".{destination.stem}.{uuid4().hex}.tmp{destination.suffix}")
+    try:
+        write(temporary)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination

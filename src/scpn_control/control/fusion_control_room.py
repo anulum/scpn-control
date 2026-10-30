@@ -23,6 +23,7 @@ from typing import Any, Callable, cast
 
 import numpy as np
 
+from scpn_control._atomic import publish_through_temporary
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
@@ -80,6 +81,7 @@ class TokamakPhysicsEngine:
         seed: int = 42,
         kernel: Any | None = None,
     ) -> None:
+        """Seed the plasma state on a ``size``-point grid, optionally driven by an equilibrium kernel."""
         size = int(size)
         if size < 16:
             raise ValueError("size must be >= 16.")
@@ -105,6 +107,7 @@ class TokamakPhysicsEngine:
         self.v_drift = 0.0
 
     def _kernel_psi(self, *, strict: bool = False) -> FloatArray | None:
+        """Return the kernel's 2-D flux map, ``None`` without one, refusing a malformed map when strict."""
         if self.kernel is None or not hasattr(self.kernel, "Psi"):
             return None
         psi = np.asarray(self.kernel.Psi, dtype=np.float64)
@@ -160,6 +163,7 @@ class DiagnosticSystem:
     """Noisy vertical-position probe."""
 
     def __init__(self, rng: np.random.Generator) -> None:
+        """Bind the random generator used for measurement noise."""
         self._rng = rng
 
     def measure_position(self, true_z: float) -> float:
@@ -182,6 +186,7 @@ class NeuralController:
     """PID-style control policy for vertical stabilization."""
 
     def __init__(self) -> None:
+        """Start the controller with zero integral and previous error."""
         self.integral_error = 0.0
         self.prev_error = 0.0
 
@@ -226,6 +231,7 @@ def _render_outputs(
     output_gif: str,
     output_report: str,
 ) -> tuple[bool, str | None, bool, str | None]:
+    """Render the animation and report when requested; return what succeeded and why not."""
     if not HAS_MPL or "plt" not in globals():
         missing_backend = "output rendering requires matplotlib; install optional plotting dependencies."
         return (
@@ -301,6 +307,7 @@ def _render_outputs(
         )
 
     def update(frame_idx: int) -> tuple[Any, ...]:
+        """Draw one animation frame and return the updated artists."""
         rec = frames[frame_idx]
         im.set_data(np.asarray(rec["density"]))
         line_z.set_data(range(frame_idx + 1), history_z[: frame_idx + 1])
@@ -335,7 +342,7 @@ def _render_outputs(
                 interval=100,
                 blit=True,
             )
-            ani.save(output_gif, writer=PillowWriter(fps=FPS))
+            publish_through_temporary(output_gif, lambda path: ani.save(path, writer=PillowWriter(fps=FPS)))
             animation_saved = True
         except (OSError, ValueError, RuntimeError) as exc:
             animation_error = str(exc)
