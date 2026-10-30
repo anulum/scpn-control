@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- The source-scope tests run on Windows and macOS. On Windows, the Git
+  fixture wrote its alternates path with a CR line ending, so Git found no
+  objects. The non-UTF-8 file-name case is now its own test. It is skipped,
+  with the reason, on file systems such as APFS that refuse such names, so
+  the case cannot arise there.
+
 - Claim, evidence and artifact writers publish atomically through
   `scpn_control._atomic`, so a failed write leaves the previous file
   intact. This covers the volt-second, realtime-EFIT, density and

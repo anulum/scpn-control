@@ -36,7 +36,9 @@ def git_repo(tmp_path: Path) -> tuple[Path, str]:
     if not objects.is_absolute():
         objects = ROOT / objects
     _git(tmp_path, "init", "--quiet", "--initial-branch=main")
-    (tmp_path / ".git/objects/info/alternates").write_text(str(objects.resolve()) + "\n", encoding="utf-8")
+    # Bytes, not text: Windows text mode would end the path with CR and Git
+    # would then find no alternate object store.
+    (tmp_path / ".git/objects/info/alternates").write_bytes(objects.resolve().as_posix().encode("utf-8") + b"\n")
     _git(tmp_path, "update-ref", "refs/heads/main", head)
     _git(tmp_path, "read-tree", "HEAD")
     policy = tmp_path / "tools/source_header_policy.toml"
@@ -208,12 +210,19 @@ def test_symlink_and_noncanonical_paths_refuse(git_repo: tuple[Path, str]) -> No
     with pytest.raises(RuntimeError, match="symlinked"):
         select_changed_files(repo, base)
     link.unlink()
-    bad = _write(repo, "back\\slash.py")
+    _write(repo, "back\\slash.py")
     with pytest.raises(RuntimeError, match="canonical relative"):
         select_changed_files(repo, base)
-    bad.unlink()
+
+
+def test_non_utf8_source_name_refuses(git_repo: tuple[Path, str]) -> None:
+    """A source whose native name is not UTF-8 cannot be measured."""
+    repo, base = git_repo
     native_name = os.fsencode(repo) + b"/invalid_\xff.py"
-    descriptor = os.open(native_name, os.O_WRONLY | os.O_CREAT, 0o600)
+    try:
+        descriptor = os.open(native_name, os.O_WRONLY | os.O_CREAT, 0o600)
+    except (OSError, UnicodeError) as error:
+        pytest.skip(f"this file system refuses non-UTF-8 names, so the case cannot arise: {error}")
     os.close(descriptor)
     with pytest.raises(RuntimeError, match="UTF-8"):
         select_changed_files(repo, base)
