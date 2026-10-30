@@ -84,6 +84,10 @@ UInt64Array = NDArray[np.uint64]
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 
+_GIT_SHA_TIMEOUT_S = 10.0
+"""Upper bound on the metadata ``git rev-parse``; a hung git falls back to ``0000000``."""
+
+
 def _resolve_git_sha() -> str:
     """Resolve a short git SHA for artifact metadata."""
     for key in ("SCPN_GIT_SHA", "GITHUB_SHA", "CI_COMMIT_SHA"):
@@ -99,6 +103,7 @@ def _resolve_git_sha() -> str:
             check=True,
             capture_output=True,
             text=True,
+            timeout=_GIT_SHA_TIMEOUT_S,
         )
         sha = result.stdout.strip()
         if sha:
@@ -441,6 +446,15 @@ class FusionCompiler:
         lif_resistance: float = 1.0,
         lif_refractory_period: int = 0,
     ) -> None:
+        """Validate and store the bitstream and LIF neuron parameters.
+
+        Raises
+        ------
+        ValueError
+            If ``bitstream_length`` is below 64, a LIF time constant, step or
+            resistance is not positive, the noise level is negative, or the
+            refractory period is negative.
+        """
         if bitstream_length < 64:
             raise ValueError("bitstream_length must be >= 64")
         if lif_tau_mem <= 0.0:

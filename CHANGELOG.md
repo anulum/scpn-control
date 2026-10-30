@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- Every `subprocess` call in the package now has a time bound. The compiler's
+  metadata `git rev-parse` had none; a hung git now falls back to `0000000`
+  after 10 seconds. `tests/test_subprocess_timeouts.py` refuses any
+  unbounded `run`/`call`/`check_call`/`check_output`, and any `Popen`, in
+  `src/scpn_control`, whichever way it is imported.
+
 - The pre-commit job of static governance installs the typing environment
   of the strict mypy lane. Its changed-Python hook could not import
   `scpn_studio_platform` and refused every changed studio file.
