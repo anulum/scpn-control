@@ -36,7 +36,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import ArrayLike
 
-from scpn_control._npz import save_npz_arrays
+from scpn_control._npz import load_npz_capped, save_npz_arrays
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
@@ -158,12 +158,14 @@ NEURAL_EQ_FEATURE_NAMES = (
 
 
 def _require_positive_int(name: str, value: int) -> int:
+    """Return ``value`` as an int; refuse booleans, fractions and values below one."""
     if isinstance(value, bool) or int(value) != value or int(value) < 1:
         raise ValueError(f"{name} must be an integer >= 1")
     return int(value)
 
 
 def _require_positive_float(name: str, value: float) -> float:
+    """Return ``value`` as a float; refuse non-finite and non-positive values."""
     result = float(value)
     if not np.isfinite(result) or result <= 0.0:
         raise ValueError(f"{name} must be positive and finite")
@@ -171,12 +173,14 @@ def _require_positive_float(name: str, value: float) -> float:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _sha256_file(path: str | Path) -> str:
+    """Return the SHA-256 hex digest of a file, read in 1 MiB chunks."""
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -185,6 +189,7 @@ def _sha256_file(path: str | Path) -> str:
 
 
 def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite non-negative float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -196,6 +201,7 @@ def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
 
 
 def _finite_positive_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite positive float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -207,6 +213,7 @@ def _finite_positive_or_none(name: str, value: object) -> float | None:
 
 
 def _validate_feature_matrix(features: AnyFloatArray) -> FloatArray:
+    """Return finite features of shape ``(n, len(NEURAL_EQ_FEATURE_NAMES))`` as float64."""
     x = np.asarray(features, dtype=np.float64)
     if x.ndim != 2 or x.shape[1] != len(NEURAL_EQ_FEATURE_NAMES) or not np.all(np.isfinite(x)):
         raise ValueError(f"features must be finite with shape (n, {len(NEURAL_EQ_FEATURE_NAMES)})")
@@ -214,6 +221,7 @@ def _validate_feature_matrix(features: AnyFloatArray) -> FloatArray:
 
 
 def _validate_psi_matrix(psi: AnyFloatArray, grid_shape: tuple[int, int]) -> FloatArray:
+    """Return finite flattened psi targets of shape ``(n, nh * nw)`` as float64."""
     y = np.asarray(psi, dtype=np.float64)
     n_grid = int(grid_shape[0] * grid_shape[1])
     if y.ndim != 2 or y.shape[1] != n_grid or not np.all(np.isfinite(y)):
@@ -222,6 +230,7 @@ def _validate_psi_matrix(psi: AnyFloatArray, grid_shape: tuple[int, int]) -> Flo
 
 
 def _synthetic_equilibrium_from_features(features: AnyFloatArray, grid_shape: tuple[int, int]) -> FloatArray:
+    """Build one synthetic analytic psi map on the grid from a feature vector."""
     nh, nw = grid_shape
     r = np.linspace(1.0, 2.5, nw)
     z = np.linspace(-1.0, 1.0, nh)
@@ -304,6 +313,7 @@ class SimpleMLP:
     """Feedforward MLP with ReLU hidden layers and linear output."""
 
     def __init__(self, layer_sizes: list[int], seed: int = 42) -> None:
+        """He-initialise the weights and zero the biases for the given layer sizes."""
         self.rng = np.random.default_rng(seed)
         self.weights: list[AnyFloatArray] = []
         self.biases: list[AnyFloatArray] = []
@@ -346,6 +356,7 @@ class MinimalPCA:
     """Minimal PCA via SVD, no sklearn required."""
 
     def __init__(self, n_components: int = 20) -> None:
+        """Set the component count; the basis is empty until ``fit``."""
         self.n_components = n_components
         self.mean_: AnyFloatArray | None = None
         self.components_: AnyFloatArray | None = None
@@ -423,6 +434,7 @@ class NeuralEquilibriumAccelerator:
     """
 
     def __init__(self, config: NeuralEqConfig | None = None) -> None:
+        """Create an untrained accelerator with its PCA basis and no MLP yet."""
         self.cfg = config or NeuralEqConfig()
         self.pca = MinimalPCA(n_components=self.cfg.n_components)
         self.mlp: SimpleMLP | None = None
@@ -947,7 +959,7 @@ class NeuralEquilibriumAccelerator:
     def load_weights(self, path: str | Path = DEFAULT_WEIGHTS_PATH) -> None:
         """Load model from .npz."""
         path = Path(path)
-        with np.load(path, allow_pickle=False) as data:
+        with load_npz_capped(path) as data:
             self.cfg.n_components = int(data["n_components"][0])
             self.cfg.grid_shape = (int(data["grid_nh"][0]), int(data["grid_nw"][0]))
             self.cfg.n_input_features = int(data["n_input_features"][0])

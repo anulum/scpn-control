@@ -36,6 +36,7 @@ from typing import Any, cast
 
 import numpy as np
 
+from scpn_control._npz import load_npz_capped
 from scpn_control._typing import AnyFloatArray
 
 try:
@@ -84,7 +85,7 @@ def load_weights_as_jax(
     if not _HAS_JAX:
         raise RuntimeError("JAX not available")
 
-    with np.load(path, allow_pickle=False) as data:
+    with load_npz_capped(path) as data:
         n_layers = int(data["n_layers"][0])
         ws = tuple(jnp.asarray(data[f"w{i}"], dtype=jnp.float64) for i in range(n_layers))
         bs = tuple(jnp.asarray(data[f"b{i}"], dtype=jnp.float64) for i in range(n_layers))
@@ -280,6 +281,7 @@ def jax_neural_eq_predict_batched(
 
     @jax.vmap
     def predict_single(feat: jnp.ndarray) -> jnp.ndarray:
+        """Map one normalised feature vector to its flattened psi through the MLP and the PCA inverse."""
         x = (feat - input_mean) / input_std
         coeffs = _mlp_forward_jax(x, ws, bs)
         result: jnp.ndarray = _pca_inverse_jax(coeffs, pca_mean, pca_components)

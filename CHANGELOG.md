@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- The EFIT neural-equilibrium (NumPy and JAX) and QLKNN turbulence weight
+  loaders read `.npz` files through `load_npz_capped`. It refuses archives
+  whose declared decompressed size exceeds 512 MiB before NumPy materialises
+  them. A file that is not a zip archive is refused with `ValueError`, as
+  `numpy.load` refuses it.
+
 - Every `subprocess` call in the package now has a time bound. The compiler's
   metadata `git rev-parse` had none; a hung git now falls back to `0000000`
   after 10 seconds. `tests/test_subprocess_timeouts.py` refuses any

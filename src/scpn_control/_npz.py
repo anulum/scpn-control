@@ -102,9 +102,16 @@ def load_npz_capped(path: NpzPath, *, max_decompressed_bytes: int = _MAX_NPZ_DEC
     ------
     NpzSizeError
         If the total declared decompressed size exceeds ``max_decompressed_bytes``.
+    ValueError
+        If the file is not a zip archive, as ``numpy.load`` refuses such a file
+        when pickles are not allowed.
     """
     total = 0
-    with zipfile.ZipFile(Path(path)) as archive:
+    try:
+        archive = zipfile.ZipFile(Path(path))
+    except zipfile.BadZipFile as error:
+        raise ValueError(f"{path} is not an NPZ archive") from error
+    with archive:
         for info in archive.infolist():
             total += int(info.file_size)
             if total > max_decompressed_bytes:

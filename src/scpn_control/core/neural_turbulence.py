@@ -17,6 +17,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._npz import load_npz_capped
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 _NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION = 1
@@ -71,12 +72,14 @@ class NeuralTurbulenceClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _sha256_file(path: str | Path) -> str:
+    """Return the SHA-256 hex digest of a file, read in 1 MiB chunks."""
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -85,6 +88,7 @@ def _sha256_file(path: str | Path) -> str:
 
 
 def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite non-negative float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -96,6 +100,7 @@ def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
 
 
 def _finite_positive_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite positive float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -107,6 +112,7 @@ def _finite_positive_or_none(name: str, value: object) -> float | None:
 
 
 def _unit_interval_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite float in ``[0, 1]``; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -118,6 +124,7 @@ def _unit_interval_or_none(name: str, value: object) -> float | None:
 
 
 def _finite_nonnegative(name: str, value: object) -> float:
+    """Return a required finite non-negative float; refuse an absent value."""
     result = _finite_nonnegative_or_none(name, value)
     if result is None:
         raise ValueError(f"{name} must be present")
@@ -125,6 +132,7 @@ def _finite_nonnegative(name: str, value: object) -> float:
 
 
 def _unit_interval(name: str, value: object) -> float:
+    """Return a required finite float in ``[0, 1]``; refuse an absent value."""
     result = _unit_interval_or_none(name, value)
     if result is None:
         raise ValueError(f"{name} must be present")
@@ -132,6 +140,7 @@ def _unit_interval(name: str, value: object) -> float:
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False) -> float:
+    """Return a finite float, positive when ``positive`` is set; refuse anything else."""
     scalar = float(value)
     if not np.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -148,6 +157,7 @@ def _profile_array(
     positive: bool = False,
     allow_last_zero: bool = False,
 ) -> FloatArray:
+    """Return a finite float64 profile, checking shape, positivity and an optional zero last point."""
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size < 2:
         raise ValueError(f"{name} must be a one-dimensional profile with at least two points")
@@ -177,6 +187,7 @@ class QLKNNSurrogate:
     """
 
     def __init__(self, hidden_layers: list[int] | None = None, activation: str = "elu", pretrained: bool = True):
+        """Create the network with the given hidden layers and activation, pretrained by default."""
         if hidden_layers is None:
             hidden_layers = [128, 128, 64]
 
@@ -201,6 +212,7 @@ class QLKNNSurrogate:
             self._pretrain(rng)
 
     def _activate(self, x: AnyFloatArray) -> AnyFloatArray:
+        """Apply the configured activation (ELU, ReLU, tanh or identity) elementwise."""
         if self.activation == "elu":
             out = np.asarray(x, dtype=float).copy()
             negative = out <= 0.0
@@ -213,6 +225,7 @@ class QLKNNSurrogate:
         return x
 
     def _activate_deriv(self, x: AnyFloatArray) -> FloatArray:
+        """Return the derivative of the configured activation at ``x``."""
         if self.activation == "elu":
             return np.where(x > 0, 1.0, np.exp(x))
         if self.activation == "relu":
@@ -288,7 +301,7 @@ class QLKNNSurrogate:
             If the archive stores an object array, which numpy refuses to
             materialise without pickling.
         """
-        data = np.load(path, allow_pickle=False)
+        data = load_npz_capped(path)
         self.weights = [data[f"w{i}"] for i in range(len(self.weights))]
         self.biases = [data[f"b{i}"] for i in range(len(self.biases))]
 
@@ -469,6 +482,7 @@ class NeuralTransportTrainer:
     """Backpropagation trainer for the QLKNN gyro-Bohm flux surrogate."""
 
     def _activate_deriv(self, x: AnyFloatArray, activation: str) -> FloatArray:
+        """Return the derivative of ``activation`` at ``x``; identity for unknown names."""
         if activation == "elu":
             return np.where(x > 0, 1.0, np.exp(x))
         if activation == "relu":
@@ -584,6 +598,7 @@ class QLKNNTransportModel:
     """
 
     def __init__(self, surrogate: QLKNNSurrogate):
+        """Wrap a surrogate with a fresh input normaliser."""
         self.surrogate = surrogate
         self.normalizer = TransportInputNormalizer()
 

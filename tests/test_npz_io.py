@@ -113,3 +113,13 @@ def test_load_npz_capped_rejects_archive_over_the_decompressed_cap(tmp_path: Pat
     save_npz_arrays(path, {"payload": np.zeros(1024, dtype=np.float64)})  # 8192 bytes declared
     with pytest.raises(NpzSizeError, match="exceeds cap"):
         load_npz_capped(path, max_decompressed_bytes=1024)
+
+
+def test_load_npz_capped_refuses_a_non_zip_file_like_numpy_load(tmp_path: Path) -> None:
+    """Refuse bytes that are not a zip archive with ValueError, as ``numpy.load`` does."""
+    path = tmp_path / "corrupt.npz"
+    path.write_bytes(b"not a valid npz archive")
+    with pytest.raises(ValueError, match="pickled data"):
+        np.load(path, allow_pickle=False)
+    with pytest.raises(ValueError, match="is not an NPZ archive"):
+        load_npz_capped(path)
