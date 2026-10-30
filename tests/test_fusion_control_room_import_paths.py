@@ -19,10 +19,17 @@ from typing import Any
 import pytest
 
 MODULE_NAME = "scpn_control.control.fusion_control_room"
+PACKAGE_NAME, _, ATTRIBUTE = MODULE_NAME.rpartition(".")
 
 
 def _reload_control_room(monkeypatch: pytest.MonkeyPatch, *, blocked_imports: set[str]) -> ModuleType:
-    """Reload the control-room module with selected absolute imports blocked."""
+    """Reload the control-room module with selected absolute imports blocked.
+
+    The original module goes back into ``sys.modules`` and onto its package
+    afterwards. ``importlib`` binds the fresh copy onto the package, and
+    ``import a.b.c as m`` reads that attribute, so leaving it would hand later
+    tests a module their patches never reach.
+    """
     original_import = builtins.__import__
 
     def guarded_import(
@@ -32,18 +39,33 @@ def _reload_control_room(monkeypatch: pytest.MonkeyPatch, *, blocked_imports: se
         fromlist: tuple[str, ...] = (),
         level: int = 0,
     ) -> Any:
+        """Refuse the blocked absolute imports; pass every other import through."""
         if level == 0 and name in blocked_imports:
             raise ImportError(f"blocked test import: {name}")
         return original_import(name, globals_, locals_, fromlist, level)
 
-    original_module = sys.modules.pop(MODULE_NAME, None)
+    original_module = importlib.import_module(MODULE_NAME)
+    package = importlib.import_module(PACKAGE_NAME)
+    del sys.modules[MODULE_NAME]
     monkeypatch.setattr(builtins, "__import__", guarded_import)
     try:
         return importlib.import_module(MODULE_NAME)
     finally:
-        sys.modules.pop(MODULE_NAME, None)
-        if original_module is not None:
-            sys.modules[MODULE_NAME] = original_module
+        sys.modules[MODULE_NAME] = original_module
+        setattr(package, ATTRIBUTE, original_module)
+
+
+def test_reload_restores_the_original_module_everywhere(monkeypatch: pytest.MonkeyPatch) -> None:
+    """After a guarded reload, every import spelling reaches the original module."""
+    original = importlib.import_module(MODULE_NAME)
+    fresh = _reload_control_room(monkeypatch, blocked_imports=set())
+
+    import scpn_control.control.fusion_control_room as by_attribute
+
+    assert fresh is not original
+    assert sys.modules[MODULE_NAME] is original
+    assert getattr(importlib.import_module(PACKAGE_NAME), ATTRIBUTE) is original
+    assert by_attribute is original
 
 
 def test_fusion_kernel_loader_falls_back_to_python_kernel(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -85,9 +107,11 @@ def test_render_outputs_reports_backend_setup_failure(monkeypatch: pytest.Monkey
         """Pyplot stand-in that fails at figure construction."""
 
         def figure(self, **_kwargs: object) -> object:
+            """Fail at figure construction, like a broken backend."""
             raise TypeError("backend setup failed")
 
         def close(self, _fig: object) -> None:
+            """Accept the cleanup call; there is nothing to close."""
             return None
 
     monkeypatch.setattr(fcr, "HAS_MPL", True)
@@ -126,19 +150,23 @@ def test_render_outputs_closes_partial_figure_after_backend_setup_failure(monkey
         """Figure stand-in that fails after construction."""
 
         def add_gridspec(self, *_args: object) -> object:
+            """Fail after the figure exists, like a broken grid setup."""
             raise ValueError("grid setup failed")
 
     class _ClosingPyplot:
         """Pyplot stand-in that records cleanup for partially-created figures."""
 
         def __init__(self) -> None:
+            """Hold the figure this stand-in hands out and record no close yet."""
             self.figure_instance = _BrokenFigure()
             self.closed: object | None = None
 
         def figure(self, **_kwargs: object) -> _BrokenFigure:
+            """Return the figure that will fail during setup."""
             return self.figure_instance
 
         def close(self, fig: object) -> None:
+            """Record which figure was closed."""
             self.closed = fig
 
     fake_pyplot = _ClosingPyplot()
@@ -171,9 +199,11 @@ def test_render_outputs_reports_partial_backend_setup_failure(monkeypatch: pytes
         """Pyplot stand-in that fails at figure construction."""
 
         def figure(self, **_kwargs: object) -> object:
+            """Fail at figure construction with a grid error."""
             raise RuntimeError("plot grid failed")
 
         def close(self, _fig: object) -> None:
+            """Accept the cleanup call; there is nothing to close."""
             return None
 
     monkeypatch.setattr(fcr, "HAS_MPL", True)
