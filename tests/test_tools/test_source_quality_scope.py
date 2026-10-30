@@ -75,13 +75,21 @@ def test_git_enrolls_staged_unstaged_new_roots_and_unusual_names(git_repo: tuple
     staged = _write(repo, "new-root/staged.py")
     _git(repo, "add", "--", str(staged.relative_to(repo)))
     staged.write_bytes(b"value = 2\n")
-    _write(repo, "new-root/space and\nž.py")
+    # A newline in a name exercises the NUL framing where the file system
+    # allows it; NTFS refuses newlines, so there the space and non-ASCII
+    # letter remain the unusual parts of the name.
+    unusual = "new-root/space and\nž.py"
+    try:
+        _write(repo, unusual)
+    except OSError:
+        unusual = "new-root/space and ž.py"
+        _write(repo, unusual)
     _write(repo, "new-root/UPPER.PY")
     before = _git(repo, "ls-files", "--stage", "-z")
     selected = select_changed_files(repo, base)
     assert [item.path for item in selected] == [
         "new-root/UPPER.PY",
-        "new-root/space and\nž.py",
+        unusual,
         "new-root/staged.py",
     ]
     assert all(item.profile == "python" for item in selected)
@@ -89,7 +97,7 @@ def test_git_enrolls_staged_unstaged_new_roots_and_unusual_names(git_repo: tuple
     assert _git(repo, "ls-files", "--stage", "-z") == before
     result = _cli(repo, base)
     assert result.returncode == 0, result.stderr
-    assert json.loads(result.stdout)["paths"][1]["path"] == "new-root/space and\nž.py"
+    assert json.loads(result.stdout)["paths"][1]["path"] == unusual
 
 
 @pytest.mark.parametrize(
@@ -209,7 +217,13 @@ def test_symlink_and_noncanonical_paths_refuse(git_repo: tuple[Path, str]) -> No
     link.symlink_to(ROOT / "tools/preflight.py")
     with pytest.raises(RuntimeError, match="symlinked"):
         select_changed_files(repo, base)
-    link.unlink()
+
+
+def test_backslash_in_a_source_name_refuses(git_repo: tuple[Path, str]) -> None:
+    """A backslash inside one name is not a canonical relative path."""
+    if "\\" in (os.sep, os.altsep):
+        pytest.skip("backslash separates path parts here, so the name is a nested canonical path")
+    repo, base = git_repo
     _write(repo, "back\\slash.py")
     with pytest.raises(RuntimeError, match="canonical relative"):
         select_changed_files(repo, base)
@@ -228,17 +242,27 @@ def test_non_utf8_source_name_refuses(git_repo: tuple[Path, str]) -> None:
         select_changed_files(repo, base)
 
 
-def test_missing_policy_unreadable_source_and_invalid_policy_refuse(git_repo: tuple[Path, str]) -> None:
-    """Unavailable source bytes and declarations cannot become empty success."""
+def test_unreadable_source_refuses(git_repo: tuple[Path, str]) -> None:
+    """Source bytes that cannot be read cannot become an empty success."""
     repo, base = git_repo
     source = _write(repo, "unreadable.py")
     source.chmod(0)
     try:
+        try:
+            source.read_bytes()
+        except OSError:
+            pass
+        else:
+            pytest.skip("permission bits do not deny reads here (Windows or a privileged user)")
         with pytest.raises(RuntimeError, match="Cannot read"):
             select_changed_files(repo, base)
     finally:
         source.chmod(0o600)
-    source.unlink()
+
+
+def test_missing_and_invalid_policy_refuse(git_repo: tuple[Path, str]) -> None:
+    """Missing or invalid header-policy declarations cannot become empty success."""
+    repo, base = git_repo
     policy = repo / "tools/source_header_policy.toml"
     policy.unlink()
     with pytest.raises(RuntimeError, match="Cannot read"):
