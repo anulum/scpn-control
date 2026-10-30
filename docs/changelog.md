@@ -4,6 +4,10 @@
 
 ### Security — dependency alignment
 
+- The test lock pins `colorama` 0.4.6, which pytest needs on Windows. The
+  lock is resolved for Linux, so pytest's Windows-only dependency was
+  missing; hosted Windows images preinstall it, but a clean Windows host
+  (found on MSI) failed the hash-checked install.
 - `requirements-dev.txt` pins Black 26.10.1, which fixes GHSA-cg8m-r9f2-5wm2
   (Dependabot alert 311; the Black GitHub Action installed an unvalidated
   `required-version`). The project does not use the Black action; the pin is
