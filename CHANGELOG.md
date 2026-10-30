@@ -33,6 +33,9 @@
 
 ### Fixed
 
+- The physics-debug quorum and single-provider reports now publish
+  atomically.
+
 - FPGA project export, the formal safety certificate and bundle (JSON and
   Markdown), and the geometry-neutral replay report and evidence now
   publish atomically. That covers every HDL, constraint, Makefile, ROM and

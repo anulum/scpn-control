@@ -28,6 +28,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Callable, Mapping, cast
 
+from scpn_control._atomic import write_text_atomic
+
 PHYSICS_DEBUG_REPORT_SCHEMA_VERSION = "scpn-control.physics-debug-report.v1"
 PHYSICS_DEBUG_QUORUM_REPORT_SCHEMA_VERSION = "scpn-control.physics-debug-quorum-report.v1"
 PHYSICS_DEBUG_SCOPE = "advisory local-first physics gap analysis and campaign suggestion"
@@ -94,6 +96,7 @@ class ProviderPolicy:
     max_response_chars: int = 50_000
 
     def __post_init__(self) -> None:
+        """Validate endpoint prefixes and the prompt and response size limits."""
         if not self.allowed_endpoint_prefixes:
             raise ValueError("provider policy requires at least one endpoint prefix")
         if any(not isinstance(prefix, str) or not prefix for prefix in self.allowed_endpoint_prefixes):
@@ -115,6 +118,7 @@ class PhysicsDebugGuardrailPolicy:
     minimum_risk_controls: int = 1
 
     def __post_init__(self) -> None:
+        """Validate the guardrail requirement flag, blocking actions and allowed decisions."""
         if not isinstance(self.required, bool):
             raise ValueError("physics debug guardrail policy required must be a bool")
         if not self.block_actions:
@@ -153,6 +157,7 @@ class PhysicsDebugSafetyPolicy:
     forbidden_action_phrases: tuple[str, ...] = DEFAULT_FORBIDDEN_ACTION_PHRASES
 
     def __post_init__(self) -> None:
+        """Validate the human-review flag, the advisory confidence cap and forbidden phrases."""
         if not isinstance(self.human_review_required, bool):
             raise ValueError("physics debug safety policy human_review_required must be a bool")
         if not isinstance(self.max_advisory_confidence, int | float) or not math.isfinite(
@@ -186,6 +191,7 @@ class PhysicsDebugEvidence:
     sha256: str | None = None
 
     def __post_init__(self) -> None:
+        """Validate the evidence identity, type, source, summary and optional digest."""
         _require_non_empty("evidence_id", self.evidence_id)
         _require_non_empty("evidence_type", self.evidence_type)
         _require_non_empty("source", self.source)
@@ -204,6 +210,7 @@ class PhysicsDebugGap:
     evidence_ids: tuple[str, ...]
 
     def __post_init__(self) -> None:
+        """Validate the gap identity, severity, description and linked evidence."""
         _require_non_empty("gap_id", self.gap_id)
         if self.severity not in {"low", "medium", "high", "critical"}:
             raise ValueError("physics debug gap severity is unsupported")
@@ -227,6 +234,7 @@ class HTTPChatProvider:
     transport: ProviderTransport | None = None
 
     def __post_init__(self) -> None:
+        """Validate the provider identity, endpoint, model, protocol and timeout."""
         _require_non_empty("provider_name", self.provider_name)
         _require_non_empty("endpoint", self.endpoint)
         _require_non_empty("model", self.model)
@@ -268,6 +276,7 @@ class HTTPChatProvider:
         return _coerce_provider_response(self._post_json(request_payload, policy), policy)
 
     def _post_json(self, payload: dict[str, Any], policy: ProviderPolicy) -> bytes:
+        """POST ``payload`` as JSON within the timeout and return the size-capped response body."""
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         headers = {"Content-Type": "application/json", **dict(self.headers)}
         request = urllib.request.Request(self.endpoint, data=encoded, headers=headers, method="POST")
@@ -295,6 +304,7 @@ class PhysicsDebugGuardrailProvider:
     transport: ProviderTransport | None = None
 
     def __post_init__(self) -> None:
+        """Validate the guardrail provider identity, endpoint, model, profile and protocol."""
         _require_non_empty("guardrail provider_name", self.provider_name)
         _require_non_empty("guardrail endpoint", self.endpoint)
         _require_non_empty("guardrail model", self.model)
@@ -367,6 +377,7 @@ class PhysicsDebugGuardrailProvider:
         )
 
     def _post_json(self, payload: dict[str, Any], policy: ProviderPolicy) -> bytes:
+        """POST ``payload`` as JSON within the timeout and return the size-capped response body."""
         encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
         headers = {"Content-Type": "application/json", **dict(self.headers)}
         request = urllib.request.Request(self.endpoint, data=encoded, headers=headers, method="POST")
@@ -605,7 +616,7 @@ def write_physics_debug_report(payload: dict[str, Any], json_path: str | Path) -
     validated = validate_physics_debug_report(payload)
     path = Path(json_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(validated, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(validated, indent=2, sort_keys=True) + "\n")
     return validated
 
 
@@ -726,11 +737,12 @@ def write_physics_debug_quorum_report(payload: dict[str, Any], json_path: str | 
     validated = validate_physics_debug_quorum_report(payload)
     path = Path(json_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(validated, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(validated, indent=2, sort_keys=True) + "\n")
     return validated
 
 
 def _build_physics_debug_prompt(evidence: list[dict[str, Any]], gaps: list[dict[str, Any]]) -> str:
+    """Return the JSON prompt that asks for hypotheses about the evidence gaps."""
     prompt_payload = {
         "task": "physics_debug_gap_analysis",
         "claim_boundary": PHYSICS_DEBUG_CLAIM_BOUNDARY,
@@ -763,6 +775,7 @@ def _build_physics_debug_prompt(evidence: list[dict[str, Any]], gaps: list[dict[
 
 
 def _provider_request_payload(protocol: str, model: str, prompt: str) -> dict[str, Any]:
+    """Return the provider request body for ``protocol`` with the strict-JSON system prompt."""
     system_prompt = (
         "Return strict JSON only. Produce falsifiable physics hypotheses and advisory "
         "experimental campaign suggestions. Do not promote controller parameters or facility claims."
@@ -797,6 +810,7 @@ def _provider_request_payload(protocol: str, model: str, prompt: str) -> dict[st
 
 
 def _build_consensus_hypotheses(provider_reports: list[dict[str, Any]], min_providers: int) -> list[dict[str, Any]]:
+    """Group provider hypotheses by gap and evidence and keep those backed by at least ``min_providers``."""
     grouped: dict[tuple[str, tuple[str, ...]], list[dict[str, Any]]] = {}
     for report in provider_reports:
         provider_name = report["provider"]["provider_name"]
@@ -822,6 +836,7 @@ def _build_consensus_hypotheses(provider_reports: list[dict[str, Any]], min_prov
 
 
 def _validate_consensus_hypothesis(item: object, min_providers: int) -> None:
+    """Validate one consensus hypothesis and its provider support."""
     if not isinstance(item, dict):
         raise ValueError("physics debug quorum consensus hypothesis must be an object")
     _require_non_empty("consensus gap_id", item.get("gap_id"))
@@ -847,6 +862,7 @@ def _validate_consensus_hypothesis(item: object, min_providers: int) -> None:
 def _sanitized_evidence_payload(
     evidence: list[PhysicsDebugEvidence],
 ) -> tuple[list[dict[str, Any]], list[str], list[str]]:
+    """Return evidence for the prompt with secrets redacted and prompt injections neutralised, plus what was changed."""
     redactions: list[str] = []
     prompt_guard_findings: list[str] = []
     payload: list[dict[str, Any]] = []
@@ -876,6 +892,7 @@ def _sanitized_evidence_payload(
 
 
 def _validate_provider_endpoint(provider: HTTPChatProvider, policy: ProviderPolicy) -> None:
+    """Refuse a provider endpoint outside the policy prefixes or remote without permission."""
     if not provider.endpoint.startswith(policy.allowed_endpoint_prefixes):
         raise ValueError("physics debug provider endpoint is not allowed by policy")
     if not provider.local_onsite and not policy.allow_remote_providers:
@@ -883,6 +900,7 @@ def _validate_provider_endpoint(provider: HTTPChatProvider, policy: ProviderPoli
 
 
 def _validate_guardrail_endpoint(provider: PhysicsDebugGuardrailProvider, policy: ProviderPolicy) -> None:
+    """Refuse a guardrail endpoint outside the policy prefixes or remote without permission."""
     if not provider.endpoint.startswith(policy.allowed_endpoint_prefixes):
         raise ValueError("physics debug guardrail endpoint is not allowed by policy")
     if not provider.local_onsite and not policy.allow_remote_providers:
@@ -899,6 +917,7 @@ def _guardrail_request_payload(
     safety_policy: PhysicsDebugSafetyPolicy,
     guardrail_policy: PhysicsDebugGuardrailPolicy,
 ) -> dict[str, Any]:
+    """Return the guardrail review request for one provider output."""
     request = {
         "prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
         "evidence_sha256": _payload_digest({"evidence": evidence}),
@@ -942,6 +961,7 @@ def _validate_guardrail_review(
     guardrail_policy: PhysicsDebugGuardrailPolicy,
     request: Mapping[str, Any],
 ) -> dict[str, Any]:
+    """Validate a guardrail review against the evidence, provider, policy and request."""
     request_payload = _validate_guardrail_request_metadata(request)
     decision = _require_non_empty("guardrail decision", raw_review.get("decision"))
     if decision not in guardrail_policy.allowed_decisions:
@@ -980,6 +1000,7 @@ def _validate_guardrail_review(
 
 
 def _disabled_guardrail_review(guardrail_policy: PhysicsDebugGuardrailPolicy) -> dict[str, Any]:
+    """Return the record of a guardrail review that did not run."""
     return {
         "enabled": False,
         "required": guardrail_policy.required,
@@ -1000,6 +1021,7 @@ def _validate_report_guardrail(
     safety_policy: PhysicsDebugSafetyPolicy,
     guardrail_policy: PhysicsDebugGuardrailPolicy,
 ) -> None:
+    """Validate the guardrail section of a stored report."""
     if not isinstance(value, dict):
         raise ValueError("physics debug report guardrail must be an object")
     enabled = value.get("enabled")
@@ -1059,6 +1081,7 @@ def _validate_report_guardrail(
 
 
 def _validate_guardrail_request_metadata(value: object) -> dict[str, str]:
+    """Return the digests of a guardrail request; refuse missing or malformed ones."""
     if not isinstance(value, dict):
         raise ValueError("physics debug guardrail request must be an object")
     result: dict[str, str] = {}
@@ -1079,6 +1102,7 @@ def _validate_guardrail_request_metadata(value: object) -> dict[str, str]:
 
 
 def _validate_guardrail_provider_metadata(value: object) -> None:
+    """Validate the provider metadata of a stored guardrail review."""
     if not isinstance(value, dict):
         raise ValueError("physics debug report guardrail provider must be an object")
     for key in ("provider_name", "endpoint", "model", "profile", "protocol"):
@@ -1099,6 +1123,7 @@ def _validate_guardrail_findings(
     guardrail_policy: PhysicsDebugGuardrailPolicy,
     require_findings: bool,
 ) -> list[dict[str, Any]]:
+    """Validate guardrail findings against the evidence and the policy's blocking severities."""
     if not isinstance(value, list):
         raise ValueError("physics debug guardrail findings must be a list")
     if require_findings and not value:
@@ -1140,6 +1165,7 @@ def _validate_guardrail_findings(
 
 
 def _coerce_provider_response(raw: Mapping[str, Any] | str | bytes, policy: ProviderPolicy) -> dict[str, Any]:
+    """Decode a provider response from bytes, text or a mapping within the size limit."""
     if isinstance(raw, bytes):
         if len(raw) > policy.max_response_chars:
             raise ValueError("physics debug provider response exceeds policy max_response_chars")
@@ -1158,6 +1184,7 @@ def _coerce_provider_response(raw: Mapping[str, Any] | str | bytes, policy: Prov
 
 
 def _extract_provider_json(parsed: Any, policy: ProviderPolicy) -> Any:
+    """Return the hypothesis object from a direct or chat-completions response."""
     if isinstance(parsed, dict) and "hypotheses" in parsed:
         return parsed
     if isinstance(parsed, dict) and isinstance(parsed.get("choices"), list) and parsed["choices"]:
@@ -1184,6 +1211,7 @@ def _extract_provider_json(parsed: Any, policy: ProviderPolicy) -> Any:
 
 
 def _load_provider_text(text: str, policy: ProviderPolicy) -> dict[str, Any]:
+    """Parse a provider text response within the size limit; refuse non-objects."""
     if len(text) > policy.max_response_chars:
         raise ValueError("physics debug provider response exceeds policy max_response_chars")
     parsed = json.loads(text)
@@ -1198,6 +1226,7 @@ def _validate_provider_output(
     gaps: list[dict[str, Any]],
     safety_policy: PhysicsDebugSafetyPolicy,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate the hypotheses and campaign suggestions of a provider output."""
     hypotheses = _validate_hypotheses(provider_output.get("hypotheses"), evidence, gaps, safety_policy)
     campaigns = _validate_campaigns(provider_output.get("campaign_suggestions"), hypotheses, safety_policy)
     return hypotheses, campaigns
@@ -1209,6 +1238,7 @@ def _validate_hypotheses(
     gaps: list[dict[str, Any]],
     safety_policy: PhysicsDebugSafetyPolicy,
 ) -> list[dict[str, Any]]:
+    """Validate hypotheses against the evidence, gaps and safety policy."""
     if not isinstance(raw_hypotheses, list) or not raw_hypotheses:
         raise ValueError("physics debug hypotheses must be a non-empty list")
     evidence_ids = {item["evidence_id"] for item in evidence}
@@ -1261,6 +1291,7 @@ def _validate_campaigns(
     hypotheses: list[dict[str, Any]],
     safety_policy: PhysicsDebugSafetyPolicy,
 ) -> list[dict[str, Any]]:
+    """Validate campaign suggestions against the hypotheses and safety policy."""
     if not isinstance(raw_campaigns, list) or not raw_campaigns:
         raise ValueError("physics debug campaign_suggestions must be a non-empty list")
     hypothesis_ids = {item["hypothesis_id"] for item in hypotheses}
@@ -1300,6 +1331,7 @@ def _validate_campaigns(
 
 
 def _safety_policy_from_payload(value: object) -> PhysicsDebugSafetyPolicy:
+    """Rebuild a safety policy from its JSON object."""
     if not isinstance(value, dict):
         raise ValueError("physics debug safety_policy must be an object")
     forbidden = value.get("forbidden_action_phrases")
@@ -1313,6 +1345,7 @@ def _safety_policy_from_payload(value: object) -> PhysicsDebugSafetyPolicy:
 
 
 def _guardrail_policy_from_payload(value: object) -> PhysicsDebugGuardrailPolicy:
+    """Rebuild a guardrail policy from its JSON object."""
     if not isinstance(value, dict):
         raise ValueError("physics debug guardrail_policy must be an object")
     block_actions = value.get("block_actions")
@@ -1334,6 +1367,7 @@ def _guardrail_policy_from_payload(value: object) -> PhysicsDebugGuardrailPolicy
 
 
 def _enforce_advisory_safety_policy(value: str, safety_policy: PhysicsDebugSafetyPolicy) -> None:
+    """Refuse text that contains a phrase the safety policy forbids."""
     lower_value = value.casefold()
     for phrase in safety_policy.forbidden_action_phrases:
         if phrase.casefold() in lower_value:
@@ -1341,6 +1375,7 @@ def _enforce_advisory_safety_policy(value: str, safety_policy: PhysicsDebugSafet
 
 
 def _validate_evidence_gap_linkage(evidence: list[dict[str, Any]], gaps: list[dict[str, Any]]) -> None:
+    """Refuse duplicate evidence and gaps that cite unknown evidence."""
     evidence_ids: set[str] = set()
     for item in evidence:
         if not isinstance(item, dict):
@@ -1373,6 +1408,7 @@ def _validate_evidence_gap_linkage(evidence: list[dict[str, Any]], gaps: list[di
 
 
 def _redact_sensitive_text(value: str) -> tuple[str, list[str]]:
+    """Return ``value`` with secret assignments and credentials redacted, and the labels redacted."""
     redactions: list[str] = []
     text = value
     patterns = (
@@ -1396,6 +1432,7 @@ def _redact_sensitive_text(value: str) -> tuple[str, list[str]]:
 
 
 def _neutralize_prompt_injection_text(value: str) -> tuple[str, list[str]]:
+    """Return ``value`` with prompt-injection patterns replaced, and the labels found."""
     findings: list[str] = []
     text = value
     for label, pattern in PROMPT_INJECTION_PATTERNS:
@@ -1406,12 +1443,14 @@ def _neutralize_prompt_injection_text(value: str) -> tuple[str, list[str]]:
 
 
 def _require_non_empty(name: str, value: object) -> str:
+    """Return ``value`` when it is non-blank text; refuse anything else."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"physics debug {name} must be a non-empty string")
     return value
 
 
 def _require_non_empty_string_list(name: str, value: object) -> list[str]:
+    """Return a non-empty list of non-empty strings; refuse anything else."""
     if not isinstance(value, list | tuple) or not value:
         raise ValueError(f"physics debug {name} must be a non-empty list")
     result: list[str] = []
@@ -1423,12 +1462,14 @@ def _require_non_empty_string_list(name: str, value: object) -> list[str]:
 
 
 def _payload_digest(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON payload without its own digest field."""
     digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}
     encoded = json.dumps(_jsonable(digest_payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _jsonable(value: Any) -> Any:
+    """Return ``value`` with tuples as lists and sets sorted, so it serialises deterministically."""
     if isinstance(value, dict):
         return {str(key): _jsonable(item) for key, item in value.items()}
     if isinstance(value, list | tuple):
@@ -1439,4 +1480,5 @@ def _jsonable(value: Any) -> Any:
 
 
 def _is_sha256(value: str) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal SHA-256 digest."""
     return len(value) == 64 and all(char in "0123456789abcdefABCDEF" for char in value)
