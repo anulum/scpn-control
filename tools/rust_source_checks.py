@@ -187,7 +187,7 @@ def _measure(
 
 
 def changed_rust_errors(
-    repo: Path, base_revision: str, *, target_dir: Path | None = None, timeout_s: float = 120.0
+    repo: Path, base_revision: str, *, target_dir: Path | None = None, timeout_s: float = 600.0
 ) -> list[str]:
     """Check changed whole Rust files and manifest-triggered native Cargo contexts.
 
@@ -201,6 +201,8 @@ def changed_rust_errors(
         Explicit absolute owned build allocation, required for a Rust cohort.
     timeout_s : float
         Finite positive bound per native command; Cargo uses one build job.
+        The default leaves room for a cold workspace Clippy run, measured at
+        129 s for the slowest command with one job.
 
     Returns
     -------

@@ -20,6 +20,9 @@
 - The Lean toolchain is pinned to `leanprover/lean4:v4.35.0`, the current
   stable release, instead of the moving `stable` channel. The proofs build with
   it, without `sorry` or new axioms.
+- The changed-Rust hook's default bound per native command rises from 120 s
+  to 600 s. A cold workspace Clippy run with one build job takes 129 s, so the
+  hook refused every commit made from an empty build directory.
 
 ### Added
 
