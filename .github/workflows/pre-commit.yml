@@ -22,7 +22,9 @@ concurrency:
 
 jobs:
   pre-commit:
-    runs-on: ubuntu-latest
+    # The qualified native tools below are pinned for Ubuntu 24.04, as in
+    # the static-governance pre-commit job.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
@@ -56,6 +58,26 @@ jobs:
           pip install --require-hashes -r requirements/ci-rl.txt
           pip install --require-hashes -r requirements/ci-studio.txt
           pip install --require-hashes -r requirements/ci-imas.txt
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1  # v7.1.0
+        with:
+          node-version: "22.23.2"
+      - name: Install the qualified Studio dependency graph
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.25.0 --activate
+          pnpm --dir studio-web install --frozen-lockfile
+      - name: Install the qualified Rust syntax parser
+        run: rustup toolchain install nightly-2026-08-21 --profile minimal --no-self-update
+      - name: Acquire frozen native Rust dependency graphs
+        run: |
+          cargo +1.98.0 fetch --manifest-path scpn-control-rs/Cargo.toml --locked
+          cargo +1.98.0 fetch --manifest-path scpn-control-rs/fuzz/Cargo.toml --locked
+      - name: Install qualified native source tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends shellcheck=0.9.0-1 shfmt=3.8.0-1 \
+            clang-18=1:18.1.3-1ubuntu1 clang-format-18=1:18.1.3-1ubuntu1 gcc-13 g++-13
 
       - name: Run pre-commit
         env:

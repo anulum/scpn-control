@@ -33,6 +33,16 @@
 
 ### Fixed
 
+- The standalone Pre-commit workflow installs the same qualified native
+  tools as the static-governance pre-commit job, and like that job runs on
+  Ubuntu 24.04:
+  - Node 22.23.2 with pnpm 11.25.0 and the frozen Studio graph;
+  - the nightly Rust parser and the frozen Cargo graphs;
+  - shellcheck, shfmt, clang-18 and GCC 13.
+
+  Before, any change to Studio, shell, C++ or Rust sources would have
+  failed it for lack of those tools.
+
 - The source-scope tests run on Windows and macOS. On Windows, the Git
   fixture wrote its alternates path with a CR line ending, so Git found no
   objects. The non-UTF-8 file-name case is now its own test. It is skipped,
