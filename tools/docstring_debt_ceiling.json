@@ -1,5 +1,5 @@
 {
-  "total": 5513,
+  "total": 5424,
   "scope": [
     "tests",
     "tools",
@@ -9,13 +9,12 @@
     "D100": 100,
     "D101": 517,
     "D102": 1927,
-    "D103": 2900,
+    "D103": 2813,
     "D200": 6,
     "D205": 48,
     "D400": 3,
-    "D401": 12
+    "D401": 10
   },
-  "note": "Measured ceiling. Lower it by documenting code; never raise it.",
   "per_file": {
     "tests/test_adaptive_knm.py": {
       "D100": 1,
@@ -36,9 +35,9 @@
       "D103": 5
     },
     "tests/test_aer_observation_internals.py": {
-      "D205": 1,
       "D101": 5,
-      "D102": 19
+      "D102": 19,
+      "D205": 1
     },
     "tests/test_aer_observation_rust_parity.py": {
       "D103": 3
@@ -48,9 +47,9 @@
       "D103": 19
     },
     "tests/test_analytic_solver.py": {
+      "D101": 12,
       "D102": 38,
-      "D103": 8,
-      "D101": 12
+      "D103": 8
     },
     "tests/test_analytic_solver_verbose.py": {
       "D101": 2
@@ -59,9 +58,9 @@
       "D101": 2
     },
     "tests/test_artifact_codec.py": {
-      "D103": 27,
       "D101": 4,
-      "D102": 50
+      "D102": 50,
+      "D103": 27
     },
     "tests/test_aux_heating.py": {
       "D101": 1
@@ -96,8 +95,8 @@
       "D103": 7
     },
     "tests/test_burn_control_validation.py": {
-      "D401": 1,
-      "D103": 28
+      "D103": 28,
+      "D401": 1
     },
     "tests/test_burn_controller.py": {
       "D100": 1,
@@ -129,9 +128,9 @@
       "D103": 3
     },
     "tests/test_cli_commands.py": {
-      "D103": 1,
       "D101": 3,
-      "D102": 4
+      "D102": 4,
+      "D103": 1
     },
     "tests/test_cli_demo.py": {
       "D103": 5
@@ -151,16 +150,16 @@
       "D103": 1
     },
     "tests/test_cli_text_output_and_helpers.py": {
-      "D103": 17,
       "D101": 2,
-      "D102": 6
+      "D102": 6,
+      "D103": 17
     },
     "tests/test_cli_validate_gk.py": {
       "D103": 12
     },
     "tests/test_cli_validate_paths.py": {
-      "D205": 1,
-      "D101": 2
+      "D101": 2,
+      "D205": 1
     },
     "tests/test_cli_validate_reference.py": {
       "D103": 3
@@ -176,8 +175,8 @@
       "D102": 11
     },
     "tests/test_contracts_edge_guards.py": {
-      "D205": 1,
-      "D101": 3
+      "D101": 3,
+      "D205": 1
     },
     "tests/test_control_init.py": {
       "D101": 3,
@@ -187,47 +186,47 @@
       "D103": 5
     },
     "tests/test_controller.py": {
-      "D103": 4,
       "D101": 6,
-      "D102": 63
+      "D102": 63,
+      "D103": 4
     },
     "tests/test_controller_advanced_paths.py": {
-      "D205": 1,
       "D101": 7,
-      "D102": 17
+      "D102": 17,
+      "D205": 1
     },
     "tests/test_controller_delayed_transitions.py": {
-      "D205": 1,
-      "D101": 1
+      "D101": 1,
+      "D205": 1
     },
     "tests/test_controller_logpath_passthrough.py": {
-      "D205": 1,
       "D101": 3,
-      "D102": 8
+      "D102": 8,
+      "D205": 1
     },
     "tests/test_controller_oracle_serve.py": {
-      "D205": 1,
-      "D400": 1,
       "D101": 3,
-      "D102": 8
+      "D102": 8,
+      "D205": 1,
+      "D400": 1
     },
     "tests/test_controller_zero_paths.py": {
-      "D205": 2,
-      "D101": 5
+      "D101": 5,
+      "D205": 2
     },
     "tests/test_cross_module_physics.py": {
       "D100": 1,
-      "D401": 1,
-      "D103": 9
+      "D103": 9,
+      "D401": 1
     },
     "tests/test_current_diffusion.py": {
       "D100": 1,
       "D103": 14
     },
     "tests/test_current_drive.py": {
-      "D103": 5,
       "D101": 5,
-      "D102": 19
+      "D102": 19,
+      "D103": 5
     },
     "tests/test_current_drive_validation.py": {
       "D103": 21
@@ -289,9 +288,9 @@
       "D103": 5
     },
     "tests/test_diiid_jet_validation.py": {
-      "D200": 1,
       "D101": 2,
-      "D102": 7
+      "D102": 7,
+      "D200": 1
     },
     "tests/test_director_interface.py": {
       "D100": 1,
@@ -355,8 +354,8 @@
       "D103": 23
     },
     "tests/test_disruption_safe_api.py": {
-      "D102": 15,
-      "D101": 2
+      "D101": 2,
+      "D102": 15
     },
     "tests/test_disruption_sequence.py": {
       "D100": 1,
@@ -372,9 +371,9 @@
       "D103": 8
     },
     "tests/test_e2e_phase_diiid.py": {
-      "D400": 1,
       "D101": 4,
-      "D102": 9
+      "D102": 9,
+      "D400": 1
     },
     "tests/test_elm_model.py": {
       "D100": 1,
@@ -420,17 +419,17 @@
       "D102": 8
     },
     "tests/test_formal_safety_certificate.py": {
-      "D103": 12,
       "D101": 8,
-      "D102": 42
+      "D102": 42,
+      "D103": 12
     },
     "tests/test_fpga_export.py": {
       "D101": 14,
       "D102": 49
     },
     "tests/test_free_boundary_tracking.py": {
-      "D103": 16,
-      "D102": 32
+      "D102": 32,
+      "D103": 16
     },
     "tests/test_free_boundary_tracking_acceptance.py": {
       "D103": 23
@@ -447,29 +446,29 @@
       "D102": 15
     },
     "tests/test_fusion_control_room.py": {
-      "D103": 5,
       "D101": 5,
-      "D102": 38
+      "D102": 38,
+      "D103": 5
     },
     "tests/test_fusion_kernel.py": {
       "D100": 1,
-      "D103": 4,
       "D101": 13,
-      "D102": 69
+      "D102": 69,
+      "D103": 4
     },
     "tests/test_fusion_kernel_coil_ops.py": {
-      "D205": 2,
-      "D103": 1,
       "D101": 8,
-      "D102": 27
+      "D102": 27,
+      "D103": 1,
+      "D205": 2
     },
     "tests/test_fusion_kernel_fail_on_diverge.py": {
       "D100": 1,
       "D103": 2
     },
     "tests/test_fusion_kernel_profiles.py": {
-      "D205": 1,
-      "D101": 2
+      "D101": 2,
+      "D205": 1
     },
     "tests/test_fusion_kernel_solver_paths.py": {
       "D103": 20,
@@ -528,8 +527,8 @@
     },
     "tests/test_gk_eigenvalue.py": {
       "D100": 1,
-      "D103": 14,
-      "D102": 22
+      "D102": 22,
+      "D103": 14
     },
     "tests/test_gk_electromagnetic.py": {
       "D100": 1,
@@ -628,18 +627,18 @@
       "D103": 18
     },
     "tests/test_halo_current_validation.py": {
-      "D401": 1,
-      "D103": 24
+      "D103": 24,
+      "D401": 1
     },
     "tests/test_halo_nonfinite_guards.py": {
-      "D205": 1,
       "D101": 4,
-      "D102": 3
+      "D102": 3,
+      "D205": 1
     },
     "tests/test_halo_validation_paths.py": {
-      "D205": 1,
       "D101": 3,
-      "D102": 5
+      "D102": 5,
+      "D205": 1
     },
     "tests/test_hpc_bridge.py": {
       "D103": 71
@@ -656,9 +655,9 @@
       "D102": 16
     },
     "tests/test_jax_neural_equilibrium.py": {
-      "D103": 5,
       "D101": 7,
-      "D102": 11
+      "D102": 11,
+      "D103": 5
     },
     "tests/test_jax_solvers.py": {
       "D102": 9
@@ -681,13 +680,13 @@
       "D102": 7
     },
     "tests/test_kuramoto_edge_paths.py": {
-      "D205": 1,
-      "D101": 2
+      "D101": 2,
+      "D205": 1
     },
     "tests/test_kuramoto_runtime_evidence_admission.py": {
-      "D401": 1,
       "D101": 7,
-      "D102": 33
+      "D102": 33,
+      "D401": 1
     },
     "tests/test_kuramoto_synchronisation_validation.py": {
       "D103": 17
@@ -766,18 +765,18 @@
       "D200": 1
     },
     "tests/test_neural_eq_iter_weights.py": {
-      "D103": 3,
       "D101": 2,
-      "D102": 9
+      "D102": 9,
+      "D103": 3
     },
     "tests/test_neural_eq_surrogate.py": {
       "D101": 4,
       "D102": 16
     },
     "tests/test_neural_eq_training.py": {
-      "D103": 2,
       "D101": 3,
-      "D102": 8
+      "D102": 8,
+      "D103": 2
     },
     "tests/test_neural_equilibrium.py": {
       "D101": 4,
@@ -815,9 +814,9 @@
     },
     "tests/test_nmpc_controller.py": {
       "D100": 1,
+      "D103": 32,
       "D205": 1,
       "D400": 1,
-      "D103": 32,
       "D401": 1
     },
     "tests/test_nmpc_controller_error_paths.py": {
@@ -854,9 +853,9 @@
       "D103": 17
     },
     "tests/test_phase_kuramoto.py": {
-      "D205": 1,
       "D101": 12,
-      "D102": 71
+      "D102": 71,
+      "D205": 1
     },
     "tests/test_phase_properties.py": {
       "D100": 1,
@@ -893,18 +892,18 @@
     },
     "tests/test_plasma_wall_interaction.py": {
       "D100": 1,
-      "D205": 3,
-      "D103": 11
+      "D103": 11,
+      "D205": 3
     },
     "tests/test_predictor_edge_paths.py": {
-      "D205": 1,
       "D101": 3,
-      "D102": 8
+      "D102": 8,
+      "D205": 1
     },
     "tests/test_predictor_internals.py": {
-      "D205": 1,
       "D101": 3,
-      "D102": 8
+      "D102": 8,
+      "D205": 1
     },
     "tests/test_property_based.py": {
       "D100": 1
@@ -913,9 +912,9 @@
       "D103": 2
     },
     "tests/test_pulsed_scenario_scheduler_v2.py": {
-      "D103": 9,
       "D101": 4,
-      "D102": 15
+      "D102": 15,
+      "D103": 9
     },
     "tests/test_qlknn_transport.py": {
       "D101": 5,
@@ -940,9 +939,9 @@
     },
     "tests/test_runtime_admission.py": {
       "D100": 1,
-      "D103": 5,
       "D101": 2,
-      "D102": 19
+      "D102": 19,
+      "D103": 5
     },
     "tests/test_runtime_safety_certificate.py": {
       "D100": 1,
@@ -1001,16 +1000,16 @@
       "D103": 27
     },
     "tests/test_scaling_laws.py": {
-      "D103": 1,
       "D101": 7,
-      "D102": 37
+      "D102": 37,
+      "D103": 1
     },
     "tests/test_scaling_laws_audit.py": {
       "D100": 1
     },
     "tests/test_scaling_laws_edge.py": {
-      "D205": 1,
-      "D101": 2
+      "D101": 2,
+      "D205": 1
     },
     "tests/test_scaling_laws_variance_guard.py": {
       "D101": 1
@@ -1020,9 +1019,9 @@
       "D103": 5
     },
     "tests/test_scpn_compiler.py": {
-      "D103": 2,
       "D101": 7,
-      "D102": 65
+      "D102": 65,
+      "D103": 2
     },
     "tests/test_scpn_compiler_scforward.py": {
       "D101": 3,
@@ -1046,9 +1045,9 @@
       "D102": 33
     },
     "tests/test_scpn_package_exports.py": {
-      "D205": 1,
       "D101": 5,
-      "D102": 12
+      "D102": 12,
+      "D205": 1
     },
     "tests/test_snn_pyo3_bridge.py": {
       "D101": 3,
@@ -1067,9 +1066,9 @@
       "D102": 41
     },
     "tests/test_stability_mhd_validation.py": {
-      "D205": 1,
       "D101": 2,
-      "D102": 7
+      "D102": 7,
+      "D205": 1
     },
     "tests/test_stellarator_geometry.py": {
       "D100": 1,
@@ -1079,22 +1078,19 @@
       "D205": 1
     },
     "tests/test_structure_edge_paths.py": {
-      "D205": 1,
-      "D101": 6
+      "D101": 6,
+      "D205": 1
     },
     "tests/test_structure_liveness_validation.py": {
       "D103": 5
     },
-    "tests/test_studio_adapters.py": {
-      "D103": 36
-    },
     "tests/test_studio_package_exports.py": {
-      "D205": 1,
-      "D103": 4
+      "D103": 4,
+      "D205": 1
     },
     "tests/test_studio_sealed_claim.py": {
-      "D205": 1,
-      "D103": 17
+      "D103": 17,
+      "D205": 1
     },
     "tests/test_tearing_mode_coupling.py": {
       "D100": 1,
@@ -1104,19 +1100,19 @@
       "D103": 7
     },
     "tests/test_tokamak_digital_twin.py": {
-      "D103": 30,
       "D101": 5,
-      "D102": 22
+      "D102": 22,
+      "D103": 30
     },
     "tests/test_tokamak_digital_twin_ids.py": {
-      "D205": 2,
       "D101": 3,
-      "D102": 3
+      "D102": 3,
+      "D205": 2
     },
     "tests/test_tokamak_flight_sim.py": {
-      "D103": 8,
       "D101": 5,
-      "D102": 11
+      "D102": 11,
+      "D103": 8
     },
     "tests/test_torax_streak_disruption.py": {
       "D101": 1
@@ -1131,15 +1127,15 @@
       "D101": 4
     },
     "tests/test_transport_hmode_edge.py": {
-      "D205": 1,
-      "D103": 1,
       "D101": 5,
-      "D102": 1
+      "D102": 1,
+      "D103": 1,
+      "D205": 1
     },
     "tests/test_transport_neoclassical_guards.py": {
-      "D205": 1,
+      "D101": 2,
       "D103": 1,
-      "D101": 2
+      "D205": 1
     },
     "tests/test_uncertainty.py": {
       "D100": 1,
@@ -1172,8 +1168,8 @@
       "D103": 34
     },
     "tests/test_vessel_model.py": {
-      "D200": 1,
-      "D103": 4
+      "D103": 4,
+      "D200": 1
     },
     "tests/test_visualization_paths.py": {
       "D101": 9,
@@ -1190,16 +1186,15 @@
       "D103": 39
     },
     "tests/test_z3_model_checking_paths.py": {
+      "D103": 48,
       "D205": 1,
-      "D401": 1,
-      "D103": 48
+      "D401": 1
     }
   },
   "profile": {
     "ruff_version": "0.16.10",
     "configuration_sha256": "3a913f49388e6f7e4ca325de039550dc6f5295c990a2a8f6c22c9b831ade1180"
   },
-  "origin_revision": "3db2cf88e65a738cc5c0ab6108d02ebed2389713",
   "source_fingerprints": {
     "tests/test_adaptive_knm.py": "05244a5872a455cc4f16ae3ea9e86eae7f8a5d346eb512534935f61c4bb59f55",
     "tests/test_advanced_soc.py": "364f63a51bd62e9487d630692145293fc1137c1d38bfb5a9e0d6c2760e0c4b4a",
@@ -1478,7 +1473,6 @@
     "tests/test_stress_campaign_regression.py": "06ae954a6c5c54d2c4f03531aa09572313326ae55504d6cd9318456798eacd86",
     "tests/test_structure_edge_paths.py": "b3ef263aaf9a4e8cf440b2590e27ef2fd7e55e7f3a8a42e2c940543e3149aa0d",
     "tests/test_structure_liveness_validation.py": "b018d4c6a2fee9ab5451e23d6e5715e14ab6a55396f117e576f3f59fbf4b53bb",
-    "tests/test_studio_adapters.py": "8ffd121e9ddb7948daebb353c70185f9e553f8b7ab0e7af1029838a07606a09a",
     "tests/test_studio_package_exports.py": "3e0ab13040df63d2b84b3466055911f88aecc5f3252caf365c214da00523e223",
     "tests/test_studio_sealed_claim.py": "aaf3f3a5acb64f9a846a48381f9ca1aaa362deaf0d69a430f528a4e4223f96fd",
     "tests/test_tearing_mode_coupling.py": "7e48a32715ac44e9d357a4a87d4081a57c50f97b8c40a551c6437f5ac74bda6f",
@@ -1508,5 +1502,7 @@
     "tests/test_z3_formal_report.py": "b76b22ff686c5baec36f808ad848c6ea5887f41cd6de63f052ea2ae6f9846378",
     "tests/test_z3_model_checking_paths.py": "b75df61b4e373410c6cbae62f835fd26329ac00d8d7e3213c935b971131f5c77"
   },
-  "source_fingerprint_protocol": "sha256-utf8-universal-newlines-v1"
+  "source_fingerprint_protocol": "sha256-utf8-universal-newlines-v1",
+  "origin_revision": "a1c2c1aaa806996a171af8d7fab0b8cb3e0889de",
+  "note": "Measured ceiling. Lower it by documenting code; never raise it."
 }

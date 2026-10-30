@@ -142,11 +142,11 @@ def test_validated_certificate_declares_verified_at_source_freshness() -> None:
     assert validate_studio_bundle(certificate.to_dict()).mode == "validated"
 
 
-def test_unchecked_freshness_floors_reference_validated_claims() -> None:
-    """Downgrade reference-validated claims when freshness is unchecked."""
-    bundle = EvidenceBundle(
+def _freshness_floor_bundle(freshness: Freshness) -> EvidenceBundle:
+    """Build the admitted reference-validated pair with the given freshness."""
+    return EvidenceBundle(
         schema="studio.synthetic-freshness-floor.v1",
-        entity=ProvEntity(entity_id="scpn-control/freshness-floor/demo", digest="a" * 64),
+        entity=ProvEntity(entity_id="scpn-control/freshness-floor/demo", digest="sha256:" + "a" * 64),
         activity=ProvActivity(
             verb="validate",
             studio="scpn-control",
@@ -157,17 +157,32 @@ def test_unchecked_freshness_floors_reference_validated_claims() -> None:
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=ClaimStatus.REFERENCE_VALIDATED, admission=AdmissionDecision.ADMITTED),
-        freshness=Freshness.TRACEABLE_UNCHECKED,
+        freshness=freshness,
     )
-    assert bundle.renders_as_validated is True
-    assert validate_studio_bundle(bundle.to_dict()).mode == "boundary"
+
+
+def test_unchecked_freshness_floors_reference_validated_claims() -> None:
+    """Refuse an admitted reference-validated claim whose freshness is unchecked.
+
+    Era v2 makes the SDK refuse to build the pair, and the federation gate
+    hard-rejects it on the wire. Re-gating stored era-v1 history still floors
+    it to its boundary.
+    """
+    with pytest.raises(ValueError, match="stale freshness 'traceable-unchecked'"):
+        _freshness_floor_bundle(Freshness.TRACEABLE_UNCHECKED)
+    wire = _freshness_floor_bundle(Freshness.VERIFIED_AT_SOURCE).to_dict()
+    wire["freshness"] = Freshness.TRACEABLE_UNCHECKED.value
+    rejected = validate_studio_bundle(wire)
+    assert rejected.admitted is False
+    assert any("stale freshness" in reason for reason in rejected.rejections)
+    assert validate_studio_bundle(wire, era="v1").mode == "boundary"
 
 
 def test_producer_asserted_claims_are_never_validated() -> None:
     """Prevent producer-asserted claims from rendering as validated."""
     bundle = EvidenceBundle(
         schema="studio.synthetic-producer-asserted.v1",
-        entity=ProvEntity(entity_id="scpn-control/producer-asserted/demo", digest="b" * 64),
+        entity=ProvEntity(entity_id="scpn-control/producer-asserted/demo", digest="sha256:" + "b" * 64),
         activity=ProvActivity(
             verb="validate",
             studio="scpn-control",

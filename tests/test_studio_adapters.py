@@ -18,12 +18,27 @@ Skips cleanly when the optional ``scpn-studio-platform`` SDK is not installed.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
+from dataclasses import fields
+from typing import TYPE_CHECKING, TypedDict, TypeVar
+
 import numpy as np
 import pytest
 
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
+
+    from scpn_control.core.integrated_scenario import ScenarioCouplingAudit
+
 pytest.importorskip("scpn_studio_platform")
 
-from scpn_studio_platform.evidence import EvidenceKind  # noqa: E402
+from scpn_studio_platform.evidence import (  # noqa: E402
+    AdmissionDecision,
+    ClaimStatus,
+    EvidenceKind,
+    Freshness,
+    validate_studio_bundle,
+)
 
 from scpn_control.control.realtime_efit import ReconstructionResult, ShapeParams  # noqa: E402
 from scpn_control.scpn.geometry_neutral_replay import GeometryNeutralReplayEvidence  # noqa: E402
@@ -48,11 +63,36 @@ from scpn_control.studio.evidence import (  # noqa: E402
     physics_validation_evidence,
 )
 
-_TS = {"started": "2026-06-23T00:00:00Z", "ended": "2026-06-23T00:00:01Z"}
-_WHO = {"operator": "opaque:tenant-1", "studio_version": "0.test"}
+
+class _Window(TypedDict):
+    """The emission time window passed to every builder."""
+
+    started: str
+    ended: str
+
+
+class _Who(TypedDict):
+    """The emitting operator and studio version passed to every builder."""
+
+    operator: str
+    studio_version: str
+
+
+_TS = _Window(started="2026-06-23T00:00:00Z", ended="2026-06-23T00:00:01Z")
+_WHO = _Who(operator="opaque:tenant-1", studio_version="0.test")
+
+
+_D = TypeVar("_D", bound="DataclassInstance")
+
+
+def _rebuilt(valid: _D, changes: Mapping[str, object]) -> _D:
+    """Rebuild a valid result with changed fields through its validating constructor."""
+    build: Callable[..., _D] = type(valid)
+    return build(**{**{item.name: getattr(valid, item.name) for item in fields(valid)}, **changes})
 
 
 def _reconstruction() -> ReconstructionResult:
+    """Return a converged 33x33 EFIT-lite reconstruction."""
     shape = ShapeParams(
         R0=1.7,
         a=0.5,
@@ -76,6 +116,7 @@ def _reconstruction() -> ReconstructionResult:
 
 
 def _certificate(*, live: str = "d" * 64) -> tuple[dict[str, object], str]:
+    """Return a held safety certificate and the live topology digest to bind."""
     cert: dict[str, object] = {
         "scope": "scpn-control.runtime-safety-certificate",
         "binding": {"petri_topology_sha256": "d" * 64},
@@ -88,11 +129,13 @@ def _certificate(*, live: str = "d" * 64) -> tuple[dict[str, object], str]:
 
 
 def _measurement() -> dict[str, float | int]:
+    """Return a latency measurement with every percentile."""
     return {"n": 200, "p50_us": 5.05, "p95_us": 6.11, "p99_us": 6.4, "mean_us": 5.3}
 
 
 # ── EFIT reconstruction adapter ────────────────────────────────────────
 def test_efit_adapter_reads_the_live_reconstruction() -> None:
+    """Map a live EFIT reconstruction onto its evidence bundle."""
     bundle = efit_evidence_from_reconstruction(
         _reconstruction(),
         measurements={"Ip": 1.5e7, "flux_loops": 16},
@@ -109,6 +152,7 @@ def test_efit_adapter_reads_the_live_reconstruction() -> None:
 
 
 def test_efit_adapter_digests_depend_on_inputs_and_result() -> None:
+    """Keep the EFIT entity digest bound to the result, not to the measurements."""
     a = efit_evidence_from_reconstruction(_reconstruction(), measurements={"Ip": 1.0}, **_WHO, **_TS)
     b = efit_evidence_from_reconstruction(_reconstruction(), measurements={"Ip": 2.0}, **_WHO, **_TS)
     # Different inputs -> different input-provenance entity ids are not exposed, but
@@ -119,6 +163,7 @@ def test_efit_adapter_digests_depend_on_inputs_and_result() -> None:
 
 # ── safety certificate adapter ─────────────────────────────────────────
 def test_safety_cert_adapter_held_proof_is_admissible() -> None:
+    """Admit a held proof whose topology matches the live net."""
     cert, live = _certificate(live="d" * 64)
     bundle = safety_certificate_evidence_from_certificate(
         cert,
@@ -139,6 +184,7 @@ def test_safety_cert_adapter_held_proof_is_admissible() -> None:
 
 
 def test_safety_cert_adapter_drifted_topology_is_voided() -> None:
+    """Void a certificate whose proven topology drifted from the live net."""
     cert, live = _certificate(live="f" * 64)
     bundle = safety_certificate_evidence_from_certificate(
         cert,
@@ -153,6 +199,7 @@ def test_safety_cert_adapter_drifted_topology_is_voided() -> None:
 
 
 def test_safety_cert_adapter_falls_back_to_scope_without_specs() -> None:
+    """Fall back to the certificate scope when no checked specs are listed."""
     cert, live = _certificate()
     cert["checked_specs"] = []
     bundle = safety_certificate_evidence_from_certificate(
@@ -167,6 +214,7 @@ def test_safety_cert_adapter_falls_back_to_scope_without_specs() -> None:
 
 
 def test_safety_cert_adapter_defaults_non_vacuous_false_when_absent() -> None:
+    """Treat an absent non-vacuity flag as false."""
     cert, live = _certificate()
     cert["formal_certificate"] = {"holds": True, "payload_sha256": "c" * 64}
     bundle = safety_certificate_evidence_from_certificate(
@@ -181,6 +229,7 @@ def test_safety_cert_adapter_defaults_non_vacuous_false_when_absent() -> None:
 
 
 def test_safety_cert_adapter_rejects_missing_binding() -> None:
+    """Refuse a certificate without its topology binding."""
     with pytest.raises(KeyError):
         safety_certificate_evidence_from_certificate(
             {"checked_specs": [], "formal_certificate_sha256": "c" * 64},
@@ -194,6 +243,7 @@ def test_safety_cert_adapter_rejects_missing_binding() -> None:
 
 # ── controller latency adapter ─────────────────────────────────────────
 def test_latency_adapter_reads_the_measurement() -> None:
+    """Map a latency measurement onto its evidence bundle."""
     bundle = controller_latency_evidence_from_measurement(
         _measurement(),
         controller="h_infinity",
@@ -210,6 +260,7 @@ def test_latency_adapter_reads_the_measurement() -> None:
 
 
 def test_latency_adapter_rejects_missing_percentile() -> None:
+    """Refuse a latency measurement without its p99 percentile."""
     bad = {"n": 200, "p50_us": 5.0, "p95_us": 6.0}  # no p99_us
     with pytest.raises(KeyError):
         controller_latency_evidence_from_measurement(
@@ -224,6 +275,7 @@ def test_latency_adapter_rejects_missing_percentile() -> None:
 
 # ── physics-traceability validation mapper + registry adapter ──────────
 def _claim(status: str = "bounded_model", *, allowed: bool = False, blocking: str | None = None) -> TraceabilityClaim:
+    """Return an EFIT-lite traceability claim with the given status and policy."""
     return TraceabilityClaim(
         component="real-time EFIT-lite",
         module_path="src/scpn_control/control/realtime_efit.py",
@@ -235,14 +287,31 @@ def _claim(status: str = "bounded_model", *, allowed: bool = False, blocking: st
 
 
 def test_reference_validated_claim_renders_validated() -> None:
-    bundle = physics_validation_evidence(_claim("reference_validated", allowed=True), **_WHO, **_TS)
+    """Admit a reference-validated claim only after a re-check at source."""
+    bundle = physics_validation_evidence(
+        _claim("reference_validated", allowed=True), **_WHO, **_TS, freshness=Freshness.VERIFIED_AT_SOURCE
+    )
     assert bundle.schema == "studio.physics-validation.v1"
     assert bundle.evidence_kind is EvidenceKind.CURATED
     assert bundle.renders_as_validated is True
     assert bundle.claim_boundary.validity_domain is not None
+    assert validate_studio_bundle(bundle.to_dict()).mode == "validated"
+
+
+def test_unchecked_reference_validated_claim_is_floored_to_its_boundary() -> None:
+    """Keep the status but refuse admission when nobody re-checked at source."""
+    bundle = physics_validation_evidence(_claim("reference_validated", allowed=True), **_WHO, **_TS)
+    assert bundle.claim_boundary.status is ClaimStatus.REFERENCE_VALIDATED
+    assert bundle.claim_boundary.admission is AdmissionDecision.REJECTED
+    assert bundle.freshness is Freshness.TRACEABLE_UNCHECKED
+    assert bundle.renders_as_validated is False
+    verdict = validate_studio_bundle(bundle.to_dict())
+    assert verdict.admitted is True
+    assert verdict.mode == "boundary"
 
 
 def test_bounded_claim_renders_verbatim_with_validity_domain() -> None:
+    """Render a bounded claim at its boundary with its validity domain."""
     bundle = physics_validation_evidence(_claim("bounded_model"), **_WHO, **_TS)
     assert bundle.renders_as_validated is False
     note = bundle.claim_boundary.validity_domain
@@ -250,6 +319,7 @@ def test_bounded_claim_renders_verbatim_with_validity_domain() -> None:
 
 
 def test_external_dependency_blocked_claim_carries_blocked_on() -> None:
+    """Carry the blocking dependency of an externally blocked claim."""
     bundle = physics_validation_evidence(
         _claim("external_dependency_blocked", blocking="Install external GK binaries"),
         **_WHO,
@@ -269,20 +339,21 @@ def test_external_dependency_blocked_claim_carries_blocked_on() -> None:
     ],
 )
 def test_traceability_claim_rejects_bad_inputs(kwargs: dict[str, object]) -> None:
-    base = {
-        "component": "c",
-        "module_path": "m.py",
-        "fidelity_status": "bounded_model",
-        "public_claim_allowed": False,
-        "validity_domain": "scope",
-        "blocking_dependency": "dep",
-    }
-    base.update(kwargs)
+    """Refuse traceability claims with invalid fields."""
+    valid = TraceabilityClaim(
+        component="c",
+        module_path="m.py",
+        fidelity_status="bounded_model",
+        public_claim_allowed=False,
+        validity_domain="scope",
+        blocking_dependency="dep",
+    )
     with pytest.raises(ValueError):
-        TraceabilityClaim(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 def test_registry_adapter_maps_a_list() -> None:
+    """Map every registry entry to one bundle in input order."""
     entries = [
         {
             "component": "c1",
@@ -307,16 +378,23 @@ def test_registry_adapter_preserves_real_entry_admission_boundaries() -> None:
     entries = json.loads(registry.read_text())["entries"]
     bundles = physics_validation_evidences_from_registry(entries, **_WHO, **_TS)
     assert len(bundles) == len(entries)
-    validated = [bundle for bundle in bundles if bundle.renders_as_validated]
+    # Without a re-check at source nothing is admitted as validated.
+    assert not any(bundle.renders_as_validated for bundle in bundles)
+    reference = [b for b in bundles if b.claim_boundary.status is ClaimStatus.REFERENCE_VALIDATED]
+    assert [b.entity.entity_id.rsplit("/src/", 1)[1] for b in reference] == ["scpn_control/core/imas_adapter.py"]
+    # A re-check at source admits exactly the one allowed reference-validated entry.
+    checked = physics_validation_evidences_from_registry(entries, **_WHO, **_TS, freshness=Freshness.VERIFIED_AT_SOURCE)
+    validated = [bundle for bundle in checked if bundle.renders_as_validated]
     assert len(validated) == 1
     assert validated[0].entity.entity_id.endswith("/src/scpn_control/core/imas_adapter.py")
-    assert sum(1 for bundle in bundles if not bundle.renders_as_validated) == len(bundles) - 1
+    assert sum(1 for bundle in checked if not bundle.renders_as_validated) == len(checked) - 1
     # Every claim carries its qualitative validity-domain prose.
     assert all(b.claim_boundary.validity_domain is not None for b in bundles)
 
 
 # ── batch-2 verb adapters: replay / monitor / predict / analyse ────────
 def _replay_evidence(*, device_claim_allowed: bool = False) -> GeometryNeutralReplayEvidence:
+    """Return deterministic replay evidence that passes its thresholds."""
     return GeometryNeutralReplayEvidence(
         schema_version="scpn-control.geometry-neutral-replay-evidence.v1",
         generated_utc="2026-06-23T00:00:00Z",
@@ -344,6 +422,7 @@ def _replay_evidence(*, device_claim_allowed: bool = False) -> GeometryNeutralRe
 
 
 def test_replay_adapter_maps_geometry_neutral_evidence() -> None:
+    """Map geometry-neutral replay evidence onto its bundle."""
     bundle = replay_evidence_from_geometry_neutral(_replay_evidence(), **_WHO, **_TS)
     assert bundle.schema == "studio.geometry-neutral-replay.v1"
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -352,6 +431,7 @@ def test_replay_adapter_maps_geometry_neutral_evidence() -> None:
 
 
 def test_replay_summary_rejects_bad_inputs() -> None:
+    """Refuse replay summaries with invalid fields."""
     from scpn_control.studio import ReplaySummary
 
     with pytest.raises(ValueError):
@@ -366,6 +446,7 @@ def test_replay_summary_rejects_bad_inputs() -> None:
 
 
 def test_monitor_adapter_maps_a_tick_snapshot() -> None:
+    """Map one monitor tick snapshot onto its bundle."""
     snap = {"tick": 42, "R_global": 0.93, "lambda_exp": -0.1, "guard_approved": True, "latency_us": 4.2}
     bundle = phase_sync_monitor_evidence_from_snapshot(snap, **_WHO, **_TS)
     assert bundle.schema == "studio.phase-sync-monitor.v1"
@@ -374,11 +455,13 @@ def test_monitor_adapter_maps_a_tick_snapshot() -> None:
 
 
 def test_monitor_adapter_rejects_missing_field() -> None:
+    """Refuse a monitor snapshot without a required field."""
     with pytest.raises(KeyError):
         phase_sync_monitor_evidence_from_snapshot({"tick": 1, "R_global": 0.5}, **_WHO, **_TS)
 
 
 def test_monitor_snapshot_rejects_out_of_range() -> None:
+    """Refuse a monitor snapshot whose order parameter is out of range."""
     from scpn_control.studio import MonitorSnapshot
 
     with pytest.raises(ValueError):
@@ -386,6 +469,7 @@ def test_monitor_snapshot_rejects_out_of_range() -> None:
 
 
 def test_predict_adapter_renders_validation_gap() -> None:
+    """Render a disruption risk as a validation gap, not a validated claim."""
     bundle = disruption_prediction_evidence_from_risk(
         0.73,
         observables={"n1_amplitude": 0.2, "rotation": 1.5},
@@ -398,6 +482,7 @@ def test_predict_adapter_renders_validation_gap() -> None:
 
 
 def test_prediction_rejects_out_of_range_risk() -> None:
+    """Refuse a disruption risk outside [0, 1]."""
     from scpn_control.studio import DisruptionPrediction
 
     with pytest.raises(ValueError):
@@ -405,6 +490,7 @@ def test_prediction_rejects_out_of_range_risk() -> None:
 
 
 def test_analyse_adapter_maps_shape_params() -> None:
+    """Map equilibrium shape parameters onto their bundle."""
     shape = ShapeParams(
         R0=1.7,
         a=0.5,
@@ -423,6 +509,7 @@ def test_analyse_adapter_maps_shape_params() -> None:
 
 
 def test_equilibrium_analysis_rejects_nonpositive_geometry() -> None:
+    """Refuse non-positive equilibrium geometry."""
     from scpn_control.studio import EquilibriumAnalysis
 
     with pytest.raises(ValueError):
@@ -430,11 +517,19 @@ def test_equilibrium_analysis_rejects_nonpositive_geometry() -> None:
 
 
 def test_replay_adapter_admits_device_claim_when_allowed() -> None:
-    bundle = replay_evidence_from_geometry_neutral(_replay_evidence(device_claim_allowed=True), **_WHO, **_TS)
+    """Admit an allowed device claim only when re-checked at source."""
+    bundle = replay_evidence_from_geometry_neutral(
+        _replay_evidence(device_claim_allowed=True), **_WHO, **_TS, freshness=Freshness.VERIFIED_AT_SOURCE
+    )
     assert bundle.renders_as_validated is True
+    floored = replay_evidence_from_geometry_neutral(_replay_evidence(device_claim_allowed=True), **_WHO, **_TS)
+    assert floored.claim_boundary.status is ClaimStatus.REFERENCE_VALIDATED
+    assert floored.claim_boundary.admission is AdmissionDecision.REJECTED
+    assert floored.renders_as_validated is False
 
 
 def test_replay_summary_rejects_negative_magnitude() -> None:
+    """Refuse negative replay magnitudes."""
     from scpn_control.studio import ReplaySummary
 
     with pytest.raises(ValueError):
@@ -450,31 +545,32 @@ def test_replay_summary_rejects_negative_magnitude() -> None:
 
 @pytest.mark.parametrize("kwargs", [{"tick": -1}, {"latency_us": -1.0}])
 def test_monitor_snapshot_rejects_negative(kwargs: dict[str, object]) -> None:
+    """Refuse negative monitor ticks and latencies."""
     from scpn_control.studio import MonitorSnapshot
 
-    base: dict[str, object] = {
-        "tick": 0,
-        "r_global": 0.5,
-        "lambda_exp": 0.0,
-        "guard_approved": True,
-        "latency_us": 1.0,
-    }
-    base.update(kwargs)
+    valid = MonitorSnapshot(
+        tick=0,
+        r_global=0.5,
+        lambda_exp=0.0,
+        guard_approved=True,
+        latency_us=1.0,
+    )
     with pytest.raises(ValueError):
-        MonitorSnapshot(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 @pytest.mark.parametrize("kwargs", [{"observable_count": -1}, {"result_digest": "  "}])
 def test_disruption_prediction_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    """Refuse disruption predictions with invalid fields."""
     from scpn_control.studio import DisruptionPrediction
 
-    base: dict[str, object] = {"risk": 0.5, "observable_count": 2, "result_digest": "d"}
-    base.update(kwargs)
+    valid = DisruptionPrediction(risk=0.5, observable_count=2, result_digest="d")
     with pytest.raises(ValueError):
-        DisruptionPrediction(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 def test_equilibrium_analysis_rejects_empty_digest() -> None:
+    """Refuse an equilibrium analysis without a result digest."""
     from scpn_control.studio import EquilibriumAnalysis
 
     with pytest.raises(ValueError):
@@ -492,6 +588,7 @@ _CONTROLLER_RUN_SUMMARY = {
 
 
 def test_controller_run_adapter_maps_simulation_summary() -> None:
+    """Map a controller simulation summary onto its bundle."""
     bundle = controller_run_evidence_from_simulation(_CONTROLLER_RUN_SUMMARY, controller="surrogate_mpc", **_WHO, **_TS)
     assert bundle.schema == "studio.controller-run.v1"
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -501,6 +598,7 @@ def test_controller_run_adapter_maps_simulation_summary() -> None:
 
 
 def test_controller_run_adapter_rejects_missing_field() -> None:
+    """Refuse a controller summary without a required field."""
     bad = {k: v for k, v in _CONTROLLER_RUN_SUMMARY.items() if k != "mean_tracking_error"}
     with pytest.raises(KeyError):
         controller_run_evidence_from_simulation(bad, controller="surrogate_mpc", **_WHO, **_TS)
@@ -518,19 +616,19 @@ def test_controller_run_adapter_rejects_missing_field() -> None:
     ],
 )
 def test_controller_run_result_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    """Refuse controller run results with invalid fields."""
     from scpn_control.studio import ControllerRunResult
 
-    base: dict[str, object] = {
-        "controller": "surrogate_mpc",
-        "n_steps": 10,
-        "mean_tracking_error": 0.1,
-        "max_abs_action": 1.0,
-        "max_abs_coil_current": 5.0,
-        "result_digest": "d",
-    }
-    base.update(kwargs)
+    valid = ControllerRunResult(
+        controller="surrogate_mpc",
+        n_steps=10,
+        mean_tracking_error=0.1,
+        max_abs_action=1.0,
+        max_abs_coil_current=5.0,
+        result_digest="d",
+    )
     with pytest.raises(ValueError):
-        ControllerRunResult(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 # ── disruption-mitigation adapter (mitigate) ───────────────────────────
@@ -545,6 +643,7 @@ _SPI_SUMMARY = {
 
 
 def test_mitigation_adapter_maps_spi_summary() -> None:
+    """Map a shattered-pellet mitigation summary onto its bundle."""
     bundle = disruption_mitigation_evidence_from_run(_SPI_SUMMARY, **_WHO, **_TS)
     assert bundle.schema == "studio.disruption-mitigation.v1"
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -553,6 +652,7 @@ def test_mitigation_adapter_maps_spi_summary() -> None:
 
 
 def test_mitigation_adapter_rejects_missing_field() -> None:
+    """Refuse a mitigation summary without a required field."""
     bad = {k: v for k, v in _SPI_SUMMARY.items() if k != "z_eff"}
     with pytest.raises(KeyError):
         disruption_mitigation_evidence_from_run(bad, **_WHO, **_TS)
@@ -568,24 +668,25 @@ def test_mitigation_adapter_rejects_missing_field() -> None:
     ],
 )
 def test_mitigation_run_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    """Refuse mitigation runs with invalid fields."""
     from scpn_control.studio import MitigationRun
 
-    base: dict[str, object] = {
-        "neon_quantity_mol": 0.1,
-        "argon_quantity_mol": 0.0,
-        "xenon_quantity_mol": 0.0,
-        "z_eff": 2.0,
-        "final_current_ma": 3.0,
-        "sample_count": 100,
-        "result_digest": "d",
-    }
-    base.update(kwargs)
+    valid = MitigationRun(
+        neon_quantity_mol=0.1,
+        argon_quantity_mol=0.0,
+        xenon_quantity_mol=0.0,
+        z_eff=2.0,
+        final_current_ma=3.0,
+        sample_count=100,
+        result_digest="d",
+    )
     with pytest.raises(ValueError):
-        MitigationRun(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 # ── scenario-simulation adapter (simulate) ─────────────────────────────
-def _scenario_audit(*, passed: bool = True):  # type: ignore[no-untyped-def]
+def _scenario_audit(*, passed: bool = True) -> ScenarioCouplingAudit:
+    """Return a bounded scenario coupling audit that passed or failed."""
     from scpn_control.core.integrated_scenario import ScenarioCouplingAudit, ScenarioCouplingMetadata
 
     meta = ScenarioCouplingMetadata(
@@ -609,6 +710,7 @@ def _scenario_audit(*, passed: bool = True):  # type: ignore[no-untyped-def]
 
 @pytest.mark.parametrize("passed", [True, False])
 def test_scenario_adapter_maps_audit(passed: bool) -> None:
+    """Map a scenario coupling audit onto its bundle, passed or not."""
     bundle = scenario_simulation_evidence_from_audit(_scenario_audit(passed=passed), **_WHO, **_TS)
     assert bundle.schema == "studio.scenario-simulation.v1"
     assert bundle.evidence_kind is EvidenceKind.MEASURED
@@ -628,17 +730,17 @@ def test_scenario_adapter_maps_audit(passed: bool) -> None:
     ],
 )
 def test_scenario_simulation_run_rejects_bad_fields(kwargs: dict[str, object]) -> None:
+    """Refuse scenario simulation runs with invalid fields."""
     from scpn_control.studio import ScenarioSimulationRun
 
-    base: dict[str, object] = {
-        "scenario_name": "iter_baseline",
-        "config_digest": "a" * 64,
-        "n_steps": 100,
-        "t_start_s": 0.0,
-        "t_end_s": 100.0,
-        "module_count": 3,
-        "audit_passed": True,
-    }
-    base.update(kwargs)
+    valid = ScenarioSimulationRun(
+        scenario_name="iter_baseline",
+        config_digest="a" * 64,
+        n_steps=100,
+        t_start_s=0.0,
+        t_end_s=100.0,
+        module_count=3,
+        audit_passed=True,
+    )
     with pytest.raises(ValueError):
-        ScenarioSimulationRun(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)

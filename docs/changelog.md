@@ -33,6 +33,19 @@
 
 ### Fixed
 
+- The CONTROL studio meets the `scpn-studio-platform` 0.11.3 evidence
+  contract (era v2). The `studio` extra now requires `>=0.11.3,<0.12`.
+  - Every entity digest is emitted as `sha256:<64 hex>`. The new
+    `entity_digest` refuses a value that is not content-addressed.
+  - The parity refutation carries its raw counts: one comparison, one
+    failure, and no p-value.
+  - A reference-validated claim is admitted only with freshness
+    `verified-at-source` from a re-check at source. Otherwise
+    `floored_admission` keeps the status and rejects admission, which is how
+    the federation gate already rendered such a claim in era v1. The
+    physics-validation and replay builders and their adapters take a
+    `freshness` argument.
+
 - Two example notebooks never ran in CI.
   - `snn_pac_closed_loop_demo.ipynb` executes with the CI notebook
     dependencies and now runs in the notebook job.

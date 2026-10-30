@@ -20,7 +20,14 @@ Skips cleanly when the optional ``scpn-studio-platform`` SDK is not installed.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Mapping
+from dataclasses import fields
+from typing import TYPE_CHECKING, TypeVar
+
 import pytest
+
+if TYPE_CHECKING:
+    from _typeshed import DataclassInstance
 
 pytest.importorskip("scpn_studio_platform")
 
@@ -48,7 +55,17 @@ _TS = {"started": "2026-06-23T00:00:00Z", "ended": "2026-06-23T00:00:01Z"}
 _WHO = {"operator": "opaque:tenant-1", "studio_version": "0.test"}
 
 
+_D = TypeVar("_D", bound="DataclassInstance")
+
+
+def _rebuilt(valid: _D, changes: Mapping[str, object]) -> _D:
+    """Rebuild a valid result with changed fields through its validating constructor."""
+    build: Callable[..., _D] = type(valid)
+    return build(**{**{item.name: getattr(valid, item.name) for item in fields(valid)}, **changes})
+
+
 def _efit() -> EfitReconstructionResult:
+    """Return a converged EFIT reconstruction result."""
     return EfitReconstructionResult(
         ip_reconstructed_a=1.5e7,
         chi_squared=4.38e-9,
@@ -61,6 +78,7 @@ def _efit() -> EfitReconstructionResult:
 
 
 def _cert(*, live: str = "d" * 64) -> SafetyCertificateResult:
+    """Return a non-vacuous safety certificate bound to the live topology."""
     return SafetyCertificateResult(
         theorem_id="ctl.safety.bounded-halt",
         checker="z3",
@@ -74,6 +92,7 @@ def _cert(*, live: str = "d" * 64) -> SafetyCertificateResult:
 
 
 def _latency() -> ControllerLatencyResult:
+    """Return a measured controller latency result."""
     return ControllerLatencyResult(
         controller="h_infinity",
         active_backend="rust",
@@ -82,8 +101,8 @@ def _latency() -> ControllerLatencyResult:
         p95_us=6.11,
         p99_us=6.11,
         sample_count=200,
-        input_digest="g" * 64,
-        result_digest="h" * 64,
+        input_digest="0" * 64,
+        result_digest="9" * 64,
     )
 
 
@@ -216,18 +235,17 @@ def test_efit_evidence_carries_prose_validity_domain() -> None:
 )
 def test_efit_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> None:
     """Exercise EFIT result validation against invalid inputs."""
-    base = {
-        "ip_reconstructed_a": 1.5e7,
-        "chi_squared": 1e-9,
-        "n_iterations": 7,
-        "nr": 33,
-        "nz": 33,
-        "input_digest": "a" * 64,
-        "result_digest": "b" * 64,
-    }
-    base.update(kwargs)
+    valid = EfitReconstructionResult(
+        ip_reconstructed_a=1.5e7,
+        chi_squared=1e-9,
+        n_iterations=7,
+        nr=33,
+        nz=33,
+        input_digest="a" * 64,
+        result_digest="b" * 64,
+    )
     with pytest.raises(ValueError):
-        EfitReconstructionResult(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 # ── safety certificate evidence (formally-proven) ──────────────────────
@@ -270,18 +288,17 @@ def test_certificate_topology_matches_property() -> None:
 )
 def test_certificate_result_rejects_empty_fields(field: str) -> None:
     """Exercise certificate result validation against empty fields."""
-    base = {
-        "theorem_id": "t",
-        "checker": "z3",
-        "checker_version": "4.13.0",
-        "proof_digest": "c" * 64,
-        "petri_topology_sha256": "d" * 64,
-        "live_topology_sha256": "d" * 64,
-        "result_digest": "e" * 64,
-    }
-    base[field] = "  "
+    valid = SafetyCertificateResult(
+        theorem_id="t",
+        checker="z3",
+        checker_version="4.13.0",
+        proof_digest="c" * 64,
+        petri_topology_sha256="d" * 64,
+        live_topology_sha256="d" * 64,
+        result_digest="e" * 64,
+    )
     with pytest.raises(ValueError):
-        SafetyCertificateResult(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, {field: "  "})
 
 
 # ── controller latency evidence (measured benchmark) ───────────────────
@@ -308,20 +325,19 @@ def test_latency_evidence_is_measured_and_bounded() -> None:
 )
 def test_latency_result_rejects_invalid_inputs(kwargs: dict[str, object]) -> None:
     """Exercise latency result validation against invalid inputs."""
-    base = {
-        "controller": "h_infinity",
-        "active_backend": "rust",
-        "reference_backend": "python",
-        "p50_us": 5.05,
-        "p95_us": 6.11,
-        "p99_us": 6.11,
-        "sample_count": 200,
-        "input_digest": "g" * 64,
-        "result_digest": "h" * 64,
-    }
-    base.update(kwargs)
+    valid = ControllerLatencyResult(
+        controller="h_infinity",
+        active_backend="rust",
+        reference_backend="python",
+        p50_us=5.05,
+        p95_us=6.11,
+        p99_us=6.11,
+        sample_count=200,
+        input_digest="g" * 64,
+        result_digest="h" * 64,
+    )
     with pytest.raises(ValueError):
-        ControllerLatencyResult(**base)  # type: ignore[arg-type]
+        _rebuilt(valid, kwargs)
 
 
 # ── canonical digest ───────────────────────────────────────────────────
@@ -363,13 +379,20 @@ def test_parity_refutation_evidence_is_a_promoted_negative_finding() -> None:
     assert bundle.evidence_kind is EvidenceKind.FALSIFIED
     assert bundle.claim_boundary.status is ClaimStatus.REFUTED
     assert bundle.claim_boundary.admission is AdmissionDecision.REJECTED
+    # Era v2: the refutation carries its raw counts, one failed comparison, no inference.
+    assert bundle.statistical_evidence is not None
+    assert bundle.statistical_evidence.to_dict() == {"trials": 1, "failures": 1}
+    assert bundle.to_dict()["statistical_evidence"] == {"trials": 1, "failures": 1}
     # A refuted parity can never render as a validated parity claim.
     assert bundle.renders_as_validated is False
     # The raw counts travel with the refutation so a consumer sees HOW it failed.
-    parity = bundle.numeric_provenance.parity[0]
+    numeric = bundle.numeric_provenance
+    assert numeric is not None
+    parity = numeric.parity[0]
     assert parity.passed is False
     assert parity.max_error == 0.06
-    assert bundle.numeric_provenance.convergence.residual == 4.0
+    assert numeric.convergence is not None
+    assert numeric.convergence.residual == 4.0
 
 
 @pytest.mark.parametrize(
@@ -391,17 +414,32 @@ def test_parity_refutation_result_rejects_invalid_contract_values(
     """Reject stale references and invalid numerical evidence before bundling."""
     from scpn_control.studio.evidence import ParityRefutationResult
 
-    values: dict[str, object] = {
-        "solver_method": "sor",
-        "grid": "65x65 Solov'ev",
-        "pearson_r": 0.999,
-        "interior_l2_rel": 0.06,
-        "gs_residual_plateau": 4.0,
-        "target_rtol": 1e-3,
-        "result_digest": "a" * 64,
-        "raw_reference": "tests/test_rust_python_parity.py::TestSORSolverParity::test_sor_equilibrium_parity",
-    }
-    values.update(override)
-
+    valid = ParityRefutationResult(
+        solver_method="sor",
+        grid="65x65 Solov'ev",
+        pearson_r=0.999,
+        interior_l2_rel=0.06,
+        gs_residual_plateau=4.0,
+        target_rtol=1e-3,
+        result_digest="a" * 64,
+        raw_reference="tests/test_rust_python_parity.py::TestSORSolverParity::test_sor_equilibrium_parity",
+    )
     with pytest.raises(ValueError, match=match):
-        ParityRefutationResult(**values)  # type: ignore[arg-type]
+        _rebuilt(valid, override)
+
+
+@pytest.mark.parametrize("value", ["a" * 64, "sha256:" + "a" * 64])
+def test_entity_digest_prefixes_a_bare_or_prefixed_sha256(value: str) -> None:
+    """Emit every entity digest in the federation's prefixed form."""
+    from scpn_control.studio.evidence import entity_digest
+
+    assert entity_digest(value) == "sha256:" + "a" * 64
+
+
+@pytest.mark.parametrize("value", ["", "A" * 64, "a" * 63, "h" * 64, "sha256:" + "a" * 65, "md5:" + "a" * 64])
+def test_entity_digest_refuses_a_value_that_is_not_content_addressed(value: str) -> None:
+    """Refuse a digest the federation gate would reject."""
+    from scpn_control.studio.evidence import entity_digest
+
+    with pytest.raises(ValueError, match="lowercase SHA-256 hex"):
+        entity_digest(value)

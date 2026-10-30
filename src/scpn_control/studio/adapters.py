@@ -24,6 +24,8 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any
 
+from scpn_studio_platform.evidence import Freshness
+
 from .evidence import (
     ControllerLatencyResult,
     ControllerRunResult,
@@ -268,6 +270,7 @@ def physics_validation_evidences_from_registry(
     studio_version: str,
     started: str,
     ended: str,
+    freshness: Freshness = Freshness.TRACEABLE_UNCHECKED,
 ) -> tuple[EvidenceBundle, ...]:
     """Map physics_traceability registry entries onto physics-validation bundles.
 
@@ -289,6 +292,9 @@ def physics_validation_evidences_from_registry(
         Version of the CONTROL studio.
     started, ended
         ISO-8601 start/end timestamps.
+    freshness
+        Freshness established for this emission, passed to the builder; only
+        ``VERIFIED_AT_SOURCE`` lets an allowed reference-validated claim be admitted.
 
     Returns
     -------
@@ -319,6 +325,7 @@ def physics_validation_evidences_from_registry(
                 studio_version=studio_version,
                 started=started,
                 ended=ended,
+                freshness=freshness,
             )
         )
     return tuple(bundles)
@@ -331,6 +338,7 @@ def replay_evidence_from_geometry_neutral(
     studio_version: str,
     started: str,
     ended: str,
+    freshness: Freshness = Freshness.TRACEABLE_UNCHECKED,
 ) -> EvidenceBundle:
     """Map a ``GeometryNeutralReplayEvidence`` onto a replay bundle.
 
@@ -344,6 +352,9 @@ def replay_evidence_from_geometry_neutral(
         Version of the CONTROL studio.
     started, ended
         ISO-8601 start/end timestamps.
+    freshness
+        Freshness established for this emission, passed to the builder; only
+        ``VERIFIED_AT_SOURCE`` lets an allowed reference-validated claim be admitted.
 
     Returns
     -------
@@ -359,7 +370,7 @@ def replay_evidence_from_geometry_neutral(
         device_claim_allowed=bool(evidence.device_claim_allowed),
     )
     return geometry_neutral_replay_evidence_bundle(
-        summary, operator=operator, studio_version=studio_version, started=started, ended=ended
+        summary, operator=operator, studio_version=studio_version, started=started, ended=ended, freshness=freshness
     )
 
 

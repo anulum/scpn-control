@@ -35,6 +35,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
@@ -58,6 +59,7 @@ from scpn_studio_platform.evidence import (
     ProvActivity,
     ProvAgent,
     ProvEntity,
+    StatisticalEvidence,
     ValidityDomain,
 )
 
@@ -103,6 +105,71 @@ def canonical_digest(payload: Mapping[str, Any]) -> str:
     """
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
+
+
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+
+
+def entity_digest(value: str) -> str:
+    """Return a result digest in the federation's ``sha256:<64 hex>`` form.
+
+    The CONTROL builders carry bare lowercase SHA-256 hex (see
+    :func:`canonical_digest`). The SDK's federation gate (era v2) admits a
+    ``prov.entity.digest`` only in the prefixed form, so every entity digest goes
+    through this function. An already-prefixed digest is returned unchanged.
+
+    Parameters
+    ----------
+    value
+        A bare 64-character lowercase hex SHA-256, or the same value already
+        prefixed with ``sha256:``.
+
+    Returns
+    -------
+    str
+        The ``sha256:<64 hex>`` digest.
+
+    Raises
+    ------
+    ValueError
+        If ``value`` is not a lowercase SHA-256 hex digest in either form; such a
+        value is not content-addressed and would be refused at federation.
+    """
+    bare = value.removeprefix("sha256:")
+    if _SHA256_HEX.fullmatch(bare) is None:
+        raise ValueError(f"entity digest must be a lowercase SHA-256 hex value, got {value!r}")
+    return f"sha256:{bare}"
+
+
+def floored_admission(status: ClaimStatus, *, allowed: bool, freshness: Freshness) -> AdmissionDecision:
+    """Return the admission a CONTROL claim may honestly carry.
+
+    The SDK's freshness-required contract (era v2) refuses an admitted
+    ``reference-validated`` claim unless its freshness is ``verified-at-source``.
+    A claim that nobody re-checked at source is therefore not admitted: it is
+    floored to its boundary, which is how the federation gate already rendered
+    such a claim in era v1. Every other status keeps the producer's decision.
+
+    Parameters
+    ----------
+    status
+        The claim status the evidence supports.
+    allowed
+        Whether the producer's own policy allows the public claim.
+    freshness
+        The freshness established for this emission.
+
+    Returns
+    -------
+    AdmissionDecision
+        ``ADMITTED`` only when the claim is allowed and, for a reference-validated
+        claim, re-checked at source; ``REJECTED`` otherwise.
+    """
+    if not allowed:
+        return AdmissionDecision.REJECTED
+    if status is ClaimStatus.REFERENCE_VALIDATED and not freshness.permits_validation:
+        return AdmissionDecision.REJECTED
+    return AdmissionDecision.ADMITTED
 
 
 # ── EFIT reconstruction (bounded-model, measured) ──────────────────────
@@ -187,7 +254,9 @@ def efit_reconstruction_evidence(
     EvidenceBundle
         A schema-B bundle whose ``renders_as_validated`` is ``False``.
     """
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/efit/{result.result_digest}", digest=result.result_digest)
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/efit/{result.result_digest}", digest=entity_digest(result.result_digest)
+    )
     activity = ProvActivity(verb="reconstruct", studio=STUDIO_ID, started=started, ended=ended, host=host)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     physical = PhysicalContract(
@@ -327,7 +396,9 @@ def safety_certificate_evidence(
         subject_digest=result.petri_topology_sha256,
         non_vacuous=result.non_vacuous,
     )
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/safety-certificate/{result.result_digest}", digest=result.result_digest)
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/safety-certificate/{result.result_digest}", digest=entity_digest(result.result_digest)
+    )
     activity = ProvActivity(verb="certify", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     proof_holds = certificate.covers(result.live_topology_sha256)
@@ -443,6 +514,11 @@ def parity_refutation_evidence(
     a validated parity claim, and the raw ``ParityCheck``/``Convergence`` counts travel
     with it so a consumer can see exactly *how* it failed.
 
+    The SDK's era-v2 rule makes a refuted claim carry its raw counts. The result
+    records one cross-backend comparison on one grid case, and that comparison
+    missed ``target_rtol``, so the counts are one trial and one failure. No
+    inferential summary is attached: a single case supports no p-value.
+
     Returns
     -------
     EvidenceBundle
@@ -469,7 +545,7 @@ def parity_refutation_evidence(
     )
     entity = ProvEntity(
         entity_id=f"{STUDIO_ID}/parity-refutation/{result.result_digest}",
-        digest=result.result_digest,
+        digest=entity_digest(result.result_digest),
     )
     activity = ProvActivity(verb="verify", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
@@ -484,6 +560,7 @@ def parity_refutation_evidence(
         claim_boundary=claim,
         freshness=Freshness.TRACEABLE_UNCHECKED,
         numeric_provenance=numeric,
+        statistical_evidence=StatisticalEvidence(trials=1, failures=1),
     )
 
 
@@ -573,7 +650,7 @@ def controller_latency_evidence(
     """
     entity = ProvEntity(
         entity_id=f"{STUDIO_ID}/controller-latency/{result.controller}/{result.result_digest}",
-        digest=result.result_digest,
+        digest=entity_digest(result.result_digest),
     )
     activity = ProvActivity(verb="benchmark", studio=STUDIO_ID, started=started, ended=ended, host=host)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
@@ -658,6 +735,7 @@ def physics_validation_evidence(
     studio_version: str,
     started: str,
     ended: str,
+    freshness: Freshness = Freshness.TRACEABLE_UNCHECKED,
 ) -> EvidenceBundle:
     """Build a ``studio.physics-validation.v1`` bundle for a traceability claim.
 
@@ -677,6 +755,11 @@ def physics_validation_evidence(
         Version of the CONTROL studio.
     started, ended
         ISO-8601 start/end timestamps.
+    freshness
+        Freshness established for this emission. Only ``VERIFIED_AT_SOURCE``, from
+        an actual re-check at source, lets an allowed reference-validated claim be
+        admitted; otherwise it is floored to its boundary (see
+        :func:`floored_admission`).
 
     Returns
     -------
@@ -684,7 +767,7 @@ def physics_validation_evidence(
         A ``curated`` schema-B bundle whose admissibility reflects the claim status.
     """
     status = _FIDELITY_TO_STATUS[claim.fidelity_status]
-    admission = AdmissionDecision.ADMITTED if claim.public_claim_allowed else AdmissionDecision.REJECTED
+    admission = floored_admission(status, allowed=claim.public_claim_allowed, freshness=freshness)
     blocked: tuple[BlockedOn, ...] = ()
     if status is ClaimStatus.EXTERNAL_DEPENDENCY_BLOCKED:
         blocked = (BlockedOn(dependency=str(claim.blocking_dependency), kind="external-dependency"),)
@@ -702,7 +785,7 @@ def physics_validation_evidence(
             "validity_domain": claim.validity_domain,
         }
     )
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/physics-validation/{claim.module_path}", digest=digest)
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/physics-validation/{claim.module_path}", digest=entity_digest(digest))
     activity = ProvActivity(verb="validate", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     level = (
@@ -718,7 +801,7 @@ def physics_validation_evidence(
         evidence_level=level,
         evidence_kind=EvidenceKind.CURATED,
         claim_boundary=boundary,
-        freshness=Freshness.TRACEABLE_UNCHECKED,
+        freshness=freshness,
     )
 
 
@@ -771,6 +854,7 @@ def geometry_neutral_replay_evidence_bundle(
     studio_version: str,
     started: str,
     ended: str,
+    freshness: Freshness = Freshness.TRACEABLE_UNCHECKED,
 ) -> EvidenceBundle:
     """Build the ``studio.geometry-neutral-replay.v1`` bundle.
 
@@ -788,18 +872,25 @@ def geometry_neutral_replay_evidence_bundle(
         Version of the CONTROL studio.
     started, ended
         ISO-8601 start/end timestamps.
+    freshness
+        Freshness established for this emission. Only ``VERIFIED_AT_SOURCE``, from
+        an actual re-check at source, lets an allowed reference-validated claim be
+        admitted; otherwise it is floored to its boundary (see
+        :func:`floored_admission`).
 
     Returns
     -------
     EvidenceBundle
         A ``measured`` schema-B bundle whose admissibility reflects the device claim.
     """
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/replay/{summary.result_digest}", digest=summary.result_digest)
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/replay/{summary.result_digest}", digest=entity_digest(summary.result_digest)
+    )
     activity = ProvActivity(verb="replay", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     physical = PhysicalContract(units={"coil_current": "A", "latency": "us"}, grid={})
     status = ClaimStatus.REFERENCE_VALIDATED if summary.device_claim_allowed else ClaimStatus.BOUNDED_MODEL
-    admission = AdmissionDecision.ADMITTED if summary.device_claim_allowed else AdmissionDecision.REJECTED
+    admission = floored_admission(status, allowed=summary.device_claim_allowed, freshness=freshness)
     return EvidenceBundle(
         schema=GEOMETRY_NEUTRAL_REPLAY_SCHEMA,
         entity=entity,
@@ -808,7 +899,7 @@ def geometry_neutral_replay_evidence_bundle(
         evidence_level=EvidenceLevel.ENGINEERING_VERIFIED,
         evidence_kind=EvidenceKind.MEASURED,
         claim_boundary=ClaimBoundary(status=status, admission=admission),
-        freshness=Freshness.TRACEABLE_UNCHECKED,
+        freshness=freshness,
         physical_contract=physical,
     )
 
@@ -885,7 +976,7 @@ def phase_sync_monitor_evidence(
         A ``measured`` schema-B bundle (bounded-model).
     """
     digest = canonical_digest({"tick": snapshot.tick, "r_global": snapshot.r_global, "lambda_exp": snapshot.lambda_exp})
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/phase-sync/{snapshot.tick}", digest=digest)
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/phase-sync/{snapshot.tick}", digest=entity_digest(digest))
     activity = ProvActivity(verb="monitor", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     physical = PhysicalContract(units={"R_global": "dimensionless", "lambda_exp": "1/s", "latency": "us"}, grid={})
@@ -971,7 +1062,8 @@ def disruption_prediction_evidence(
         A ``measured`` schema-B bundle on the validation-gap boundary.
     """
     entity = ProvEntity(
-        entity_id=f"{STUDIO_ID}/disruption-prediction/{prediction.result_digest}", digest=prediction.result_digest
+        entity_id=f"{STUDIO_ID}/disruption-prediction/{prediction.result_digest}",
+        digest=entity_digest(prediction.result_digest),
     )
     activity = ProvActivity(verb="predict", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
@@ -1066,7 +1158,8 @@ def equilibrium_analysis_evidence(
         A ``measured`` schema-B bundle (bounded-model).
     """
     entity = ProvEntity(
-        entity_id=f"{STUDIO_ID}/equilibrium-analysis/{analysis.result_digest}", digest=analysis.result_digest
+        entity_id=f"{STUDIO_ID}/equilibrium-analysis/{analysis.result_digest}",
+        digest=entity_digest(analysis.result_digest),
     )
     activity = ProvActivity(verb="analyse", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
@@ -1177,7 +1270,7 @@ def controller_run_evidence(
     """
     entity = ProvEntity(
         entity_id=f"{STUDIO_ID}/controller-run/{result.controller}/{result.result_digest}",
-        digest=result.result_digest,
+        digest=entity_digest(result.result_digest),
     )
     activity = ProvActivity(verb="regulate", studio=STUDIO_ID, started=started, ended=ended, host=host)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
@@ -1289,7 +1382,9 @@ def disruption_mitigation_evidence(
     EvidenceBundle
         A ``measured`` schema-B bundle (bounded-model).
     """
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/disruption-mitigation/{run.result_digest}", digest=run.result_digest)
+    entity = ProvEntity(
+        entity_id=f"{STUDIO_ID}/disruption-mitigation/{run.result_digest}", digest=entity_digest(run.result_digest)
+    )
     activity = ProvActivity(verb="mitigate", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     physical = PhysicalContract(
@@ -1413,7 +1508,7 @@ def scenario_simulation_evidence(
             "audit_passed": run.audit_passed,
         }
     )
-    entity = ProvEntity(entity_id=f"{STUDIO_ID}/scenario-simulation/{run.config_digest}", digest=digest)
+    entity = ProvEntity(entity_id=f"{STUDIO_ID}/scenario-simulation/{run.config_digest}", digest=entity_digest(digest))
     activity = ProvActivity(verb="simulate", studio=STUDIO_ID, started=started, ended=ended)
     agent = ProvAgent(studio_version=studio_version, operator=operator)
     physical = PhysicalContract(units={"time": "s"}, grid={"n_steps": run.n_steps, "modules": run.module_count})

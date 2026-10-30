@@ -29,7 +29,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from typing import Any, cast
+from typing import Any, TypedDict, cast
 
 from scpn_studio_platform.evidence import EvidenceBundle
 from scpn_studio_platform.verbs import Verb
@@ -174,6 +174,15 @@ def studio_feed(
     }
 
 
+class _Emission(TypedDict):
+    """The identity and time window shared by every representative bundle."""
+
+    operator: str
+    studio_version: str
+    started: str
+    ended: str
+
+
 def representative_bundles(
     *,
     operator: str = _REPRESENTATIVE_OPERATOR,
@@ -204,7 +213,7 @@ def representative_bundles(
     tuple[EvidenceBundle, ...]
         One bundle per evidence schema, in manifest order.
     """
-    who = {"operator": operator, "studio_version": studio_version, "started": started, "ended": ended}
+    who = _Emission(operator=operator, studio_version=studio_version, started=started, ended=ended)
     efit = efit_reconstruction_evidence(
         EfitReconstructionResult(
             ip_reconstructed_a=1.5e7,
