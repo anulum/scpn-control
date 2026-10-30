@@ -6,5 +6,8 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci jax.
 
+# Co-installed with ci-deps in CI: keep the shared pins identical.
+-c ci-deps.txt
+
 jax>=0.4.20
 jaxlib>=0.4.20

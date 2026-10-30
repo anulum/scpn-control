@@ -36,8 +36,8 @@ _CONFIGURATION = {
     "eslint.config.mjs": "f993ca10ef869a3e3dd7369a9f4c4d57bef49589ae6580290d64e4e1ee6dd954",
     "tsconfig.json": "974ccb2c633c405c0de9ea42d26e39f7de1d172b8f0edc1eeb2f4936bd556781",
     "vitest.config.ts": "125caad472ee561776f7b333318f6fb156c2b749500e944a971c7cd71357d277",
-    "package.json": "da19393e25539d17e7dd4fd15f268f78e5d2664fcd526e6c7e71eded218be43f",
-    "pnpm-lock.yaml": "2ea29df26110469875ead45dedcc64290c26b7c9ea31871f532b83785f538559",
+    "package.json": "012c89ee4ee499cf78e73724d398af9674b49c18bfd2e5c4e736bd311b1d627e",
+    "pnpm-lock.yaml": "a5dbbbfd863d86151a80af74277a4fadc6df09b7642acb625b06ebad3b2d6f3a",
     ".prettierrc.json": "ebe733191f06a29fdd34a4683327d9a36c008ed8da564d8e7def1c700d7463ff",
 }
 _NO_WAIVERS = json.dumps(

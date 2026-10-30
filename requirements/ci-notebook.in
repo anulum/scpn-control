@@ -12,5 +12,5 @@ nbconvert
 notebook==7.6.3
 jupyterlab==4.6.4
 jupyter-server>=2.21.0,<3
-setuptools==84.0.0
+setuptools==84.2.1
 soupsieve>=3.0.3,<4

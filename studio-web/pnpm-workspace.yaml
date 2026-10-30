@@ -18,10 +18,10 @@
 # onto the patched line: GHSA-xcpc-8h2w-3j85 / CVE-2026-39244 (high, crafted-ZIP 4GB
 # memory allocation) is fixed in 0.6.0.
 overrides:
-  undici: ">=7.29.1"
-  jsdom>undici: ">=8.10.2 <9.0.0"
-  "@module-federation/dts-plugin>undici": ">=7.29.1 <8.0.0"
-  markdown-it: ">=14.3.1 <15.0.0"
+  undici: ">=7.30.1"
+  jsdom>undici: ">=8.12.2 <9.0.0"
+  "@module-federation/dts-plugin>undici": ">=7.30.1 <8.0.0"
+  markdown-it: ">=14.3.3 <15.0.0"
   adm-zip: ">=0.6.0"
   # minimatch declares ^5.0.8; GHSA-q2hr-2g5m-vwhr is fixed in 5.0.12. A range
   # (not an exact pin) lets later patches and Dependabot updates through.
@@ -33,6 +33,7 @@ overrides:
   # Dependabot cannot update this transitive package without a root override.
   # Security update requires >=4.28.7; pin the current fixed release.
   browserslist: 4.28.8
+  zod: ">=4.6.6 <5.0.0"
 
 minimumReleaseAgeExclude:
   - 'nanoid@3.3.18'

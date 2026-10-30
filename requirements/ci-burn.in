@@ -13,5 +13,5 @@ numpy<2
 matplotlib>=3.5,<4
 pandas>=1.5,<4
 requests>=2.31,<3
-setuptools==84.0.0
+setuptools==84.2.1
 wheel==0.48.0

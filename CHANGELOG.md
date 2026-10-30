@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Security — dependency alignment
+
+- All Python CI locks are re-resolved to the newest compatible releases.
+  pip-audit reports no known vulnerabilities. Torch wheels from the CPU index
+  cannot be audited.
+  - The `setuptools` floor in the test, burn and notebook inputs moves to
+    84.2.1.
+  - Locks that CI installs next to `ci-deps` now take its pins, so NumPy and
+    SciPy stay identical across a job. The test lock repeats the `ci-deps`
+    bounds, because the burn lock includes it under its own `numpy<2`.
+  - `ci-viz` is locked for the Python 3.11 floor, which the RL constraint
+    range needs.
+  - `ci-rl` resolves across both official indexes.
+- The Studio web lock moves to patched `vite`, `vitest`, `@vitest/mocker`,
+  `undici`, `zod` and `markdown-it` releases. `pnpm audit` reports no known
+  vulnerabilities.
+  - Node 22.23.2 and pnpm 11.25 stay as they are, because the changed-Studio
+    static profile is qualified on exactly those versions.
+  - The changed-Studio profile is requalified on the new package and lock
+    files. Typecheck, ESLint, Prettier, build, tests and API docs pass, and
+    the profile's own native tests pass. `postcss` stays at 8.5.28, which the
+    workspace override range resolves and which is already patched.
+- The generated capability snapshot and the docs changelog mirror follow the
+  README and changelog changes.
+
 ### Fixed
 
 - Two example notebooks never ran in CI.

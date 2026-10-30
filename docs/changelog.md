@@ -2,6 +2,67 @@
 
 ## Unreleased
 
+### Security — dependency alignment
+
+- All Python CI locks are re-resolved to the newest compatible releases.
+  pip-audit reports no known vulnerabilities. Torch wheels from the CPU index
+  cannot be audited.
+  - The `setuptools` floor in the test, burn and notebook inputs moves to
+    84.2.1.
+  - Locks that CI installs next to `ci-deps` now take its pins, so NumPy and
+    SciPy stay identical across a job. The test lock repeats the `ci-deps`
+    bounds, because the burn lock includes it under its own `numpy<2`.
+  - `ci-viz` is locked for the Python 3.11 floor, which the RL constraint
+    range needs.
+  - `ci-rl` resolves across both official indexes.
+- The Studio web lock moves to patched `vite`, `vitest`, `@vitest/mocker`,
+  `undici`, `zod` and `markdown-it` releases. `pnpm audit` reports no known
+  vulnerabilities.
+  - Node 22.23.2 and pnpm 11.25 stay as they are, because the changed-Studio
+    static profile is qualified on exactly those versions.
+  - The changed-Studio profile is requalified on the new package and lock
+    files. Typecheck, ESLint, Prettier, build, tests and API docs pass, and
+    the profile's own native tests pass. `postcss` stays at 8.5.28, which the
+    workspace override range resolves and which is already patched.
+- The generated capability snapshot and the docs changelog mirror follow the
+  README and changelog changes.
+
+### Fixed
+
+- Two example notebooks never ran in CI.
+  - `snn_pac_closed_loop_demo.ipynb` executes with the CI notebook
+    dependencies and now runs in the notebook job.
+  - `scpn_full_stack_demo_2026.ipynb` imports the Rust bindings and had
+    drifted from the current API: dictionary access on the equilibrium
+    result, `state.psi` and `grid` instead of `Psi`, `RR` and `ZZ`, the old
+    readout format, and a controller without targets, scales or a `Z_axis_m`
+    observation. It now executes in the Rust bridge job, where the bindings
+    are built.
+  - Its text no longer claims a fixed ">13 kHz" throughput or "verified
+    benchmarks"; the last section measures the machine that runs it.
+
+### Security
+
+- The Rust workspace and fuzz locks move to patched releases:
+  - `ctutils` 0.4.7 (RUSTSEC-2026-0385), main lock;
+  - `rustls-webpki` 0.103.16 (RUSTSEC-2026-0382), both locks;
+  - `webpki-roots` 1.0.11 (RUSTSEC-2026-0381), both locks.
+- `cargo audit` reports no vulnerabilities on either lock.
+- The CI Rust job passes locally with these locks: `cargo fmt --all --check`,
+  workspace Clippy over all targets and features with `-D warnings`, strict
+  API docs, and 377 workspace tests. The fuzz crate checks on nightly.
+- The changed-Rust commit hook now caps native commands at 4 GiB of address
+  space instead of 2 GiB. With 2 GiB, rust-lld could not map the
+  `intel-mkl-src` build script, so the hook failed on the first real
+  Cargo.lock change. 4 GiB completes the workspace Clippy command. Jobs stay
+  serial and niced.
+- The Lean toolchain is pinned to `leanprover/lean4:v4.35.0`, the current
+  stable release, instead of the moving `stable` channel. The proofs build with
+  it, without `sorry` or new axioms.
+- The changed-Rust hook's default bound per native command rises from 120 s
+  to 600 s. A cold workspace Clippy run with one build job takes 129 s, so the
+  hook refused every commit made from an empty build directory.
+
 ### Added
 
 - Added `tools/check_docstring_debt.py`, a counting ratchet that holds the

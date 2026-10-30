@@ -6,4 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci hdf5.
 
+# Co-installed with ci-deps in CI: keep the shared pins identical.
+-c ci-deps.txt
+
 h5py>=3.0
