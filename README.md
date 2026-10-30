@@ -103,6 +103,22 @@ re-implementing it. The full three-repository ownership split and the contracts
 between the repositories are documented in
 [the architecture guide](docs/architecture.md#scpn-ecosystem-and-cross-repository-contracts).
 
+### Group: SCPN Systems Integration and Control
+
+`scpn-control` is one of four projects in the **SCPN Systems Integration and
+Control** group:
+
+| Project | Function | Status |
+|---------|----------|--------|
+| [SCPN Phase Orchestrator](https://github.com/anulum/scpn-phase-orchestrator) | Phase and synchronisation analysis with sealed, replayable evidence; a required dependency of this package | PyPI 1.4.3 |
+| SCPN Control (this repository) | Fusion plasma control loops with physics and hardware-in-the-loop evidence gates | PyPI 0.23.0, alpha |
+| SCPN Studio Platform | Shared SDK and evidence standard for scientific studios; optional `studio` extra | PyPI 0.11.3; source not public |
+| SCPN Studio Hub | Federating Hub that hosts the Control studio panel and audits studio evidence | In development; not publicly released |
+
+The [group map](https://github.com/anulum/scpn-phase-orchestrator/blob/main/docs/group_map.md)
+shows the declared package relationships between them. Its arrows are
+packaging relationships, not runtime validation.
+
 ## Why it matters
 
 Fusion control software is usually split across offline modelling codes,
