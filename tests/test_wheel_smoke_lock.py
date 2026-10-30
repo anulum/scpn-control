@@ -53,6 +53,7 @@ def test_package_quality_runs_the_wheel_outside_the_checkout() -> None:
     """Install with ``--no-deps``, prove completeness and run from outside the tree."""
     text = WORKFLOW.read_text(encoding="utf-8")
     for fragment in (
+        "unset PYTHONPATH",
         "-m pip install --require-hashes -r requirements/ci-wheel-smoke.txt",
         "-m pip install --no-deps dist/scpn_control-*.whl",
         "-m pip check",

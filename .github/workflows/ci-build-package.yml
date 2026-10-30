@@ -52,6 +52,9 @@ jobs:
         # from outside the source tree.
         run: |
           set -euo pipefail
+          # The workflow puts the checkout's src on PYTHONPATH; the wheel must
+          # be imported from site-packages, not from the source tree.
+          unset PYTHONPATH
           venv="$RUNNER_TEMP/wheel-smoke"
           python -m venv "$venv"
           "$venv/bin/python" -m pip install --require-hashes -r requirements/ci-wheel-smoke.txt
