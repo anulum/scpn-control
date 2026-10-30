@@ -86,6 +86,7 @@ _LOGGER = logging.getLogger("SCPN.Control.CLI")
 
 
 def _coerce_float(name: str, value: str | None) -> float | None:
+    """Return ``value`` as a float, ``None`` unchanged; refuse other text as a CLI error."""
     if value is None:
         return None
     try:
@@ -95,6 +96,7 @@ def _coerce_float(name: str, value: str | None) -> float | None:
 
 
 def _emit_campaign_result(summary: dict[str, object], *, json_out: bool) -> None:
+    """Print the campaign summary as JSON or as a short text report."""
     if json_out:
         click.echo(json.dumps(summary, indent=2))
     else:
@@ -123,6 +125,20 @@ def _emit_campaign_result(summary: dict[str, object], *, json_out: bool) -> None
             click.echo(f"Anomaly details: status={summary.get('status')}", err=True)
 
 
+# Inclusive upper bounds on options that size work, memory or sockets. A value
+# past its bound is refused before any work starts.
+_MAX_DEMO_STEPS = 1_000_000
+_MAX_BENCHMARK_ITERATIONS = 10_000_000
+_MAX_NEURONS = 65_536
+_MAX_PORT = 65_535
+_MAX_QUEUE = 4_096
+_MAX_CAMPAIGN_STEPS = 100_000_000
+_MAX_FORMAL_DEPTH = 64
+_MAX_FORMAL_MARKING = 1_000_000
+_MAX_LAYERS = 1_024
+_MAX_OSCILLATORS_PER_LAYER = 100_000
+
+
 @click.group()
 @click.version_option(version=_VERSION, prog_name="scpn-control")
 def main() -> None:
@@ -131,7 +147,7 @@ def main() -> None:
 
 @main.command()
 @click.option("--scenario", default="combined", type=click.Choice(["pid", "snn", "combined"]))
-@click.option("--steps", default=1000, type=int, help="Simulation time steps")
+@click.option("--steps", default=1000, type=click.IntRange(max=_MAX_DEMO_STEPS), help="Simulation time steps")
 @click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
 def demo(scenario: str, steps: int, json_out: bool) -> None:
     """Run a closed-loop control demo."""
@@ -263,8 +279,15 @@ def demo(scenario: str, steps: int, json_out: bool) -> None:
 
 
 @main.command()
-@click.option("--n-bench", default=5000, type=int, help="Number of benchmark iterations")
-@click.option("--n-warmup", default=100, type=int, help="Warm-up iterations excluded from timing")
+@click.option(
+    "--n-bench", default=5000, type=click.IntRange(max=_MAX_BENCHMARK_ITERATIONS), help="Number of benchmark iterations"
+)
+@click.option(
+    "--n-warmup",
+    default=100,
+    type=click.IntRange(max=_MAX_BENCHMARK_ITERATIONS),
+    help="Warm-up iterations excluded from timing",
+)
 @click.option("--json-out", is_flag=True, help="Emit JSON")
 def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     """Benchmark PID versus SNN control-step latency.
@@ -280,6 +303,7 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     decay = 0.9
 
     def _run_benchmark(iterations: int, op: Callable[[], None]) -> list[float]:
+        """Time ``iterations`` calls of ``op`` and return each duration in nanoseconds."""
         timings_ns: list[float] = []
         for _ in range(iterations):
             t0 = time.perf_counter_ns()
@@ -288,6 +312,7 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
         return timings_ns
 
     def _percentile(sorted_values: list[float], frac: float) -> float:
+        """Return the nearest-rank ``frac`` percentile of already sorted values."""
         if (
             not sorted_values
         ):  # pragma: no cover - defensive; benchmark computes statistics.mean first, so the sample is never empty here
@@ -300,6 +325,7 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
         return float(sorted_values[idx]) / 1000.0
 
     def pid_step() -> None:
+        """Advance the PID reference controller by one step on a random error."""
         nonlocal integral, prev_error
         error = np.random.randn()
         integral += error
@@ -308,6 +334,7 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
         prev_error = error
 
     def snn_step() -> None:
+        """Advance the leaky integrate-and-fire reference layer by one step on a random error."""
         nonlocal v
         error = np.random.randn()
         v[:] = v * decay + error * np.random.randn(n_neurons) * 0.1
@@ -361,7 +388,12 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
 
 
 @main.command(name="run-hardware-campaign")
-@click.option("--neurons", default=64, type=int, help="Neuro core neuron count used by native controller")
+@click.option(
+    "--neurons",
+    default=64,
+    type=click.IntRange(max=_MAX_NEURONS),
+    help="Neuro core neuron count used by native controller",
+)
 @click.option("--seed", default=7, type=int, help="Native controller seed")
 @click.option("--state-init-r", default=None, type=float, help="Initial major radius [m]")
 @click.option("--state-init-z", default=None, type=float, help="Initial vertical position [m]")
@@ -378,9 +410,11 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     help="JSON file with Kuramoto weights",
 )
 @click.option("--transport-endpoint", default="239.0.0.1", help="UDP destination address")
-@click.option("--transport-port", default=5555, type=int, help="UDP destination port")
+@click.option("--transport-port", default=5555, type=click.IntRange(max=_MAX_PORT), help="UDP destination port")
 @click.option("--transport-ttl", default=1, type=int, help="UDP TTL / multicast hop count")
-@click.option("--transport-max-queue", default=4, type=int, help="Max unprocessed outbound frames")
+@click.option(
+    "--transport-max-queue", default=4, type=click.IntRange(max=_MAX_QUEUE), help="Max unprocessed outbound frames"
+)
 @click.option("--transport-backend", default="std", help="Transport backend (std / io-uring)")
 @click.option(
     "--execution-backend",
@@ -391,7 +425,7 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
 @click.option(
     "--heartbeat-port",
     default=0,
-    type=int,
+    type=click.IntRange(max=_MAX_PORT),
     help="Authenticated transport-liveness heartbeat listen port",
 )
 @click.option("--heartbeat-timeout-ms", default=3, type=int, help="Heartbeat timeout threshold (ms)")
@@ -399,7 +433,9 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
 @click.option("--core-z3", default=2, type=int, help="Core pinned to Z3 verification")
 @click.option("--core-net", default=3, type=int, help="Core pinned to UDP publisher")
 @click.option("--core-hb", default=4, type=int, help="Core pinned to heartbeat monitor")
-@click.option("--steps", default=None, type=int, help="Exact number of control iterations")
+@click.option(
+    "--steps", default=None, type=click.IntRange(max=_MAX_CAMPAIGN_STEPS), help="Exact number of control iterations"
+)
 @click.option("--runtime-s", default=None, type=float, help="Alternative run horizon in seconds")
 @click.option("--tick-interval-s", default=0.001, type=float, help="Control tick interval")
 @click.option(
@@ -425,9 +461,18 @@ def benchmark(n_bench: int, n_warmup: int, json_out: bool) -> None:
     help="Native formal verification mode",
 )
 @click.option("--formal-stride", default=30, type=int, help="Formal verification dispatch stride")
-@click.option("--formal-depth", default=4, type=int, help="Bounded Z3 verification depth")
-@click.option("--formal-max-marking", default=100, type=int, help="Formal marking safety bound")
-@click.option("--formal-channel-capacity", default=2, type=int, help="Formal worker queue capacity")
+@click.option(
+    "--formal-depth", default=4, type=click.IntRange(max=_MAX_FORMAL_DEPTH), help="Bounded Z3 verification depth"
+)
+@click.option(
+    "--formal-max-marking",
+    default=100,
+    type=click.IntRange(max=_MAX_FORMAL_MARKING),
+    help="Formal marking safety bound",
+)
+@click.option(
+    "--formal-channel-capacity", default=2, type=click.IntRange(max=_MAX_QUEUE), help="Formal worker queue capacity"
+)
 @click.option("--require-native", is_flag=True, help="Abort when native bridge is unavailable")
 @click.option("--json-out", is_flag=True, help="Emit JSON instead of text")
 def run_hardware_campaign(
@@ -648,6 +693,7 @@ def acquire_mdsplus_shot_command(
 
 
 def _parse_mdsplus_signal_spec(raw: str) -> MDSplusSignalSpec:
+    """Parse one JSON signal specification into an ``MDSplusSignalSpec``."""
     from scpn_control.core.mdsplus_acquisition import MDSplusSignalSpec
 
     payload = json.loads(raw)
@@ -662,10 +708,10 @@ def _parse_mdsplus_signal_spec(raw: str) -> MDSplusSignalSpec:
 
 
 @main.command()
-@click.option("--port", default=8765, type=int, help="WebSocket port")
+@click.option("--port", default=8765, type=click.IntRange(max=_MAX_PORT), help="WebSocket port")
 @click.option("--host", default="127.0.0.1", help="Bind address")
-@click.option("--layers", default=16, type=int, help="Kuramoto layers (L)")
-@click.option("--n-per", default=50, type=int, help="Oscillators per layer")
+@click.option("--layers", default=16, type=click.IntRange(max=_MAX_LAYERS), help="Kuramoto layers (L)")
+@click.option("--n-per", default=50, type=click.IntRange(max=_MAX_OSCILLATORS_PER_LAYER), help="Oscillators per layer")
 @click.option("--zeta", default=0.5, type=float, help="Global field coupling zeta")
 @click.option("--psi", default=0.0, type=float, help="Initial Psi driver")
 @click.option("--tick-interval", default=0.001, type=float, help="Seconds between ticks")

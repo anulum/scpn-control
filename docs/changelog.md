@@ -33,6 +33,19 @@
 
 ### Fixed
 
+- CLI options that size work, memory or sockets declare inclusive upper
+  bounds:
+  - `demo --steps` up to 1,000,000;
+  - `benchmark --n-bench` and `--n-warmup` up to 10,000,000;
+  - `run-hardware-campaign --steps` up to 100,000,000, `--neurons` up to
+    65,536, `--formal-depth` up to 64 and `--formal-max-marking` up to
+    1,000,000;
+  - queues and channels up to 4,096;
+  - ports up to 65,535;
+  - `live --layers` up to 1,024 and `--n-per` up to 100,000.
+
+  A larger value is refused as a usage error before any work starts.
+
 - The EFIT neural-equilibrium (NumPy and JAX) and QLKNN turbulence weight
   loaders read `.npz` files through `load_npz_capped`. It refuses archives
   whose declared decompressed size exceeds 512 MiB before NumPy materialises
