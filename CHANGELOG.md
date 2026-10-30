@@ -4,6 +4,10 @@
 
 ### Security — dependency alignment
 
+- `requirements-dev.txt` pins Black 26.10.1, which fixes GHSA-cg8m-r9f2-5wm2
+  (Dependabot alert 311; the Black GitHub Action installed an unvalidated
+  `required-version`). The project does not use the Black action; the pin is
+  raised so the advisory no longer applies.
 - All Python CI locks are re-resolved to the newest compatible releases.
   pip-audit reports no known vulnerabilities. Torch wheels from the CPU index
   cannot be audited.
