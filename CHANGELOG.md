@@ -17,6 +17,9 @@
   `intel-mkl-src` build script, so the hook failed on the first real
   Cargo.lock change. 4 GiB completes the workspace Clippy command. Jobs stay
   serial and niced.
+- The Lean toolchain is pinned to `leanprover/lean4:v4.35.0`, the current
+  stable release, instead of the moving `stable` channel. The proofs build with
+  it, without `sorry` or new axioms.
 
 ### Added
 
