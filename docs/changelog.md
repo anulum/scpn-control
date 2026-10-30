@@ -33,6 +33,11 @@
 
 ### Fixed
 
+- FPGA project export, the formal safety certificate and bundle (JSON and
+  Markdown), and the geometry-neutral replay report and evidence now
+  publish atomically. That covers every HDL, constraint, Makefile, ROM and
+  evidence file.
+
 - These outputs now publish atomically:
   - the static-mu claim;
   - both safety-case manifests;

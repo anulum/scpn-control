@@ -26,6 +26,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.scpn.formal_verification import (
     AlwaysBounded,
     AlwaysEventuallyMarked,
@@ -67,6 +68,7 @@ class SafetyCertificatePolicy:
     required_checked_specs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
+        """Validate the policy name, minimum depth and required flags and specs."""
         if not isinstance(self.name, str) or not self.name:
             raise ValueError("safety certificate policy name must be a non-empty string")
         if isinstance(self.min_depth, bool) or int(self.min_depth) != self.min_depth or self.min_depth < 0:
@@ -114,6 +116,7 @@ class SafetyCertificateBundlePolicy:
     require_same_backend: bool = False
 
     def __post_init__(self) -> None:
+        """Validate the bundle policy name, certificate minimum and required flags."""
         if not isinstance(self.name, str) or not self.name:
             raise ValueError("safety certificate bundle policy name must be a non-empty string")
         if (
@@ -203,8 +206,8 @@ def write_safety_certificate(
     markdown_target = Path(markdown_path)
     json_target.parent.mkdir(parents=True, exist_ok=True)
     markdown_target.parent.mkdir(parents=True, exist_ok=True)
-    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    markdown_target.write_text(_render_safety_certificate_markdown(payload), encoding="utf-8")
+    write_text_atomic(json_target, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(markdown_target, _render_safety_certificate_markdown(payload))
     return payload
 
 
@@ -372,8 +375,8 @@ def write_safety_certificate_bundle(
     markdown_target = Path(markdown_path)
     json_target.parent.mkdir(parents=True, exist_ok=True)
     markdown_target.parent.mkdir(parents=True, exist_ok=True)
-    json_target.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    markdown_target.write_text(_render_safety_certificate_bundle_markdown(payload), encoding="utf-8")
+    write_text_atomic(json_target, json.dumps(payload, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(markdown_target, _render_safety_certificate_bundle_markdown(payload))
     return payload
 
 
@@ -522,6 +525,7 @@ def _certificate_checked_specs(
     ctl_report: FormalPropertyReport | None,
     ltl_report: FormalPropertyReport | None,
 ) -> list[str]:
+    """Return the base specs followed by each present section's checked specs, without repeats."""
     specs = ["marking_bounds", "transition_liveness"]
     for section in (report.temporal, ctl_report, ltl_report):
         if section is None:
@@ -533,6 +537,7 @@ def _certificate_checked_specs(
 
 
 def _certificate_checked_specs_from_sections(sections: dict[str, Any]) -> list[str]:
+    """Return the base specs followed by the checked specs of each serialised section, without repeats."""
     specs = ["marking_bounds", "transition_liveness"]
     for section_name in ("temporal", "ctl", "ltl"):
         section = sections.get(section_name)
@@ -547,6 +552,7 @@ def _certificate_checked_specs_from_sections(sections: dict[str, Any]) -> list[s
 
 
 def _policy_payload(policy: SafetyCertificatePolicy) -> dict[str, Any]:
+    """Return the JSON mapping of a certificate policy."""
     return {
         "name": policy.name,
         "min_depth": policy.min_depth,
@@ -558,6 +564,7 @@ def _policy_payload(policy: SafetyCertificatePolicy) -> dict[str, Any]:
 
 
 def _bundle_policy_payload(policy: SafetyCertificateBundlePolicy) -> dict[str, Any]:
+    """Return the JSON mapping of a bundle policy."""
     return {
         "name": policy.name,
         "min_certificates": policy.min_certificates,
@@ -568,6 +575,7 @@ def _bundle_policy_payload(policy: SafetyCertificateBundlePolicy) -> dict[str, A
 
 
 def _policy_from_payload(value: Any) -> SafetyCertificatePolicy | None:
+    """Rebuild a certificate policy from JSON, or ``None``; refuse a malformed object."""
     if value is None:
         return None
     if not isinstance(value, dict):
@@ -586,6 +594,7 @@ def _policy_from_payload(value: Any) -> SafetyCertificatePolicy | None:
 
 
 def _bundle_policy_from_payload(value: Any) -> SafetyCertificateBundlePolicy | None:
+    """Rebuild a bundle policy from JSON, or ``None``; refuse a malformed object."""
     if value is None:
         return None
     if not isinstance(value, dict):
@@ -600,6 +609,7 @@ def _bundle_policy_from_payload(value: Any) -> SafetyCertificateBundlePolicy | N
 
 
 def _enforce_safety_certificate_policy(payload: dict[str, Any], policy: SafetyCertificatePolicy) -> None:
+    """Refuse a certificate that does not meet the policy's depth, binding and section requirements."""
     if payload["max_depth"] < policy.min_depth:
         raise ValueError("safety certificate policy requires max_depth to meet min_depth")
     if policy.require_artifact_binding and payload.get("artifact_sha256") is None:
@@ -620,6 +630,7 @@ def _enforce_safety_certificate_policy(payload: dict[str, Any], policy: SafetyCe
 
 
 def _enforce_safety_certificate_bundle_policy(payload: dict[str, Any], policy: SafetyCertificateBundlePolicy) -> None:
+    """Refuse a bundle that does not meet the policy's count and sameness requirements."""
     certificates = payload.get("certificates")
     if not isinstance(certificates, list):
         raise ValueError("safety certificate bundle policy requires certificates")
@@ -639,6 +650,7 @@ def _enforce_safety_certificate_bundle_policy(payload: dict[str, Any], policy: S
 
 
 def _enforce_unique_certificate_digests(certificates: list[dict[str, Any]]) -> None:
+    """Refuse certificates without SHA-256 payload digests or with repeated digests."""
     digests = [certificate.get("payload_sha256") for certificate in certificates]
     if not digests:
         raise ValueError("safety certificate bundle must include at least one certificate")
@@ -649,6 +661,7 @@ def _enforce_unique_certificate_digests(certificates: list[dict[str, Any]]) -> N
 
 
 def _common_certificate_value(certificates: list[dict[str, Any]], key: str) -> Any:
+    """Return the value of ``key`` shared by every certificate, else ``None``."""
     values = [certificate.get(key) for certificate in certificates]
     if not values:
         return None
@@ -659,6 +672,7 @@ def _common_certificate_value(certificates: list[dict[str, Any]], key: str) -> A
 
 
 def _payload_digest(payload: dict[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON payload without its own digest field."""
     canonical = dict(payload)
     canonical.pop("payload_sha256", None)
     blob = json.dumps(canonical, ensure_ascii=True, separators=(",", ":"), sort_keys=True).encode("utf-8")
@@ -666,10 +680,12 @@ def _payload_digest(payload: dict[str, Any]) -> str:
 
 
 def _is_sha256(value: str) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal SHA-256 digest."""
     return len(value) == 64 and all(ch in "0123456789abcdefABCDEF" for ch in value)
 
 
 def _resolve_artifact_sha256(artifact_path: str | Path | None, artifact_sha256: str | None) -> str | None:
+    """Return the artifact digest, computed from ``artifact_path`` when given and checked against any declared digest."""
     if artifact_sha256 is not None and not _is_sha256(artifact_sha256):
         raise ValueError("artifact_sha256 must be a SHA-256 hex digest")
     if artifact_path is None:
@@ -681,6 +697,7 @@ def _resolve_artifact_sha256(artifact_path: str | Path | None, artifact_sha256: 
 
 
 def _file_sha256(path: str | Path) -> str:
+    """Return the SHA-256 hex digest of an existing file, read in 1 MiB chunks."""
     target = Path(path)
     if not target.is_file():
         raise ValueError("artifact_path must be an existing file")
@@ -692,6 +709,7 @@ def _file_sha256(path: str | Path) -> str:
 
 
 def _safe_relative_uri(name: str, value: object) -> str:
+    """Return ``value`` when it is a safe relative path without schemes, roots or dot parts."""
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty relative path")
     if "\x00" in value or "\\" in value or "://" in value or value.startswith(("/", "~")):
@@ -703,6 +721,7 @@ def _safe_relative_uri(name: str, value: object) -> str:
 
 
 def _resolve_under_root(root: str | Path, relative_uri: str) -> Path:
+    """Resolve a safe relative URI under ``root`` and refuse an escape."""
     relative_uri = _safe_relative_uri("bundle_uri", relative_uri)
     base = Path(root).resolve()
     target = (base / relative_uri).resolve()
@@ -714,6 +733,7 @@ def _resolve_under_root(root: str | Path, relative_uri: str) -> Path:
 
 
 def _require_utc_timestamp(name: str, value: object) -> str:
+    """Return ``value`` when it is a timezone-aware UTC ISO 8601 timestamp."""
     if not isinstance(value, str) or not value:
         raise ValueError(f"safety certificate bundle artifact {name} must be a non-empty UTC timestamp")
     candidate = value[:-1] + "+00:00" if value.endswith("Z") else value
@@ -731,12 +751,14 @@ def _require_utc_timestamp(name: str, value: object) -> str:
 
 
 def _bundle_artifact_digest(artifact: dict[str, Any]) -> str:
+    """Return the SHA-256 of a bundle artifact's canonical JSON without its own digest."""
     payload = {key: value for key, value in artifact.items() if key != "artifact_sha256"}
     encoded = json.dumps(_jsonable(payload), sort_keys=True, separators=(",", ":")).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _jsonable(value: Any) -> Any:
+    """Return ``value`` with sets sorted and tuples as lists, so it serialises deterministically."""
     if isinstance(value, dict):
         return {str(key): _jsonable(item) for key, item in value.items()}
     if isinstance(value, set):
@@ -749,6 +771,7 @@ def _jsonable(value: Any) -> Any:
 
 
 def _render_safety_certificate_markdown(payload: dict[str, Any]) -> str:
+    """Render a safety certificate payload as Markdown."""
     lines = [
         "# SCPN Formal Safety Certificate",
         "",
@@ -797,6 +820,7 @@ def _render_safety_certificate_markdown(payload: dict[str, Any]) -> str:
 
 
 def _render_safety_certificate_bundle_markdown(payload: dict[str, Any]) -> str:
+    """Render a safety certificate bundle payload as Markdown."""
     lines = [
         "# SCPN Formal Safety Certificate Bundle",
         "",

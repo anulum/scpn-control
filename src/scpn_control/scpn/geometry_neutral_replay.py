@@ -22,6 +22,7 @@ from typing import Any, Mapping, cast
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.core.stellarator_geometry import (
     StellaratorConfig,
     effective_ripple,
@@ -92,28 +93,34 @@ class GeometryNeutralReplayEvidence:
 
 
 def _stable_json(payload: Any) -> str:
+    """Return ``payload`` as compact, key-sorted ASCII JSON."""
     return json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
 
 
 def _signature(payload: Mapping[str, Any]) -> str:
+    """Return a 16-hex-digit SHA-256 signature of the canonical JSON payload."""
     return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()[:16]
 
 
 def _digest(payload: Any) -> str:
+    """Return the SHA-256 of the canonical JSON payload."""
     return hashlib.sha256(_stable_json(payload).encode("utf-8")).hexdigest()
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the payload with its digest field blanked."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return _digest(unsigned)
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a lower-case 64-character hexadecimal digest."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     seen: set[str] = set()
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -125,16 +132,19 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time in ISO 8601 with a ``Z`` suffix, to the second."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _require_bool(name: str, value: Any) -> bool:
+    """Return ``value`` when it is a boolean; refuse anything else."""
     if not isinstance(value, bool):
         raise ValueError(f"{name} must be boolean")
     return value
 
 
 def _require_finite_nonnegative(name: str, value: Any) -> float:
+    """Return a finite non-negative float; refuse booleans and non-numbers."""
     if isinstance(value, bool):
         raise ValueError(f"{name} must be finite and non-negative")
     try:
@@ -147,6 +157,7 @@ def _require_finite_nonnegative(name: str, value: Any) -> float:
 
 
 def _require_finite(name: str, value: Any) -> float:
+    """Return a finite float; refuse booleans and non-numbers."""
     if isinstance(value, bool):
         raise ValueError(f"{name} must be finite")
     try:
@@ -159,12 +170,14 @@ def _require_finite(name: str, value: Any) -> float:
 
 
 def _require_mapping(name: str, value: Any) -> Mapping[str, Any]:
+    """Return ``value`` when it is a mapping; refuse anything else."""
     if not isinstance(value, Mapping):
         raise ValueError(f"{name} must be an object")
     return value
 
 
 def _require_manifest_text(name: str, value: Any) -> str:
+    """Return the stripped text of ``value``; refuse blank text."""
     text = str(value).strip()
     if not text:
         raise ValueError(f"{name} must be non-empty")
@@ -172,6 +185,7 @@ def _require_manifest_text(name: str, value: Any) -> str:
 
 
 def _require_optional_sha256(name: str, value: Any) -> str | None:
+    """Return ``None`` unchanged, else a lower-case SHA-256 digest; refuse anything else."""
     if value is None:
         return None
     if not _is_sha256(value):
@@ -180,12 +194,14 @@ def _require_optional_sha256(name: str, value: Any) -> str | None:
 
 
 def _require_int(name: str, value: Any) -> int:
+    """Return an integer; refuse booleans and other types."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{name} must be an integer")
     return int(value)
 
 
 def _require_nonnegative_int(name: str, value: Any) -> int:
+    """Return a non-negative integer; refuse anything else."""
     result = _require_int(name, value)
     if result < 0:
         raise ValueError(f"{name} must be non-negative")
@@ -193,6 +209,7 @@ def _require_nonnegative_int(name: str, value: Any) -> int:
 
 
 def _require_positive_int(name: str, value: Any) -> int:
+    """Return a positive integer; refuse anything else."""
     result = _require_int(name, value)
     if result <= 0:
         raise ValueError(f"{name} must be positive")
@@ -200,6 +217,7 @@ def _require_positive_int(name: str, value: Any) -> int:
 
 
 def _require_uuid_text(name: str, value: Any) -> str:
+    """Return ``value`` when it is a valid UUID string."""
     if not isinstance(value, str):
         raise ValueError(f"{name} must be a UUID string")
     try:
@@ -306,6 +324,7 @@ def attach_aer_admission_metadata(
 
 
 def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
+    """Return the field-line spread of the W7-X surface after the helical trim current."""
     _, _, field = stellarator_flux_surface(config, s=0.72, n_theta=32, n_phi=40)
     base = float(np.std(field / np.mean(field))) + 0.43 * effective_ripple(config, 0.72)
     controlled = base - 0.000041 * abs(float(current_A))
@@ -313,6 +332,7 @@ def _fieldline_spread(config: StellaratorConfig, current_A: float) -> float:
 
 
 def _build_controller() -> NeuroSymbolicController:
+    """Build the stochastic Petri-net controller that trims the helical current."""
     net = StochasticPetriNet()
     net.add_place("spread_low", initial_tokens=0.0)
     net.add_place("spread_high", initial_tokens=0.0)
@@ -376,6 +396,7 @@ def _build_controller() -> NeuroSymbolicController:
 
 
 def _scenario(*, steps: int, seed: int) -> ReplayScenario:
+    """Build the deterministic W7-X replay scenario for ``steps`` and ``seed``."""
     steps_i = _require_int("steps", steps)
     seed_i = _require_int("seed", seed)
     config = w7x_config()
@@ -431,6 +452,7 @@ def _scenario(*, steps: int, seed: int) -> ReplayScenario:
 
 
 def _run_once(scenario: ReplayScenario) -> dict[str, Any]:
+    """Run the closed-loop replay once and return its trace and metrics."""
     config = w7x_config()
     controller = _build_controller()
     actuator = scenario.actuator_set.by_name("helical_trim_A")
@@ -497,6 +519,7 @@ def _run_once(scenario: ReplayScenario) -> dict[str, Any]:
 
 
 def _passes(metrics: Mapping[str, float], thresholds: Mapping[str, float]) -> bool:
+    """Return whether every replay metric meets its threshold."""
     return bool(
         float(metrics["final_fieldline_spread"]) <= float(thresholds["max_final_fieldline_spread"])
         and float(metrics["improvement_fraction"]) >= float(thresholds["min_improvement_fraction"])
@@ -514,6 +537,7 @@ def _build_manifest(
     deterministic: bool,
     passes_thresholds: bool,
 ) -> dict[str, Any]:
+    """Assemble the replay manifest with its scenario, trace, metric and threshold digests."""
     magnetic_configuration = _require_mapping(
         "scenario.magnetic_configuration",
         scenario_payload["magnetic_configuration"],
@@ -591,6 +615,7 @@ def generate_geometry_neutral_report(*, steps: int = 12, seed: int = 314159) -> 
 
 
 def _validate_aer_admission_metadata(value: Mapping[str, Any]) -> dict[str, Any]:
+    """Validate the AER admission metadata block and return it as a dict."""
     metadata = dict(_require_mapping("aer_admission", value))
     if metadata.get("schema_version") != AER_ADMISSION_SCHEMA_VERSION:
         raise ValueError("aer_admission.schema_version is unsupported")
@@ -659,6 +684,7 @@ def _validate_aer_admission_metadata(value: Mapping[str, Any]) -> dict[str, Any]
 
 
 def _validate_v1_1_extensions(bench: Mapping[str, Any]) -> None:
+    """Validate the optional v1.1 bench extensions when they are present."""
     if "pulse_id" in bench:
         _require_uuid_text("pulse_id", bench["pulse_id"])
 
@@ -809,7 +835,7 @@ def save_geometry_neutral_replay_report(
     validate_report(report)
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(_stable_json(report), encoding="utf-8")
+    write_text_atomic(path, _stable_json(report))
     return path
 
 
@@ -830,6 +856,7 @@ def _validate_geometry_neutral_replay_evidence_payload(
     *,
     require_device_claim: bool,
 ) -> GeometryNeutralReplayEvidence:
+    """Rebuild replay evidence from a payload, checking its schema, digest and device claim."""
     if payload.get("schema_version") != EVIDENCE_SCHEMA_VERSION:
         raise ValueError("geometry-neutral replay evidence schema_version is unsupported")
     declared_digest = payload.get("payload_sha256")
@@ -981,7 +1008,7 @@ def save_geometry_neutral_replay_evidence(
         raise ValueError("evidence must be GeometryNeutralReplayEvidence")
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def load_geometry_neutral_replay_evidence(
@@ -1084,8 +1111,8 @@ def main(argv: list[str] | None = None) -> int:
     out_md = Path(args.output_md)
     out_json.parent.mkdir(parents=True, exist_ok=True)
     out_md.parent.mkdir(parents=True, exist_ok=True)
-    out_json.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    out_md.write_text(render_markdown(report), encoding="utf-8")
+    write_text_atomic(out_json, json.dumps(report, indent=2, sort_keys=True) + "\n")
+    write_text_atomic(out_md, render_markdown(report))
 
     bench = report["geometry_neutral_replay"]
     metrics = bench["metrics"]

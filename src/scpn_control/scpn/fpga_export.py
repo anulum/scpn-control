@@ -34,6 +34,8 @@ from datetime import UTC, datetime
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from scpn_control._atomic import write_text_atomic
+
 from .compiler import CompiledNet
 
 VALID_TARGETS = ("xilinx", "intel", "lattice")
@@ -59,6 +61,7 @@ class FPGAConfig:
     fifo_depth: int = 16
 
     def __post_init__(self) -> None:
+        """Validate the FPGA target, clock, LIF bit width, neuron limit and FIFO depth."""
         if self.target not in VALID_TARGETS:
             raise ValueError(f"target must be one of {VALID_TARGETS}, got '{self.target}'")
         if self.clock_mhz <= 0.0:
@@ -107,24 +110,29 @@ class HDLExportEvidence:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time in ISO 8601 with a ``Z`` suffix, to the second."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return ``payload`` as compact, key-sorted ASCII JSON."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the payload with its digest field blanked."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a lower-case 64-character hexadecimal digest."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     seen: set[str] = set()
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -136,6 +144,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _safe_relative_uri(name: str, value: str) -> str:
+    """Return ``value`` when it is a safe relative POSIX path without schemes, roots or dot parts."""
     if not isinstance(value, str) or not value:
         raise ValueError(f"{name} must be a non-empty safe relative path")
     if "\\" in value or "://" in value or "//" in value or value.startswith(("file:", "/", "~")):
@@ -147,6 +156,7 @@ def _safe_relative_uri(name: str, value: str) -> str:
 
 
 def _require_finite_nonnegative(name: str, value: object) -> float:
+    """Return a finite non-negative float; refuse booleans and non-numbers."""
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be a finite non-negative number")
     try:
@@ -159,6 +169,7 @@ def _require_finite_nonnegative(name: str, value: object) -> float:
 
 
 def _project_file_paths(project_dir: Path, config: FPGAConfig) -> dict[str, Path]:
+    """Return the paths of every file an HDL project directory holds for ``config``."""
     hdl_name = "top.vhd" if config.target == "lattice" else "top.v"
     constraints_name = "constraints.xdc" if config.target == "xilinx" else "constraints.sdc"
     return {
@@ -170,16 +181,19 @@ def _project_file_paths(project_dir: Path, config: FPGAConfig) -> dict[str, Path
 
 
 def _file_sha256(path: Path) -> str:
+    """Return the SHA-256 of a required project file; refuse a missing one."""
     if not path.is_file():
         raise ValueError(f"HDL export project file is missing: {path.name}")
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def _resource_digest(resources: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON of a resource report."""
     return hashlib.sha256(_canonical_json(dict(resources)).encode("utf-8")).hexdigest()
 
 
 def _require_positive_integer(name: str, value: object) -> int:
+    """Return a positive integer; refuse booleans and other values."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
@@ -190,6 +204,7 @@ def _resolve_synthesis_report(
     synthesis_report_sha256: str,
     artifact_root: str | Path,
 ) -> None:
+    """Refuse a synthesis report outside ``artifact_root``, missing, or with another digest."""
     rel = _safe_relative_uri("synthesis_report_uri", synthesis_report_uri)
     root = Path(artifact_root).resolve()
     candidate = (root / rel).resolve()
@@ -210,6 +225,7 @@ def _validate_hdl_export_payload(
     require_facility_claim: bool,
     artifact_root: str | Path | None = None,
 ) -> HDLExportEvidence:
+    """Rebuild HDL export evidence from a payload, checking schema, digests and the facility claim."""
     if payload.get("schema_version") != HDL_EXPORT_EVIDENCE_SCHEMA_VERSION:
         raise ValueError("HDL export evidence schema_version is unsupported")
     declared_digest = payload.get("payload_sha256")
@@ -379,6 +395,7 @@ def _quantize_threshold(value: float, bit_width: int) -> int:
 
 
 def _hex_width(bit_width: int) -> int:
+    """Return the number of hexadecimal digits for ``bit_width`` bits."""
     return (bit_width + 3) // 4
 
 
@@ -641,6 +658,7 @@ def _verilog_top(net: CompiledNet, config: FPGAConfig) -> str:
 
 
 def _vhdl_lif_neuron(bit_width: int, leak_shift: int) -> str:
+    """Return the VHDL source of a fixed-point LIF neuron with a shift-based leak."""
     bw = bit_width
     return textwrap.dedent(f"""\
         library ieee;
@@ -693,6 +711,7 @@ def _vhdl_lif_neuron(bit_width: int, leak_shift: int) -> str:
 
 
 def _vhdl_weight_rom(n_neurons: int, bit_width: int) -> str:
+    """Return the VHDL source of the synaptic weight ROM for ``n_neurons`` squared entries."""
     depth = n_neurons * n_neurons
     addr_bits = max(1, int(math.ceil(math.log2(max(depth, 2)))))
     return textwrap.dedent(f"""\
@@ -811,29 +830,25 @@ def _write_weights_mem(compiled_net: CompiledNet, config: FPGAConfig, path: Path
                 q = 0
             lines.append(f"{q & mask:0{hw}x}")
 
-    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    write_text_atomic(path, "\n".join(lines) + "\n")
 
 
 def _write_constraints_xdc(config: FPGAConfig, path: Path) -> None:
     """Xilinx XDC timing constraints."""
     period_ns = 1000.0 / config.clock_mhz
-    path.write_text(
-        f"create_clock -period {period_ns:.3f} -name sys_clk [get_ports clk]\n",
-        encoding="utf-8",
-    )
+    write_text_atomic(path, f"create_clock -period {period_ns:.3f} -name sys_clk [get_ports clk]\n")
 
 
 def _write_constraints_sdc(config: FPGAConfig, path: Path) -> None:
     """Intel/Lattice SDC timing constraints."""
     period_ns = 1000.0 / config.clock_mhz
-    path.write_text(
-        f"create_clock -period {period_ns:.3f} -name sys_clk [get_ports {{clk}}]\n",
-        encoding="utf-8",
-    )
+    write_text_atomic(path, f"create_clock -period {period_ns:.3f} -name sys_clk [get_ports {{clk}}]\n")
 
 
 def _write_makefile_vivado(path: Path) -> None:
-    path.write_text(
+    """Write the Vivado project Makefile."""
+    write_text_atomic(
+        path,
         textwrap.dedent("""\
             .PHONY: synth impl bit clean
 
@@ -847,12 +862,13 @@ def _write_makefile_vivado(path: Path) -> None:
             clean:
             \trm -rf .Xil *.jou *.log *.bit
         """),
-        encoding="utf-8",
     )
 
 
 def _write_makefile_quartus(path: Path) -> None:
-    path.write_text(
+    """Write the Quartus project Makefile."""
+    write_text_atomic(
+        path,
         textwrap.dedent("""\
             .PHONY: synth clean
 
@@ -865,7 +881,6 @@ def _write_makefile_quartus(path: Path) -> None:
             clean:
             \trm -rf db incremental_db output_files *.rpt *.sof
         """),
-        encoding="utf-8",
     )
 
 
@@ -891,10 +906,10 @@ def export_bitstream_project(
 
     if is_vhdl:
         hdl = compile_to_vhdl(compiled_net, config)
-        (output_dir / "top.vhd").write_text(hdl, encoding="utf-8")
+        write_text_atomic(output_dir / "top.vhd", hdl)
     else:
         hdl = compile_to_verilog(compiled_net, config)
-        (output_dir / "top.v").write_text(hdl, encoding="utf-8")
+        write_text_atomic(output_dir / "top.v", hdl)
 
     _write_weights_mem(compiled_net, config, output_dir / "weights.mem")
 
@@ -997,7 +1012,7 @@ def save_hdl_export_evidence(evidence: HDLExportEvidence, output_path: str | Pat
         raise ValueError("evidence must be HDLExportEvidence")
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def load_hdl_export_evidence(
