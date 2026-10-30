@@ -45,6 +45,7 @@ from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import parse_qs, urlsplit
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.phase.realtime_monitor import RealtimeMonitor
 
 logger = logging.getLogger(__name__)
@@ -137,11 +138,13 @@ def _valid_pac_gamma(value: float) -> bool:
 
 
 def _is_loopback_host(host: str) -> bool:
+    """Return whether ``host`` names the loopback interface."""
     normalised = host.strip().lower()
     return normalised in {"localhost", "127.0.0.1", "::1"}
 
 
 def _payload_size_bytes(message: object) -> int:
+    """Return a message's size in UTF-8 bytes."""
     if isinstance(message, (bytes, bytearray)):
         return len(message)
     if isinstance(message, str):
@@ -168,6 +171,7 @@ def _request_headers(websocket: Any) -> Any:
 
 
 def _get_header(websocket: Any, name: str) -> str | None:
+    """Return one request header across WebSocket library versions, or ``None``."""
     headers = _request_headers(websocket)
     if not hasattr(headers, "get"):
         return None
@@ -191,6 +195,7 @@ def _request_path(websocket: Any) -> str:
 
 
 def _bearer_token(authorization: str | None) -> str | None:
+    """Return the token of a ``Bearer`` authorization header, or ``None``."""
     if authorization is None:
         return None
     scheme, _, token = authorization.partition(" ")
@@ -200,10 +205,12 @@ def _bearer_token(authorization: str | None) -> str | None:
 
 
 def _api_key_is_strong(api_key: str) -> bool:
+    """Return whether the API key is at least the minimum length."""
     return len(api_key.encode("utf-8")) >= _MIN_API_KEY_BYTES
 
 
 def _websocket_peer(websocket: Any) -> str:
+    """Return the peer address of a connection, or ``unknown``."""
     remote = getattr(websocket, "remote_address", None)
     if isinstance(remote, tuple) and remote:
         return str(remote[0])
@@ -213,24 +220,29 @@ def _websocket_peer(websocket: Any) -> str:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time in ISO 8601 with a ``Z`` suffix, to the second."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return ``payload`` as compact, key-sorted ASCII JSON."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the payload with its digest field blanked."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a lower-case 64-character hexadecimal digest."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     seen: set[str] = set()
     out: dict[str, Any] = {}
     for key, value in pairs:
@@ -242,12 +254,14 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _require_nonnegative_int(name: str, value: object) -> int:
+    """Return a non-negative integer; refuse booleans and other values."""
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{name} must be a non-negative integer")
     return value
 
 
 def _require_positive_int(name: str, value: object) -> int:
+    """Return a positive integer; refuse anything else."""
     result = _require_nonnegative_int(name, value)
     if result <= 0:
         raise ValueError(f"{name} must be a positive integer")
@@ -255,6 +269,7 @@ def _require_positive_int(name: str, value: object) -> int:
 
 
 def _require_finite_positive(name: str, value: object) -> float:
+    """Return a finite positive float; refuse booleans and non-numbers."""
     if isinstance(value, bool) or not isinstance(value, (int, float, str)):
         raise ValueError(f"{name} must be a finite positive number")
     try:
@@ -267,6 +282,7 @@ def _require_finite_positive(name: str, value: object) -> float:
 
 
 def _tuple_of_nonempty_strings(name: str, value: object) -> tuple[str, ...]:
+    """Return the stripped items as a tuple of non-empty strings."""
     if not isinstance(value, (list, tuple)):
         raise ValueError(f"{name} must be a list or tuple")
     result = tuple(str(item).strip() for item in value)
@@ -281,6 +297,7 @@ def _ws_config_payload(
     bind_host: str,
     uses_tls: bool,
 ) -> dict[str, Any]:
+    """Return the server configuration recorded in runtime evidence."""
     return {
         "bind_host": bind_host,
         "uses_tls": uses_tls,
@@ -302,6 +319,7 @@ def _ws_config_payload(
 
 
 def _runtime_config_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the keyed HMAC-SHA256 of the canonical runtime configuration."""
     return hmac.new(
         _RUNTIME_CONFIG_DIGEST_KEY,
         _canonical_json(dict(payload)).encode("utf-8"),
@@ -335,6 +353,7 @@ class PhaseStreamServer:
     _running: bool = field(default=False, init=False, repr=False)
 
     def __post_init__(self) -> None:
+        """Validate the tick interval, API key strength, limits and allowed actions."""
         if not math.isfinite(self.tick_interval_s) or self.tick_interval_s <= 0.0:
             raise ValueError("tick_interval_s must be finite and positive")
         if self.api_key is not None and not self.api_key:
@@ -406,6 +425,7 @@ class PhaseStreamServer:
         }
 
     def _bump_runtime_counter(self, name: str, amount: int = 1) -> None:
+        """Add ``amount`` to one runtime counter."""
         self._runtime_counters[name] = int(self._runtime_counters.get(name, 0)) + int(amount)
 
     def runtime_counters(self) -> dict[str, int]:
@@ -413,6 +433,7 @@ class PhaseStreamServer:
         return dict(self._runtime_counters)
 
     def _origin_allowed(self, websocket: Any) -> bool:
+        """Return whether the request's Origin is admitted by the allowlist."""
         origin = _get_header(websocket, "Origin")
         if origin is None:
             # A missing Origin header is only admissible when no allowlist is
@@ -422,6 +443,7 @@ class PhaseStreamServer:
         return origin in self.allowed_origins
 
     def _authorised(self, websocket: Any) -> bool:
+        """Return whether the request carries the configured API key."""
         if self.api_key is None:
             return not self.require_client_auth
         candidate = _bearer_token(_get_header(websocket, "Authorization"))
@@ -433,6 +455,7 @@ class PhaseStreamServer:
         return candidate is not None and hmac.compare_digest(candidate, self.api_key)
 
     def _audit_security_event(self, websocket: Any, event: str, reason: str) -> None:
+        """Count and log one rejected security event."""
         counter = {
             "authentication_failed": "authentication_failures",
             "origin_rejected": "origin_rejections",
@@ -452,6 +475,7 @@ class PhaseStreamServer:
         )
 
     def _bucket_rate_limited(self, buckets: dict[Any, tuple[float, float]], key: Any, now: float) -> bool:
+        """Return whether a token bucket is empty, refilling it for elapsed time."""
         capacity = float(self.command_rate_limit)
         refill_rate = capacity / self.command_rate_window_s
         updated_at, tokens = buckets.get(key, (now, capacity))
@@ -464,12 +488,14 @@ class PhaseStreamServer:
         return limited
 
     def _rate_limited(self, websocket: Any) -> bool:
+        """Return whether the client or its peer address exceeds the command rate."""
         now = time.monotonic()
         client_limited = self._bucket_rate_limited(self._client_windows, websocket, now)
         peer_limited = self._bucket_rate_limited(self._peer_windows, _websocket_peer(websocket), now)
         return client_limited or peer_limited
 
     async def _handler(self, websocket: Any) -> None:
+        """Admit, authorise and serve one client until it disconnects."""
         if not self._origin_allowed(websocket):
             self._audit_security_event(websocket, "origin_rejected", "origin not allowed")
             await self._close_client(websocket, code=1008, reason="origin not allowed")
@@ -554,6 +580,7 @@ class PhaseStreamServer:
             logger.info("Client disconnected (%d remain)", len(self._clients))
 
     async def _close_client(self, websocket: Any, *, code: int, reason: str) -> None:
+        """Close a client within the send timeout, ignoring close errors."""
         close = getattr(websocket, "close", None)
         if close is None:
             return
@@ -561,10 +588,12 @@ class PhaseStreamServer:
             await asyncio.wait_for(close(code=code, reason=reason), timeout=self.client_send_timeout_s)
 
     async def _close_backpressured_client(self, websocket: Any) -> None:
+        """Count a backpressure disconnect and close the client with code 1011."""
         self._bump_runtime_counter("backpressure_disconnects")
         await self._close_client(websocket, code=1011, reason="broadcast backpressure timeout")
 
     async def _send_frame_or_dead(self, websocket: Any, frame: str) -> Any | None:
+        """Send one frame; return the connection when it is dead or backpressured, else ``None``."""
         try:
             await asyncio.wait_for(websocket.send(frame), timeout=self.client_send_timeout_s)
             transport = getattr(websocket, "transport", None)
@@ -582,9 +611,11 @@ class PhaseStreamServer:
         return None
 
     async def _send_response(self, websocket: Any, payload: dict[str, str]) -> bool:
+        """Send a JSON response; return whether it was delivered."""
         return await self._send_frame_or_dead(websocket, json.dumps(payload)) is None
 
     async def _tick_loop(self) -> None:
+        """Broadcast one phase snapshot per tick to every connected client."""
         self._running = True
         while self._running:
             if not self._clients:
@@ -646,7 +677,7 @@ class PhaseStreamServer:
         if not _is_loopback_host(host) and ssl_context is None and not self.allow_insecure_remote:
             raise ValueError("ssl_context is required for non-loopback binds unless allow_insecure_remote is enabled")
         try:
-            import websockets  # noqa: F811
+            import websockets
         except ImportError as exc:
             raise ImportError("pip install websockets") from exc
 
@@ -680,6 +711,7 @@ def _validate_websocket_runtime_payload(
     *,
     require_facility_claim: bool,
 ) -> WebSocketRuntimeEvidence:
+    """Rebuild WebSocket runtime evidence from a payload, checking schema, digest and facility claim."""
     if payload.get("schema_version") != WEBSOCKET_RUNTIME_EVIDENCE_SCHEMA_VERSION:
         raise ValueError("WebSocket runtime evidence schema_version is unsupported")
     declared_digest = payload.get("payload_sha256")
@@ -901,7 +933,7 @@ def save_websocket_runtime_evidence(evidence: WebSocketRuntimeEvidence, output_p
         raise ValueError("evidence must be WebSocketRuntimeEvidence")
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def load_websocket_runtime_evidence(

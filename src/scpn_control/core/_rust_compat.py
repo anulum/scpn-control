@@ -22,6 +22,7 @@ Usage:
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import tempfile
@@ -30,6 +31,8 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._atomic import write_bytes_atomic
+from scpn_control._npz import npz_destination
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core._rust_pid_compat import RustPIDController as RustPIDController
 from scpn_control.core.fusion_kernel import (
@@ -44,7 +47,6 @@ from scpn_control.core.fusion_kernel import (
 
 try:
     from scpn_control_rs import (
-        PyEquilibriumResult,  # noqa: F401
         PyFusionKernel,
         PyUdpTransportBridge,
         shafranov_bv,
@@ -62,6 +64,7 @@ def _rust_available() -> bool:
 
 
 def _remove_normalised_config(path: str) -> None:
+    """Delete a normalised temporary configuration if it still exists."""
     try:
         os.unlink(path)
     except FileNotFoundError:
@@ -69,6 +72,7 @@ def _remove_normalised_config(path: str) -> None:
 
 
 def _normalise_rust_config_path(config_path: str) -> tuple[dict[str, Any], str, str | None]:
+    """Return the normalised configuration and the path the Rust kernel should read, plus any temporary file to delete."""
     with open(config_path, encoding="utf-8") as f:
         raw_config = json.load(f, object_pairs_hook=_reject_duplicate_json_keys)
     normalised_config = _fusion_kernel_config_dump(_parse_fusion_kernel_config(raw_config))
@@ -105,6 +109,7 @@ class RustAcceleratedKernel:
     """
 
     def __init__(self, config_path: str | os.PathLike[str]) -> None:
+        """Normalise the configuration for the Rust kernel and create it, scheduling temporary-file cleanup."""
         self._config_path = str(config_path)
         self._normalised_config_finalizer: Any | None = None
         self.cfg, rust_config_path, cleanup_path = _normalise_rust_config_path(self._config_path)
@@ -220,7 +225,9 @@ class RustAcceleratedKernel:
 
     def save_results(self, filename: str = "equilibrium_nonlinear.npz") -> None:
         """Save current state to .npz file."""
-        np.savez(filename, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
+        buffer = io.BytesIO()
+        np.savez(buffer, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
+        write_bytes_atomic(npz_destination(filename), buffer.getvalue())
 
 
 # ─── Public API ─────────────────────────────────────────────────────
@@ -266,9 +273,11 @@ if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
 else:  # pragma: no cover - rust-absent fallbacks; exercised by the rust-free python-tests CI job
 
     def rust_shafranov_bv(*args: Any, **kwargs: Any) -> Any:
+        """Refuse: the Rust extension is not installed."""
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
     def rust_solve_coil_currents(*args: Any, **kwargs: Any) -> Any:
+        """Refuse: the Rust extension is not installed."""
         raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
     def rust_simulate_tearing_mode(steps: int, seed: int | None = None) -> Any:
@@ -308,6 +317,7 @@ class RustSnnPool:  # pragma: no cover - rust wrapper (covered by rust-python-in
     """
 
     def __init__(self, n_neurons: int = 50, gain: float = 10.0, window_size: int = 20):
+        """Create the Rust SNN pool."""
         from scpn_control_rs import PySnnPool  # pragma: no cover - optional Rust backend path
 
         self._inner = PySnnPool(n_neurons, gain, window_size)  # pragma: no cover - optional Rust backend path
@@ -318,13 +328,16 @@ class RustSnnPool:  # pragma: no cover - rust wrapper (covered by rust-python-in
 
     @property
     def n_neurons(self) -> int:
+        """Number of neurons in the pool."""
         return int(self._inner.n_neurons)
 
     @property
     def gain(self) -> float:
+        """Gain of the pool."""
         return float(self._inner.gain)
 
     def __repr__(self) -> str:
+        """Return a readable summary of the pool."""
         return f"RustSnnPool(n_neurons={self.n_neurons}, gain={self.gain})"
 
 
@@ -342,6 +355,7 @@ class RustSnnController:  # pragma: no cover - rust wrapper (covered by rust-pyt
     """
 
     def __init__(self, target_r: float = 6.2, target_z: float = 0.0):
+        """Create the Rust dual R/Z SNN controller."""
         from scpn_control_rs import PySnnController  # pragma: no cover - optional Rust backend path
 
         self._inner = PySnnController(target_r, target_z)  # pragma: no cover - optional Rust backend path
@@ -353,13 +367,16 @@ class RustSnnController:  # pragma: no cover - rust wrapper (covered by rust-pyt
 
     @property
     def target_r(self) -> float:
+        """Radial target position."""
         return float(self._inner.target_r)
 
     @property
     def target_z(self) -> float:
+        """Vertical target position."""
         return float(self._inner.target_z)
 
     def __repr__(self) -> str:
+        """Return a readable summary of the controller."""
         return f"RustSnnController(target_r={self.target_r}, target_z={self.target_z})"
 
 
@@ -378,6 +395,7 @@ if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
             heartbeat_port: int = 0,
             heartbeat_timeout_ms: int = 3,
         ):
+            """Create the native UDP transport bridge with its heartbeat settings."""
             self._inner = PyUdpTransportBridge(
                 str(endpoint),
                 int(port),
@@ -420,21 +438,27 @@ if _RUST_AVAILABLE:  # pragma: no cover - optional Rust backend path
             self._inner.stop()
 
         def is_running(self) -> bool:
+            """Return whether the bridge is running."""
             return bool(self._inner.is_running())
 
         def stopped(self) -> bool:
+            """Return whether the bridge has stopped."""
             return bool(self._inner.stopped())
 
         def heartbeat_age_ns(self) -> int:
+            """Return the age of the last heartbeat in nanoseconds."""
             return int(self._inner.heartbeat_age_ns())
 
         def heartbeat_expired(self) -> bool:
+            """Return whether the heartbeat has expired."""
             return bool(self._inner.heartbeat_expired())
 
         def payload_bytes(self) -> int:
+            """Return the size of the last published payload in bytes."""
             return int(self._inner.payload_bytes())
 
         def backend(self) -> str:
+            """Return the transport backend name."""
             return str(self._inner.backend())
 
 else:  # pragma: no cover - rust-absent fallback bridge; exercised by the rust-free python-tests CI job
@@ -452,33 +476,43 @@ else:  # pragma: no cover - rust-absent fallback bridge; exercised by the rust-f
             heartbeat_port: int = 0,
             heartbeat_timeout_ms: int = 3,
         ):
+            """Refuse: the Rust extension is not installed."""
             raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
         def start(self) -> None:
+            """Refuse: the Rust extension is not installed."""
             raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
         def publish(self, *args: Any, **kwargs: Any) -> bool:
+            """Refuse: the Rust extension is not installed."""
             raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
         def stop(self) -> None:
+            """Refuse: the Rust extension is not installed."""
             raise ImportError("scpn_control_rs not installed. Run: maturin develop")
 
         def is_running(self) -> bool:
+            """Return ``False``: no bridge runs without the extension."""
             return False
 
         def stopped(self) -> bool:
+            """Return ``True``: the fallback bridge is never running."""
             return True
 
         def heartbeat_age_ns(self) -> int:
+            """Return 0: the fallback bridge has no heartbeat."""
             return 0
 
         def heartbeat_expired(self) -> bool:
+            """Return ``False``: the fallback bridge has no heartbeat to expire."""
             return False
 
         def payload_bytes(self) -> int:
+            """Return 0: the fallback bridge publishes nothing."""
             return 0
 
         def backend(self) -> str:
+            """Return an empty backend name."""
             return ""
 
 
@@ -499,6 +533,7 @@ class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust
     """
 
     def __init__(self, target_r: float, target_z: float):
+        """Create the Rust isoflux controller, or the Python fallback when the extension is absent."""
         try:
             from scpn_control_rs import PyIsoFluxController  # pragma: no cover - optional Rust backend path
 
@@ -513,18 +548,22 @@ class RustIsoFluxController:  # pragma: no cover - rust wrapper (covered by rust
             self._mode = "fallback"
 
     def step(self, measured_r: float, measured_z: float) -> tuple[float, float]:
+        """Return the radial and vertical control commands for one measurement."""
         r, z = self._inner.step(measured_r, measured_z)
         return float(r), float(z)
 
     @property
     def target_r(self) -> float:
+        """Radial target position."""
         return float(self._inner.target_r)
 
     @property
     def target_z(self) -> float:
+        """Vertical target position."""
         return float(self._inner.target_z)
 
     def __repr__(self) -> str:
+        """Return a readable summary of the controller and its mode."""
         return f"RustIsoFluxController(mode={self._mode}, target_r={self.target_r}, target_z={self.target_z})"
 
 
@@ -559,6 +598,7 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
         dt: float = 1e-3,
         controller: Any | None = None,
     ) -> None:
+        """Validate the realisation parameters and create the Rust H-infinity runtime."""
         from scpn_control_rs import PyHInfController  # pragma: no cover - optional Rust backend path
 
         if controller is None:
@@ -603,13 +643,16 @@ class RustHInfController:  # pragma: no cover - rust wrapper (covered by rust-py
 
     @property
     def gamma(self) -> float:
+        """Achieved H-infinity bound of the realisation."""
         return float(self._inner.gamma)
 
     @property
     def u_max(self) -> float:
+        """Actuator saturation limit."""
         return float(self._u_max)
 
     def __repr__(self) -> str:
+        """Return a readable summary of the controller."""
         return f"RustHInfController(gamma={self.gamma}, u_max={self.u_max})"
 
 
@@ -714,6 +757,7 @@ class RustSPIMitigation:
     """
 
     def __init__(self, w_th_mj: float = 300.0, ip_ma: float = 15.0, te_kev: float = 20.0):
+        """Validate the plasma energy, current and temperature and create the mitigation model."""
         for name, val in [("w_th_mj", w_th_mj), ("ip_ma", ip_ma), ("te_kev", te_kev)]:
             if not np.isfinite(val) or val <= 0.0:
                 raise ValueError(f"{name} must be finite and > 0, got {val}")

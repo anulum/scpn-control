@@ -33,6 +33,10 @@
 
 ### Fixed
 
+- `save_results` of the Python and Rust-backed equilibrium kernels and the
+  WebSocket runtime evidence writer now publish atomically. The NPZ keeps
+  the bytes and file name of `numpy.savez`.
+
 - The physics-debug quorum and single-provider reports now publish
   atomically.
 

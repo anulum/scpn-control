@@ -22,6 +22,8 @@ the Rust multigrid backend when available.
 
 from __future__ import annotations
 
+import functools
+import io
 import json
 import logging
 import time
@@ -31,6 +33,8 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_bytes_atomic
+from scpn_control._npz import npz_destination
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core import fusion_kernel_config as _fk_config
 from scpn_control.core import gs_elliptic_iterators as _gs_ell
@@ -208,6 +212,7 @@ class FusionKernel:
     # ── construction ──────────────────────────────────────────────────
 
     def __init__(self, config_path: str | Path) -> None:
+        """Load the configuration, build the grid and set up the accelerator."""
         self._config_path = str(config_path)
         self.load_config(config_path)
         self.initialize_grid()
@@ -804,6 +809,29 @@ class FusionKernel:
             return 0.0
         return float(np.sqrt(np.mean(interior * interior)))
 
+    def _jacobian_matvec(self, v_flat: AnyFloatArray, *, diag_term: AnyFloatArray, nz: int, nr: int) -> FloatArray:
+        """Apply the Newton Jacobian ``L - diag_term`` to an interior vector.
+
+        Parameters
+        ----------
+        v_flat : array
+            Flattened interior perturbation of shape ``((nz - 2) * (nr - 2),)``.
+        diag_term : array
+            The source derivative ``mu0 * R * dJ/dpsi`` on the full grid, negated.
+        nz, nr : int
+            Grid sizes including the boundary rows and columns.
+
+        Returns
+        -------
+        array
+            The flattened interior result.
+        """
+        v2d = np.zeros((nz, nr))
+        v2d[1:-1, 1:-1] = v_flat.reshape(nz - 2, nr - 2)
+        Lv = self._apply_gs_operator(v2d)
+        Lv[1:-1, 1:-1] -= diag_term[1:-1, 1:-1] * v2d[1:-1, 1:-1]
+        return np.asarray(Lv[1:-1, 1:-1].ravel())
+
     def _apply_gs_operator(self, v: FloatArray) -> FloatArray:
         """Apply the discrete GS* operator to array *v*.
 
@@ -967,12 +995,7 @@ class FusionKernel:
                 dJ_dpsi = self._compute_profile_jacobian(Psi_axis, Psi_boundary, mu0)
                 diag_term = -mu0 * self.RR * dJ_dpsi  # the source derivative
 
-                def matvec(v_flat: AnyFloatArray, _dt: AnyFloatArray = diag_term) -> FloatArray:  # noqa: B006
-                    v2d = np.zeros((NZ, NR_grid))
-                    v2d[1:-1, 1:-1] = v_flat.reshape(NZ - 2, NR_grid - 2)
-                    Lv = self._apply_gs_operator(v2d)
-                    Lv[1:-1, 1:-1] -= _dt[1:-1, 1:-1] * v2d[1:-1, 1:-1]
-                    return Lv[1:-1, 1:-1].ravel()
+                matvec = functools.partial(self._jacobian_matvec, diag_term=diag_term, nz=NZ, nr=NR_grid)
 
                 J_op = LinearOperator(
                     shape=(n_interior, n_interior),
@@ -1353,6 +1376,7 @@ class FusionKernel:
         R_pt, Z_pt = np.asarray(point, dtype=np.float64).reshape(2)
 
         def sample_fn(R_obs: float, Z_obs: float) -> FloatArray:
+            """Return the coil flux responses at one observation point."""
             return self._coil_flux_response_at_point(coils, np.array([R_obs, Z_obs], dtype=np.float64))
 
         d_dR, d_dZ = self._estimate_point_gradient(sample_fn, float(R_pt), float(Z_pt))
@@ -1362,6 +1386,7 @@ class FusionKernel:
         """Estimate dPsi/dR and dPsi/dZ from the current solved field."""
 
         def sample_fn(R_obs: float, Z_obs: float) -> float:
+            """Return the interpolated flux at one observation point."""
             return self._interp_psi(R_obs, Z_obs)
 
         d_dR, d_dZ = self._estimate_point_gradient(sample_fn, float(R_pt), float(Z_pt))
@@ -1657,7 +1682,9 @@ class FusionKernel:
         filename : str
             Output file path.
         """
-        np.savez(filename, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
+        buffer = io.BytesIO()
+        np.savez(buffer, R=self.R, Z=self.Z, Psi=self.Psi, J_phi=self.J_phi)
+        write_bytes_atomic(npz_destination(filename), buffer.getvalue())
         logger.info("Saved: %s", filename)
 
 
