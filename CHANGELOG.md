@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- The hosted pre-commit run has failed since the changed-source hooks
+  landed: its shallow clone lacked the origin revision they compare
+  against, and its environment lacked mypy and the packages that changed
+  files import. It now fetches the full history and installs the typing
+  environment of the strict mypy lane.
+
 - The CONTROL studio meets the `scpn-studio-platform` 0.11.3 evidence
   contract (era v2). The `studio` extra now requires `>=0.11.3,<0.12`.
   - Every entity digest is emitted as `sha256:<64 hex>`. The new

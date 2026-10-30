@@ -25,6 +25,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          # The changed-source hooks compare against the origin revision that
+          # tools/docstring_debt_ceiling.json records; a shallow clone lacks it.
+          fetch-depth: 0
 
       - uses: dtolnay/rust-toolchain@631a55b12751854ce901bb631d5902ceb48146f7
         with:
@@ -39,6 +43,21 @@ jobs:
         run: |
           pip install --require-hashes -r requirements/ci-precommit.txt
           pip install --require-hashes -r requirements/ci-lint.txt
+      - name: Install the typing environment of the strict mypy lane
+        # changed-python-static runs strict mypy on every changed Python file,
+        # so it needs the packages those files import, as the python-tests
+        # mypy lane installs them.
+        run: |
+          pip install --require-hashes -r requirements/ci-deps.txt
+          pip install --require-hashes -r requirements/ci-test.txt
+          pip install --require-hashes -r requirements/ci-mast.txt
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes --no-build-isolation -r requirements/ci-neuro.txt
+          pip install --require-hashes -r requirements/ci-rl.txt
+          pip install --require-hashes -r requirements/ci-studio.txt
+          pip install --require-hashes -r requirements/ci-imas.txt
 
       - name: Run pre-commit
+        env:
+          PYTHONPATH: ${{ github.workspace }}/src
         run: pre-commit run --all-files --show-diff-on-failure
