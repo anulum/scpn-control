@@ -16,8 +16,8 @@ typescript_semantics = "Studio exports require TypeDoc with requiredToBeDocument
 operator_semantics = "Shell entrypoints and GitHub workflows are operator contracts, not library APIs; ShellCheck/actionlint and pinned-action gates own them."
 
 [inventory]
-python_candidate_count = 1414
-python_candidate_sha256 = "af99e453ebdf9e6c24baf36fe0c4bf729939a325c47032565cecf1574ffd892b"
+python_candidate_count = 1416
+python_candidate_sha256 = "2b46d12963fd9eb45eae77ea45c72f3ba12b3aee0f78b0ebe8e453863b22bccc"
 python_stable_export_count = 51
 python_stable_export_sha256 = "b505f3c9c4a927d8a0b75ccfd1056fed8a8fa8ff5fd81367dc9300d25d95e88b"
 rust_export_count = 417
@@ -50,12 +50,12 @@ lean_symbols = [
 
 [inventory.python_classifications]
 documented-module-reference = 516
-nonstable-module-surface = 849
+nonstable-module-surface = 851
 stable-root-owner = 49
 
 [inventory.python_classification_sha256]
 documented-module-reference = "0cc921227b061b97fe77602c4fd2370e016ba13ff7b1906e4c2bc89b1eb3c2b8"
-nonstable-module-surface = "3127b18ec202b46a6d4df8051b982a4a4a2fc561b41eb3318c4638703568bb8e"
+nonstable-module-surface = "caa9b5822eaa2cf4b8e037bccc0f52e8aef530e8851cd95450e5eac40963aa43"
 stable-root-owner = "4d8e0177a1a1d2873e114e42321f19a14f0b2ef45e9a1c713b31e6d117aebd2d"
 
 [renderer_contracts]

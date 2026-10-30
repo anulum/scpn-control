@@ -123,6 +123,13 @@
 
 ### Added
 
+- `scpn_control._atomic` publishes files atomically through
+  `write_bytes_atomic` and `write_text_atomic`. Each call writes a temporary
+  file in the destination directory, syncs it to disk and moves it with
+  `os.replace`, so a failed write leaves the previous bytes and no temporary
+  file. Tests cover the real failures: unencodable text, a destination that
+  is a directory, and a directory without write permission.
+
 - Added `tools/check_docstring_debt.py`, a counting ratchet that holds the
   `tests/`, `tools/` and `validation/` docstring backlog at the measured
   ceiling recorded in `tools/docstring_debt_ceiling.json`.

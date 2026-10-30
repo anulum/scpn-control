@@ -3463,6 +3463,10 @@ conversion and protect their selected inputs during report persistence.
 
 ::: scpn_control._npz
 
+#### Atomic File Publication
+
+::: scpn_control._atomic
+
 ### Control Modules
 
 #### Burn Controller
