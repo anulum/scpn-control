@@ -606,6 +606,7 @@ numpy==2.2.6 \
     --hash=sha256:fee4236c876c4e8369388054d02d0e9bb84821feb1a64dd59e137e6511a551f8
     # via
     #   -c requirements/ci-deps.txt
+    #   -c requirements/ci-mast.txt
     #   cftime
     #   contourpy
     #   h5py
@@ -625,12 +626,13 @@ packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
     # via
+    #   -c requirements/ci-mast.txt
     #   imas-data-dictionaries
     #   imas-python
     #   matplotlib
     #   netcdf4
     #   xarray
-pandas==3.1.0 \
+pandas==3.1.0 ; python_full_version < "3.14" \
     --hash=sha256:04ca88727dfa86837030c493d7512bb1c008aa4f5f14149c5f8d3ff446791340 \
     --hash=sha256:07807035ad66de0d833d68f9bee05801dbf08b88d56a233b0e9fd189372c3261 \
     --hash=sha256:0a28602573f50453b57802d282f9f8cb7663aa10201127ecbbe95ed4a41c64ce \
@@ -689,7 +691,9 @@ pandas==3.1.0 \
     --hash=sha256:eee72bba8a72f0bf9522132e5c87cd10fce9d77440b50f65326b093ec9fb8d43 \
     --hash=sha256:f1a93c24175129bfc9922ef748ddae1d8137c743ed835e2615be329f606fed4d \
     --hash=sha256:f4772320b7735d96dbbef437129f840dec4175f8a18a2391bd1222ed8943825c
-    # via xarray
+    # via
+    #   -c requirements/ci-mast.txt
+    #   xarray
 pillow==13.0.0 \
     --hash=sha256:02464da86f561f410e13b061ec37c3068a9cb557a095494157742d07b3c24a27 \
     --hash=sha256:04a63720f79e22fd54d897c233a68314c50ca0603360f54ce2bd5db8f0f43782 \
@@ -795,6 +799,7 @@ python-dateutil==3.0.0 \
     --hash=sha256:3c79630202e4152c6add678446984236efe4f57e84d8e892aab0637bab82e9fd \
     --hash=sha256:7ebcb3c29a92f3ceafe79a7a48a5c45677e9e004bbeec5742ac0bbb00560b7a2
     # via
+    #   -c requirements/ci-mast.txt
     #   matplotlib
     #   pandas
 rich==15.0.0 \
@@ -855,7 +860,9 @@ scipy==1.15.3 \
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
-    # via python-dateutil
+    # via
+    #   -c requirements/ci-mast.txt
+    #   python-dateutil
 typing-extensions==4.16.0 \
     --hash=sha256:481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 \
     --hash=sha256:dc983d19a509c94dba722ee6abd33940f7c05a89e243c47e907eb4db6f1a43e5
@@ -867,15 +874,19 @@ typing-extensions==4.16.0 \
 tzdata==2026.6 \
     --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec \
     --hash=sha256:85d2cd9c09f81f0bb29db27759fc83af4f1e620efb814f8c5bf8b4cc4feece6d
-    # via python-dateutil
+    # via
+    #   -c requirements/ci-mast.txt
+    #   python-dateutil
 uncertainties==3.2.3 \
     --hash=sha256:313353900d8f88b283c9bad81e7d2b2d3d4bcc330cbace35403faaed7e78890a \
     --hash=sha256:76a5653e686f617a42922d546a239e9efce72e6b35411b7750a1d12dcba03031
     # via omas
-xarray==2026.9.0 \
-    --hash=sha256:6abc69694c22fa1f0fb2f357ff4e41d88beb4477ed71091f944b7dbf67ed54fe \
-    --hash=sha256:fe349fa871628b1a0a5217af3fe1283a2862d5485156e6eda354fffb81c3bb7c
-    # via omas
+xarray==2026.7.0 \
+    --hash=sha256:361b495928fdbf5b58d0969bb6775339019da5e93ca74d61ddf4eb5edd6ce604 \
+    --hash=sha256:bf9dd130b93806dc78e90c1b7ac24851b31557b888674c53622235691cf21824
+    # via
+    #   -c requirements/ci-mast.txt
+    #   omas
 xxhash==4.0.2 \
     --hash=sha256:00329536c281e13725283421dcdf4633f5710123e06a608b910d6a6f3bc891cf \
     --hash=sha256:03b1e97d14fd1b185c75808f72dfc7d9ea5866df3f8661566f2a23d0d07dcf7e \

@@ -33,6 +33,12 @@
 
 ### Fixed
 
+- `ci-imas` takes `ci-mast` as a constraint. The re-lock had moved its
+  xarray to 2026.9, which the python-tests lane installed over the ci-mast
+  xarray; that release passes `zarr_format` to zarr 2.18 and broke the MAST
+  EFM reference test. The lock is back on xarray 2026.7, the bound of the
+  `mast-data` extra.
+
 - The hosted pre-commit run has failed since the changed-source hooks
   landed: its shallow clone lacked the origin revision they compare
   against, and its environment lacked mypy and the packages that changed

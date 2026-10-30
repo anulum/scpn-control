@@ -7,6 +7,9 @@
 # SCPN Control — CI fusion-data backends.
 
 -c ci-deps.txt
+# The python-tests lane installs ci-mast first; keep its xarray (the
+# mast-data extra holds xarray below 2026.9 because zarr stays on 2.x).
+-c ci-mast.txt
 
 imas-python[netcdf]==2.3.0
 omas==0.95.2
