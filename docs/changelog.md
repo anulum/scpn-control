@@ -123,6 +123,10 @@
 
 ### Added
 
+- `tests/test_docs_image_alt_text.py` requires non-empty alt text on every
+  image in `README.md` and the public `docs/` pages, in Markdown and HTML,
+  skipping code fences.
+
 - The Studio panel is checked for accessibility.
   - ESLint applies the strict rules of `eslint-plugin-jsx-a11y-x` 0.2.0, a
     fork of `eslint-plugin-jsx-a11y` that supports ESLint 10, with warnings
