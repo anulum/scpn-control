@@ -119,7 +119,9 @@ def test_load_npz_capped_refuses_a_non_zip_file_like_numpy_load(tmp_path: Path) 
     """Refuse bytes that are not a zip archive with ValueError, as ``numpy.load`` does."""
     path = tmp_path / "corrupt.npz"
     path.write_bytes(b"not a valid npz archive")
-    with pytest.raises(ValueError, match="pickled data"):
+    # The class, not NumPy's wording, is the contract: the message differs
+    # between NumPy releases.
+    with pytest.raises(ValueError):
         np.load(path, allow_pickle=False)
     with pytest.raises(ValueError, match="is not an NPZ archive"):
         load_npz_capped(path)
