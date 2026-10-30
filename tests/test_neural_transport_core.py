@@ -112,12 +112,12 @@ def _save_weights(path: Path, *, version: int = 1) -> None:
 
 def _make_profiles(n: int = 32) -> Profiles:
     """Return smooth, monotone rho, Te, Ti, ne, q and shear profiles on ``n`` points."""
-    rho = np.linspace(0.01, 0.99, n)
-    te = 10.0 * (1 - rho**2)
-    ti = 9.0 * (1 - rho**2)
-    ne = 8.0 * (1 - 0.5 * rho**2)
-    q = 1.0 + 2.0 * rho**2
-    s_hat = 0.5 + 1.5 * rho
+    rho = np.linspace(0.01, 0.99, n, dtype=np.float64)
+    te = np.asarray(10.0 * (1 - rho**2), dtype=np.float64)
+    ti = np.asarray(9.0 * (1 - rho**2), dtype=np.float64)
+    ne = np.asarray(8.0 * (1 - 0.5 * rho**2), dtype=np.float64)
+    q = np.asarray(1.0 + 2.0 * rho**2, dtype=np.float64)
+    s_hat = np.asarray(0.5 + 1.5 * rho, dtype=np.float64)
     return rho, te, ti, ne, q, s_hat
 
 
