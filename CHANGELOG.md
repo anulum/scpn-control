@@ -15,6 +15,10 @@
   - `ci-viz` is locked for the Python 3.11 floor, which the RL constraint
     range needs.
   - `ci-rl` resolves across both official indexes.
+  - `uv.lock` moves only the audited packages and the releases they need:
+    certifi, dnspython, filelock 4, GitPython, Pillow 13 (through matplotlib
+    3.11 and Streamlit 1.66), setuptools and virtualenv. The locked audit
+    reports no known vulnerabilities.
 - The Studio web lock moves to patched `vite`, `vitest`, `@vitest/mocker`,
   `undici`, `zod` and `markdown-it` releases. `pnpm audit` reports no known
   vulnerabilities.

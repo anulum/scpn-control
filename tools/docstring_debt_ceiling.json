@@ -1197,9 +1197,9 @@
   },
   "profile": {
     "ruff_version": "0.16.10",
-    "configuration_sha256": "e69bfbec8f940487fca2d937a0df086c9602a163fc57efaa8d5ad734edf060db"
+    "configuration_sha256": "3a913f49388e6f7e4ca325de039550dc6f5295c990a2a8f6c22c9b831ade1180"
   },
-  "origin_revision": "01c731e296cba88c1342fc85205ba974063a8338",
+  "origin_revision": "3db2cf88e65a738cc5c0ab6108d02ebed2389713",
   "source_fingerprints": {
     "tests/test_adaptive_knm.py": "05244a5872a455cc4f16ae3ea9e86eae7f8a5d346eb512534935f61c4bb59f55",
     "tests/test_advanced_soc.py": "364f63a51bd62e9487d630692145293fc1137c1d38bfb5a9e0d6c2760e0c4b4a",

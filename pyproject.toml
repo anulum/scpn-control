@@ -77,7 +77,7 @@ mast-acquisition = [
     "s3fs>=2026.9,<2027",
 ]
 neuro = ["sc-neurocore>=3.8.0"]
-studio = ["scpn-studio-platform>=0.1,<0.12; python_version >= '3.12'"]  # SCPN STUDIO vertical (scpn_control.studio); the SDK requires Python >= 3.12
+studio = ["scpn-studio-platform>=0.11.3,<0.12; python_version >= '3.12'"]  # SCPN STUDIO vertical (scpn_control.studio); the SDK requires Python >= 3.12
 nengo = []  # pure-numpy LIF+NEF engine, no external deps
 loihi = []  # Loihi export deprecated; use export_fpga_weights()
 rl = ["stable-baselines3>=2.8", "gymnasium>=1.2.3"]
