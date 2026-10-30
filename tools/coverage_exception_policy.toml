@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-10-06"
-expected_total = 387
-expected_sha256 = "3d028618e3c949f0054dada5ccfd8bde694f0e4d760821061e6a822efca76948"
+expected_total = 391
+expected_sha256 = "2370daedbd446ed3ab8f7ed4b1d330d3687965a4cd25c8b458a32fba8402f9f5"
 
 [[rules]]
 id = "spo-installation-boundary"
@@ -37,6 +37,15 @@ execution_lane = "python-tests: Python 3.11-3.13"
 status = "variant-ci-lane"
 removal_condition = "Remove when the guarded interpreter is no longer supported or the branch executes in the baseline lane."
 workflow_evidence = "python-version: [\"3.11\", \"3.12\", \"3.13\"]"
+
+[[rules]]
+id = "file-system-name-semantics"
+pattern = "file system refuses|separates path parts"
+external_dependency = "host file-system naming rules (NTFS, APFS)"
+execution_lane = "python-tests: windows-2025 and macos-latest / Python 3.12 skip; Linux lanes execute the refusal"
+status = "variant-ci-lane"
+removal_condition = "Remove when the refusal can be exercised on every supported file system or those systems are no longer supported."
+workflow_evidence = "os: macos-latest"
 
 [[rules]]
 id = "windows"
