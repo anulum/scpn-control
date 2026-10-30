@@ -24,6 +24,8 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_text_atomic
+
 _logger = logging.getLogger(__name__)
 
 
@@ -50,6 +52,7 @@ class LearnerConfig:
     min_validation_improvement: float = 0.0
 
     def __post_init__(self) -> None:
+        """Validate buffer size, validation fraction, epochs and learning rate."""
         _require_int_at_least("buffer_size", self.buffer_size, minimum=2)
         validation_fraction = float(self.validation_fraction)
         if not np.isfinite(validation_fraction) or not 0.0 < validation_fraction < 1.0:
@@ -85,6 +88,7 @@ class OnlineLearner:
     """Accumulate GK data and fine-tune the surrogate when ready."""
 
     def __init__(self, config: LearnerConfig | None = None) -> None:
+        """Start with an empty sample buffer, generation zero and no retrain history."""
         self.config = config or LearnerConfig()
         self.buffer: list[TrainingSample] = []
         self.generation: int = 0
@@ -350,7 +354,7 @@ class OnlineLearner:
         }
         output = Path(path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        write_text_atomic(output, json.dumps(report, indent=2, sort_keys=True) + "\n")
 
     def _append_decision(
         self,
@@ -363,6 +367,7 @@ class OnlineLearner:
         buffer_size: int,
         reason: str,
     ) -> None:
+        """Record one accepted or rejected retrain decision in the history."""
         decision = RetrainDecision(
             generation=self.generation + 1 if accepted else self.generation,
             accepted=accepted,
@@ -388,12 +393,14 @@ class OnlineLearner:
 
 
 def _require_int_at_least(field: str, value: int, *, minimum: int) -> int:
+    """Return an integer at least ``minimum``; refuse booleans and smaller values."""
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise ValueError(f"{field} must be an integer >= {minimum}")
     return value
 
 
 def _require_positive_float(field: str, value: float) -> float:
+    """Return a finite positive float; refuse anything else."""
     scalar = float(value)
     if not np.isfinite(scalar) or scalar <= 0.0:
         raise ValueError(f"{field} must be finite and positive")
@@ -401,6 +408,7 @@ def _require_positive_float(field: str, value: float) -> float:
 
 
 def _require_nonnegative_float(field: str, value: float) -> float:
+    """Return a finite non-negative float; refuse anything else."""
     scalar = float(value)
     if not np.isfinite(scalar) or scalar < 0.0:
         raise ValueError(f"{field} must be finite and nonnegative")

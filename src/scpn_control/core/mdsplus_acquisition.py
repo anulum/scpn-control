@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import importlib
+import io
 import json
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -21,6 +22,8 @@ from typing import Any, cast
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control._atomic import write_bytes_atomic, write_text_atomic
+from scpn_control._npz import npz_destination
 from scpn_control.core.real_data_manifest import load_real_data_manifest
 
 
@@ -121,7 +124,9 @@ def acquire_mdsplus_shot(
 
     output_path = Path(output_npz)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    np.savez(output_path, **cast(Any, arrays))
+    buffer = io.BytesIO()
+    np.savez(buffer, **cast(Any, arrays))
+    write_bytes_atomic(npz_destination(output_path), buffer.getvalue())
     checksum = _sha256_file(output_path)
 
     manifest_path = Path(manifest_json)
@@ -164,7 +169,7 @@ def acquire_mdsplus_shot(
             for signal in signals
         ],
     }
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
     load_real_data_manifest(manifest_path, verify_artifact=True)
     return MDSplusAcquisitionResult(
         output_npz=output_path,
@@ -175,6 +180,7 @@ def acquire_mdsplus_shot(
 
 
 def _import_mdsplus() -> Any:
+    """Import MDSplus, or the thin client, or refuse with an installation hint."""
     try:
         return importlib.import_module("MDSplus")
     except ImportError:
@@ -188,6 +194,7 @@ def _import_mdsplus() -> Any:
 
 
 def _validate_signal_specs(signals: list[MDSplusSignalSpec]) -> None:
+    """Refuse empty or duplicate signal names and missing node, units or timebase."""
     seen: set[str] = set()
     for signal in signals:
         if not signal.name.strip():
@@ -204,6 +211,7 @@ def _validate_signal_specs(signals: list[MDSplusSignalSpec]) -> None:
 
 
 def _signal_spec_from_mapping(payload: object) -> MDSplusSignalSpec:
+    """Build a signal request from a JSON object with all required string fields."""
     if not isinstance(payload, dict):
         raise ValueError("MDSplus signal specification must be a JSON object")
     return MDSplusSignalSpec(
@@ -225,6 +233,7 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _required_str(payload: dict[str, Any], key: str) -> str:
+    """Return a required non-blank string field, stripped."""
     value = payload.get(key)
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"MDSplus acquisition request requires non-empty {key}")
@@ -232,6 +241,7 @@ def _required_str(payload: dict[str, Any], key: str) -> str:
 
 
 def _sha256_file(path: Path) -> str:
+    """Return the SHA-256 hex digest of a file."""
     digest = sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):

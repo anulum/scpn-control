@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 if TYPE_CHECKING:
@@ -43,6 +44,7 @@ class FastIonPressure:
     """Anisotropic fast ion pressure model."""
 
     def __init__(self, E_fast_keV: float, n_fast_frac: float, anisotropy_sigma: float = 0.0):
+        """Store the fast-ion energy, density fraction and pressure anisotropy."""
         self.E_fast_keV = E_fast_keV
         self.n_fast_frac = n_fast_frac
         self.sigma = anisotropy_sigma  # sigma = 1 - p_par / p_perp
@@ -191,6 +193,7 @@ class KineticEFITClaimEvidence:
 
 
 def _finite_float(name: str, value: float) -> float:
+    """Return ``value`` as a finite float; refuse non-finite values."""
     out = float(value)
     if not np.isfinite(out):
         raise ValueError(f"{name} must be finite")
@@ -198,12 +201,14 @@ def _finite_float(name: str, value: float) -> float:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _relative_profile_error(name: str, observed: AnyFloatArray, reference: AnyFloatArray | None) -> float | None:
+    """Return the relative L2 error of a profile against a matching finite reference, or ``None``."""
     if reference is None:
         return None
     ref = np.asarray(reference, dtype=float)
@@ -331,7 +336,7 @@ def save_kinetic_efit_claim_evidence(evidence: KineticEFITClaimEvidence, path: s
     """Persist kinetic-EFIT claim evidence as deterministic JSON."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 def mse_pitch_angle(B_R: float, B_Z: float, B_phi: float, v_beam: float, R: float) -> float:
@@ -368,11 +373,13 @@ class KineticEFIT(RealtimeEFIT):
         R_grid: AnyFloatArray,
         Z_grid: AnyFloatArray,
     ):
+        """Set up the magnetic reconstruction and attach the kinetic and fast-ion constraints."""
         super().__init__(diagnostics, R_grid, Z_grid)
         self.kinetic = kinetic
         self.fast_ions = fast_ions
 
     def _rho_from_points(self, points: list[tuple[float, float, float]]) -> FloatArray:
+        """Map measured (R, Z) points to normalised minor radius on the grid."""
         arr = np.asarray([(point[0], point[1]) for point in points], dtype=float)
         if arr.ndim != 2 or arr.shape[1] != 2 or not np.all(np.isfinite(arr)):
             raise ValueError("kinetic constraint coordinates must be finite (R, Z) pairs")
@@ -387,6 +394,7 @@ class KineticEFIT(RealtimeEFIT):
         points: list[tuple[float, float, float]],
         rho_grid: AnyFloatArray,
     ) -> FloatArray:
+        """Interpolate measured point values onto ``rho_grid``, averaging repeated radii."""
         if not points:
             raise ValueError(f"{label} must contain at least one measured kinetic constraint")
 

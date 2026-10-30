@@ -20,16 +20,20 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
+
 CHECKPOINT_SCHEMA_VERSION = 1
 
 
 def _validate_episode(episode: int) -> int:
+    """Return ``episode``; refuse booleans, non-integers and negative values."""
     if isinstance(episode, bool) or not isinstance(episode, int) or episode < 0:
         raise ValueError("episode must be a non-negative integer")
     return episode
 
 
 def _validate_finite_tree(name: str, obj: Any) -> None:
+    """Refuse any non-finite value or non-string key in a nested state tree."""
     if isinstance(obj, np.ndarray):
         if not np.all(np.isfinite(obj)):
             raise ValueError(f"{name} must contain only finite values")
@@ -50,6 +54,7 @@ def _validate_finite_tree(name: str, obj: Any) -> None:
 
 
 def _validate_payload(data: Any) -> dict[str, Any]:
+    """Validate the schema version and required keys of a checkpoint payload."""
     if not isinstance(data, dict):
         raise ValueError("checkpoint payload must be an object")
     for key in ("schema_version", "episode", "solver_state", "metrics"):
@@ -99,6 +104,7 @@ def save_checkpoint(
 
     # Convert numpy arrays to lists for JSON serialization
     def _serializable(obj: Any) -> Any:
+        """Convert arrays to lists recursively so the tree is JSON-serialisable."""
         if isinstance(obj, np.ndarray):
             return obj.tolist()
         if isinstance(obj, dict):
@@ -115,8 +121,7 @@ def save_checkpoint(
         "timestamp": float(np.datetime64("now").astype(float)),  # Simple epoch
     }
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2)
+    write_text_atomic(path, json.dumps(data, indent=2))
 
 
 def load_checkpoint(path: Path | str) -> tuple[dict[str, Any], int, dict[str, Any]]:
@@ -142,6 +147,7 @@ def load_checkpoint(path: Path | str) -> tuple[dict[str, Any], int, dict[str, An
 
     # Convert lists back to numpy arrays where appropriate
     def _restore(obj: Any) -> Any:
+        """Convert numeric lists back to arrays recursively."""
         if isinstance(obj, list):
             # Heuristic: convert lists of numbers to arrays
             if obj and isinstance(obj[0], (int, float)):

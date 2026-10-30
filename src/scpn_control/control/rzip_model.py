@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control import _rzip_calibration as _calibration
 from scpn_control.core.vessel_model import VesselElement, VesselModel
 
@@ -199,7 +200,7 @@ def save_rzip_calibration_evidence(evidence: RZIPCalibrationEvidence, path: str 
     _calibration._inspect_calibration_payload(asdict(evidence))
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 class RZIPModel:
@@ -244,6 +245,7 @@ class RZIPModel:
         active_coils: list[VesselElement] | None = None,
         vertical_inertia_kg: float = 1.0,
     ):
+        """Validate the plasma geometry, current, field and inertia and assemble the vessel circuit."""
         if not np.isfinite(R0) or R0 <= 0.0:
             raise ValueError("R0 must be finite and positive for a physical major radius.")
         if not np.isfinite(a) or a <= 0.0:
@@ -282,6 +284,7 @@ class RZIPModel:
     def _calc_dM_dz(self, R1: float, Z1: float, R2: float, Z2: float) -> float:
         # Finite difference for mutual inductance derivative w.r.t Z1
         # vessel._calculate_mutual_inductance takes (R1, Z1, R2, Z2)
+        """Return the Z-derivative of mutual inductance by a central finite difference."""
         dZ = 1e-4
         M_plus = self.vessel._mutual_inductance(R1, Z1 + dZ, R2, Z2)
         M_minus = self.vessel._mutual_inductance(R1, Z1 - dZ, R2, Z2)
@@ -417,6 +420,7 @@ class VerticalStabilityAnalysis:
 
     @staticmethod
     def _differentiate_radial(field: NDArray[np.float64], r_axis: NDArray[np.float64]) -> NDArray[np.float64]:
+        """Return d(field)/dR on a possibly non-uniform radial axis."""
         derivative = np.empty_like(field, dtype=float)
         derivative[:, 0] = (field[:, 1] - field[:, 0]) / (r_axis[1] - r_axis[0])
         derivative[:, -1] = (field[:, -1] - field[:, -2]) / (r_axis[-1] - r_axis[-2])
@@ -435,6 +439,7 @@ class VerticalStabilityAnalysis:
     def _grid_axes(
         R: NDArray[np.float64], Z: NDArray[np.float64], shape: tuple[int, int]
     ) -> tuple[NDArray[np.float64], NDArray[np.float64]]:
+        """Return the R and Z axes of ``psi``, from 1-D axes or a 2-D mesh, checking the shape."""
         if R.ndim == 1 and Z.ndim == 1:
             if R.size != shape[1] or Z.size != shape[0]:
                 raise ValueError("R/Z axes must match psi shape")
@@ -576,6 +581,7 @@ class RZIPController:
     """
 
     def __init__(self, rzip: RZIPModel, Kp: float, Kd: float):
+        """Validate non-negative finite gains and store them with a floor of one."""
         self.rzip = rzip
         if not np.isfinite(Kp) or Kp < 0.0:
             raise ValueError("Kp must be finite and non-negative.")

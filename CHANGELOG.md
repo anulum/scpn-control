@@ -33,6 +33,16 @@
 
 ### Fixed
 
+- These writers now publish atomically:
+  - the CODAC EPICS database, OPC UA node set and configuration;
+  - the RZIP, orbit-following, kinetic-EFIT and free-boundary claims;
+  - RL checkpoints;
+  - the online gyrokinetic learner report;
+  - the MDSplus acquisition archive and its manifest.
+
+  The MDSplus archive keeps the bytes and member names that `numpy.savez`
+  writes.
+
 - More writers publish atomically, so a failed write leaves the previous
   file intact:
   - the neural-equilibrium, turbulence and RWM claims;

@@ -17,6 +17,7 @@ from typing import Callable
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 # ── Physical constants ────────────────────────────────────────────────────────
@@ -32,6 +33,7 @@ _BOUNDED_ORBIT_SOURCES = frozenset({"synthetic_regression_reference", *_ORBIT_RE
 
 
 def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    """Return a finite float, optionally required positive or non-negative."""
     scalar = float(value)
     if not math.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -43,6 +45,7 @@ def _finite_scalar(name: str, value: float, *, positive: bool = False, nonnegati
 
 
 def _profile_array(name: str, values: AnyFloatArray, shape: tuple[int, ...] | None = None) -> FloatArray:
+    """Return a finite one-dimensional profile, optionally of a given shape."""
     arr = np.asarray(values, dtype=float)
     if arr.ndim != 1 or arr.size == 0:
         raise ValueError(f"{name} must be a one-dimensional non-empty profile")
@@ -112,6 +115,7 @@ class OrbitFollowingClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
@@ -228,7 +232,7 @@ def save_orbit_following_claim_evidence(evidence: OrbitFollowingClaimEvidence, p
     """Persist orbit-following claim evidence as deterministic JSON."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 class GuidingCenterOrbit:
@@ -258,6 +262,7 @@ class GuidingCenterOrbit:
         R0_init: float,
         Z0_init: float,
     ) -> None:
+        """Validate the particle and its initial position and set its velocity components."""
         m_amu = _finite_scalar("m_amu", m_amu, positive=True)
         if isinstance(Z, bool) or int(Z) != Z or Z == 0:
             raise ValueError("Z must be a non-zero integer charge state")
@@ -285,6 +290,7 @@ class GuidingCenterOrbit:
         self.v_perp_0 = v_perp
 
     def _eom(self, state: AnyFloatArray, B_field: Callable[..., tuple[float, float, float]]) -> FloatArray:
+        """Return the guiding-centre equations of motion at ``state``."""
         R, Z, phi, v_par = state
         if not np.all(np.isfinite(state)) or R <= 0.0:
             raise ValueError("orbit state must be finite with positive major radius")
@@ -424,6 +430,7 @@ class MonteCarloEnsemble:
     """
 
     def __init__(self, n_particles: int, E_birth_keV: float, R0: float, a: float, B0: float) -> None:
+        """Validate the ensemble size, birth energy and machine geometry."""
         if isinstance(n_particles, bool) or int(n_particles) != n_particles or n_particles <= 0:
             raise ValueError("n_particles must be a positive integer")
         self.n_particles = int(n_particles)

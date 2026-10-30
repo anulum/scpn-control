@@ -29,6 +29,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
+
 _FREE_BOUNDARY_CLAIM_SCHEMA_VERSION = 1
 _FACILITY_FREE_BOUNDARY_REFERENCE_SOURCES = frozenset(
     {"documented_public_reference", "measured_free_boundary_replay", "external_equilibrium_benchmark"}
@@ -86,12 +88,14 @@ class FreeBoundaryTrackingClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _finite_summary_scalar(summary: dict[str, Any], key: str) -> float:
+    """Return a required finite numeric summary value as float."""
     value = summary.get(key)
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
         raise ValueError(f"summary[{key!r}] must be a finite numeric value")
@@ -99,6 +103,7 @@ def _finite_summary_scalar(summary: dict[str, Any], key: str) -> float:
 
 
 def _finite_summary_scalar_or_none(summary: dict[str, Any], key: str) -> float | None:
+    """Return a numeric summary value, ``None`` when absent or non-finite; refuse non-numbers."""
     value = summary.get(key)
     if value is None:
         return None
@@ -109,6 +114,7 @@ def _finite_summary_scalar_or_none(summary: dict[str, Any], key: str) -> float |
 
 
 def _summary_int(summary: dict[str, Any], key: str) -> int:
+    """Return a required integer summary value; refuse booleans and non-integers."""
     value = summary.get(key)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"summary[{key!r}] must be an integer")
@@ -116,6 +122,7 @@ def _summary_int(summary: dict[str, Any], key: str) -> int:
 
 
 def _positive_reference_scalar(name: str, value: object) -> float:
+    """Return a finite positive reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and positive")
     numeric = float(value)
@@ -125,6 +132,7 @@ def _positive_reference_scalar(name: str, value: object) -> float:
 
 
 def _nonnegative_reference_scalar(name: str, value: object) -> float:
+    """Return a finite non-negative reference value; refuse anything else."""
     if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
         raise ValueError(f"{name} must be finite and non-negative")
     numeric = float(value)
@@ -136,6 +144,7 @@ def _nonnegative_reference_scalar(name: str, value: object) -> float:
 def _extract_free_boundary_reference_artifact(
     reference_artifact: dict[str, Any] | None,
 ) -> tuple[dict[str, Any] | None, bool]:
+    """Validate an optional reference artifact and say whether one was supplied."""
     if reference_artifact is None:
         return None, False
     if not isinstance(reference_artifact, dict):
@@ -280,7 +289,7 @@ def save_free_boundary_tracking_claim_evidence(evidence: FreeBoundaryTrackingCla
         raise ValueError("free-boundary claim evidence numeric fields must be finite") from exc
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(body, encoding="utf-8")
+    write_text_atomic(output_path, body)
 
 
 __all__ = [

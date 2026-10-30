@@ -37,6 +37,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control.codac_evidence import (
     CODAC_RUNTIME_EVIDENCE_LOCAL_ONLY,
     CODAC_RUNTIME_EVIDENCE_QUALIFIED,
@@ -132,6 +133,7 @@ def _validate_evidence_payload(payload: Mapping[str, Any], *, require_facility_c
 
 
 def _build_input_channels(prefix: str) -> list[EPICSChannel]:
+    """Return the EPICS analog-input channels the controller reads."""
     return [
         EPICSChannel(
             pv_name=f"{prefix}:{row[0]}",
@@ -147,6 +149,7 @@ def _build_input_channels(prefix: str) -> list[EPICSChannel]:
 
 
 def _build_output_channels(prefix: str) -> list[EPICSChannel]:
+    """Return the EPICS output channels the controller writes; the SPI trigger is binary."""
     return [
         EPICSChannel(
             pv_name=f"{prefix}:{row[0]}",
@@ -178,6 +181,7 @@ class CODACInterface:
     """Binds a NeuroSymbolicController to ITER CODAC I&C channels."""
 
     def __init__(self, config: CODACConfig, controller: Any) -> None:
+        """Bind the controller, its EPICS channels and the cycle timer for the configured rate."""
         self.config = config
         self.controller = controller
         self._input_channels = _build_input_channels(config.pv_prefix)
@@ -296,9 +300,10 @@ class CODACInterface:
 
     def generate_epics_db(self, output_path: Path) -> None:
         """Write EPICS .db file with record() entries for all channels."""
-        Path(output_path).write_text(self.render_epics_db(), encoding="utf-8")
+        write_text_atomic(output_path, self.render_epics_db())
 
     def _build_opcua_nodeset_tree(self) -> ET.ElementTree:
+        """Build the OPC UA node-set tree for every input and output channel."""
         ns_uri = "urn:iter:scpn-control:codac"
         root = ET.Element("UANodeSet", xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd")
         ns_elem = ET.SubElement(root, "NamespaceUris")
@@ -332,7 +337,7 @@ class CODACInterface:
 
     def generate_opcua_nodeset(self, output_path: Path) -> None:
         """Write OPC-UA XML nodeset for ITER SDN integration."""
-        Path(output_path).write_text(self.render_opcua_nodeset(), encoding="utf-8")
+        write_text_atomic(output_path, self.render_opcua_nodeset())
 
 
 def codac_runtime_evidence(
@@ -409,7 +414,7 @@ def save_codac_runtime_evidence(evidence: CODACRuntimeEvidence, output_path: Pat
     validated = _validate_evidence_payload(asdict(evidence), require_facility_claim=False)
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(validated), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(path, json.dumps(asdict(validated), indent=2, sort_keys=True) + "\n")
 
 
 def load_codac_runtime_evidence(
@@ -431,6 +436,7 @@ class CycleTimer:
     """
 
     def __init__(self, cycle_hz: float) -> None:
+        """Set the per-cycle time budget from the cycle frequency."""
         self.budget_ns = int(1e9 / cycle_hz)
         self._start_ns: int = 0
         self._elapsed_ns: int = 0
