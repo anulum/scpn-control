@@ -24,6 +24,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
+
 LEAN_FORMAL_REPORT_SCHEMA_VERSION = "scpn-control.lean4-formal-report.v1"
 LEAN_FORMAL_REPORT_ALLOWED_FIELDS = frozenset(
     {
@@ -92,6 +94,7 @@ class LeanFormalVerificationReport:
 
 
 def _is_sha256_hex(value: str) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal SHA-256 digest."""
     if len(value) != 64:
         return False
     try:
@@ -102,6 +105,7 @@ def _is_sha256_hex(value: str) -> bool:
 
 
 def _canonical_payload_sha256(payload: dict[str, Any]) -> str:
+    """Return the SHA-256 of the canonical JSON payload without its own digest field."""
     payload_without_digest = dict(payload)
     payload_without_digest.pop("payload_sha256", None)
     encoded = json.dumps(
@@ -114,6 +118,7 @@ def _canonical_payload_sha256(payload: dict[str, Any]) -> str:
 
 
 def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object; refuse a repeated key."""
     result: dict[str, Any] = {}
     for key, value in pairs:
         if key in result:
@@ -123,6 +128,7 @@ def _reject_duplicate_json_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _load_json_object_no_duplicates(path: Path) -> dict[str, Any]:
+    """Load a JSON object from ``path``, refusing duplicate keys and non-objects."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_json_keys)
     except (json.JSONDecodeError, UnicodeDecodeError, LeanFormalVerificationError) as exc:
@@ -464,7 +470,7 @@ def write_lean_formal_report(report: LeanFormalVerificationReport, path: str | P
     payload = build_lean_formal_report_payload(report)
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(payload, indent=2, sort_keys=True) + "\n")
     return payload
 
 

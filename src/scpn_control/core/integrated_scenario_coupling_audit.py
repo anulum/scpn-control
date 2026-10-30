@@ -27,6 +27,7 @@ from typing import Protocol, runtime_checkable
 import numpy as np
 from scipy.integrate import trapezoid
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.integrated_scenario_presets import (
     JsonScalar,
@@ -109,6 +110,7 @@ class ScenarioCouplingAudit:
 
 
 def _finite_profile_set(state: ScenarioStateLike) -> bool:
+    """Return whether every radial profile of ``state`` is finite."""
     profiles = (
         state.rho,
         state.Te,
@@ -124,6 +126,7 @@ def _finite_profile_set(state: ScenarioStateLike) -> bool:
 
 
 def _relative_energy_steps(states: Sequence[ScenarioStateLike]) -> FloatArray:
+    """Return relative thermal-energy steps between consecutive states."""
     energies = np.asarray([state.W_thermal for state in states], dtype=float)
     if len(energies) < 2:
         return np.zeros(0, dtype=float)
@@ -136,6 +139,7 @@ def _exchange_for_module(
     state: ScenarioStateLike,
     config: ScenarioConfig,
 ) -> ScenarioModuleExchange:
+    """Describe the inputs and outputs one coupled module exchanges at ``state``."""
     common_inputs: dict[str, JsonScalar] = {
         "dt_s": float(config.dt),
         "time_s": float(state.time),
@@ -332,5 +336,4 @@ def save_scenario_coupling_report(audit: ScenarioCouplingAudit, path: Path) -> N
     """Persist a scenario-coupling audit report with deterministic JSON layout."""
     data = scenario_coupling_audit_to_dict(audit)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=2, sort_keys=True)
+    write_text_atomic(path, json.dumps(data, indent=2, sort_keys=True))

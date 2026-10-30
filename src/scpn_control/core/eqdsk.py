@@ -39,6 +39,7 @@ Format specification
 
 from __future__ import annotations
 
+import io
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -47,6 +48,7 @@ from typing import IO
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import FloatArray
 
 # ── Untrusted-input limits ────────────────────────────────────────────
@@ -253,6 +255,7 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
     # every token is ``float``-parseable; non-numeric bytes are dropped and show
     # up as a shortfall caught by the length guards below.
     def _next() -> float:
+        """Return the next finite token as a float; refuse an early end of file."""
         nonlocal idx
         if idx >= len(tokens):
             raise GEqdskFormatError("G-EQDSK file ended before all values were read")
@@ -266,6 +269,7 @@ def read_geqdsk(path: str | Path) -> GEqdsk:
         return val
 
     def _read_array(n: int) -> NDArray[np.float64]:
+        """Return the next ``n`` finite tokens as an array; refuse a short file."""
         nonlocal idx
         if idx + n > len(tokens):
             raise GEqdskFormatError(f"G-EQDSK file has too few values for a length-{n} array")
@@ -374,9 +378,11 @@ def write_geqdsk(eq: GEqdsk, path: str | Path) -> None:
     path = Path(path)
 
     def _fmt(val: float) -> str:
+        """Format one value in the fixed 16-column G-EQDSK float field."""
         return f"{val:16.9e}"
 
     def _write_array(f: "IO[str]", arr: NDArray[np.float64]) -> None:
+        """Write ``arr`` five values per line, ending a partial line with a newline."""
         for i, v in enumerate(arr.ravel()):
             f.write(_fmt(v))
             if (i + 1) % 5 == 0:
@@ -384,7 +390,7 @@ def write_geqdsk(eq: GEqdsk, path: str | Path) -> None:
         if len(arr.ravel()) % 5 != 0:
             f.write("\n")
 
-    with open(path, "w") as f:
+    with io.StringIO() as f:
         # Header
         desc = eq.description[:48].ljust(48)
         f.write(f"{desc}   0 {eq.nw:4d} {eq.nh:4d}\n")
@@ -451,3 +457,4 @@ def write_geqdsk(eq: GEqdsk, path: str | Path) -> None:
                 f.write("\n")
         if nlim > 0 and (nlim * 2) % 5 != 0:
             f.write("\n")
+        write_text_atomic(path, f.getvalue())

@@ -17,7 +17,8 @@ from typing import Any
 
 import numpy as np
 
-from scpn_control._npz import load_npz_capped
+from scpn_control._atomic import write_text_atomic
+from scpn_control._npz import load_npz_capped, npz_destination, save_npz_arrays
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 _NEURAL_TURBULENCE_CLAIM_SCHEMA_VERSION = 1
@@ -318,7 +319,7 @@ class QLKNNSurrogate:
         for i, (w, b) in enumerate(zip(self.weights, self.biases)):
             arrays[f"w{i}"] = w
             arrays[f"b{i}"] = b
-        np.savez(path, **arrays)
+        save_npz_arrays(npz_destination(path), arrays)
 
 
 class TransportInputNormalizer:
@@ -834,4 +835,4 @@ def save_neural_turbulence_claim_evidence(evidence: NeuralTurbulenceClaimEvidenc
         raise ValueError("evidence must be NeuralTurbulenceClaimEvidence")
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")

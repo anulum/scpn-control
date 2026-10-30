@@ -46,6 +46,7 @@ from typing import Any
 import numpy as np
 from scipy.integrate import trapezoid
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 from scpn_control.core.current_diffusion import (
     CurrentDiffusionSolver,
@@ -251,6 +252,7 @@ class IntegratedScenarioSimulator:
     """
 
     def __init__(self, config: ScenarioConfig):
+        """Validate the configuration and build the radial grid and coupled sub-solvers."""
         self.config = _validate_config(config)
         self.time = config.t_start
 
@@ -304,6 +306,7 @@ class IntegratedScenarioSimulator:
     # ── initialisation ────────────────────────────────────────────────────────
 
     def _setup_transport_solver(self) -> TransportSolver:
+        """Build the transport solver from a temporary reactor configuration of this scenario."""
         cfg_dict = {
             "reactor_name": "IntegratedScenario",
             "grid_resolution": [33, 33],
@@ -644,6 +647,7 @@ class IntegratedScenarioSimulator:
         return float(trapezoid(energy_dens * self.rho, self.rho) * vol * 2.0)
 
     def _build_state(self) -> ScenarioState:
+        """Assemble the current scenario state from the coupled solver profiles."""
         q_prof = q_from_psi(self.rho, self.cd_solver.psi, self.config.R0, self.config.a, self.config.B0)
 
         W_th = self._compute_W_thermal()
@@ -934,5 +938,4 @@ class IntegratedScenarioSimulator:
                 audit_scenario_coupling([state], self.config, scenario_name="instantaneous_state_export")
             ),
         }
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        write_text_atomic(path, json.dumps(data, indent=2))

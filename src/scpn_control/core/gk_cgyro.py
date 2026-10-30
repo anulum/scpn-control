@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
 
 _logger = logging.getLogger(__name__)
@@ -119,6 +120,7 @@ class CGYROSolver(GKSolverBase):
         allow_fallback: bool = False,
         allow_legacy_fallback: bool = False,
     ) -> None:
+        """Configure the CGYRO binary, work directory and the explicit fallback policy."""
         if allow_fallback and not allow_legacy_fallback:
             raise ValueError(
                 "allow_fallback=True requires allow_legacy_fallback=True; legacy CGYRO fallback is disabled by default."
@@ -147,7 +149,7 @@ class CGYROSolver(GKSolverBase):
         """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="cgyro_"))
         base.mkdir(parents=True, exist_ok=True)
-        (base / "input.cgyro").write_text(generate_cgyro_input(params))
+        write_text_atomic((base / "input.cgyro"), generate_cgyro_input(params))
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:

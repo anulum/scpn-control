@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray, FloatArray
 
 logger = logging.getLogger(__name__)
@@ -78,11 +79,13 @@ class AnalyticEquilibriumSolver:
         kernel_factory: Callable[[str], Any] = FusionKernel,
         verbose: bool = True,
     ) -> None:
+        """Create the kernel for ``config_path`` through ``kernel_factory`` and set logging verbosity."""
         self.kernel = kernel_factory(str(config_path))
         self.config_path = str(config_path)
         self.verbose = bool(verbose)
 
     def _log(self, message: str) -> None:
+        """Log ``message`` at info level when verbose."""
         if self.verbose:
             logger.info(message)
 
@@ -279,9 +282,7 @@ class AnalyticEquilibriumSolver:
                     key: existing[key] for key in _PRESERVED_METADATA_KEYS if key in existing and key not in cfg
                 }
                 cfg = {**preserved, **cfg}
-        with out_path.open("w", encoding="utf-8") as f:
-            json.dump(cfg, f, indent=4)
-            f.write("\n")
+        write_text_atomic(out_path, json.dumps(cfg, indent=4) + "\n")
         self._log(f"Saved analytic configuration: {out_path}")
         return str(out_path)
 

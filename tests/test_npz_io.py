@@ -15,7 +15,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from scpn_control._npz import NpzSizeError, load_npz_capped, save_npz_arrays
+from scpn_control._npz import NpzSizeError, load_npz_capped, npz_destination, save_npz_arrays
 
 
 def test_save_npz_arrays_writes_numpy_loadable_archive(tmp_path: Path) -> None:
@@ -125,3 +125,26 @@ def test_load_npz_capped_refuses_a_non_zip_file_like_numpy_load(tmp_path: Path) 
         np.load(path, allow_pickle=False)
     with pytest.raises(ValueError, match="is not an NPZ archive"):
         load_npz_capped(path)
+
+
+@pytest.mark.parametrize(
+    ("given", "expected"),
+    [("weights", "weights.npz"), ("weights.npz", "weights.npz"), ("w.NPZ", "w.NPZ.npz")],
+)
+def test_npz_destination_follows_numpy_savez_naming(tmp_path: Path, given: str, expected: str) -> None:
+    """Name the file exactly as ``numpy.savez`` would."""
+    np.savez(tmp_path / given, a=np.zeros(1))
+    assert (tmp_path / expected).is_file()
+    assert npz_destination(tmp_path / given) == tmp_path / expected
+    assert npz_destination(str(tmp_path / given)) == tmp_path / expected
+
+
+def test_failed_archive_publication_keeps_the_previous_archive(tmp_path: Path) -> None:
+    """An array refused during assembly leaves the previous archive and no temporary file."""
+    path = tmp_path / "trajectory.npz"
+    save_npz_arrays(path, {"a": np.arange(3)})
+    before = path.read_bytes()
+    with pytest.raises(ValueError):
+        save_npz_arrays(path, {"a": np.arange(3), "b": np.array([object()], dtype=object)})
+    assert path.read_bytes() == before
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["trajectory.npz"]

@@ -17,6 +17,8 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_text_atomic
+
 # ── named constants ─────────────────────────────────────────────────────────
 # Sentinel for the ideal-kink (β > β_wall) regime; a finite resistive-wall-mode
 # growth rate is physically undefined beyond the ideal-wall limit.
@@ -59,6 +61,7 @@ class RWMClaimEvidence:
 
 
 def _finite_scalar(name: str, value: float, *, nonnegative: bool = False, positive: bool = False) -> float:
+    """Return a finite float, optionally required positive or non-negative."""
     scalar = float(value)
     if not math.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
@@ -70,12 +73,14 @@ def _finite_scalar(name: str, value: float, *, nonnegative: bool = False, positi
 
 
 def _optional_positive_scalar(name: str, value: float | None) -> float | None:
+    """Return ``None`` unchanged, else a finite positive float."""
     if value is None:
         return None
     return _finite_scalar(name, value, positive=True)
 
 
 def _positive_int(name: str, value: int) -> int:
+    """Return ``value``; refuse booleans, non-integers and values below one."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{name} must be a positive integer")
     if value <= 0:
@@ -187,7 +192,7 @@ def save_rwm_claim_evidence(evidence: RWMClaimEvidence, path: str | Path) -> Non
     """Persist RWM claim evidence as deterministic JSON."""
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(destination, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 class RWMPhysics:
@@ -361,6 +366,7 @@ class RWMFeedbackController:
         tau_controller: float = 1e-4,
         M_coil: float = 1.0,
     ) -> None:
+        """Validate counts, gains, controller time constant and coil inductance; zero the previous field."""
         self.n_sensors = _positive_int("n_sensors", n_sensors)
         self.n_coils = _positive_int("n_coils", n_coils)
         self.G_p = _finite_scalar("G_p", G_p)

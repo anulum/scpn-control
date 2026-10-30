@@ -33,6 +33,21 @@
 
 ### Fixed
 
+- More writers publish atomically, so a failed write leaves the previous
+  file intact:
+  - the neural-equilibrium, turbulence and RWM claims;
+  - the CGYRO, GENE, GS2 and TGLF input decks;
+  - G-EQDSK files;
+  - scenario and coupling-audit reports;
+  - the analytic-solver configuration;
+  - the Lean verification report;
+  - NPZ archives.
+
+  `save_npz_arrays` now builds the archive in memory, so it no longer leaves
+  a partial archive. Its bytes are unchanged. The realtime monitor and the
+  turbulence weights use it through the new `npz_destination`, which keeps
+  the `.npz` naming of `numpy.savez`.
+
 - The standalone Pre-commit workflow installs the same qualified native
   tools as the static-governance pre-commit job, and like that job runs on
   Ubuntu 24.04:

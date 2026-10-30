@@ -25,6 +25,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
 
@@ -186,6 +187,7 @@ class TGLFSolver(GKSolverBase):
         binary: str = "tglf",
         work_dir: Path | None = None,
     ) -> None:
+        """Configure the TGLF binary and work directory."""
         self.binary = binary
         self.work_dir = work_dir
 
@@ -209,7 +211,7 @@ class TGLFSolver(GKSolverBase):
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="tglf_"))
         base.mkdir(parents=True, exist_ok=True)
         input_file = base / "input.tglf"
-        input_file.write_text(generate_tglf_input(params))
+        write_text_atomic(input_file, generate_tglf_input(params))
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:

@@ -22,6 +22,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.core.gk_interface import GKLocalParams, GKOutput, GKSolverBase
 
 _logger = logging.getLogger(__name__)
@@ -128,6 +129,7 @@ class GS2Solver(GKSolverBase):
         allow_fallback: bool = False,
         allow_legacy_fallback: bool = False,
     ) -> None:
+        """Configure the GS2 binary, work directory and the explicit fallback policy."""
         if allow_fallback and not allow_legacy_fallback:
             raise ValueError(
                 "allow_fallback=True requires allow_legacy_fallback=True; legacy GS2 fallback is disabled by default."
@@ -156,7 +158,7 @@ class GS2Solver(GKSolverBase):
         """
         base = self.work_dir or Path(tempfile.mkdtemp(prefix="gs2_"))
         base.mkdir(parents=True, exist_ok=True)
-        (base / "gs2.in").write_text(generate_gs2_input(params))
+        write_text_atomic((base / "gs2.in"), generate_gs2_input(params))
         return base
 
     def run(self, input_path: Path, *, timeout_s: float = 30.0) -> GKOutput:

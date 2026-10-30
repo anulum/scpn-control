@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+import io
+import os
 import zipfile
 from collections.abc import Mapping
 from os import PathLike
@@ -18,6 +20,8 @@ from typing import cast
 import numpy as np
 from numpy.lib.npyio import NpzFile
 from numpy.typing import ArrayLike
+
+from scpn_control._atomic import write_bytes_atomic
 
 NpzPath = str | PathLike[str]
 
@@ -65,16 +69,36 @@ def save_npz_arrays(
     ------
     ValueError
         If an array name is empty or path-like, or an array requires pickling
-        while ``allow_pickle`` is false. The destination is written directly;
-        a failure may leave a partial archive.
+        while ``allow_pickle`` is false. The archive is assembled in memory and
+        published atomically, so a failure leaves any previous file intact.
     """
-    destination = Path(path)
-    destination.parent.mkdir(parents=True, exist_ok=True)
+    buffer = io.BytesIO()
     compression = zipfile.ZIP_DEFLATED if compressed else zipfile.ZIP_STORED
-    with zipfile.ZipFile(destination, mode="w", compression=compression, allowZip64=True) as archive:
+    with zipfile.ZipFile(buffer, mode="w", compression=compression, allowZip64=True) as archive:
         for name, value in arrays.items():
             with archive.open(_member_name(name), mode="w", force_zip64=True) as member:
                 np.save(member, np.asanyarray(value), allow_pickle=allow_pickle)
+    write_bytes_atomic(path, buffer.getvalue())
+
+
+def npz_destination(path: NpzPath) -> Path:
+    """Return the file ``numpy.savez`` writes for ``path``.
+
+    NumPy appends ``.npz`` to a file name that does not already end with it;
+    callers that replace ``numpy.savez`` keep that naming through this helper.
+
+    Parameters
+    ----------
+    path : str or PathLike[str]
+        The path a caller passed to ``numpy.savez``.
+
+    Returns
+    -------
+    pathlib.Path
+        ``path`` itself when it ends with ``.npz``, else ``path`` + ``.npz``.
+    """
+    name = os.fspath(path)
+    return Path(name if name.endswith(".npz") else name + ".npz")
 
 
 def load_npz_capped(path: NpzPath, *, max_decompressed_bytes: int = _MAX_NPZ_DECOMPRESSED_BYTES) -> NpzFile:
@@ -119,4 +143,4 @@ def load_npz_capped(path: NpzPath, *, max_decompressed_bytes: int = _MAX_NPZ_DEC
     return cast(NpzFile, np.load(path, allow_pickle=False))
 
 
-__all__ = ["NpzSizeError", "load_npz_capped", "save_npz_arrays"]
+__all__ = ["NpzSizeError", "load_npz_capped", "npz_destination", "save_npz_arrays"]

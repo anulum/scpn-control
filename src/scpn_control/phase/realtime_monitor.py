@@ -42,6 +42,7 @@ from typing import Any
 
 import numpy as np
 
+from scpn_control._npz import npz_destination, save_npz_arrays
 from scpn_control._typing import FloatArray
 from scpn_control.phase.adaptive_knm import AdaptiveKnmEngine, DiagnosticSnapshot
 from scpn_control.phase.knm import OMEGA_N_16, build_knm_paper27
@@ -402,15 +403,18 @@ class RealtimeMonitor:
         """Export recorded trajectory to compressed NPZ (no h5py needed)."""
         path = Path(path)
         rec = self._recorder
-        np.savez_compressed(
-            path,
-            R_global=np.array(rec.R_global, dtype=np.float64),
-            R_layer=np.array(rec.R_layer, dtype=np.float64),
-            V_global=np.array(rec.V_global, dtype=np.float64),
-            V_layer=np.array(rec.V_layer, dtype=np.float64),
-            lambda_exp=np.array(rec.lambda_exp, dtype=np.float64),
-            guard_approved=np.array(rec.guard_approved, dtype=bool),
-            latency_us=np.array(rec.latency_us, dtype=np.float64),
-            Psi_global=np.array(rec.Psi_global, dtype=np.float64),
+        save_npz_arrays(
+            npz_destination(path),
+            dict(
+                R_global=np.array(rec.R_global, dtype=np.float64),
+                R_layer=np.array(rec.R_layer, dtype=np.float64),
+                V_global=np.array(rec.V_global, dtype=np.float64),
+                V_layer=np.array(rec.V_layer, dtype=np.float64),
+                lambda_exp=np.array(rec.lambda_exp, dtype=np.float64),
+                guard_approved=np.array(rec.guard_approved, dtype=bool),
+                latency_us=np.array(rec.latency_us, dtype=np.float64),
+                Psi_global=np.array(rec.Psi_global, dtype=np.float64),
+            ),
+            compressed=True,
         )
         return path

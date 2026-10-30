@@ -36,6 +36,7 @@ from pathlib import Path
 import numpy as np
 from numpy.typing import ArrayLike
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._npz import load_npz_capped, save_npz_arrays
 from scpn_control._typing import AnyFloatArray, FloatArray
 
@@ -1177,7 +1178,7 @@ def save_neural_equilibrium_claim_evidence(evidence: NeuralEquilibriumClaimEvide
         raise ValueError("evidence must be NeuralEquilibriumClaimEvidence")
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 __all__ = [
