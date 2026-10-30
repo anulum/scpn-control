@@ -29,6 +29,8 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Final
 
+from scpn_control._atomic import write_bytes_atomic
+
 SEALED_SAFETY_CLAIM_SCHEMA: Final[str] = "scpn-control.sealed-safety-claim.v1"
 _STUDIO_ID: Final[str] = "scpn-control"
 
@@ -215,5 +217,5 @@ def write_sealed_claim(payload: Mapping[str, Any], path: Path) -> str:
     rendered = render_sealed_claim_json(payload)
     path.parent.mkdir(parents=True, exist_ok=True)
     data = rendered.encode("utf-8")
-    path.write_bytes(data)
+    write_bytes_atomic(path, data)
     return hashlib.sha256(data).hexdigest()

@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, cast
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control.hil_evidence_contracts import (
     _LOCAL_CLAIM_STATUS,
     _TARGET_HARDWARE_CLAIM_STATUS,
@@ -54,6 +55,7 @@ class HILBenchmarkResult:
 def _control_metrics_from_evidence_source(
     metrics: ControlLoopMetrics | HILBenchmarkResult,
 ) -> ControlLoopMetrics:
+    """Return the control-loop metrics of a HIL benchmark result, or the metrics themselves."""
     if isinstance(metrics, HILBenchmarkResult):
         return metrics.control_metrics
     if isinstance(metrics, ControlLoopMetrics):
@@ -62,6 +64,7 @@ def _control_metrics_from_evidence_source(
 
 
 def _hil_timing_payload(metrics: ControlLoopMetrics) -> dict[str, Any]:
+    """Validate the loop's iteration, deadline and overrun counters and return them as the timing payload."""
     iterations = _require_positive_int(metrics.iterations, "metrics.iterations")
     target_dt_us = _require_finite_float(metrics.target_dt_us, "metrics.target_dt_us", positive=True)
     overrun_count = _require_non_negative_int(metrics.overrun_count, "metrics.overrun_count")
@@ -308,7 +311,7 @@ def save_hil_replay_evidence(
     )
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(admitted, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(admitted, indent=2, sort_keys=True) + "\n")
     return out
 
 

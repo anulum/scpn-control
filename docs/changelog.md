@@ -33,6 +33,14 @@
 
 ### Fixed
 
+- Claim, evidence and artifact writers publish atomically through
+  `scpn_control._atomic`, so a failed write leaves the previous file
+  intact. This covers the volt-second, realtime-EFIT, density and
+  disruption claims, HIL evidence, the sealed safety claim, the GK
+  verification report, `save_artifact` and the two validator `--output`
+  reports. The GK verification report is now always UTF-8; before, it used
+  the locale's encoding.
+
 - CLI options that size work, memory or sockets declare inclusive upper
   bounds:
   - `demo --steps` up to 1,000,000;

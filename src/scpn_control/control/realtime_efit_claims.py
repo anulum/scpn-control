@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import numpy.typing as npt
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray
 from scpn_control.control.realtime_efit_contracts import (
     EFITLiteClaimEvidence,
@@ -33,6 +34,7 @@ _BOUNDED_REFERENCE_SOURCES = frozenset({"synthetic_regression_reference", *_FACI
 
 
 def _finite_float(name: str, value: float, *, positive: bool = False, nonnegative: bool = False) -> float:
+    """Return a finite float, optionally required positive or non-negative."""
     out = float(value)
     if not np.isfinite(out):
         raise ValueError(f"{name} must be finite")
@@ -44,6 +46,7 @@ def _finite_float(name: str, value: float, *, positive: bool = False, nonnegativ
 
 
 def _relative_array_error(name: str, candidate: AnyFloatArray, reference: npt.ArrayLike) -> float:
+    """Return the relative L2 error of ``candidate`` against a finite reference of the same shape."""
     ref = np.asarray(reference, dtype=float)
     cand = np.asarray(candidate, dtype=float)
     if ref.shape != cand.shape:
@@ -205,4 +208,4 @@ def save_efit_lite_claim_evidence(evidence: EFITLiteClaimEvidence, path: str | P
         raise ValueError("EFIT-lite claim evidence numeric fields must be finite") from exc
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(body, encoding="utf-8")
+    write_text_atomic(destination, body)

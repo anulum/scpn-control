@@ -21,6 +21,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.core.gk_corrector import CorrectionRecord
 
 
@@ -36,6 +37,7 @@ class VerificationReport:
     correction_factors: list[float] = field(default_factory=list)
 
     def __post_init__(self) -> None:
+        """Refuse negative counters and more verified steps than steps."""
         if self.total_steps < 0 or self.steps_verified < 0 or self.total_spot_checks < 0 or self.ood_triggers < 0:
             raise ValueError("report counters must be >= 0")
         if self.steps_verified > self.total_steps:
@@ -149,5 +151,5 @@ class VerificationReport:
         """
         text = json.dumps(self.to_dict(), indent=2)
         if path is not None:
-            Path(path).write_text(text)
+            write_text_atomic(path, text)
         return text

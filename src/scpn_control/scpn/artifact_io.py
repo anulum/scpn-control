@@ -21,6 +21,7 @@ import math
 from pathlib import Path
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.scpn.artifact_codec import _decode_u64_compact, _encode_u64_compact
 from scpn_control.scpn.artifact_model import (
     FORMAL_VERIFICATION_ALLOWED_FIELDS,
@@ -51,6 +52,7 @@ from scpn_control.scpn.artifact_validate import (
 
 
 def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
+    """Parse the optional ``formal_verification`` object; refuse unsupported fields."""
     if raw is None:
         return None
     if not isinstance(raw, dict):
@@ -88,6 +90,7 @@ def _parse_formal_verification(raw: Any) -> FormalVerificationEvidence | None:
 
 
 def _formal_verification_dict(evidence: FormalVerificationEvidence) -> dict[str, Any]:
+    """Return the JSON mapping of formal-verification evidence."""
     obj: dict[str, Any] = {
         "required": evidence.required,
         "status": evidence.status,
@@ -137,6 +140,7 @@ def _artifact_payload_dict(
     """Return canonical artifact payload sections excluding proof evidence."""
 
     def _weight_matrix_dict(wm: WeightMatrix) -> dict[str, Any]:
+        """Return the JSON mapping of one dense weight matrix."""
         return {"shape": wm.shape, "data": wm.data}
 
     packed_dict: dict[str, Any] | None = None
@@ -421,6 +425,4 @@ def save_artifact(
         _validate_formal_verification(artifact.formal_verification)
         obj["formal_verification"] = _formal_verification_dict(artifact.formal_verification)
 
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, indent=2)
-        f.write("\n")
+    write_text_atomic(path, json.dumps(obj, indent=2) + "\n")

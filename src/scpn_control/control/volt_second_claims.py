@@ -16,6 +16,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control.volt_second_core import FluxBudget, FluxReport, _finite_scalar
 
 _VOLT_SECOND_CLAIM_SCHEMA_VERSION = 1
@@ -279,4 +280,4 @@ def save_volt_second_claim_evidence(evidence: object, path: str | Path) -> None:
     payload = json.dumps(asdict(evidence), indent=2, sort_keys=True, allow_nan=False) + "\n"
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(payload, encoding="utf-8")
+    write_text_atomic(output_path, payload)

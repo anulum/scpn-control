@@ -17,10 +17,13 @@ entry point a thin dispatcher over the core operational commands.
 
 from __future__ import annotations
 
+import importlib
 import json
 import sys
 
 import click
+
+from scpn_control._atomic import write_text_atomic
 
 
 @click.command("validate")
@@ -125,9 +128,8 @@ def validate(
     use stderr; JSON mode emits the combined result to stdout before exit.
     """
     try:
-        from scpn_control.core.integrated_transport_solver import IntegratedTransportSolver  # noqa: F401
-
-        has_transport = True
+        solver_module = importlib.import_module("scpn_control.core.integrated_transport_solver")
+        has_transport = callable(getattr(solver_module, "IntegratedTransportSolver", None))
     except ImportError:
         has_transport = False
 
@@ -475,7 +477,7 @@ def validate_data_manifests_command(
         try:
             output_path = checked_report_destination(output_json, inputs=manifest_report_inputs(validation_root))
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            write_text_atomic(output_path, json.dumps(report, indent=2, sort_keys=True) + "\n")
         except (OSError, ValueError, RuntimeError) as exc:
             report["status"] = "fail"
             report["errors"].append({"path": output_json, "error": f"cannot write report: {exc}"})
@@ -547,7 +549,7 @@ def validate_physics_traceability_command(
         try:
             output_path = checked_report_destination(output_json, inputs=[registry_path])
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            write_text_atomic(output_path, json.dumps(report, indent=2, sort_keys=True) + "\n")
         except (OSError, ValueError, RuntimeError) as exc:
             raise click.ClickException("could not write physics traceability report") from exc
     if json_out:

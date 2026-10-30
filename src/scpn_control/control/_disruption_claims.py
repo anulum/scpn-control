@@ -15,6 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control.control._disruption_ensemble import DisruptionMitigationReport
 from scpn_control.core._validators import require_non_negative_float
 
@@ -58,12 +59,14 @@ class DisruptionMitigationClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite non-negative float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -75,6 +78,7 @@ def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
 
 
 def _finite_unit_interval(name: str, value: float) -> float:
+    """Return a finite float in ``[0, 1]``; refuse anything else."""
     result = float(value)
     if not np.isfinite(result) or not 0.0 <= result <= 1.0:
         raise ValueError(f"{name} must be finite in [0, 1]")
@@ -188,4 +192,4 @@ def save_disruption_mitigation_claim_evidence(
         raise ValueError("bounded disruption evidence cannot carry unverified reference comparisons")
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")

@@ -17,6 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
+from scpn_control._atomic import write_text_atomic
 from scpn_control._typing import AnyFloatArray
 from scpn_control.control._density_control_runtime import ActuatorCommand, DensityController
 from scpn_control.control._density_transport import ParticleTransportModel
@@ -64,12 +65,14 @@ class DensityControlClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _relative_error(name: str, observed: float, reference: float | None) -> float | None:
+    """Return ``|observed - reference| / |reference|``, or ``None`` without a reference."""
     if reference is None:
         return None
     ref = DensityController._validate_non_negative_scalar(reference, name)
@@ -201,4 +204,4 @@ def save_density_control_claim_evidence(evidence: DensityControlClaimEvidence, p
     """Persist density-control claim evidence as deterministic JSON."""
     output_path = Path(path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(output_path, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
