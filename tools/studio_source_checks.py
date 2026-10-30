@@ -33,11 +33,11 @@ from tools.source_quality_scope import select_changed_files
 ROOT = Path(__file__).resolve().parents[1]
 _TOOL_VERSIONS = {"node": "v22.23.2", "pnpm": "11.25.0"}
 _CONFIGURATION = {
-    "eslint.config.mjs": "f993ca10ef869a3e3dd7369a9f4c4d57bef49589ae6580290d64e4e1ee6dd954",
+    "eslint.config.mjs": "196bfc4c6e6a6daaf75cddabdd306bf763e1daab4757b4829052afe9a30665f3",
     "tsconfig.json": "974ccb2c633c405c0de9ea42d26e39f7de1d172b8f0edc1eeb2f4936bd556781",
     "vitest.config.ts": "125caad472ee561776f7b333318f6fb156c2b749500e944a971c7cd71357d277",
-    "package.json": "012c89ee4ee499cf78e73724d398af9674b49c18bfd2e5c4e736bd311b1d627e",
-    "pnpm-lock.yaml": "a5dbbbfd863d86151a80af74277a4fadc6df09b7642acb625b06ebad3b2d6f3a",
+    "package.json": "2568f32e74a02f7e408e12aa1846ae64aac7334afa12a8dcd366510808b336db",
+    "pnpm-lock.yaml": "d0f5ed05d1481e7ca5e8230e08cc1078e33bc7cc8d4dec4c6c6f3b585c27660b",
     ".prettierrc.json": "ebe733191f06a29fdd34a4683327d9a36c008ed8da564d8e7def1c700d7463ff",
 }
 _NO_WAIVERS = json.dumps(

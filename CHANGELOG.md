@@ -123,6 +123,15 @@
 
 ### Added
 
+- The Studio panel is checked for accessibility.
+  - ESLint applies the strict rules of `eslint-plugin-jsx-a11y-x` 0.2.0, a
+    fork of `eslint-plugin-jsx-a11y` that supports ESLint 10, with warnings
+    as errors.
+  - Vitest runs axe-core 4.14.0 over five rendered panel states: the sample,
+    a fetched feed, caller-provided data, an authenticated session and an
+    anonymous session. Each state must have zero violations.
+  - A negative case proves that the check can fail.
+
 - The package-quality CI job installs the built wheel into a clean virtual
   environment. The environment holds only the hashed runtime lock
   `requirements/ci-wheel-smoke.txt`, and the wheel goes in with `--no-deps`.

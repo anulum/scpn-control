@@ -7,6 +7,7 @@
 // SCPN Control — Eslint.config.
 
 import js from '@eslint/js';
+import jsxA11y from 'eslint-plugin-jsx-a11y-x';
 import reactHooks from 'eslint-plugin-react-hooks';
 import tseslint from 'typescript-eslint';
 
@@ -20,7 +21,12 @@ export default tseslint.config(
   },
   {
     files: ['**/*.{ts,tsx}'],
-    extends: [js.configs.recommended, ...tseslint.configs.strictTypeChecked],
+    // The strict accessibility rules hold every rendered element of the panel.
+    extends: [
+      js.configs.recommended,
+      ...tseslint.configs.strictTypeChecked,
+      jsxA11y.configs.strict,
+    ],
     languageOptions: {
       parserOptions: {
         projectService: true,
