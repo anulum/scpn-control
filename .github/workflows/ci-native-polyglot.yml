@@ -88,6 +88,17 @@ jobs:
               raise SystemExit("Rust compatibility layer reports unavailable backend")
           print("Rust bindings import and compatibility probe passed.")
           PY
+      - name: Execute the Rust full-stack notebook
+        # This notebook imports scpn_control_rs, so it runs here, where the
+        # bindings are built, rather than in the pure-Python notebook job.
+        run: |
+          . .venv/bin/activate
+          pip install --require-hashes -r requirements/ci-viz.txt
+          pip install --require-hashes -r requirements/ci-notebook.txt
+          mkdir -p artifacts/notebook-exec
+          PYTHONPATH=$PWD/src jupyter nbconvert --to notebook --execute \
+            --ExecutePreprocessor.timeout=900 --output-dir artifacts/notebook-exec \
+            examples/scpn_full_stack_demo_2026.ipynb
       - name: Parity tests
         run: |
           . .venv/bin/activate

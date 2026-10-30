@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+
+- Two example notebooks never ran in CI.
+  - `snn_pac_closed_loop_demo.ipynb` executes with the CI notebook
+    dependencies and now runs in the notebook job.
+  - `scpn_full_stack_demo_2026.ipynb` imports the Rust bindings and had
+    drifted from the current API: dictionary access on the equilibrium
+    result, `state.psi` and `grid` instead of `Psi`, `RR` and `ZZ`, the old
+    readout format, and a controller without targets, scales or a `Z_axis_m`
+    observation. It now executes in the Rust bridge job, where the bindings
+    are built.
+  - Its text no longer claims a fixed ">13 kHz" throughput or "verified
+    benchmarks"; the last section measures the machine that runs it.
+
 ### Security
 
 - The Rust workspace and fuzz locks move to patched releases:
