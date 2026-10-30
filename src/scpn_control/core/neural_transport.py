@@ -51,6 +51,9 @@ from typing import Any, cast
 import numpy as np
 from numpy.typing import NDArray
 
+from scpn_control._atomic import write_text_atomic
+from scpn_control._npz import load_npz_capped
+
 logger = logging.getLogger(__name__)
 
 FloatArray = NDArray[np.float64]
@@ -72,31 +75,6 @@ _NEURAL_TRANSPORT_FEATURE_SCHEMA = (
     "collisionality",
     "beta_e",
 )
-
-
-class _ChannelWeightsArray(np.ndarray[tuple[int, ...], np.dtype[np.float64]]):
-    """Array view with reduction semantics that survive NumPy module reloads."""
-
-    def sum(  # type: ignore[override]  # NumPy's overloads cannot express this reload-safe axis subset.
-        self,
-        axis: int | None = None,
-        dtype: object = None,
-        out: object = None,
-        keepdims: bool = False,
-        initial: float = 0.0,
-        where: object = True,
-    ) -> object:
-        """Return sums without using ndarray's stale reload-sensitive defaults."""
-        if dtype is not None or out is not None or keepdims or where is not True:
-            raise ValueError("channel_weights.sum supports default dtype, out, keepdims, and where only")
-        base = np.asarray(self, dtype=np.float64)
-        if axis is None:
-            return float(np.einsum("ij->", base, optimize=True)) + initial
-        if axis == 0:
-            return cast(FloatArray, np.einsum("ij->j", base, optimize=True) + initial)
-        if axis == 1:
-            return cast(FloatArray, np.einsum("ij->i", base, optimize=True) + initial)
-        raise ValueError("channel_weights.sum supports axis None, 0, or 1")
 
 
 # ── Data containers ───────────────────────────────────────────────────
@@ -229,12 +207,14 @@ class NeuralTransportClaimEvidence:
 
 
 def _non_empty_text(name: str, value: str) -> str:
+    """Return ``value`` stripped; refuse non-strings and blank text."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value.strip()
 
 
 def _sha256_file(path: str | Path) -> str:
+    """Return the SHA-256 hex digest of a file, read in 1 MiB chunks."""
     digest = hashlib.sha256()
     with Path(path).open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):
@@ -243,6 +223,7 @@ def _sha256_file(path: str | Path) -> str:
 
 
 def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite non-negative float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -254,6 +235,7 @@ def _finite_nonnegative_or_none(name: str, value: object) -> float | None:
 
 
 def _finite_positive_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite positive float; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -265,6 +247,7 @@ def _finite_positive_or_none(name: str, value: object) -> float | None:
 
 
 def _unit_interval_or_none(name: str, value: object) -> float | None:
+    """Return ``None`` unchanged, else a finite float in ``[0, 1]``; refuse anything else."""
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, int | float):
@@ -276,6 +259,7 @@ def _unit_interval_or_none(name: str, value: object) -> float | None:
 
 
 def _three_float_tuple(name: str, values: object) -> tuple[float, float, float]:
+    """Return three finite non-negative channel values as floats."""
     if not isinstance(values, list | tuple) or len(values) != 3:
         raise ValueError(f"{name} must contain three channel values")
     out = tuple(float(v) for v in values)
@@ -371,10 +355,12 @@ class MLPWeights:
 
 
 def _relu(x: FloatArray) -> FloatArray:
+    """Return the elementwise rectified linear unit of ``x``."""
     return np.maximum(0.0, x)
 
 
 def _softplus(x: FloatArray) -> FloatArray:
+    """Return the elementwise softplus of ``x``, clipped to avoid overflow."""
     return np.asarray(np.log1p(np.exp(np.clip(x, -20.0, 20.0))))
 
 
@@ -440,6 +426,7 @@ class NeuralTransportModel:
         allow_weight_load_fallback: bool = False,
         allow_legacy_weight_load_fallback: bool = False,
     ) -> None:
+        """Configure weight discovery and the explicit fallback policy, then load weights when found."""
         if allow_weight_load_fallback and not allow_legacy_weight_load_fallback:
             raise ValueError(
                 "allow_weight_load_fallback=True requires allow_legacy_weight_load_fallback=True; "
@@ -476,10 +463,9 @@ class NeuralTransportModel:
             return
 
         try:
-            # allow_pickle=False (numpy's default, made explicit): weight artifacts
-            # hold only numeric arrays, so a pickled-object .npz must be rejected at
-            # load rather than silently deserialised. Mirrors the other np.load sites.
-            data = np.load(self.weights_path, allow_pickle=False)
+            # Weight artifacts hold only numeric arrays: the capped reader refuses
+            # pickled objects and archives whose declared size exceeds its cap.
+            data = load_npz_capped(self.weights_path)
             required = ["w1", "b1", "w2", "b2", "w3", "b3", "input_mean", "input_std", "output_scale"]
             for key in required:
                 if key not in data:
@@ -634,6 +620,7 @@ class NeuralTransportModel:
 
         # Normalised gradients: R/L_X = -R * (1/X) * dX/dr
         def norm_grad(x: FloatArray) -> FloatArray:
+            """Return the normalised gradient ``-R dx/drho / x`` of a profile."""
             dx = np.gradient(x, rho)
             safe_x = np.maximum(np.abs(x), 1e-6)
             return np.asarray(-r_major * dx / safe_x)
@@ -677,6 +664,7 @@ class NeuralTransportModel:
 
 
 def _profile_array(name: str, values: FloatArray) -> FloatArray:
+    """Return a finite one-dimensional profile of at least three points."""
     arr = np.asarray(values, dtype=np.float64)
     if arr.ndim != 1:
         raise ValueError(f"{name} must be a one-dimensional profile")
@@ -688,15 +676,14 @@ def _profile_array(name: str, values: FloatArray) -> FloatArray:
 
 
 def _normalised_channel_weights(chi_e: FloatArray, chi_i: FloatArray, d_e: FloatArray) -> FloatArray:
-    import numpy as current_np
-
-    raw = current_np.vstack([chi_e, chi_i, d_e])
-    totals = current_np.einsum("ij->j", raw, optimize=True)
-    weights = current_np.empty_like(raw)
+    """Return per-radius weights of the three transport channels, equal where all vanish."""
+    raw = np.vstack([chi_e, chi_i, d_e])
+    totals = raw.sum(axis=0)
+    weights = np.empty_like(raw)
     active = totals > 1e-14
     weights[:, active] = raw[:, active] / totals[active]
     weights[:, ~active] = 1.0 / 3.0
-    return cast(FloatArray, weights.view(_ChannelWeightsArray))
+    return weights
 
 
 def neural_transport_closure_profiles(
@@ -817,6 +804,7 @@ def reference_transport_benchmark_cases() -> tuple[tuple[str, TransportInputs], 
 def _reference_transport_profile(
     n_points: int = 24,
 ) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray, FloatArray, FloatArray]:
+    """Return a deterministic analytic profile set on at least eight radial points."""
     n = max(int(n_points), 8)
     rho = np.linspace(0.05, 0.95, n, dtype=np.float64)
     te = 12.0 * (1.0 - 0.85 * rho**2)
@@ -1027,7 +1015,7 @@ def save_neural_transport_claim_evidence(evidence: NeuralTransportClaimEvidence,
         raise ValueError("evidence must be NeuralTransportClaimEvidence")
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_text(json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    write_text_atomic(out, json.dumps(asdict(evidence), indent=2, sort_keys=True) + "\n")
 
 
 # Backward-compatible class name used by older interop/parity tests.

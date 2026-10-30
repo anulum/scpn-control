@@ -9,13 +9,16 @@
 
 from __future__ import annotations
 
+import json
+import subprocess
+import sys
 from pathlib import Path
 
 import numpy as np
 import pytest
 from numpy.typing import NDArray
 
-from scpn_control.core.neural_transport import NeuralTransportModel, TransportInputs, neural_transport_closure_profiles
+from scpn_control.core.neural_transport import NeuralTransportModel, TransportInputs
 
 
 def _flat_profile() -> NDArray[np.float64]:
@@ -67,27 +70,45 @@ def test_neural_predict_reports_stable_channel_for_zero_scaled_weights(tmp_path:
     assert fluxes.channel == "stable"
 
 
-def test_closure_channel_weights_remain_sum_safe_after_numpy_reload() -> None:
-    """The public closure result returns channel weights whose ndarray reductions work."""
-    rho = np.linspace(0.1, 0.9, 5, dtype=np.float64)
-    flat = _flat_profile()
+_RELOAD_PROBE = """
+import importlib, json
+import numpy as np
+from scpn_control.core.neural_transport import NeuralTransportModel, neural_transport_closure_profiles
 
-    result = neural_transport_closure_profiles(
-        rho,
-        flat,
-        flat,
-        flat,
-        np.full(5, 2.0, dtype=np.float64),
-        np.full(5, 0.5, dtype=np.float64),
-        model=NeuralTransportModel(auto_discover=False),
+importlib.reload(np)
+rho = np.linspace(0.1, 0.9, 5)
+flat = np.full(5, 5.0)
+weights = neural_transport_closure_profiles(
+    rho, flat, flat, flat, np.full(5, 2.0), np.full(5, 0.5),
+    model=NeuralTransportModel(auto_discover=False),
+).channel_weights
+print(json.dumps({
+    "type": type(weights).__name__,
+    "by_radius": weights.sum(axis=0).tolist(),
+    "by_channel": weights.sum(axis=1).tolist(),
+    "total": float(weights.sum()),
+    "initial": weights.sum(axis=0, initial=1.0).tolist(),
+    "float32": weights.sum(axis=0, dtype=np.float32).tolist(),
+}))
+"""
+
+
+def test_closure_channel_weights_reduce_normally_after_numpy_reload() -> None:
+    """Return a plain ndarray whose reductions work even after NumPy is reloaded.
+
+    The reload runs in a fresh interpreter so it cannot disturb this session.
+    """
+    completed = subprocess.run(
+        [sys.executable, "-W", "ignore::UserWarning", "-c", _RELOAD_PROBE],
+        capture_output=True,
+        text=True,
+        check=True,
+        timeout=120,
     )
-
-    assert np.allclose(result.channel_weights, 1.0 / 3.0)
-    assert np.allclose(result.channel_weights.sum(axis=0), np.ones_like(rho))
-    assert np.allclose(result.channel_weights.sum(axis=1), np.full(3, 5.0 / 3.0))
-    assert result.channel_weights.sum() == pytest.approx(5.0)
-    assert np.allclose(result.channel_weights.sum(axis=0, initial=1.0), np.full(5, 2.0))
-    with pytest.raises(ValueError, match="default dtype"):
-        result.channel_weights.sum(axis=0, dtype=np.float64)
-    with pytest.raises(ValueError, match="axis None, 0, or 1"):
-        result.channel_weights.sum(axis=2)
+    reductions = json.loads(completed.stdout.strip().splitlines()[-1])
+    assert reductions["type"] == "ndarray"
+    assert np.allclose(reductions["by_radius"], np.ones(5))
+    assert np.allclose(reductions["by_channel"], np.full(3, 5.0 / 3.0))
+    assert reductions["total"] == pytest.approx(5.0)
+    assert np.allclose(reductions["initial"], np.full(5, 2.0))
+    assert np.allclose(reductions["float32"], np.ones(5))

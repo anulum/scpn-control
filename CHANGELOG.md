@@ -33,6 +33,15 @@
 
 ### Fixed
 
+- The neural-transport model reads its weights through `load_npz_capped`
+  and publishes its claim atomically. With that, no raw `numpy.load` is left
+  in the package; `tests/test_npz_capped_reads.py` enforces this.
+- `NeuralTransportClosureResult.channel_weights` is a plain `ndarray`. The
+  `_ChannelWeightsArray` subclass, which restricted `sum` to work around a
+  NumPy-reload failure, is removed. A real `importlib.reload(numpy)` under
+  NumPy 1.26 and 2.2.6 leaves `ndarray.sum` working, and the test now
+  checks this in a fresh interpreter.
+
 - `save_results` of the Python and Rust-backed equilibrium kernels and the
   WebSocket runtime evidence writer now publish atomically. The NPZ keeps
   the bytes and file name of `numpy.savez`.
