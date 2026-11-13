@@ -500,7 +500,7 @@ jsonschema-specifications==2025.9.1 \
 jupyter==1.1.1 \
     --hash=sha256:7a59533c22af65439b24bbe60373a4e95af8f16ac65a6c00820ad378e3f7cc83 \
     --hash=sha256:d55467bceabdea49d7e3624af7e33d59c37fff53ed3a350e1ac957bed731de7a
-    # via -r requirements/ci-notebook.in
+    # via -r ci-notebook.in
 jupyter-builder==1.2.4 \
     --hash=sha256:74fbafc8a7bedcc88415fab7da05727a7668f7dbdc069676f47790158e255f5a \
     --hash=sha256:da5b46fc49faac39e977259e489519ee1a92917c31d90d1d258832d8f4d288a3
@@ -544,7 +544,7 @@ jupyter-server==2.21.1 \
     --hash=sha256:2a6467606af7dbae2e7e31640030025969e15db6a649eae334af90415dc71dca \
     --hash=sha256:a8960aa29263f6041283e97d4756b099fb49b767baab6371891ecb1bd40a63df
     # via
-    #   -r requirements/ci-notebook.in
+    #   -r ci-notebook.in
     #   jupyter-lsp
     #   jupyterlab
     #   jupyterlab-server
@@ -558,7 +558,7 @@ jupyterlab==4.6.4 \
     --hash=sha256:15b13f991d3985129c797eb84d9949eeb8b6615e14b444868e642411f2c418b2 \
     --hash=sha256:404f49b081819378524886c9db66dba57a5565981eff885830df1baba3a17df5
     # via
-    #   -r requirements/ci-notebook.in
+    #   -r ci-notebook.in
     #   jupyter
     #   notebook
 jupyterlab-pygments==0.3.0 \
@@ -752,7 +752,7 @@ nbconvert==7.17.2 \
     --hash=sha256:344a218e8595117ce37396ed025d994f146d076226ebac59255a2fa085ab24d8 \
     --hash=sha256:6a143c11c00bf831604da4b1be4347d36ea52367057eb920135d69bc2862fed2
     # via
-    #   -r requirements/ci-notebook.in
+    #   -r ci-notebook.in
     #   jupyter
     #   jupyter-server
 nbformat==5.11.1 \
@@ -770,7 +770,7 @@ notebook==7.6.3 \
     --hash=sha256:ad7e0eb765fba836cd4a2ab0c7a3a26cde1d91665fbf6f533b6ae7b2de6d88d2 \
     --hash=sha256:e2c08e469c0ae20bb0b3214f0ab77e79653317a2f8e5b34c10361c66874a5b50
     # via
-    #   -r requirements/ci-notebook.in
+    #   -r ci-notebook.in
     #   jupyter
 notebook-shim==0.2.4 \
     --hash=sha256:411a5be4e9dc882a074ccbcae671eda64cceb068767e9a3419096986560e1cef \
@@ -778,10 +778,6 @@ notebook-shim==0.2.4 \
     # via
     #   jupyterlab
     #   notebook
-overrides==7.7.0 \
-    --hash=sha256:55158fa3d93b98cc75299b1e67078ad9003ca27945c76162c1c0766d6f91820a \
-    --hash=sha256:c7ed9d062f78b8e4c1a7b70bd8796b35ead4d9f510227ef9c5dc7626c60d7e49
-    # via jupyter-server
 packaging==26.3 \
     --hash=sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79 \
     --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c
@@ -1203,21 +1199,17 @@ send2trash==2.1.0 \
     --hash=sha256:0da2f112e6d6bb22de6aa6daa7e144831a4febf2a87261451c4ad849fe9a873c \
     --hash=sha256:1c72b39f09457db3c05ce1d19158c2cbef4c32b8bedd02c155e49282b7ea7459
     # via jupyter-server
-setuptools==84.2.1 \
-    --hash=sha256:3ff8b3b5492a0aa66960f4419365a86b84e013070d4313e4d4a6894f5d64d6bc \
-    --hash=sha256:ca140b45d5325a9478f880e351484f62fef15f336462e449ca0c03c873d589c2
-    # via -r requirements/ci-notebook.in
 six==1.17.0 \
     --hash=sha256:4721f391ed90541fddacab5acf947aa0d3dc7d27b2e1e8eda2be8970586c3274 \
     --hash=sha256:ff70335d468e7eb6ec65b95b99d3a2836546063f63acc5171de367e834932a81
     # via
     #   python-dateutil
     #   rfc3339-validator
-soupsieve==3.0.4 \
-    --hash=sha256:8412826614f9c632227067d0985aeb9f584bd15efc852955430e097a9fe7afbf \
-    --hash=sha256:924fab84ae21604c19e175e1f39815eb6fa83ba23836e09e9de180925e5bc4c0
+soupsieve==4.0 \
+    --hash=sha256:5e7494bfce90e06676cfb4c5c2cf22243e98e5cf24646bb1ecdda46d318550a0 \
+    --hash=sha256:ccd6470b256394ac44b08b86fd94b30a17d335a5335c8a3d15565f7b03d3c8cf
     # via
-    #   -r requirements/ci-notebook.in
+    #   -r ci-notebook.in
     #   beautifulsoup4
 stack-data==0.6.3 \
     --hash=sha256:836a778de4fec4dcd1dcd89ed8abff8a221f58308462e1c4aa2a3cf30148f0b9 \
@@ -1308,9 +1300,7 @@ typing-extensions==4.16.0 \
     # via
     #   anyio
     #   beautifulsoup4
-    #   ipython
     #   jupyter-client
-    #   jupyterlab
     #   referencing
 tzdata==2026.6 \
     --hash=sha256:0a10eec6e13ef16b627fabed9a5f2ba61a62b1c67f327305f4e7e412a70b4aec \
