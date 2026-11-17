@@ -6,7 +6,7 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci test.
 
-pytest==9.1.1
+pytest==9.2.0
 # pytest needs colorama on Windows; hosted images preinstall it, clean hosts do not.
 colorama==0.4.6
 pytest-cov==7.1.0
