@@ -4,6 +4,15 @@
 
 ### Security — dependency alignment
 
+- The test and burn locks move to pytest 9.2.0, Hypothesis 6.170.15 and mypy
+  2.4.1 (Dependabot #295–#297), relocked with each lock's own command so that
+  `setuptools` 84.2.1 stays pinned. Dependabot's relock dropped it, and the
+  hash-checked install then refused osqp's unpinned setuptools. The burn lock
+  also takes the `colorama` pin of the test input. The pinned pre-commit mypy
+  mirror moves to v2.4.1.
+- The Pre-commit workflow gives the changed-Rust hook its owned target
+  directory, as `ci-static-governance.yml` already does. Without it every
+  Cargo.lock update (Dependabot #281, #294, #299) refused in that workflow.
 - `ocipkg` 0.2.9 carries RUSTSEC-2026-0450 (path traversal, fixed only in
   0.4.1) and RUSTSEC-2026-0449 (unmaintained). It reaches the workspace only
   as a build-dependency of `intel-mkl-src`, the MKL backend of

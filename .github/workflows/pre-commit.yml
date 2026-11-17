@@ -82,4 +82,7 @@ jobs:
       - name: Run pre-commit
         env:
           PYTHONPATH: ${{ github.workspace }}/src
+          # The changed-Rust hook needs an owned target directory once a
+          # Cargo.toml or Cargo.lock changes, as in ci-static-governance.yml.
+          SCPN_RUST_SOURCE_TARGET_DIR: ${{ runner.temp }}/rust-source-target
         run: pre-commit run --all-files --show-diff-on-failure
