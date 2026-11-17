@@ -13,6 +13,8 @@
   `.cargo/audit.toml` ignore exactly those ids, and
   `tools/rust_advisory_exceptions.py` fails the Rust audit job on expiry, on a
   mismatch or when `ocipkg` becomes reachable outside build dependencies.
+  RUSTSEC-2026-0543 (`chrono` unmaintained, no patched release) joined the
+  same build-only exception: `chrono` is reached only through `ocipkg`.
 - The Studio web lock overrides `minimatch` to `>=11.0.1 <12` (11.0.8 locked)
   for GHSA-g3hv-75wg-m249. ESLint, `@eslint/config-array`, typescript-eslint
   and typedoc declare `^10` but use only the `Minimatch` class, which 11.x

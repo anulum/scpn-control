@@ -9,4 +9,4 @@
 [advisories]
 # Expiring owner grants only; must equal the active entries of
 # .github/rust-advisory-exceptions.json (tools/rust_advisory_exceptions.py).
-ignore = ["RUSTSEC-2026-0449", "RUSTSEC-2026-0450"]
+ignore = ["RUSTSEC-2026-0449", "RUSTSEC-2026-0450", "RUSTSEC-2026-0543"]

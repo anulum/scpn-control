@@ -4,6 +4,36 @@
 
 ### Security — dependency alignment
 
+- `ocipkg` 0.2.9 carries RUSTSEC-2026-0450 (path traversal, fixed only in
+  0.4.1) and RUSTSEC-2026-0449 (unmaintained). It reaches the workspace only
+  as a build-dependency of `intel-mkl-src`, the MKL backend of
+  `ndarray-linalg`, which cannot move to 0.4.1. The repository owner granted a
+  seven-day, build-only exception on 2026-11-17 (expires 2026-11-24).
+  `.github/rust-advisory-exceptions.json` holds it, `deny.toml` and
+  `.cargo/audit.toml` ignore exactly those ids, and
+  `tools/rust_advisory_exceptions.py` fails the Rust audit job on expiry, on a
+  mismatch or when `ocipkg` becomes reachable outside build dependencies.
+  RUSTSEC-2026-0543 (`chrono` unmaintained, no patched release) joined the
+  same build-only exception: `chrono` is reached only through `ocipkg`.
+- The Studio web lock overrides `minimatch` to `>=11.0.1 <12` (11.0.8 locked)
+  for GHSA-g3hv-75wg-m249. ESLint, `@eslint/config-array`, typescript-eslint
+  and typedoc declare `^10` but use only the `Minimatch` class, which 11.x
+  keeps.
+- The Studio lock audit runs through `tools/pnpm_audit_gate.py`. It fails on
+  every advisory except one covered by an owner-granted exception in
+  `.github/npm-audit-exceptions.json`: at most seven days, for one advisory in
+  one package installed as a development dependency only. The one exception,
+  granted 2026-11-17 and expiring 2026-11-24, is picomatch GHSA-fc5q-39xc-vjpf
+  (ReDoS; every release through 4.0.7 is affected and none is patched).
+- November advisories in the Python locks (Dependabot #301–#304):
+  - `dnspython` 2.9.2 (CVE-2026-128089) in `ci-imas` and `uv.lock`;
+  - `soupsieve` 4.0 (CVE-2026-126190; GHSA-mmhr-3c5m-f64f) in the notebook
+    input and lock; the input range moves to `>=4.0,<5`;
+  - `tornado` 6.6.1 (CVE-2026-126347) in the notebook lock.
+  `uv lock --upgrade-package dnspython` also moves `scpn-fusion` to 4.1.0,
+  the FUSION release on NumPy 2. The pre-NumPy-2 resolution (NumPy 1.26.4,
+  JAX 0.5.3) leaves the audited lock. pip-audit reports no known
+  vulnerabilities in both locks and in the exported `uv.lock`.
 - The test lock pins `colorama` 0.4.6, which pytest needs on Windows. The
   lock is resolved for Linux, so pytest's Windows-only dependency was
   missing; hosted Windows images preinstall it, but a clean Windows host
