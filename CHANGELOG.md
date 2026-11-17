@@ -4,6 +4,15 @@
 
 ### Security — dependency alignment
 
+- November advisories in the Python locks (Dependabot #301–#304):
+  - `dnspython` 2.9.2 (CVE-2026-128089) in `ci-imas` and `uv.lock`;
+  - `soupsieve` 4.0 (CVE-2026-126190; GHSA-mmhr-3c5m-f64f) in the notebook
+    input and lock; the input range moves to `>=4.0,<5`;
+  - `tornado` 6.6.1 (CVE-2026-126347) in the notebook lock.
+  `uv lock --upgrade-package dnspython` also moves `scpn-fusion` to 4.1.0,
+  the FUSION release on NumPy 2. The pre-NumPy-2 resolution (NumPy 1.26.4,
+  JAX 0.5.3) leaves the audited lock. pip-audit reports no known
+  vulnerabilities in both locks and in the exported `uv.lock`.
 - The test lock pins `colorama` 0.4.6, which pytest needs on Windows. The
   lock is resolved for Linux, so pytest's Windows-only dependency was
   missing; hosted Windows images preinstall it, but a clean Windows host
