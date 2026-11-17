@@ -4,6 +4,16 @@
 
 ### Security — dependency alignment
 
+- The Studio web lock overrides `minimatch` to `>=11.0.1 <12` (11.0.8 locked)
+  for GHSA-g3hv-75wg-m249. ESLint, `@eslint/config-array`, typescript-eslint
+  and typedoc declare `^10` but use only the `Minimatch` class, which 11.x
+  keeps.
+- The Studio lock audit runs through `tools/pnpm_audit_gate.py`. It fails on
+  every advisory except one covered by an owner-granted exception in
+  `.github/npm-audit-exceptions.json`: at most seven days, for one advisory in
+  one package installed as a development dependency only. The one exception,
+  granted 2026-11-17 and expiring 2026-11-24, is picomatch GHSA-fc5q-39xc-vjpf
+  (ReDoS; every release through 4.0.7 is affected and none is patched).
 - November advisories in the Python locks (Dependabot #301–#304):
   - `dnspython` 2.9.2 (CVE-2026-128089) in `ci-imas` and `uv.lock`;
   - `soupsieve` 4.0 (CVE-2026-126190; GHSA-mmhr-3c5m-f64f) in the notebook

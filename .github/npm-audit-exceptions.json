@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "exceptions": [
+    {
+      "advisory": "GHSA-fc5q-39xc-vjpf",
+      "package": "picomatch",
+      "scope": "dev",
+      "granted": "2026-11-17",
+      "expires": "2026-11-24",
+      "reason": "ReDoS through single-branch repeated extglobs. On 2026-11-17 the advisory was widened to every release through 4.0.7, and no patched release exists. In studio-web/pnpm-lock.yaml picomatch 4.0.7 is installed only as a development dependency, reached from the devDependencies vite, vitest, @vitest/coverage-v8, @vitejs/plugin-react, @module-federation/vite, @testing-library/jest-dom and typescript-eslint (through tinyglobby, fdir, @vitest/mocker and the typescript-eslint packages). The built Studio panel does not contain it, and it matches only the repository's own glob patterns. Granted by the repository owner on 2026-11-17 for seven days; remove it once the lock carries a patched picomatch."
+    }
+  ]
+}

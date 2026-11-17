@@ -59,15 +59,27 @@ def test_python_audit_pins_universal_lock_export_and_strict_scan() -> None:
 
 
 def test_frontend_audit_uses_matching_pinned_tools_and_the_entire_lock() -> None:
-    """Retain a lock-only pnpm audit without severity, dependency or error filters."""
+    """Retain a lock-only pnpm audit without severity, dependency or error filters.
+
+    The audit runs through ``tools/pnpm_audit_gate.py``, which fails on every
+    advisory except one named by an expiring, development-only exception.
+    """
     audit = _workflow(workflow_path_for_job("studio-web-audit"))["jobs"]["studio-web-audit"]
     product = _workflow(workflow_path_for_job("studio-web"))["jobs"]["studio-web"]
     assert audit["defaults"] == {"run": {"working-directory": "studio-web"}}
     commands = {step["name"]: step["run"] for step in audit["steps"] if "run" in step}
     assert commands == {
         "Enable pnpm": "corepack enable && corepack prepare pnpm@11.25.0 --activate",
-        "Audit the committed frontend lock": "pnpm audit",
+        "Audit the committed frontend lock": (
+            "python3 ../tools/pnpm_audit_gate.py --exceptions ../.github/npm-audit-exceptions.json ."
+        ),
     }
+    for forbidden in ("--audit-level", "--prod", "--ignore", "--omit"):
+        assert forbidden not in commands["Audit the committed frontend lock"], forbidden
+    for path in sorted((REPOSITORY_ROOT / ".github/workflows").glob("*.yml")):
+        source = path.read_text(encoding="utf-8")
+        assert "pnpm audit" not in source, f"{path.name} calls pnpm audit directly"
+        assert "npm audit" not in source, f"{path.name} calls npm audit directly"
     audit_node = next(step for step in audit["steps"] if step.get("uses", "").startswith("actions/setup-node@"))
     product_node = next(step for step in product["steps"] if step.get("uses", "").startswith("actions/setup-node@"))
     assert audit_node == product_node

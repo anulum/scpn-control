@@ -37,7 +37,7 @@ _CONFIGURATION = {
     "tsconfig.json": "974ccb2c633c405c0de9ea42d26e39f7de1d172b8f0edc1eeb2f4936bd556781",
     "vitest.config.ts": "125caad472ee561776f7b333318f6fb156c2b749500e944a971c7cd71357d277",
     "package.json": "2568f32e74a02f7e408e12aa1846ae64aac7334afa12a8dcd366510808b336db",
-    "pnpm-lock.yaml": "d0f5ed05d1481e7ca5e8230e08cc1078e33bc7cc8d4dec4c6c6f3b585c27660b",
+    "pnpm-lock.yaml": "72f018ada9cfcdb421bf1677e3afcee418fe81c5bc342ec78b9a20fa0b3e6f73",
     ".prettierrc.json": "ebe733191f06a29fdd34a4683327d9a36c008ed8da564d8e7def1c700d7463ff",
 }
 _NO_WAIVERS = json.dumps(

@@ -51,8 +51,11 @@ jobs:
           node-version: "22.23.2"
       - name: Enable pnpm
         run: corepack enable && corepack prepare pnpm@11.25.0 --activate
+      # Fails on every advisory in the committed lock, except one named by an
+      # owner-granted, at most seven-day, development-only exception in
+      # .github/npm-audit-exceptions.json (tools/pnpm_audit_gate.py).
       - name: Audit the committed frontend lock
-        run: pnpm audit
+        run: python3 ../tools/pnpm_audit_gate.py --exceptions ../.github/npm-audit-exceptions.json .
 
   # ─── Job 12: Python security scan (Bandit) ───
   python-security:

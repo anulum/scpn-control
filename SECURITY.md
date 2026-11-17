@@ -46,6 +46,15 @@ primarily:
 - **Input validation:** Public API boundaries enforce finite-float, integer,
   fraction, and 1D-array checks via `core/_validators.py`.
 - **Rust:** `cargo deny` supply-chain policy enforced in CI.
+- **Dependency audits:** CI audits every committed Python, Rust and Studio
+  lock at each head with no severity threshold or ignore flag. The Studio lock
+  audit runs through `tools/pnpm_audit_gate.py`. When no patched release
+  exists, the repository owner may grant an exception in
+  `.github/npm-audit-exceptions.json` for one advisory in one package. It names
+  its reason, has scope `dev` and lasts one to seven days. The gate accepts
+  that advisory only while the exception is active and only when every path to
+  the package starts at a `devDependencies` entry. It fails again from the
+  expiry date.
 - **Checkpoint hygiene:** `torch.load(..., weights_only=True)` by default (no
   pickle code execution), plus a fail-closed weights-hash gate — when a digest is
   pinned (an explicit value or a `<checkpoint>.sha256` sidecar) the disruption

@@ -26,6 +26,11 @@ overrides:
   # minimatch declares ^5.0.8; GHSA-q2hr-2g5m-vwhr is fixed in 5.0.12. A range
   # (not an exact pin) lets later patches and Dependabot updates through.
   brace-expansion: ">=5.0.12 <6.0.0"
+  # GHSA-g3hv-75wg-m249 (glob-parts amplification) is fixed only in minimatch
+  # 11.0.1. ESLint, @eslint/config-array, typescript-eslint and typedoc declare
+  # ^10 but use only the Minimatch class (constructor, match, pattern), which
+  # 11.x keeps.
+  minimatch: ">=11.0.1 <12.0.0"
   # Require the patched PostCSS line for transitive users; the direct
   # development dependency has its own exact pin in package.json.
   postcss: ">=8.5.18"
