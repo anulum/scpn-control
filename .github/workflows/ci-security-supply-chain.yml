@@ -92,6 +92,15 @@ jobs:
           components: rustfmt, clippy
       - name: Install cargo-audit
         run: cargo install --locked cargo-audit --version 0.22.2
+      # cargo-audit (.cargo/audit.toml) and cargo-deny (deny.toml) may ignore an
+      # advisory only while an owner-granted, at most seven-day, build-only
+      # exception in .github/rust-advisory-exceptions.json is active.
+      - name: Check the advisory exceptions
+        run: >-
+          python3 ../tools/rust_advisory_exceptions.py
+          --exceptions ../.github/rust-advisory-exceptions.json
+          --deny deny.toml --audit-config .cargo/audit.toml
+          --workspace . --workspace fuzz
       - name: Audit
         run: cargo audit
       - name: Audit the committed fuzz lock

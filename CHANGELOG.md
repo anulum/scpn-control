@@ -4,6 +4,15 @@
 
 ### Security — dependency alignment
 
+- `ocipkg` 0.2.9 carries RUSTSEC-2026-0450 (path traversal, fixed only in
+  0.4.1) and RUSTSEC-2026-0449 (unmaintained). It reaches the workspace only
+  as a build-dependency of `intel-mkl-src`, the MKL backend of
+  `ndarray-linalg`, which cannot move to 0.4.1. The repository owner granted a
+  seven-day, build-only exception on 2026-11-17 (expires 2026-11-24).
+  `.github/rust-advisory-exceptions.json` holds it, `deny.toml` and
+  `.cargo/audit.toml` ignore exactly those ids, and
+  `tools/rust_advisory_exceptions.py` fails the Rust audit job on expiry, on a
+  mismatch or when `ocipkg` becomes reachable outside build dependencies.
 - The Studio web lock overrides `minimatch` to `>=11.0.1 <12` (11.0.8 locked)
   for GHSA-g3hv-75wg-m249. ESLint, `@eslint/config-array`, typescript-eslint
   and typedoc declare `^10` but use only the `Minimatch` class, which 11.x

@@ -55,6 +55,13 @@ primarily:
   that advisory only while the exception is active and only when every path to
   the package starts at a `devDependencies` entry. It fails again from the
   expiry date.
+- **Rust advisory exceptions:** `cargo audit` (`.cargo/audit.toml`) and
+  `cargo deny` (`deny.toml`) may ignore a RustSec advisory only while an
+  owner-granted exception in `.github/rust-advisory-exceptions.json` is active:
+  one advisory in one crate, scope `build`, one to seven days, with its reason.
+  `tools/rust_advisory_exceptions.py` fails CI from the expiry date, when either
+  ignore list differs from the active exceptions, and when the crate is
+  reachable from a workspace member without passing a build dependency.
 - **Checkpoint hygiene:** `torch.load(..., weights_only=True)` by default (no
   pickle code execution), plus a fail-closed weights-hash gate — when a digest is
   pinned (an explicit value or a `<checkpoint>.sha256` sidecar) the disruption

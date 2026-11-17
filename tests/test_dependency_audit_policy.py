@@ -86,12 +86,22 @@ def test_frontend_audit_uses_matching_pinned_tools_and_the_entire_lock() -> None
 
 
 def test_rust_audit_checks_both_committed_locks_without_suppressions() -> None:
-    """Check the fuzz lock as well as the workspace lock using the pinned auditor."""
+    """Check the fuzz lock as well as the workspace lock using the pinned auditor.
+
+    Ignored advisories exist only as expiring, build-only owner grants that
+    ``tools/rust_advisory_exceptions.py`` binds to both ignore lists.
+    """
     job = _workflow(workflow_path_for_job("rust-audit"))["jobs"]["rust-audit"]
     assert job["defaults"] == {"run": {"working-directory": "scpn-control-rs"}}
     commands = {step["name"]: step["run"] for step in job["steps"] if "run" in step}
     assert commands == {
         "Install cargo-audit": "cargo install --locked cargo-audit --version 0.22.2",
+        "Check the advisory exceptions": (
+            "python3 ../tools/rust_advisory_exceptions.py"
+            " --exceptions ../.github/rust-advisory-exceptions.json"
+            " --deny deny.toml --audit-config .cargo/audit.toml"
+            " --workspace . --workspace fuzz"
+        ),
         "Audit": "cargo audit",
         "Audit the committed fuzz lock": "cargo audit --file fuzz/Cargo.lock",
     }
