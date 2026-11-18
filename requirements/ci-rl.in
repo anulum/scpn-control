@@ -13,7 +13,7 @@
 
 # Match the package and matrix's admitted Python >=3.11,<3.14 range.
 gymnasium==1.2.3; python_version >= '3.11' and python_version < '3.14'
-stable-baselines3==2.8.0; python_version >= '3.11' and python_version < '3.14'
+stable-baselines3==2.9.2; python_version >= '3.11' and python_version < '3.14'
 pandas==3.0.6; python_version >= '3.11' and python_version < '3.14'
 torch==2.14.0+cpu; sys_platform != 'darwin' and python_version >= '3.11' and python_version < '3.14'
 torch==2.14.0; sys_platform == 'darwin' and python_version >= '3.11' and python_version < '3.14'
