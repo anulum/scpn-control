@@ -171,3 +171,28 @@ def test_run_disruption_ensemble_verbose_logging() -> None:
     """Run disruption ensemble verbose logging."""
     report = run_disruption_ensemble(ensemble_runs=2, seed=3, verbose=True)
     assert report.ensemble_runs == 2
+
+
+def test_a_small_machine_regime_reaches_the_prevention_path() -> None:
+    """Low current and stored energy keep every run inside the ITER DDD limits.
+
+    With 0.5-1.0 MA, 1-5 MJ and 0.1-0.2 mol neon, every run's halo peak, TPF
+    product and runaway peak are checked here against the limits themselves
+    (halo <= 3.0 MA, TPF x I_halo / I_p <= 0.75, I_RE <= 1.0 MA), so the prevented
+    count is derived independently of the code under test.
+    """
+    report = run_disruption_ensemble(
+        ensemble_runs=8,
+        seed=7,
+        plasma_current_range=(0.5, 1.0),
+        plasma_energy_range=(1.0, 5.0),
+        neon_range=(0.1, 0.2),
+    )
+
+    within_limits = [
+        d["halo_peak_ma"] <= 3.0 and d["tpf_product"] <= 0.75 and d["re_peak_ma"] <= 1.0 for d in report.per_run_details
+    ]
+    assert all(within_limits)
+    assert [d["prevented"] for d in report.per_run_details] == within_limits
+    assert report.prevention_rate == pytest.approx(sum(within_limits) / 8)
+    assert report.prevention_rate == 1.0

@@ -148,7 +148,7 @@ def run_disruption_ensemble(
         re_ok = re_result.peak_re_current_ma <= 1.0
         prevented = halo_ok and tpf_ok and re_ok
 
-        if prevented:  # pragma: no cover — depends on physics parameter regime
+        if prevented:
             prevented_count += 1
 
         run_detail = {
