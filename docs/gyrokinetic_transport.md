@@ -146,7 +146,7 @@ QLKNN surrogate (µs)
 | `gk_ood_detector.py` | Mahalanobis distance, input range checks, ensemble disagreement |
 | `gk_scheduler.py` | Periodic / adaptive / critical-region spot-check scheduling |
 | `gk_corrector.py` | Error quantification + 3 correction modes + temporal EMA |
-| `gk_online_learner.py` | Buffer-based retraining with validation holdout + rollback |
+| `gk_online_learner.py` | Buffer-based retraining of all layers in standardised units; same-slice incumbent admission + rollback |
 | `gk_verification_report.py` | Per-session stats, JSON export |
 
 ## Example GK-to-phase parameter mapping

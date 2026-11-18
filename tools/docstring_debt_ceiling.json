@@ -1,19 +1,19 @@
 {
-  "total": 5385,
+  "total": 5364,
   "scope": [
     "tests",
     "tools",
     "validation"
   ],
   "by_code": {
-    "D100": 100,
+    "D100": 99,
     "D101": 510,
     "D102": 1895,
-    "D103": 2813,
+    "D103": 2794,
     "D200": 6,
     "D205": 48,
     "D400": 3,
-    "D401": 10
+    "D401": 9
   },
   "per_file": {
     "tests/test_adaptive_knm.py": {
@@ -566,11 +566,6 @@
     "tests/test_gk_nonlinear_cyclone_validation.py": {
       "D100": 1,
       "D103": 8
-    },
-    "tests/test_gk_online_learner.py": {
-      "D100": 1,
-      "D103": 19,
-      "D401": 1
     },
     "tests/test_gk_ood_detector.py": {
       "D100": 1,
@@ -1338,7 +1333,6 @@
     "tests/test_gk_interface.py": "c661ffb77838c4ca824d1f3d0cbc985ed864d7cc68ae03a8d6dc463f492e1906",
     "tests/test_gk_nonlinear.py": "13dbc8923b3737bdefd1282802f40cfc704c045f9759a96c55eff01828399d3b",
     "tests/test_gk_nonlinear_cyclone_validation.py": "2ffb989c4437a1b777ac8ed69b5732f52244aad8d2c2e2ab7e3d555f8bd57df6",
-    "tests/test_gk_online_learner.py": "a1205041fec13bb98cfbfdcfdf8c43c54b7f65133051701c61586b0ef920b235",
     "tests/test_gk_ood_detector.py": "cad67e9a048f0c177090a31f688e3775be78fcfc991b5d9e06ee6481692d161e",
     "tests/test_gk_quasilinear.py": "3a10f672a6a62497d133a5d128cc455906d258a02863fcef656749c6d5d491e4",
     "tests/test_gk_scheduler.py": "0e7e593da57a585e58ff0bb884f5cd8c52161c4b79084268a98c825bc58c3140",

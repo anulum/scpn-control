@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### GK online learner — full training and same-slice admission
+
+- **Fixed:** `OnlineLearner.try_retrain` now trains all three layers by exact
+  backpropagation. It previously trained only the read-out layer.
+- **Standardisation.** Training runs in units standardised by the training split, so
+  `chi_e`, `chi_i` and `D_e` weigh equally and the loss is dimensionless. Weights
+  are still returned in raw units, with the standardisation folded in.
+- **Admission.** A candidate is admitted only against the incumbent weights on the
+  same validation slice, no longer against a loss from an earlier split.
+- **Records.** Decision records carry `incumbent_val_loss` and `loss_scaling`. The
+  JSON report moves to schema 2.0, with `last_accepted_val_loss`.
+- **Buffer policy.** An accepted generation consumes its window. This was already
+  the behaviour and is now documented.
+- **Generation numbering.** A decision record now carries the learner's generation
+  after the decision. The first accepted update was previously recorded as
+  generation 2.
+- **Benchmark.** The learner benchmark reports were regenerated.
+
 ### Gradient MPC — exact horizon gradient
 
 - **Fixed:** the gradient MPC now descends the whole horizon cost.

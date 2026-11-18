@@ -3813,11 +3813,23 @@ The PID adapter selects the optional native binding or canonical Python fallback
 #### GK Online Learner
 
 `OnlineLearner` admits finite nonnegative transport targets only when the
-caller-supplied OOD score is inside the configured threshold. Retraining uses a
-validation holdout, rolls back on non-improvement, and can persist an auditable
-JSON report containing every accepted or rejected update decision.
+caller-supplied OOD score is inside the configured threshold.
+
+- **Training.** Retraining standardises inputs and targets with statistics of the
+  training split. It trains all three layers of the 10-64-32-3 network by exact
+  backpropagation, and returns weights in raw units with the standardisation
+  folded in.
+- **Validation loss.** The validation loss is the mean squared error of the
+  standardised targets (dimensionless).
+- **Admission.** A candidate is admitted only if it beats the incumbent weights on
+  the same validation slice. Otherwise the update is rolled back.
+- **Buffer.** An accepted generation consumes its buffer window.
+- **Report.** The learner can persist an auditable JSON report (schema 2.0) with
+  every accepted or rejected update decision.
 
 ::: scpn_control.core.gk_online_learner
+
+::: scpn_control.core._gk_learner_mlp
 
 #### GK QuaLiKiz
 

@@ -5,7 +5,12 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Online Learner Tests
+"""Sample admission, buffering, retraining decisions and reporting of the GK online learner."""
+
 from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -14,16 +19,19 @@ from numpy.typing import NDArray
 from scpn_control.core.gk_online_learner import LearnerConfig, OnlineLearner, RetrainDecision
 
 
-def _random_samples(n: int, rng: np.random.Generator) -> list[tuple[np.ndarray, np.ndarray]]:
+def _random_samples(n: int, rng: np.random.Generator) -> list[tuple[NDArray[np.float64], NDArray[np.float64]]]:
+    """Return ``n`` uniform random (10-input, 3-target) pairs with no learnable relation."""
     return [(rng.random(10), rng.random(3)) for _ in range(n)]
 
 
-def test_buffer_not_full_initially():
+def test_buffer_not_full_initially() -> None:
+    """A new learner's buffer is not full."""
     learner = OnlineLearner()
     assert not learner.buffer_full
 
 
-def test_buffer_fills():
+def test_buffer_fills() -> None:
+    """The buffer reports full once it holds ``buffer_size`` samples."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -31,7 +39,8 @@ def test_buffer_fills():
     assert learner.buffer_full
 
 
-def test_try_retrain_skips_empty():
+def test_try_retrain_skips_empty() -> None:
+    """Retraining an empty buffer returns None."""
     learner = OnlineLearner()
     result = learner.try_retrain()
     assert result is None
@@ -50,13 +59,14 @@ def test_try_retrain_skips_empty():
         ({"min_validation_improvement": -1.0}, "min_validation_improvement"),
     ),
 )
-def test_learner_config_rejects_invalid_training_domains(kwargs: dict[str, float], message: str) -> None:
+def test_learner_config_rejects_invalid_training_domains(kwargs: dict[str, Any], message: str) -> None:
     """Online retraining requires non-empty train and validation domains."""
     with pytest.raises(ValueError, match=message):
         LearnerConfig(**kwargs)
 
 
-def test_try_retrain_skips_below_threshold():
+def test_try_retrain_skips_below_threshold() -> None:
+    """Retraining below the buffer threshold returns None."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -66,7 +76,8 @@ def test_try_retrain_skips_below_threshold():
     assert result is None
 
 
-def test_try_retrain_runs_when_full():
+def test_try_retrain_runs_when_full() -> None:
+    """A full buffer retrains from scratch and returns accepted weights."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=20, n_epochs=3))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(20, rng):
@@ -80,7 +91,8 @@ def test_try_retrain_runs_when_full():
     assert learner.generation == 1
 
 
-def test_retrain_clears_buffer():
+def test_retrain_clears_buffer() -> None:
+    """An accepted generation consumes its window."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=2))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -89,7 +101,8 @@ def test_retrain_clears_buffer():
     assert len(learner.buffer) == 0
 
 
-def test_max_generations():
+def test_max_generations() -> None:
+    """No retraining happens after ``max_generations`` accepted generations."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, max_generations=1, n_epochs=2))
     rng = np.random.default_rng(42)
 
@@ -105,7 +118,8 @@ def test_max_generations():
     assert result is None  # max_generations reached
 
 
-def test_retrain_history_tracked():
+def test_retrain_history_tracked() -> None:
+    """Each attempt appends an auditable decision."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=2))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -113,11 +127,13 @@ def test_retrain_history_tracked():
     learner.try_retrain()
     assert len(learner.retrain_history) == 1
     assert "val_loss" in learner.retrain_history[0]
-    assert isinstance(learner.latest_decision(), RetrainDecision)
-    assert learner.latest_decision().reason == "accepted"
+    decision = learner.latest_decision()
+    assert isinstance(decision, RetrainDecision)
+    assert decision.reason == "accepted"
 
 
-def test_reset():
+def test_reset() -> None:
+    """Reset clears the buffer, generation counter and history."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=2))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -129,7 +145,8 @@ def test_reset():
     assert len(learner.retrain_history) == 0
 
 
-def test_weights_have_correct_shapes():
+def test_weights_have_correct_shapes() -> None:
+    """Returned weights keep the 10-64-32-3 layer shapes."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=3))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
@@ -142,7 +159,7 @@ def test_weights_have_correct_shapes():
         assert result["w3"].shape == (32, 3)
 
 
-def test_retrain_with_existing_weights():
+def test_retrain_with_existing_weights() -> None:
     """Retraining accepts a complete prior-weight snapshot from the learner surface."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=3))
     rng = np.random.default_rng(42)
@@ -159,22 +176,25 @@ def test_retrain_with_existing_weights():
     assert learner.generation >= 1
 
 
-def test_retrain_rollback_on_worse_loss():
-    """Validation loss regression triggers rollback instead of publishing new weights."""
+def test_retrain_rollback_on_worse_loss() -> None:
+    """A candidate worse than the incumbent on the same validation slice is rolled back."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=10, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(10, rng):
         learner.add_sample(inp, tgt)
-    w1 = learner.try_retrain()
-    assert w1 is not None
+    incumbent = learner.try_retrain()
+    assert incumbent is not None
 
-    # Force a very low best_val_loss so next retrain rolls back
-    learner._best_val_loss = 0.0
+    # A divergent step makes every candidate worse than the incumbent it started from.
+    learner.config.learning_rate = 5.0
     for inp, tgt in _random_samples(10, rng):
         learner.add_sample(inp, tgt)
-    w2 = learner.try_retrain()
+    w2 = learner.try_retrain(current_weights=incumbent)
     assert w2 is None
-    assert learner.retrain_history[-1]["accepted"] is False
+    decision = learner.retrain_history[-1]
+    assert decision["accepted"] is False
+    assert decision["reason"] == "validation_loss_not_improved"
+    assert decision["val_loss"] >= decision["incumbent_val_loss"]
 
 
 def _retrain_result(n_epochs: int) -> tuple[dict[str, NDArray[np.float64]], RetrainDecision]:
@@ -190,7 +210,7 @@ def _retrain_result(n_epochs: int) -> tuple[dict[str, NDArray[np.float64]], Retr
     return weights, decision
 
 
-def test_non_improving_epochs_preserve_best_weights():
+def test_non_improving_epochs_preserve_best_weights() -> None:
     """Divergent later epochs (validation loss not improving) must not corrupt the best snapshot.
 
     With an oversized learning rate the output-layer step overshoots, so every epoch after the
@@ -209,7 +229,8 @@ def test_non_improving_epochs_preserve_best_weights():
         assert np.all(np.isfinite(diverged_weights[key]))
 
 
-def test_add_sample_rejects_invalid_shapes():
+def test_add_sample_rejects_invalid_shapes() -> None:
+    """Inputs and targets of the wrong shape are refused."""
     learner = OnlineLearner()
     with pytest.raises(ValueError, match="input_10d must have shape"):
         learner.add_sample(np.zeros(9), np.zeros(3))
@@ -217,7 +238,8 @@ def test_add_sample_rejects_invalid_shapes():
         learner.add_sample(np.zeros(10), np.zeros(2))
 
 
-def test_add_sample_rejects_nonfinite_values():
+def test_add_sample_rejects_nonfinite_values() -> None:
+    """Non-finite inputs and targets are refused."""
     learner = OnlineLearner()
     bad_inp = np.zeros(10)
     bad_inp[0] = np.nan
@@ -229,7 +251,8 @@ def test_add_sample_rejects_nonfinite_values():
         learner.add_sample(np.zeros(10), bad_tgt)
 
 
-def test_add_sample_rejects_negative_transport_targets():
+def test_add_sample_rejects_negative_transport_targets() -> None:
+    """Negative transport coefficients are refused."""
     learner = OnlineLearner()
     bad_tgt = np.array([0.1, -0.2, 0.3])
 
@@ -237,7 +260,8 @@ def test_add_sample_rejects_negative_transport_targets():
         learner.add_sample(np.zeros(10), bad_tgt)
 
 
-def test_add_sample_rejects_ood_score_above_admission_threshold():
+def test_add_sample_rejects_ood_score_above_admission_threshold() -> None:
+    """A sample above the OOD threshold is refused."""
     learner = OnlineLearner(config=LearnerConfig(max_ood_score=1.0))
     with pytest.raises(ValueError, match="ood_score exceeds"):
         learner.add_sample(np.zeros(10), np.ones(3), ood_score=1.1)
@@ -252,7 +276,8 @@ def test_add_sample_rejects_blank_source() -> None:
         learner.add_sample(np.zeros(10), np.ones(3), source="   ")
 
 
-def test_add_sample_records_source_and_ood_score():
+def test_add_sample_records_source_and_ood_score() -> None:
+    """An admitted sample keeps its OOD score and provenance label."""
     learner = OnlineLearner(config=LearnerConfig(max_ood_score=1.0))
     learner.add_sample(np.zeros(10), np.ones(3), ood_score=0.5, source="immutable_gk_campaign")
     sample = learner.buffer[0]
@@ -260,7 +285,8 @@ def test_add_sample_records_source_and_ood_score():
     assert sample.source == "immutable_gk_campaign"
 
 
-def test_try_retrain_rejects_invalid_current_weights_schema():
+def test_try_retrain_rejects_invalid_current_weights_schema() -> None:
+    """Incumbent weights missing an array are refused."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -269,7 +295,8 @@ def test_try_retrain_rejects_invalid_current_weights_schema():
         learner.try_retrain(current_weights={"w1": np.zeros((10, 64))})
 
 
-def test_try_retrain_rejects_invalid_current_weights_shape():
+def test_try_retrain_rejects_invalid_current_weights_shape() -> None:
+    """An incumbent first layer of the wrong shape is refused."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -287,7 +314,7 @@ def test_try_retrain_rejects_invalid_current_weights_shape():
 
 
 def _full_valid_weights() -> dict[str, NDArray[np.float64]]:
-    """A complete, correctly-shaped MLP weight snapshot."""
+    """Return a complete, correctly shaped MLP weight snapshot."""
     return {
         "w1": np.zeros((10, 64)),
         "b1": np.zeros(64),
@@ -326,7 +353,8 @@ def test_latest_decision_is_none_without_history() -> None:
     assert learner.latest_decision() is None
 
 
-def test_try_retrain_rejects_nonfinite_current_weights():
+def test_try_retrain_rejects_nonfinite_current_weights() -> None:
+    """Non-finite incumbent weights are refused."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=5, n_epochs=1))
     rng = np.random.default_rng(42)
     for inp, tgt in _random_samples(5, rng):
@@ -343,7 +371,8 @@ def test_try_retrain_rejects_nonfinite_current_weights():
         learner.try_retrain(current_weights=bad_weights)
 
 
-def test_save_retrain_report_persists_decisions(tmp_path):
+def test_save_retrain_report_persists_decisions(tmp_path: Path) -> None:
+    """The JSON report persists schema 2.0, the loss scaling and every decision."""
     learner = OnlineLearner(config=LearnerConfig(buffer_size=8, n_epochs=2, max_ood_score=2.0))
     rng = np.random.default_rng(123)
     for inp, tgt in _random_samples(8, rng):
@@ -357,8 +386,11 @@ def test_save_retrain_report_persists_decisions(tmp_path):
     import json
 
     payload = json.loads(report_path.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "2.0"
     assert payload["generation"] == 1
+    assert payload["loss_scaling"] == "mse_of_targets_standardised_by_train_split"
+    assert payload["last_accepted_val_loss"] == pytest.approx(payload["decisions"][0]["val_loss"])
+    assert payload["decisions"][0]["incumbent_val_loss"] == float("inf")
     assert payload["config"]["max_ood_score"] == pytest.approx(2.0)
     assert payload["decisions"][0]["accepted"] is True
     assert payload["decisions"][0]["train_samples"] > 0

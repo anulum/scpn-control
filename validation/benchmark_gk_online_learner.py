@@ -25,6 +25,7 @@ DECISION_REPORT = REPORT_DIR / "gk_online_learner_decisions.json"
 
 
 def _sample_target(x: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Return a synthetic non-negative ``[chi_e, chi_i, D_e]`` target that is affine in six inputs."""
     chi_e = 0.15 + 0.04 * x[0] + 0.02 * x[3]
     chi_i = 0.12 + 0.05 * x[1] + 0.01 * x[4]
     d_e = 0.03 + 0.02 * x[2] + 0.01 * x[5]
@@ -56,11 +57,13 @@ def main() -> None:
         raise RuntimeError("benchmark did not produce a retrain decision")
 
     payload = {
-        "schema_version": "1.0",
+        "schema_version": "2.0",
         "evidence_kind": "bounded_synthetic_online_retraining",
         "accepted": decision.accepted,
         "generation": decision.generation,
         "val_loss": decision.val_loss,
+        "incumbent_val_loss": decision.incumbent_val_loss,
+        "loss_scaling": decision.loss_scaling,
         "train_samples": decision.train_samples,
         "validation_samples": decision.validation_samples,
         "weights_returned": weights is not None,
@@ -80,7 +83,8 @@ def main() -> None:
                 "- Evidence kind: bounded synthetic online retraining",
                 f"- Accepted: {decision.accepted}",
                 f"- Generation: {decision.generation}",
-                f"- Validation loss: {decision.val_loss:.8e}",
+                f"- Validation loss: {decision.val_loss:.8e} ({decision.loss_scaling})",
+                f"- Incumbent validation loss: {decision.incumbent_val_loss:.8e}",
                 f"- Train samples: {decision.train_samples}",
                 f"- Validation samples: {decision.validation_samples}",
                 "",

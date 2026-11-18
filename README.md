@@ -225,13 +225,13 @@ blocked until the required external artefacts exist.
 | Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
-| Python control/physics modules | 285 |
-| Python public classes | 598 |
+| Python control/physics modules | 286 |
+| Python public classes | 599 |
 | Rust source files | 67 |
 | Rust PyO3 exports | 39 |
 | Validation scripts | 275 |
 | Optional extras | 25 |
-| Python test files | 850 |
+| Python test files | 851 |
 | Public documentation pages | 78 |
 | GitHub Actions workflows | 22 |
 

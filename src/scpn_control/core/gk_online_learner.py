@@ -9,8 +9,18 @@
 Online learning layer for surrogate transport model improvement.
 
 Accumulates GK spot-check results as training data and periodically
-fine-tunes the QLKNN surrogate.  Includes validation holdout and
-automatic rollback if performance degrades.
+fine-tunes a 10 → 64 → 32 → 3 ReLU surrogate:
+
+* **Training** backpropagates through all three layers in coordinates
+  standardised by the training split, so the loss weighs ``chi_e``, ``chi_i``
+  and ``D_e`` equally and is dimensionless. Weights are returned in raw units,
+  with the standardisation folded into the first and last layers.
+* **Admission** compares the candidate with the incumbent weights on the *same*
+  validation slice and rolls back unless the candidate improves on it.
+* **Buffer policy:** an accepted generation consumes its window (the buffer is
+  cleared and the window's information lives in the returned weights); a
+  rejected attempt keeps the window, which grows until an attempt is accepted.
+  Forgetting of data outside the current window is not measured.
 """
 
 from __future__ import annotations
@@ -25,8 +35,18 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control._atomic import write_text_atomic
+from scpn_control.core._gk_learner_mlp import (
+    LAYER_SHAPES,
+    Standardiser,
+    Weights,
+    loss_and_gradients,
+    mean_squared_error,
+)
 
 _logger = logging.getLogger(__name__)
+
+LOSS_SCALING = "mse_of_targets_standardised_by_train_split"
+REPORT_SCHEMA_VERSION = "2.0"
 
 
 @dataclass
@@ -74,7 +94,7 @@ class RetrainDecision:
     generation: int
     accepted: bool
     val_loss: float
-    previous_best_val_loss: float
+    incumbent_val_loss: float
     train_samples: int
     validation_samples: int
     buffer_size: int
@@ -82,6 +102,7 @@ class RetrainDecision:
     max_ood_score: float
     learning_rate: float
     n_epochs: int
+    loss_scaling: str = LOSS_SCALING
 
 
 class OnlineLearner:
@@ -92,7 +113,7 @@ class OnlineLearner:
         self.config = config or LearnerConfig()
         self.buffer: list[TrainingSample] = []
         self.generation: int = 0
-        self._best_val_loss: float = float("inf")
+        self._last_accepted_val_loss: float = float("inf")
         self._weights_backup: dict[str, Any] | None = None
         self.retrain_history: list[dict[str, Any]] = []
 
@@ -160,19 +181,38 @@ class OnlineLearner:
         self,
         current_weights: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
-        """Attempt retraining if buffer is full.
+        """Attempt retraining if the buffer is full.
+
+        The buffer is split into a training and a validation slice (seeded by the
+        generation). Inputs and targets are standardised by statistics of the
+        training slice; all six weight arrays are trained by full-batch gradient
+        descent with exact backpropagation, and the epoch with the lowest
+        validation loss is kept. Losses are mean squared errors of the
+        standardised targets, hence dimensionless.
+
+        The candidate is admitted only if its validation loss is below the
+        incumbent's loss *on the same validation slice* minus
+        ``min_validation_improvement``. The incumbent is ``current_weights``;
+        without them there is no incumbent and any finite candidate is admitted.
 
         Parameters
         ----------
         current_weights : dict or None
-            Current MLP weight arrays (w1, b1, ...). If None, trains
-            from scratch on the buffer data.
+            Incumbent MLP weight arrays (w1, b1, ...) in raw units, used as the
+            warm start and as the admission reference. If None, trains from a
+            seeded random initialisation.
 
         Returns
         -------
         dict or None
-            Updated weights if retraining succeeded, None if skipped or
-            rolled back due to validation loss increase.
+            The admitted weights in raw units (raw inputs to raw targets), or None
+            if skipped or rolled back.
+
+        Raises
+        ------
+        ValueError
+            If ``current_weights`` lacks an array or has a wrong shape or a
+            non-finite value.
         """
         if not self.buffer_full:
             return None
@@ -182,7 +222,7 @@ class OnlineLearner:
             self._append_decision(
                 accepted=False,
                 val_loss=float("nan"),
-                previous_best_val_loss=self._best_val_loss,
+                incumbent_val_loss=float("nan"),
                 train_samples=0,
                 validation_samples=0,
                 buffer_size=len(self.buffer),
@@ -194,117 +234,66 @@ class OnlineLearner:
         n_val = max(int(n * self.config.validation_fraction), 1)
         n_train = n - n_val
 
-        # Shuffle and split
         rng = np.random.default_rng(self.generation)
         indices = rng.permutation(n)
         train_idx = indices[:n_train]
         val_idx = indices[n_train:]
+        inputs = np.array([sample.input_10d for sample in self.buffer])
+        targets = np.array([sample.target_3d for sample in self.buffer])
+        scaler = Standardiser.fit(inputs[train_idx], targets[train_idx])
+        x_train, y_train = scaler.inputs(inputs[train_idx]), scaler.targets(targets[train_idx])
+        x_val, y_val = scaler.inputs(inputs[val_idx]), scaler.targets(targets[val_idx])
 
-        X_train = np.array([self.buffer[i].input_10d for i in train_idx])
-        Y_train = np.array([self.buffer[i].target_3d for i in train_idx])
-        X_val = np.array([self.buffer[i].input_10d for i in val_idx])
-        Y_val = np.array([self.buffer[i].target_3d for i in val_idx])
-
-        # Simple gradient descent on MSE (no external ML framework needed)
-        w1: NDArray[np.float64]
-        b1: NDArray[np.float64]
-        w2: NDArray[np.float64]
-        b2: NDArray[np.float64]
-        w3: NDArray[np.float64]
-        b3: NDArray[np.float64]
         if current_weights is None:
-            # Initialise small random weights
-            w1 = rng.normal(0, 0.1, (10, 64))
-            b1 = np.zeros(64)
-            w2 = rng.normal(0, 0.1, (64, 32))
-            b2 = np.zeros(32)
-            w3 = rng.normal(0, 0.1, (32, 3))
-            b3 = np.zeros(3)
+            weights: Weights = {
+                name: rng.normal(0.0, 0.1, shape) if name.startswith("w") else np.zeros(shape)
+                for name, shape in LAYER_SHAPES.items()
+            }
+            incumbent_loss = float("inf")
+            self._weights_backup = scaler.to_raw(weights)
         else:
-            required = ("w1", "b1", "w2", "b2", "w3", "b3")
-            missing = [name for name in required if name not in current_weights]
-            if missing:
-                raise ValueError(f"current_weights missing required keys: {missing}")
-            w1 = np.asarray(current_weights["w1"], dtype=np.float64).copy()
-            b1 = np.asarray(current_weights["b1"], dtype=np.float64).copy()
-            w2 = np.asarray(current_weights["w2"], dtype=np.float64).copy()
-            b2 = np.asarray(current_weights["b2"], dtype=np.float64).copy()
-            w3 = np.asarray(current_weights["w3"], dtype=np.float64).copy()
-            b3 = np.asarray(current_weights["b3"], dtype=np.float64).copy()
-            if w1.shape != (10, 64):
-                raise ValueError(f"current_weights['w1'] must have shape (10, 64), received {w1.shape}")
-            if b1.shape != (64,):
-                raise ValueError(f"current_weights['b1'] must have shape (64,), received {b1.shape}")
-            if w2.shape != (64, 32):
-                raise ValueError(f"current_weights['w2'] must have shape (64, 32), received {w2.shape}")
-            if b2.shape != (32,):
-                raise ValueError(f"current_weights['b2'] must have shape (32,), received {b2.shape}")
-            if w3.shape != (32, 3):
-                raise ValueError(f"current_weights['w3'] must have shape (32, 3), received {w3.shape}")
-            if b3.shape != (3,):
-                raise ValueError(f"current_weights['b3'] must have shape (3,), received {b3.shape}")
-            if not (
-                np.all(np.isfinite(w1))
-                and np.all(np.isfinite(b1))
-                and np.all(np.isfinite(w2))
-                and np.all(np.isfinite(b2))
-                and np.all(np.isfinite(w3))
-                and np.all(np.isfinite(b3))
-            ):
-                raise ValueError("current_weights must contain only finite values")
-
-        self._weights_backup = {
-            "w1": w1.copy(),
-            "b1": b1.copy(),
-            "w2": w2.copy(),
-            "b2": b2.copy(),
-            "w3": w3.copy(),
-            "b3": b3.copy(),
-        }
+            raw = _validated_weights(current_weights)
+            self._weights_backup = {name: array.copy() for name, array in raw.items()}
+            weights = scaler.to_standard(raw)
+            incumbent_loss = mean_squared_error(weights, x_val, y_val)
 
         lr = self.config.learning_rate
         best_val = float("inf")
-        best_weights = None
+        best_weights: Weights | None = None
+        # A divergent learning rate may overflow; a non-finite loss is never selected
+        # and an all-non-finite run is rejected below.
+        with np.errstate(over="ignore", invalid="ignore"):
+            for _ in range(self.config.n_epochs):
+                _, gradients = loss_and_gradients(weights, x_train, y_train)
+                weights = {name: weights[name] - lr * gradients[name] for name in LAYER_SHAPES}
+                loss_val = mean_squared_error(weights, x_val, y_val)
+                if loss_val < best_val:
+                    best_val = loss_val
+                    best_weights = {name: array.copy() for name, array in weights.items()}
 
-        for epoch in range(self.config.n_epochs):
-            # Forward pass (train)
-            h1 = np.maximum(0, X_train @ w1 + b1)
-            h2 = np.maximum(0, h1 @ w2 + b2)
-            pred = h2 @ w3 + b3
-
-            # Backprop (simplified, output layer only for stability)
-            grad_out = 2.0 * (pred - Y_train) / n_train
-            grad_w3 = h2.T @ grad_out
-            grad_b3 = grad_out.sum(axis=0)
-
-            w3 -= lr * grad_w3
-            b3 -= lr * grad_b3
-
-            # Validation loss
-            h1_v = np.maximum(0, X_val @ w1 + b1)
-            h2_v = np.maximum(0, h1_v @ w2 + b2)
-            pred_v = h2_v @ w3 + b3
-            loss_val = float(np.mean((pred_v - Y_val) ** 2))
-
-            if loss_val < best_val:
-                best_val = loss_val
-                best_weights = {
-                    "w1": w1.copy(),
-                    "b1": b1.copy(),
-                    "w2": w2.copy(),
-                    "b2": b2.copy(),
-                    "w3": w3.copy(),
-                    "b3": b3.copy(),
-                }
-
-        # Rollback check
-        required_best = self._best_val_loss - self.config.min_validation_improvement
-        if best_val >= required_best:
-            _logger.info("Validation loss did not improve (%.4f >= %.4f), rolling back", best_val, self._best_val_loss)
+        if best_weights is None:
+            _logger.info("Every epoch produced a non-finite validation loss, rolling back")
             self._append_decision(
                 accepted=False,
                 val_loss=best_val,
-                previous_best_val_loss=self._best_val_loss,
+                incumbent_val_loss=incumbent_loss,
+                train_samples=n_train,
+                validation_samples=n_val,
+                buffer_size=n,
+                reason="validation_loss_not_finite",
+            )
+            return None
+
+        if not best_val < incumbent_loss - self.config.min_validation_improvement:
+            _logger.info(
+                "Validation loss did not improve on the incumbent (%.4f >= %.4f), rolling back",
+                best_val,
+                incumbent_loss,
+            )
+            self._append_decision(
+                accepted=False,
+                val_loss=best_val,
+                incumbent_val_loss=incumbent_loss,
                 train_samples=n_train,
                 validation_samples=n_val,
                 buffer_size=n,
@@ -312,21 +301,20 @@ class OnlineLearner:
             )
             return None
 
-        previous_best = self._best_val_loss
-        self._best_val_loss = best_val
+        self._last_accepted_val_loss = best_val
         self.generation += 1
         self.buffer.clear()
         self._append_decision(
             accepted=True,
             val_loss=best_val,
-            previous_best_val_loss=previous_best,
+            incumbent_val_loss=incumbent_loss,
             train_samples=n_train,
             validation_samples=n_val,
             buffer_size=n,
             reason="accepted",
         )
         _logger.info("Retraining gen %d accepted, val_loss=%.6f", self.generation, best_val)
-        return best_weights
+        return dict(scaler.to_raw(best_weights))
 
     def latest_decision(self) -> RetrainDecision | None:
         """Return the latest retraining decision, if any."""
@@ -337,9 +325,10 @@ class OnlineLearner:
     def save_retrain_report(self, path: str | Path) -> None:
         """Persist retraining decisions and current learner state as JSON."""
         report = {
-            "schema_version": "1.0",
+            "schema_version": REPORT_SCHEMA_VERSION,
             "generation": self.generation,
-            "best_val_loss": self._best_val_loss,
+            "last_accepted_val_loss": self._last_accepted_val_loss,
+            "loss_scaling": LOSS_SCALING,
             "buffer_samples": len(self.buffer),
             "config": {
                 "buffer_size": self.config.buffer_size,
@@ -361,18 +350,23 @@ class OnlineLearner:
         *,
         accepted: bool,
         val_loss: float,
-        previous_best_val_loss: float,
+        incumbent_val_loss: float,
         train_samples: int,
         validation_samples: int,
         buffer_size: int,
         reason: str,
     ) -> None:
-        """Record one accepted or rejected retrain decision in the history."""
+        """Record one accepted or rejected retrain decision in the history.
+
+        The recorded generation is the learner's generation after the decision:
+        the new generation for an acceptance (counted before this call), the
+        unchanged one for a rejection.
+        """
         decision = RetrainDecision(
-            generation=self.generation + 1 if accepted else self.generation,
+            generation=self.generation,
             accepted=accepted,
             val_loss=float(val_loss),
-            previous_best_val_loss=float(previous_best_val_loss),
+            incumbent_val_loss=float(incumbent_val_loss),
             train_samples=int(train_samples),
             validation_samples=int(validation_samples),
             buffer_size=int(buffer_size),
@@ -387,9 +381,25 @@ class OnlineLearner:
         """Clear the buffer, generation counter, weight backup, and history."""
         self.buffer.clear()
         self.generation = 0
-        self._best_val_loss = float("inf")
+        self._last_accepted_val_loss = float("inf")
         self._weights_backup = None
         self.retrain_history.clear()
+
+
+def _validated_weights(current_weights: dict[str, Any]) -> Weights:
+    """Return float copies of the six incumbent arrays after checking keys, shapes and finiteness."""
+    missing = [name for name in LAYER_SHAPES if name not in current_weights]
+    if missing:
+        raise ValueError(f"current_weights missing required keys: {missing}")
+    weights: Weights = {}
+    for name, shape in LAYER_SHAPES.items():
+        array = np.asarray(current_weights[name], dtype=np.float64).copy()
+        if array.shape != shape:
+            raise ValueError(f"current_weights[{name!r}] must have shape {shape}, received {array.shape}")
+        weights[name] = array
+    if not all(np.all(np.isfinite(array)) for array in weights.values()):
+        raise ValueError("current_weights must contain only finite values")
+    return weights
 
 
 def _require_int_at_least(field: str, value: int, *, minimum: int) -> int:
@@ -416,6 +426,8 @@ def _require_nonnegative_float(field: str, value: float) -> float:
 
 
 __all__ = [
+    "LOSS_SCALING",
+    "REPORT_SCHEMA_VERSION",
     "LearnerConfig",
     "OnlineLearner",
     "RetrainDecision",
