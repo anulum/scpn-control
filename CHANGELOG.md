@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### Magnetic axis — one checked accessor
+
+- **Fixed:** controllers no longer steer against the edge of the computational box.
+  Seven call sites read the magnetic axis as `argmax(Psi)`, and they now share one
+  accessor, `scpn_control.core.magnetic_axis`.
+- **Readers of a solved equilibrium** use `require_magnetic_axis`. When the flux
+  maximum is on the box edge, ties with the boundary flux, or the map is not finite,
+  they raise `MagneticAxisError` instead of controlling against an edge cell. These
+  readers are the MPC shape state, the optimal controller, the flight simulator, the
+  neuro-cybernetic controller and the director interface.
+- **Solver iterations** use `locate_magnetic_axis` and do not refuse. These are the
+  kernel's Picard loop and the coupled Grad-Shafranov/transport loop, which maps
+  profiles before its first equilibrium solve.
+- **Test fixtures.** Two neuro-cybernetic test kernels had their flux maximum on the
+  box edge. Their grids now contain the intended O-point.
+- **Not changed:** whether a solver may report a degenerate state as converged.
+
 ### GK online learner — full training and same-slice admission
 
 - **Fixed:** `OnlineLearner.try_retrain` now trains all three layers by exact

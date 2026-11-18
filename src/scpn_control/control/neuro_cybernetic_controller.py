@@ -30,6 +30,7 @@ from scpn_control._typing import AnyFloatArray
 
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
+from scpn_control.core.magnetic_axis import require_magnetic_axis
 
 try:
     # sc_neurocore is an optional dependency, uninstalled on the CI coverage job;
@@ -101,6 +102,16 @@ class SpikingControllerPool:
         tau_mem_s: float = 15.0e-3,
         noise_std: float = 0.02,
     ) -> None:
+        """Validate the pool settings and build the sc-neurocore or opt-in NumPy LIF populations.
+
+        Raises
+        ------
+        ValueError
+            If a size, time constant, gain or noise setting is out of range, or the NumPy
+            fallback is enabled without ``allow_legacy_numpy_fallback``.
+        RuntimeError
+            If sc-neurocore is unavailable and the NumPy fallback is not allowed.
+        """
         n_neurons = int(n_neurons)
         if n_neurons < 1:
             raise ValueError("n_neurons must be >= 1.")
@@ -185,6 +196,7 @@ class SpikingControllerPool:
         rng: np.random.Generator,
         input_current: float,
     ) -> int:
+        """Advance one leaky integrate-and-fire population in place and return how many neurons fired."""
         noise = rng.normal(0.0, self._noise_std, size=v.shape)
         v += self._alpha * (-v + float(input_current) + noise)
         fired = v >= self._v_threshold
@@ -254,6 +266,13 @@ class NeuroCyberneticController:
         safety_confidence_threshold: float = 0.35,
         safe_shutdown_ramp_steps: int = 3,
     ) -> None:
+        """Validate the shot and safety settings, build the kernel and reset the safety state machine.
+
+        Raises
+        ------
+        ValueError
+            If the shot duration, confidence threshold or shutdown ramp is out of range.
+        """
         if int(shot_duration) <= 0:
             raise ValueError("shot_duration must be > 0")
         safety_confidence_threshold = float(safety_confidence_threshold)
@@ -293,6 +312,7 @@ class NeuroCyberneticController:
         return int(self._overflow_trap_count)
 
     def _reset_history(self) -> None:
+        """Start empty per-step history lists for the next shot."""
         self.history = {
             "t": [],
             "Ip": [],
@@ -309,6 +329,7 @@ class NeuroCyberneticController:
         }
 
     def _enter_safe_shutdown(self, reason: str) -> None:
+        """Start the shutdown ramp for ``reason``; during a ramp only an overflow trap may replace the reason."""
         if self.safety_state == _SAFETY_STATE_SAFE_SHUTDOWN:
             return
         if self.safety_state == _SAFETY_STATE_SHUTDOWN_RAMP:
@@ -321,6 +342,7 @@ class NeuroCyberneticController:
         self._safety_trigger_count += 1
 
     def _safety_is_active(self) -> bool:
+        """Return whether the safety state machine has left normal operation."""
         return self.safety_state != _SAFETY_STATE_NORMAL
 
     def _safe_command(self, command: float) -> float:
@@ -336,6 +358,7 @@ class NeuroCyberneticController:
         return float(command * factor)
 
     def _advance_safe_state(self) -> None:
+        """Count down the shutdown ramp by one tick and latch safe shutdown when it reaches zero."""
         if self.safety_state != _SAFETY_STATE_SHUTDOWN_RAMP:
             return
         if self._safe_shutdown_counter > 0:
@@ -457,6 +480,13 @@ class NeuroCyberneticController:
         verbose: bool,
         output_path: str | None,
     ) -> Dict[str, Any]:
+        """Run one closed-loop shot against the kernel and return its summary.
+
+        Raises
+        ------
+        MagneticAxisError
+            If a solved equilibrium has no interior O-point.
+        """
         assert self.brain_R is not None and self.brain_Z is not None
         if verbose:
             logger.info(f"--- {title.upper()} PLASMA INTERFACE ---")
@@ -478,10 +508,9 @@ class NeuroCyberneticController:
             target_ip = 5.0 + (10.0 * t / self.shot_duration)
             physics_cfg["plasma_current_target"] = target_ip
 
-            idx_max = int(np.argmax(self.kernel.Psi))
-            iz, ir = np.unravel_index(idx_max, self.kernel.Psi.shape)
-            curr_r = float(self.kernel.R[ir])
-            curr_z = float(self.kernel.Z[iz])
+            axis = require_magnetic_axis(self.kernel.Psi, self.kernel.R, self.kernel.Z)
+            curr_r = axis.r
+            curr_z = axis.z
 
             err_r = TARGET_R - curr_r
             err_z = TARGET_Z - curr_z

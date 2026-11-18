@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from scpn_control.core.adaptive_time_controller import AdaptiveTimeController
+from scpn_control.core.magnetic_axis import locate_magnetic_axis
 
 if TYPE_CHECKING:
     from scpn_control.core.integrated_transport_solver import TransportSolver
@@ -26,9 +27,9 @@ _logger = logging.getLogger(__name__)
 def _map_profiles_to_2d(self: TransportSolver) -> None:
     """Project the 1D radial profiles back onto the 2D Grad-Shafranov grid, including neoclassical bootstrap current."""
     # 1. Get Flux Topology
-    idx_max = np.argmax(self.Psi)
-    iz_ax, ir_ax = np.unravel_index(idx_max, self.Psi.shape)
-    Psi_axis = self.Psi[iz_ax, ir_ax]
+    # The coupled GS-transport loop maps profiles before its first equilibrium solve and
+    # between solves, so the maximum is located, not refused (solver iteration).
+    Psi_axis = locate_magnetic_axis(self.Psi, self.R, self.Z).psi
     xp, psi_x = self.find_x_point(self.Psi)
     Psi_edge = psi_x
     if abs(Psi_edge - Psi_axis) < 1.0:

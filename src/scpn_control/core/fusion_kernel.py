@@ -46,6 +46,7 @@ from scpn_control.core import gs_phase_sync as _gs_phase
 from scpn_control.core import gs_profile_source as _gs_prof
 from scpn_control.core import gs_rust_multigrid_bridge as _gs_rust_mg
 from scpn_control.core.hpc_bridge import HPCBridge
+from scpn_control.core.magnetic_axis import locate_magnetic_axis
 
 # Stable public re-export: free-boundary coil set.
 CoilSet = _gs_fb.CoilSet
@@ -508,19 +509,23 @@ class FusionKernel:
         return (0.0, 0.0), float(np.min(Psi))
 
     def _find_magnetic_axis(self) -> tuple[int, int, float]:
-        """Find the O-point (magnetic axis) as the global Psi maximum.
+        """Find the global Psi maximum, the O-point once the equilibrium has one.
+
+        Solver iterations pass through states without an interior O-point, so the
+        maximum is located with :func:`locate_magnetic_axis` and not refused here.
+        Readers of a solved equilibrium refuse an inadmissible axis themselves.
 
         Returns
         -------
         tuple[int, int, float]
-            ``(iz, ir, Psi_axis)`` — grid indices and flux value.
+            ``(iz, ir, Psi_axis)`` — grid indices and flux value, with a flux of
+            magnitude below 1e-6 replaced by 1e-6 for normalisation.
         """
-        idx_max = int(np.argmax(self.Psi))
-        iz, ir = np.unravel_index(idx_max, self.Psi.shape)
-        psi_axis = float(self.Psi[iz, ir])
+        axis = locate_magnetic_axis(self.Psi, self.R, self.Z)
+        psi_axis = axis.psi
         if abs(psi_axis) < 1e-6:
             psi_axis = 1e-6
-        return int(iz), int(ir), psi_axis
+        return axis.iz, axis.ir, psi_axis
 
     # ── profile functions ─────────────────────────────────────────────
 

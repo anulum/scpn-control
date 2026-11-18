@@ -46,6 +46,7 @@ from scpn_control.control.pulsed_scenario_scheduler_v2 import (
     PulsedScenarioScheduler,
     PulsedScenarioState,
 )
+from scpn_control.core.magnetic_axis import require_magnetic_axis
 
 logger = logging.getLogger(__name__)
 
@@ -132,13 +133,15 @@ class NeuralSurrogate:
         -------
         FloatArray
             The magnetic-axis and X-point coordinates, shape ``(4,)``.
+
+        Raises
+        ------
+        MagneticAxisError
+            If the solved flux has no interior O-point.
         """
-        idx_max = int(np.argmax(kernel.Psi))
-        iz, ir = np.unravel_index(idx_max, kernel.Psi.shape)
-        r_ax = float(kernel.R[ir])
-        z_ax = float(kernel.Z[iz])
+        axis = require_magnetic_axis(kernel.Psi, kernel.R, kernel.Z)
         xp_pos, _ = kernel.find_x_point(kernel.Psi)
-        return np.array([r_ax, z_ax, float(xp_pos[0]), float(xp_pos[1])], dtype=np.float64)
+        return np.array([axis.r, axis.z, float(xp_pos[0]), float(xp_pos[1])], dtype=np.float64)
 
     def predict(self, current_state: AnyFloatArray, action_delta: AnyFloatArray) -> FloatArray:
         """Predict the next shape state under a coil-current change.

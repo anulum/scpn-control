@@ -39,6 +39,7 @@ except ImportError:
     from scpn_control.core.fusion_kernel import FusionKernel
 
 from scpn_control.control import normalize_bounds, solve_kernel
+from scpn_control.core.magnetic_axis import require_magnetic_axis
 
 # --- MISSION PARAMETERS ---
 TARGET_R = 6.2  # ITER major radius [m]; ITER Physics Basis, NF 47 (2007) S1
@@ -59,6 +60,13 @@ class OptimalController:
         coil_current_limits: Tuple[float, float] = (-40.0, 40.0),
         current_target_limits: Tuple[float, float] = (5.0, 16.0),
     ) -> None:
+        """Build the kernel, validate the correction and current limits, and start an empty history.
+
+        Raises
+        ------
+        ValueError
+            If the correction limit is not finite and positive or a bound pair is invalid.
+        """
         self.kernel = kernel_factory(config_file)
         self.verbose = bool(verbose)
         self.n_coils = len(self.kernel.cfg["coils"])
@@ -81,6 +89,7 @@ class OptimalController:
         }
 
     def _log(self, message: str) -> None:
+        """Log ``message`` at INFO level when the controller is verbose."""
         if self.verbose:
             logger.info(message)
 
@@ -117,10 +126,15 @@ class OptimalController:
         self._log("[OptControl] System Identification Complete.")
 
     def get_plasma_pos(self) -> FloatArray:
-        """Return current plasma-axis position [R, Z]."""
-        idx_max = int(np.argmax(self.kernel.Psi))
-        iz, ir = np.unravel_index(idx_max, self.kernel.Psi.shape)
-        return np.array([self.kernel.R[ir], self.kernel.Z[iz]], dtype=np.float64)
+        """Return the current magnetic-axis position ``[R, Z]`` in metres.
+
+        Raises
+        ------
+        MagneticAxisError
+            If the solved flux has no interior O-point.
+        """
+        axis = require_magnetic_axis(self.kernel.Psi, self.kernel.R, self.kernel.Z)
+        return np.array([axis.r, axis.z], dtype=np.float64)
 
     def compute_optimal_correction(
         self,
@@ -145,6 +159,7 @@ class OptimalController:
         return np.clip(delta_currents, -self.correction_limit, self.correction_limit)
 
     def _apply_corrections(self, delta_currents: AnyFloatArray, gain: float) -> None:
+        """Add ``gain * delta_currents`` to every coil current, clipped to the coil-current limits."""
         lo, hi = self.coil_current_limits
         g = float(gain)
         for i in range(self.n_coils):

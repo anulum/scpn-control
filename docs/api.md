@@ -2536,6 +2536,21 @@ oscillator model for reactor or facility control.
 
 ::: scpn_control.control.fusion_neural_mpc.horizon_coupling_spectral_radius
 
+### Magnetic axis
+
+`locate_magnetic_axis` returns the global flux maximum and whether it is an
+interior O-point. An O-point lies off the computational box edge and strictly
+above every boundary value, and the map must be finite.
+
+- **Solver iterations** use the locator and never refuse: the kernel's Picard
+  loop, and the coupled Grad-Shafranov/transport loop.
+- **Readers of a solved equilibrium** use `require_magnetic_axis` and raise
+  `MagneticAxisError` for an edge maximum instead of controlling against an edge
+  cell. These readers are the MPC shape state, the optimal controller, the flight
+  simulator, the neuro-cybernetic controller and the director interface.
+
+::: scpn_control.core.magnetic_axis
+
 ### Optimal Control
 
 ::: scpn_control.control.fusion_optimal_control.OptimalController

@@ -1,5 +1,5 @@
 {
-  "total": 5364,
+  "total": 5336,
   "scope": [
     "tests",
     "tools",
@@ -9,7 +9,7 @@
     "D100": 99,
     "D101": 510,
     "D102": 1895,
-    "D103": 2794,
+    "D103": 2766,
     "D200": 6,
     "D205": 48,
     "D400": 3,
@@ -792,9 +792,6 @@
       "D103": 37,
       "D205": 1
     },
-    "tests/test_neuro_cybernetic_controller.py": {
-      "D103": 28
-    },
     "tests/test_neuro_cybernetic_extended.py": {
       "D101": 5,
       "D102": 11
@@ -1389,7 +1386,6 @@
     "tests/test_neural_equilibrium_core.py": "ebfdb146471d961fe2d00fce66bb22cf4a130e7156a98b0cd13351f7232690dc",
     "tests/test_neural_transport.py": "c4eddaa752872054f5caaf528a398bfba3dbdfbe4d9c45a3a0f7a77e5de1476e",
     "tests/test_neural_turbulence.py": "e5405b735102a6f8eb93c8f9baa6d03f3a71dfee391310ed6016efc278235122",
-    "tests/test_neuro_cybernetic_controller.py": "ed3c10f6f31fb1b5bdc13ae2da5ae2c086a7817a0235c48503f275d7fe2553da",
     "tests/test_neuro_cybernetic_extended.py": "fb3274302dcf9c79308a01bbd15c4fe76256220b723fc056015012db0be159ee",
     "tests/test_neurocore_v3_detection.py": "694a31d1e7eece92fe0e8f5be7ec92abd145c40950581faa9418183b39643dbe",
     "tests/test_nmpc_controller.py": "a45174b0fc46aca69fd498c3b4e23c8de79b9422ebf2043850d0a245b935e838",

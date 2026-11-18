@@ -30,6 +30,7 @@ def _load_fusion_kernel() -> tuple[type[Any], bool]:
     """Load the native FusionKernel when present, otherwise the Python kernel."""
 
     def load_python_kernel() -> type[Any]:
+        """Import and return the Python ``FusionKernel`` class, with a hint on how to run when it is missing."""
         try:
             fusion_kernel = import_module("scpn_control.core.fusion_kernel")
         except ImportError as exc:
@@ -54,12 +55,20 @@ FusionKernel, RUST_BACKEND = _load_fusion_kernel()
 
 from scpn_control.control import solve_kernel
 from scpn_control.control.neuro_cybernetic_controller import NeuroCyberneticController
+from scpn_control.core.magnetic_axis import require_magnetic_axis
 
 
 class _RuleBasedDirector:
     """Deterministic fallback director when external DIRECTOR_AI is unavailable."""
 
     def __init__(self, entropy_threshold: float = 0.3, history_window: int = 10) -> None:
+        """Validate the entropy threshold (finite, > 0) and history window (>= 1) and start an empty score history.
+
+        Raises
+        ------
+        ValueError
+            If the threshold or the window is out of range.
+        """
         entropy_threshold = float(entropy_threshold)
         if not np.isfinite(entropy_threshold) or entropy_threshold <= 0.0:
             raise ValueError("entropy_threshold must be finite and > 0.")
@@ -71,6 +80,12 @@ class _RuleBasedDirector:
         self._scores: list[float] = []
 
     def review_action(self, prompt: str, _proposed_action: str) -> tuple[bool, float]:
+        """Approve an action when the prompt reports ``Stability=Stable`` and the rolling entropy score is <= 1.
+
+        The entropy score of this prompt is ``BrainEntropy / entropy_threshold`` clipped to
+        [0, 10]; a missing value counts as twice the threshold. Returns the approval and
+        this prompt's score.
+        """
         m_stability = re.search(r"Stability=([A-Za-z]+)", prompt)
         stability = m_stability.group(1) if m_stability else "Unstable"
 
@@ -114,6 +129,14 @@ class DirectorInterface:
         entropy_threshold: float = 0.3,
         history_window: int = 10,
     ) -> None:
+        """Build the controller and bind a director: an injected one, or the opt-in rule-based fallback.
+
+        Raises
+        ------
+        ValueError
+            If no director is injected and the fallback is not enabled, or if the
+            fallback is enabled without ``allow_legacy_fallback``.
+        """
         if allow_fallback and not allow_legacy_fallback:
             raise ValueError(
                 "allow_fallback=True requires allow_legacy_fallback=True; "
@@ -297,10 +320,9 @@ class DirectorInterface:
             if t >= glitch_start_step and glitch_std > 0.0:
                 self.nc.kernel.cfg["coils"][2]["current"] += float(rng.normal(0.0, glitch_std))
 
-            idx_max = int(np.argmax(self.nc.kernel.Psi))
-            iz, ir = np.unravel_index(idx_max, self.nc.kernel.Psi.shape)
-            curr_r = float(self.nc.kernel.R[ir])
-            curr_z = float(self.nc.kernel.Z[iz])
+            axis = require_magnetic_axis(self.nc.kernel.Psi, self.nc.kernel.R, self.nc.kernel.Z)
+            curr_r = axis.r
+            curr_z = axis.z
 
             err_r = 6.2 - curr_r
             err_z = 0.0 - curr_z

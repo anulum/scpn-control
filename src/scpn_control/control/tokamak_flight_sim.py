@@ -26,6 +26,7 @@ import numpy as np
 logger = logging.getLogger(__name__)
 from scpn_control.control import solve_kernel
 from scpn_control.control.pid_controller import PIDController
+from scpn_control.core.magnetic_axis import require_magnetic_axis
 
 try:
     from scpn_control.core._rust_compat import FusionKernel
@@ -78,6 +79,13 @@ class FirstOrderActuator:
         delay_steps: int = 0,
         rng_seed: int | None = None,
     ) -> None:
+        """Validate the time constants and store the limits, noise, delay buffer and seeded generator.
+
+        Raises
+        ------
+        ValueError
+            If ``tau_s`` or ``dt_s`` is not finite and positive.
+        """
         tau_s = float(tau_s)
         dt_s = float(dt_s)
         if not np.isfinite(tau_s) or tau_s <= 0.0:
@@ -144,6 +152,14 @@ class IsoFluxController:
         heating_beta_max: float = 5.0,
         control_dt_s: float = 0.05,
     ) -> None:
+        """Build the kernel, validate the control step and actuator limits, and create the actuators.
+
+        Raises
+        ------
+        ValueError
+            If the control step, current-delta limit, heating limit or heating time
+            constant is out of range.
+        """
         self.kernel = kernel_factory(config_file)
         self.verbose = bool(verbose)
         self.history: dict[str, list[Any]] = {
@@ -214,6 +230,7 @@ class IsoFluxController:
         )
 
     def _log(self, message: str) -> None:
+        """Log ``message`` at INFO level when the simulator is verbose."""
         if self.verbose:
             logger.info(message)
 
@@ -227,6 +244,7 @@ class IsoFluxController:
         return pid.step(error)
 
     def _add_coil_current(self, coil_idx: int, delta: float) -> None:
+        """Add ``delta`` to one coil's current; an index outside the coil list is ignored."""
         coils = self.kernel.cfg.get("coils", [])
         if 0 <= coil_idx < len(coils):
             current = float(coils[coil_idx].get("current", 0.0))
@@ -284,10 +302,9 @@ class IsoFluxController:
 
             # 2. MEASURE STATE (Diagnostics)
             # Find current axis
-            idx_max = np.argmax(self.kernel.Psi)
-            iz, ir = np.unravel_index(idx_max, self.kernel.Psi.shape)
-            curr_R = self.kernel.R[ir]
-            curr_Z = self.kernel.Z[iz]
+            axis = require_magnetic_axis(self.kernel.Psi, self.kernel.R, self.kernel.Z)
+            curr_R = axis.r
+            curr_Z = axis.z
 
             # Find X-point (Divertor)
             xp_pos, _ = self.kernel.find_x_point(self.kernel.Psi)
