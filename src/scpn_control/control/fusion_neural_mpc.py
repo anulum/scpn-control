@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,16 +56,19 @@ PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION = "scpn-control.pulsed-mpc-decision-
 
 
 def _float_array_sha256(values: AnyFloatArray) -> str:
+    """Return the SHA-256 of the values flattened as little-endian float64 bytes."""
     arr = np.asarray(values, dtype="<f8").reshape(-1)
     return hashlib.sha256(arr.tobytes()).hexdigest()
 
 
 def _bool_array_sha256(values: AnyFloatArray) -> str:
+    """Return the SHA-256 of the values flattened as one byte (0 or 1) per element."""
     arr = np.asarray(values, dtype=np.bool_).reshape(-1).astype(np.uint8, copy=False)
     return hashlib.sha256(arr.tobytes()).hexdigest()
 
 
 def _evidence_digest(payload: Mapping[str, float | str | bool]) -> str:
+    """Return the SHA-256 of the payload as sorted, compact, ASCII-only JSON."""
     encoded = json.dumps(
         payload,
         sort_keys=True,
@@ -78,11 +82,13 @@ class NeuralSurrogate:
     """Linearized surrogate model around current operating point."""
 
     def __init__(self, n_coils: int, n_state: int, verbose: bool = True) -> None:
+        """Start with identity state dynamics ``A`` and a zero coil response ``B``."""
         self.verbose = bool(verbose)
         self.A = np.eye(int(n_state), dtype=np.float64)
         self.B = np.zeros((int(n_state), int(n_coils)), dtype=np.float64)
 
     def _log(self, message: str) -> None:
+        """Log ``message`` at INFO level when the surrogate is verbose."""
         if self.verbose:
             logger.info(message)
 
@@ -152,6 +158,75 @@ class NeuralSurrogate:
         return np.asarray(current_state, dtype=np.float64) + (self.B @ np.asarray(action_delta, dtype=np.float64))
 
 
+def horizon_coupling_spectral_radius(horizon: int) -> float:
+    """Return the largest eigenvalue of the horizon coupling matrix ``T_H[i, j] = H - max(i, j)``.
+
+    Under ``x_{k+1} = x_k + B u_k`` the tracking part of the MPC cost has the Hessian
+    ``(B^T B) ⊗ T_H``: action ``u_i`` and ``u_j`` both move every state after
+    ``max(i, j)``. ``T_H`` is the min-matrix ``min(a, b)`` on ``1..H``, whose largest
+    eigenvalue is ``1 / (4 sin^2(pi / (2 (2H + 1))))``.
+
+    Parameters
+    ----------
+    horizon
+        Prediction horizon ``H >= 1``.
+
+    Returns
+    -------
+    float
+        ``lambda_max(T_H)``.
+    """
+    half_angle_sine = math.sin(math.pi / (2.0 * (2 * horizon + 1)))
+    return 1.0 / (4.0 * half_angle_sine * half_angle_sine)
+
+
+def horizon_cost_and_gradient(
+    model: NeuralSurrogate,
+    target: FloatArray,
+    initial_state: FloatArray,
+    actions: FloatArray,
+    regularization: float,
+) -> tuple[float, FloatArray]:
+    """Return the horizon tracking cost and its exact gradient for an action sequence.
+
+    The cost is ``sum_t 1/2 ||x_{t+1} - x*||^2 + regularization/2 ||u_t||^2`` along the
+    linear surrogate rollout ``x_{t+1} = x_t + B u_t``. Because ``u_t`` moves every
+    later state, the gradient is ``B^T sum_{k >= t} (x_{k+1} - x*) + regularization u_t``;
+    it is accumulated backwards in time as an adjoint (costate) sum.
+
+    Parameters
+    ----------
+    model
+        Linear surrogate with input matrix ``B``.
+    target
+        Target state ``x*``.
+    initial_state
+        Rollout start ``x_0``.
+    actions
+        Action sequence, shape ``(H, n_coils)``.
+    regularization
+        Action penalty ``lambda >= 0``.
+
+    Returns
+    -------
+    tuple[float, FloatArray]
+        The cost and the gradient with the shape of ``actions``.
+    """
+    horizon = actions.shape[0]
+    state = initial_state.copy()
+    errors = np.empty((horizon, state.shape[0]), dtype=np.float64)
+    for t in range(horizon):
+        state = model.predict(state, actions[t])
+        errors[t] = state - target
+    cost = 0.5 * float(np.sum(errors * errors)) + 0.5 * regularization * float(np.sum(actions * actions))
+    gradient = np.empty_like(actions)
+    costate = np.zeros(state.shape[0], dtype=np.float64)
+    for t in range(horizon - 1, -1, -1):
+        costate = costate + errors[t]
+        gradient[t] = model.B.T @ costate + regularization * actions[t]
+    return cost, gradient
+
+
 class ModelPredictiveController:
     """Gradient-based MPC planner over surrogate dynamics."""
 
@@ -166,6 +241,14 @@ class ModelPredictiveController:
         action_limit: float = 2.0,
         action_regularization: float = 0.1,
     ) -> None:
+        """Validate and store the horizon, step, iteration, clipping and penalty settings.
+
+        Raises
+        ------
+        ValueError
+            If the horizon or iteration count is below 1, or the learning rate,
+            action limit or action penalty is not finite or out of range.
+        """
         self.model = surrogate
         self.target = np.asarray(target_state, dtype=np.float64).reshape(-1)
         horizon = int(prediction_horizon)
@@ -189,11 +272,33 @@ class ModelPredictiveController:
         self.action_limit = action_limit
         self.action_regularization = action_regularization
 
-    def plan_trajectory(self, current_state: AnyFloatArray) -> FloatArray:
-        """Plan a coil-action trajectory minimising the tracking cost.
+    def stable_step(self) -> float:
+        """Return the gradient step: ``learning_rate`` capped at ``1 / L`` for the horizon cost.
 
-        Optimises the action sequence over the prediction horizon against the
-        surrogate dynamics by gradient descent.
+        ``L = ||B||_F^2 · lambda_max(T_H) + action_regularization`` bounds the Lipschitz
+        constant of the exact horizon gradient, since ``||B||_F^2 >= lambda_max(B^T B)``.
+        A step of at most ``1 / L`` makes every iteration decrease the cost before clipping,
+        which the full multi-step gradient needs where a one-step gradient did not.
+
+        Returns
+        -------
+        float
+            The step actually used by :meth:`plan_trajectory`.
+        """
+        lipschitz = (
+            float(np.sum(self.model.B * self.model.B)) * horizon_coupling_spectral_radius(self.horizon)
+            + self.action_regularization
+        )
+        return self.learning_rate if lipschitz <= 0.0 else min(self.learning_rate, 1.0 / lipschitz)
+
+    def plan_trajectory(self, current_state: AnyFloatArray) -> FloatArray:
+        """Plan by projected gradient descent and return the first action to apply.
+
+        The whole action sequence over the prediction horizon is optimised against the
+        linear surrogate with the exact horizon gradient
+        (:func:`horizon_cost_and_gradient`), a step of :meth:`stable_step`, and
+        clipping to ``±action_limit`` after each step. Receding-horizon control applies
+        only the first planned action.
 
         Parameters
         ----------
@@ -203,23 +308,18 @@ class ModelPredictiveController:
         Returns
         -------
         FloatArray
-            The planned action sequence, shape ``(horizon, n_coils)``.
+            The first planned action, shape ``(n_coils,)``.
         """
         n_coils = int(self.model.B.shape[1])
         planned_actions: FloatArray = np.zeros((self.horizon, n_coils), dtype=np.float64)
         state0 = np.asarray(current_state, dtype=np.float64).reshape(-1)
+        step = self.stable_step()
 
         for _ in range(self.iterations):
-            temp_state: FloatArray = state0.copy()
-            grads = np.zeros_like(planned_actions)
-            for t in range(self.horizon):
-                next_state = self.model.predict(temp_state, planned_actions[t])
-                error = next_state - self.target
-                grad_step = self.model.B.T @ error
-                grad_step += self.action_regularization * planned_actions[t]
-                grads[t] = grad_step
-                temp_state = next_state
-            planned_actions -= self.learning_rate * grads
+            _, grads = horizon_cost_and_gradient(
+                self.model, self.target, state0, planned_actions, self.action_regularization
+            )
+            planned_actions -= step * grads
             np.clip(planned_actions, -self.action_limit, self.action_limit, out=planned_actions)
 
         return np.asarray(planned_actions[0], dtype=np.float64)
@@ -261,6 +361,15 @@ class PulsedShotMPCAdapter:
         pulse_waveform: WaveformName = "half_sine",
         refuse_burn_when_uncharged: bool = True,
     ) -> None:
+        """Bind the MPC to the pulsed-shot scheduler and capacitor bank, and validate the admission settings.
+
+        Raises
+        ------
+        ValueError
+            If the burn mask or safe action does not match the MPC action dimension,
+            the mask selects no component, the safe action is not finite, the pulse
+            duration is not finite and positive, or the waveform is unknown.
+        """
         self.nmpc = nmpc
         self.scheduler = scheduler
         self.bank = bank
@@ -404,6 +513,7 @@ class PulsedShotMPCAdapter:
         }
 
     def _scheduler_state(self, context: object | None) -> PulsedScenarioState:
+        """Resolve the scheduler state from an enum, string, mapping or ``state`` attribute, else the scheduler."""
         if context is None:
             return PulsedScenarioState(self.scheduler.state)
         if isinstance(context, PulsedScenarioState):
@@ -418,6 +528,7 @@ class PulsedShotMPCAdapter:
         return PulsedScenarioState(self.scheduler.state)
 
     def _pulse_from_action(self, action: AnyFloatArray, pulse: PulseSpec | None) -> PulseSpec | None:
+        """Return the given pulse, else one sized by the peak burn-component current, else None for zero current."""
         if pulse is not None:
             return pulse
         peak_current = float(np.max(np.abs(action[self.burn_action_mask])))
@@ -430,6 +541,7 @@ class PulsedShotMPCAdapter:
         )
 
     def _constraint_slack(self, pulse: PulseSpec | None) -> float:
+        """Return the bank energy left after the pulse's estimated resistive loss, or all of it without a pulse."""
         if pulse is None:
             return float(self.bank.state.energy_J)
         factor = {
@@ -441,6 +553,7 @@ class PulsedShotMPCAdapter:
         return float(self.bank.state.energy_J - estimated_loss)
 
     def _objective(self, state: AnyFloatArray, action: AnyFloatArray, target: AnyFloatArray) -> float:
+        """Return the one-step squared tracking error plus the action penalty of the proposal."""
         predicted = self.nmpc.model.predict(state, action)
         error = predicted - target
         return float(np.dot(error, error) + self.nmpc.action_regularization * np.dot(action, action))
@@ -461,6 +574,13 @@ class PulsedShotMPCAdapter:
         burn_components_masked: bool,
         peak_current_A: float,
     ) -> dict[str, float | str | bool]:
+        """Validate the admission outcome and return its digest-bound decision-evidence fields.
+
+        Raises
+        ------
+        ValueError
+            If a numeric field is not finite or the peak current is negative.
+        """
         if not np.isfinite(mpc_objective):
             raise ValueError("mpc_objective must be finite")
         if not np.isfinite(constraint_slack):
@@ -492,6 +612,7 @@ def _plot_telemetry(
     target_vec: AnyFloatArray,
     output_path: str,
 ) -> Tuple[bool, str | None]:
+    """Plot the axis and X-point tracking histories to ``output_path``; return success and any error text."""
     try:
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 6))
         ax1.set_title("MPC Axis Tracking")

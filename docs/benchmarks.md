@@ -620,12 +620,31 @@ writes a separate digest-bound JSON/Markdown report whose case payloads include
 the same pulsed-MPC decision evidence fields. Use the Python and Rust reports
 together as polyglot regression evidence.
 
-Current PyO3-inclusive local regression evidence:
+Current PyO3-inclusive local regression evidence (2026-11-18, exact horizon gradient)
+
+The planner now descends the exact horizon gradient with a curvature-bounded
+step, in Python and in Rust. It was remeasured on a shared 24-core host at load
+average about 60, so these figures are regression evidence only. The rows before
+the change come from the same session, on the same host and toolchain.
+
+| Evidence | Planner | Cases | Median range | p99 range | Claim boundary |
+| --- | --- | --- | ---: | ---: | --- |
+| `validation/reports/pulsed_mpc_adapter_horizon_gradient_20261118T213253Z_python.md` | exact horizon gradient | Python + PyO3 | 137.756-5823.123 us | 224.85-12529.719 us | local regression only |
+| `validation/reports/pulsed_mpc_adapter_horizon_gradient_20261118T213253Z_rust.md` | exact horizon gradient | native Rust | 115.712-131.372 us | 198.624-232.143 us | local regression only |
+| `validation/reports/pulsed_mpc_adapter_pre_horizon_gradient_20261118T212839Z_python.md` | one-step gradient (before) | Python + PyO3 | 144.142-9213.6725 us | 262.61-10389.712 us | local regression only |
+| `validation/reports/pulsed_mpc_adapter_pre_horizon_gradient_20261118T212839Z_rust.md` | one-step gradient (before) | native Rust | 109.371-196.851 us | 213.824-223.942 us | local regression only |
+
+Under this load, no slowdown from the exact gradient can be told apart from host
+noise.
+
+The 2026-06-04 reports below measured the earlier one-step planner on an
+unloaded workstation. They remain as history and do not describe the current
+planner's actions.
 
 | Evidence | Cases | Median range | p99 range | Claim boundary |
 | --- | --- | ---: | ---: | --- |
-| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.md` | Python + PyO3 | 40.112-873.7225 us | 57.746-1264.718 us | local regression only |
-| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.md` | native Rust | 34.826-36.843 us | 46.76-49.0 us | local regression only |
+| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_python_20260604T171015Z.md` | Python + PyO3 | 40.112-873.7225 us | 57.746-1264.718 us | local regression only, earlier planner |
+| `validation/reports/pulsed_mpc_adapter_pyo3_decision_evidence_rust_20260604T171015Z.md` | native Rust | 34.826-36.843 us | 46.76-49.0 us | local regression only, earlier planner |
 
 ## Multi-shot campaign regression
 

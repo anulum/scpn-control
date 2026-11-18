@@ -33,6 +33,7 @@ const ACTION_CLIP: f64 = 2.0;
 pub const PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION: &str =
     "scpn-control.pulsed-mpc-decision-evidence.v1";
 
+/// Refuse a vector holding NaN or an infinity, naming it in the error.
 fn ensure_finite_vector(name: &str, values: &Array1<f64>) -> FusionResult<()> {
     if values.iter().any(|v| !v.is_finite()) {
         return Err(FusionError::ConfigError(format!(
@@ -42,6 +43,7 @@ fn ensure_finite_vector(name: &str, values: &Array1<f64>) -> FusionResult<()> {
     Ok(())
 }
 
+/// Refuse a burn mask whose length differs from the action dimension or that selects nothing.
 fn ensure_mask_shape(name: &str, mask: &[bool], expected: usize) -> FusionResult<()> {
     if mask.len() != expected {
         return Err(FusionError::ConfigError(format!(
@@ -57,6 +59,7 @@ fn ensure_mask_shape(name: &str, mask: &[bool], expected: usize) -> FusionResult
     Ok(())
 }
 
+/// Return the canonical lower-case, underscore scheduler state, refusing unknown states.
 fn normalise_scheduler_state(value: &str) -> FusionResult<String> {
     let state = value.trim().to_ascii_lowercase().replace('-', "_");
     match state.as_str() {
@@ -68,6 +71,7 @@ fn normalise_scheduler_state(value: &str) -> FusionResult<String> {
     }
 }
 
+/// SHA-256 of the values as consecutive little-endian `f64` bytes.
 fn hash_f64_array(values: &Array1<f64>) -> String {
     let mut hasher = Sha256::new();
     for value in values {
@@ -76,6 +80,7 @@ fn hash_f64_array(values: &Array1<f64>) -> String {
     crate::to_hex(&hasher.finalize())
 }
 
+/// SHA-256 of the mask as one byte (0 or 1) per element.
 fn hash_bool_mask(values: &[bool]) -> String {
     let mut hasher = Sha256::new();
     for value in values {
@@ -84,6 +89,7 @@ fn hash_bool_mask(values: &[bool]) -> String {
     crate::to_hex(&hasher.finalize())
 }
 
+/// Feed `name`, a 0 separator, the UTF-8 `value` and a 255 terminator into the hasher.
 fn update_str(hasher: &mut Sha256, name: &str, value: &str) {
     hasher.update(name.as_bytes());
     hasher.update([0]);
@@ -91,6 +97,7 @@ fn update_str(hasher: &mut Sha256, name: &str, value: &str) {
     hasher.update([255]);
 }
 
+/// Feed `name`, a 0 separator, the value as one byte and a 255 terminator into the hasher.
 fn update_bool(hasher: &mut Sha256, name: &str, value: bool) {
     hasher.update(name.as_bytes());
     hasher.update([0]);
@@ -98,6 +105,7 @@ fn update_bool(hasher: &mut Sha256, name: &str, value: bool) {
     hasher.update([255]);
 }
 
+/// Feed `name`, a 0 separator, the little-endian `f64` bytes and a 255 terminator into the hasher.
 fn update_f64(hasher: &mut Sha256, name: &str, value: f64) {
     hasher.update(name.as_bytes());
     hasher.update([0]);
@@ -105,48 +113,55 @@ fn update_f64(hasher: &mut Sha256, name: &str, value: f64) {
     hasher.update([255]);
 }
 
-#[allow(clippy::too_many_arguments)]
-fn decision_evidence_digest(
-    scheduler_state: &str,
-    bank_feasibility: &str,
-    reason: &str,
-    bank_feasible: bool,
-    safe_action_applied: bool,
-    burn_components_masked: bool,
-    constraint_slack: f64,
-    mpc_objective: f64,
-    peak_current_a: f64,
-    action_sha256: &str,
-    safe_action_sha256: &str,
-    burn_action_mask_sha256: &str,
-) -> String {
+/// SHA-256 binding every admission input and output of `decision`, field by field in a
+/// fixed order with name separators. The decision's own `admission_digest` is not an input.
+fn decision_evidence_digest(decision: &PulsedMpcDecision) -> String {
     let mut hasher = Sha256::new();
     update_str(
         &mut hasher,
         "schema_version",
-        PULSED_MPC_DECISION_EVIDENCE_SCHEMA_VERSION,
+        decision.evidence_schema_version,
     );
-    update_str(&mut hasher, "scheduler_state", scheduler_state);
-    update_str(&mut hasher, "bank_feasibility", bank_feasibility);
-    update_str(&mut hasher, "reason", reason);
-    update_bool(&mut hasher, "bank_feasible", bank_feasible);
-    update_bool(&mut hasher, "safe_action_applied", safe_action_applied);
+    update_str(&mut hasher, "scheduler_state", &decision.scheduler_state);
+    update_str(&mut hasher, "bank_feasibility", &decision.bank_feasibility);
+    update_str(&mut hasher, "reason", &decision.reason);
+    update_bool(&mut hasher, "bank_feasible", decision.bank_feasible);
+    update_bool(
+        &mut hasher,
+        "safe_action_applied",
+        decision.safe_action_applied,
+    );
     update_bool(
         &mut hasher,
         "burn_components_masked",
-        burn_components_masked,
+        decision.burn_components_masked,
     );
-    update_f64(&mut hasher, "constraint_slack", constraint_slack);
-    update_f64(&mut hasher, "mpc_objective", mpc_objective);
-    update_f64(&mut hasher, "peak_current_A", peak_current_a);
-    update_str(&mut hasher, "action_sha256", action_sha256);
-    update_str(&mut hasher, "safe_action_sha256", safe_action_sha256);
+    update_f64(&mut hasher, "constraint_slack", decision.constraint_slack);
+    update_f64(&mut hasher, "mpc_objective", decision.mpc_objective);
+    update_f64(&mut hasher, "peak_current_A", decision.peak_current_a);
+    update_str(&mut hasher, "action_sha256", &decision.action_sha256);
+    update_str(
+        &mut hasher,
+        "safe_action_sha256",
+        &decision.safe_action_sha256,
+    );
     update_str(
         &mut hasher,
         "burn_action_mask_sha256",
-        burn_action_mask_sha256,
+        &decision.burn_action_mask_sha256,
     );
     crate::to_hex(&hasher.finalize())
+}
+
+/// Largest eigenvalue of the horizon coupling matrix `T_H[i, j] = H - max(i, j)`.
+///
+/// Under `x_{k+1} = x_k + B u_k` the tracking part of the MPC cost has the Hessian
+/// `(B^T B) ⊗ T_H`. `T_H` is the min-matrix `min(a, b)` on `1..H`, whose largest
+/// eigenvalue is `1 / (4 sin^2(pi / (2 (2H + 1))))`. Python:
+/// `horizon_coupling_spectral_radius`.
+pub fn horizon_coupling_spectral_radius(horizon: usize) -> f64 {
+    let half_angle_sine = (std::f64::consts::PI / (2.0 * (2 * horizon + 1) as f64)).sin();
+    1.0 / (4.0 * half_angle_sine * half_angle_sine)
 }
 
 /// Linear surrogate model: x_{t+1} = x_t + B·u_t.
@@ -260,36 +275,66 @@ impl MPController {
         })
     }
 
-    /// Plan optimal action via gradient descent over horizon.
-    /// Returns first action to apply.
+    /// Return the horizon tracking cost and its exact gradient for an action sequence.
+    ///
+    /// The cost is `sum_t 1/2 ||x_{t+1} - x*||^2 + LAMBDA/2 ||u_t||^2` along the linear
+    /// rollout `x_{t+1} = x_t + B u_t`. Because `u_t` moves every later state, the
+    /// gradient is `B^T sum_{k >= t} (x_{k+1} - x*) + LAMBDA u_t`; it is accumulated
+    /// backwards in time as an adjoint (costate) sum. Python:
+    /// `horizon_cost_and_gradient`.
+    pub fn horizon_cost_and_gradient(
+        &self,
+        initial_state: &Array1<f64>,
+        actions: &[Array1<f64>],
+    ) -> FusionResult<(f64, Vec<Array1<f64>>)> {
+        let mut state = initial_state.clone();
+        let mut errors: Vec<Array1<f64>> = Vec::with_capacity(actions.len());
+        for action in actions {
+            state = self.model.predict(&state, action)?;
+            errors.push(&state - &self.target);
+        }
+        let tracking: f64 = errors.iter().map(|e| e.dot(e)).sum();
+        let effort: f64 = actions.iter().map(|u| u.dot(u)).sum();
+        let cost = 0.5 * tracking + 0.5 * LAMBDA * effort;
+        let mut gradient: Vec<Array1<f64>> = Vec::with_capacity(actions.len());
+        let mut costate = Array1::<f64>::zeros(state.len());
+        for (error, action) in errors.iter().zip(actions.iter()).rev() {
+            costate = &costate + error;
+            gradient.push(self.model.b_matrix.t().dot(&costate) + action * LAMBDA);
+        }
+        gradient.reverse();
+        Ok((cost, gradient))
+    }
+
+    /// Return the gradient step: `LR` capped at `1 / L` for the horizon cost.
+    ///
+    /// `L = ||B||_F^2 * lambda_max(T_H) + LAMBDA` bounds the Lipschitz constant of the
+    /// exact horizon gradient, since `||B||_F^2 >= lambda_max(B^T B)`. A step of at
+    /// most `1 / L` makes every iteration decrease the cost before clipping. `LAMBDA`
+    /// is positive, so `L` is too. Python: `ModelPredictiveController.stable_step`.
+    pub fn stable_step(&self) -> f64 {
+        let frobenius_sq: f64 = self.model.b_matrix.iter().map(|v| v * v).sum();
+        let lipschitz = frobenius_sq * horizon_coupling_spectral_radius(self.horizon) + LAMBDA;
+        LR.min(1.0 / lipschitz)
+    }
+
+    /// Plan by projected gradient descent and return the first action to apply.
+    ///
+    /// The whole action sequence over the horizon is optimised with the exact horizon
+    /// gradient, a step of [`Self::stable_step`], and clipping to `±ACTION_CLIP` after
+    /// each step. Receding-horizon control applies only the first planned action.
     pub fn plan(&self, current_state: &Array1<f64>) -> FusionResult<Array1<f64>> {
         ensure_finite_vector("current_state", current_state)?;
         let n_coils = self.model.b_matrix.ncols();
         let mut actions: Vec<Array1<f64>> =
             (0..self.horizon).map(|_| Array1::zeros(n_coils)).collect();
+        let step = self.stable_step();
 
         for _ in 0..GD_ITERATIONS {
-            // Forward rollout to compute gradients
-            let mut grads: Vec<Array1<f64>> =
-                (0..self.horizon).map(|_| Array1::zeros(n_coils)).collect();
-
-            let mut state = current_state.clone();
-            for t in 0..self.horizon {
-                let next = self.model.predict(&state, &actions[t])?;
-                let error = &next - &self.target;
-                // Gradient of ||error||² w.r.t. u_t = B^T · error
-                let grad = self.model.b_matrix.t().dot(&error) + &actions[t] * LAMBDA;
-                grads[t] = grad;
-                state = next;
-            }
-
-            // Update actions
-            for t in 0..self.horizon {
-                actions[t] = &actions[t] - &(&grads[t] * LR);
-                // Clip
-                for v in actions[t].iter_mut() {
-                    *v = v.clamp(-ACTION_CLIP, ACTION_CLIP);
-                }
+            let (_, grads) = self.horizon_cost_and_gradient(current_state, &actions)?;
+            for (action, grad) in actions.iter_mut().zip(grads.iter()) {
+                *action = &*action - &(grad * step);
+                action.mapv_inplace(|v| v.clamp(-ACTION_CLIP, ACTION_CLIP));
             }
         }
 
@@ -454,21 +499,7 @@ impl MPController {
         let action_sha256 = hash_f64_array(&action);
         let safe_action_sha256 = hash_f64_array(safe_action);
         let burn_action_mask_sha256 = hash_bool_mask(burn_action_mask);
-        let admission_digest = decision_evidence_digest(
-            &state_label,
-            &bank_reason,
-            &reason,
-            bank_feasible,
-            safe_action_applied,
-            burn_components_masked,
-            constraint_slack,
-            mpc_objective,
-            peak_current_a,
-            &action_sha256,
-            &safe_action_sha256,
-            &burn_action_mask_sha256,
-        );
-        Ok(PulsedMpcDecision {
+        let mut decision = PulsedMpcDecision {
             action,
             mpc_objective,
             constraint_slack,
@@ -483,15 +514,19 @@ impl MPController {
             action_sha256,
             safe_action_sha256,
             burn_action_mask_sha256,
-            admission_digest,
-        })
+            admission_digest: String::new(),
+        };
+        decision.admission_digest = decision_evidence_digest(&decision);
+        Ok(decision)
     }
 }
 
+/// Unit tests of the surrogate, the planner, its delay paths and the exact horizon gradient.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// The linear surrogate returns `x + B u`.
     #[test]
     fn test_surrogate_prediction() {
         let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
@@ -505,6 +540,7 @@ mod tests {
         assert!((next[1] - 1.7).abs() < 1e-10);
     }
 
+    /// The first planned action pushes each state component toward its target.
     #[test]
     fn test_mpc_moves_toward_target() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -520,6 +556,7 @@ mod tests {
         assert!(action[1] < 0.0, "Should push Z negative: {}", action[1]);
     }
 
+    /// A strong surrogate far from target still yields actions within the clip.
     #[test]
     fn test_mpc_action_clipped() {
         let b = Array2::from_shape_vec((2, 2), vec![10.0, 0.0, 0.0, 10.0]).unwrap();
@@ -537,6 +574,7 @@ mod tests {
         }
     }
 
+    /// Delayed actions and sensor bias shift the planning start as documented.
     #[test]
     fn test_mpc_delay_and_bias_path() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -569,6 +607,7 @@ mod tests {
         }
     }
 
+    /// The first-order actuator lag filters delayed actions before planning.
     #[test]
     fn test_mpc_delay_dynamics_path() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -601,6 +640,7 @@ mod tests {
         }
     }
 
+    /// A lag coefficient outside [0, 1] or non-finite is refused.
     #[test]
     fn test_mpc_delay_dynamics_rejects_invalid_actuator_lag_alpha() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -621,6 +661,7 @@ mod tests {
             .is_err());
     }
 
+    /// Bias or delayed actions of the wrong length are refused.
     #[test]
     fn test_mpc_delay_and_bias_rejects_mismatched_vector_lengths() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -639,6 +680,7 @@ mod tests {
             .is_err());
     }
 
+    /// Noise or delayed actions of the wrong length are refused on the lag path.
     #[test]
     fn test_mpc_delay_dynamics_rejects_mismatched_vector_lengths() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -657,6 +699,7 @@ mod tests {
             .is_err());
     }
 
+    /// A target whose length differs from the state dimension is refused.
     #[test]
     fn test_mpc_constructor_rejects_target_length_mismatch() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -665,6 +708,7 @@ mod tests {
         assert!(MPController::new(model, bad_target).is_err());
     }
 
+    /// States and actions of the wrong length are refused by the surrogate.
     #[test]
     fn test_surrogate_predict_rejects_state_and_action_shape_mismatch() {
         let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
@@ -679,6 +723,7 @@ mod tests {
             .is_err());
     }
 
+    /// A non-finite `B` or target is refused at construction.
     #[test]
     fn test_mpc_constructor_rejects_non_finite_matrix_or_target_values() {
         let bad_b = Array2::from_shape_vec((2, 2), vec![0.1, f64::NAN, 0.0, 0.1]).unwrap();
@@ -692,6 +737,7 @@ mod tests {
         assert!(MPController::new(model, bad_target).is_err());
     }
 
+    /// Non-finite states and actions are refused by the surrogate.
     #[test]
     fn test_surrogate_predict_rejects_non_finite_state_or_action_values() {
         let b = Array2::from_shape_vec((2, 2), vec![1.0, 0.0, 0.0, 1.0]).unwrap();
@@ -706,6 +752,7 @@ mod tests {
             .is_err());
     }
 
+    /// Both delay paths refuse non-finite states, bias, noise and delayed actions.
     #[test]
     fn test_mpc_delay_paths_reject_non_finite_vectors() {
         let b = Array2::from_shape_vec((2, 2), vec![0.1, 0.0, 0.0, 0.1]).unwrap();
@@ -736,5 +783,114 @@ mod tests {
         assert!(mpc
             .plan_with_delay_dynamics(&measured, &bad_delayed, None, 0.5)
             .is_err());
+    }
+
+    /// A three-state, two-coil controller with `B` scaled by `scale`, and its start state.
+    fn quadratic_fixture(scale: f64) -> (MPController, Array1<f64>) {
+        let b =
+            Array2::from_shape_vec((3, 2), vec![0.7, -0.2, 0.1, 0.5, -0.3, 0.4]).unwrap() * scale;
+        let target = Array1::from_vec(vec![0.4, -0.6, 0.2]);
+        let mpc = MPController::new(NeuralSurrogate::new(b), target).expect("matching target");
+        (mpc, Array1::from_vec(vec![1.0, 0.5, -0.8]))
+    }
+
+    /// A deterministic, non-trivial action sequence of the given horizon.
+    fn sample_actions(horizon: usize) -> Vec<Array1<f64>> {
+        (0..horizon)
+            .map(|t| Array1::from_vec(vec![0.1 * t as f64 - 0.3, 0.2 - 0.05 * t as f64]))
+            .collect()
+    }
+
+    /// The closed form matches the largest eigenvalue for horizons 1, 2 and 3.
+    #[test]
+    fn test_horizon_coupling_spectral_radius_matches_known_values() {
+        // T_1 = [1]; T_2 = [[2, 1], [1, 1]] has the largest eigenvalue (3 + sqrt 5) / 2.
+        assert!((horizon_coupling_spectral_radius(1) - 1.0).abs() < 1e-12);
+        let golden = (3.0 + 5.0_f64.sqrt()) / 2.0;
+        assert!((horizon_coupling_spectral_radius(2) - golden).abs() < 1e-12);
+        // T_3 = [[3, 2, 1], [2, 2, 1], [1, 1, 1]]: power iteration reaches the dominant eigenvector,
+        // whose Rayleigh quotient is the largest eigenvalue.
+        let lambda = horizon_coupling_spectral_radius(3);
+        let t3: Array2<f64> =
+            Array2::from_shape_vec((3, 3), vec![3.0, 2.0, 1.0, 2.0, 2.0, 1.0, 1.0, 1.0, 1.0])
+                .unwrap();
+        let mut v: Array1<f64> = Array1::from_vec(vec![1.0, 1.0, 1.0]);
+        for _ in 0..200 {
+            let w = t3.dot(&v);
+            v = &w / w.dot(&w).sqrt();
+        }
+        assert!((v.dot(&t3.dot(&v)) - lambda).abs() < 1e-10);
+    }
+
+    /// The adjoint gradient equals a central finite difference of the horizon cost.
+    #[test]
+    fn test_horizon_gradient_matches_central_finite_difference() {
+        let (mpc, x0) = quadratic_fixture(1.0);
+        let actions = sample_actions(mpc.horizon);
+        let (_, gradient) = mpc.horizon_cost_and_gradient(&x0, &actions).unwrap();
+        let h = 1e-6;
+        for t in 0..mpc.horizon {
+            for j in 0..2 {
+                let mut plus = actions.clone();
+                let mut minus = actions.clone();
+                plus[t][j] += h;
+                minus[t][j] -= h;
+                let (cp, _) = mpc.horizon_cost_and_gradient(&x0, &plus).unwrap();
+                let (cm, _) = mpc.horizon_cost_and_gradient(&x0, &minus).unwrap();
+                let fd = (cp - cm) / (2.0 * h);
+                assert!(
+                    (gradient[t][j] - fd).abs() < 1e-6,
+                    "t={t} j={j}: adjoint {} vs finite difference {fd}",
+                    gradient[t][j]
+                );
+            }
+        }
+    }
+
+    /// The first gradient entry differs from the one-step term.
+    #[test]
+    fn test_horizon_gradient_includes_later_stage_errors() {
+        // A one-step gradient would make the first entry B^T e_0 + LAMBDA u_0 only.
+        let (mpc, x0) = quadratic_fixture(1.0);
+        let actions = sample_actions(mpc.horizon);
+        let (_, gradient) = mpc.horizon_cost_and_gradient(&x0, &actions).unwrap();
+        let first_error = mpc.model.predict(&x0, &actions[0]).unwrap() - &mpc.target;
+        let one_step = mpc.model.b_matrix.t().dot(&first_error) + &actions[0] * LAMBDA;
+        assert!((&gradient[0] - &one_step).iter().any(|d| d.abs() > 1e-3));
+    }
+
+    /// For a strong surrogate the capped step descends where `LR` overshoots.
+    #[test]
+    fn test_stable_step_decreases_cost_where_the_fixed_rate_diverges() {
+        let (mpc, x0) = quadratic_fixture(3.0);
+        let step = mpc.stable_step();
+        assert!(step < LR);
+        let zero: Vec<Array1<f64>> = (0..mpc.horizon).map(|_| Array1::zeros(2)).collect();
+        let (c0, g0) = mpc.horizon_cost_and_gradient(&x0, &zero).unwrap();
+        let moved = |rate: f64| -> f64 {
+            let next: Vec<Array1<f64>> = zero
+                .iter()
+                .zip(g0.iter())
+                .map(|(u, g)| u - &(g * rate))
+                .collect();
+            mpc.horizon_cost_and_gradient(&x0, &next).unwrap().0
+        };
+        assert!(moved(step) < c0);
+        assert!(moved(LR) > c0);
+    }
+
+    /// A weak surrogate leaves `LR` in force.
+    #[test]
+    fn test_stable_step_keeps_the_rate_for_a_weak_surrogate() {
+        let (mpc, _) = quadratic_fixture(0.05);
+        assert_eq!(mpc.stable_step(), LR);
+    }
+
+    /// Actions of the wrong length are refused by the gradient.
+    #[test]
+    fn test_horizon_gradient_rejects_mismatched_actions() {
+        let (mpc, x0) = quadratic_fixture(1.0);
+        let bad = vec![Array1::from_vec(vec![0.1, 0.2, 0.3])];
+        assert!(mpc.horizon_cost_and_gradient(&x0, &bad).is_err());
     }
 }

@@ -15,6 +15,8 @@ control-plane contracts already owned by SCPN Control.
 The adapter executes the same admission sequence for each step:
 
 1. Compute the first gradient-MPC action from the finite-difference surrogate.
+   The planner descends the exact horizon gradient with a curvature-bounded step
+   (see `ModelPredictiveController` in the API reference).
 2. Resolve the scheduler state from the scheduler, an enum, a string, a mapping,
    or an object with a `state` attribute.
 3. Outside `burn`, replace all configured burn-action components with the safe

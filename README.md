@@ -231,7 +231,7 @@ blocked until the required external artefacts exist.
 | Rust PyO3 exports | 39 |
 | Validation scripts | 275 |
 | Optional extras | 25 |
-| Python test files | 848 |
+| Python test files | 850 |
 | Public documentation pages | 78 |
 | GitHub Actions workflows | 22 |
 

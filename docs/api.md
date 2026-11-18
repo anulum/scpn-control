@@ -2518,6 +2518,24 @@ oscillator model for reactor or facility control.
 
 ::: scpn_control.control.fusion_neural_mpc.ModelPredictiveController
 
+`plan_trajectory` minimises the whole horizon cost
+`sum_t 1/2 ||x_{t+1} - x*||^2 + lambda/2 ||u_t||^2` under the linear surrogate
+`x_{t+1} = x_t + B u_t`.
+
+- **Gradient.** Each action moves every later state, so the gradient carries the
+  later-stage errors as a backward (adjoint) sum: `horizon_cost_and_gradient`.
+- **Step.** The requested learning rate is capped at `1 / L`, where
+  `L = ||B||_F^2 lambda_max(T_H) + lambda` bounds the cost curvature
+  (`stable_step`, `horizon_coupling_spectral_radius`), so each step lowers the
+  cost before clipping.
+- **Return value.** The method returns the first planned action, shape
+  `(n_coils,)`.
+- **Rust.** `MPController::plan` in `scpn-control-rs` follows the same rule.
+
+::: scpn_control.control.fusion_neural_mpc.horizon_cost_and_gradient
+
+::: scpn_control.control.fusion_neural_mpc.horizon_coupling_spectral_radius
+
 ### Optimal Control
 
 ::: scpn_control.control.fusion_optimal_control.OptimalController

@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Gradient MPC — exact horizon gradient
+
+- **Fixed:** the gradient MPC now descends the whole horizon cost.
+  - **The defect:** `ModelPredictiveController.plan_trajectory` and the Rust
+    `MPController::plan` took only the one-step term `B^T e_t + lambda u_t`, but
+    each action moves every later state.
+  - **The fix:** both accumulate the later-stage errors backwards, as an adjoint
+    sum. They cap the step at `1 / L` for the horizon curvature, so a strong
+    surrogate cannot make the descent overshoot.
+  - **Docstring:** it now states the real return value, the first planned action.
+  - **Impact:** planned actions change. The Python and Rust paths stay in parity,
+    and the MPC benchmarks were rerun.
+
 ### Benchmark records — source-bound provenance
 
 - Recorded benchmark runs now bind to the source bytes and runtime they
