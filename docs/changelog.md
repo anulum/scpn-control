@@ -8,12 +8,14 @@
   (RUSTSEC-2026-0486, GHSA-jh2m-fhpj-3vr7: the xattr functions marked
   unwritten bytes as initialised for a zero-length buffer). The fuzz
   lock also drops the now unused windows-sys 0.61.2.
-- The weekly Dependabot pip job had failed since 2026-10-15 on two
-  dependencies. gymnasium 1.4.0 conflicts with the `gymnasium<1.3.0` bound
-  of stable-baselines3 2.8.0, and the resolver cannot install the PyTorch
-  CPU wheel `torch==2.14.0+cpu` from the extra index. Dependabot now ignores
-  gymnasium 1.3+ and torch version updates. torch is relocked by hand;
-  alerts and the locked python-audit gate still cover both.
+- The weekly Dependabot pip job had failed since 2026-10-15. Its relock
+  cannot resolve the hash-checked pip-compile locks chained through `-c`
+  constraints. It failed on gymnasium 1.4.0 against stable-baselines3
+  2.8.0, on `torch==2.14.0+cpu`, and, once those were ignored, on click
+  8.5.1 and pydantic. Its PRs also dropped the `setuptools` pin.
+  Python now follows the `studio-web` policy: Dependabot alerts stay on, no
+  update PRs are opened, and locks are refreshed by hand with each lock's own
+  command. The locked python-audit gate still blocks known vulnerabilities.
 - The test and burn locks move to pytest 9.2.0, Hypothesis 6.170.15 and mypy
   2.4.1 (Dependabot #295–#297), relocked with each lock's own command so that
   `setuptools` 84.2.1 stays pinned. Dependabot's relock dropped it, and the
