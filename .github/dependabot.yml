@@ -29,6 +29,16 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    # stable-baselines3 2.8.0 requires gymnasium <1.3.0, so a gymnasium 1.3+
+    # update cannot resolve and fails the whole weekly job.
+    # The resolver cannot install the PyTorch CPU wheels (`torch==2.14.x+cpu`)
+    # from the extra index. torch is relocked by hand with pip-compile;
+    # Dependabot alerts and the locked python-audit gate still cover it.
+    ignore:
+      - dependency-name: "gymnasium"
+        versions:
+          - ">= 1.3.0"
+      - dependency-name: "torch"
     labels:
       - "dependencies"
       - "python"

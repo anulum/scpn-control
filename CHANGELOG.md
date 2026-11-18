@@ -4,6 +4,12 @@
 
 ### Security — dependency alignment
 
+- The weekly Dependabot pip job had failed since 2026-10-15 on two
+  dependencies. gymnasium 1.4.0 conflicts with the `gymnasium<1.3.0` bound
+  of stable-baselines3 2.8.0, and the resolver cannot install the PyTorch
+  CPU wheel `torch==2.14.0+cpu` from the extra index. Dependabot now ignores
+  gymnasium 1.3+ and torch version updates. torch is relocked by hand;
+  alerts and the locked python-audit gate still cover both.
 - The test and burn locks move to pytest 9.2.0, Hypothesis 6.170.15 and mypy
   2.4.1 (Dependabot #295–#297), relocked with each lock's own command so that
   `setuptools` 84.2.1 stays pinned. Dependabot's relock dropped it, and the
