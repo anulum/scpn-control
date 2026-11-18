@@ -71,8 +71,11 @@ The optional JSON object in `--measurement-json` overrides labels inferred from
 `--steps`, `--iterations`, `--warmup`, `--repeats`, `--samples` and `--n-bench`.
 The last spelling wins; integer spellings become integers and other values stay
 strings. These labels describe the command, not the measured sample population.
-The manifest's source HEAD is repository metadata, not a digest of dirty source
-bytes. Successful custody and an evidence-class label alone do not admit a
+The manifest's source HEAD is repository metadata. The `source_provenance` block
+is the binding to the measured bytes: start and end digests of the declared
+sources, their comparison with the Git index and the drift verdict. A run whose
+sources change mid-run is sealed `tainted`, and only a clean, drift-free,
+succeeded run is `reproducible`. Successful custody and an evidence-class label alone do not admit a
 scientific result, a model or a production deployment.
 
 The v0.20.4 release candidate includes the following repository reports as

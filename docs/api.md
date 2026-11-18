@@ -3688,6 +3688,20 @@ including Windows trailing-dot and reserved-name handling, still apply.
 
 ::: scpn_control.benchmark_record_integrity
 
+Each run manifest (schema `scpn-control.benchmark-run.v2`) binds the run to the
+source content and runtime it measured. A digest of the declared source inputs is
+taken at the start and again at sealing. It covers tracked and untracked files
+under `src/scpn_control`, `scpn-control-rs/crates`, `benchmarks` and `tools`, plus
+the project and lock files, and it never reads secret-like names or caches. Each
+file is compared with the staged Git blob, without spawning Git, giving
+`worktree_vs_index` = `clean`, `dirty` or `unknown`. A digest change during the run
+seals it as `tainted`: the record is kept, but it is never succeeded or reproducible
+and never advances `latest`. `reproducible` is true only for a succeeded run from a
+clean checkout. The runtime block hashes the interpreter and the located native
+extension file without importing it. Historical v1 manifests remain verifiable.
+
+::: scpn_control.benchmark_source_provenance
+
 The source-checkout runner executes an argument vector without a shell, from the
 resolved repository root, and passes the reserved campaign through
 `SCPN_BENCHMARK_CAMPAIGN_ID`. Each repeated `--artifact ROLE=PATH` describes one

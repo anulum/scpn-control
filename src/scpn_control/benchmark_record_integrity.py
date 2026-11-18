@@ -30,8 +30,10 @@ from scpn_control.benchmark_artifacts import (
     sha256_path as _sha256_path,
 )
 
-RUN_SCHEMA = "scpn-control.benchmark-run.v1"
+RUN_SCHEMA = "scpn-control.benchmark-run.v2"
+RUN_SCHEMA_V1 = "scpn-control.benchmark-run.v1"
 LATEST_SCHEMA = "scpn-control.benchmark-latest.v1"
+_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
 _IDENTIFIER = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,95}$")
 
 
@@ -43,6 +45,33 @@ def _sha256_bytes(data: bytes) -> str:
 def _json_bytes(payload: Mapping[str, Any]) -> bytes:
     """Encode the canonical sorted UTF-8 record spelling with its final newline."""
     return (json.dumps(payload, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+
+def _require_source_provenance(manifest: Mapping[str, Any]) -> None:
+    """Refuse a v2 run manifest whose source and runtime provenance is missing or inconsistent.
+
+    A run that the latest index may reference must carry a start and an end source
+    snapshot with equal well-formed digests, no recorded drift, a boolean
+    ``reproducible`` flag and a runtime identity mapping.
+
+    Raises
+    ------
+    ValueError
+        If any of those fields is missing, malformed or contradictory.
+    """
+    provenance = manifest.get("source_provenance")
+    if not isinstance(provenance, Mapping):
+        raise ValueError("benchmark manifest source provenance is missing")
+    start, end = provenance.get("start"), provenance.get("end")
+    if not isinstance(start, Mapping) or not isinstance(end, Mapping):
+        raise ValueError("benchmark manifest source provenance needs start and end snapshots")
+    digest = start.get("tree_sha256")
+    if not isinstance(digest, str) or _SHA256_HEX.fullmatch(digest) is None or end.get("tree_sha256") != digest:
+        raise ValueError("benchmark manifest source snapshots are malformed or differ")
+    if provenance.get("drift") is not False:
+        raise ValueError("benchmark manifest records source drift")
+    if type(manifest.get("reproducible")) is not bool or not isinstance(manifest.get("runtime"), Mapping):
+        raise ValueError("benchmark manifest reproducibility or runtime identity is missing")
 
 
 def load_verified_latest(records_root: Path, family: str) -> tuple[dict[str, Any], dict[str, Any]]:
@@ -110,8 +139,11 @@ def load_verified_latest(records_root: Path, family: str) -> tuple[dict[str, Any
         or manifest.get("empty_output_roles", []) != []
     ):
         raise ValueError("benchmark latest references an inadmissible run")
-    if manifest.get("schema_version") != RUN_SCHEMA or manifest.get("benchmark_family") != run_family:
+    schema = manifest.get("schema_version")
+    if schema not in (RUN_SCHEMA, RUN_SCHEMA_V1) or manifest.get("benchmark_family") != run_family:
         raise ValueError("benchmark manifest schema or family mismatch")
+    if schema == RUN_SCHEMA:
+        _require_source_provenance(manifest)
     unsigned = dict(manifest)
     payload_digest = unsigned.pop("payload_sha256", None)
     if _sha256_bytes(_json_bytes(unsigned)) != payload_digest:

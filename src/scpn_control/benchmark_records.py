@@ -40,6 +40,11 @@ from scpn_control.benchmark_record_integrity import (
 from scpn_control.benchmark_record_integrity import (
     load_verified_latest as load_verified_latest,
 )
+from scpn_control.benchmark_source_provenance import (
+    SourceSnapshot,
+    capture_source_snapshot,
+    runtime_identity,
+)
 
 CAMPAIGN_ENV = "SCPN_BENCHMARK_CAMPAIGN_ID"
 
@@ -47,10 +52,12 @@ _SECRET_OPTION = re.compile(r"(?i)(token|secret|password|credential|api[-_]?key)
 
 
 def _utc_now() -> str:
+    """Return the current UTC time in ISO 8601 with microseconds and a ``Z`` suffix."""
     return datetime.now(UTC).isoformat(timespec="microseconds").replace("+00:00", "Z")
 
 
 def _validate_identifier(value: str, label: str) -> str:
+    """Return ``value`` when it is a safe record identifier, else raise ``ValueError`` naming ``label``."""
     if _IDENTIFIER.fullmatch(value) is None:
         raise ValueError(f"{label} must match {_IDENTIFIER.pattern}")
     return value
@@ -158,6 +165,7 @@ def _git_commit(repository_root: Path) -> str:
 
 
 def _dependency_lock_digest(repository_root: Path) -> tuple[str, list[str]]:
+    """Return the SHA-256 over the present dependency locks and the relative paths it covers."""
     candidates = (
         Path("uv.lock"),
         Path("requirements/ci-test.txt"),
@@ -178,6 +186,7 @@ def _dependency_lock_digest(repository_root: Path) -> tuple[str, list[str]]:
 
 
 def _cpu_model() -> str:
+    """Return the first ``model name`` of ``/proc/cpuinfo``, else ``platform.processor()``, else ``unknown``."""
     try:
         for line in Path("/proc/cpuinfo").read_text(encoding="utf-8").splitlines():
             if line.startswith("model name"):
@@ -188,6 +197,7 @@ def _cpu_model() -> str:
 
 
 def _host_context() -> dict[str, Any]:
+    """Return the host facts recorded at start and end: CPU, affinity, load, platform, Python, isolation labels."""
     affinity_getter: Callable[[int], set[int]] | None = getattr(os, "sched_getaffinity", None)
     load_getter: Callable[[], tuple[float, float, float]] | None = getattr(os, "getloadavg", None)
     affinity = sorted(affinity_getter(0)) if affinity_getter is not None else None
@@ -208,6 +218,7 @@ def _host_context() -> dict[str, Any]:
 
 
 def _display_path(path: Path, repository_root: Path) -> str:
+    """Return ``path`` relative to the repository as POSIX text, or its absolute form outside it."""
     resolved = path.resolve()
     try:
         return resolved.relative_to(repository_root.resolve()).as_posix()
@@ -216,17 +227,20 @@ def _display_path(path: Path, repository_root: Path) -> str:
 
 
 def _write_exclusive(path: Path, data: bytes) -> None:
+    """Create ``path`` with ``data``, refusing to overwrite an existing file."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("xb") as handle:
         handle.write(data)
 
 
 def _copy_file_exclusive(source: Path, destination: Path) -> None:
+    """Copy ``source`` into a newly created ``destination``, refusing an existing one."""
     with destination.open("xb") as target, source.open("rb") as source_handle:
         shutil.copyfileobj(source_handle, target)
 
 
 def _atomic_replace(path: Path, data: bytes) -> None:
+    """Replace ``path`` with ``data`` through an exclusive temporary file and ``os.replace``."""
     path.parent.mkdir(parents=True, exist_ok=True)
     temporary = path.with_name(f".{path.name}.{uuid4().hex}.tmp")
     try:
@@ -252,6 +266,7 @@ class BenchmarkOutput:
     path: Path
 
     def __post_init__(self) -> None:
+        """Refuse an output role that is not a safe record identifier."""
         _validate_identifier(self.role, "output role")
 
 
@@ -281,6 +296,8 @@ class BenchmarkRun:
     legacy: tuple[Mapping[str, Any], ...]
     output_lease: BenchmarkOutputLease
     displaced_outputs: tuple[tuple[Path, Path], ...]
+    source_start: SourceSnapshot
+    runtime_start: Mapping[str, Any]
 
     @classmethod
     def begin(
@@ -446,6 +463,8 @@ class BenchmarkRun:
                 legacy=tuple(legacy_entries),
                 output_lease=lease,
                 displaced_outputs=(),
+                source_start=capture_source_snapshot(root),
+                runtime_start=runtime_identity(),
             )
 
             try:
@@ -583,11 +602,25 @@ class BenchmarkRun:
             )
 
         succeeded = exit_code == 0 and not missing_roles and not empty_roles
+        # Drift policy: a source change between begin and seal taints the run. It is
+        # sealed as evidence but never reported as succeeded or reproducible, and it
+        # cannot advance latest, whatever the producer's exit code.
+        source_end = capture_source_snapshot(self.repository_root)
+        drift = source_end.tree_sha256 != self.source_start.tree_sha256
+        status = "tainted" if drift else ("succeeded" if succeeded else "failed")
         manifest: dict[str, Any] = {
             "schema_version": RUN_SCHEMA,
             "campaign_id": self.campaign_id,
             "benchmark_family": self.family,
-            "status": "succeeded" if succeeded else "failed",
+            "status": status,
+            "reproducible": status == "succeeded" and self.source_start.worktree_vs_index == "clean",
+            "source_provenance": {
+                "start": self.source_start.to_record(),
+                "end": source_end.to_record(),
+                "drift": drift,
+                "drift_policy": "taint",
+            },
+            "runtime": dict(self.runtime_start),
             "exit_code": exit_code,
             "started_utc": self.started_utc,
             "finished_utc": _utc_now(),
@@ -614,7 +647,7 @@ class BenchmarkRun:
         manifest_bytes = _json_bytes(manifest)
         _write_exclusive(manifest_path, manifest_bytes)
 
-        if succeeded:
+        if status == "succeeded":
             manifest_sha256 = _sha256_bytes(manifest_bytes)
             latest = {
                 "schema_version": LATEST_SCHEMA,
