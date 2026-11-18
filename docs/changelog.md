@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Benchmark records — source-bound provenance
+
+- Recorded benchmark runs now bind to the source bytes and runtime they
+  measured (run schema `scpn-control.benchmark-run.v2`).
+- The declared sources are digested at the start and again at sealing.
+  These are the tracked and untracked files of `src/scpn_control`,
+  `scpn-control-rs/crates`, `benchmarks` and `tools`, plus the project and
+  lock files. Secret-like names and caches are never read.
+- Each file is compared with its staged Git blob without spawning Git, under
+  the repository's LF normalisation, giving `worktree_vs_index` = `clean`,
+  `dirty` or `unknown`.
+- A source change during the run seals it as `tainted`. A tainted run is
+  kept, but it is never succeeded or reproducible and never advances
+  `latest`.
+- `reproducible` is true only for a succeeded run from a clean checkout.
+- The runtime block hashes the interpreter, and the native extension file
+  found by its import spec, without importing it.
+- Historical v1 manifests are still verified. A v2 manifest that the latest
+  index references must carry a consistent provenance block.
+
 ### Security — dependency alignment
 
 - rustix moves from 1.1.4 to 1.1.6 in the workspace and fuzz locks
