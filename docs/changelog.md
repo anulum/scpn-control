@@ -4,6 +4,10 @@
 
 ### Security — dependency alignment
 
+- rustix moves from 1.1.4 to 1.1.6 in the workspace and fuzz locks
+  (RUSTSEC-2026-0486, GHSA-jh2m-fhpj-3vr7: the xattr functions marked
+  unwritten bytes as initialised for a zero-length buffer). The fuzz
+  lock also drops the now unused windows-sys 0.61.2.
 - The weekly Dependabot pip job had failed since 2026-10-15 on two
   dependencies. gymnasium 1.4.0 conflicts with the `gymnasium<1.3.0` bound
   of stable-baselines3 2.8.0, and the resolver cannot install the PyTorch
