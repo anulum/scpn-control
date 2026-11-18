@@ -6,4 +6,4 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Ci precommit.
 
-pre-commit==4.6.2
+pre-commit==4.7.0
