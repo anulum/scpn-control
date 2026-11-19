@@ -27,6 +27,7 @@ MD_REPORT = REPORT_DIR / "neural_equilibrium_pretraining.md"
 
 
 def _sha256(path: Path) -> str:
+    """Return the SHA-256 of the file at ``path``, read in 1 MiB chunks."""
     digest = hashlib.sha256()
     with path.open("rb") as handle:
         for chunk in iter(lambda: handle.read(1024 * 1024), b""):

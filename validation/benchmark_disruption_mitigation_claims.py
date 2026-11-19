@@ -27,6 +27,7 @@ MD_REPORT = REPORT_DIR / "disruption_mitigation_claims.md"
 
 
 def _json_default(value: object) -> object:
+    """Serialise NumPy scalars as Python numbers and refuse every other object with the json module's TypeError wording."""
     if isinstance(value, np.generic):
         return value.item()
     raise TypeError(f"Object of type {type(value).__name__} is not JSON serialisable")

@@ -32,6 +32,7 @@ class InventoryOutputError(ValueError):
     __module__ = "tools.report_inventory_output"
 
     def __init__(self, message: str, *, recovery_paths: tuple[Path, ...] = ()) -> None:
+        """Store the refusal message and the paths an operator may need to inspect or restore."""
         super().__init__(message)
         self.recovery_paths = recovery_paths
 

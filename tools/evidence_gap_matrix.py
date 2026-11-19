@@ -60,6 +60,7 @@ def _build_work_packages(
     entries: tuple[TraceabilityEntry, ...],
     trackers: tuple[ExternalValidationTracker, ...],
 ) -> list[EvidenceWorkPackage]:
+    """Group the traceability entries by their external-validation tracker; return one package per tracker with entries, most severe first."""
     tracker_by_issue = {tracker.issue: tracker for tracker in trackers}
     grouped: dict[int, list[TraceabilityEntry]] = {tracker.issue: [] for tracker in trackers}
     for entry in entries:
@@ -84,6 +85,7 @@ def _build_work_packages(
 
 
 def _entry_sort_key(entry: TraceabilityEntry) -> tuple[int, str, str]:
+    """Order entries by descending fidelity-status severity, then component and module path."""
     return (-_STATUS_SEVERITY.get(entry.fidelity_status, 0), entry.component, entry.module_path)
 
 
