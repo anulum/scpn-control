@@ -63,6 +63,7 @@ class SOLConfig:
     b_pol: float
 
     def __post_init__(self) -> None:
+        """Require positive geometry, q95, poloidal field and epsilon, with the minor radius below the major radius."""
         _positive_float("r0", self.r0)
         _positive_float("a", self.a)
         _positive_float("q95", self.q95)
