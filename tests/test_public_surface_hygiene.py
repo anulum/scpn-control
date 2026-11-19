@@ -12,6 +12,7 @@ from __future__ import annotations
 import doctest
 import os
 import pydoc
+import runpy
 import shutil
 import stat
 import subprocess
@@ -737,3 +738,21 @@ def test_native_actual_document_example_and_rendering(tmp_path: Path) -> None:
 def test_actual_traceability_artifacts_keep_review_paths_private(path: str) -> None:
     """The real public registry and generated report expose public evidence references without private audit paths."""
     assert scan_text(path, (guard.REPO_ROOT / path).read_text(encoding="utf-8")) == []
+
+
+def test_missing_repository_root_is_refused_in_process(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """A root that does not exist is not a link loop; enumeration is refused with status2."""
+    assert guard.main(["--repo", str(tmp_path / "missing")]) == 2
+    assert "FAIL: could not enumerate tracked public files" in capsys.readouterr().out
+
+
+def test_script_entry_exits_with_the_refusal_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: CaptureFixture[str]
+) -> None:
+    """Executed as a script, the module exits with the status that main returns."""
+    script = guard.REPO_ROOT / "tools/check_public_surface_hygiene.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--repo", str(tmp_path / "missing")])
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(script), run_name="__main__")
+    assert script_exit.value.code == 2
+    assert "FAIL: could not enumerate tracked public files" in capsys.readouterr().out

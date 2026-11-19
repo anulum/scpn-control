@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import re
+import runpy
 import shutil
 import subprocess
 import sys
@@ -226,3 +227,22 @@ def test_actual_native_declaration_change_refuses_stale_registry(copied_api_chec
     result = cli(copied_api_checkout)
     assert result.returncode == 1 and result.stderr == ""
     assert "scpn_solver_create_v2" in result.stdout
+
+
+def test_missing_operator_root_is_refused_in_process(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """A root that does not exist is not a link loop; it is refused as unreadable input with status2."""
+    assert check_api_contracts.main(["--repo", str(tmp_path / "missing")]) == 2
+    assert capsys.readouterr().out == "API contract inspection refused: could not read a required API input as UTF-8\n"
+
+
+def test_script_entry_exits_with_the_refusal_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Executed as a script, the module puts its repository on sys.path and exits with main's status."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setattr(sys, "argv", [str(TOOL), "--repo", str(tmp_path / "missing")])
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(TOOL), run_name="__main__")
+    assert script_exit.value.code == 2
+    assert sys.path[0] == str(ROOT)
+    assert capsys.readouterr().out.startswith("API contract inspection refused:")

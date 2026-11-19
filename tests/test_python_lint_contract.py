@@ -271,3 +271,13 @@ def test_stale_hook_filter_is_a_contract_refusal(tmp_path: Path) -> None:
     assert len(errors) == 1 and "check-python-lint-contract" in errors[0]
     result = _cli(tmp_path)
     assert result.returncode == 1 and result.stderr == "" and errors[0] in result.stdout
+
+
+def test_missing_repository_root_reports_every_surface_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """A root that does not exist is not a link loop; each required surface is reported missing."""
+    assert gate.main(["--repo", str(tmp_path / "missing")]) == 1
+    output = capsys.readouterr().out
+    assert "missing contract surface: .pre-commit-config.yaml" in output
+    assert "missing contract surface: tools/preflight.py" in output
