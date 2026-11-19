@@ -98,6 +98,12 @@ def _python_benchmarks(
     discharge_iterations: int,
     warmup: int,
 ) -> dict[str, dict[str, float]]:
+    """Time the Python free response, single step and 10-step discharge on one fixed bank.
+
+    The bank is 100 uF, 100 uH, 0.5 ohm, 10 kV maximum, charged to 5 kV. Each
+    surface is warmed up first; the discharge warm-up uses ``max(1, warmup // 100)``
+    runs, the same count as the Rust harness. Returns nanosecond statistics per surface.
+    """
     spec = CapacitorBankSpec(
         capacitance_F=100e-6,
         inductance_H=100e-6,
@@ -138,6 +144,14 @@ def _rust_benchmarks(
     discharge_iterations: int,
     warmup: int,
 ) -> dict[str, object]:
+    """Build and run the embedded Rust harness against the checked-in crate, or report it skipped.
+
+    Without ``cargo`` on the path the result is ``{"skipped": True, "reason": ...}``.
+    Otherwise a temporary release-mode Cargo project depends on the crate by path,
+    runs with the same iteration counts as the Python side, and its single JSON
+    line is returned. A failed build or run raises ``CalledProcessError``; a run
+    longer than 180 s raises ``TimeoutExpired``.
+    """
     if shutil.which("cargo") is None:
         return {"skipped": True, "reason": "cargo not found"}
     with tempfile.TemporaryDirectory(prefix="scpn_capacitor_bench_") as tmp:
@@ -183,6 +197,7 @@ def _rust_benchmarks(
 
 
 def _measure_ns(n: int, fn: Callable[[], object]) -> list[int]:
+    """Return ``n`` wall-clock durations of ``fn()`` in nanoseconds, one call per sample."""
     samples: list[int] = []
     for _ in range(n):
         t0 = time.perf_counter_ns()
@@ -192,6 +207,11 @@ def _measure_ns(n: int, fn: Callable[[], object]) -> list[int]:
 
 
 def _stats(samples_ns: list[int]) -> dict[str, float]:
+    """Summarise nonempty nanosecond samples as the Rust harness does.
+
+    The median averages the two middle samples for an even count; p95 and p99
+    are nearest-rank values at index ``int(n * q)``, capped at the last sample.
+    """
     sorted_ns = sorted(samples_ns)
     return {
         "n": float(len(samples_ns)),
@@ -207,6 +227,7 @@ def _stats(samples_ns: list[int]) -> dict[str, float]:
 def _host_context(
     *, load_before: tuple[float, float, float] | None, load_after: tuple[float, float, float] | None
 ) -> dict[str, object]:
+    """Return the host description stored with the timings; absent probes are None."""
     return {
         "platform": platform.platform(),
         "python": platform.python_version(),
@@ -222,6 +243,7 @@ def _host_context(
 
 
 def _affinity() -> list[int] | None:
+    """Return the sorted CPU affinity of this process, or None where the OS has no affinity call."""
     getter = getattr(os, "sched_getaffinity", None)
     if getter is None:
         return None
@@ -229,6 +251,7 @@ def _affinity() -> list[int] | None:
 
 
 def _loadavg() -> tuple[float, float, float] | None:
+    """Return the 1-, 5- and 15-minute load averages, or None where they are unavailable."""
     try:
         one, five, fifteen = os.getloadavg()
     except (AttributeError, OSError):
@@ -237,6 +260,7 @@ def _loadavg() -> tuple[float, float, float] | None:
 
 
 def _governor() -> str | None:
+    """Return the cpu0 frequency governor, or None when the sysfs entry is absent."""
     path = Path("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor")
     if not path.exists():
         return None
@@ -244,6 +268,7 @@ def _governor() -> str | None:
 
 
 def _command_version(cmd: list[str]) -> str | None:
+    """Return the first nonempty stream of a version command, or None when it is absent or silent."""
     if shutil.which(cmd[0]) is None:
         return None
     completed = subprocess.run(cmd, check=False, text=True, capture_output=True, timeout=10)
@@ -251,6 +276,7 @@ def _command_version(cmd: list[str]) -> str | None:
 
 
 def _markdown_report(report: dict[str, object], json_path: Path) -> str:
+    """Render the Markdown summary of ``report`` that names ``json_path`` as its evidence."""
     benchmarks = report["benchmarks"]
     assert isinstance(benchmarks, dict)
     python_results = benchmarks["python"]
@@ -348,11 +374,16 @@ fn stats_json(samples: &[u128]) -> String {
     sorted.sort_unstable();
     let n = sorted.len();
     let sum: u128 = sorted.iter().sum();
+    let median = if n % 2 == 0 {
+        (sorted[n / 2 - 1] + sorted[n / 2]) as f64 / 2.0
+    } else {
+        sorted[n / 2] as f64
+    };
     format!(
         "{{\"n\":{},\"mean\":{},\"median\":{},\"p95\":{},\"p99\":{},\"min\":{},\"max\":{}}}",
         n,
         sum as f64 / n as f64,
-        sorted[n / 2],
+        median,
         sorted[((n as f64 * 0.95) as usize).min(n - 1)],
         sorted[((n as f64 * 0.99) as usize).min(n - 1)],
         sorted[0],
