@@ -167,6 +167,14 @@ def test_actual_missing_literal_binding_refuses(copied_api_checkout: Path) -> No
         inventory.build_inventory(copied_api_checkout)
 
 
+def test_actual_missing_family_root_refuses(copied_api_checkout: Path) -> None:
+    """A family whose root directory is absent is refused as missing, not read as an empty pass."""
+    family = copied_api_checkout / "studio-web/src"
+    family.rename(family.with_name("src.held"))
+    with pytest.raises(inventory.ApiContractInspectionError, match="empty or missing"):
+        inventory.build_inventory(copied_api_checkout)
+
+
 def test_actual_source_family_enumeration_refusal(copied_api_checkout: Path) -> None:
     """A real excessive symlink target refuses source enumeration without OS details."""
     family = copied_api_checkout / "scpn-control-rs/crates"
