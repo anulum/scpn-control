@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import shlex
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -22,6 +23,7 @@ if TYPE_CHECKING:
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPORT = ROOT / "validation" / "reports" / "differentiable_scenario_readiness.json"
 SCHEMA_VERSION = "scpn-control.differentiable-scenario-readiness.v1"
+PRODUCER_SCRIPT = "validation/benchmark_differentiable_scenario.py"
 
 
 def validate_differentiable_scenario_report(path: str | Path = DEFAULT_REPORT) -> dict[str, Any]:
@@ -58,6 +60,7 @@ def validate_differentiable_scenario_report(path: str | Path = DEFAULT_REPORT) -
 
 
 def _validate_blocked(payload: dict[str, Any], errors: list[dict[str, object]]) -> None:
+    """Require a blocked report to name the missing JAX backend and to make no gradient claim."""
     reason = payload.get("reason")
     if not isinstance(reason, str) or "JAX" not in reason:
         errors.append({"field": "reason", "error": "blocked report must explain missing JAX backend"})
@@ -65,6 +68,7 @@ def _validate_blocked(payload: dict[str, Any], errors: list[dict[str, object]]) 
 
 
 def _validate_campaign(value: Any, errors: list[dict[str, object]]) -> None:
+    """Check the campaign metadata: schema, JAX float64 backend, grid sizes, step, tolerance, parameters and input digest."""
     if not isinstance(value, dict):
         errors.append({"field": "campaign_metadata", "error": "campaign_metadata must be an object"})
         return
@@ -93,6 +97,7 @@ def _validate_campaign(value: Any, errors: list[dict[str, object]]) -> None:
 
 
 def _validate_audit(value: Any, errors: list[dict[str, object]]) -> None:
+    """Check the gradient audit's finite bounds, both parameters and unique source checks, and that its pass flag matches the tolerance."""
     if not isinstance(value, dict):
         errors.append({"field": "gradient_audit", "error": "gradient_audit must be an object"})
         return
@@ -125,6 +130,7 @@ def _validate_audit(value: Any, errors: list[dict[str, object]]) -> None:
 
 
 def _validate_readiness(value: Any, errors: list[dict[str, object]]) -> None:
+    """Check the readiness block: digests, tolerance, a passed audit, latency, and a claim kept blocked on physics traceability."""
     if not isinstance(value, dict):
         errors.append({"field": "readiness", "error": "readiness must be an object"})
         return
@@ -156,16 +162,11 @@ def _validate_readiness(value: Any, errors: list[dict[str, object]]) -> None:
 
 
 def _validate_benchmark_context(value: Any, errors: list[dict[str, object]]) -> None:
+    """Check the timing context: producer command, isolation label, one warm-up, and one positive duration per timed run."""
     if not isinstance(value, dict):
         errors.append({"field": "benchmark_context", "error": "benchmark_context must be an object"})
         return
-    _require_value(
-        value,
-        "command",
-        "python validation/benchmark_differentiable_scenario.py",
-        errors,
-        prefix="benchmark_context.",
-    )
+    _validate_command(value.get("command"), errors)
     _require_value(
         value,
         "isolation",
@@ -188,8 +189,40 @@ def _validate_benchmark_context(value: Any, errors: list[dict[str, object]]) -> 
         errors.append({"field": "benchmark_context.durations_ms", "error": "duration count must match timed_runs"})
 
 
+def _validate_command(value: object, errors: list[dict[str, object]]) -> None:
+    """Accept the producer's recorded command: the bare script, or the script with both output paths.
+
+    The producer records ``python validation/benchmark_differentiable_scenario.py
+    --json-out <path> --md-out <path>``; reports written before it recorded the
+    paths carry the bare form. Any other program, script, option or a string
+    that does not tokenise is refused.
+    """
+    try:
+        tokens = shlex.split(value) if isinstance(value, str) else []
+    except ValueError:
+        tokens = []
+    bare = tokens == ["python", PRODUCER_SCRIPT]
+    with_outputs = (
+        len(tokens) == 6
+        and tokens[:2] == ["python", PRODUCER_SCRIPT]
+        and tokens[2] == "--json-out"
+        and tokens[4] == "--md-out"
+        and all(tokens[index].strip() for index in (3, 5))
+    )
+    if not (bare or with_outputs):
+        errors.append(
+            {
+                "field": "benchmark_context.command",
+                "error": f"command must run python {PRODUCER_SCRIPT}, optionally with --json-out and --md-out paths",
+            }
+        )
+
+
 def _load_json(path: Path) -> dict[str, Any]:
+    """Read UTF-8 JSON from ``path`` and refuse duplicate keys at any depth; the root must be an object."""
+
     def reject_duplicates(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+        """Build one JSON object, raising ValueError on a repeated key."""
         seen: set[str] = set()
         result: dict[str, Any] = {}
         for key, value in pairs:
@@ -213,11 +246,13 @@ def _require_value(
     *,
     prefix: str = "",
 ) -> None:
+    """Record an error unless ``payload[field]`` equals ``expected``."""
     if payload.get(field) != expected:
         errors.append({"field": f"{prefix}{field}", "error": f"expected {expected!r}"})
 
 
 def _is_sha256_hex(value: object) -> bool:
+    """Return whether ``value`` is a 64-character hexadecimal string."""
     if not isinstance(value, str) or len(value) != 64:
         return False
     try:
@@ -228,27 +263,38 @@ def _is_sha256_hex(value: object) -> bool:
 
 
 def _finite_number(value: object) -> TypeIs[float]:
-    return isinstance(value, int | float) and math.isfinite(float(value))
+    """Return whether ``value`` is an int or float with a finite value; an integer too large for a float is not."""
+    if not isinstance(value, int | float):
+        return False
+    try:
+        return math.isfinite(float(value))
+    except OverflowError:
+        return False
 
 
 def _finite_positive(value: object) -> bool:
+    """Return whether ``value`` is a finite number greater than zero."""
     return _finite_number(value) and float(value) > 0.0
 
 
 def _finite_non_negative(value: object) -> bool:
+    """Return whether ``value`` is a finite number not below zero."""
     return _finite_number(value) and float(value) >= 0.0
 
 
 def _positive_int(value: object) -> bool:
+    """Return whether ``value`` is an integer greater than zero."""
     return isinstance(value, int) and value > 0
 
 
 def _validate_pair(value: object, field: str, errors: list[dict[str, object]]) -> None:
+    """Record an error unless ``value`` is a list of two positive integers."""
     if not isinstance(value, list) or len(value) != 2 or not all(_positive_int(item) for item in value):
         errors.append({"field": field, "error": "field must be a two-integer shape"})
 
 
 def _nested_bool(payload: dict[str, Any], parent: str, field: str) -> bool | None:
+    """Return ``payload[parent][field]`` when it is a boolean, else None."""
     value = payload.get(parent)
     if isinstance(value, dict) and isinstance((field_value := value.get(field)), bool):
         return field_value
@@ -256,6 +302,7 @@ def _nested_bool(payload: dict[str, Any], parent: str, field: str) -> bool | Non
 
 
 def _nested_list(payload: dict[str, Any], parent: str, field: str) -> list[object] | None:
+    """Return ``payload[parent][field]`` when it is a list, else None."""
     value = payload.get(parent)
     if isinstance(value, dict) and isinstance((field_value := value.get(field)), list):
         return field_value
