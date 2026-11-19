@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Baseline promotion — historical runs accepted again
+
+- **Fixed:** baseline promotion again accepts historical
+  `scpn-control.benchmark-run.v1` source runs. The run-schema bump to v2 had
+  narrowed the promotion reader to v2 runs only, which silently made every
+  earlier run unpromotable.
+- **v2 provenance:** a v2 source run must now also carry consistent source
+  provenance (equal start and end digests, no drift), checked by the same
+  validator as the latest-run reader.
+
 ### Validation reports — lifecycle custody restored
 
 - **Fixed:** two benchmark runs had written into `validation/reports/`. That root holds

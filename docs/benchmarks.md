@@ -1798,7 +1798,10 @@ The promotion API retains `promote(...) -> Path` and
 `build_baseline(report, ...) -> dict` in `tools.promote_benchmark_baseline`.
 Source JSON must have unique member names, finite values and valid consumed
 run/report fields. The artifact digest and decoded report use one captured
-buffer. Authority references and hardware decisions remain caller declarations;
+buffer. The source run may be a historical `scpn-control.benchmark-run.v1`
+record or a `v2` record; a `v2` run must also carry consistent source
+provenance, with equal start and end source digests and no recorded drift.
+Authority references and hardware decisions remain caller declarations;
 matching digests do not authenticate an owner, producer, host or Git object.
 
 Baseline destinations must remain inside the selected repository and outside

@@ -64,3 +64,46 @@ def test_public_reader_refuses_invalid_artifact_binding_fields(tmp_path: Path, k
     with pytest.raises(PromotionInputError):
         load_promotion_source(corpus.manifest, "report", corpus.source_digest, corpus.root)
     assert before == (corpus.manifest.read_bytes(), corpus.artifact.read_bytes())
+
+
+def _resealed(value: dict[str, object]) -> bytes:
+    """Return manifest bytes with a payload digest recomputed for the edited fields."""
+    unsigned = {key: item for key, item in value.items() if key != "payload_sha256"}
+    value["payload_sha256"] = hashlib.sha256(
+        (json.dumps(unsigned, indent=2, sort_keys=True) + "\n").encode()
+    ).hexdigest()
+    return json.dumps(value).encode("utf-8")
+
+
+def test_public_reader_still_accepts_a_historical_v1_run(tmp_path: Path) -> None:
+    """A run recorded before source provenance existed stays promotable from its exact bytes."""
+    corpus = make_corpus(tmp_path / "corpus")
+    value = cast(dict[str, object], json.loads(corpus.manifest.read_bytes()))
+    assert value["schema_version"] == "scpn-control.benchmark-run.v2"
+    value["schema_version"] = "scpn-control.benchmark-run.v1"
+    for key in ("source_provenance", "reproducible", "runtime"):
+        value.pop(key)
+    corpus.manifest.write_bytes(_resealed(value))
+
+    manifest, artifact, digest, _ = load_promotion_source(corpus.manifest, "report", corpus.source_digest, corpus.root)
+
+    assert manifest["schema_version"] == "scpn-control.benchmark-run.v1"
+    assert (artifact, digest) == (corpus.artifact, corpus.source_digest)
+
+
+@pytest.mark.parametrize("kind", ["drift", "missing", "digest-mismatch"])
+def test_public_reader_refuses_a_v2_run_without_consistent_provenance(tmp_path: Path, kind: str) -> None:
+    """A v2 run that claims success must also bind one unchanged source snapshot."""
+    corpus = make_corpus(tmp_path / "corpus")
+    value = cast(dict[str, object], json.loads(corpus.manifest.read_bytes()))
+    provenance = cast(dict[str, object], value["source_provenance"])
+    if kind == "drift":
+        provenance["drift"] = True
+    elif kind == "missing":
+        value.pop("source_provenance")
+    else:
+        cast(dict[str, object], provenance["end"])["tree_sha256"] = "0" * 64
+    corpus.manifest.write_bytes(_resealed(value))
+
+    with pytest.raises(PromotionInputError, match="source provenance is missing or inconsistent"):
+        load_promotion_source(corpus.manifest, "report", corpus.source_digest, corpus.root)

@@ -15,7 +15,7 @@ import math
 from pathlib import Path
 from typing import cast
 
-from scpn_control.benchmark_records import RUN_SCHEMA
+from scpn_control.benchmark_record_integrity import RUN_SCHEMA, RUN_SCHEMA_V1, _require_source_provenance
 from tools.baseline_promotion_payloads import REPORT_SCHEMA, PromotionInputError, canonical_digest, json_bytes
 
 
@@ -70,8 +70,14 @@ def _artifact_binding(
     if "runs" not in manifest_path.parts or manifest_path.name != "manifest.json":
         raise PromotionInputError("source manifest is not inside an immutable runs directory")
     manifest = _object(manifest_path.read_bytes())
-    if manifest.get("schema_version") != RUN_SCHEMA or manifest.get("status") != "succeeded":
+    schema = manifest.get("schema_version")
+    if schema not in (RUN_SCHEMA, RUN_SCHEMA_V1) or manifest.get("status") != "succeeded":
         raise PromotionInputError("source manifest is not a successful benchmark run")
+    if schema == RUN_SCHEMA:
+        try:
+            _require_source_provenance(manifest)
+        except ValueError:
+            raise PromotionInputError("source manifest source provenance is missing or inconsistent") from None
     unsigned = {key: value for key, value in manifest.items() if key != "payload_sha256"}
     if manifest.get("payload_sha256") != hashlib.sha256(json_bytes(unsigned)).hexdigest():
         raise PromotionInputError("source manifest payload digest is invalid")
@@ -127,7 +133,10 @@ def load_promotion_source(
     Parameters
     ----------
     manifest_path : pathlib.Path
-        Repository-local immutable successful run manifest.
+        Repository-local immutable successful run manifest. Historical
+        ``scpn-control.benchmark-run.v1`` runs are accepted as before; a v2 run
+        must also carry consistent source provenance, with equal start and end
+        source digests and no recorded drift.
     artifact_role : str
         Selected role requiring exactly one immutable file declaration.
     expected_source_sha256 : str
