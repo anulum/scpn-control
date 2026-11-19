@@ -19,7 +19,10 @@ import numpy as np
 import numpy.typing as npt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
+# Run as a script, put the checkout's sources first; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.differentiable_transport import (
@@ -45,6 +48,7 @@ FORMAL_REPORT = REPORT_DIR / "scpn_z3_formal.json"
 
 
 def _profiles(rho: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Return the fixed (Te, Ti, ne, n_impurity) profiles on ``rho``, stacked as shape (4, n_rho)."""
     te = 8.0 * np.exp(-((rho - 0.35) ** 2) / 0.03) + 0.2
     ti = 6.0 * np.exp(-((rho - 0.42) ** 2) / 0.04) + 0.2
     ne = 4.0 + 0.8 * (1.0 - rho**2)

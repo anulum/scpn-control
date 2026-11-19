@@ -20,10 +20,12 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT / "src", ROOT):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.jax_gk_solver import JAX_GK_PARITY_CASES, has_jax, write_jax_gk_parity_artifact
@@ -68,6 +70,7 @@ def build_report_markdown(report: dict[str, Any]) -> str:
 
 
 def _sha256_json(payload: dict[str, Any]) -> str:
+    """Return the SHA-256 of the canonical compact JSON of ``payload`` without its own digest field."""
     import hashlib
 
     digest_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}

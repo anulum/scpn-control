@@ -23,7 +23,10 @@ import numpy as np
 import numpy.typing as npt
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
+# Run as a script, put the checkout's sources first; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 
@@ -34,6 +37,7 @@ SCHEMA_VERSION = "scpn-control.differentiable-scenario-readiness.v1"
 
 
 def _profiles(rho: npt.NDArray[np.floating[Any]]) -> npt.NDArray[np.floating[Any]]:
+    """Return the fixed (Te, Ti, ne, n_impurity) profiles on ``rho``, stacked as shape (4, n_rho)."""
     te = 8.0 * np.exp(-((rho - 0.35) ** 2) / 0.03) + 0.2
     ti = 6.0 * np.exp(-((rho - 0.42) ** 2) / 0.04) + 0.2
     ne = 4.0 + 0.8 * (1.0 - rho**2)
@@ -42,6 +46,12 @@ def _profiles(rho: npt.NDArray[np.floating[Any]]) -> npt.NDArray[np.floating[Any
 
 
 def _scenario_fixture() -> tuple[npt.NDArray[np.floating[Any]], ...]:
+    """Return the fixed coupled-scenario inputs on 16 radial points and three rollout steps.
+
+    The target is the NumPy rollout of the fixture sources, offset in two
+    channels so the source gradient is nonzero. The tuple order is params,
+    profiles, chi, sources, target, rho, r_grid, z_grid, dt, edge.
+    """
     from scpn_control.core.differentiable_transport import differentiable_transport_rollout
 
     rho = np.linspace(0.05, 1.0, 16)
@@ -71,6 +81,7 @@ def _scenario_fixture() -> tuple[npt.NDArray[np.floating[Any]], ...]:
 
 
 def _loadavg() -> tuple[float, float, float] | None:
+    """Return the 1-, 5- and 15-minute load averages, or None where they are unavailable."""
     getloadavg = getattr(os, "getloadavg", None)
     if getloadavg is None:
         return None
@@ -82,6 +93,7 @@ def _loadavg() -> tuple[float, float, float] | None:
 
 
 def _blocked_payload(reason: str) -> dict[str, Any]:
+    """Return the blocked report payload that records ``reason`` and makes no gradient claim."""
     return {
         "schema_version": SCHEMA_VERSION,
         "status": "blocked",
@@ -91,6 +103,7 @@ def _blocked_payload(reason: str) -> dict[str, Any]:
 
 
 def _write_markdown(payload: dict[str, Any], path: Path) -> None:
+    """Write the Markdown summary of a blocked or passing payload, creating the parent directory."""
     status = str(payload["status"])
     readiness = payload.get("readiness", {})
     raw_blocked_reasons = readiness.get("blocked_reasons", []) if isinstance(readiness, dict) else []
@@ -133,6 +146,7 @@ def _write_markdown(payload: dict[str, Any], path: Path) -> None:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse ``--json-out`` and ``--md-out``; both default to the committed report paths."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--json-out",
@@ -150,6 +164,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
 
 
 def _producer_command(json_out: Path, md_out: Path) -> str:
+    """Return the shell-quoted command line that reproduces this run's outputs."""
     return shlex.join(
         [
             "python",

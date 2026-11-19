@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -76,6 +77,7 @@ def test_loadavg_is_explicit_when_supported_or_unavailable(monkeypatch: pytest.M
     assert benchmark._loadavg() == (1.0, 2.0, 3.0)
 
     def unavailable() -> tuple[float, float, float]:
+        """Fail as a host without load averages does."""
         raise OSError("load average unavailable")
 
     monkeypatch.setattr(os, "getloadavg", unavailable)
@@ -87,6 +89,8 @@ def test_loadavg_is_explicit_when_supported_or_unavailable(monkeypatch: pytest.M
 
 @dataclass(frozen=True)
 class _Metadata:
+    """Stand-in campaign metadata with the fields the Markdown writer reads."""
+
     backend: str = "jax"
     n_rho: int = 2
     n_steps: int = 1
@@ -96,11 +100,15 @@ class _Metadata:
 
 @dataclass(frozen=True)
 class _Audit:
+    """Stand-in gradient audit that only reports whether it passed."""
+
     passed: bool = True
 
 
 @dataclass(frozen=True)
 class _Readiness:
+    """Stand-in readiness evidence with digests, latency and a closed claim."""
+
     campaign_sha256: str = "a" * 64
     gradient_audit_sha256: str = "b" * 64
     latency_p95_ms: float = 2.0
@@ -154,3 +162,29 @@ def test_markdown_tolerates_malformed_optional_readiness_context(tmp_path: Path)
     benchmark._write_markdown(payload, path)
 
     assert "Reason: blocked for test" in path.read_text(encoding="utf-8")
+
+
+def test_script_refuses_the_committed_reports_without_a_campaign(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a script with its default outputs, the producer stops at the recorded-campaign guard."""
+    import runpy
+
+    monkeypatch.delenv("SCPN_BENCHMARK_CAMPAIGN_ID", raising=False)
+    monkeypatch.setattr(sys, "argv", [str(benchmark.__file__)])
+    with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
+        runpy.run_path(str(benchmark.__file__), run_name="__main__")
+
+
+def test_import_path_changes_only_for_a_script_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A package import leaves the import path alone; a script run from a stripped path puts src first."""
+    import importlib
+    import runpy
+
+    root = Path(str(benchmark.__file__)).resolve().parents[1]
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {root, root / "src"}]
+    monkeypatch.setattr(sys, "path", list(stripped))
+    importlib.reload(benchmark)
+    assert sys.path == stripped
+    monkeypatch.setattr(sys, "argv", [str(benchmark.__file__), "--help"])
+    with pytest.raises(SystemExit):
+        runpy.run_path(str(benchmark.__file__), run_name="__main__")
+    assert sys.path[0] == str(root / "src")

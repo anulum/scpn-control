@@ -24,6 +24,8 @@ from typing import Any
 
 import pytest
 
+import validation.benchmark_jax_gk_parity as parity_benchmark
+from scpn_control.benchmark_records import CAMPAIGN_ENV
 from scpn_control.core.jax_gk_solver import _HAS_JAX, write_jax_gk_parity_artifact
 from validation import validate_jax_gk_parity as parity_module
 from validation.benchmark_jax_gk_parity import build_benchmark_report, write_benchmark_report
@@ -677,3 +679,129 @@ def test_native_module_examples_are_executable() -> None:
     """Execute the native public empty-directory example without a mock or physical model."""
     result = doctest.testmod(parity_module, raise_on_error=True)
     assert result.failed == 0 and result.attempted >= 2
+
+
+def _benchmark_argv(tmp_path: Path, *extra: str) -> list[str]:
+    """Return producer arguments that keep every output under ``tmp_path``."""
+    return [
+        "--artifact-root",
+        str(tmp_path / "artifacts"),
+        "--benchmark-json-out",
+        str(tmp_path / "benchmark.json"),
+        "--benchmark-report-out",
+        str(tmp_path / "benchmark.md"),
+        *extra,
+    ]
+
+
+def test_parity_summary_tabulates_entries_and_lists_errors() -> None:
+    """The evidence summary has one table row per entry and names each refusal with its field."""
+    report: dict[str, Any] = {
+        "status": "fail",
+        "parity_artifacts": 1,
+        "max_gamma_relative_error": 0.5,
+        "max_omega_absolute_error": 0.1,
+        "entries_payload_sha256": "ab" * 32,
+        "entries": [
+            {
+                "case": "cyclone_base_case",
+                "backend": "cpu",
+                "dtype": "float64",
+                "x64_enabled": True,
+                "native_dominant_mode_type": "ITG",
+                "jax_dominant_mode_type": "ITG",
+                "gamma_relative_error": 0.5,
+                "omega_absolute_error": 0.1,
+            }
+        ],
+        "errors": [
+            {"path": "a.json", "field": "gamma", "error": "out of tolerance"},
+            {"path": "b.json", "error": "unreadable"},
+        ],
+    }
+    text = parity_benchmark.build_report_markdown(report)
+    assert "| cyclone_base_case | cpu | float64 | True | ITG | ITG | 0.5 | 0.1 |" in text
+    assert "- `a.json` `gamma`: out of tolerance" in text
+    assert "- `b.json` `unknown`: unreadable" in text
+    assert "## Errors" not in parity_benchmark.build_report_markdown({**report, "errors": []})
+
+
+@pytest.mark.parametrize("json_out", [True, False])
+def test_benchmark_main_reports_blocked_without_jax(
+    json_out: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without a JAX runtime the producer exits 2, reports the block and writes nothing."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    monkeypatch.setattr(parity_benchmark, "has_jax", lambda: False)
+    assert parity_benchmark.main(_benchmark_argv(tmp_path, *(["--json-out"] if json_out else []))) == 2
+    captured = capsys.readouterr()
+    if json_out:
+        report = json.loads(captured.out)
+        assert report["status"] == "blocked"
+        assert report["errors"][0]["field"] == "jax"
+    else:
+        assert "JAX GK parity: blocked parity_artifacts=0" in captured.err
+    assert not (tmp_path / "artifacts").exists()
+    assert not (tmp_path / "benchmark.json").exists()
+
+
+@pytest.mark.skipif(not _HAS_JAX, reason="JAX not installed")
+@pytest.mark.parametrize("json_out", [True, False])
+def test_benchmark_main_runs_one_case_and_writes_its_reports(
+    json_out: bool, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One real native/JAX case yields an admitted artifact, its summary and the separate timing report."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    argv = _benchmark_argv(
+        tmp_path,
+        "--case",
+        "cyclone_base_case",
+        "--n-ky-ion",
+        "2",
+        "--n-theta",
+        "8",
+        "--gamma-relative-tolerance",
+        "1.0",
+        "--omega-absolute-tolerance",
+        "1.0",
+        *(["--json-out"] if json_out else []),
+    )
+    assert parity_benchmark.main(argv) == 0
+    benchmark = json.loads((tmp_path / "benchmark.json").read_text(encoding="utf-8"))
+    assert benchmark["status"] == "pass"
+    assert benchmark["cases_requested"] == ["cyclone_base_case"]
+    assert benchmark["generated_artifact_count"] == 1
+    assert "# JAX GK Parity Evidence" in (tmp_path / "artifacts" / "jax_gk_parity.md").read_text(encoding="utf-8")
+    assert "# JAX GK Parity Benchmark Report" in (tmp_path / "benchmark.md").read_text(encoding="utf-8")
+    out = capsys.readouterr().out
+    if json_out:
+        assert json.loads(out)["status"] == "pass"
+    else:
+        assert "JAX GK parity: pass parity_artifacts=1" in out
+        assert f"benchmark={tmp_path / 'benchmark.json'}" in out
+
+
+def test_benchmark_script_refuses_the_committed_reports_without_a_campaign(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a script with its defaults, the producer stops at the recorded-campaign guard."""
+    import runpy
+
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    monkeypatch.setattr(sys, "argv", [str(parity_benchmark.__file__)])
+    with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
+        runpy.run_path(str(parity_benchmark.__file__), run_name="__main__")
+
+
+def test_benchmark_import_path_changes_only_for_a_script_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A package import leaves the import path alone; a script run puts the checkout before its sources."""
+    import importlib
+    import runpy
+
+    root = Path(str(parity_benchmark.__file__)).resolve().parents[1]
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {root, root / "src"}]
+    monkeypatch.setattr(sys, "path", list(stripped))
+    importlib.reload(parity_benchmark)
+    assert sys.path == stripped
+    monkeypatch.setattr(sys, "argv", [str(parity_benchmark.__file__), "--help"])
+    with pytest.raises(SystemExit):
+        runpy.run_path(str(parity_benchmark.__file__), run_name="__main__")
+    assert sys.path[:2] == [str(root), str(root / "src")]
