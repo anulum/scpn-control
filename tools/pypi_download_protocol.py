@@ -150,7 +150,7 @@ def _http_get(package: str) -> bytes:
 
     Notes
     -----
-    The connection closes after every attempt. The30-second socket timeout is
+    The connection closes after every attempt. The 30-second socket timeout is
     per socket operation, not a total request deadline. Parameters such as charset
     are permitted after the exact application/json media type.
     """
