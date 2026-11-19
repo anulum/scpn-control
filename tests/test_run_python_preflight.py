@@ -100,3 +100,39 @@ def test_preflight_cli_rejects_unknown_selection_flag(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert result.stdout == ""
     assert "unrecognized arguments: --skip-docstrings" in result.stderr
+
+
+def test_full_profile_orders_every_check_with_the_docstring_gate_last() -> None:
+    """Without skip flags the profile runs metadata, notebook, threshold smoke, mypy, then the docstring gate."""
+    checks = _build_checks(
+        skip_version_metadata=False, skip_notebook_quality=False, skip_threshold_smoke=False, skip_mypy=False
+    )
+    assert [name for name, _ in checks] == [
+        "Version metadata consistency",
+        "Golden notebook quality gate",
+        "Task 5/6 threshold smoke",
+        "mypy strict",
+        "docstring coverage",
+    ]
+    commands = dict(checks)
+    assert commands["Golden notebook quality gate"][-2] == "tests/test_neuro_symbolic_control_demo_notebook.py"
+    assert all("::test_task" in node for node in commands["Task 5/6 threshold smoke"][3:5])
+    assert commands["mypy strict"] == [sys.executable, "tools/run_mypy_strict.py"]
+
+
+def test_first_failing_check_stops_the_run_with_its_status(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The first nonzero child status is returned and no later check runs."""
+    seen: list[str] = []
+
+    def fake_check(name: str, _cmd: list[str]) -> int:
+        """Record the check and fail the mypy step."""
+        seen.append(name)
+        return 3 if name == "mypy strict" else 0
+
+    monkeypatch.setattr(run_python_preflight, "_run_check", fake_check)
+    status = run_python_preflight.main(["--skip-version-metadata", "--skip-notebook-quality", "--skip-threshold-smoke"])
+    assert status == 3
+    assert seen == ["mypy strict"]
+    assert "[preflight] FAILED at 'mypy strict' with exit code 3." in capsys.readouterr().err
