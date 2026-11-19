@@ -620,19 +620,31 @@ writes a separate digest-bound JSON/Markdown report whose case payloads include
 the same pulsed-MPC decision evidence fields. Use the Python and Rust reports
 together as polyglot regression evidence.
 
-Current PyO3-inclusive local regression evidence (2026-11-18, exact horizon gradient)
+Current local regression measurement (2026-11-18, exact horizon gradient)
 
 The planner now descends the exact horizon gradient with a curvature-bounded
-step, in Python and in Rust. It was remeasured on a shared 24-core host at load
-average about 60, so these figures are regression evidence only. The rows before
-the change come from the same session, on the same host and toolchain.
+step, in Python and in Rust. It was remeasured with the recorded harness
+(`tools/run_recorded_benchmark.py`) on a shared 24-core host at load average
+about 60, so these figures are orientation-only regression evidence. The rows
+before the change come from the same session, on the same host and toolchain.
 
-| Evidence | Planner | Cases | Median range | p99 range | Claim boundary |
-| --- | --- | --- | ---: | ---: | --- |
-| `validation/reports/pulsed_mpc_adapter_horizon_gradient_20261118T213253Z_python.md` | exact horizon gradient | Python + PyO3 | 137.756-5823.123 us | 224.85-12529.719 us | local regression only |
-| `validation/reports/pulsed_mpc_adapter_horizon_gradient_20261118T213253Z_rust.md` | exact horizon gradient | native Rust | 115.712-131.372 us | 198.624-232.143 us | local regression only |
-| `validation/reports/pulsed_mpc_adapter_pre_horizon_gradient_20261118T212839Z_python.md` | one-step gradient (before) | Python + PyO3 | 144.142-9213.6725 us | 262.61-10389.712 us | local regression only |
-| `validation/reports/pulsed_mpc_adapter_pre_horizon_gradient_20261118T212839Z_rust.md` | one-step gradient (before) | native Rust | 109.371-196.851 us | 213.824-223.942 us | local regression only |
+These runs are not stored under `validation/reports/`. That root holds
+byte-for-byte source evidence bound by the report lifecycle registry, and new
+runs enter it only through an audited lifecycle update. Each run is identified
+by its recorded campaign and the payload digest of its report:
+
+| Planner | Cases | Campaign | Payload SHA-256 | Median range | p99 range |
+| --- | --- | --- | --- | ---: | ---: |
+| exact horizon gradient | Python + PyO3 | `20261118T213253.536125Z-e1e77f5aa414` | `44b69c6c…24d43226` | 137.756-5823.123 us | 224.85-12529.719 us |
+| exact horizon gradient | native Rust | `20261118T213337.179794Z-7f94426f5259` | `ad7e576f…61689e8b` | 115.712-131.372 us | 198.624-232.143 us |
+| one-step gradient (before) | Python + PyO3 | `20261118T212839.711362Z-353f575cc35f` | `a4a4464b…9a45e2d6` | 144.142-9213.6725 us | 262.61-10389.712 us |
+| one-step gradient (before) | native Rust | `20261118T212935.917559Z-d2466cb07976` | `7badf521…6e345b60` | 109.371-196.851 us | 213.824-223.942 us |
+
+Full payload digests, in table order:
+`44b69c6c832448d195d3aad872fc53bf10b99cffc77c8c7ddd7c173c24d43226`,
+`ad7e576fb566995a9b4d52ae2a60adb15aac3cfd18d60a90b306c73361689e8b`,
+`a4a4464b138b63d21aeeb1f825be2d7b16c14ff39c084da678cc96cd9a45e2d6` and
+`7badf5219feb03cd7201b5c1e7d57b1477dadf874b2b6523cfc6fbad6e345b60`.
 
 Under this load, no slowdown from the exact gradient can be told apart from host
 noise.

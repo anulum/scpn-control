@@ -1,4 +1,5 @@
 {
+  "best_val_loss": 0.023998366075908314,
   "buffer_samples": 0,
   "config": {
     "buffer_size": 48,
@@ -13,20 +14,17 @@
     {
       "accepted": true,
       "buffer_size": 48,
-      "generation": 1,
-      "incumbent_val_loss": Infinity,
+      "generation": 2,
       "learning_rate": 0.0005,
-      "loss_scaling": "mse_of_targets_standardised_by_train_split",
       "max_ood_score": 1.5,
       "n_epochs": 8,
+      "previous_best_val_loss": Infinity,
       "reason": "accepted",
       "train_samples": 36,
-      "val_loss": 0.6022615046543625,
+      "val_loss": 0.023998366075908314,
       "validation_samples": 12
     }
   ],
   "generation": 1,
-  "last_accepted_val_loss": 0.6022615046543625,
-  "loss_scaling": "mse_of_targets_standardised_by_train_split",
-  "schema_version": "2.0"
+  "schema_version": "1.0"
 }

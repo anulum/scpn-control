@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Validation reports — lifecycle custody restored
+
+- **Fixed:** two benchmark runs had written into `validation/reports/`. That root holds
+  byte-for-byte source evidence bound by the report lifecycle registry, so the freshness
+  gate refused the result.
+  - The online-learner rerun rewrote `gk_online_learner*.json` and `.md`. Their
+    recorded bytes are restored.
+  - The four pulsed-MPC reports of the horizon-gradient change were added without
+    registry entries. They are removed from that root. A post-audit report can enter
+    it only through an audited lifecycle update.
+- **Benchmark docs:** `docs/benchmarks.md` now cites the four MPC runs by recorded
+  campaign and report payload digest.
+
 ### Magnetic axis — one checked accessor
 
 - **Fixed:** controllers no longer steer against the edge of the computational box.
@@ -35,7 +48,10 @@
 - **Generation numbering.** A decision record now carries the learner's generation
   after the decision. The first accepted update was previously recorded as
   generation 2.
-- **Benchmark.** The learner benchmark reports were regenerated.
+- **Benchmark.** The learner benchmark reports its incumbent loss and loss scaling. It was
+  rerun through the recorded harness. The historical reports under `validation/reports/`
+  keep their recorded bytes, as the report lifecycle registry requires; the rerun is
+  kept with the recorded-campaign evidence.
 
 ### Gradient MPC — exact horizon gradient
 
@@ -48,7 +64,7 @@
     surrogate cannot make the descent overshoot.
   - **Docstring:** it now states the real return value, the first planned action.
   - **Impact:** planned actions change. The Python and Rust paths stay in parity,
-    and the MPC benchmarks were rerun.
+    and the MPC benchmarks were rerun (see the benchmark documentation).
 
 ### Benchmark records — source-bound provenance
 
