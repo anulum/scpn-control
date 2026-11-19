@@ -14,12 +14,15 @@ import json
 import subprocess
 import sys
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from email.message import Message
 from pathlib import Path
-from typing import cast
+from typing import Any, cast
+from urllib.error import HTTPError, URLError
 
 import pytest
 
+import tools.document_link_audit as dla
 from tools.document_link_audit import (
     DEFAULT_POLICY,
     ROOT,
@@ -522,3 +525,187 @@ def test_cli_site_url_base_and_same_page_query_are_resolved(tmp_path: Path) -> N
     (site / "index.html").write_text('<a href="/docs/index.html">Home</a><a href="?filter=all">Filter</a>')
     result = _audit_cli(tmp_path, "--site-dir", str(site))
     assert result.returncode == 0 and not result.stderr
+
+
+def _policy(**changes: Any) -> dla.Policy:
+    """Return the shipped policy with selected fields replaced."""
+    return replace(_read_policy(DEFAULT_POLICY), **changes)
+
+
+class _Response:
+    """Context-managed HTTP response stand-in with a status and a final URL."""
+
+    def __init__(self, status: int, final_url: str) -> None:
+        """Store the status and final URL."""
+        self.status = status
+        self._final_url = final_url
+
+    def __enter__(self) -> _Response:
+        """Return the response."""
+        return self
+
+    def __exit__(self, *_exc: object) -> None:
+        """Close nothing."""
+
+    def geturl(self) -> str:
+        """Return the final URL after redirects."""
+        return self._final_url
+
+
+def test_status_classes_follow_the_policy_tables() -> None:
+    """2xx/3xx reach, 401/403 are restricted, listed transients retry, other 4xx fail, other codes retry."""
+    policy = _policy()
+    cases = {200: "reachable", 399: "reachable", 401: "restricted", 429: "transient", 503: "transient"}
+    cases |= {404: "permanent-failure", 410: "permanent-failure", 418: "permanent-failure", 599: "transient"}
+    assert {code: dla._classify_http(code, policy) for code in cases} == cases
+
+
+def test_unlisted_schemes_are_not_screened() -> None:
+    """A scheme outside the allowed list yields no URL-policy finding."""
+    assert dla._url_policy_finding(dla.LinkRef("README.md", 1, "ftp://127.0.0.1/x", "external"), _policy()) is None
+
+
+def test_single_request_sends_one_range_byte_for_get_and_screens_final_urls(monkeypatch: pytest.MonkeyPatch) -> None:
+    """GET asks for one byte; a private final URL is refused for success and error responses alike."""
+    seen: list[tuple[str, dict[str, str]]] = []
+
+    def public(request: Any, timeout: float) -> _Response:
+        """Record the request and answer from a public final URL."""
+        seen.append((request.get_method(), dict(request.header_items())))
+        return _Response(206, "https://example.org/final")
+
+    monkeypatch.setattr(dla, "urlopen", public)
+    assert dla._request_once("https://example.org/a", _policy(), "GET") == (206, "https://example.org/final")
+    assert seen[0][0] == "GET" and seen[0][1]["Range"] == "bytes=0-0"
+
+    monkeypatch.setattr(dla, "urlopen", lambda request, timeout: _Response(200, "https://127.0.0.1/admin"))
+    with pytest.raises(dla.UnsafeExternalTarget):
+        dla._request_once("https://example.org/a", _policy(), "HEAD")
+
+    def failing(final_url: str) -> Any:
+        """Return an opener that raises an HTTP error whose final URL is ``final_url``."""
+
+        def opener(request: Any, timeout: float) -> _Response:
+            """Raise the configured HTTP error."""
+            raise HTTPError(final_url, 404, "missing", Message(), None)
+
+        return opener
+
+    monkeypatch.setattr(dla, "urlopen", failing("https://example.org/gone"))
+    assert dla._request_once("https://example.org/a", _policy(), "HEAD") == (404, "https://example.org/gone")
+    monkeypatch.setattr(dla, "urlopen", failing("https://127.0.0.1/gone"))
+    with pytest.raises(dla.UnsafeExternalTarget):
+        dla._request_once("https://example.org/a", _policy(), "HEAD")
+
+
+def test_external_check_falls_back_to_get_retries_failures_and_reports_policy_violations(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """HEAD 405 is retried as GET; network failures exhaust the retry budget; unsafe redirects fail policy."""
+    policy = _policy(retries=1, retry_backoff_seconds=0.0)
+    methods: list[str] = []
+
+    def head_refused(_url: str, _policy: object, method: str) -> tuple[int, str]:
+        """Refuse HEAD and answer GET."""
+        methods.append(method)
+        return (405, "https://example.org/a") if method == "HEAD" else (200, "https://example.org/a")
+
+    monkeypatch.setattr(dla, "_request_once", head_refused)
+    result = dla._check_external("https://example.org/a", policy)
+    assert (methods, result.classification, result.status_code) == (["HEAD", "GET"], "reachable", 200)
+
+    calls: list[int] = []
+
+    def offline(_url: str, _policy: object, _method: str) -> tuple[int, str]:
+        """Fail like an unreachable network."""
+        calls.append(1)
+        raise URLError("down")
+
+    monkeypatch.setattr(dla, "_request_once", offline)
+    result = dla._check_external("https://example.org/a", policy)
+    assert (len(calls), result.classification, result.status_code, result.detail) == (
+        2,
+        "transient",
+        None,
+        "Public URL request failed.",
+    )
+
+    def unsafe(_url: str, _policy: object, _method: str) -> tuple[int, str]:
+        """Refuse the redirect target."""
+        raise dla.UnsafeExternalTarget("redirect target violates public URL policy")
+
+    monkeypatch.setattr(dla, "_request_once", unsafe)
+    assert dla._check_external("https://example.org/a", policy).classification == "policy-failure"
+
+
+def test_cache_rows_need_valid_json_matching_provenance_and_an_unexpired_time(tmp_path: Path) -> None:
+    """Unreadable, foreign-schema or foreign-provenance caches are ignored; expired or malformed rows are not used."""
+    policy = _policy()
+    cache = tmp_path / "cache.json"
+    cache.write_text("{not json", encoding="utf-8")
+    assert dla._load_cache(cache, policy) == {}
+    cache.write_text(json.dumps({"schema_version": "other"}), encoding="utf-8")
+    assert dla._load_cache(cache, policy) == {}
+    cache.write_text(
+        json.dumps({"schema_version": SCHEMA, "provenance": {"policy_sha256": "x", "tool_sha256": _tool_sha256()}}),
+        encoding="utf-8",
+    )
+    assert dla._load_cache(cache, policy) == {}
+
+    now = datetime.now(UTC)
+    old = {"url": "https://example.org/a", "classification": "reachable", "status_code": 200, "attempts": 1}
+    old["checked_at"] = (now - timedelta(seconds=policy.cache_ttl_seconds + 1)).isoformat()
+    assert dla._cached_result(old, now, policy) is None
+    assert dla._cached_result({"url": "https://example.org/a"}, now, policy) is None
+
+
+def test_external_audit_bounds_the_url_count_and_paces_one_host(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Too many URLs refuse before any request; consecutive requests to one host wait out the delay."""
+    with pytest.raises(ValueError, match="exceeds policy maximum 1"):
+        audit_external(("https://a.example/1", "https://a.example/2"), _policy(max_urls=1), tmp_path / "c.json")
+
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        dla, "time", type("Clock", (), {"monotonic": staticmethod(lambda: 100.0), "sleep": staticmethod(sleeps.append)})
+    )
+    monkeypatch.setattr(
+        dla,
+        "_check_external",
+        lambda url, policy: ExternalResult(url, "reachable", 200, 1, "t", url, "HTTP response"),
+    )
+    results = audit_external(
+        ("https://a.example/1", "https://a.example/2"), _policy(per_host_delay_seconds=0.5), tmp_path / "c.json"
+    )
+    assert [result.url for result in results] == ["https://a.example/1", "https://a.example/2"]
+    assert sleeps == [0.5]
+
+
+def test_rendered_site_skips_external_contact_and_anchor_links(tmp_path: Path) -> None:
+    """Links with a scheme, a host, an anchor only, mailto or tel are not resolved against the site."""
+    site = tmp_path / "site"
+    site.mkdir()
+    (site / "index.html").write_text(
+        '<a href="https://example.org/x">x</a><a href="//cdn.example/y">y</a><a href="#top">t</a>'
+        '<a href="mailto:a@example.org">m</a><a href="tel:+1">p</a>',
+        encoding="utf-8",
+    )
+    assert audit_site(site) == ()
+
+
+def test_cli_writes_one_report_when_the_json_destination_is_the_cache(tmp_path: Path) -> None:
+    """With --json-out naming the external cache, the report is written once and the cached row is reused."""
+    url = "https://reference.invalid/item"
+    (tmp_path / "README.md").write_text(f"[source]({url})\n", encoding="utf-8")
+    _git_track(tmp_path, "README.md")
+    cache = tmp_path / "cache.json"
+    row = {"url": url, "classification": "reachable", "status_code": 200, "attempts": 1}
+    row |= {"checked_at": datetime.now(UTC).isoformat(), "final_url": url, "detail": "HTTP response"}
+    provenance = {"policy_sha256": _read_policy(DEFAULT_POLICY).source_sha256, "tool_sha256": _tool_sha256()}
+    cache.write_text(
+        json.dumps({"schema_version": SCHEMA, "provenance": provenance, "results": [row]}), encoding="utf-8"
+    )
+    argv = ["--root", str(tmp_path), "--policy", str(DEFAULT_POLICY), "--external", "--cache", str(cache)]
+    assert dla.main([*argv, "--json-out", str(cache)]) == 0
+    assert json.loads(cache.read_text())["results"][0]["cached"] is True
