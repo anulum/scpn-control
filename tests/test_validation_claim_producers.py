@@ -14,9 +14,11 @@ committed reports under ``validation/reports`` are neither read nor written.
 
 from __future__ import annotations
 
+import dataclasses
 import importlib
 import json
 import runpy
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -77,6 +79,21 @@ PRODUCERS: dict[str, tuple[str, str, Callable[[dict[str, Any]], bool]]] = {
         "# Neural equilibrium synthetic pretraining benchmark",
         _closed(("claim_evidence", "facility_claim_allowed")),
     ),
+    "benchmark_integrated_scenario_coupling": (
+        "MD_REPORT",
+        "# Integrated Scenario Coupling Benchmark",
+        lambda payload: payload["claim_boundary"].startswith("Bounded deterministic replay audit only."),
+    ),
+    "benchmark_marfe_onset_claims": (
+        "MARKDOWN_REPORT",
+        "# MARFE Onset Claim-Admission Benchmark",
+        _closed(("production_claim_allowed",)),
+    ),
+    "benchmark_vmec_lite_claims": (
+        "MARKDOWN_REPORT",
+        "# VMEC-lite Claim-Admission Benchmark",
+        _closed(("production_claim_allowed",)),
+    ),
 }
 
 
@@ -125,6 +142,7 @@ def test_committed_report_paths_need_a_recorded_campaign(monkeypatch: pytest.Mon
 def test_script_entry_refuses_persistent_output_without_a_campaign(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Executed as a script, each producer stops at the recorded-campaign guard and leaves its report untouched."""
     monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    monkeypatch.setattr(sys, "path", list(sys.path))
     module = importlib.import_module(f"validation.{name}")
     before = Path(module.JSON_REPORT).read_bytes()
     with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
@@ -138,3 +156,65 @@ def test_disruption_report_serialiser_unwraps_numpy_scalars_only() -> None:
     assert module._json_default(np.float32(1.5)) == 1.5
     with pytest.raises(TypeError, match="Object of type object is not JSON serialisable"):
         module._json_default(object())
+
+
+def test_vmec_producer_builds_geometry_evidence_when_the_committed_report_is_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Without a geometry report the producer validates the geometry itself and binds that payload."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    module = importlib.import_module("validation.benchmark_vmec_lite_claims")
+    json_path, _ = _redirect(module, "MARKDOWN_REPORT", tmp_path, monkeypatch)
+    monkeypatch.setattr(module, "GEOMETRY_REPORT", tmp_path / "absent_geometry.json")
+    module.main()
+    payload = json.loads(json_path.read_text(encoding="utf-8"))
+    assert payload["geometry_validation_passed"] is True
+    assert len(payload["geometry_validation_payload_sha256"]) == 64
+
+
+@pytest.mark.parametrize("name", ["benchmark_marfe_onset_claims", "benchmark_vmec_lite_claims"])
+def test_package_import_leaves_the_import_path_unchanged(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Imported as ``validation.<module>``, a producer does not insert the checkout or its sources."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    module = importlib.import_module(f"validation.{name}")
+    before = list(sys.path)
+    importlib.reload(module)
+    assert sys.path == before
+
+
+def test_marfe_percentile_interpolates_between_ranks() -> None:
+    """The latency percentile interpolates linearly between ordered samples."""
+    module = importlib.import_module("validation.benchmark_marfe_onset_claims")
+    assert module._percentile([4.0, 1.0, 3.0, 2.0], 0.5) == 2.5
+    assert module._percentile([5.0], 0.99) == 5.0
+
+
+def test_failed_coupling_audit_stops_after_writing_its_reports(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failed audit still writes the report pair, then exits with the joined violations."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    module = importlib.import_module("validation.benchmark_integrated_scenario_coupling")
+    json_path, markdown_path = _redirect(module, "MD_REPORT", tmp_path, monkeypatch)
+    real_audit = module.audit_scenario_coupling
+
+    def failing_audit(*args: Any, **kwargs: Any) -> Any:
+        """Return the real audit marked as failed with two violations."""
+        return dataclasses.replace(real_audit(*args, **kwargs), passed=False, violations=("first", "second"))
+
+    monkeypatch.setattr(module, "audit_scenario_coupling", failing_audit)
+    with pytest.raises(SystemExit, match="^first; second$"):
+        module.main()
+    assert json_path.exists() and "- Passed: `False`" in markdown_path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize("name", ["benchmark_marfe_onset_claims", "benchmark_vmec_lite_claims"])
+def test_script_run_puts_the_checkout_and_sources_first(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a script from a path without the checkout, the producer inserts its sources and the checkout."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    module = importlib.import_module(f"validation.{name}")
+    script = Path(str(module.__file__))
+    root = script.resolve().parents[1]
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {root, root / "src"}]
+    monkeypatch.setattr(sys, "path", stripped)
+    with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
+        runpy.run_path(str(script), run_name="__main__")
+    assert sys.path[:2] == [str(root / "src"), str(root)]

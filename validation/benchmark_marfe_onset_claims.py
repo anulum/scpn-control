@@ -23,11 +23,13 @@ import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Run as a script, put the checkout and its sources first; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, SRC):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from validation.validate_marfe_onset import build_evidence, validate_marfe_onset
@@ -38,6 +40,7 @@ MARKDOWN_REPORT = REPORT_DIR / "marfe_onset_claims.md"
 
 
 def _percentile(values: list[float], percentile: float) -> float:
+    """Return the linearly interpolated percentile in [0, 1] of a nonempty sample."""
     ordered = sorted(values)
     index = (len(ordered) - 1) * percentile
     lower = int(index)

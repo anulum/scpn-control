@@ -18,11 +18,13 @@ from pathlib import Path
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Run as a script, put the checkout and its sources first; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, SRC):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.core.vmec_lite import StellaratorBoundary, VMECLiteSolver, vmec_lite_claim_evidence
@@ -48,6 +50,7 @@ def build_reference_case() -> VMECLiteSolver:
 
 
 def _load_or_build_geometry_validation() -> dict[str, object]:
+    """Return the committed geometry evidence after validation, or build fresh evidence when it is absent."""
     if GEOMETRY_REPORT.exists():
         payload: dict[str, object] = json.loads(GEOMETRY_REPORT.read_text(encoding="utf-8"))
         validate_evidence_payload(payload)
