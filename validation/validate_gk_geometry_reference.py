@@ -20,10 +20,12 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, ROOT / "src"):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from validation.gk_geometry_reference_cases import _REQUIRED_CASES, _validate_case
 from validation.gk_geometry_reference_contracts import _finalise_report, _new_report, _validate_header

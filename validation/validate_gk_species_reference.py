@@ -25,10 +25,13 @@ def ensure_repo_src_on_path() -> None:
         sys.path.insert(0, repo_src)
 
 
-ensure_repo_src_on_path()
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Run as a script, put the sources and the checkout on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    ensure_repo_src_on_path()
+    if str(ROOT) not in sys.path:
+        sys.path.insert(0, str(ROOT))
 
 from validation.gk_species_reference_cases import _validate_case
 from validation.gk_species_reference_contracts import (

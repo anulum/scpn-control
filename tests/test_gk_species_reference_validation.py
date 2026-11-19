@@ -121,6 +121,20 @@ def test_species_reference_gate_rejects_diamagnetic_drive_drift(tmp_path: Path) 
     assert any(error["field"] == "omega_star_pressure" for error in report["errors"])
 
 
+def test_species_reference_gate_reports_no_operator_checks_without_their_object(tmp_path: Path) -> None:
+    """A payload without an operator_checks object fails on that field and keeps the empty operator results."""
+    payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
+    del payload["operator_checks"]
+    path = tmp_path / "species_collision_reference_cases.json"
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+    report = validate_gk_species_reference(path)
+
+    assert report["status"] == "fail"
+    assert any(error["field"] == "operator_checks" for error in report["errors"])
+    assert report["operator_checks"] == {}
+
+
 def test_species_reference_gate_rejects_bessel_drift(tmp_path: Path) -> None:
     """Detect actual Bessel reference disagreement."""
     payload = json.loads(REFERENCE_CASES.read_text(encoding="utf-8"))
