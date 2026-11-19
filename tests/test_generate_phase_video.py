@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import shutil
 import subprocess
 import sys
@@ -201,3 +202,21 @@ def test_actual_render_includes_appended_terminal_sample(tmp_path: Path) -> None
     with Image.open(result.gif_path) as gif:
         assert isinstance(gif, GifImageFile)
         assert gif.n_frames == len(result.frame_indices) and gif.info["duration"] == 500
+
+
+def test_script_entry_renders_gif_and_mp4(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Executed as a script, the command puts the checkout on sys.path, reports both videos and exits 0."""
+    output = tmp_path / "script-bundle"
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setattr(
+        sys, "argv", [str(SCRIPT), "--ticks", "2", "--layers", "1", "--n-per", "2", "--output-dir", str(output)]
+    )
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(SCRIPT), run_name="__main__")
+    assert script_exit.value.code == 0
+    assert sys.path[:2] == [str(ROOT), str(ROOT / "src")]
+    created = capsys.readouterr().out
+    assert f"Created {output / 'phase_sync_live.mp4'}" in created
+    assert (output / "phase_sync_live.mp4").stat().st_size > 0
