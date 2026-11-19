@@ -45,10 +45,12 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT / "src", ROOT):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.core.gk_species import GKSpecies, collision_frequencies  # noqa: E402
 from validation.gk_collision_independent_reference import independent_collision_rates  # noqa: E402
@@ -104,6 +106,7 @@ _CASES: tuple[dict[str, Any], ...] = (
 
 
 def _case_rates(case: dict[str, Any]) -> dict[str, float]:
+    """Return the production collision rates for one case and their ratios to the independent deflection, Braginskii and energy-transfer references."""
     species = GKSpecies(R_L_T=0.0, R_L_n=0.0, **case["species"])
     field = case["field"]
     nu_d_prod, nu_e_prod = collision_frequencies(
@@ -206,6 +209,7 @@ def validate_gk_collision_independent() -> dict[str, Any]:
 
 
 def _new_report() -> dict[str, Any]:
+    """Return the unsealed report skeleton: method, model references, tolerances and closed public claims."""
     return {
         "schema_version": _REPORT_SCHEMA,
         "status": "pass",
@@ -248,11 +252,13 @@ def _new_report() -> dict[str, Any]:
 
 
 def _json_sha256(payload: object) -> str:
+    """Return the SHA-256 of compact sorted-key ASCII JSON of ``payload``."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Set the scaling claim from the report status, then seal the report with the digest of its body without the digest field."""
     report["public_claims"]["bounded_collision_scaling_independently_verified"] = report["status"] == "pass"
     payload = dict(report)
     payload["payload_sha256"] = None

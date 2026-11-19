@@ -37,7 +37,10 @@ import numpy as np
 import numpy.typing as npt
 
 ROOT: Final = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT / "src"))
+# Run as a script, put the checkout's sources on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(ROOT / "src"))
 
 from scpn_control.core.eqdsk import read_geqdsk
 from scpn_control.core.scaling_laws import (
@@ -216,6 +219,7 @@ def validate_equilibrium(ref_dirs: list[Path], *, evidence_class: EvidenceClass)
 
 
 def _guess_machine(path: Path) -> str:
+    """Return DIII-D, JET or SPARC when the lower-cased path contains diiid/diii, jet or sparc, else unknown; any path component can match."""
     parts = str(path).lower()
     if "diiid" in parts or "diii" in parts:
         return "DIII-D"
