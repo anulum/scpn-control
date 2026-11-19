@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Local preflight — every static-governance gate
+
+- **Fixed:** `tools/preflight.py` could report "ALL CLEAR: ready to push"
+  while two gates of the static-governance workflow would fail, because it
+  never ran them: the capability-manifest check and the documentation-coverage
+  check. It now runs both. It also runs three evidence and supply-chain guards
+  that CI runs: the GitHub token-format guard, the validation-report freshness
+  check and the evidence-gap matrix.
+- **Tests:** a new test reads `ci-static-governance.yml` and requires every
+  `python tools/...` command in it to be a preflight gate. The one exception is
+  the commit-message check, which needs the pushed range.
+- **Docs:** `CONTRIBUTING.md` described a 10-gate, 99 % coverage preflight.
+  It now describes the real gate list and the 100 % coverage threshold.
+
 ### ITER neural-equilibrium trainer — exact gradients and best-epoch weights
 
 - **Fixed:** `tools/train_neural_equilibrium_iter.py` backpropagated each lower

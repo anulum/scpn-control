@@ -52,14 +52,18 @@ One-time setup:
 git config core.hooksPath .githooks
 ```
 
-This wires `tools/preflight.py` as a pre-push hook. It mirrors CI locally
-(10 gates, ~3 min). To run manually:
+This wires `tools/preflight.py` as a pre-push hook. It runs the CI's static,
+test and Rust gates locally, in the order of `GATES` in `tools/preflight.py`,
+after a Python-compatibility check and, when `requirements/` changed, a
+hash-pin check. Every command of the static-governance workflow is among the
+gates, except the commit-message check, which needs the pushed range. To run
+manually:
 
 ```bash
-python tools/preflight.py            # full (lint + test + Rust)
-python tools/preflight.py --no-tests # lint-only (~10 sec)
-python tools/preflight.py --coverage # full + 99% coverage gate
-python tools/preflight.py --no-rust  # skip cargo gates
+python tools/preflight.py            # every gate (static, tests, Rust)
+python tools/preflight.py --no-tests # without the pytest and native test gates
+python tools/preflight.py --coverage # pytest with the 100 % coverage gate
+python tools/preflight.py --no-rust  # without the cargo gates
 ```
 
 Bypass once (when you know what you're doing):
