@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### ITER neural-equilibrium trainer — exact gradients and best-epoch weights
+
+- **Fixed:** `tools/train_neural_equilibrium_iter.py` backpropagated each lower
+  layer through weights it had already updated in the same step. Every
+  gradient is now taken through the unmodified weights before any update.
+- **Fixed:** early stopping saved the last epoch's weights, not the best
+  validation epoch's weights. The best epoch is now restored before saving.
+- **Fixed:** the reported accuracy came from one training sample. It now comes
+  from the held-out validation samples.
+- **Fixed:** `--n-samples N`, the documented form, is now accepted. GS
+  samples whose flux maximum is not an interior O-point are skipped.
+- **Documented:** both Solov'ev source terms are pressure-like (`FF' = 0`), and
+  only `A1 + A2` changes the map. The `pp_scale` and `ff_scale` features are
+  labels that do not enter the Solov'ev flux.
+- **Weights:** `weights/neural_equilibrium_iter.npz` is regenerated with the
+  fixed trainer. A second run gives identical bytes. On the trainer's held-out
+  split, the mean relative L2 error is 0.0474 (previously 0.0477). The ITER
+  weight tests pass unchanged.
+- **Tests:** the trainer had none. It now has 11, at 100 % line and branch
+  coverage.
+
 ### Gyro-Bohm coefficient — provenance corrected
 
 - **Fixed:** the transport solvers' docstrings said their gyro-Bohm
