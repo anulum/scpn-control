@@ -97,7 +97,7 @@ def _validate_tokamak_geometry(R0: float, a: float, B0: float) -> tuple[float, f
 def _load_gyro_bohm_coefficient(
     path: Path | str | None = None,
 ) -> float:
-    """Load the calibrated gyro-Bohm coefficient c_gB from JSON.
+    """Load the configured gyro-Bohm coefficient c_gB from JSON.
 
     Parameters
     ----------
@@ -108,7 +108,16 @@ def _load_gyro_bohm_coefficient(
     Returns
     -------
     float
-        The calibrated c_gB value, or 0.1 if the file is not found.
+        The finite positive ``c_gB`` (or ``scaling_parameters.c_gB_nominal``)
+        of the file, or the default 0.1 when the file is missing, is not JSON,
+        has neither key or has an unsupported type. The shipped value is a
+        configured constant written by ``scripts/generate_itpa_reference.py``,
+        not the result of a fit in this repository.
+
+    Raises
+    ------
+    ValueError
+        If the stored coefficient is not finite or not positive.
     """
     p = Path(path) if path else _GYRO_BOHM_COEFF_PATH
     try:

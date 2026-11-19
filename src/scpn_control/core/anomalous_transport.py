@@ -76,7 +76,7 @@ def gyro_bohm_chi_profile(
     A_ion : float
         Ion mass number (2 = deuterium).
     c_gB : float
-        Calibrated gyro-Bohm coefficient.
+        Dimensionless gyro-Bohm coefficient.
 
     Returns
     -------

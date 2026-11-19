@@ -2,6 +2,27 @@
 
 ## Unreleased
 
+### Gyro-Bohm coefficient — provenance corrected
+
+- **Fixed:** the transport solvers' docstrings said their gyro-Bohm
+  coefficient `c_gB` was calibrated against the ITPA H-mode database by
+  `tools/calibrate_gyro_bohm.py`. It is not. The coefficient file holds a
+  configured constant (0.0424) written by `scripts/generate_itpa_reference.py`.
+  The calibration tool fits a different, dimensional quantity: the prefactor
+  of an IPB98(y,2)-form confinement law. The docstrings now state the true
+  origin and the real precedence: an explicit `neoclassical_params['c_gB']`,
+  then the file, then the 0.1 default.
+- **Changed:** `tools/calibrate_gyro_bohm.py` reports what it fits
+  (`ipb98_prefactor`, with its bootstrap uncertainty and error metrics) and
+  writes `validation/reference_data/itpa/ipb98_prefactor_fit.json`. It refuses
+  to overwrite the solvers' `gyro_bohm_coefficients.json`, because a
+  dimensional global prefactor cannot stand in for the local coefficient.
+  The fitted values are unchanged (prefactor 0.077848, relative RMSE
+  12.95 %). Its documentation also states that the neoclassical factor sits
+  at its 0.5 floor for 16 of the 20 rows.
+- **Tests:** the tool had no tests. It now has 20, at 100 % line and branch
+  coverage.
+
 ### Baseline promotion — historical runs accepted again
 
 - **Fixed:** baseline promotion again accepts historical

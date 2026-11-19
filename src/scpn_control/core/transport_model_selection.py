@@ -191,12 +191,15 @@ def _gyro_bohm_chi_impl(self: TransportSolver) -> FloatArray:
 
     where rho_s = sqrt(T_i m_i) / (e B), c_s = sqrt(T_e / m_i).
 
-    The calibration coefficient c_gB is loaded from
-    ``validation/reference_data/itpa/gyro_bohm_coefficients.json``
-    if available (calibrated against the ITPA H-mode confinement
-    database by ``tools/calibrate_gyro_bohm.py``).  Falls back to
-    the value in ``neoclassical_params['c_gB']`` if explicitly set,
-    or to the module-level default (0.1) otherwise.
+    An explicit ``neoclassical_params['c_gB']`` takes precedence.
+    Otherwise c_gB is read from
+    ``validation/reference_data/itpa/gyro_bohm_coefficients.json``, and
+    the module default (0.1) is used when that file cannot be read. The
+    file holds a configured constant (0.0424) written by
+    ``scripts/generate_itpa_reference.py``; no tool in this repository
+    fits it to confinement data. ``tools/calibrate_gyro_bohm.py`` fits a
+    different, dimensional quantity (an IPB98(y,2)-form prefactor) and
+    does not write this file.
     """
     if self.neoclassical_params is None:
         if self.allow_constant_transport_fallback and self.allow_legacy_approximations:
@@ -297,7 +300,7 @@ def update_transport_model_impl(self: TransportSolver, P_aux: float) -> None:
 
     When neoclassical params are set, uses:
     - Chang-Hinton neoclassical chi as additive floor
-    - Gyro-Bohm anomalous transport (calibrated c_gB)
+    - Gyro-Bohm anomalous transport with the configured c_gB
     - EPED-like pedestal model for H-mode boundary condition
 
     Gyrokinetic, native TGLF and external GK modes retain their separately

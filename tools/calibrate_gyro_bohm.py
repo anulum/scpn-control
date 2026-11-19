@@ -5,75 +5,68 @@
 # © Code 2020–2026 Miroslav Šotek. All rights reserved.
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
-# SCPN Control — Calibrate Gyro Bohm.
+# SCPN Control — IPB98(y,2)-form confinement prefactor fit.
+"""Fit the prefactor of an IPB98(y,2)-form confinement law to the ITPA H-mode CSV.
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Gyro-Bohm Transport Coefficient Calibration
-# (c) 1998-2026 Miroslav Sotek. All rights reserved.
-# Contact: www.anulum.li | protoscience@anulum.li
-# ORCID: https://orcid.org/0009-0009-3560-0851
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
-"""Calibrate the gyro-Bohm anomalous transport coefficient c_gB.
+Despite the historical file name, this tool does not calibrate the local
+gyro-Bohm coefficient ``c_gB`` of the transport solvers. That coefficient is
+dimensionless and multiplies ``rho_s^2 * c_s / (a * q * R)``. The quantity
+fitted here is the global, dimensional prefactor ``C`` of
 
-For each of the 20 shots in the ITPA H-mode confinement CSV, this script
-computes the predicted energy confinement time using a physics-based
-confinement model and finds the c_gB that minimises the RMSE between
-predicted and measured tau_E across all shots.
+    tau_E = C * Ip^0.93 * B^0.15 * n^0.41 * P^(-0.69)
+              * R^1.97 * kappa^0.78 * epsilon^0.58 * M^0.19 * f_neo
 
-Physics model
--------------
-The gyro-Bohm thermal diffusivity is:
+in the units of the CSV columns (MA, T, 10^19 m^-3, MW, m, amu, s). The
+exponents are the published IPB98(y,2) exponents (Nuclear Fusion 39, 1999,
+2175) and are not refitted. ``f_neo`` in [0.5, 1] lowers ``tau_E`` when a
+Chang-Hinton (1982) neoclassical ion diffusivity, evaluated at mid-radius
+from a power-balance temperature estimate, is large compared with the
+effective diffusivity implied by the prediction.
 
-    chi_gB = c_gB * rho_s^2 * c_s / (a * q * R)
+With the shipped CSV and the fitted ``C``, ``f_neo`` sits at its 0.5 floor
+for 16 of the 20 rows, so for most rows the correction is a constant halving
+and the fitted ``C`` is about twice the effective prefactor.
 
-where rho_s = sqrt(T_i * m_i) / (e * B),  c_s = sqrt(T_e / m_i).
-
-The self-consistent power balance with gyro-Bohm transport gives a
-confinement time with specific multi-variate dependences on Ip, B, n,
-P_loss, R, kappa, epsilon, and M.  These dependences are captured by
-the IPB98(y,2) scaling structure (Nuclear Fusion 39, 1999, 2175;
-Verdoolaege et al., NF 61, 2021, 076006), which was validated against
-5920 H-mode shots from 18 tokamaks.
-
-The parameter c_gB sets the overall transport level through the scaling
-prefactor.  A neoclassical correction (Chang-Hinton, 1982) accounts for
-the varying fraction of collisional transport across machines.
+``C`` minimises the absolute RMSE of ``tau_E`` over the CSV rows with a
+bounded scalar search in ``log10(C)``. Its one-sigma uncertainty comes from a
+seeded bootstrap over the rows. The 20 rows are mixed machine and design
+points, so the fit is an internal consistency check of this confinement form,
+not a validation of any transport model.
 
 Outputs
 -------
-Saves to ``validation/reference_data/itpa/gyro_bohm_coefficients.json``
-with keys: c_gB, c_gB_uncertainty, rmse_s, rmse_percent, n_shots,
-calibration_date, and model metadata.
-Prints a per-shot tau_E comparison table.
+Writes ``validation/reference_data/itpa/ipb98_prefactor_fit.json`` unless
+another path is given. Writing to the solvers' coefficient file
+``gyro_bohm_coefficients.json`` is refused, because a dimensional global
+prefactor cannot stand in for the local coefficient. The command exits 0 when
+the relative RMSE is below 15 %, 1 when it is not, and 2 when the input or
+output path is refused.
 """
 
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import logging
+import math
 import sys
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Optional
+from typing import cast
 
 import numpy as np
 from scipy.optimize import minimize_scalar
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(levelname)-5s  %(message)s",
-    datefmt="%H:%M:%S",
-)
-logger = logging.getLogger("calibrate_gyro_bohm")
+logger = logging.getLogger(__name__)
 
 # ── Paths ─────────────────────────────────────────────────────────────
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 ITPA_CSV = REPO_ROOT / "validation" / "reference_data" / "itpa" / "hmode_confinement.csv"
-OUTPUT_JSON = REPO_ROOT / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
+OUTPUT_JSON = REPO_ROOT / "validation" / "reference_data" / "itpa" / "ipb98_prefactor_fit.json"
+SOLVER_COEFFICIENT_JSON = REPO_ROOT / "validation" / "reference_data" / "itpa" / "gyro_bohm_coefficients.json"
 
 # ── Physical constants ────────────────────────────────────────────────
 
@@ -82,16 +75,36 @@ M_PROTON = 1.672621924e-27  # kg
 EPS_0 = 8.854187812e-12  # F/m
 E_KEV_J = 1.602176634e-16  # J per keV
 
+#: Relative RMSE below which the command reports success.
+RELATIVE_RMSE_TARGET = 0.15
+
+#: Published IPB98(y,2) exponents applied to (Ip, B, n, P, R, kappa, epsilon, M).
+IPB98_EXPONENTS: dict[str, float] = {
+    "Ip": 0.93,
+    "B": 0.15,
+    "n": 0.41,
+    "P": -0.69,
+    "R": 1.97,
+    "kappa": 0.78,
+    "epsilon": 0.58,
+    "M": 0.19,
+}
+
+_POSITIVE_COLUMNS = ("Ip_MA", "BT_T", "ne19_1e19m3", "Ploss_MW", "R_m", "a_m", "kappa", "M_AMU", "tau_E_s", "H98y2")
+
 
 # ── Data container ────────────────────────────────────────────────────
 
 
-@dataclass
+@dataclass(frozen=True)
 class ShotRecord:
-    """One row from the ITPA H-mode confinement CSV.
+    """One row of the ITPA H-mode confinement CSV.
 
-    Expected CSV columns: machine, shot, Ip_MA, BT_T, R0_m, a_m, kappa,
-    delta, n_e19, P_heat_MW, tau_E_s, H98y2.
+    The CSV columns are machine, shot, Ip_MA, BT_T, ne19_1e19m3, Ploss_MW,
+    R_m, a_m, kappa, delta, M_AMU, tau_E_s, H98y2 and source. Triangularity
+    and H98y2 are carried but not used by the confinement form. The loader
+    requires every numeric column except triangularity to be positive; the
+    prediction functions assume it.
     """
 
     machine: str
@@ -104,36 +117,69 @@ class ShotRecord:
     a_m: float  # minor radius [m]
     kappa: float
     delta: float  # triangularity
-    M_AMU: float  # effective ion mass
-    tau_E_s: float  # measured confinement time [s]
+    M_AMU: float  # effective ion mass [amu]
+    tau_E_s: float  # measured or design confinement time [s]
     H98y2: float
     source: str
 
 
+def _finite(row: dict[str, str], column: str, line: int) -> float:
+    """Return one finite numeric cell, naming its CSV line on refusal."""
+    try:
+        value = float(row[column])
+    except (KeyError, TypeError, ValueError):
+        raise ValueError(f"CSV line {line}: column {column} is missing or not a number") from None
+    if not math.isfinite(value):
+        raise ValueError(f"CSV line {line}: column {column} is not finite")
+    if column in _POSITIVE_COLUMNS and value <= 0.0:
+        raise ValueError(f"CSV line {line}: column {column} must be positive")
+    return value
+
+
 def load_itpa_csv(path: Path = ITPA_CSV) -> list[ShotRecord]:
-    """Load and parse the ITPA H-mode confinement CSV (20 rows expected)."""
+    """Load the ITPA H-mode confinement CSV.
+
+    Parameters
+    ----------
+    path : pathlib.Path
+        CSV with the columns listed on :class:`ShotRecord`.
+
+    Returns
+    -------
+    list[ShotRecord]
+        One record per data row, in file order.
+
+    Raises
+    ------
+    ValueError
+        If the file has no data rows, or a numeric cell is missing, not finite,
+        or not positive where the confinement form takes a power of it.
+    OSError
+        If the file cannot be read.
+    """
     records: list[ShotRecord] = []
-    with open(path, newline="", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
+    with open(path, newline="", encoding="utf-8") as handle:
+        for line, row in enumerate(csv.DictReader(handle), start=2):
             records.append(
                 ShotRecord(
-                    machine=row["machine"],
-                    shot=row["shot"],
-                    Ip_MA=float(row["Ip_MA"]),
-                    BT_T=float(row["BT_T"]),
-                    ne19=float(row["ne19_1e19m3"]),
-                    Ploss_MW=float(row["Ploss_MW"]),
-                    R_m=float(row["R_m"]),
-                    a_m=float(row["a_m"]),
-                    kappa=float(row["kappa"]),
-                    delta=float(row["delta"]),
-                    M_AMU=float(row["M_AMU"]),
-                    tau_E_s=float(row["tau_E_s"]),
-                    H98y2=float(row["H98y2"]),
-                    source=row["source"],
+                    machine=row.get("machine") or "",
+                    shot=row.get("shot") or "",
+                    Ip_MA=_finite(row, "Ip_MA", line),
+                    BT_T=_finite(row, "BT_T", line),
+                    ne19=_finite(row, "ne19_1e19m3", line),
+                    Ploss_MW=_finite(row, "Ploss_MW", line),
+                    R_m=_finite(row, "R_m", line),
+                    a_m=_finite(row, "a_m", line),
+                    kappa=_finite(row, "kappa", line),
+                    delta=_finite(row, "delta", line),
+                    M_AMU=_finite(row, "M_AMU", line),
+                    tau_E_s=_finite(row, "tau_E_s", line),
+                    H98y2=_finite(row, "H98y2", line),
+                    source=row.get("source") or "",
                 )
             )
+    if not records:
+        raise ValueError(f"{path} has no data rows")
     logger.info("Loaded %d shots from %s", len(records), path.name)
     return records
 
@@ -152,11 +198,36 @@ def chang_hinton_chi_scalar(
     A_ion: float = 2.0,
     Z_eff: float = 1.5,
 ) -> float:
-    """Chang-Hinton (1982) neoclassical ion thermal diffusivity [m^2/s].
+    """Return the Chang-Hinton (1982) neoclassical ion diffusivity [m^2/s] at one point.
 
-    Single-point evaluation for the calibration inner loop.
+    Parameters
+    ----------
+    rho_norm : float
+        Normalised minor radius; the inverse aspect ratio is ``rho_norm * a / R0``.
+    T_i_keV : float
+        Ion temperature [keV].
+    n_e_19 : float
+        Electron density [10^19 m^-3]; ion density is taken equal to it.
+    q : float
+        Safety factor.
+    R0, a : float
+        Major and minor radius [m].
+    B0 : float
+        Magnetic field [T].
+    A_ion : float
+        Ion mass number.
+    Z_eff : float
+        Effective charge.
+
+    Returns
+    -------
+    float
+        ``0.66 (1 + 1.54 eps) q^2 rho_i^2 nu_ii / (eps^1.5 (1 + 0.74 nu*^(2/3)))``
+        with a Coulomb logarithm of 17, floored at 0.01. A non-positive radius,
+        temperature, density, safety factor, geometry, field or mass, an inverse
+        aspect ratio below 1e-6, or a non-finite result also returns 0.01.
     """
-    if rho_norm <= 0 or T_i_keV <= 0 or n_e_19 <= 0 or q <= 0:
+    if min(rho_norm, T_i_keV, n_e_19, q, R0, a, B0, A_ion) <= 0:
         return 0.01
 
     m_i = A_ion * M_PROTON
@@ -165,394 +236,296 @@ def chang_hinton_chi_scalar(
         return 0.01
 
     T_J = T_i_keV * E_KEV_J
-    v_ti = np.sqrt(2.0 * T_J / m_i)
+    v_ti = math.sqrt(2.0 * T_J / m_i)
     rho_i = m_i * v_ti / (E_CHARGE * B0)
 
-    # Ion-ion collision frequency
     n_e = n_e_19 * 1e19
     ln_lambda = 17.0
-    nu_ii = n_e * Z_eff**2 * E_CHARGE**4 * ln_lambda / (12.0 * np.pi**1.5 * EPS_0**2 * m_i**0.5 * T_J**1.5)
+    nu_ii = n_e * Z_eff**2 * E_CHARGE**4 * ln_lambda / (12.0 * math.pi**1.5 * EPS_0**2 * m_i**0.5 * T_J**1.5)
 
     eps32 = epsilon**1.5
     nu_star = nu_ii * q * R0 / (eps32 * v_ti)
 
-    alpha_sh = epsilon
-    chi_val = 0.66 * (1.0 + 1.54 * alpha_sh) * q**2 * rho_i**2 * nu_ii / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
-
-    return max(chi_val, 0.01) if np.isfinite(chi_val) else 0.01
-
-
-# ── Gyro-Bohm chi ────────────────────────────────────────────────────
-
-
-def gyro_bohm_chi_scalar(
-    c_gB: float,
-    T_i_keV: float,
-    T_e_keV: float,
-    q: float,
-    R0: float,
-    a: float,
-    B0: float,
-    A_ion: float = 2.0,
-    rho_norm: float = 0.5,
-    q0: float = 1.0,
-    q95: float = 3.0,
-) -> float:
-    """Gyro-Bohm anomalous diffusivity with magnetic shear correction [m^2/s].
-
-    chi_gB = c_gB * rho_s^2 * c_s / (a * q^2 * R) * F_shear
-
-    where rho_s = sqrt(T_i * m_i) / (e * B),  c_s = sqrt(T_e / m_i),
-    and F_shear = max(s_hat, 0.1) accounts for the turbulence stabilisation
-    by magnetic shear: s_hat = (rho/q) * dq/drho.
-
-    The q^2 dependence (instead of q^1) captures the stronger stabilisation
-    at high safety factor observed in gyrokinetic simulations (Bourdelle
-    et al., NF 2007; Citrin et al., PPCF 2015).  This form naturally
-    reproduces the strong Ip dependence of confinement since q ~ 1/Ip.
-    """
-    m_i = A_ion * M_PROTON
-    T_i_J = max(T_i_keV, 0.01) * E_KEV_J
-    T_e_J = max(T_e_keV, 0.01) * E_KEV_J
-    qi = max(q, 0.5)
-
-    rho_s = np.sqrt(T_i_J * m_i) / (E_CHARGE * B0)
-    c_s = np.sqrt(T_e_J / m_i)
-
-    # Magnetic shear: s_hat = (rho/q) * dq/drho
-    # For q(rho) = q0 + (q95-q0)*rho^2: dq/drho = 2*(q95-q0)*rho
-    rho_n = max(rho_norm, 0.05)
-    dq_drho = 2.0 * (q95 - q0) * rho_n
-    s_hat = rho_n * dq_drho / qi
-    # Shear correction: turbulence is reduced at high shear
-    F_shear = max(s_hat, 0.1)
-
-    chi_val = c_gB * rho_s**2 * c_s * F_shear / max(a * qi**2 * R0, 1e-6)
-    return max(chi_val, 0.01) if np.isfinite(chi_val) else 0.01
+    chi_val = 0.66 * (1.0 + 1.54 * epsilon) * q**2 * rho_i**2 * nu_ii / (eps32 * (1.0 + 0.74 * nu_star ** (2.0 / 3.0)))
+    return max(chi_val, 0.01) if math.isfinite(chi_val) else 0.01
 
 
 # ── Predict tau_E for one shot ────────────────────────────────────────
 
 
-def predict_tau_e(shot: ShotRecord, c_gB: float) -> float:
-    """Predict energy confinement time [s] for a single shot.
+def ipb98_shape(shot: ShotRecord) -> float:
+    """Return the IPB98(y,2) power-law product of one shot without its prefactor.
 
-    Uses the self-consistent power-balance solution for gyro-Bohm transport
-    with the IPB98(y,2)-validated scaling structure.
+    Parameters
+    ----------
+    shot : ShotRecord
+        One CSV row.
 
-    Model structure
-    ---------------
-    The energy confinement time is predicted from gyro-Bohm physics:
-
-        chi_gB = c_gB * rho_s^2 * c_s / (a * q * R)
-
-    The self-consistent power balance (chi depends on T, which depends on
-    chi through tau_E) is solved analytically, yielding:
-
-        tau_E = C(c_gB) * Ip^alpha_I * B^alpha_B * ... (physics-determined exponents)
-
-    The IPB98(y,2) scaling law (Nuclear Fusion 39, 1999, 2175; updated by
-    Verdoolaege et al., NF 61, 2021, 076006) encapsulates the result of
-    fitting these physics dependences to 5920 H-mode shots from 18 tokamaks.
-    Its exponents were shown to be consistent with gyro-Bohm transport
-    modified by profile effects and electromagnetic stabilisation
-    (Petty, Phys. Plasmas 15, 2008).
-
-    We use the IPB98(y,2) functional form with c_gB controlling the overall
-    transport level through the prefactor C.  The relationship between
-    c_gB and C comes from equating the volume-averaged gyro-Bohm chi
-    to the effective chi implied by the scaling:
-
-        chi_eff = a^2 * f_shape / (2 * tau_E)
-
-    For a representative deuterium plasma at T ~ 5 keV, B ~ 5 T, a ~ 1 m,
-    R ~ 3 m, q ~ 3:  chi_gB ~ c_gB * 0.3 m^2/s.  The IPB98(y,2) with
-    C=0.0562 gives chi_eff ~ 0.5-2 m^2/s.  This fixes c_gB ~ 2-7.
-
-    The neoclassical contribution is added to refine the prediction at
-    low-temperature / high-collisionality conditions.
+    Returns
+    -------
+    float
+        ``Ip^0.93 B^0.15 n^0.41 P^-0.69 R^1.97 kappa^0.78 epsilon^0.58 M^0.19``
+        in the CSV units, with ``epsilon = a / R``.
     """
-    R0 = shot.R_m
-    a = shot.a_m
-    B0 = shot.BT_T
-    A_ion = shot.M_AMU
-    kappa = shot.kappa
-    epsilon = a / R0
-    ne_avg = shot.ne19
-    P_loss = shot.Ploss_MW
-    Ip = shot.Ip_MA
-
-    # ── IPB98(y,2) scaling structure ──
-    # tau = C * Ip^0.93 * B^0.15 * n^0.41 * P^(-0.69)
-    #       * R^1.97 * kappa^0.78 * epsilon^0.58 * M^0.19
-    tau_shape = (
-        Ip**0.93 * B0**0.15 * ne_avg**0.41 * P_loss ** (-0.69) * R0**1.97 * kappa**0.78 * epsilon**0.58 * A_ion**0.19
+    e = IPB98_EXPONENTS
+    return float(
+        shot.Ip_MA ** e["Ip"]
+        * shot.BT_T ** e["B"]
+        * shot.ne19 ** e["n"]
+        * shot.Ploss_MW ** e["P"]
+        * shot.R_m ** e["R"]
+        * shot.kappa ** e["kappa"]
+        * (shot.a_m / shot.R_m) ** e["epsilon"]
+        * shot.M_AMU ** e["M"]
     )
 
-    # ── c_gB as effective IPB98 prefactor ──
-    # The self-consistent power balance with gyro-Bohm transport gives
-    # tau_E ~ c_gB^(-2/5) * (physics terms).  The IPB98(y,2) multi-variate
-    # form captures these physics terms.  The parameter c_gB here plays
-    # the role of the effective dimensional prefactor C of IPB98(y,2),
-    # directly linking the gyro-Bohm chi_gB formula to global confinement.
-    #
-    # The physical interpretation: c_gB encodes the ratio between the
-    # fundamental gyro-Bohm diffusivity and the effective anomalous
-    # transport observed experimentally (after averaging over profile
-    # shapes, turbulence saturation levels, and electromagnetic effects).
 
-    tau_E = c_gB * tau_shape
+def neoclassical_factor(shot: ShotRecord, tau_base: float) -> float:
+    """Return the factor ``f_neo`` in [0.5, 1] that lowers a predicted ``tau_E``.
 
-    # ── Neoclassical transport correction ──
-    # The total effective diffusivity includes both anomalous (gyro-Bohm)
-    # and neoclassical contributions: chi_total = chi_anom + chi_neo.
-    # The IPB98(y,2) fitting already accounts for an average neoclassical
-    # fraction in the database, but the variation across machines
-    # (especially between large/hot and small/dense plasmas) introduces
-    # systematic deviations.
-    #
-    # The correction reduces tau_E for machines where the neoclassical
-    # fraction exceeds the database average:
-    #   tau_corrected = tau_base * chi_eff / (chi_eff + delta_chi_neo)
-    # where delta_chi_neo = chi_neo - chi_neo_ref is the excess
-    # neoclassical transport above the reference level.
+    The stored energy ``P_loss * tau_base`` and the plasma volume
+    ``2 pi^2 R a^2 kappa`` give a volume-averaged temperature, clamped to
+    [0.1, 50] keV. With the cylindrical safety factor
+    ``max(5 a^2 B kappa / (R Ip), 2)``, the Chang-Hinton diffusivity
+    ``chi_neo`` is evaluated at mid-radius. The effective diffusivity of the
+    prediction is ``chi_eff = a^2 kappa^0.78 epsilon^0.58 / (2 tau_base)``.
 
-    V_plasma = 2.0 * np.pi**2 * R0 * a**2 * kappa
-    W_est = P_loss * 1e6 * tau_E
-    T_avg_keV = W_est / max(3.0 * ne_avg * 1e19 * V_plasma * E_KEV_J, 1e-10)
-    T_avg_keV = max(min(T_avg_keV, 50.0), 0.1)
+    Parameters
+    ----------
+    shot : ShotRecord
+        One CSV row.
+    tau_base : float
+        Prediction before the factor [s], positive.
 
-    q_avg = max(5.0 * a**2 * B0 * kappa / max(R0 * Ip, 1e-6), 2.0)
+    Returns
+    -------
+    float
+        ``max(chi_eff / (chi_eff + chi_neo), 0.5)``.
+    """
+    R0, a, B0, kappa = shot.R_m, shot.a_m, shot.BT_T, shot.kappa
+    volume = 2.0 * math.pi**2 * R0 * a**2 * kappa
+    stored_energy_j = shot.Ploss_MW * 1e6 * tau_base
+    t_avg_kev = stored_energy_j / (3.0 * shot.ne19 * 1e19 * volume * E_KEV_J)
+    t_avg_kev = min(max(t_avg_kev, 0.1), 50.0)
+    q_avg = max(5.0 * a**2 * B0 * kappa / (R0 * shot.Ip_MA), 2.0)
+    chi_neo = chang_hinton_chi_scalar(0.5, t_avg_kev, shot.ne19, q_avg, R0, a, B0, shot.M_AMU)
+    chi_eff = float(a**2 * kappa**0.78 * (a / R0) ** 0.58 / (2.0 * tau_base))
+    return max(chi_eff / (chi_eff + chi_neo), 0.5)
 
-    # Chang-Hinton neoclassical chi
-    chi_neo = chang_hinton_chi_scalar(
-        0.5,
-        T_avg_keV,
-        ne_avg,
-        q_avg,
-        R0,
-        a,
-        B0,
-        A_ion,
+
+def predict_tau_e(shot: ShotRecord, prefactor: float) -> float:
+    """Predict the energy confinement time [s] of one shot.
+
+    Parameters
+    ----------
+    shot : ShotRecord
+        One CSV row.
+    prefactor : float
+        IPB98(y,2)-form prefactor ``C``, positive.
+
+    Returns
+    -------
+    float
+        ``C * ipb98_shape(shot) * neoclassical_factor(shot, C * ipb98_shape(shot))``,
+        floored at 1e-4 s.
+    """
+    tau_base = prefactor * ipb98_shape(shot)
+    return max(tau_base * neoclassical_factor(shot, tau_base), 1e-4)
+
+
+# ── Fit metrics ───────────────────────────────────────────────────────
+
+
+def compute_rmse(prefactor: float, shots: list[ShotRecord]) -> float:
+    """Return the RMSE [s] of predicted against tabulated ``tau_E`` over ``shots``."""
+    residuals = [(predict_tau_e(shot, prefactor) - shot.tau_E_s) ** 2 for shot in shots]
+    return math.sqrt(sum(residuals) / len(residuals))
+
+
+def compute_log_rmse(prefactor: float, shots: list[ShotRecord]) -> float:
+    """Return the RMS of ``log10(predicted / tabulated)``, which weighs every row equally."""
+    ratios = [math.log10(predict_tau_e(shot, prefactor) / shot.tau_E_s) ** 2 for shot in shots]
+    return math.sqrt(sum(ratios) / len(ratios))
+
+
+def objective(log_prefactor: float, shots: list[ShotRecord]) -> float:
+    """Return :func:`compute_rmse` at ``C = 10**log_prefactor`` for the bounded search."""
+    return compute_rmse(10.0**log_prefactor, shots)
+
+
+def _fit(shots: list[ShotRecord], low: float, high: float, xatol: float) -> tuple[float, float]:
+    """Minimise :func:`objective` over ``[low, high]`` in ``log10(C)``; return ``C`` and its RMSE."""
+    result = minimize_scalar(
+        objective, bounds=(low, high), args=(shots,), method="bounded", options={"xatol": xatol, "maxiter": 200}
     )
-
-    # Effective chi implied by the tau_E prediction
-    f_shape_eff = kappa**0.78 * epsilon**0.58
-    chi_eff = a**2 * f_shape_eff / max(2.0 * tau_E, 1e-10)
-
-    # Apply correction: tau is reduced when neo fraction is large
-    # The correction factor = chi_eff / (chi_eff + chi_neo) but
-    # capped at 0.5 (neoclassical never dominates the total by
-    # more than factor 2 in H-mode, consistent with gyrokinetic
-    # analyses showing chi_anom > chi_neo in the core).
-    if chi_eff > 0:
-        correction = chi_eff / (chi_eff + chi_neo)
-        correction = max(correction, 0.5)
-        tau_E *= correction
-
-    return max(float(tau_E), 1e-4)
-
-
-# ── RMSE objective ────────────────────────────────────────────────────
-
-
-def compute_rmse(
-    c_gB: float,
-    shots: list[ShotRecord],
-) -> float:
-    """Compute RMSE [s] between predicted and measured tau_E."""
-    residuals = []
-    for s in shots:
-        tau_pred = predict_tau_e(s, c_gB)
-        residuals.append((tau_pred - s.tau_E_s) ** 2)
-    return np.sqrt(np.mean(residuals))
-
-
-def compute_log_rmse(
-    c_gB: float,
-    shots: list[ShotRecord],
-) -> float:
-    """Compute RMS of log10(predicted/measured) — standard in confinement scaling.
-
-    This metric weights all machines equally regardless of absolute tau_E,
-    which is appropriate when the data spans 2 orders of magnitude.
-    """
-    log_ratios = []
-    for s in shots:
-        tau_pred = max(predict_tau_e(s, c_gB), 1e-6)
-        log_ratios.append(np.log10(tau_pred / max(s.tau_E_s, 1e-6)))
-    return np.sqrt(np.mean(np.array(log_ratios) ** 2))
-
-
-def objective(log_c_gB: float, shots: list[ShotRecord]) -> float:
-    """Objective function for optimiser (operates in log-space for c_gB).
-
-    Minimises the absolute RMSE [s] — the standard metric for the CI
-    regression gate (``ci_rmse_gate.py``).
-    """
-    c_gB = 10.0**log_c_gB
-    return compute_rmse(c_gB, shots)
-
-
-# ── Bootstrap uncertainty ─────────────────────────────────────────────
+    return 10.0 ** float(result.x), float(result.fun)
 
 
 def bootstrap_uncertainty(
     shots: list[ShotRecord],
-    c_gB_best: float,
+    prefactor_best: float,
     n_bootstrap: int = 200,
     rng_seed: int = 42,
 ) -> float:
-    """Estimate 1-sigma uncertainty on c_gB via bootstrap resampling."""
-    rng = np.random.default_rng(rng_seed)
-    n = len(shots)
-    c_gB_samples = []
-
-    for _ in range(n_bootstrap):
-        indices = rng.integers(0, n, size=n)
-        boot_shots = [shots[i] for i in indices]
-
-        result = minimize_scalar(
-            objective,
-            bounds=(np.log10(c_gB_best) - 1.5, np.log10(c_gB_best) + 1.5),
-            args=(boot_shots,),
-            method="bounded",
-            options={"xatol": 0.01},
-        )
-        c_gB_samples.append(10.0**result.x)
-
-    return float(np.std(c_gB_samples))
-
-
-# ── Main calibration routine ──────────────────────────────────────────
-
-
-def calibrate(
-    csv_path: Optional[Path] = None,
-    output_path: Optional[Path] = None,
-    verbose: bool = True,
-) -> dict:
-    """Run the full gyro-Bohm calibration.
+    """Return the bootstrap standard deviation of the fitted prefactor.
 
     Parameters
     ----------
-    csv_path : Path, optional
-        Path to ITPA CSV.  Defaults to the repo's reference data.
-    output_path : Path, optional
-        Path for JSON output.  Defaults to the repo's reference data dir.
-    verbose : bool
-        If True, print per-shot results.
+    shots : list[ShotRecord]
+        Rows of the full fit.
+    prefactor_best : float
+        Full-data prefactor; each resample is refitted within 1.5 decades of it.
+    n_bootstrap : int
+        Number of resamples with replacement.
+    rng_seed : int
+        Seed of ``numpy.random.default_rng``; equal seeds give equal results.
 
     Returns
     -------
-    dict
-        Calibration result dict with keys: c_gB, c_gB_uncertainty,
-        rmse_percent, n_shots, calibration_date, and more.
+    float
+        Population standard deviation of the resampled prefactors.
+    """
+    rng = np.random.default_rng(rng_seed)
+    centre = math.log10(prefactor_best)
+    samples = []
+    for _ in range(n_bootstrap):
+        indices = rng.integers(0, len(shots), size=len(shots))
+        samples.append(_fit([shots[int(i)] for i in indices], centre - 1.5, centre + 1.5, 0.01)[0])
+    return float(np.std(samples))
+
+
+# ── Main fit routine ──────────────────────────────────────────────────
+
+
+def _refuse_solver_coefficient_file(output_path: Path) -> None:
+    """Refuse an output that would overwrite the solvers' local coefficient file."""
+    if output_path.resolve() == SOLVER_COEFFICIENT_JSON.resolve():
+        raise ValueError(
+            f"refusing to write {SOLVER_COEFFICIENT_JSON.name}: the fitted IPB98(y,2) prefactor is not "
+            "the local gyro-Bohm coefficient c_gB that the transport solvers read from it"
+        )
+
+
+def calibrate(
+    csv_path: Path | None = None,
+    output_path: Path | None = None,
+    verbose: bool = True,
+) -> dict[str, object]:
+    """Fit the IPB98(y,2)-form prefactor and write the result as JSON.
+
+    Parameters
+    ----------
+    csv_path : pathlib.Path, optional
+        ITPA CSV; defaults to :data:`ITPA_CSV`.
+    output_path : pathlib.Path, optional
+        JSON destination; defaults to :data:`OUTPUT_JSON`. Its parent is
+        created; an existing file is replaced.
+    verbose : bool
+        Print a per-row comparison table to stdout.
+
+    Returns
+    -------
+    dict[str, object]
+        The written record: ``ipb98_prefactor``, its bootstrap uncertainty,
+        absolute, relative, logarithmic and mean-absolute-percentage errors,
+        ``n_shots``, the UTC fit time, the form and its claim boundary.
+
+    Raises
+    ------
+    ValueError
+        If ``output_path`` is the solvers' coefficient file or the CSV is refused.
+    OSError
+        If the CSV cannot be read or the output cannot be written.
     """
     csv_path = csv_path or ITPA_CSV
     output_path = output_path or OUTPUT_JSON
+    _refuse_solver_coefficient_file(output_path)
 
     shots = load_itpa_csv(csv_path)
-    n_shots = len(shots)
+    prefactor, rmse = _fit(shots, -2.0, 4.0, 0.005)
+    mean_tau = sum(shot.tau_E_s for shot in shots) / len(shots)
+    rmse_rel = rmse / mean_tau
+    logger.info("IPB98(y,2)-form prefactor = %.6f, RMSE = %.4f s (%.2f %%)", prefactor, rmse, 100 * rmse_rel)
 
-    # ── Optimise c_gB ──
-    logger.info("Optimising c_gB over %d shots...", n_shots)
-
-    result = minimize_scalar(
-        objective,
-        bounds=(-2.0, 4.0),  # c_gB in [0.01, 10000]
-        args=(shots,),
-        method="bounded",
-        options={"xatol": 0.005, "maxiter": 200},
-    )
-
-    c_gB_best = 10.0**result.x
-    rmse_best = result.fun
-    mean_tau = np.mean([s.tau_E_s for s in shots])
-    rmse_rel = rmse_best / mean_tau
-    rmse_percent = float(rmse_rel * 100)
-
-    logger.info("Optimal c_gB = %.4f", c_gB_best)
-    logger.info("RMSE = %.4f s", rmse_best)
-    logger.info("Relative RMSE = %.2f%%", rmse_percent)
-
-    # ── Per-shot tau_E comparison table ──
     if verbose:
         print("\n" + "=" * 90)
         print(f"{'Machine':<12} {'Shot':<12} {'tau_meas':>8} {'tau_pred':>8} {'error':>8} {'rel_err':>8}")
         print("-" * 90)
-        for s in shots:
-            tau_pred = predict_tau_e(s, c_gB_best)
-            err = tau_pred - s.tau_E_s
-            rel_err = err / s.tau_E_s if s.tau_E_s > 0 else 0
-            print(f"{s.machine:<12} {s.shot:<12} {s.tau_E_s:8.4f} {tau_pred:8.4f} {err:+8.4f} {rel_err:+8.2%}")
+        for shot in shots:
+            tau_pred = predict_tau_e(shot, prefactor)
+            err = tau_pred - shot.tau_E_s
+            print(
+                f"{shot.machine:<12} {shot.shot:<12} {shot.tau_E_s:8.4f} {tau_pred:8.4f} {err:+8.4f} {err / shot.tau_E_s:+8.2%}"
+            )
         print("=" * 90)
 
-    # ── Bootstrap uncertainty ──
-    logger.info("Computing bootstrap uncertainty (200 resamples)...")
-    c_gB_unc = bootstrap_uncertainty(shots, c_gB_best)
-    logger.info("c_gB uncertainty (1-sigma) = %.4f", c_gB_unc)
+    uncertainty = bootstrap_uncertainty(shots, prefactor)
+    mape = sum(abs(predict_tau_e(shot, prefactor) - shot.tau_E_s) / shot.tau_E_s for shot in shots) / len(shots)
 
-    # ── Additional metrics ──
-    log_rmse = compute_log_rmse(c_gB_best, shots)
-    mape = np.mean([abs(predict_tau_e(s, c_gB_best) - s.tau_E_s) / s.tau_E_s for s in shots])
-
-    # ── Build result ──
-    calibration_result = {
-        "name": "gyro_bohm_transport_coefficient",
-        "description": (
-            "Calibrated gyro-Bohm anomalous transport coefficient c_gB. "
-            "chi_gB = c_gB * rho_s^2 * c_s / (a * q * R). "
-            "Fitted against 20-shot ITPA H-mode confinement database "
-            "using IPB98(y,2) scaling structure with Chang-Hinton "
-            "neoclassical correction."
+    record: dict[str, object] = {
+        "name": "ipb98_form_confinement_prefactor_fit",
+        "quantity": (
+            "Dimensional prefactor C of tau_E = C * Ip^0.93 * B^0.15 * n^0.41 * P^(-0.69) * R^1.97 "
+            "* kappa^0.78 * epsilon^0.58 * M^0.19 * f_neo in the CSV units (MA, T, 1e19 m^-3, MW, m, amu, s)"
         ),
-        "c_gB": round(float(c_gB_best), 6),
-        "c_gB_uncertainty": round(float(c_gB_unc), 6),
-        "rmse_s": round(float(rmse_best), 6),
-        "rmse_percent": round(rmse_percent, 4),
-        "rmse_relative": round(float(rmse_rel), 6),
-        "log_rmse": round(float(log_rmse), 4),
-        "mape": round(float(mape * 100), 2),
-        "mean_measured_tau_s": round(float(mean_tau), 6),
-        "n_shots": n_shots,
-        "calibration_date": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "method": "scipy.optimize.minimize_scalar (bounded, log-space)",
-        "transport_model": (
-            "IPB98(y,2) scaling structure with c_gB as effective prefactor "
-            "plus Chang-Hinton (1982) neoclassical correction"
+        "claim_boundary": (
+            "Fit of a global confinement form to mixed machine and design rows; not the local gyro-Bohm "
+            "coefficient c_gB of the transport solvers and not a transport-model validation"
         ),
-        "confinement_scaling": {
-            "formula": (
-                "tau_E = c_gB * Ip^0.93 * B^0.15 * n^0.41 * P^(-0.69) "
-                "* R^1.97 * kappa^0.78 * epsilon^0.58 * M^0.19 "
-                "* neo_correction"
-            ),
-            "exponent_source": "IPB98(y,2), NF 39 (1999) 2175",
-        },
-        "neoclassical_model": "Chang-Hinton (1982), Phys. Fluids 25, 1493",
-        "reference": "ITPA H-mode confinement database (hmode_confinement.csv)",
+        "ipb98_prefactor": round(prefactor, 6),
+        "ipb98_prefactor_uncertainty": round(uncertainty, 6),
+        "rmse_s": round(rmse, 6),
+        "rmse_percent": round(100 * rmse_rel, 4),
+        "rmse_relative": round(rmse_rel, 6),
+        "log_rmse": round(compute_log_rmse(prefactor, shots), 4),
+        "mape_percent": round(100 * mape, 2),
+        "mean_tabulated_tau_s": round(mean_tau, 6),
+        "n_shots": len(shots),
+        "fit_utc": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "method": "scipy.optimize.minimize_scalar, bounded, in log10(C) over [-2, 4]; 200-sample seeded bootstrap",
+        "exponents": dict(IPB98_EXPONENTS),
+        "exponent_source": "IPB98(y,2), Nuclear Fusion 39 (1999) 2175",
+        "neoclassical_model": "Chang-Hinton (1982), Phys. Fluids 25, 1493, at mid-radius",
+        "reference": "ITPA H-mode confinement CSV (hmode_confinement.csv)",
     }
-
-    # ── Save ──
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(output_path, "w", encoding="utf-8") as f:
-        json.dump(calibration_result, f, indent=2)
-    logger.info("Saved calibration to %s", output_path)
-
-    # ── Pass/fail ──
-    if rmse_rel < 0.15:
-        logger.info("PASS: Relative RMSE %.2f%% < 15%% target", rmse_percent)
-    else:
-        logger.warning("FAIL: Relative RMSE %.2f%% >= 15%% target", rmse_percent)
-
-    return calibration_result
+    output_path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    logger.info("Saved the fit to %s", output_path)
+    return record
 
 
-# ── CLI entry point ───────────────────────────────────────────────────
+def main(argv: list[str] | None = None) -> int:
+    """Run the fit from the command line.
+
+    Parameters
+    ----------
+    argv : list[str], optional
+        Arguments without the program name; ``None`` reads ``sys.argv``.
+
+    Returns
+    -------
+    int
+        0 when the relative RMSE is below :data:`RELATIVE_RMSE_TARGET`, 1 when
+        it is not, and 2 when the CSV or the output path is refused.
+    """
+    parser = argparse.ArgumentParser(description="Fit the IPB98(y,2)-form confinement prefactor to the ITPA CSV.")
+    parser.add_argument("--csv", type=Path, default=ITPA_CSV)
+    parser.add_argument("--output", type=Path, default=OUTPUT_JSON)
+    parser.add_argument("--quiet", action="store_true", help="omit the per-row table")
+    args = parser.parse_args(argv)
+    logging.basicConfig(level=logging.INFO, format="%(levelname)-5s %(message)s")
+    try:
+        record = calibrate(args.csv, args.output, verbose=not args.quiet)
+    except (OSError, ValueError) as exc:
+        print(f"refused: {exc}", file=sys.stderr)
+        return 2
+    rmse_relative = cast(float, record["rmse_relative"])
+    if rmse_relative < RELATIVE_RMSE_TARGET:
+        print(f"PASS: relative RMSE {100 * rmse_relative:.2f} % < {100 * RELATIVE_RMSE_TARGET:.0f} %")
+        return 0
+    print(f"FAIL: relative RMSE {100 * rmse_relative:.2f} % >= {100 * RELATIVE_RMSE_TARGET:.0f} %")
+    return 1
+
 
 if __name__ == "__main__":
-    result = calibrate(verbose=True)
-    # Exit with non-zero if RMSE target not met
-    if result["rmse_relative"] >= 0.15:
-        sys.exit(1)
+    raise SystemExit(main())

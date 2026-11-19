@@ -6,7 +6,16 @@
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — ITPA Reference Generator
 
-"""Generate the checked-in ITPA gyro-Bohm reference payload."""
+"""Write the checked-in gyro-Bohm coefficient file read by the transport solvers.
+
+Every value in the payload is a configured constant typed into this script:
+``c_gB`` 0.0424, the exponents, the radius bounds and the two thresholds. No
+fit, ITPA release or database extract in this repository produces them, and
+the ``itpa_version`` field is a label of this file, not a citation. The solvers
+read ``c_gB`` (or ``scaling_parameters.c_gB_nominal``); the native engine also
+reads the exponents and radius bounds. ``tools/calibrate_gyro_bohm.py`` fits an
+unrelated dimensional quantity and refuses to write this file.
+"""
 
 from __future__ import annotations
 
@@ -17,7 +26,7 @@ REFERENCE_LAST_MODIFIED = "2026-06-03"
 
 
 def generate_gyro_bohm_reference() -> None:
-    """Generate ITPA Gyro-Bohm scaling coefficients JSON reference data."""
+    """Write the configured constants to ``validation/reference_data/itpa/gyro_bohm_coefficients.json``."""
     target_dir = Path("validation/reference_data/itpa")
     target_file = target_dir / "gyro_bohm_coefficients.json"
     target_dir.mkdir(parents=True, exist_ok=True)
