@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
@@ -151,9 +152,26 @@ def test_main_reports_validation_failures(
     """The command-line guard reports validation failures with a failing exit code."""
 
     def fail_public_key() -> None:
+        """Stand in for a public-key check that refuses its input."""
         raise ValueError("bad public key")
 
     monkeypatch.setattr(guard, "validate_public_key", fail_public_key)
 
     assert guard.main() == 1
     assert capsys.readouterr().out == "FAIL: Studio deploy inputs could not be inspected\n"
+
+
+def test_source_cli_passes_on_the_repository() -> None:
+    """The documented source command passes on the canonical checkout with one fixed line."""
+    script = Path(guard.__file__).resolve()
+    result = subprocess.run(
+        [sys.executable, str(script)],
+        cwd=script.parents[1],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+    assert result.returncode == 0
+    assert result.stdout == "PASS: Studio deploy key and CI deploy workflow are valid\n"
+    assert result.stderr == ""

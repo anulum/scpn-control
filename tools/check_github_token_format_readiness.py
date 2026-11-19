@@ -164,17 +164,19 @@ def scan_text(path: str, text: str) -> list[Finding]:
     Returns
     -------
     list[Finding]
-        Findings for exact-width token regexes, fixed token-length checks,
-        undersized token storage, and missing stateless-token override headers.
+        One finding per match of an exact-width token regex, a fixed
+        token-length check or undersized token storage. The stateless-token
+        header check is per payload: when the installation-token endpoint
+        appears and ``X-GitHub-Stateless-S2S-Token`` appears nowhere in the same
+        payload, one finding is reported at the first endpoint occurrence.
     """
     findings: list[Finding] = []
     _append_regex_findings(findings, path, text, TOKEN_PATTERN_RE, "brittle-ghs-regex")
     _append_regex_findings(findings, path, text, EXACT_LENGTH_RE, "fixed-token-length")
     _append_regex_findings(findings, path, text, SMALL_STORAGE_RE, "small-token-storage")
 
-    if INSTALLATION_TOKEN_ENDPOINT_RE.search(text) and STATELESS_HEADER not in text:
-        match = INSTALLATION_TOKEN_ENDPOINT_RE.search(text)
-        assert match is not None
+    match = INSTALLATION_TOKEN_ENDPOINT_RE.search(text)
+    if match is not None and STATELESS_HEADER not in text:
         findings.append(
             Finding(
                 path,
@@ -190,6 +192,19 @@ def scan_text(path: str, text: str) -> list[Finding]:
 def scan_repository(repo: Path) -> list[Finding]:
     """Scan tracked text files in ``repo`` for token-format assumptions.
 
+    Parameters
+    ----------
+    repo
+        Resolved repository root whose Git index lists the files to scan.
+
+    Returns
+    -------
+    list[Finding]
+        Findings of :func:`scan_text` for every scanned file, with
+        repository-relative POSIX paths, in index order.
+
+    Notes
+    -----
     Files that cannot be decoded as UTF-8 are skipped so binary artifacts do not
     make the guard fail for reasons unrelated to token-format readiness.
     """
@@ -204,11 +219,21 @@ def scan_repository(repo: Path) -> list[Finding]:
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Inspect tracked source: clean0, findings1, root/Git/read failure2.
+    """Scan the tracked source of ``--repo`` and report brittle token handling.
 
-    Expected inspection failures use a fixed stderr refusal without exposing
-    source contents or credentials. Argparse retains help0/usage2. No source,
-    Git state or credentials are changed.
+    Parameters
+    ----------
+    argv
+        Command-line arguments, or the process arguments when ``None``.
+
+    Returns
+    -------
+    int
+        0 when no finding is reported, 1 when findings are printed, and 2 when
+        the root, Git or a file read cannot be inspected. A refusal prints a fixed
+        stderr sentence that exposes no source content or credential. Argparse
+        keeps its own exits: 0 for ``--help`` and 2 for a usage error. No source,
+        Git state or credential is changed.
     """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", type=Path, default=REPO_ROOT)

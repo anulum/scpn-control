@@ -641,7 +641,9 @@ The security lane runs `python tools/check_github_token_format_readiness.py` in
 CI. The guard scans tracked text files and workflow files for brittle GitHub
 installation-token assumptions: exact-width `ghs_` regexes, fixed token-length
 checks, undersized storage columns, and installation-token endpoint calls that
-omit `X-GitHub-Stateless-S2S-Token`.
+omit `X-GitHub-Stateless-S2S-Token`. The header check is per file: a file that
+names the endpoint passes when it contains the header anywhere, and a file without
+it gets one finding at the first endpoint occurrence.
 
 Treat installation tokens as opaque strings. Code may check for presence,
 prefixes needed for routing, or provider errors, but it must not assume a fixed
