@@ -47,7 +47,10 @@ def _surrogate_chi(R_L_Ti: float) -> tuple[float, float, float]:
 
 
 def _gk_chi(R_L_Ti: float) -> tuple[float, float, float]:
-    """GK ground truth at mid-radius CBC-like params."""
+    """Return native linear-GK quasilinear (chi_i, chi_e, D_e) at CBC-like mid-radius parameters.
+
+    This is the reference of this benchmark, not a nonlinear or measured ground truth.
+    """
     species = [deuterium_ion(R_L_T=R_L_Ti, R_L_n=2.2), electron(R_L_T=R_L_Ti, R_L_n=2.2)]
     result = solve_linear_gk(
         species_list=species,
@@ -115,8 +118,9 @@ def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict[str, Any]:
         gk_ref_i, gk_ref_e, _ = _gk_chi(R_L_Ti_profile[ref_idx])
         gk_ref_i = max(gk_ref_i, 0.01)
 
-        surr_err = abs(chi_i_surr[ref_idx] - gk_ref_i) / gk_ref_i if gk_ref_i > 0 else 0.0
-        corr_err = abs(chi_i_corr[ref_idx] - gk_ref_i) / gk_ref_i if gk_ref_i > 0 else 0.0
+        # The reference is floored at 0.01 above, so the relative errors are always defined.
+        surr_err = abs(chi_i_surr[ref_idx] - gk_ref_i) / gk_ref_i
+        corr_err = abs(chi_i_corr[ref_idx] - gk_ref_i) / gk_ref_i
 
         surrogate_errors.append(surr_err)
         corrected_errors.append(corr_err)
@@ -136,6 +140,10 @@ def run_hybrid_accuracy_benchmark(n_steps: int = 20) -> dict[str, Any]:
     return result
 
 
+def main() -> None:
+    """Run the 20-step benchmark, write its report and print it as indented JSON."""
+    print(json.dumps(run_hybrid_accuracy_benchmark(), indent=2))
+
+
 if __name__ == "__main__":
-    result = run_hybrid_accuracy_benchmark()
-    print(json.dumps(result, indent=2))
+    main()

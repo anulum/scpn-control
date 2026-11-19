@@ -16,8 +16,12 @@
 """
 Benchmark suite for the native linear GK solver.
 
-Runs the Cyclone Base Case, GA-standard case, and parameter scans,
-comparing against published results from GENE/GS2/GYRO.
+Runs four cases with the native eigenvalue solver: the Cyclone Base Case
+geometry and gradients (Dimits et al. 2000), a 12-point R/L_Ti scan for the
+critical gradient, a comparison with the repository's own quasilinear
+dispersion model at the same parameters, and SPARC- and ITER-like mid-radius
+points. It records growth rates and quasilinear fluxes; it loads no
+published GENE, GS2 or GYRO values and makes no comparison with them.
 """
 
 from __future__ import annotations
@@ -37,7 +41,6 @@ from scpn_control.core.gk_quasilinear import (
 )
 from scpn_control.core.gk_species import deuterium_ion, electron
 
-_REF_DIR = Path(__file__).parent / "reference_data" / "cyclone_base"
 _REPORT_DIR = Path(__file__).parent / "reports"
 
 
@@ -170,6 +173,10 @@ def run_all() -> dict[str, Any]:
     return report
 
 
+def main() -> None:
+    """Run the full suite, write its report and print it as indented JSON."""
+    print(json.dumps(run_all(), indent=2))
+
+
 if __name__ == "__main__":
-    report = run_all()
-    print(json.dumps(report, indent=2))
+    main()

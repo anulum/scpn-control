@@ -94,19 +94,35 @@ PRODUCERS: dict[str, tuple[str, str, Callable[[dict[str, Any]], bool]]] = {
         "# VMEC-lite Claim-Admission Benchmark",
         _closed(("production_claim_allowed",)),
     ),
+    "benchmark_gk_online_learner": (
+        "MD_REPORT",
+        "# GK online learner benchmark",
+        lambda payload: payload["claim_boundary"].startswith("Synthetic online learner evidence only."),
+    ),
+    "benchmark_digital_twin_online_update": (
+        "MD_REPORT",
+        "# Digital twin online update benchmark",
+        lambda payload: payload["claim_boundary"].startswith("Bounded synthetic online-update benchmark only."),
+    ),
+}
+SCRIPT_PATH_PREFIX: dict[str, tuple[str, ...]] = {
+    "benchmark_marfe_onset_claims": ("src", "."),
+    "benchmark_vmec_lite_claims": ("src", "."),
+    "benchmark_digital_twin_online_update": ("src",),
 }
 
 
 def _redirect(module: Any, markdown_name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path, Path]:
-    """Move the producer's report directory, report pair and any weight file into ``tmp_path``."""
+    """Move the producer's report directory, report pair and any weight or decision file into ``tmp_path``."""
     out = tmp_path / "reports"
     json_path = out / Path(module.JSON_REPORT).name
     markdown_path = out / Path(getattr(module, markdown_name)).name
     monkeypatch.setattr(module, "REPORT_DIR", out)
     monkeypatch.setattr(module, "JSON_REPORT", json_path)
     monkeypatch.setattr(module, markdown_name, markdown_path)
-    if hasattr(module, "WEIGHTS_PATH"):
-        monkeypatch.setattr(module, "WEIGHTS_PATH", out / Path(module.WEIGHTS_PATH).name)
+    for extra in ("WEIGHTS_PATH", "DECISION_REPORT"):
+        if hasattr(module, extra):
+            monkeypatch.setattr(module, extra, out / Path(getattr(module, extra)).name)
     return json_path, markdown_path
 
 
@@ -172,7 +188,7 @@ def test_vmec_producer_builds_geometry_evidence_when_the_committed_report_is_abs
     assert len(payload["geometry_validation_payload_sha256"]) == 64
 
 
-@pytest.mark.parametrize("name", ["benchmark_marfe_onset_claims", "benchmark_vmec_lite_claims"])
+@pytest.mark.parametrize("name", sorted(SCRIPT_PATH_PREFIX))
 def test_package_import_leaves_the_import_path_unchanged(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Imported as ``validation.<module>``, a producer does not insert the checkout or its sources."""
     monkeypatch.setattr(sys, "path", list(sys.path))
@@ -206,9 +222,9 @@ def test_failed_coupling_audit_stops_after_writing_its_reports(tmp_path: Path, m
     assert json_path.exists() and "- Passed: `False`" in markdown_path.read_text(encoding="utf-8")
 
 
-@pytest.mark.parametrize("name", ["benchmark_marfe_onset_claims", "benchmark_vmec_lite_claims"])
+@pytest.mark.parametrize("name", sorted(SCRIPT_PATH_PREFIX))
 def test_script_run_puts_the_checkout_and_sources_first(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Run as a script from a path without the checkout, the producer inserts its sources and the checkout."""
+    """Run as a script from a path without the checkout, the producer inserts its sources (and the checkout)."""
     monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
     module = importlib.import_module(f"validation.{name}")
     script = Path(str(module.__file__))
@@ -217,4 +233,18 @@ def test_script_run_puts_the_checkout_and_sources_first(name: str, monkeypatch: 
     monkeypatch.setattr(sys, "path", stripped)
     with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
         runpy.run_path(str(script), run_name="__main__")
-    assert sys.path[:2] == [str(root / "src"), str(root)]
+    expected = [str(root / part) for part in SCRIPT_PATH_PREFIX[name]]
+    assert sys.path[: len(expected)] == expected
+
+
+def test_online_learner_campaign_without_a_decision_writes_no_summary(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """If the learner records no retrain decision, the producer refuses before writing its summary pair."""
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    module = importlib.import_module("validation.benchmark_gk_online_learner")
+    json_path, markdown_path = _redirect(module, "MD_REPORT", tmp_path, monkeypatch)
+    monkeypatch.setattr(module.OnlineLearner, "latest_decision", lambda self: None)
+    with pytest.raises(RuntimeError, match="did not produce a retrain decision"):
+        module.main()
+    assert not json_path.exists() and not markdown_path.exists()

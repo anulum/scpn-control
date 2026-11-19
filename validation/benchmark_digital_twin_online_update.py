@@ -15,7 +15,10 @@ from dataclasses import asdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPO_ROOT / "src"))
+# Run as a script, put the checkout's sources first; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from scpn_control.benchmark_records import require_recorded_campaign
 from scpn_control.control.digital_twin_online_update import (
