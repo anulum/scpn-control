@@ -68,8 +68,8 @@ def main() -> None:
     Returns
     -------
     None
-        Write kinetic_efit_claims.json, kinetic_efit_claims.md, then the same
-        JSON again under this module's reports directory, in UTF-8 with LF.
+        Write kinetic_efit_claims.json, then kinetic_efit_claims.md, once each,
+        under this module's reports directory, in UTF-8 with LF.
 
     Raises
     ------

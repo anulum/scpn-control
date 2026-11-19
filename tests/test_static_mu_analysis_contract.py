@@ -31,6 +31,7 @@ from scpn_control.control.static_mu_analysis import (
 
 
 def _plant() -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
+    """Return a stable two-state plant (A, B, C, D) with identity input and output maps."""
     return (
         np.array([[-1.4, 0.2], [-0.1, -0.9]], dtype=float),
         np.eye(2),
@@ -40,6 +41,7 @@ def _plant() -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
 
 
 def _uncertainty() -> StructuredUncertainty:
+    """Return two real scalar uncertainty blocks for plasma position and current."""
     return StructuredUncertainty(
         [
             UncertaintyBlock("plasma_position", 1, 0.02, "real_scalar"),
@@ -238,6 +240,20 @@ def test_deprecated_benchmark_entrypoint_is_visible(
     legacy_benchmark.main()
     assert called == [True]
     assert "DEPRECATED: benchmark_mu_synthesis_claims.py" in capsys.readouterr().err
+
+
+def test_deprecated_benchmark_script_refuses_the_committed_report_without_a_campaign(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run as a script without a campaign, the wrapper stops at the guard before its notice or the canonical run."""
+    import runpy
+
+    import validation.benchmark_mu_synthesis_claims as legacy_benchmark
+
+    monkeypatch.delenv("SCPN_BENCHMARK_CAMPAIGN_ID", raising=False)
+    with pytest.raises(RuntimeError, match="requires tools/run_recorded_benchmark.py"):
+        runpy.run_path(str(legacy_benchmark.__file__), run_name="__main__")
+    assert "DEPRECATED" not in capsys.readouterr().err
 
 
 def test_canonical_module_does_not_export_synthesis_or_dk_names() -> None:

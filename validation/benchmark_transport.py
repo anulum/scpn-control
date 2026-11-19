@@ -11,10 +11,14 @@
 # © 1996–2026 Miroslav Šotek. All rights reserved.
 # ──────────────────────────────────────────────────────────────────────
 """
-Systematic transport validation benchmark.
+Transport validation benchmark.
 
-Verifies the 1.5D transport solver against analytic solutions,
-threshold models, and empirical scaling laws.
+Three cases: the 1.5D transport solver's ion channel against an analytic
+cylindrical steady state; the critical-gradient threshold of the analytic
+transport model; and an evaluation of the IPB98(y,2) confinement scaling at
+ITER-like parameters. The third case checks only that the scaling returns a
+finite positive time and a finite non-negative uncertainty; it does not
+compare the solver with the scaling.
 """
 
 from __future__ import annotations
@@ -33,6 +37,9 @@ from scpn_control.core.neural_transport import NeuralTransportModel, TransportIn
 from scpn_control.core.scaling_laws import ipb98y2_with_uncertainty
 
 PURE_DIFFUSION_MAX_RELATIVE_ERROR = 0.05
+REPORT_DIR = Path(__file__).resolve().parent / "reports"
+JSON_REPORT = REPORT_DIR / "transport_benchmark.json"
+MARKDOWN_REPORT = REPORT_DIR / "transport_benchmark.md"
 
 
 def run_pure_diffusion_benchmark(nr: int = 200) -> dict[str, Any]:
@@ -128,18 +135,30 @@ def run_threshold_benchmark() -> dict[str, Any]:
 
 
 def run_iter_scaling_benchmark() -> dict[str, Any]:
-    """Benchmark 3: ITER-like confinement scaling."""
+    """Evaluate IPB98(y,2) at ITER-like parameters and check that the result is usable.
+
+    The inputs are Ip=15 MA, B_T=5.3 T, n_e=10e19 m^-3, P_loss=50 MW, R=6.2 m,
+    kappa=1.7, epsilon=a/R=2/6.2 and M=2.5. ``pass`` is True when the time is
+    finite and positive and its uncertainty finite and non-negative; no solver
+    output or measured confinement time is compared.
+    """
     Ip, BT, ne19, P_loss, R, kappa, epsilon, M = 15.0, 5.3, 10.0, 50.0, 6.2, 1.7, 2.0 / 6.2, 2.5
     tau_pred, sigma = ipb98y2_with_uncertainty(Ip, BT, ne19, P_loss, R, kappa, epsilon, M)
-    return {"tau_predicted": float(tau_pred), "uncertainty_sigma": float(sigma), "pass": True}
+    tau, uncertainty = float(tau_pred), float(sigma)
+    usable = bool(np.isfinite(tau) and tau > 0.0 and np.isfinite(uncertainty) and uncertainty >= 0.0)
+    return {"tau_predicted": tau, "uncertainty_sigma": uncertainty, "pass": usable}
 
 
 def main() -> None:
-    """Write the recorded transport benchmark through the campaign gate."""
-    report_dir = Path("validation/reports")
-    json_path = report_dir / "transport_benchmark.json"
-    markdown_path = report_dir / "transport_benchmark.md"
-    require_recorded_campaign(json_path, markdown_path, repository_root=Path(__file__).resolve().parents[1])
+    """Write the recorded transport benchmark through the campaign gate.
+
+    The report pair goes to this module's ``reports`` directory, whatever the
+    working directory; persistent destinations need a recorded campaign.
+    """
+    report_dir = REPORT_DIR
+    json_path = JSON_REPORT
+    markdown_path = MARKDOWN_REPORT
+    require_recorded_campaign(json_path, markdown_path, repository_root=REPORT_DIR.parents[1])
     results = {
         "pure_diffusion": run_pure_diffusion_benchmark(),
         "threshold": run_threshold_benchmark(),
@@ -153,10 +172,10 @@ def main() -> None:
 
     report_dir.mkdir(parents=True, exist_ok=True)
 
-    with json_path.open("w") as f:
+    with json_path.open("w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
 
-    with markdown_path.open("w") as f:
+    with markdown_path.open("w", encoding="utf-8") as f:
         f.write("# Transport Validation Benchmark\n\n")
         f.write("| Test | Metric | Result | Pass |\n")
         f.write("|------|--------|--------|------|\n")

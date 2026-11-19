@@ -69,3 +69,20 @@ def test_benchmark_partial_pair_io_refusal(tmp_path: Path, capsys: pytest.Captur
     assert producer.main(["--json-out", str(out), "--markdown-out", str(directory)]) == 1
     assert json.loads(out.read_text())["facility_claim_allowed"] is False
     assert directory.is_dir() and "refused" in capsys.readouterr().err
+
+
+def test_script_entry_exits_one_when_the_default_report_needs_a_campaign(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run as a script with its default outputs and no campaign, the producer exits 1 and names the refusal."""
+    import runpy
+    import sys
+
+    monkeypatch.delenv("SCPN_BENCHMARK_CAMPAIGN_ID", raising=False)
+    monkeypatch.setattr(sys, "argv", [str(producer.__file__)])
+    before = producer.JSON_REPORT.read_bytes() if producer.JSON_REPORT.exists() else None
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(producer.__file__), run_name="__main__")
+    assert stopped.value.code == 1
+    assert "RZIP calibration benchmark refused:" in capsys.readouterr().err
+    assert (producer.JSON_REPORT.read_bytes() if producer.JSON_REPORT.exists() else None) == before

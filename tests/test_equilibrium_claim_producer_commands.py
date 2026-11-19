@@ -144,3 +144,17 @@ def test_actual_recorded_public_producer_preserves_bounded_claims(tmp_path: Path
         assert report["claim_status"] == "bounded_free_boundary_tracking_evidence"
         assert "not commissioned facility-control validation" in markdown
     assert source.read_bytes() == (ROOT / "validation" / source.name).read_bytes()
+
+
+def test_tracking_fixture_refuses_unknown_probes_and_falls_back_off_target() -> None:
+    """The fixture kernel answers only its own probes and returns the mean boundary flux away from the X-target."""
+    import numpy as np
+
+    from validation.benchmark_free_boundary_tracking_claims import _BenchmarkFreeBoundaryKernel
+
+    kernel = _BenchmarkFreeBoundaryKernel("unused-config.json")
+    with pytest.raises(ValueError, match="^unexpected benchmark probe points$"):
+        kernel._sample_flux_at_points(np.zeros((4, 2)))
+    boundary = kernel._sample_flux_at_points(kernel._boundary_points)
+    assert kernel._interp_psi(0.0, 0.0) == pytest.approx(float(np.mean(boundary)))
+    assert kernel._interp_psi(4.2, -1.4) == kernel.find_x_point(kernel.Psi)[1]
