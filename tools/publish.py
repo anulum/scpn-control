@@ -90,7 +90,8 @@ def bump_version(part: str) -> str:
     Returns
     -------
     str
-        Newly written version, printed only after successful publication.
+        Newly written version. The change is printed as soon as PYPROJECT is
+        written, before any test, build or upload step runs.
 
     Raises
     ------
