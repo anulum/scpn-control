@@ -149,3 +149,28 @@ def test_actual_source_plot_alias_and_default_custody_refuse(tmp_path: Path) -> 
     assert not (out / "benchmark_disturbance_rejection.json").exists()
     result = observe_command(tmp_path, [sys.executable, str(ROOT / "validation/benchmark_disturbance_rejection.py")])
     assert result.returncode == 2 and "was refused" in result.stderr
+
+
+def test_package_import_leaves_the_import_path_unchanged(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Imported as a package module, the benchmark does not put the checkout or its sources on the import path."""
+    import importlib
+
+    module = importlib.import_module("validation.benchmark_disturbance_rejection")
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {ROOT, ROOT / "src"}]
+    monkeypatch.setattr(sys, "path", list(stripped))
+    importlib.reload(module)
+    assert sys.path == stripped
+
+
+def test_script_run_puts_the_sources_and_checkout_first(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Run as a script from a path without the checkout, the benchmark inserts its sources, then the checkout."""
+    import runpy
+
+    script = ROOT / "validation" / "benchmark_disturbance_rejection.py"
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {ROOT, ROOT / "src"}]
+    monkeypatch.setattr(sys, "path", list(stripped))
+    monkeypatch.setattr(sys, "argv", [str(script), "--help"])
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(script), run_name="__main__")
+    assert stopped.value.code == 0
+    assert sys.path[:2] == [str(ROOT / "src"), str(ROOT)]

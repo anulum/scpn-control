@@ -191,11 +191,12 @@ def test_vmec_producer_builds_geometry_evidence_when_the_committed_report_is_abs
 @pytest.mark.parametrize("name", sorted(SCRIPT_PATH_PREFIX))
 def test_package_import_leaves_the_import_path_unchanged(name: str, monkeypatch: pytest.MonkeyPatch) -> None:
     """Imported as ``validation.<module>``, a producer does not insert the checkout or its sources."""
-    monkeypatch.setattr(sys, "path", list(sys.path))
     module = importlib.import_module(f"validation.{name}")
-    before = list(sys.path)
+    root = Path(str(module.__file__)).resolve().parents[1]
+    stripped = [entry for entry in sys.path if Path(entry or ".").resolve() not in {root, root / "src"}]
+    monkeypatch.setattr(sys, "path", list(stripped))
     importlib.reload(module)
-    assert sys.path == before
+    assert sys.path == stripped
 
 
 def test_marfe_percentile_interpolates_between_ranks() -> None:
