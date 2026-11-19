@@ -2217,12 +2217,15 @@
       "unit_contract": "Inputs inherit GK feature units; transport targets are nonnegative chi_e, chi_i, and D_e; losses and OOD scores are dimensionless with explicit scaling, learning rate, epoch count, generation limit, and threshold metadata.",
       "validation_evidence": [
         "tests/test_gk_online_learner.py OOD admission, holdout retraining, rollback, decision persistence, and invalid-domain checks",
+        "tests/test_gk_online_learner_training.py finite-difference gradient checks for all six weight arrays, exact standardisation folding, unit invariance and same-slice incumbent admission",
         "tests/test_gk_hybrid_integration.py scheduler integration checks",
         "validation/benchmark_gk_online_learner.py deterministic bounded online-retraining benchmark"
       ],
       "evidence_paths": [
         "src/scpn_control/core/gk_online_learner.py",
+        "src/scpn_control/core/_gk_learner_mlp.py",
         "tests/test_gk_online_learner.py",
+        "tests/test_gk_online_learner_training.py",
         "tests/test_gk_hybrid_integration.py",
         "validation/benchmark_gk_online_learner.py",
         "validation/reports/gk_online_learner.json",
