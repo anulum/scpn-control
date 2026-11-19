@@ -627,3 +627,44 @@ def test_fuzz_cli_refuses_unavailable_native_commands_before_build(tmp_path: Pat
     assert result.returncode == 1
     assert result.stdout == ""
     assert result.stderr == "fuzz toolchain metadata failed\n"
+
+
+def test_seed_manifest_skips_directories_inside_a_target(tmp_path: Path) -> None:
+    """Only regular files count as seeds; a nested directory is not hashed or counted."""
+    target = tmp_path / "seeds" / "fuzz_target"
+    (target / "nested").mkdir(parents=True)
+    (target / "a.bin").write_bytes(b"seed")
+    manifest = rfc.seed_corpus_manifest(tmp_path / "seeds", ["fuzz_target"])
+    assert manifest["fuzz_target"]["seed_count"] == 1
+    assert list(manifest["fuzz_target"]["files"]) == ["a.bin"]
+
+
+@pytest.mark.parametrize(("returncode", "stdout"), [(1, "rustc 1.0"), (0, "  \n")])
+def test_toolchain_output_refuses_failed_or_empty_commands(
+    monkeypatch: pytest.MonkeyPatch, returncode: int, stdout: str
+) -> None:
+    """A version probe must exit zero and print something."""
+    monkeypatch.setattr(rfc, "_run", lambda cmd, cwd=None: subprocess.CompletedProcess(cmd, returncode, stdout, ""))
+    with pytest.raises(RuntimeError, match="^Rust compiler command failed or produced no output$"):
+        rfc._toolchain_output(["rustc", "-V"], "Rust compiler")
+
+
+def test_seed_corpus_copies_only_absent_regular_seed_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Seeding creates the corpus, copies new seed files, keeps existing names and ignores directories."""
+    monkeypatch.setattr(rfc, "CORPUS_ROOT", tmp_path / "corpus")
+    monkeypatch.setattr(rfc, "SEEDS_ROOT", tmp_path / "seeds")
+    rfc._seed_corpus("no_seeds")
+    assert (tmp_path / "corpus" / "no_seeds").is_dir()
+    assert list((tmp_path / "corpus" / "no_seeds").iterdir()) == []
+
+    seeds = tmp_path / "seeds" / "fuzz_target"
+    (seeds / "nested").mkdir(parents=True)
+    (seeds / "new.bin").write_bytes(b"new")
+    (seeds / "kept.bin").write_bytes(b"tracked")
+    corpus = tmp_path / "corpus" / "fuzz_target"
+    corpus.mkdir(parents=True)
+    (corpus / "kept.bin").write_bytes(b"evolved")
+    rfc._seed_corpus("fuzz_target")
+    assert sorted(path.name for path in corpus.iterdir()) == ["kept.bin", "new.bin"]
+    assert (corpus / "kept.bin").read_bytes() == b"evolved"
+    assert (corpus / "new.bin").read_bytes() == b"new"
