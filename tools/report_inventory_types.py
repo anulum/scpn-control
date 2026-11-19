@@ -244,7 +244,10 @@ class ValidationReportFreshnessMatrix:
         Returns
         -------
         int
-            Missing registry-boundary count, separate from source absence.
+            Missing registry-boundary count, separate from source absence. The
+            registry loader refuses a record without a claim boundary, so a matrix
+            built by :func:`build_validation_report_freshness_matrix` always counts
+            0; the field stays in the schema for inventories assembled otherwise.
         """
         return sum(1 for report in self.reports if not report.claim_boundary_present)
 

@@ -18,8 +18,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import cast
 
-_IMPORT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(_IMPORT_ROOT))
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.report_inventory_output import InventoryOutputError, publish_inventory_outputs
 from tools.validation_report_freshness import (

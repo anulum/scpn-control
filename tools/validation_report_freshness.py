@@ -87,7 +87,9 @@ def build_validation_report_freshness_matrix(
     -------
     ValidationReportFreshnessMatrix
         Sorted inventory retaining source/refresh bindings, original caveats
-        and effective ages. Inputs are read without alteration.
+        and effective ages. An age counts whole elapsed days from the refresh
+        time, else the evidence time, and a report is stale only when that count
+        exceeds ``max_age_days``. Inputs are read without alteration.
 
     Raises
     ------
