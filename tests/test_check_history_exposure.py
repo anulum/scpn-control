@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -252,3 +253,15 @@ def test_public_history_command_preserves_argparse_exits(option: str, exit_code:
     with pytest.raises(SystemExit) as error:
         main([option])
     assert error.value.code == exit_code
+
+
+def test_script_entry_exits_with_the_status_of_main(
+    repo: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Executed as a script, the module exits with main's status: 0 for a clean committed tree."""
+    script = ROOT / "tools/check_history_exposure.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--repo", str(repo), "--current-only"])
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(script), run_name="__main__")
+    assert script_exit.value.code == 0
+    assert capsys.readouterr().out == "OK: no blocked internal or sensitive paths found in current tree.\n"

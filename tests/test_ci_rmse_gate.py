@@ -251,7 +251,7 @@ def test_design_rmse_above_indicative_target_is_not_a_physics_failure(carriers: 
     """Owner-defined informational design error leaves numerical evidence mandatory."""
     result = _cli(carriers)
     assert result.returncode == 0
-    assert "design beta_N RMSE 0.5000" in result.stdout and "indicative" in result.stdout
+    assert "design beta_N RMSE 0.5000; target 0.10 indicative" in result.stdout
 
 
 @pytest.mark.parametrize(

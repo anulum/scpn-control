@@ -185,7 +185,8 @@ def main(argv: list[str] | None = None) -> int:
             model_errors.extend(evidence_failures(evidence.get("checks")))
         if model_errors:
             raise ValueError("; ".join(model_errors))
-        print(f"INFO  beta_iter_sparc: design beta_N RMSE {value:.4f}; target0.10 indicative")
+        target = THRESHOLDS["beta_iter_sparc_beta_n_rmse"]
+        print(f"INFO  beta_iter_sparc: design beta_N RMSE {value:.4f}; target {target:.2f} indicative")
         print("PASS  beta_iter_sparc: source-bound 0D numerical consistency and inactive closures")
     except ValueError as exc:
         failures.append(f"beta_iter_sparc: {exc}")
