@@ -118,3 +118,13 @@ def test_trainer_cli_help_and_missing_input_create_no_weights(mode: str, tmp_pat
         assert "FileNotFoundError" in result.stderr
     assert not output.parent.exists()
     assert not output.exists() and not output.with_suffix(".metrics.json").exists()
+
+
+def test_training_stops_after_thirty_epochs_without_validation_gain(caplog: pytest.LogCaptureFixture) -> None:
+    """With a zero learning rate the validation loss never improves, so patience 30 ends training at epoch 30."""
+    X, Y = training.generate_synthetic_qlknn_data(n_samples=60, seed=3)
+    with caplog.at_level("INFO", logger=training.logger.name):
+        weights = training.train_mlp(X, Y, hidden_sizes=(8, 4), n_epochs=100, batch_size=16, lr=0.0, seed=5)
+    assert any("Early stopping at epoch 30 " in record.getMessage() for record in caplog.records)
+    reference = training.train_mlp(X, Y, hidden_sizes=(8, 4), n_epochs=0, batch_size=16, lr=0.0, seed=5)
+    np.testing.assert_array_equal(weights["w1"], reference["w1"])
