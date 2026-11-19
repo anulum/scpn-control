@@ -11,8 +11,10 @@
 from __future__ import annotations
 
 import io
+import runpy
 import shutil
 import subprocess
+import sys
 import tarfile
 import zipfile
 from pathlib import Path
@@ -266,3 +268,15 @@ def test_main_prints_artifact_identity_and_rejects_negative_epoch(
 
     with pytest.raises(SystemExit):
         build_release_artifacts.main(["--source-date-epoch", "-1"])
+
+
+def test_script_entry_refuses_an_out_of_range_epoch(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Executed as a script, an epoch below zero is refused with usage status 2 before any build."""
+    script = Path(build_release_artifacts.__file__)
+    monkeypatch.setattr(sys, "argv", [str(script), "--source-date-epoch", "-1"])
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(script), run_name="__main__")
+    assert script_exit.value.code == 2
+    assert "source date epoch must be between 0 and 4294967295" in capsys.readouterr().err
