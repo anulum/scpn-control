@@ -120,7 +120,9 @@ def is_policy_file(path: str) -> bool:
     Returns
     -------
     bool
-        ``True`` for workflow, Studio, documentation, or tool surfaces.
+        ``True`` below ``.github/workflows/``, ``docs/``,
+        ``src/scpn_control/studio/``, ``studio-web/`` or ``tools/``, and for the
+        root ``CHANGELOG.md``, ``Makefile``, ``README.md`` and ``pyproject.toml``.
     """
     return path in POLICY_FILE_NAMES or any(path.startswith(prefix) for prefix in POLICY_FILE_PREFIXES)
 
@@ -272,8 +274,9 @@ def main() -> int:
     Returns
     -------
     int
-        Zero for the lexical policy checks or one for a policy/refusal or
-        caught native input failure. Detailed findings remain withheld.
+        Zero when the lexical policy checks pass; one when they find a violation
+        or the tracked files cannot be inspected. Detailed findings remain
+        withheld; only their count is printed.
 
     Notes
     -----
