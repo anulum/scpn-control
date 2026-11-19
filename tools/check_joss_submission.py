@@ -186,8 +186,10 @@ def _paper_title(text: str) -> str | None:
     Parameters
     ----------
     text : str
-        Manuscript beginning with a literal ``---`` line and containing a
-        closing literal ``---`` line.
+        Manuscript beginning with a literal ``---`` line ended by LF and
+        containing a closing literal ``---`` line. A manuscript that starts with
+        CRLF line endings yields None, which the guard reports as a missing title;
+        the repository's ``eol=lf`` attribute normalises committed text.
 
     Returns
     -------
