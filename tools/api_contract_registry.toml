@@ -16,12 +16,12 @@ typescript_semantics = "Studio exports require TypeDoc with requiredToBeDocument
 operator_semantics = "Shell entrypoints and GitHub workflows are operator contracts, not library APIs; ShellCheck/actionlint and pinned-action gates own them."
 
 [inventory]
-python_candidate_count = 1418
-python_candidate_sha256 = "f713c6c1cd5713f1c3c7e46e594e76fdb0391ba530f974f7f7b16f1b5fddeb07"
+python_candidate_count = 1432
+python_candidate_sha256 = "2e6ff3de35d00e778869eda7761515043fcafa88be4f4ec642ca1e308fb7ef27"
 python_stable_export_count = 51
 python_stable_export_sha256 = "b505f3c9c4a927d8a0b75ccfd1056fed8a8fa8ff5fd81367dc9300d25d95e88b"
-rust_export_count = 417
-rust_export_sha256 = "c4851482e98a08c9a3fe3f963eddcc0158bd66a88e59961f5bd77eed29572b31"
+rust_export_count = 420
+rust_export_sha256 = "1b68fac2fc3c0a2abfb6f1de97a7a4aa9903b97f963014c38c2b5352cf00094a"
 typescript_export_count = 40
 typescript_export_sha256 = "11fd3f8aecf0fac25b3dea33f87fce15a3e720b3ff3fe8b2839f04579314ead4"
 c_symbols = [
@@ -49,13 +49,13 @@ lean_symbols = [
 ]
 
 [inventory.python_classifications]
-documented-module-reference = 516
-nonstable-module-surface = 853
+documented-module-reference = 518
+nonstable-module-surface = 865
 stable-root-owner = 49
 
 [inventory.python_classification_sha256]
-documented-module-reference = "0cc921227b061b97fe77602c4fd2370e016ba13ff7b1906e4c2bc89b1eb3c2b8"
-nonstable-module-surface = "7793ba710e047e19d2ba80e0a738bbbf70af7f588a8e77ca7f547137f38d3b9d"
+documented-module-reference = "71f2fab1276f1840e3c24e91c5f68512b42cf743545b578f250a5958b78517f2"
+nonstable-module-surface = "0d363e91a2eac1dbfc53aad19cd618e6ea72416a125d0748c40ffe34cbe72272"
 stable-root-owner = "4d8e0177a1a1d2873e114e42321f19a14f0b2ef45e9a1c713b31e6d117aebd2d"
 
 [renderer_contracts]
