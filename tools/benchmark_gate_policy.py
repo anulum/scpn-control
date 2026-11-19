@@ -19,6 +19,10 @@ REPORT_SCHEMA = "scpn-control.benchmark-regression.v1"
 
 BASELINE_SCHEMA = "scpn-control.benchmark-baseline.v1"
 
+#: Name substrings of higher-is-better metrics (rates and speedups). Their
+#: current/baseline ratio is held to a lower bound, so ``metric_direction``
+#: returns "lower" for them. The historical name is kept because
+#: ``tools.benchmark_regression_gate`` re-exports it.
 LOWER_IS_BETTER_TOKENS = ("throughput", "ops_s", "speedup")
 
 
