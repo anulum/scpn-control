@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import subprocess
 import sys
 import zipfile
@@ -243,3 +244,23 @@ def test_public_api_rejects_metadata_symlink(tmp_path: Path) -> None:
     (tmp_path / ".zenodo.json").symlink_to(target)
     with pytest.raises(ValueError, match="regular checkout file"):
         create_archive(tmp_path / "refused.zip", root=tmp_path)
+
+
+def test_git_metadata_destination_is_refused_before_any_write() -> None:
+    """An output inside the checkout's Git directory is refused before the archive is opened."""
+    destination = ROOT / ".git" / "scpn-control-refused.zip"
+    with pytest.raises(ValueError, match="must not be Git metadata"):
+        create_archive(destination)
+    assert not destination.exists()
+
+
+def test_script_entry_exits_with_the_refusal_status(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Executed as a script, the command exits with main's status: 2 for a destination without a parent."""
+    script = ROOT / "tools" / "export_zenodo_dataset.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--output", str(tmp_path / "missing" / "dataset.zip")])
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(script), run_name="__main__")
+    assert script_exit.value.code == 2
+    assert "Dataset export refused" in capsys.readouterr().err
