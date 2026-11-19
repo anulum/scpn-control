@@ -225,3 +225,14 @@ def test_public_cli_markdown_stdout_matches_complete_registry(capsys: CaptureFix
     captured = capsys.readouterr()
     assert captured.out == expected.to_markdown()
     assert not captured.err
+
+
+def test_main_reports_the_authored_registry_refusal(tmp_path: Path, capsys: CaptureFixture[str]) -> None:
+    """In process, a registry outside the maintained vocabulary fails with its authored message."""
+    payload = json.loads((ROOT / "validation/physics_traceability.json").read_text(encoding="utf-8"))
+    payload["entries"][0]["fidelity_status"] = "not_a_status"
+    registry = tmp_path / "registry.json"
+    registry.write_text(json.dumps(payload), encoding="utf-8")
+
+    assert main(["--registry", str(registry)]) == 1
+    assert capsys.readouterr().err == "Evidence gap matrix failed: fidelity_status must use the maintained vocabulary\n"

@@ -58,7 +58,7 @@ class ExternalValidationTracker:
         Returns
         -------
         dict[str, object]
-            Declared fields and aggregate counts in the existing JSON schema.
+            The declared ``issue``, ``title``, ``url`` and ``scope``, unchanged.
         """
         return {
             "issue": self.issue,
@@ -146,7 +146,7 @@ class EvidenceWorkPackage:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Grouped entries whose declaration does not allow public claims.
         """
         return sum(1 for entry in self.entries if entry.public_claim_blocked)
 
@@ -157,7 +157,8 @@ class EvidenceWorkPackage:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Grouped entries whose status is ``bounded_model``, ``validation_gap`` or
+            ``external_dependency_blocked``.
         """
         return sum(1 for entry in self.entries if entry.open_fidelity_gap)
 
@@ -179,7 +180,9 @@ class EvidenceWorkPackage:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Highest status severity among the grouped entries: 3 for
+            ``validation_gap``, 2 for ``external_dependency_blocked``, 1 for
+            ``bounded_model`` and 0 for validated or unknown statuses.
         """
         return max((_STATUS_SEVERITY.get(entry.fidelity_status, 0) for entry in self.entries), default=0)
 
@@ -189,7 +192,9 @@ class EvidenceWorkPackage:
         Returns
         -------
         dict[str, object]
-            Declared fields and aggregate counts in the existing JSON schema.
+            The tracker, entry count, blocked-claim and open-gap counts, status
+            counts, components, and first-seen-ordered unique module paths and
+            admission requirements.
         """
         return {
             "tracker": self.tracker.to_dict(),
@@ -249,7 +254,7 @@ class EvidenceGapMatrix:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Entries whose declaration does not allow public claims.
         """
         return sum(1 for entry in self.entries if entry.public_claim_blocked)
 
@@ -260,7 +265,8 @@ class EvidenceGapMatrix:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Entries whose status is ``bounded_model``, ``validation_gap`` or
+            ``external_dependency_blocked``.
         """
         return sum(1 for entry in self.entries if entry.open_fidelity_gap)
 
@@ -271,7 +277,8 @@ class EvidenceGapMatrix:
         Returns
         -------
         int
-            Count or severity derived from the declared entries and tracker links.
+            Open-gap entries with no tracker link, or with a link to an issue that
+            no declared tracker carries.
         """
         tracker_issues = {tracker.issue for tracker in self.trackers}
         return sum(
@@ -290,7 +297,8 @@ class EvidenceGapMatrix:
         Returns
         -------
         dict[str, object]
-            Declared fields and aggregate counts in the existing JSON schema.
+            The ``scpn-control.evidence-gap-matrix.v1`` schema: registry path,
+            summary counts and the work packages in their deterministic order.
         """
         return {
             "schema_version": "scpn-control.evidence-gap-matrix.v1",
@@ -353,6 +361,7 @@ class EvidenceGapMatrix:
 
 
 def _unique(values: Iterable[str]) -> list[str]:
+    """Return the values without repeats, keeping first-seen order."""
     seen: set[str] = set()
     unique_values: list[str] = []
     for value in values:
@@ -363,6 +372,7 @@ def _unique(values: Iterable[str]) -> list[str]:
 
 
 def _repo_relative(path: Path) -> str:
+    """Return ``path`` relative to the repository root as POSIX text, else as given."""
     try:
         return path.resolve().relative_to(ROOT.resolve()).as_posix()
     except ValueError:
