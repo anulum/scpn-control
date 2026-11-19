@@ -87,6 +87,7 @@ class VerifiedSourceArtifact:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build one JSON object, raising SourceArtifactReaderError on a repeated key."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -96,6 +97,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _freeze_metadata(value: Any) -> Any:
+    """Return ``value`` with every mapping made read-only and every list made a tuple, recursively."""
     if isinstance(value, Mapping):
         return MappingProxyType({str(key): _freeze_metadata(item) for key, item in value.items()})
     if isinstance(value, list):
@@ -104,6 +106,7 @@ def _freeze_metadata(value: Any) -> Any:
 
 
 def _decode_source_manifest(manifest_bytes: bytes) -> Mapping[str, Any]:
+    """Decode UTF-8 JSON manifest bytes into an object, refusing duplicate keys, bad encoding or syntax, and a non-object root."""
     try:
         payload = json.loads(
             manifest_bytes.decode("utf-8"),
@@ -119,6 +122,7 @@ def _decode_source_manifest(manifest_bytes: bytes) -> Mapping[str, Any]:
 
 
 def _read_source_manifest_bytes(manifest_path: Path) -> bytes:
+    """Return the manifest's bytes, turning a read failure into SourceArtifactReaderError."""
     try:
         return manifest_path.read_bytes()
     except OSError as exc:

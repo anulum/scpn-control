@@ -31,10 +31,12 @@ from validation.mast_source_object_manifest import canonical_json_sha256
 
 
 def _time(n: int) -> NDArray[np.float64]:
+    """Return ``n`` time samples at 1 ms spacing from zero."""
     return np.arange(n, dtype=np.float64) * 1.0e-3
 
 
 def _disruptive_ip() -> NDArray[np.float64]:
+    """Return a 300-sample plasma current that ramps up, holds and collapses at sample 250."""
     ip = np.ones(300, dtype=np.float64)
     ip[:100] = np.linspace(0.0, 1.0, 100)
     ip[250] = 0.5
@@ -43,6 +45,7 @@ def _disruptive_ip() -> NDArray[np.float64]:
 
 
 def _manual_record(**updates: Any) -> ShotLabelRecord:
+    """Return an independently reviewed disruption record, with ``updates`` applied to its fields."""
     fields: dict[str, Any] = {
         "schema_version": SHOT_LABEL_RECORD_SCHEMA,
         "machine": "MAST",
@@ -337,4 +340,14 @@ def test_parser_rejects_wrong_json_types(field: str, value: object, message: str
     payload["payload_sha256"] = None
     payload["payload_sha256"] = canonical_json_sha256(payload)
     with pytest.raises(ShotLabelRecordError, match=message):
+        shot_label_record_from_dict(payload)
+
+
+def test_parser_refuses_a_time_too_large_for_a_float() -> None:
+    """A resealed record whose time is a 400-digit integer fails as a record error, not as OverflowError."""
+    payload = _manual_record().to_dict()
+    payload["termination_time_s"] = 10**400
+    payload["payload_sha256"] = None
+    payload["payload_sha256"] = canonical_json_sha256(payload)
+    with pytest.raises(ShotLabelRecordError, match="^termination_time_s must be finite$"):
         shot_label_record_from_dict(payload)

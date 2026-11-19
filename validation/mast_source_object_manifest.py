@@ -289,6 +289,7 @@ def validate_source_object_manifest(
 
 
 def _validate_artifact(artifact: Any, *, field: str, artifact_root: Path | None) -> int:
+    """Check one derived-NPZ artefact entry: kind, portable path, FAIR-MAST source URI, digest, size, array inventory and hierarchy; return its byte count."""
     if not isinstance(artifact, Mapping):
         raise SourceObjectManifestError(f"{field} must be an object")
     if artifact.get("artifact_kind") != DERIVED_NPZ_ARTIFACT_KIND:
@@ -375,6 +376,7 @@ def _validate_source_generation(
     source_uri: str,
     field: str,
 ) -> None:
+    """Check a Zarr source-generation record: schema, digest kind, source URI, metadata path, digest, size, Zarr format 3 and inline metadata."""
     if not isinstance(generation, Mapping):
         raise SourceObjectManifestError(f"{field} must be an object or null")
     if generation.get("schema_version") != SOURCE_GENERATION_SCHEMA:
@@ -401,6 +403,7 @@ def _validate_source_generation(
 
 
 def _validate_array_inventory(arrays: list[Any], *, field: str) -> None:
+    """Check each declared array: unique archive key matching group.name, a non-object dtype, a non-negative shape and a consistent byte count."""
     seen: set[str] = set()
     for index, array in enumerate(arrays):
         item = f"{field}[{index}]"
@@ -475,6 +478,7 @@ def _validate_array_inventory(arrays: list[Any], *, field: str) -> None:
 
 
 def _validate_npz_arrays(path: Path, arrays: list[Any], *, field: str) -> None:
+    """Require the NPZ members to equal the declared arrays in dtype, shape and value digest."""
     expected = {str(array["archive_key"]): array for array in arrays}
     with np.load(path, allow_pickle=False) as archive:
         if set(archive.files) != set(expected):
@@ -490,6 +494,7 @@ def _validate_npz_arrays(path: Path, arrays: list[Any], *, field: str) -> None:
 
 
 def _validate_relative_path(local_path: str, *, field: str) -> None:
+    """Require a non-empty POSIX-relative path without backslashes, empty, current or parent components."""
     if not local_path or "\\" in local_path:
         raise SourceObjectManifestError(f"{field} must be a non-empty portable POSIX-relative path")
     candidate = PurePosixPath(local_path)
@@ -498,6 +503,7 @@ def _validate_relative_path(local_path: str, *, field: str) -> None:
 
 
 def _resolve_artifact_path(root: Path, local_path: str, *, field: str) -> Path:
+    """Resolve ``local_path`` under ``root`` and require it to stay beneath the root and name a file."""
     _validate_relative_path(local_path, field=field)
     resolved_root = root.resolve()
     resolved = (resolved_root / local_path).resolve()
@@ -511,6 +517,7 @@ def _resolve_artifact_path(root: Path, local_path: str, *, field: str) -> Path:
 
 
 def _is_sha256(value: Any) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return (
         isinstance(value, str)
         and len(value) == _SHA256_HEX_LENGTH

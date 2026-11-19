@@ -132,6 +132,7 @@ class ShotLabelRecord:
             raise ShotLabelRecordError("programme_metadata authority cannot assert TQ or CQ event times")
 
     def _validate_times(self) -> None:
+        """Require finite non-negative times, quench times only for disruptions, TQ not after CQ, and no quench after termination."""
         times = (
             ("thermal_quench_time_s", self.thermal_quench_time_s),
             ("current_quench_time_s", self.current_quench_time_s),
@@ -155,6 +156,7 @@ class ShotLabelRecord:
             raise ShotLabelRecordError("quench event times cannot follow termination_time_s")
 
     def _validate_reviewers(self) -> None:
+        """Require sorted, unique, non-blank reviewers: at least two for independent manual review and none for any other authority."""
         if tuple(sorted(set(self.reviewers))) != self.reviewers or any(
             not reviewer.strip() for reviewer in self.reviewers
         ):
@@ -319,6 +321,7 @@ def _proxy_result(
     source_digest: str,
     algorithm_digest: str,
 ) -> IpQuenchProxyResult:
+    """Build the Ip-proxy result and its unquantified, unreviewed shot-label record from the detected indices."""
     current_quench_time = float(time_s[onset_index]) if outcome == "disruption" else None
     termination_time = float(time_s[termination_index]) if termination_index >= 0 else None
     record = ShotLabelRecord(
@@ -352,6 +355,7 @@ def _proxy_result(
 
 
 def _validate_proxy_arrays(ip_ma: NDArray[np.float64], time_s: NDArray[np.float64]) -> None:
+    """Require non-empty, equal-shape, finite 1-D current and time arrays with strictly increasing time."""
     if ip_ma.ndim != 1 or time_s.ndim != 1 or ip_ma.shape != time_s.shape or ip_ma.size == 0:
         raise ShotLabelRecordError("Ip_MA and time_s must be non-empty 1-D arrays with identical shape")
     if not bool(np.all(np.isfinite(ip_ma))) or not bool(np.all(np.isfinite(time_s))):
@@ -431,6 +435,7 @@ def shot_label_record_from_json(encoded: str) -> ShotLabelRecord:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build one JSON object, raising ShotLabelRecordError on a repeated key."""
     payload: dict[str, object] = {}
     for key, value in pairs:
         if key in payload:
@@ -440,6 +445,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]
 
 
 def _required_string(payload: Mapping[str, object], field: str) -> str:
+    """Return ``payload[field]`` when it is a non-empty string, or raise ShotLabelRecordError."""
     value = payload.get(field)
     if not isinstance(value, str) or not value:
         raise ShotLabelRecordError(f"{field} must be a non-empty string")
@@ -447,6 +453,7 @@ def _required_string(payload: Mapping[str, object], field: str) -> str:
 
 
 def _required_int(payload: Mapping[str, object], field: str) -> int:
+    """Return ``payload[field]`` when it is an integer and not a boolean, or raise ShotLabelRecordError."""
     value = payload.get(field)
     if isinstance(value, bool) or not isinstance(value, int):
         raise ShotLabelRecordError(f"{field} must be an integer")
@@ -454,15 +461,20 @@ def _required_int(payload: Mapping[str, object], field: str) -> int:
 
 
 def _optional_float(payload: Mapping[str, object], field: str) -> float | None:
+    """Return ``payload[field]`` as a float, or None when it is null; non-numbers, booleans and integers too large for a float are refused."""
     value = payload.get(field)
     if value is None:
         return None
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ShotLabelRecordError(f"{field} must be numeric or null")
-    return float(value)
+    try:
+        return float(value)
+    except OverflowError:
+        raise ShotLabelRecordError(f"{field} must be finite") from None
 
 
 def _string_tuple(payload: Mapping[str, object], field: str) -> tuple[str, ...]:
+    """Return ``payload[field]`` as a tuple when it is a list of strings, or raise ShotLabelRecordError."""
     value = payload.get(field)
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ShotLabelRecordError(f"{field} must be a string array")

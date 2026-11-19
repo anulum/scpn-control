@@ -211,6 +211,7 @@ def _binding(
     transform: str,
     transform_parameters: tuple[tuple[str, str], ...] = (),
 ) -> SignalBinding:
+    """Return an available binding from a source member and its timebase, with the declared units, sign convention and transform."""
     return SignalBinding(
         channel=channel,
         status="bound",
@@ -244,6 +245,7 @@ def _blocked_binding(
     transform: str,
     blocker: str,
 ) -> SignalBinding:
+    """Return a blocked binding that records why no admissible source member exists."""
     return SignalBinding(
         channel=channel,
         status="blocked",
@@ -452,6 +454,12 @@ def assess_artifact_signal_bindings(
 
 
 def _assess_binding(artifact: VerifiedSourceArtifact, binding: SignalBinding) -> dict[str, object]:
+    """Assess one binding against a verified artefact and return its status and reason code.
+
+    The status is the first that applies: binding_blocked, source_member_absent,
+    source_metadata_unverified, source_metadata_mismatch, timebase_metadata_mismatch,
+    source_shape_mismatch, else source_metadata_verified.
+    """
     result: dict[str, object] = {
         "channel": binding.channel,
         "binding_status": binding.status,
