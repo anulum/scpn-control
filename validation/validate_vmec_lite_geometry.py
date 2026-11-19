@@ -24,11 +24,13 @@ import numpy as np
 import numpy.typing as npt
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, SRC):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.core.vmec_lite import AxisymmetricTokamakBoundary, SpectralBasis, VMECLiteSolver
 
@@ -54,6 +56,11 @@ class VMECLiteGeometryCase:
     exact_tol: float
 
     def __post_init__(self) -> None:
+        """Refuse invalid inputs.
+
+        Resolutions must meet their minima, geometry, rotational transform and tolerance must be
+        positive, pressures non-negative, the triangularity in (-1, 1) and the boundary clear of R <= 0.
+        """
         _positive_int("n_s", self.n_s, minimum=3)
         _positive_int("m_pol", self.m_pol, minimum=0)
         _positive_int("n_tor", self.n_tor, minimum=0)
@@ -328,12 +335,14 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _solved_initial_geometry(case: VMECLiteGeometryCase) -> VMECLiteSolver:
+    """Return the case's solver after one iteration with a tolerance that stops it at once, leaving the initial geometry."""
     solver = case.solver()
     solver.solve(max_iter=1, tol=1e10)
     return solver
 
 
 def _minimum_major_radius(r_mn: npt.NDArray[np.floating[Any]], basis: SpectralBasis) -> float:
+    """Return the smallest R over all surfaces on a 64 x 64 (theta, zeta) grid."""
     theta = np.linspace(0.0, 2.0 * np.pi, 64, endpoint=False)
     zeta = np.linspace(0.0, 2.0 * np.pi, 64, endpoint=False)
     theta_grid, zeta_grid = np.meshgrid(theta, zeta, indexing="ij")
@@ -352,6 +361,7 @@ def _manual_basis_sum(
     *,
     is_sin: bool,
 ) -> npt.NDArray[np.float64]:
+    """Return the Fourier sum of ``coeffs`` over the basis modes, evaluated term by term without the basis helper."""
     values = np.zeros_like(theta, dtype=float)
     for coeff, (m, n) in zip(coeffs, basis.mn_modes):
         angle = m * theta - n * basis.n_fp * zeta
@@ -360,15 +370,20 @@ def _manual_basis_sum(
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -376,6 +391,7 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _nonnegative_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float not below zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result < 0.0:
         raise ValueError(f"{name} must be non-negative")
@@ -383,30 +399,36 @@ def _nonnegative_float(name: str, value: object) -> float:
 
 
 def _positive_int(name: str, value: object, *, minimum: int = 1) -> int:
+    """Return ``value`` as an integer of at least ``minimum``; refuse booleans and non-integers with ValueError."""
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise ValueError(f"{name} must be an integer >= {minimum}")
     return value
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _write_report(evidence: Mapping[str, Any], json_path: Path) -> None:
+    """Write the evidence JSON to ``json_path`` and its Markdown summary beside it with the .md suffix."""
     json_path.write_text(json.dumps(evidence, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     case = evidence["case"]
     lines = [

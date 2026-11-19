@@ -221,6 +221,7 @@ class ConvergenceRecord:
 
 
 def _log_log_slope(records: Sequence[ConvergenceRecord]) -> float:
+    """Return the least-squares slope of log error against log mesh spacing; at least two records are required."""
     if len(records) < 2:
         raise ValueError("at least two resolutions are required to estimate an order")
     log_h = np.log(np.array([record.mesh_spacing for record in records], dtype=np.float64))
@@ -379,33 +380,42 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -413,12 +423,14 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _positive_int(name: str, value: object) -> int:
+    """Return ``value`` as a positive integer; refuse booleans, non-integers and values below one with ValueError."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
 
 
 def _grid_resolution(name: str, value: object) -> int:
+    """Return ``value`` as a grid resolution of at least 5 points, or raise ValueError."""
     result = _positive_int(name, value)
     if result < 5:
         raise ValueError(f"{name} must be at least 5 (need interior diffusion nodes)")

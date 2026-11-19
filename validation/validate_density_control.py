@@ -61,7 +61,11 @@ import numpy.typing as npt
 
 from scpn_control.control.density_controller import DensityController, KalmanDensityEstimator, ParticleTransportModel
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+_CHECKOUT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(_CHECKOUT) not in sys.path:
+    sys.path.insert(0, str(_CHECKOUT))
 
 from tools.inventory_file_output import publish_guarded_outputs
 from validation.density_control_evidence import SCHEMA_VERSION, SOURCE_PATHS, _validate_payload
@@ -176,6 +180,7 @@ def volume_element_rel_error(config: DensityConfig) -> float:
 
 
 def _source_integral(model: ParticleTransportModel, profile: npt.NDArray[np.float64]) -> float:
+    """Return the volume integral of ``profile`` over the model grid, sum(profile * V' * drho)."""
     return float(np.sum(profile * model.V_prime * model.drho))
 
 
@@ -452,20 +457,24 @@ def validate_evidence_payload(payload: Mapping[str, object]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _runtime_source_sha256() -> dict[str, str]:
+    """Return the SHA-256 of each runtime source file the evidence binds, keyed by its repository path."""
     return {
         relative_path: hashlib.sha256((_ROOT / relative_path).read_bytes()).hexdigest()
         for relative_path in _RUNTIME_SOURCE_PATHS
@@ -473,6 +482,7 @@ def _runtime_source_sha256() -> dict[str, str]:
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
     try:
@@ -485,6 +495,7 @@ def _finite_float(name: str, value: object) -> float:
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -492,6 +503,7 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _positive_int(name: str, value: object, *, minimum: int = 1) -> int:
+    """Return ``value`` as an integer of at least ``minimum``; refuse booleans and non-integers with ValueError."""
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{name} must be an integer")
     if value < minimum:

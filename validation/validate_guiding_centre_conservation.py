@@ -78,6 +78,7 @@ class AxisymmetricField:
     b_pol_coeff: float
 
     def __post_init__(self) -> None:
+        """Validate every field on construction; raise ValueError for the first invalid one."""
         _positive_float("r0", self.r0)
         _positive_float("a", self.a)
         _positive_float("b0", self.b0)
@@ -120,6 +121,7 @@ class OrbitCase:
     total_time_s: float
 
     def __post_init__(self) -> None:
+        """Validate every field on construction; raise ValueError for the first invalid one."""
         _non_empty("label", self.label)
         _positive_float("m_amu", self.m_amu)
         if isinstance(self.charge, bool) or not isinstance(self.charge, int) or self.charge == 0:
@@ -185,10 +187,12 @@ def run_orbit_conservation(
     mu = mass_kg * v_perp_0**2 / (2.0 * b_init)
 
     def energy() -> float:
+        """Return the guiding-centre energy, parallel kinetic plus mu times |B|, at the current orbit position."""
         b_mag = field.magnitude(orbit.R, orbit.Z)
         return 0.5 * mass_kg * orbit.v_par**2 + mu * b_mag
 
     def toroidal_momentum() -> float:
+        """Return the canonical toroidal momentum m R v_par B_phi/|B| + q psi at the current orbit position."""
         b_r, b_z, b_phi = field.components(orbit.R, orbit.Z)
         b_mag = math.sqrt(b_r**2 + b_z**2 + b_phi**2)
         return mass_kg * orbit.R * orbit.v_par * (b_phi / b_mag) + charge_c * field.poloidal_flux(orbit.R, orbit.Z)
@@ -372,33 +376,42 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -406,6 +419,7 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _non_empty(name: str, value: str) -> str:
+    """Return ``value`` when it is a non-blank string, or raise ValueError."""
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a non-empty string")
     return value

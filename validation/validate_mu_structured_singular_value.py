@@ -80,14 +80,17 @@ def _complex_matrix(rng: np.random.Generator, n: int) -> ComplexArray:
 
 
 def _complex_vector(rng: np.random.Generator, n: int) -> ComplexArray:
+    """Return a length-``n`` complex vector with independent standard-normal real and imaginary parts."""
     return np.asarray(rng.standard_normal(n) + 1j * rng.standard_normal(n), dtype=np.complex128)
 
 
 def _sigma_max(matrix: ComplexArray) -> float:
+    """Return the largest singular value of ``matrix``."""
     return float(np.linalg.svd(matrix, compute_uv=False)[0])
 
 
 def _spectral_radius(matrix: ComplexArray) -> float:
+    """Return the largest eigenvalue modulus of ``matrix``."""
     return float(np.max(np.abs(np.linalg.eigvals(matrix))))
 
 
@@ -170,6 +173,7 @@ def _run_error_case(
     samples_per_size: int,
     tolerance: float,
 ) -> CaseResult:
+    """Return the largest ``error_fn`` value over ``samples_per_size`` draws at each size; the case passes below ``tolerance``."""
     max_error = 0.0
     count = 0
     for n in sizes:
@@ -333,30 +337,36 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _positive_int(name: str, value: object) -> int:
+    """Return ``value`` as a positive integer; refuse booleans, non-integers and values below one with ValueError."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
 
 
 def _seed_value(seed: object) -> int:
+    """Return ``seed`` when it is a non-negative integer and not a boolean, or raise ValueError."""
     if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
         raise ValueError("seed must be a non-negative integer")
     return seed

@@ -43,11 +43,13 @@ from typing import Any, Mapping
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, SRC):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.core.disruption_sequence import DisruptionConfig, DisruptionSequence
 
@@ -303,21 +305,30 @@ def write_markdown_report(payload: Mapping[str, Any], output_path: str | Path) -
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of compact sorted-key JSON of the payload without its payload_sha256 field."""
     canonical_payload = {key: value for key, value in payload.items() if key != "payload_sha256"}
     encoded = json.dumps(canonical_payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
     return hashlib.sha256(encoded).hexdigest()
 
 
 def _relative_error(measured: float, expected: float) -> float:
+    """Return abs(measured - expected) / abs(expected), with the denominator floored at 1e-300."""
     return float(abs(float(measured) - float(expected)) / max(abs(float(expected)), 1e-300))
 
 
 def _positive_float(name: str, value: float) -> float:
-    if isinstance(value, bool) or not isinstance(value, int | float) or not math.isfinite(float(value)):
+    """Return ``value`` as a finite float greater than zero; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
+    if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{name} must be finite")
-    if float(value) <= 0.0:
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
+    if not math.isfinite(result):
+        raise ValueError(f"{name} must be finite")
+    if result <= 0.0:
         raise ValueError(f"{name} must be positive")
-    return float(value)
+    return result
 
 
 def main(argv: list[str] | None = None) -> int:

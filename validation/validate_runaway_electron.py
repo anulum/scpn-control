@@ -66,6 +66,7 @@ _NEON_ELECTRONS_PER_MOL = 5.0e21  # bound-electron contribution per mol, matchin
 def _model(
     *, n_e: float = 1e20, t_e_kev: float = 20.0, z_eff: float = 1.0, neon_mol: float = 0.0
 ) -> RunawayElectronModel:
+    """Return the production runaway-electron model for the given density, temperature, Z_eff and neon amount."""
     return RunawayElectronModel(n_e=n_e, T_e_keV=t_e_kev, z_eff=z_eff, neon_mol=neon_mol)
 
 
@@ -310,20 +311,24 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 

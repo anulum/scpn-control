@@ -33,10 +33,12 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT / "src") not in sys.path:
-    sys.path.insert(0, str(ROOT / "src"))
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT / "src", ROOT):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 import numpy as np
 
@@ -107,6 +109,7 @@ def validate_stability_mhd_ballooning() -> dict[str, Any]:
 
 
 def _new_report() -> dict[str, Any]:
+    """Return the unsealed report skeleton: method, model reference, tolerance, shear regime and closed public claims."""
     return {
         "schema_version": _REPORT_SCHEMA,
         "status": "pass",
@@ -144,11 +147,13 @@ def _new_report() -> dict[str, Any]:
 
 
 def _json_sha256(payload: object) -> str:
+    """Return the SHA-256 of compact sorted-key ASCII JSON of ``payload``."""
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def _finalise_report(report: dict[str, Any]) -> dict[str, Any]:
+    """Set the boundary claim from the report status, then seal the report with the digest of its body without the digest field."""
     report["public_claims"]["bounded_ballooning_boundary_independently_verified"] = report["status"] == "pass"
     payload = dict(report)
     payload["payload_sha256"] = None

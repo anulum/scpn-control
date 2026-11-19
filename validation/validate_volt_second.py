@@ -62,7 +62,11 @@ from scpn_control.control.volt_second_manager import (
     VoltSecondOptimizer,
 )
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+_CHECKOUT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(_CHECKOUT) not in sys.path:
+    sys.path.insert(0, str(_CHECKOUT))
 
 from validation.volt_second_evidence import SCHEMA_VERSION
 from validation.volt_second_evidence import build_evidence as build_evidence

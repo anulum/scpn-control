@@ -44,11 +44,13 @@ from typing import Any, Mapping, Sequence
 import numpy as np
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
 SRC = ROOT / "src"
-if str(SRC) not in sys.path:
-    sys.path.insert(0, str(SRC))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _entry in (ROOT, SRC):
+        if str(_entry) not in sys.path:
+            sys.path.insert(0, str(_entry))
 
 from scpn_control.core.marfe import DensityLimitPredictor, MARFEFrontModel, MARFEStabilityDiagram, RadiationCondensation
 
@@ -73,6 +75,11 @@ class MARFEConfig:
     temperature_scan_eV: tuple[float, ...]
 
     def __post_init__(self) -> None:
+        """Refuse invalid inputs.
+
+        Physical inputs must be positive, the minor radius below the major radius, the impurity
+        fraction in (0, 1], the impurity name non-blank and the temperature scan strictly increasing.
+        """
         _positive_float("major_radius_m", self.major_radius_m)
         _positive_float("minor_radius_m", self.minor_radius_m)
         if self.minor_radius_m >= self.major_radius_m:
@@ -479,6 +486,7 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _scaling_check(name: str, measured_ratio: float, expected_ratio: float) -> ScalingCheck:
+    """Return a scaling check with the relative error of ``measured_ratio`` against ``expected_ratio``."""
     return ScalingCheck(
         name=name,
         measured_ratio=measured_ratio,
@@ -488,6 +496,7 @@ def _scaling_check(name: str, measured_ratio: float, expected_ratio: float) -> S
 
 
 def _scaling_payload(check: ScalingCheck) -> dict[str, float | str]:
+    """Return the JSON fields of a scaling check."""
     return {
         "name": check.name,
         "measured_ratio": check.measured_ratio,
@@ -497,33 +506,42 @@ def _scaling_payload(check: ScalingCheck) -> dict[str, float | str]:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -531,6 +549,7 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _impurity_fraction(value: object) -> float:
+    """Return ``value`` as a positive fraction no greater than one, or raise ValueError."""
     result = _positive_float("impurity_fraction", value)
     if result > 1.0:
         raise ValueError("impurity_fraction must lie in (0, 1]")
@@ -538,6 +557,7 @@ def _impurity_fraction(value: object) -> float:
 
 
 def _ordered_positive_scan(name: str, values: Sequence[float]) -> tuple[float, ...]:
+    """Return a non-empty, strictly increasing tuple of positive floats, or raise ValueError."""
     if not values:
         raise ValueError(f"{name} must be non-empty")
     scan = tuple(_positive_float(name, value) for value in values)

@@ -75,6 +75,7 @@ class SawtoothConfig:
     a: float
 
     def __post_init__(self) -> None:
+        """Validate every field on construction; raise ValueError for the first invalid one."""
         _grid_resolution("nr", self.nr)
         _finite_float("q0", self.q0)
         _finite_float("qa", self.qa)
@@ -105,6 +106,7 @@ def analytic_q1_radius(config: SawtoothConfig) -> float:
 
 
 def _profiles(config: SawtoothConfig) -> tuple[FloatArray, FloatArray, FloatArray, FloatArray]:
+    """Return rho and the fixed temperature, density and q profiles of ``config``."""
     rho = config.rho()
     temperature = 2.0 * (1.0 - rho**2) + 0.1
     density = 1.0 * (1.0 - 0.5 * rho**2) + 0.1
@@ -149,6 +151,7 @@ def crash_conservation(config: SawtoothConfig) -> CrashConservation:
     rho_inner = rho[inner]
 
     def _integral_rel_error(pre: FloatArray, post: FloatArray) -> float:
+        """Return the relative change of the rho-weighted integral over the mixing region between the two profiles."""
         before = float(trapezoid(pre[inner] * rho_inner, rho_inner))
         after = float(trapezoid(post[inner] * rho_inner, rho_inner))
         return abs(after - before) / max(abs(before), 1e-300)
@@ -338,33 +341,42 @@ def validate_evidence_payload(payload: Mapping[str, Any]) -> bool:
 
 
 def _utc_now() -> str:
+    """Return the current UTC time to the second as an ISO-8601 string ending in Z."""
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
 def _canonical_json(payload: Mapping[str, Any]) -> str:
+    """Return compact sorted-key ASCII JSON, the form the payload digest is taken over."""
     return json.dumps(payload, ensure_ascii=True, separators=(",", ":"), sort_keys=True)
 
 
 def _payload_sha256(payload: Mapping[str, Any]) -> str:
+    """Return the SHA-256 of the canonical payload with its payload_sha256 field set to the empty string."""
     unsigned = dict(payload)
     unsigned["payload_sha256"] = ""
     return hashlib.sha256(_canonical_json(unsigned).encode("utf-8")).hexdigest()
 
 
 def _is_sha256(value: object) -> bool:
+    """Return whether ``value`` is a 64-character lower-case hexadecimal string."""
     return isinstance(value, str) and len(value) == 64 and all(ch in "0123456789abcdef" for ch in value)
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
-    result = float(value)
+    try:
+        result = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not math.isfinite(result):
         raise ValueError(f"{name} must be finite")
     return result
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -372,12 +384,14 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _positive_int(name: str, value: object) -> int:
+    """Return ``value`` as a positive integer; refuse booleans, non-integers and values below one with ValueError."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise ValueError(f"{name} must be a positive integer")
     return value
 
 
 def _grid_resolution(name: str, value: object) -> int:
+    """Return ``value`` as a grid resolution of at least 11 points, or raise ValueError."""
     result = _positive_int(name, value)
     if result < 11:
         raise ValueError(f"{name} must be at least 11 (need a resolved mixing region)")

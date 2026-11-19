@@ -19,9 +19,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-for _source_root in (ROOT, ROOT / "src"):
-    if str(_source_root) not in sys.path:
-        sys.path.insert(0, str(_source_root))
+# Run as a script, put the checkout and its sources on the import path; an
+# import as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    for _source_root in (ROOT, ROOT / "src"):
+        if str(_source_root) not in sys.path:
+            sys.path.insert(0, str(_source_root))
 
 from validation.sol_two_point_contracts.command import main
 from validation.sol_two_point_contracts.evidence import (
