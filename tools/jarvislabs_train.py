@@ -11,8 +11,10 @@
 Importing performs no cloud action. Running main requires JARVISLABS_TOKEN,
 optional JLClient, existing upload sources/parents, fresh local artifacts and
 recorded benchmark custody before any SDK request. The recipe requests one
-A5000 GPU but forces CPU training. The shell now forwards seeds42/123/456; retained legacy seed-labelled files
-predate that correction and do not prove independent experiments.
+A5000 GPU but forces CPU training. ``tools/train_rl_upcloud.sh`` trains seeds
+42, 123 and 456 with their own ``--seed`` values and copies the best one to
+``ppo_tokamak.zip``. Retained legacy seed-labelled files predate that
+correction and do not prove independent experiments.
 
 Transport failures stop the recipe. Cleanup is attempted for every returned
 instance handle; explicit SDK acknowledgement does not verify stopped billing.
