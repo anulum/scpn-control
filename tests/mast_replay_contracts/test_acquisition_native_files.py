@@ -257,3 +257,55 @@ def test_acquire_preserves_native_ip_with_no_finite_summary(tmp_path: Path, valu
             assert "summary.ip" not in arrays.files
         else:
             assert arrays["summary.ip"].tobytes() == np.asarray(values, dtype=np.float64).tobytes()
+
+
+@pytest.mark.parametrize(("protocol", "bridged"), [("simplecache", True), ("file", False)])
+def test_default_group_opener_bridges_only_a_simplecache_filesystem(
+    protocol: str, bridged: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A simplecache filesystem is wrapped in fsspec's async wrapper before mapping; other protocols map directly."""
+    from validation.mast_replay_contracts import _acquisition_arrays
+    from validation.mast_replay_contracts._acquisition_source import BUCKET
+
+    calls: list[tuple[str, object]] = []
+
+    class _Filesystem:
+        """Record the mapper path requested from it."""
+
+        def __init__(self, name: str, kind: str) -> None:
+            """Remember which filesystem this is and the protocol it reports."""
+            self.name = name
+            self.protocol = kind
+
+        def get_mapper(self, path: str) -> str:
+            """Return a token naming this filesystem and the requested path."""
+            calls.append(("mapper", (self.name, path)))
+            return f"{self.name}:{path}"
+
+    source = _Filesystem("source", protocol)
+    wrapper = _Filesystem("wrapper", "asyncwrapper")
+
+    def fake_filesystem(name: str, **kwargs: object) -> _Filesystem:
+        """Return the wrapper and record how it was requested."""
+        calls.append(("filesystem", (name, kwargs["fs"] is source, kwargs["asynchronous"])))
+        return wrapper
+
+    def fake_open_zarr(store: str, *, group: str, consolidated: bool) -> str:
+        """Return a token naming the store and group opened."""
+        calls.append(("open_zarr", (store, group, consolidated)))
+        return f"dataset:{store}:{group}"
+
+    monkeypatch.setattr(fsspec, "filesystem", fake_filesystem)
+    monkeypatch.setattr(xr, "open_zarr", fake_open_zarr)
+
+    opened = _acquisition_arrays._open_group(source, 30421, "magnetics")
+
+    expected_fs = "wrapper" if bridged else "source"
+    path = f"s3://{BUCKET}/level2/shots/30421.zarr"
+    assert opened == f"dataset:{expected_fs}:{path}:magnetics"
+    assert (
+        ("filesystem", ("asyncwrapper", True, True)) in calls
+        if bridged
+        else all(kind != "filesystem" for kind, _ in calls)
+    )
+    assert ("open_zarr", (f"{expected_fs}:{path}", "magnetics", True)) in calls
