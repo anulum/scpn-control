@@ -21,6 +21,7 @@ from scpn_control.benchmark_records import CAMPAIGN_ENV
 from tools.rl_training_results import (
     check_fresh_output,
     load_benchmark,
+    main,
     preflight_directory,
     select_best,
     validate_stats,
@@ -119,3 +120,26 @@ def test_actual_metric_shapes_ranges_and_custody(tmp_path: Path, monkeypatch: py
     monkeypatch.setenv(CAMPAIGN_ENV, "schema-preflight-input")
     preflight_directory(tmp_path / "fresh")
     assert not (tmp_path / "fresh").exists()
+
+
+def test_command_selects_summarizes_and_refuses_in_process(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    """The three operations print the best seed, one line per controller, or the fixed refusal."""
+    for seed, reward in ((42, 1.0), (123, 3.0), (456, 2.0)):
+        (tmp_path / f"ppo_tokamak_seed{seed}.metrics.json").write_text(json.dumps(_metrics(reward, seed)))
+    assert main(["select", str(tmp_path)]) == 0
+    assert capsys.readouterr().out == "123\n"
+
+    stats = {"mean_reward": 12.34, "std_reward": 1.5, "mean_length": 2.0, "disruption_rate": 0.25, "n_episodes": 4}
+    benchmark = tmp_path / "rl_vs_classical.json"
+    benchmark.write_text(json.dumps({"MPC": stats, "PID": stats, "PPO": stats}))
+    assert main(["summarize", str(benchmark)]) == 0
+    assert capsys.readouterr().out.splitlines() == [
+        f"{name}: reward=12.3 +/- 1.5, disruption=25%" for name in ("MPC", "PID", "PPO")
+    ]
+
+    not_a_directory = tmp_path / "candidates.txt"
+    not_a_directory.write_text("occupied\n", encoding="utf-8")
+    assert main(["preflight", str(not_a_directory)]) == 1
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err == "RL candidate metrics or output custody could not be verified.\n"

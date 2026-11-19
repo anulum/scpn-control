@@ -208,3 +208,60 @@ def test_actual_cold_dependency_cli_refusal(tmp_path: Path, entrypoint: str, ref
     assert process.returncode == 1 and process.stdout == ""
     assert process.stderr == refusal + "\n"
     assert _pins() == before
+
+
+def test_count_parser_refuses_text_and_nonpositive_values() -> None:
+    """Counts must parse as integers and be positive; both refusals use argparse's error type."""
+    import argparse
+
+    from tools.rl_training_config import positive_integer
+
+    assert positive_integer("7") == 7
+    for text in ("seven", "1.5", "0", "-3"):
+        with pytest.raises(argparse.ArgumentTypeError, match="positive integer"):
+            positive_integer(text)
+
+
+class _UntruncatedEnv:
+    """Environment stand-in that never terminates or truncates, so only the step bound ends an episode."""
+
+    def __init__(self, max_steps: int) -> None:
+        """Expose the step bound the evaluator reads."""
+        self._env = type("Bound", (), {"max_steps": max_steps})()
+        self.resets: list[int] = []
+
+    def reset(self, seed: int) -> tuple[object, dict[str, object]]:
+        """Record the reset seed and return a zero observation."""
+        self.resets.append(seed)
+        return np.zeros(4, dtype=np.float32), {}
+
+    def step(self, _action: object) -> tuple[object, float, bool, bool, dict[str, object]]:
+        """Return a unit reward without ending the episode."""
+        return np.zeros(4, dtype=np.float32), 1.0, False, False, {}
+
+
+def test_evaluation_stops_at_the_step_bound_without_a_truncation_flag() -> None:
+    """An episode that never ends on its own is cut at max_steps and is not counted as a disruption."""
+    from typing import cast
+
+    env = _UntruncatedEnv(max_steps=3)
+    stats = evaluate_agent(cast(GymTokamakEnv, env), lambda _obs: np.zeros(2, dtype=np.float32), n_episodes=2)
+    assert env.resets == [1000, 1001]
+    assert (stats["mean_reward"], stats["mean_length"], stats["disruption_rate"]) == (3.0, 3.0, 0.0)
+
+
+def test_script_reports_missing_training_dependencies(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run as a script without its helpers it prints one refusal and exits 1; imported, it re-raises."""
+    import runpy
+
+    script = Path(main.__code__.co_filename)
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setitem(sys.modules, "tools.rl_tokamak_evaluation", None)
+    with pytest.raises(SystemExit) as script_exit:
+        runpy.run_path(str(script), run_name="__main__")
+    assert script_exit.value.code == 1
+    assert capsys.readouterr().err == "PPO training dependencies are unavailable.\n"
+    with pytest.raises(ImportError):
+        runpy.run_path(str(script), run_name="train_rl_tokamak_probe")

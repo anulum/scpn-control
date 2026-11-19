@@ -84,14 +84,14 @@ def main(argv: list[str] | None = None) -> int:
         model.save(str(config.output.with_suffix("")))
         with metrics_path.open("x", encoding="utf-8") as stream:
             json.dump(metrics, stream, indent=2, allow_nan=False)
+        logger.info("Saved PPO candidate and metrics")
+        return 0
     except Exception:
         print("PPO training configuration, execution or candidate delivery failed.", file=sys.stderr)
         return 1
     finally:
         if env is not None:
             env.close()
-    logger.info("Saved PPO candidate and metrics")
-    return 0
 
 
 if __name__ == "__main__":
