@@ -43,7 +43,10 @@ def ensure_repo_src_on_path() -> None:
         sys.path.insert(0, repo_src)
 
 
-ensure_repo_src_on_path()
+# Run as a script, put the checkout's sources on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    ensure_repo_src_on_path()
 
 from scpn_control.core.gk_nonlinear import NonlinearGKConfig, NonlinearGKSolver
 
