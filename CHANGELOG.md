@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Surrogate trainers — gradients from one forward pass, best-epoch weights
+
+- **Fixed:** three NumPy MLP trainers updated layer i before propagating the
+  error to layer i-1 through the updated weights:
+  - the neural-equilibrium accelerator's training loop;
+  - the turbulence surrogate's analytic pretraining, which runs when a
+    `QLKNNSurrogate` is built with `pretrained=True`;
+  - `NeuralTransportTrainer.train`.
+  Every gradient of a step is now taken through that step's forward-pass
+  weights, and the updates follow. Clipping and learning rates are unchanged.
+- **Fixed:** the equilibrium trainer reported its best validation loss but kept
+  the weights of the last epoch, up to 20 epochs later. It now restores the
+  best epoch, and `TrainingResult.best_epoch` records which epoch that was.
+- **Documented:** in `train_from_geqdsk`, the GS residual enters the monitored
+  loss and early stopping, not the gradient.
+- **Effect:** default-constructed turbulence surrogates and newly trained
+  equilibrium weights differ numerically from earlier releases. Committed
+  reports and weight files keep their recorded bytes.
+
 ### Local preflight — every static-governance gate
 
 - **Fixed:** `tools/preflight.py` could report "ALL CLEAR: ready to push"

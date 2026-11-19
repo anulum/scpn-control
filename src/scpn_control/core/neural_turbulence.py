@@ -236,7 +236,13 @@ class QLKNNSurrogate:
         return np.ones_like(x)
 
     def _pretrain(self, rng: np.random.RandomState) -> None:
-        """Train on Jenko et al. (2001) analytic critical gradient model."""
+        """Train on Jenko et al. (2001) analytic critical gradient model.
+
+        Run 100 full-batch steps with learning rate 1e-3 on 450 of 500 scanned
+        samples. Each step backpropagates through the weights of its own forward
+        pass, normalises a layer gradient whose norm exceeds one, and only then
+        updates every layer.
+        """
         X = TrainingDataGenerator.generate_parameter_scan(500, rng=rng)
         y = TrainingDataGenerator.generate_analytic_targets(X)
 
@@ -258,6 +264,9 @@ class QLKNNSurrogate:
             n_train = X_train.shape[0]
             delta = 2.0 * (pred - y_train) / (n_train * y_train.shape[1])
 
+            # Every gradient is taken through the weights of this step's forward
+            # pass; the updates follow once all layers have their gradient.
+            steps: list[tuple[int, AnyFloatArray, AnyFloatArray]] = []
             for i in range(len(self.weights) - 1, -1, -1):
                 dW = activations[i].T @ delta
                 db = np.sum(delta, axis=0)
@@ -265,11 +274,13 @@ class QLKNNSurrogate:
                 if dW_norm > 1.0:
                     dW = dW / dW_norm
                     db = db / max(float(np.linalg.norm(db)), 1e-8)
-                self.weights[i] -= 1e-3 * dW
-                self.biases[i] -= 1e-3 * db
+                steps.append((i, dW, db))
                 if i > 0:
                     delta = (delta @ self.weights[i].T) * self._activate_deriv(pre_acts[i - 1])
                     np.clip(delta, -1e6, 1e6, out=delta)
+            for layer, step_w, step_b in steps:
+                self.weights[layer] -= 1e-3 * step_w
+                self.biases[layer] -= 1e-3 * step_b
 
     def forward(self, x: AnyFloatArray) -> FloatArray:
         """Map turbulence features ``x`` (batch_size, 10) to fluxes (batch_size, 3)."""
@@ -497,6 +508,11 @@ class NeuralTransportTrainer:
     ) -> dict[str, Any]:
         """Train a QLKNN surrogate by gradient descent with clipping.
 
+        Each epoch is one full-batch step on the training split. All layer
+        gradients are taken through the weights of that epoch's forward pass;
+        a layer gradient whose norm exceeds one is normalised, then every layer
+        is updated.
+
         Parameters
         ----------
         X
@@ -546,6 +562,9 @@ class NeuralTransportTrainer:
             n_train = X_train.shape[0]
             delta = 2.0 * (pred - y_train) / (n_train * y_train.shape[1])
 
+            # Every gradient is taken through the weights of this epoch's forward
+            # pass; the updates follow once all layers have their gradient.
+            steps: list[tuple[int, AnyFloatArray, AnyFloatArray]] = []
             for i in range(len(model.weights) - 1, -1, -1):
                 dW = activations[i].T @ delta
                 db = np.sum(delta, axis=0)
@@ -554,11 +573,13 @@ class NeuralTransportTrainer:
                 if dW_norm > 1.0:
                     dW = dW / dW_norm
                     db = db / max(float(np.linalg.norm(db)), 1e-8)
-                model.weights[i] -= lr * dW
-                model.biases[i] -= lr * db
+                steps.append((i, dW, db))
                 if i > 0:
                     delta = (delta @ model.weights[i].T) * self._activate_deriv(pre_acts[i - 1], model.activation)
                     np.clip(delta, -1e6, 1e6, out=delta)
+            for layer, step_w, step_b in steps:
+                model.weights[layer] -= lr * step_w
+                model.biases[layer] -= lr * step_b
 
             pred_val = model.forward(X_val)
             loss_val = float(np.mean((pred_val - y_val) ** 2))

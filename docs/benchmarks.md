@@ -1391,6 +1391,22 @@ Generated artefacts:
 - `validation/reports/neural_turbulence_claims.json`
 - `validation/reports/neural_turbulence_claims.md`
 
+The default surrogate's analytic pretraining now takes every layer gradient
+through the weights of its own forward pass. Two recorded campaigns on ML350
+compare it with the previous update order on the same commit. The committed
+report keeps its recorded bytes and matches the previous order.
+
+| Pretraining update order | Campaign | Payload SHA-256 | Q_i RMSE | Q_e RMSE | Gamma_e RMSE | Critical-gradient accuracy |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| one forward pass per step | `20261119T050318.504712Z-2c6c3aeb3214` | `0d04b0ad…51fadc51bd` | 80.9941 | 5.51358 | 2.51551 | 0.894531 |
+| layer-by-layer (before) | `20261119T050328.950809Z-b5f2db1aaeff` | `15b03308…0c287d5c34ca` | 80.9927 | 5.51681 | 2.51535 | 0.894531 |
+
+Errors are in gyro-Bohm units over the 256 local analytic-target samples. The
+change is below 0.1 % for every flux. The claim admission and its boundary do
+not change. Full payload digests, in table order:
+`0d04b0add51b186374a95565f3228bd15ba4dd58b2fc8cb8ce838f51fadc51bd` and
+`15b03308178aa33a4738f86a35a5b79d27670698a8a69bd0bd5b0c287d5c34ca`.
+
 Quantitative gyrokinetic, QuaLiKiz, or documented-reference turbulence claims
 remain blocked until a strict reference artefact validates the same neural
 weight checksum and declares Q_i, Q_e, Gamma_e, flux-relative error, and

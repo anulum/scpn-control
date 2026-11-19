@@ -66,7 +66,12 @@ class NeuralEqConfig:
 
 @dataclass
 class TrainingResult:
-    """Training summary."""
+    """Training summary.
+
+    ``final_loss`` is the lowest epoch training loss and ``val_loss`` the lowest
+    validation loss; the trained model holds the weights of that validation
+    epoch, ``best_epoch`` (zero-based, -1 when no epoch was recorded).
+    """
 
     n_samples: int
     n_components: int
@@ -77,6 +82,7 @@ class TrainingResult:
     val_loss: float = float("nan")
     test_mse: float = float("nan")
     test_max_error: float = float("nan")
+    best_epoch: int = -1
 
 
 @dataclass(frozen=True)
@@ -616,8 +622,14 @@ class NeuralEquilibriumAccelerator:
 
         Output: flattened ψ(R,Z) → PCA coefficients
 
-        Uses 70/15/15 train/val/test split with val-loss early stopping
-        (patience=20) and combined MSE + lambda_gs * GS residual loss.
+        Uses a 70/15/15 train/val/test split with validation early stopping
+        (patience=20). The monitored training and validation losses are
+        MSE + lambda_gs * GS residual; the gradient follows the MSE term on the
+        PCA coefficients only, so the GS residual is evaluated, not optimised.
+        Each batch takes all layer gradients through its own forward-pass
+        weights, clips them to [-1, 1] element-wise and then applies momentum.
+        The weights of the best validation epoch are restored before the test
+        evaluation, so ``val_loss`` and the returned model belong together.
         """
         from scpn_control.core.eqdsk import read_geqdsk
 
@@ -768,6 +780,9 @@ class NeuralEquilibriumAccelerator:
         velocity_b = [np.zeros_like(b) for b in self.mlp.biases]
 
         best_val_loss = float("inf")
+        best_epoch = -1
+        best_weights = [w.copy() for w in self.mlp.weights]
+        best_biases = [b.copy() for b in self.mlp.biases]
         best_train_loss = float("inf")
         patience_counter = 0
         patience = 20
@@ -806,8 +821,12 @@ class NeuralEquilibriumAccelerator:
 
                 epoch_loss += loss * len(idx)
 
-                # Backprop
+                # Backprop of the MSE term only: every layer's gradient is taken
+                # through the weights of this batch's forward pass, and the
+                # momentum updates follow once all gradients are known. The GS
+                # residual above enters the reported loss, not the gradient.
                 delta = 2.0 * error / len(idx)
+                gradients: list[tuple[int, AnyFloatArray, AnyFloatArray]] = []
                 for i in range(len(self.mlp.weights) - 1, -1, -1):
                     grad_w = activations[i].T @ delta
                     grad_b = delta.sum(axis=0)
@@ -815,17 +834,18 @@ class NeuralEquilibriumAccelerator:
                     # Gradient clipping to prevent explosive gradients
                     np.clip(grad_w, -1.0, 1.0, out=grad_w)
                     np.clip(grad_b, -1.0, 1.0, out=grad_b)
-
-                    velocity[i] = momentum * velocity[i] - lr * grad_w
-                    velocity_b[i] = momentum * velocity_b[i] - lr * grad_b
-
-                    self.mlp.weights[i] += velocity[i]
-                    self.mlp.biases[i] += velocity_b[i]
+                    gradients.append((i, grad_w, grad_b))
 
                     if i > 0:
                         delta = delta @ self.mlp.weights[i].T
                         # ReLU derivative
                         delta *= (activations[i] > 0).astype(float)
+
+                for i, grad_w, grad_b in gradients:
+                    velocity[i] = momentum * velocity[i] - lr * grad_w
+                    velocity_b[i] = momentum * velocity_b[i] - lr * grad_b
+                    self.mlp.weights[i] += velocity[i]
+                    self.mlp.biases[i] += velocity_b[i]
 
             epoch_loss /= max(len(X_train), 1)
             if epoch_loss < best_train_loss:
@@ -846,7 +866,10 @@ class NeuralEquilibriumAccelerator:
 
             if val_loss < best_val_loss:
                 best_val_loss = val_loss
+                best_epoch = epoch
                 patience_counter = 0
+                best_weights = [w.copy() for w in self.mlp.weights]
+                best_biases = [b.copy() for b in self.mlp.biases]
             else:
                 patience_counter += 1
                 if patience_counter >= patience:
@@ -865,6 +888,8 @@ class NeuralEquilibriumAccelerator:
                     val_loss,
                 )
 
+        # The reported val_loss belongs to the best epoch, so its weights are the model.
+        self.mlp.weights, self.mlp.biases = best_weights, best_biases
         self.is_trained = True
         train_time = time.perf_counter() - t0
 
@@ -890,6 +915,7 @@ class NeuralEquilibriumAccelerator:
             val_loss=best_val_loss,
             test_mse=test_metrics["mse"],
             test_max_error=test_metrics["max_error"],
+            best_epoch=best_epoch,
         )
 
     # ── Inference ────────────────────────────────────────────────────
