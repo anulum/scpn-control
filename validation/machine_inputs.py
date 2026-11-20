@@ -91,7 +91,10 @@ class MachineConfig:
             raw = getattr(self, key)
             if isinstance(raw, (bool, np.bool_)) or not isinstance(raw, (int, float, np.integer, np.floating)):
                 raise ValueError(f"{key} must be a finite real scalar")
-            value = float(raw)
+            try:
+                value = float(raw)
+            except OverflowError:
+                raise ValueError(f"{key} must be finite") from None
             if not np.isfinite(value):
                 raise ValueError(f"{key} must be finite")
             scalars[key] = value

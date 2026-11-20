@@ -50,7 +50,11 @@ _BISECT_ITERS = 44
 
 
 def _finite(name: str, value: float, *, positive: bool = False) -> float:
-    scalar = float(value)
+    """Return ``value`` as a finite float, optionally strictly positive; overflow and non-finite values raise ValueError."""
+    try:
+        scalar = float(value)
+    except OverflowError:
+        raise ValueError(f"{name} must be finite") from None
     if not np.isfinite(scalar):
         raise ValueError(f"{name} must be finite")
     if positive and scalar <= 0.0:
@@ -83,6 +87,7 @@ def ballooning_mode_has_node(
     theta = np.linspace(-theta_span, theta_span, n_theta)
 
     def rhs(t: float, y: list[float]) -> list[float]:
+        """Return d(F, G)/d(theta) of the s-alpha ballooning equation, with G = (1 + Lambda^2) F'."""
         f, g = y  # g = (1 + Lambda^2) F'
         lam = s * t - alpha * np.sin(t)
         p = 1.0 + lam * lam

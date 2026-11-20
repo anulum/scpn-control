@@ -138,6 +138,7 @@ class VoltSecondValidationResult:
 
 
 def _finite_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float; refuse booleans, non-numbers, overflow and non-finite values with ValueError."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError(f"{name} must be a finite number")
     try:
@@ -150,6 +151,7 @@ def _finite_float(name: str, value: object) -> float:
 
 
 def _positive_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float greater than zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result <= 0.0:
         raise ValueError(f"{name} must be positive")
@@ -157,6 +159,7 @@ def _positive_float(name: str, value: object) -> float:
 
 
 def _nonnegative_float(name: str, value: object) -> float:
+    """Return ``value`` as a finite float not below zero, or raise ValueError."""
     result = _finite_float(name, value)
     if result < 0.0:
         raise ValueError(f"{name} must be nonnegative")

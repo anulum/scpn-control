@@ -43,9 +43,15 @@ def _point(reference: Mapping[str, object]) -> BurnPoint:
     values = []
     for name in ("R_m", "a_m", "B_t_T", "I_p_MA", "kappa", "n_e_1e19", "P_aux_MW"):
         value = reference[name]
-        if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value <= 0:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
             raise ValueError(f"{name} must be a finite positive number")
-        values.append(float(value))
+        try:
+            number = float(value)
+        except OverflowError:
+            raise ValueError(f"{name} must be a finite positive number") from None
+        if not math.isfinite(number) or number <= 0:
+            raise ValueError(f"{name} must be a finite positive number")
+        values.append(number)
     values[5] /= 10
     return BurnPoint(*values)
 

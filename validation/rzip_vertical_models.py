@@ -50,6 +50,7 @@ class VerticalConfig:
     m_eff_kg: float
 
     def __post_init__(self) -> None:
+        """Require positive geometry, elongation, current, field and effective mass, with the minor radius below the major radius."""
         _positive_float("r0", self.r0)
         _positive_float("a", self.a)
         _positive_float("kappa", self.kappa)
