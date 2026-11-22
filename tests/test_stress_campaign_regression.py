@@ -5,73 +5,45 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Test Stress Campaign Regression.
+"""The stress campaign against the real equilibrium kernel and a repository ITER configuration.
 
-# ──────────────────────────────────────────────────────────────────────
-# SCPN Control — Stress Campaign Regression Gate
-# © 1996–2026 Miroslav Šotek. All rights reserved.
-# License: GNU AGPL v3 | Commercial licensing available
-# ──────────────────────────────────────────────────────────────────────
-"""
-Regression gate for the 1000-shot stress campaign (quick mode).
-Ensures that physics changes do not degrade controller performance.
+With the repository's reduced ITER test configuration the flight simulator's
+solved flux maximum leaves the interior after the first control step, so the
+checked magnetic-axis reader refuses the shot. The campaign must then exit 1,
+name the refusal and write no report, instead of the zero-filled metrics it
+used to write. When the equilibrium is repaired this test fails and must be
+replaced by a gate on the measured controller metrics.
 """
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+ROOT = Path(__file__).resolve().parents[1]
+
 
 @pytest.mark.benchmark
-def test_stress_campaign_quick_regression(tmp_path: Path):
-    """Run 10-episode stress campaign and verify performance gates."""
+def test_stress_campaign_refuses_the_repository_config_without_an_interior_axis(tmp_path: Path) -> None:
+    """Two real episodes per controller: the first PID episode is refused and nothing is written."""
     report_path = tmp_path / "stress_report.json"
-
-    # Locate script and config relative to this test file
-    this_dir = Path(__file__).parent
-    script_path = this_dir.parent / "validation" / "stress_test_campaign.py"
-    config_path = this_dir / "iter_config_temp.json"
-
-    # Run via subprocess to ensure clean environment and path handling
-    # We use 2 episodes (1 per controller) and default duration for stability
-    cmd = [
+    command = [
         sys.executable,
-        str(script_path),
+        str(ROOT / "validation" / "stress_test_campaign.py"),
         "--episodes",
         "2",
         "--duration",
         "30",
         "--config",
-        str(config_path),
+        str(ROOT / "tests" / "iter_config_temp.json"),
         "--output",
         str(report_path),
     ]
-
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    assert result.returncode == 0, f"Stress campaign failed with: {result.stderr}"
-
-    with open(report_path, "r") as f:
-        data = json.load(f)
-
-    # 1. PID controller checks
-    pid = data.get("PID")
-    assert pid is not None
-    assert pid["mean_reward"] > -50.0  # Very loose
-    assert pid["disruption_rate"] <= 1.0
-
-    # 2. H-infinity controller checks
-    hinf = data.get("H-infinity")
-    assert hinf is not None
-    assert hinf["mean_reward"] > -50.0
-
-    # 3. Latency checks (Python fallback)
-    # P99 loosened for slow CI environments; Windows runners are ~1.5x slower
-    assert pid["p99_latency_us"] < 750000
-    assert hinf["p99_latency_us"] < 750000
-
-    # 4. Energy efficiency
-    assert pid["mean_energy_efficiency"] >= 0.0
+    result = subprocess.run(command, capture_output=True, text=True, timeout=600, check=False)
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Stress campaign refused: PID episode 0 failed: MagneticAxisError" in result.stderr
+    assert "is not an interior O-point" in result.stderr
+    assert not report_path.exists()

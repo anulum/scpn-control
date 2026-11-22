@@ -301,12 +301,13 @@ def test_faq_rust_snn_latency_claim_matches_report() -> None:
 def test_faq_controller_registry_guidance_matches_code() -> None:
     """The FAQ controller-extension guidance must name the real registry."""
     faq = (ROOT / "docs" / "faq.md").read_text(encoding="utf-8")
-    comparison = (ROOT / "validation" / "controller_comparison.py").read_text(encoding="utf-8")
+    campaign = (ROOT / "validation" / "stress_test_campaign.py").read_text(encoding="utf-8")
     flight_sim = (ROOT / "src" / "scpn_control" / "control" / "tokamak_flight_sim.py").read_text(encoding="utf-8")
 
-    assert "CONTROLLERS = {" in comparison
-    assert "CONTROLLERS =" not in flight_sim
-    assert "validation/controller_comparison.py" in faq
+    assert "\nCONTROLLERS: dict[str, EpisodeRunner] = {" in campaign
+    assert "CONTROLLERS =" not in flight_sim and "CONTROLLERS:" not in flight_sim
+    assert "`CONTROLLERS` entry in\n`validation/stress_test_campaign.py`" in faq
+    assert "`validation/controller_comparison.py` renders" in faq
     assert "`tokamak_flight_sim.py` provides the" in faq
     assert "within `tokamak_flight_sim.py` or" not in faq
 

@@ -36,8 +36,9 @@ for the full per-controller and per-backend tables.
 ### 5. How do I add a new controller?
 Implement the standard controller interface (a `step(error, dt)` or similar method)
 in a dedicated `scpn_control.control` module. To include the controller in the
-repository comparison workflow, add a runner function and `CONTROLLERS` entry in
-`validation/controller_comparison.py`; `tokamak_flight_sim.py` provides the
+repository comparison workflow, add an episode runner and `CONTROLLERS` entry in
+`validation/stress_test_campaign.py`; `validation/controller_comparison.py` renders
+the same registry as tables. `tokamak_flight_sim.py` provides the
 `IsoFluxController` simulation harness but does not own a controller registry.
 See `scpn_control.control.h_infinity_controller` for a reference implementation.
 

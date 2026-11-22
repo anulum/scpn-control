@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Flight-simulator controller campaigns — failures refused, metrics renamed
+
+- **Fixed:** `validation/stress_test_campaign.py` and `validation/controller_comparison.py`
+  caught every failed episode, printed it and went on, so a campaign whose episodes all
+  failed reported zero-filled metrics. Since the flight simulator reads the magnetic axis
+  through the checked accessor, both repository ITER configurations fail this way: the
+  solved flux maximum leaves the interior after the first control step. An episode
+  failure now raises `EpisodeFailure`, naming the controller and the episode, and the
+  commands exit 1 with the refusal on standard error and write nothing.
+- **Fixed:** the comparison's H-infinity episode drove both axes with one controller
+  synthesised for a reduced vertical-instability plant. It now uses the stress campaign's
+  episode, one flight-simulator controller per axis, and renders that campaign's registry;
+  controllers are registered once, in `validation/stress_test_campaign.py`.
+- **Removed:** the disruption extension factor and the per-episode disruption time. The
+  time was a fixed fraction of the shot length, not a measurement.
+- **Removed:** the stress campaign's `noise_level` and `delay_ms` arguments, which were
+  printed but never applied, and the claims of a four-way comparison, of optional MPC
+  and SNN controllers and of injected noise, ELM and ramp events. Neither command
+  injects a perturbation, and the simulator shot is deterministic: repeated episodes
+  repeat the same shot and only the measured wall time varies.
+- **Changed:** `disrupted`, `disruption_rate`, `energy_efficiency` and
+  `mean_energy_efficiency` are now `exceeded_error_limit`, `error_limit_rate`,
+  `actuator_tracking` and `mean_actuator_tracking`. The limit is the named repository
+  heuristic `MEAN_AXIS_ERROR_LIMIT_M` (0.5 m), not a physical disruption criterion, and
+  the tracking score is `1 / (1 + mean absolute radial actuator lag)`, not an energy
+  measure.
+- **Documentation:** the validation summary no longer states a 30 % reward improvement
+  of H-infinity over PID. No recorded run supported it, and the comparison cannot run on
+  the repository configurations.
+
 ### Validation commands — import path, number guards and evidence contracts
 
 - **Fixed:** imported as `validation.<module>`, validation commands no longer change

@@ -3,7 +3,7 @@
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 172,
     "pytest-runtime-skip": 58,
-    "pytest-skipif": 149,
+    "pytest-skipif": 148,
     "pytest-xfail": 2
   },
   "entries": [
@@ -5588,21 +5588,6 @@
       "status": "variant-ci-lane"
     },
     {
-      "classification": "optional-package",
-      "condition": "not HAS_COLLECT_RESULTS",
-      "execution_lane": "baseline or named optional-owner lane",
-      "external_dependency": "optional Python package not admitted to every CI context",
-      "id": "covexc-34e3a0130b60603e",
-      "kind": "pytest-skipif",
-      "last_review": "2026-11-18",
-      "line": 29,
-      "owner": "tests/stress_campaign",
-      "path": "tests/test_stress_campaign.py",
-      "reason": "validation.collect_results not available",
-      "removal_condition": "Remove when the package is installed in a named executing lane or the optional feature is retired.",
-      "status": "explicit-environment-blocker"
-    },
-    {
       "classification": "facility-data",
       "condition": "not _SHOT_DIR.is_dir()",
       "execution_lane": "none: external data authority required",
@@ -5888,8 +5873,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 392,
-  "entry_sha256": "db0a9b2ebc15ff5b84ae0e3519a843a99f361f039fc5c4385c0b5ea5940e0756",
+  "entry_count": 391,
+  "entry_sha256": "268a0dc752131d622bdbac68a070dc23a8dfedd98f80345a3254695376908b55",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

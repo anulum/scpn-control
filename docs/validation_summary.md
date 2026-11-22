@@ -9,7 +9,7 @@ target-hardware, and deployment evidence that still needs admission.
 | GS solver converges | Solov'ev analytic benchmark | `test_p0_regression.py` | NRMSE < 1% |
 | Manufactured GS stencil accuracy | Independent Solov'ev-form Dirichlet SOR | `mesh_convergence_study.py` | Approximately second order for this fixture |
 | Transport scaling sanity | IPB98(y,2)-style scaling checks | validation tooling | Bounded regression evidence |
-| H-inf outperforms PID | Controller comparison | `controller_comparison.py` | 30% reward improvement |
+| PID and H-infinity axis control | Flight-simulator comparison | `controller_comparison.py` | Not established: no recorded run; with the repository ITER configurations the solved flux maximum leaves the interior after the first control step, so the comparison refuses |
 | PPO/RL research baseline | Seeded training and comparison reports | RL benchmark tooling | Bounded research evidence |
 | Control-cycle latency | `benchmark_native_handoff.py` | CI + local artifacts | ~5 µs P50 native cycle (CI) |
 | Disruption prediction | Synthetic ROC analysis | disruption benchmark tooling | Synthetic-only evidence |
