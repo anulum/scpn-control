@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import errno
 import hashlib
 import json
 import os
@@ -20,6 +21,7 @@ import sys
 import threading
 import time
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -27,6 +29,7 @@ import pytest
 from scpn_control.core.tglf_flux import TGLFFluxError, read_tglf_fluxes
 from scpn_control.core.tglf_units import TGLFReferenceUnits, physical_tglf_flux
 from scpn_control.core.transport_flux import TransportFaceFlux, advance_face_flux
+from validation import tglf_launcher
 from validation.tglf_launcher import TGLFFluxSolver
 
 _FIXTURE = Path(__file__).parent / "data/tglf/default"
@@ -206,11 +209,18 @@ def test_actual_wait_interruption_reaps_launcher(
 
 
 def test_escaped_descendant_log_handles_do_not_block_return(real_solver: TGLFFluxSolver, tmp_path: Path) -> None:
-    """An escaped process retains inherited log handles without holding the solver call open."""
+    """An escaped process retains inherited log handles without holding the solver call open.
+
+    The escaped child sleeps 15 s while holding both log files, so a call that
+    waited for those handles would exceed the 10 s return bound. The run
+    timeout only has to admit the provider itself: the default case takes
+    about 2.3 s on its own on a 2012 dual-Xeon host, so a 2 s timeout refused
+    the run there before the handles were tested.
+    """
     real_solver.binary = str(_instrumented_launcher(real_solver, tmp_path, "escape"))
     started = time.monotonic()
     try:
-        result = real_solver.run(_FIXTURE / "input.tglf", timeout_s=2)
+        result = real_solver.run(_FIXTURE / "input.tglf", timeout_s=30)
         assert time.monotonic() - started < 10
         assert result.particle_flux_gb[0] < 0
         # Escaped sessions are explicitly outside process-group containment.
@@ -535,3 +545,118 @@ def test_receipt_write_failure_preserves_original_execution_outcome(
         os.waitpid(int((directory / "wrapper.pid").read_text()), os.WNOHANG)
     with pytest.raises(TGLFFluxError, match="Cannot verify TGLF execution receipt"):
         read_tglf_fluxes(directory)
+
+
+def _refuse_group_kill(pgid: int, signum: int) -> None:
+    """Refuse a process-group kill the way the kernel does for a group the caller may not signal."""
+    raise PermissionError(errno.EPERM, "Operation not permitted")
+
+
+_REFUSED_KILL_NOTE = "process-group cleanup: PermissionError: [Errno 1] Operation not permitted"
+
+
+def test_non_posix_host_is_refused_before_any_execution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without POSIX process groups the call refuses before it resolves the launcher or creates a directory."""
+    solver = TGLFFluxSolver(tmp_path / "runs", binary=sys.executable)
+    deck = _FIXTURE / "input.tglf"
+    monkeypatch.setattr(tglf_launcher, "os", SimpleNamespace(name="nt"))
+    with pytest.raises(TGLFFluxError, match="requires POSIX"):
+        solver.run(deck)
+    monkeypatch.undo()
+    assert not solver.work_dir.exists()
+
+
+def test_refused_group_kill_after_a_real_success_is_raised_with_its_receipt(
+    real_solver: TGLFFluxSolver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A refused group kill after a successful real run is raised and recorded; the run is not published."""
+    monkeypatch.setattr(os, "killpg", _refuse_group_kill)
+    try:
+        with pytest.raises(PermissionError) as caught:
+            real_solver.run(_FIXTURE / "input.tglf", timeout_s=30)
+    finally:
+        monkeypatch.undo()
+    assert caught.value.__notes__ == [_REFUSED_KILL_NOTE]
+    (directory,) = real_solver.work_dir.iterdir()
+    receipt = json.loads((directory / "execution.json").read_text())
+    assert receipt["returncode"] == 0 and receipt["failure_type"] == "PermissionError"
+    assert receipt["cleanup_errors"] == [_REFUSED_KILL_NOTE] and not receipt["timed_out"]
+    assert not receipt["output_validated"] and receipt["output_sha256"] == {}
+    with pytest.raises(TGLFFluxError, match="validated receipt"):
+        read_tglf_fluxes(directory)
+
+
+def test_cleanup_failures_annotate_the_original_cancellation(
+    real_solver: TGLFFluxSolver, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """With the group kill refused, the live launcher outlasts reaping and both failures annotate the cancellation."""
+    real_solver.binary = str(_instrumented_launcher(real_solver, tmp_path, "cancel"))
+    kill_group = os.killpg
+    stop = threading.Event()
+
+    def interrupt(signum: int, frame: object) -> None:
+        """Raise the cancellation in the main thread while the real launcher is still alive."""
+        raise RuntimeError("external TGLF interruption")
+
+    def signal_when_ready() -> None:
+        """Signal once the launcher publishes readiness after its real provider exited."""
+        deadline = time.monotonic() + 20
+        while not stop.wait(0.01) and time.monotonic() < deadline:
+            if list(real_solver.work_dir.glob("tglf-*/ready")):
+                os.kill(os.getpid(), signal.SIGUSR1)
+                return
+
+    previous = signal.signal(signal.SIGUSR1, interrupt)
+    sender = threading.Thread(target=signal_when_ready)
+    monkeypatch.setattr(os, "killpg", _refuse_group_kill)
+    sender.start()
+    try:
+        with pytest.raises(RuntimeError, match="external TGLF interruption") as caught:
+            real_solver.run(_FIXTURE / "input.tglf", timeout_s=30)
+    finally:
+        monkeypatch.undo()
+        stop.set()
+        sender.join(timeout=2)
+        signal.signal(signal.SIGUSR1, previous)
+        for ready in real_solver.work_dir.glob("tglf-*/ready"):
+            launcher_pid = int(ready.read_text())
+            try:
+                kill_group(launcher_pid, signal.SIGKILL)
+                os.waitpid(launcher_pid, 0)
+            except (ProcessLookupError, ChildProcessError):
+                pass
+    notes = caught.value.__notes__
+    assert notes[0] == _REFUSED_KILL_NOTE
+    assert notes[1].startswith("leader reaping: TimeoutExpired: ") and len(notes) == 2
+    (directory,) = real_solver.work_dir.iterdir()
+    receipt = json.loads((directory / "execution.json").read_text())
+    assert receipt["failure_type"] == "RuntimeError" and receipt["returncode"] is None
+    assert receipt["cleanup_errors"] == notes and not receipt["timed_out"]
+
+
+def test_interruption_during_leader_reaping_is_raised_after_a_real_success(
+    real_solver: TGLFFluxSolver, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An interruption that arrives while cleanup reaps an exited launcher is raised with a reaping note."""
+    real_wait = subprocess.Popen.wait
+    timeouts: list[float | None] = []
+
+    def wait_then_interrupt(process: subprocess.Popen[bytes], timeout: float | None = None) -> int:
+        """Return the provider wait; deliver an interruption during the cleanup reaping wait."""
+        timeouts.append(timeout)
+        if len(timeouts) == 2:
+            raise KeyboardInterrupt("interrupted while reaping")
+        return real_wait(process, timeout=timeout)
+
+    monkeypatch.setattr(subprocess.Popen, "wait", wait_then_interrupt)
+    try:
+        with pytest.raises(KeyboardInterrupt, match="interrupted while reaping") as caught:
+            real_solver.run(_FIXTURE / "input.tglf", timeout_s=30)
+    finally:
+        monkeypatch.undo()
+    assert timeouts == [30, 2.0]
+    assert caught.value.__notes__ == ["leader reaping: KeyboardInterrupt: interrupted while reaping"]
+    (directory,) = real_solver.work_dir.iterdir()
+    receipt = json.loads((directory / "execution.json").read_text())
+    assert receipt["returncode"] == 0 and receipt["failure_type"] == "KeyboardInterrupt"
+    assert receipt["cleanup_errors"] == caught.value.__notes__ and not receipt["output_validated"]
