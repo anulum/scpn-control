@@ -57,7 +57,11 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     flux and source are mathematical benchmark scales, not calibrated discharge
     units. This does not call FusionKernel or prove its runtime solver fidelity.
     Early stop occurs at a sampled residual below tol or sampled NaN detection;
-    cap exhaustion is returned without refusal. Wall time covers sweeps only,
+    cap exhaustion is returned without refusal. Each row update is Gauss-Seidel
+    in R but a weighted Jacobi step in Z. With omega 1.2 that step diverges where
+    the vertical coupling dominates (for example nr=3 with nz>=100): the values
+    overflow to NaN, the sampled check stops the sweeps and the errors are NaN.
+    The study's square grids, where dZ > dR, are not affected. Wall time covers sweeps only,
     excluding setup/error reduction, and is not an isolated performance claim.
     """
     R_min, R_max = 1.0, 3.0
@@ -86,8 +90,8 @@ def run_solovev_benchmark(nr: int, nz: int, max_iter: int = 25000, tol: float = 
     dR2 = dR**2
     dZ2 = dZ**2
 
-    # Conservative omega for stability.
-    # For large grids in Python, Gauss-Seidel (1.0) or low SOR (1.2) is safer.
+    # Over-relaxation factor of the study; it converges on its square grids
+    # but not on vertically dominated ones (see Notes).
     omega = 1.2
 
     t0 = time.perf_counter()
@@ -169,6 +173,9 @@ def main() -> None:
     No campaign guard, physical admission, independent canonical-solver check
     or output alias protection is performed. A failed write can leave one
     report updated. Use an isolated cwd to preserve canonical scientific files.
+    With the default cap the 129 grid stops at 25000 sweeps, before its
+    residual check would pass at sweep 39801, so its error and the last rate
+    include iteration error (rate 1.99; 2.01 once converged).
     """
     resolutions = [17, 33, 65, 129]
     results = []

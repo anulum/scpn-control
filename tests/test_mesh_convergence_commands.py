@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import subprocess
 import sys
@@ -33,8 +34,21 @@ def test_actual_completed_sweep_count(cap: int) -> None:
     assert result["rmse"] > 0 and result["nrmse"] > 0 and result["wall_time_s"] >= 0
 
 
+def test_vertically_dominated_grid_diverges_and_stops_at_the_sampled_nan() -> None:
+    """With dZ much smaller than dR the over-relaxed vertical step diverges; the sweeps stop at a sampled NaN."""
+    with pytest.warns(RuntimeWarning, match="overflow"):
+        result = run_solovev_benchmark(3, 200, max_iter=3000)
+    assert result["iterations"] < 3000 and result["iterations"] % 200 == 1
+    assert math.isnan(result["nrmse"]) and math.isnan(result["rmse"]) and math.isnan(result["max_err"])
+
+
 def test_actual_complete_fixed_mesh_study_uses_temporary_software_custody(tmp_path: Path) -> None:
-    """Execute all four actual default grids without overwriting canonical scientific reports."""
+    """Execute all four actual default grids without overwriting canonical scientific reports.
+
+    The subprocess timeout only guards against a hang. The study takes about
+    240 s on a 2012 dual-Xeon host, 195 s of it on the 129 grid, which runs
+    the full 25000-sweep cap.
+    """
     argv = [
         sys.executable,
         str(ROOT / "tools/run_recorded_benchmark.py"),
@@ -63,7 +77,7 @@ def test_actual_complete_fixed_mesh_study_uses_temporary_software_custody(tmp_pa
         capture_output=True,
         text=True,
         check=False,
-        timeout=180,
+        timeout=900,
     )
     (tmp_path / "command.json").write_text(
         json.dumps(

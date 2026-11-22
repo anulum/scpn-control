@@ -5599,8 +5599,14 @@ Mesh `main()` has no parser: it runs17/33/65/129 with defaults, computes
 adjacent-grid rates and sequentially overwrites caller-relative JSON/Markdown
 under validation/reports. First row has no rate. No campaign guard or atomic
 pair write exists; use isolated cwd and retain software-only custody.
-The fixed public study and original17/33 convergence regression are exercised;
-legacy NaN termination is not forced with mocks for coverage.
+Each row update is Gauss-Seidel in R but a weighted Jacobi step in Z. With
+omega 1.2 that step diverges on vertically dominated grids (for example nr=3
+with nz>=100): the values overflow to NaN, the sweeps stop at the next sampled
+index and the errors are NaN. On the fixed study's 129 grid the 25000-sweep cap
+ends the sweeps before the residual check passes, which it does at sweep 39801;
+the capped NRMSE is 1.3 % above that value and the 65-to-129 rate reads 1.99
+instead of 2.01. The fixed public study, the original 17/33 convergence
+regression and the divergent-grid NaN stop are exercised.
 
 `validation.validate_differentiable_transport_latency` keeps its public API,
 constants and helper aliases. fields/audit/context/reports/readiness modules
