@@ -28,7 +28,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-if str(ROOT) not in sys.path:
+# Run as a script, put the checkout on the import path; an import as
+# ``tools.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from validation.generate_physics_traceability_report import generate_physics_traceability_markdown

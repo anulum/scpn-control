@@ -34,7 +34,10 @@ def _ensure_repo_src_on_path() -> None:
             sys.path.insert(0, path)
 
 
-_ensure_repo_src_on_path()
+# Run as a script, put the checkout and its src on the import path; an import
+# as ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    _ensure_repo_src_on_path()
 
 from validation.code_to_code_comparison import (
     _benchmark_numeric_payload_is_finite as _benchmark_numeric_payload_is_finite,

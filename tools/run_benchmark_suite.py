@@ -56,7 +56,10 @@ def _ensure_repo_on_path(search_path: list[str] | None = None) -> None:
             target.insert(0, str(path))
 
 
-_ensure_repo_on_path()
+# Run as a script, put the checkout and its src on the import path; an import
+# as ``tools.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""}:
+    _ensure_repo_on_path()
 
 import scpn_control
 from scpn_control.benchmark_records import CAMPAIGN_ENV, require_recorded_campaign

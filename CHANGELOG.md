@@ -15,7 +15,11 @@
     `validate_gk_crosscode.py`);
   - seven physics validators and 13 evidence and gate validators;
   - the nonlinear Cyclone validator;
-  - `tools/public_claim_ledger.py`.
+  - the code-to-code, control-resilience and free-boundary tracking acceptance
+    commands, the physics traceability report and four MAST EFM and
+    neural-equilibrium dataset, audit, training and campaign-planning commands;
+  - `tools/public_claim_ledger.py`, `tools/check_generated_traceability.py`,
+    `tools/publish.py` and `tools/run_benchmark_suite.py`.
 - **Fixed:** an integer too large for a float, such as a 400-digit number in a JSON
   report, raised `OverflowError` out of number guards whose contract is a `ValueError`
   or a record error. It is now that documented error in:

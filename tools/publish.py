@@ -46,7 +46,9 @@ ROOT = Path(__file__).resolve().parent.parent
 PYPROJECT = ROOT / "pyproject.toml"
 DIST = ROOT / "dist"
 
-if str(ROOT) not in sys.path:
+# Run as a script, put the checkout on the import path; an import as
+# ``tools.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from tools.publish_metadata import PublishMetadataError, bump_project_version, read_project_version
