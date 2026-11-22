@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Command-line interface — import path
+
+- **Fixed:** importing `scpn_control.cli` put the directory two levels above the module
+  first on `sys.path`. In a source checkout that is the checkout root; for an installed
+  wheel it is the interpreter's library directory. The CLI group now adds the root when
+  a command runs, once, and only when it holds the `validation` package that the
+  validation commands import. Importing the module leaves the import path unchanged.
+
 ### Flight-simulator controller campaigns — failures refused, metrics renamed
 
 - **Fixed:** `validation/stress_test_campaign.py` and `validation/controller_comparison.py`

@@ -1,5 +1,5 @@
 {
-  "total": 5336,
+  "total": 5319,
   "scope": [
     "tests",
     "tools",
@@ -9,9 +9,9 @@
     "D100": 99,
     "D101": 510,
     "D102": 1895,
-    "D103": 2766,
+    "D103": 2750,
     "D200": 6,
-    "D205": 48,
+    "D205": 47,
     "D400": 3,
     "D401": 9
   },
@@ -268,15 +268,9 @@
       "D100": 1,
       "D103": 18
     },
-    "tests/test_differentiable_scenario_validation.py": {
-      "D103": 6
-    },
     "tests/test_differentiable_transport.py": {
       "D100": 1,
       "D103": 105
-    },
-    "tests/test_differentiable_transport_latency_validation.py": {
-      "D103": 10
     },
     "tests/test_digital_twin_ingest_runtime.py": {
       "D103": 5
@@ -1062,9 +1056,6 @@
       "D100": 1,
       "D103": 15
     },
-    "tests/test_stress_campaign_regression.py": {
-      "D205": 1
-    },
     "tests/test_structure_edge_paths.py": {
       "D101": 6,
       "D205": 1
@@ -1252,9 +1243,7 @@
     "tests/test_dashboard_trajectory.py": "f3d882c22cb530673519f01969645e042a78018ebaaae1fd1ade8e7eb5d27a02",
     "tests/test_detachment_controller.py": "f68f4eb0d97e6a66893c4f86d1d1e3865a141f8b1d89019787bd6ec8db7922af",
     "tests/test_differentiable_scenario.py": "17da0c3af372d87c1c972905e8e4b36c68c6d85a9930cdb8141bb301b24d6372",
-    "tests/test_differentiable_scenario_validation.py": "667f8c879d218310324490eb52d4b0ca614b9fb20e97cb1ed4df236e01a38120",
     "tests/test_differentiable_transport.py": "3ff166e9fd3fb617db00e64cc4ed82f55b4983830f13f22344980c28075bb11c",
-    "tests/test_differentiable_transport_latency_validation.py": "5241e469441dc1292f04636c2ba68818738bcadeec5aad8be06fbea42cf49724",
     "tests/test_digital_twin_ingest_runtime.py": "a2ec238aee72a74c55986cd028fa375aa5a4f81f6b2ac309fee687ca9aac8f62",
     "tests/test_digital_twin_physics.py": "90bfe7e91f029276abba93349bd7fbabe648d15ad72d73fbb5d236142242de37",
     "tests/test_diiid_freegs_reference.py": "946d8cbee651f89bf32d4fb0b4a1520d55a814259b0346800d873146db9a3e39",
@@ -1455,7 +1444,6 @@
     "tests/test_stability_mhd.py": "3b8353097d6ab9dcc8a1fa520af03bc661c62a9399112c83765d42874367c027",
     "tests/test_stability_mhd_validation.py": "d83d9f283e8200fb4d1c8c7769792c6a31507b9653cda61ff7dfe5cbe0bec141",
     "tests/test_stellarator_geometry.py": "5c2efc6998087943ad56086aef20d26ada4517948d47e2d4b053691918cdf033",
-    "tests/test_stress_campaign_regression.py": "06ae954a6c5c54d2c4f03531aa09572313326ae55504d6cd9318456798eacd86",
     "tests/test_structure_edge_paths.py": "b3ef263aaf9a4e8cf440b2590e27ef2fd7e55e7f3a8a42e2c940543e3149aa0d",
     "tests/test_structure_liveness_validation.py": "b018d4c6a2fee9ab5451e23d6e5715e14ab6a55396f117e576f3f59fbf4b53bb",
     "tests/test_studio_package_exports.py": "3e0ab13040df63d2b84b3466055911f88aecc5f3252caf365c214da00523e223",

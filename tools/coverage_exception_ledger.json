@@ -1,7 +1,7 @@
 {
   "counts": {
     "coverage-exclude-pattern": 11,
-    "pragma-no-cover": 172,
+    "pragma-no-cover": 171,
     "pytest-runtime-skip": 58,
     "pytest-skipif": 148,
     "pytest-xfail": 2
@@ -203,29 +203,14 @@
       "status": "variant-ci-lane"
     },
     {
-      "classification": "intrinsic-control-flow",
-      "condition": ")",
-      "execution_lane": "python-tests: Ubuntu 3.12 coverage",
-      "external_dependency": "none; defensive, protocol, or interpreter-only control flow",
-      "id": "covexc-cfba0d3cd6da651f",
-      "kind": "pragma-no-cover",
-      "last_review": "2026-11-18",
-      "line": 75,
-      "owner": "repository/coverage-policy",
-      "path": "src/scpn_control/cli.py",
-      "reason": "bootstrap; repo root already on path under editable install/PYTHONPATH",
-      "removal_condition": "Remove when the defensive branch becomes reachable through an admitted public/runtime input or the branch is deleted.",
-      "status": "reasoned-control-flow"
-    },
-    {
       "classification": "optional-package",
       "condition": "except PackageNotFoundError:",
       "execution_lane": "baseline or named optional-owner lane",
       "external_dependency": "optional Python package not admitted to every CI context",
-      "id": "covexc-1e5a93a60dcdbf73",
+      "id": "covexc-4dcffc5a2c007827",
       "kind": "pragma-no-cover",
       "last_review": "2026-11-18",
-      "line": 79,
+      "line": 90,
       "owner": "repository/coverage-policy",
       "path": "src/scpn_control/cli.py",
       "reason": "package is installed in every supported run context",
@@ -237,10 +222,10 @@
       "condition": "):",
       "execution_lane": "python-tests: Ubuntu 3.12 coverage",
       "external_dependency": "none; defensive, protocol, or interpreter-only control flow",
-      "id": "covexc-4ef54d7ab2ebea3b",
+      "id": "covexc-3cedee5b2edaf93e",
       "kind": "pragma-no-cover",
       "last_review": "2026-11-18",
-      "line": 318,
+      "line": 330,
       "owner": "repository/coverage-policy",
       "path": "src/scpn_control/cli.py",
       "reason": "defensive; benchmark computes statistics.mean first, so the sample is never empty here",
@@ -252,10 +237,10 @@
       "condition": "):",
       "execution_lane": "python-tests: Ubuntu 3.12 coverage",
       "external_dependency": "none; defensive, protocol, or interpreter-only control flow",
-      "id": "covexc-698e782058b27d13",
+      "id": "covexc-5c55f2ffd7ca4776",
       "kind": "pragma-no-cover",
       "last_review": "2026-11-18",
-      "line": 323,
+      "line": 335,
       "owner": "repository/coverage-policy",
       "path": "src/scpn_control/cli.py",
       "reason": "defensive clamp; callers only pass frac=0.95 so int(n*frac) < n",
@@ -5873,8 +5858,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 391,
-  "entry_sha256": "268a0dc752131d622bdbac68a070dc23a8dfedd98f80345a3254695376908b55",
+  "entry_count": 390,
+  "entry_sha256": "0d1c8ef42c74c268011e3aa3eff1cebd3bb46e1a4bdfa68b6991ba513366e1cf",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

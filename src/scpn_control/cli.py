@@ -69,10 +69,21 @@ from scpn_control.cli_evidence_validators import EVIDENCE_VALIDATOR_COMMANDS
 from scpn_control.cli_reference_validators import REFERENCE_VALIDATOR_COMMANDS
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(
-        0, str(_REPO_ROOT)
-    )  # pragma: no cover - bootstrap; repo root already on path under editable install/PYTHONPATH
+
+
+def _put_checkout_on_import_path() -> None:
+    """Make a source checkout's ``validation`` package importable for this command run.
+
+    The validation commands import ``validation.*`` from the checkout. In a
+    source checkout ``_REPO_ROOT`` holds that package and is put first on the
+    import path once. For an installed wheel ``_REPO_ROOT`` is the
+    interpreter's library directory, which holds no ``validation`` package and
+    is left alone. Importing this module changes nothing; the CLI group calls
+    this when a command runs.
+    """
+    if (_REPO_ROOT / "validation" / "__init__.py").is_file() and str(_REPO_ROOT) not in sys.path:
+        sys.path.insert(0, str(_REPO_ROOT))
+
 
 try:
     _VERSION = version("scpn-control")
@@ -143,6 +154,7 @@ _MAX_OSCILLATORS_PER_LAYER = 100_000
 @click.version_option(version=_VERSION, prog_name="scpn-control")
 def main() -> None:
     """SCPN Control — Neuro-symbolic Stochastic Petri Net controller."""
+    _put_checkout_on_import_path()
 
 
 @main.command()
