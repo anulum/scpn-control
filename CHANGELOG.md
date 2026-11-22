@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+### Validation commands — import path, number guards and evidence contracts
+
+- **Fixed:** imported as `validation.<module>`, validation commands no longer change
+  the caller's import path. They inserted the checkout and/or its `src` directory into
+  `sys.path` at import time, some unconditionally and some as duplicate entries. The
+  insertion now runs only for a script run and only for absent entries, in the
+  documented order (`src` first, then the checkout). This covers:
+  - the MARFE-onset, VMEC-lite, digital-twin and disturbance-rejection benchmark
+    producers and three JAX benchmark producers;
+  - 25 reference-artifact validators (`validate_*_reference.py` and
+    `validate_gk_crosscode.py`);
+  - seven physics validators and 13 evidence and gate validators;
+  - the nonlinear Cyclone validator;
+  - `tools/public_claim_ledger.py`.
+- **Fixed:** an integer too large for a float, such as a 400-digit number in a JSON
+  report, raised `OverflowError` out of number guards whose contract is a `ValueError`
+  or a record error. It is now that documented error in:
+  - the finite-number guards copied into 14 physics validators;
+  - the differentiable-scenario report validator, where it is a field finding;
+  - the MAST disruption shot-label parser (`ShotLabelRecordError` with
+    `<field> must be finite`);
+  - the independent ballooning reference, the burn-reference reader and the
+    machine-input snapshot.
+- **Fixed:** `validation/validate_differentiable_scenario.py` refused every report
+  that the current producer writes, because it required the bare command while the
+  producer records `--json-out <path> --md-out <path>`. It now accepts the bare script
+  or exactly that form with non-empty paths, and refuses another program, extra,
+  missing or reordered options, an empty path and unbalanced quoting.
+- **Fixed:** the Rust harness of the capacitor-bank state benchmark took the upper
+  middle sample as the median of an even sample count, while the Python side averages
+  the middle pair. Both now average it, so the two medians use one definition. No
+  committed report or document cites numbers from this benchmark.
+- **Fixed:** `validation/benchmark_transport.py` wrote its report pair relative to the
+  working directory, outside the evidence roots and so past the recorded-campaign
+  guard. The pair now lives beside the module. Its ITER-like case passed
+  unconditionally; it now passes only with a finite positive confinement time and a
+  finite non-negative uncertainty.
+- **Fixed:** `tools/ci_rmse_gate.py` printed the beta-lane target as
+  "target0.10 indicative". It now formats the threshold from its own table.
+- **Documented:** the linear GK benchmark suite runs the Cyclone Base Case, a
+  critical-gradient scan, a comparison with the repository's quasilinear model and
+  SPARC- and ITER-like points, and loads no published GENE, GS2 or GYRO values. The
+  hybrid-accuracy benchmark's quasilinear fluxes are its own reference, not a measured
+  or nonlinear truth.
+
 ### Surrogate trainers — gradients from one forward pass, best-epoch weights
 
 - **Fixed:** three NumPy MLP trainers updated layer i before propagating the
