@@ -431,7 +431,7 @@ def main() -> None:
     # Save weights
     args.output.parent.mkdir(parents=True, exist_ok=True)
     save_keys = {k: v for k, v in weights.items() if not k.startswith("_")}
-    np.savez(args.output, **save_keys)
+    np.savez(args.output, allow_pickle=False, **save_keys)
     logger.info("Saved weights to %s", args.output)
 
     # Save metrics

@@ -51,7 +51,7 @@ def test_npz_loader_preserves_stored_arrays_and_precedes_csv(input_key: str, out
     features = np.arange(30, dtype=np.int64).reshape(3, 10)
     targets = np.arange(9, dtype=np.float32).reshape(3, 3)
     archive_arrays: dict[str, training.Array] = {input_key: features, output_key: targets}
-    np.savez(tmp_path / "data.npz", **archive_arrays)
+    np.savez(tmp_path / "data.npz", allow_pickle=False, **archive_arrays)
     (tmp_path / "invalid.csv").write_text("header\nnot,numeric\n")
     loaded_features, loaded_targets = training.load_qlknn_data(tmp_path)
     np.testing.assert_array_equal(loaded_features, features)

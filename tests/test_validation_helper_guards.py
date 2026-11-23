@@ -64,4 +64,4 @@ def test_machine_snapshot_refuses_an_oversized_scalar() -> None:
     """A machine whose major radius is a 400-digit integer cannot be snapshotted."""
     machine = replace(iter_15ma(), R0=TOO_LARGE_FOR_FLOAT)
     with pytest.raises(ValueError, match="^R0 must be finite$"):
-        machine.snapshot(np.linspace(0.0, 1.0, 5))
+        machine.snapshot(np.linspace(0.0, 1.0, 5, dtype=np.float64))

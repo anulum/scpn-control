@@ -129,6 +129,7 @@ def test_training_saves_the_best_validation_epoch(tmp_path: Path) -> None:
     accel = NeuralEquilibriumAccelerator()
     accel.load_weights(output)
     assert accel.mlp is not None and accel.cfg.n_input_features == 12
+    assert accel._input_mean is not None and accel._input_std is not None
     x_val = (X[val] - accel._input_mean) / accel._input_std
     y_val = accel.pca.transform(Y[val])
     objective = float(np.mean(np.sum((accel.mlp.forward(x_val) - y_val) ** 2, axis=1)))

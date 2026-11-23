@@ -36,7 +36,7 @@ _X0 = np.array([1.0, 0.5, -0.8], dtype=np.float64)
 def _surrogate(scale: float) -> NeuralSurrogate:
     """Return the three-state, two-coil fixture surrogate with ``B`` scaled."""
     surrogate = NeuralSurrogate(n_coils=2, n_state=3, verbose=False)
-    surrogate.B = _B * scale
+    surrogate.B[:] = _B * scale
     return surrogate
 
 
@@ -56,7 +56,7 @@ def _closed_form_plan(b_matrix: FloatArray, horizon: int, regularization: float)
             stacked[t * n_state : (t + 1) * n_state, j * n_coils : (j + 1) * n_coils] = b_matrix
         rhs[t * n_state : (t + 1) * n_state] = _TARGET - _X0
     normal = stacked.T @ stacked + regularization * np.eye(horizon * n_coils)
-    return np.linalg.solve(normal, stacked.T @ rhs).reshape(horizon, n_coils)
+    return np.asarray(np.linalg.solve(normal, stacked.T @ rhs).reshape(horizon, n_coils), dtype=np.float64)
 
 
 @pytest.mark.parametrize("horizon", [1, 2, 3, 7, 10, 25])

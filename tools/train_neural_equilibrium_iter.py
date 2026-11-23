@@ -89,7 +89,7 @@ Z_MAX = 2.0 * A_MINOR * KAPPA
 
 def _grid() -> tuple[FloatArray, FloatArray]:
     """Return the R and Z coordinates of the training grid."""
-    return np.linspace(R_MIN, R_MAX, GRID_N), np.linspace(Z_MIN, Z_MAX, GRID_N)
+    return np.linspace(R_MIN, R_MAX, GRID_N, dtype=np.float64), np.linspace(Z_MIN, Z_MAX, GRID_N, dtype=np.float64)
 
 
 def _solovev_psi(
@@ -425,7 +425,9 @@ def train_iter_weights(
         epoch_loss = 0.0
         for start in range(0, n_train, batch_size):
             idx = order[start : start + batch_size]
-            loss, grad_w, grad_b = _gradients(mlp.weights, mlp.biases, X_train[idx], Y_train[idx])
+            float_weights = [np.asarray(w, dtype=np.float64) for w in mlp.weights]
+            float_biases = [np.asarray(b, dtype=np.float64) for b in mlp.biases]
+            loss, grad_w, grad_b = _gradients(float_weights, float_biases, X_train[idx], Y_train[idx])
             epoch_loss += loss * len(idx)
             for i in range(len(mlp.weights)):
                 velocity[i] = momentum * velocity[i] - lr * np.clip(grad_w[i], -1.0, 1.0)

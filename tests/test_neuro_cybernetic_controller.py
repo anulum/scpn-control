@@ -15,6 +15,7 @@ from typing import Any, cast
 
 import numpy as np
 import pytest
+from numpy.typing import NDArray
 
 import scpn_control.control.neuro_cybernetic_controller as controller_mod
 from scpn_control.control.neuro_cybernetic_controller import (
@@ -36,7 +37,7 @@ class _DummyKernel:
         self.R = np.linspace(5.8, 6.6, 25)
         self.Z = np.linspace(-0.3, 0.3, 25)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = np.zeros((25, 25), dtype=np.float64)
+        self.Psi: NDArray[np.float64] = np.zeros((25, 25), dtype=np.float64)
         self.solve_equilibrium()
 
     def solve_equilibrium(self) -> None:
@@ -61,7 +62,7 @@ class _FarOffKernel:
         self.R = np.linspace(90.0, 110.0, 25)
         self.Z = np.linspace(-0.3, 0.3, 25)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = np.zeros((25, 25), dtype=np.float64)
+        self.Psi: NDArray[np.float64] = np.zeros((25, 25), dtype=np.float64)
         self.solve_equilibrium()
 
     def solve_equilibrium(self) -> None:
@@ -524,7 +525,7 @@ class _KernelFewCoils:
         self.R = np.linspace(5.9, 6.5, 25)
         self.Z = np.linspace(-0.3, 0.3, 25)
         self.RR, self.ZZ = np.meshgrid(self.R, self.Z)
-        self.Psi = np.zeros((25, 25), dtype=np.float64)
+        self.Psi: NDArray[np.float64] = np.zeros((25, 25), dtype=np.float64)
         self.solve_equilibrium()
 
     def solve_equilibrium(self) -> None:

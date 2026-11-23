@@ -70,8 +70,8 @@ def test_transport_trainer_step_is_the_exact_gradient_at_the_pre_step_weights(mo
     model = QLKNNSurrogate(hidden_layers=[5, 4], activation="elu", pretrained=False)
     model.weights = [rng.randn(*w.shape) * 0.4 for w in model.weights]
     model.biases = [rng.randn(*b.shape) * 0.1 for b in model.biases]
-    start_w = [w.copy() for w in model.weights]
-    start_b = [b.copy() for b in model.biases]
+    start_w = [np.asarray(w, dtype=np.float64).copy() for w in model.weights]
+    start_b = [np.asarray(b, dtype=np.float64).copy() for b in model.biases]
     x = rng.randn(21, 10)
     y = model.forward(x) + 0.05 * rng.randn(21, 3)
     monkeypatch.setattr(neural_turbulence, "QLKNNSurrogate", lambda pretrained=False: model)
@@ -92,8 +92,8 @@ def test_pretrained_surrogate_follows_the_documented_schedule() -> None:
     """Construction replays 100 clipped full-batch steps of size 1e-3, each from one forward pass."""
     rng = np.random.RandomState(42)
     layers = [10, 128, 128, 64, 3]
-    weights = [rng.randn(layers[i], layers[i + 1]) * np.sqrt(2.0 / layers[i]) for i in range(4)]
-    biases = [np.zeros(layers[i + 1]) for i in range(4)]
+    weights: list[FloatArray] = [rng.randn(layers[i], layers[i + 1]) * np.sqrt(2.0 / layers[i]) for i in range(4)]
+    biases: list[FloatArray] = [np.zeros(layers[i + 1]) for i in range(4)]
     full_x = TrainingDataGenerator.generate_parameter_scan(500, rng=rng)
     x, y = full_x[:-50], TrainingDataGenerator.generate_analytic_targets(full_x)[:-50]
     for _ in range(100):
