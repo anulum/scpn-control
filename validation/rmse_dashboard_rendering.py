@@ -113,7 +113,8 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     -------
     str
         Markdown text with dashboard heuristic flags, separate from the CI
-        regression limits. Unavailable beta has no zero metric or PASS flag.
+        regression limits. An unavailable beta_N, point-wise psi or forward
+        diagnostics lane renders its reason, never a zero metric or PASS flag.
         Neither rendered flags nor synthetic forward comparisons grant physical
         validity; input text is rendered without Markdown escaping.
     """
@@ -196,7 +197,12 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
 
     # ── Psi RMSE ──────────────────────────────────────────────────────
     psi_rmse = report.get("sparc_psi_rmse")
-    if isinstance(psi_rmse, dict) and "mean_psi_rmse_norm" in psi_rmse:
+    if isinstance(psi_rmse, dict) and psi_rmse.get("skipped", False):
+        lines.append("## SPARC Point-wise psi(R,Z) RMSE")
+        lines.append("")
+        lines.append(f"- Unavailable: {psi_rmse['reason']}")
+        lines.append("")
+    elif isinstance(psi_rmse, dict) and "mean_psi_rmse_norm" in psi_rmse:
         lines.append("## SPARC Point-wise psi(R,Z) RMSE")
         lines.append("")
         lines.append(f"- Files: `{psi_rmse['count']}`")
@@ -211,12 +217,15 @@ def render_markdown(report: dict[str, Any], plot_dir: str | None = None) -> str:
     if isinstance(fwd, dict):
         lines.append("## Forward Diagnostics RMSE")
         lines.append("")
-        lines.append(f"- Interferometer channels: `{fwd['count_interferometer_channels']}`")
-        lines.append(f"- Interferometer phase RMSE: `{fwd['phase_rmse_rad']:.6e} rad`")
-        lines.append(f"- Neutron-count relative error: `{fwd['neutron_rate_rel_error_pct']:.3f}%`")
-        if "thomson_voltage_rmse_v" in fwd:
-            lines.append(f"- Thomson channels: `{fwd.get('count_thomson_channels', 0)}`")
-            lines.append(f"- Thomson voltage RMSE: `{fwd['thomson_voltage_rmse_v']:.6e} V`")
+        if fwd.get("skipped", False):
+            lines.append(f"- Unavailable: {fwd['reason']}")
+        else:
+            lines.append(f"- Interferometer channels: `{fwd['count_interferometer_channels']}`")
+            lines.append(f"- Interferometer phase RMSE: `{fwd['phase_rmse_rad']:.6e} rad`")
+            lines.append(f"- Neutron-count relative error: `{fwd['neutron_rate_rel_error_pct']:.3f}%`")
+            if "thomson_voltage_rmse_v" in fwd:
+                lines.append(f"- Thomson channels: `{fwd.get('count_thomson_channels', 0)}`")
+                lines.append(f"- Thomson voltage RMSE: `{fwd['thomson_voltage_rmse_v']:.6e} V`")
         lines.append("")
 
     lines.append("## Notes")

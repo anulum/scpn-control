@@ -11,15 +11,20 @@ CSV/JSON/GEQDSK inputs mix reference, calibration and design records.
 Calculations retain their historical formulas and units; no held-out facility
 accuracy is inferred. The pinned FUSION 0D burn diagnostic declares its closure limitations and
 checks numerical consistency independently of informational design targets.
-Unavailable models yield an explicitly skipped lane rather than target values.
+The synthetic forward-diagnostics lane runs the forward model of the same
+FUSION package, ``scpn_fusion.diagnostics.forward``. Unavailable models yield
+an explicitly skipped lane with null errors rather than target values or zero
+errors.
 """
 
 from __future__ import annotations
 
 import csv
+import importlib
 import json
 import math
 import statistics
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -27,10 +32,17 @@ import numpy as np
 
 from scpn_control.core.eqdsk import GEqdsk, read_geqdsk
 
-try:
-    from scpn_control.diagnostics.forward import generate_forward_channels
-except ImportError:
-    generate_forward_channels = None
+FORWARD_MODEL_MODULE = "scpn_fusion.diagnostics.forward"
+
+
+def _forward_model() -> Callable[..., Any] | None:
+    """Return FUSION's forward-channel model, or None when ``scpn-fusion`` does not provide it."""
+    try:
+        module = importlib.import_module(FORWARD_MODEL_MODULE)
+    except ImportError:
+        return None
+    model: Callable[..., Any] | None = getattr(module, "generate_forward_channels", None)
+    return model
 
 
 def ipb98_tau_e(
@@ -369,14 +381,17 @@ def forward_diagnostics_rmse() -> dict[str, Any]:
     neutron source in m^-3 s^-1. The second evaluation scales these profiles
     by 0.985/1.04/1.03 respectively. Return phase RMSE (rad), voltage RMSE (V)
     and neutron-rate relative error (percent); this checks synthetic channel
-    plumbing, not detector calibration or measured facility accuracy. Missing
-    optional forward code returns an explicit skipped lane and reason.
+    plumbing, not detector calibration or measured facility accuracy. The
+    forward model is ``scpn_fusion.diagnostics.forward``, installed with
+    ``scpn-fusion``; without it the lane is skipped with its reason and null
+    errors, never zero errors.
     """
+    generate_forward_channels = _forward_model()
     if generate_forward_channels is None:
         return {
             "count_interferometer_channels": 0,
-            "phase_rmse_rad": 0.0,
-            "neutron_rate_rel_error_pct": 0.0,
+            "phase_rmse_rad": None,
+            "neutron_rate_rel_error_pct": None,
             "skipped": True,
             "reason": "forward diagnostics module unavailable",
         }

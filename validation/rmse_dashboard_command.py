@@ -33,12 +33,31 @@ from validation.rmse_dashboard_metrics import (
 from validation.rmse_dashboard_rendering import render_markdown, render_plots
 
 ROOT = Path(__file__).resolve().parents[1]
-try:
-    from validation.psi_pointwise_rmse import sparc_psi_rmse as _sparc_psi_rmse
+PSI_LANE_UNAVAILABLE = "point-wise psi module validation.psi_pointwise_rmse is not in this checkout"
 
-    _HAS_PSI_RMSE = True
-except ImportError:
-    _HAS_PSI_RMSE = False
+
+def _sparc_psi_lane(sparc_eq_dir: Path) -> dict[str, Any]:
+    """Run the optional point-wise psi lane, or report why it is unavailable.
+
+    Parameters
+    ----------
+    sparc_eq_dir
+        Directory of the SPARC GEQDSK reference files.
+
+    Returns
+    -------
+    dict
+        The lane's own report when ``validation.psi_pointwise_rmse`` imports;
+        otherwise ``skipped`` with the reason. This repository does not ship
+        that module, so a checkout without it always reports the lane as
+        unavailable instead of omitting it.
+    """
+    try:
+        from validation.psi_pointwise_rmse import sparc_psi_rmse
+    except ImportError:
+        return {"skipped": True, "reason": PSI_LANE_UNAVAILABLE}
+    report: dict[str, Any] = sparc_psi_rmse(sparc_eq_dir)
+    return report
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -101,7 +120,7 @@ def main(argv: list[str] | None = None) -> int:
         "confinement_iter_sparc": confinement_rmse_iter_sparc(reference_dir),
         "beta_iter_sparc": beta_rmse_iter_sparc(reference_dir, validation_dir),
         "sparc_axis": sparc_axis_rmse(sparc_eq_dir),
-        "sparc_psi_rmse": _sparc_psi_rmse(sparc_eq_dir) if _HAS_PSI_RMSE else {"skipped": True},
+        "sparc_psi_rmse": _sparc_psi_lane(sparc_eq_dir),
         "forward_diagnostics": forward_diagnostics_rmse(),
     }
     report["runtime_seconds"] = time.perf_counter() - t0

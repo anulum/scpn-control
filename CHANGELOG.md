@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### RMSE dashboard — forward diagnostics and unavailable lanes
+
+- **Fixed:** the synthetic forward-diagnostics lane imported its forward model from
+  `scpn_control.diagnostics.forward`, a module this repository never had, so the lane
+  never ran, not even in CI's RMSE gate, which installs the pinned FUSION provider. It
+  now imports `scpn_fusion.diagnostics.forward` from that provider, which is the same
+  module the lane was written against.
+- **Fixed:** a skipped forward lane reported phase and neutron-rate errors of `0.0`, and
+  the Markdown report printed them as RMSE values. The skipped lane now carries `null`
+  errors and the report prints its reason. The point-wise psi lane, whose module
+  `validation.psi_pointwise_rmse` is not part of this repository, was silently left
+  out; the report now names it as unavailable with the reason.
+
 ### Code-to-code command — verified TORAX provider
 
 - **Fixed:** without TORAX the code-to-code command suggested `pip install torax`, which

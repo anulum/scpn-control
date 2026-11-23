@@ -17,9 +17,16 @@
 
 from __future__ import annotations
 
+import importlib
 import importlib.util
+import json
+import math
 import os
+import sys
+import types
+from dataclasses import replace
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -342,3 +349,139 @@ def test_renderer_closes_real_figure_after_output_refusal(
         assert plt.get_fignums() == before
     finally:
         plt.close(caller_figure)
+
+
+def _fresh_module(name: str, path: Path) -> Any:
+    """Execute a module file under a private name, so its import-time branches run again."""
+    spec = importlib.util.spec_from_file_location(name, path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_forward_lane_runs_the_fusion_forward_model_with_the_documented_bias() -> None:
+    """The lane runs FUSION's forward model; phase scales with the 0.985 density bias, the rate with 1.03."""
+    from validation import rmse_dashboard_metrics as metrics
+
+    try:
+        forward = importlib.import_module(metrics.FORWARD_MODEL_MODULE)
+    except ImportError:
+        assert metrics._forward_model() is None
+        return
+    assert metrics._forward_model() is forward.generate_forward_channels
+    result = metrics.forward_diagnostics_rmse()
+    assert "skipped" not in result
+    assert result["count_interferometer_channels"] == 3 and result["count_thomson_channels"] == 3
+    phase_true = [row["phase_true_rad"] for row in result["rows"]]
+    assert all(phase > 0.0 for phase in phase_true)
+    for row in result["rows"]:
+        assert row["phase_pred_rad"] == pytest.approx(0.985 * row["phase_true_rad"], rel=1e-12)
+    rms_true = math.sqrt(sum(phase * phase for phase in phase_true) / len(phase_true))
+    assert result["phase_rmse_rad"] == pytest.approx(0.015 * rms_true, rel=1e-9)
+    assert result["neutron_rate_rel_error_pct"] == pytest.approx(3.0, rel=1e-9)
+    assert result["thomson_voltage_rmse_v"] > 0.0
+
+
+def test_forward_lane_without_the_fusion_model_reports_null_errors(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without the forward model the lane is skipped with its reason and null errors, never zero errors."""
+    from validation import rmse_dashboard_metrics as metrics
+
+    monkeypatch.setitem(sys.modules, metrics.FORWARD_MODEL_MODULE, None)
+    assert metrics._forward_model() is None
+    assert metrics.forward_diagnostics_rmse() == {
+        "count_interferometer_channels": 0,
+        "phase_rmse_rad": None,
+        "neutron_rate_rel_error_pct": None,
+        "skipped": True,
+        "reason": "forward diagnostics module unavailable",
+    }
+
+
+def test_beta_lane_reports_a_provider_refusal_without_values(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A burn-provider refusal yields the skipped lane with the refusal text and no rows."""
+    from validation import rmse_dashboard_metrics as metrics
+
+    def refuse(reference: dict[str, Any], config_path: Path) -> tuple[float, dict[str, Any]]:
+        """Refuse the run as the provider does when it cannot produce histories."""
+        raise RuntimeError("burn provider refused the run")
+
+    monkeypatch.setattr(metrics, "estimate_beta_n_from_burn", refuse)
+    assert metrics.beta_rmse_iter_sparc(ROOT / "validation" / "reference_data", ROOT / "validation") == {
+        "count": 0,
+        "beta_n_rmse": None,
+        "rows": [],
+        "skipped": True,
+        "reason": "burn provider refused the run",
+    }
+
+
+def test_axis_comparison_follows_the_flux_sign_convention() -> None:
+    """Negating psi and its axis and boundary values moves the search to the other extremum, at the same point."""
+    from scpn_control.core.eqdsk import read_geqdsk
+    from validation import rmse_dashboard_metrics as metrics
+
+    eq = read_geqdsk(ROOT / "validation" / "reference_data" / "sparc" / "lmode_hv.geqdsk")
+    flipped = replace(eq, psirz=-eq.psirz, simag=-eq.simag, sibry=-eq.sibry)
+    assert (eq.simag < eq.sibry) is not (flipped.simag < flipped.sibry)
+    assert metrics.compare_eq_axis(flipped) == metrics.compare_eq_axis(eq)
+
+
+def test_point_wise_psi_lane_is_reported_unavailable_without_its_module() -> None:
+    """Without a point-wise psi module in the repository, the lane reports itself unavailable."""
+    from validation import rmse_dashboard_command as command
+
+    assert importlib.util.find_spec("validation.psi_pointwise_rmse") is None
+    assert command._sparc_psi_lane(ROOT / "validation" / "reference_data" / "sparc") == {
+        "skipped": True,
+        "reason": command.PSI_LANE_UNAVAILABLE,
+    }
+
+
+def test_point_wise_psi_lane_returns_the_module_report_when_present(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """With the module importable, the lane returns its report for the given directory unchanged."""
+    from validation import rmse_dashboard_command as command
+
+    calls: list[Path] = []
+    lane = {"count": 1, "mean_psi_rmse_norm": 0.01}
+
+    def sparc_psi_rmse(directory: Path) -> dict[str, Any]:
+        """Record the directory and return the fixed lane report."""
+        calls.append(directory)
+        return lane
+
+    module = types.ModuleType("validation.psi_pointwise_rmse")
+    module.__dict__["sparc_psi_rmse"] = sparc_psi_rmse
+    monkeypatch.setitem(sys.modules, "validation.psi_pointwise_rmse", module)
+    assert command._sparc_psi_lane(tmp_path) is lane
+    assert calls == [tmp_path]
+
+
+def test_command_without_matplotlib_writes_both_reports_without_figures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Without Matplotlib the command writes JSON and Markdown, no figures and no figure links."""
+    from validation import rmse_dashboard_command as command
+    from validation import rmse_dashboard_metrics as metrics
+
+    with monkeypatch.context() as blocked:
+        blocked.setitem(sys.modules, "matplotlib", None)
+        rendering = _fresh_module(
+            "rmse_dashboard_rendering_without_matplotlib", ROOT / "validation" / "rmse_dashboard_rendering.py"
+        )
+    assert rendering._HAS_MPL is False
+    monkeypatch.setattr(command, "render_plots", rendering.render_plots)
+    json_out = tmp_path / "report.json"
+    markdown_out = tmp_path / "report.md"
+    assert command.main(["--output-json", str(json_out), "--output-md", str(markdown_out)]) == 0
+    printed = capsys.readouterr().out
+    assert "SCPN RMSE dashboard generated." in printed and "Plots:" not in printed
+    assert sorted(path.name for path in tmp_path.iterdir()) == ["report.json", "report.md"]
+    report = json.loads(json_out.read_text(encoding="utf-8"))
+    text = markdown_out.read_text(encoding="utf-8")
+    assert "![" not in text
+    assert report["sparc_psi_rmse"] == {"skipped": True, "reason": command.PSI_LANE_UNAVAILABLE}
+    assert f"- Unavailable: {command.PSI_LANE_UNAVAILABLE}" in text
+    assert report["forward_diagnostics"].get("skipped", False) is (metrics._forward_model() is None)

@@ -152,3 +152,104 @@ def test_markdown_refuses_missing_required_carrier_without_mutating_input(actual
     with pytest.raises(KeyError, match="confinement_itpa"):
         rmse_dashboard_rendering.render_markdown(report)
     assert report == before
+
+
+def _section(text: str, heading: str) -> str:
+    """Return the Markdown body under one level-2 heading, up to the next one."""
+    return text.split(f"## {heading}\n", 1)[1].split("\n## ", 1)[0].strip()
+
+
+def test_display_flags_follow_each_threshold_form() -> None:
+    """Unknown keys have no flag; ranges pass inclusively; lower-better values pass, warn, then fail."""
+    flag = rmse_dashboard_rendering._flag
+    assert flag(1.0, "no_such_metric") == ""
+    assert [flag(value, "tbr") for value in (1.0, 1.2, 1.4, 0.99, 1.41)] == ["PASS", "PASS", "PASS", "FAIL", "FAIL"]
+    assert [flag(value, "sparc_axis_rmse_m") for value in (0.08, 0.09, 0.10, 0.11)] == ["PASS", "WARN", "WARN", "FAIL"]
+    assert flag(float("nan"), "tbr") == "FAIL" and flag(float("nan"), "sparc_axis_rmse_m") == "FAIL"
+
+
+def test_unavailable_lanes_render_their_reasons_and_no_values(actual_report: dict[str, Any]) -> None:
+    """Skipped beta, point-wise psi and forward lanes print their reasons, never zero errors."""
+    report = copy.deepcopy(actual_report)
+    report["beta_iter_sparc"] = {
+        "count": 0,
+        "beta_n_rmse": None,
+        "rows": [],
+        "skipped": True,
+        "reason": "burn provider refused the run",
+    }
+    report["sparc_psi_rmse"] = {"skipped": True, "reason": "point-wise psi module absent"}
+    report["forward_diagnostics"] = {
+        "count_interferometer_channels": 0,
+        "phase_rmse_rad": None,
+        "neutron_rate_rel_error_pct": None,
+        "skipped": True,
+        "reason": "forward diagnostics module unavailable",
+    }
+    text = rmse_dashboard_rendering.render_markdown(report, plot_dir="figures")
+    beta = _section(text, "Beta_N RMSE (ITER + SPARC references)")
+    assert beta == "- Samples: `0`\n- Unavailable: burn provider refused the run"
+    assert "beta_n_scatter.png" not in text
+    assert "No beta_N model prediction was available" in _section(text, "Notes")
+    assert _section(text, "SPARC Point-wise psi(R,Z) RMSE") == "- Unavailable: point-wise psi module absent"
+    assert _section(text, "Forward Diagnostics RMSE") == "- Unavailable: forward diagnostics module unavailable"
+
+
+def test_supplied_psi_lane_renders_and_an_absent_forward_lane_is_left_out(actual_report: dict[str, Any]) -> None:
+    """A point-wise psi report renders its five values; a report without a forward lane has no forward section."""
+    report = copy.deepcopy(actual_report)
+    report["sparc_psi_rmse"] = {
+        "count": 2,
+        "mean_psi_rmse_norm": 0.0125,
+        "mean_psi_relative_l2": 0.25,
+        "mean_gs_residual_l2": 0.5,
+        "worst_file": "lmode_vh.geqdsk",
+        "worst_psi_rmse_norm": 0.02,
+    }
+    del report["forward_diagnostics"]
+    text = rmse_dashboard_rendering.render_markdown(report)
+    assert _section(text, "SPARC Point-wise psi(R,Z) RMSE").split("\n") == [
+        "- Files: `2`",
+        "- Mean normalised psi RMSE: `0.012500`",
+        "- Mean relative L2: `0.250000`",
+        "- Mean GS residual (rel L2): `0.5000`",
+        "- Worst file: `lmode_vh.geqdsk` (psi_N RMSE = `0.020000`)",
+    ]
+    assert "## Forward Diagnostics RMSE" not in text
+
+
+def test_forward_lane_without_thomson_fields_renders_its_three_values(actual_report: dict[str, Any]) -> None:
+    """A supplied forward lane without Thomson fields renders the interferometer and neutron values only."""
+    report = copy.deepcopy(actual_report)
+    report["forward_diagnostics"] = {
+        "count_interferometer_channels": 3,
+        "phase_rmse_rad": 1.5e-3,
+        "neutron_rate_rel_error_pct": 3.0,
+    }
+    section = _section(rmse_dashboard_rendering.render_markdown(report), "Forward Diagnostics RMSE")
+    assert section.split("\n") == [
+        "- Interferometer channels: `3`",
+        "- Interferometer phase RMSE: `1.500000e-03 rad`",
+        "- Neutron-count relative error: `3.000%`",
+    ]
+
+
+def test_real_forward_lane_renders_its_values_or_its_reason(actual_report: dict[str, Any]) -> None:
+    """The generated report's forward lane renders its computed errors, or its reason when skipped."""
+    forward = actual_report["forward_diagnostics"]
+    section = _section(rmse_dashboard_rendering.render_markdown(actual_report), "Forward Diagnostics RMSE")
+    if forward.get("skipped", False):
+        assert section == f"- Unavailable: {forward['reason']}"
+        return
+    assert f"- Interferometer phase RMSE: `{forward['phase_rmse_rad']:.6e} rad`" in section
+    assert f"- Neutron-count relative error: `{forward['neutron_rate_rel_error_pct']:.3f}%`" in section
+    assert f"- Thomson voltage RMSE: `{forward['thomson_voltage_rmse_v']:.6e} V`" in section
+
+
+def test_plots_skip_every_lane_without_rows(actual_report: dict[str, Any], tmp_path: Path) -> None:
+    """Lanes without rows draw nothing, so the created directory stays empty."""
+    report = copy.deepcopy(actual_report)
+    for lane in ("confinement_itpa", "beta_iter_sparc", "sparc_axis"):
+        report[lane]["rows"] = []
+    assert rmse_dashboard_rendering.render_plots(report, tmp_path / "figures") == []
+    assert list((tmp_path / "figures").iterdir()) == []
