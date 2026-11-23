@@ -60,6 +60,13 @@ def _build_scpn_controller(
     runtime_backend: str = "auto",
     delay_ticks: int = _DEFAULT_TRANSITION_DELAY_TICKS,
 ) -> NeuroSymbolicController:
+    """Build the benchmark's SCPN controller with its symbolic transition lane.
+
+    The net injects the four error components into ``x_*``, fires them into the
+    readout places ``a_*`` after ``delay_ticks`` and drains ``a_*`` into sinks.
+    ``runtime_profile="traceable"`` applies the compiler's traceable runtime
+    settings; any other profile name is passed on with a binary margin of 0.05.
+    """
     net = StochasticPetriNet()
     for place in (
         # injected error components
@@ -161,6 +168,12 @@ def _build_scpn_controller(
 
 @dataclass
 class _PIDState:
+    """PID baseline state with a clipped output.
+
+    The derivative acts on the error and starts from ``last_err = 0``, so the
+    first step includes the derivative of the initial error.
+    """
+
     kp: float
     ki: float
     kd: float
@@ -168,6 +181,7 @@ class _PIDState:
     last_err: float = 0.0
 
     def step(self, err: float, dt: float, u_limit: float) -> float:
+        """Advance one sample of ``dt`` seconds and return the output clipped to ``±u_limit``."""
         self.integral += err * dt
         d_err = (err - self.last_err) / max(dt, 1e-9)
         self.last_err = err
@@ -176,10 +190,12 @@ class _PIDState:
 
 
 def _disturbance(k: int, steps: int, phase: float = 0.0) -> float:
+    """Return the disturbance at step ``k``: a 0.02 sinusoid plus a 0.04 step from the run's midpoint."""
     return float(0.02 * math.sin(0.08 * k + phase) + (0.04 if k >= steps // 2 else 0.0))
 
 
 def _mpc_action(x: float, k: int, steps: int, horizon: int, u_limit: float, phase: float = 0.0) -> float:
+    """Return the best of 31 candidate inputs over ``horizon`` steps, holding the last observed disturbance."""
     # An honest MPC uses only information available at step k. It holds the LAST
     # OBSERVED disturbance constant over the horizon -- ``_disturbance(k - 1)``
     # equals the measurement residual ``x - (0.95*x_prev + 0.12*u_prev)`` a real
@@ -205,6 +221,7 @@ def _mpc_action(x: float, k: int, steps: int, horizon: int, u_limit: float, phas
 
 
 def _metrics(errors: NDArray[np.float64], controls: NDArray[np.float64]) -> dict[str, float]:
+    """Return the RMSE, mean and peak absolute error, and mean absolute control of one run."""
     return {
         "rmse": float(np.sqrt(np.mean(errors * errors))),
         "iae": float(np.mean(np.abs(errors))),

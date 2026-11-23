@@ -3,12 +3,12 @@
   "environment": {
     "runtime_backend": "rust",
     "scpn_control_rs_version": "0.1.0",
-    "sc_neurocore_present": false,
-    "sc_neurocore_version": null,
+    "sc_neurocore_present": true,
+    "sc_neurocore_version": "3.16.0",
     "python_implementation": "CPython",
-    "python_version": "3.12.3",
+    "python_version": "3.12.14",
     "numpy_version": "2.2.6",
-    "generator_sha256": "d3dffb99d336630836c79cd83c9c98ec5934bb2dc8fcdcb46f957280b9fa303d"
+    "generator_sha256": "0b304510c5dda9a5bdebedf46bf1c2534703b8a723e9bf1a95538e7a35fb8771"
   },
   "plant": "linear scalar x' = 0.95 x + 0.12 u + d(k); sinusoid + mid-run step disturbance",
   "metric": "closed-loop tracking-error RMSE (e = -x)",
@@ -106,7 +106,8 @@
   "ratio_symbolic_over_neuromorphic_unseen": {
     "min": 0.9708603974743854,
     "max": 1.0496406931898363,
-    "mean": 1.0157915246275016
+    "mean": 1.0157915246275016,
+    "max_abs_deviation": 0.04964069318983633
   },
   "parity_holds": true,
   "symbolic_vs_pid": {
@@ -124,6 +125,6 @@
     "transitions_fire_at_runtime": true,
     "note": "Two independent signals: (1) a direct runtime firing trace shows the symbolic transitions actually fire (nonzero summed firing) while the neuromorphic baseline fires zero (its transitions are bypassed by delay); (2) removing the a_* drain saturates the readout places and the symbolic controller diverges. Together they are evidence that the transitions carry the control signal."
   },
-  "claim": "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed max deviation ~10%), is load-bearing (its transitions fire at runtime AND it diverges without its drain), and beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over the neuromorphic readout.",
-  "payload_sha256": "172ecc7c0cd1e5c4228da6d7a96a9b59a8d72cdc9d41273fcbd6202f29c41f64"
+  "claim": "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed maximum deviation 5.0% in the recorded environment), is load-bearing (its transitions fire at runtime AND it diverges without its drain), and beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over the neuromorphic readout.",
+  "payload_sha256": "66d182329b605dcf3e9ebf5e6448c9084c5a1552bdf00f896745ce2f75581436"
 }

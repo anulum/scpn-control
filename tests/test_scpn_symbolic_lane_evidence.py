@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import runpy
 import sys
 from pathlib import Path
 
@@ -182,3 +183,40 @@ def test_committed_report_exists_and_is_self_consistent() -> None:
     payload["payload_sha256"] = None
     recomputed = hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
     assert recomputed == stored
+
+
+def test_version_of_an_absent_distribution_is_none() -> None:
+    """A distribution that is not installed records no version instead of failing the report."""
+    assert evidence._dist_version("scpn-control-no-such-distribution") is None
+
+
+def test_script_entry_point_reaches_the_report_parser(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Running the file as a script hands its arguments to ``main``; ``--help`` exits cleanly."""
+    script = ROOT / "validation" / "scpn_symbolic_lane_evidence.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--help"])
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(script), run_name="__main__")
+    assert stopped.value.code == 0
+    assert "--output-json" in capsys.readouterr().out
+
+
+def test_claim_states_the_deviation_its_own_run_measured() -> None:
+    """The claim and the ratio block carry the maximum unseen deviation of this run, not a fixed number."""
+    report = evidence.evaluate_evidence(unseen_seeds=(7,), step_counts=(240,))
+    ratios = report["ratio_symbolic_over_neuromorphic_unseen"]
+    deviation = max(abs(ratios["min"] - 1.0), abs(ratios["max"] - 1.0))
+    assert ratios["max_abs_deviation"] == pytest.approx(deviation, rel=1e-12)
+    assert f"observed maximum deviation {deviation:.1%} in the recorded environment" in report["claim"]
+
+
+def test_committed_claim_states_the_committed_deviation() -> None:
+    """The committed report's claim names the deviation its own unseen ratios show."""
+    data = json.loads(
+        (ROOT / "validation" / "reports" / "scpn_symbolic_lane_evidence.json").read_text(encoding="utf-8")
+    )
+    ratios = data["ratio_symbolic_over_neuromorphic_unseen"]
+    deviation = max(abs(ratios["min"] - 1.0), abs(ratios["max"] - 1.0))
+    assert ratios["max_abs_deviation"] == pytest.approx(deviation, rel=1e-12)
+    assert f"observed maximum deviation {deviation:.1%} in the recorded environment" in data["claim"]

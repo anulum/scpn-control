@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Symbolic-lane evidence — stated deviation follows the measurement
+
+- **Fixed:** the symbolic-lane evidence claim stated an observed maximum deviation of
+  about 10 % from the neuromorphic readout for every run. The committed report, measured
+  with the Rust runtime backend, shows unseen ratios from 0.971 to 1.050, a maximum
+  deviation of 5.0 %; about 10 % is what the NumPy backend measures. The claim now states
+  the deviation its own run measured, and the ratio block records it as
+  `max_abs_deviation`. The parity band (15 %) and every conclusion are unchanged.
+- **Regenerated:** `validation/reports/scpn_symbolic_lane_evidence.json`, in the CI-pinned
+  environment with SC-NeuroCore 3.16.0 installed; all RMSE values are unchanged.
+
 ### RMSE dashboard — forward diagnostics and unavailable lanes
 
 - **Fixed:** the synthetic forward-diagnostics lane imported its forward model from

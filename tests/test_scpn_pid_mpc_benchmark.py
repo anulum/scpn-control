@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import runpy
 import sys
 from pathlib import Path
 
@@ -229,3 +230,15 @@ def test_main_strict_flag_fails_when_gate_does_not_pass(tmp_path: Path, monkeypa
         ["--strict", "--steps", "120", "--output-json", str(tmp_path / "b.json"), "--output-md", str(tmp_path / "b.md")]
     )
     assert rc == 2
+
+
+def test_script_entry_point_reaches_the_benchmark_parser(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Running the file as a script hands its arguments to ``main``; ``--help`` exits cleanly."""
+    script = ROOT / "validation" / "scpn_pid_mpc_benchmark.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--help"])
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(script), run_name="__main__")
+    assert stopped.value.code == 0
+    assert "--delay-ticks" in capsys.readouterr().out

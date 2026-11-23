@@ -15,9 +15,10 @@ neuro-symbolic claim must bind to:
 
 1. **Parity** — the genuinely-symbolic controller tracks within a configured 15%
    equivalence band of the direct neuromorphic-proportional readout (readout reads
-   the injected ``x_*`` places) on the unseen cohort (observed max deviation ~10%),
-   and both track markedly better than PID on the same profiles. This is a PARITY
-   claim, NOT a claim of superiority over the neuromorphic readout.
+   the injected ``x_*`` places) on the unseen cohort, and both track markedly
+   better than PID on the same profiles. The observed maximum deviation depends
+   on the runtime backend, so each report states the one its run measured. This
+   is a PARITY claim, NOT a claim of superiority over the neuromorphic readout.
 2. **Robustness** — the parity holds on UNSEEN disturbance seeds and run lengths; the
    constants were configured on the benchmark's seed=42/steps=320 and still hold
    parity out of sample.
@@ -75,6 +76,7 @@ _PID_GAINS = {"kp": 1.15, "ki": 0.24, "kd": 0.04}  # matches scpn_pid_mpc_benchm
 
 
 def _disturbance(k: int, steps: int, phase: float) -> float:
+    """Return the benchmark plant's disturbance at step ``k``, shifted by ``phase``."""
     return float(0.02 * np.sin(0.08 * k + phase) + (0.04 if k >= steps // 2 else 0.0))
 
 
@@ -296,6 +298,7 @@ def evaluate_evidence(
     unseen = _measure_cohort(unseen_seeds, step_counts)
 
     unseen_ratios = np.asarray([r["ratio_symbolic_over_neuromorphic"] for r in unseen], dtype=np.float64)
+    max_deviation = float(np.max(np.abs(unseen_ratios - 1.0)))
     sym_over_pid = np.asarray([r["ratio_symbolic_over_pid"] for r in in_sample + unseen], dtype=np.float64)
 
     undrained = _tracking_rmse("symbolic_undrained", tuning_seed, 320)
@@ -316,6 +319,7 @@ def evaluate_evidence(
             "min": float(unseen_ratios.min()),
             "max": float(unseen_ratios.max()),
             "mean": float(unseen_ratios.mean()),
+            "max_abs_deviation": max_deviation,
         },
         "parity_holds": bool(np.all(np.abs(unseen_ratios - 1.0) <= _PARITY_BAND)),
         "symbolic_vs_pid": {
@@ -341,10 +345,10 @@ def evaluate_evidence(
         },
         "claim": (
             "The symbolic transition lane produces control WITHIN A 15% EQUIVALENCE BAND of the "
-            "direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed max deviation ~10%), is "
-            "load-bearing (its transitions fire at runtime AND it diverges without its drain), and "
-            "beats PID on the same profiles. This is a PARITY claim, NOT a superiority claim over "
-            "the neuromorphic readout."
+            "direct neuromorphic readout on OUT-OF-SAMPLE seeds (observed maximum deviation "
+            f"{max_deviation:.1%} in the recorded environment), is load-bearing (its transitions "
+            "fire at runtime AND it diverges without its drain), and beats PID on the same "
+            "profiles. This is a PARITY claim, NOT a superiority claim over the neuromorphic readout."
         ),
     }
 

@@ -233,6 +233,7 @@ class BenchmarkRunner:
     """
 
     def __init__(self, controllers: list[ControllerWrapper], scenarios: list[BenchmarkScenario]):
+        """Copy the controller and scenario lists and start with no published results."""
         self.controllers = list(controllers)
         self.scenarios = list(scenarios)
         self.results: list[BenchmarkResults] = []
@@ -377,6 +378,7 @@ class PIDWrapper:
     """
 
     def __init__(self, Kp: float = 1.0, Ki: float = 0.5):
+        """Validate both gains as finite reals and start with a zero integral."""
         self.Kp = _finite(Kp, "Kp")
         self.Ki = _finite(Ki, "Ki")
         self.integral = 0.0
