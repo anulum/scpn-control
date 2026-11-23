@@ -25,9 +25,16 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.build_disruption_replay_channels import inspect_replay_archive
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
@@ -99,6 +106,7 @@ class DatasetLineageError(ValueError):
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -108,6 +116,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _read_bytes(path: Path, *, label: str) -> tuple[bytes, str]:
+    """Read a file's bytes and return them with their SHA-256."""
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -116,6 +125,7 @@ def _read_bytes(path: Path, *, label: str) -> tuple[bytes, str]:
 
 
 def _read_json(path: Path, *, label: str) -> tuple[dict[str, Any], str]:
+    """Read one JSON object without duplicate keys; return it with its file SHA-256."""
     raw, digest = _read_bytes(path, label=label)
     try:
         payload = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
@@ -127,36 +137,42 @@ def _read_json(path: Path, *, label: str) -> tuple[dict[str, Any], str]:
 
 
 def _mapping(value: Any, *, field: str) -> Mapping[str, Any]:
+    """Return ``value`` if it is a JSON object."""
     if not isinstance(value, Mapping):
         raise DatasetLineageError(f"{field} must be an object")
     return cast(Mapping[str, Any], value)
 
 
 def _list(value: Any, *, field: str) -> list[Any]:
+    """Return ``value`` if it is a JSON array."""
     if not isinstance(value, list):
         raise DatasetLineageError(f"{field} must be an array")
     return value
 
 
 def _non_empty_string(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a string with non-blank content."""
     if not isinstance(value, str) or not value.strip():
         raise DatasetLineageError(f"{field} must be a non-empty string")
     return value
 
 
 def _positive_integer(value: Any, *, field: str) -> int:
+    """Return ``value`` if it is a positive integer; booleans are refused."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise DatasetLineageError(f"{field} must be a positive integer")
     return value
 
 
 def _sha256(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a lowercase 64-digit hexadecimal SHA-256 digest."""
     if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
         raise DatasetLineageError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
 
 def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
+    """Return the payload's self-digest after checking it against the payload with that field set to null."""
     digest = _sha256(payload.get("payload_sha256"), field=f"{field}.payload_sha256")
     unsigned = dict(payload)
     unsigned["payload_sha256"] = None
@@ -166,6 +182,7 @@ def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
 
 
 def _portable_relative_path(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a POSIX relative path without empty, dot or parent parts on any platform."""
     relative = _non_empty_string(value, field=field)
     candidate = Path(relative)
     posix = PurePosixPath(relative)
@@ -184,6 +201,7 @@ def _portable_relative_path(value: Any, *, field: str) -> str:
 
 
 def _resolve_beneath(root: Path, relative: str, *, field: str) -> Path:
+    """Resolve a confined relative path to an existing file beneath ``root``."""
     relative = _portable_relative_path(relative, field=field)
     candidate = Path(relative)
     resolved_root = root.resolve()
@@ -198,6 +216,7 @@ def _resolve_beneath(root: Path, relative: str, *, field: str) -> Path:
 
 
 def _require_output_outside_campaign(campaign_root: Path, output_path: Path) -> None:
+    """Refuse an output path that resolves inside the campaign root."""
     resolved_root = campaign_root.resolve()
     resolved_output = output_path.resolve()
     try:
@@ -212,6 +231,7 @@ def _bound_path(
     campaign_root: Path,
     name: str,
 ) -> tuple[Path, str, str]:
+    """Resolve one reconciliation input binding and check its file against the recorded SHA-256."""
     bindings = _mapping(report.get("input_bindings"), field="reconciliation.input_bindings")
     binding = _mapping(bindings.get(name), field=f"reconciliation.input_bindings.{name}")
     relative = _non_empty_string(binding.get("path"), field=f"reconciliation.input_bindings.{name}.path")
@@ -263,6 +283,7 @@ def validate_transform_spec(payload: Mapping[str, Any]) -> str:
 
 
 def _source_records(migrated: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]:
+    """Index the migrated source's acquired shots by id, each with its single artifact."""
     records: dict[int, Mapping[str, Any]] = {}
     for index, value in enumerate(_list(migrated.get("shots"), field="migrated_source.shots")):
         shot = _mapping(value, field=f"migrated_source.shots[{index}]")
@@ -281,6 +302,7 @@ def _source_records(migrated: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]
 
 
 def _dataset_records(payload: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]:
+    """Index the dataset report's shots by id, refusing duplicates and an empty report."""
     records: dict[int, Mapping[str, Any]] = {}
     for index, value in enumerate(_list(payload.get("shots"), field="dataset_report.shots")):
         shot = _mapping(value, field=f"dataset_report.shots[{index}]")
@@ -294,6 +316,7 @@ def _dataset_records(payload: Mapping[str, Any]) -> dict[int, Mapping[str, Any]]
 
 
 def _replay_member_digests(path: Path) -> dict[int, str]:
+    """Return each replay archive member's shot id and SHA-256."""
     try:
         binding = inspect_replay_archive(path)
     except ValueError as exc:
@@ -308,6 +331,7 @@ def _replay_member_digests(path: Path) -> dict[int, str]:
 
 
 def _source_binding(artifact: Mapping[str, Any], *, shot_id: int) -> dict[str, str]:
+    """Return the source artifact, selected-array parent and acquisition-transform digests of one shot."""
     return {
         "artifact_sha256": _sha256(artifact.get("sha256"), field=f"source shot {shot_id}.sha256"),
         "selected_array_parent_sha256": _sha256(
@@ -320,6 +344,7 @@ def _source_binding(artifact: Mapping[str, Any], *, shot_id: int) -> dict[str, s
 
 
 def _validate_source_binding(value: Any, *, field: str) -> None:
+    """Refuse a source binding without exactly the three digest fields."""
     source = _mapping(value, field=field)
     expected = {
         "artifact_sha256",
@@ -627,6 +652,7 @@ def validate_dataset_lineage_manifest(payload: Mapping[str, Any]) -> str:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the campaign root, spec, reconciliation report, transform spec, timestamp and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign-root", type=Path, required=True)
     parser.add_argument("--spec", type=Path, required=True)

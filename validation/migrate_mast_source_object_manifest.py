@@ -109,6 +109,11 @@ def _migrate_shot(
     artifact_root: Path,
     path_template: str,
 ) -> dict[str, Any]:
+    """Migrate one legacy shot record, verifying its NPZ checksum and size before reading its arrays.
+
+    A failed legacy shot stays failed with its message. An acquired one becomes a
+    v2 record whose artifact is rebuilt from the verified archive's arrays.
+    """
     if not isinstance(legacy_shot, Mapping):
         raise SourceObjectManifestError(f"legacy shots[{index}] must be an object")
     shot_id = legacy_shot.get("shot_id")
@@ -152,6 +157,7 @@ def _migrate_shot(
 
 
 def _resolve_legacy_artifact(root: Path, local_path: str, *, index: int) -> Path:
+    """Resolve a legacy relative NPZ path to an existing file beneath the artefact root."""
     candidate = Path(local_path)
     # A rooted POSIX spelling is absolute in the document on every platform.
     if candidate.is_absolute() or PurePosixPath(local_path).is_absolute() or ".." in candidate.parts:

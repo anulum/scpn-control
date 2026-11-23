@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### MAST lineage and verification gates — runnable as documented
+
+- **Fixed:** seven MAST lineage and verification commands failed with
+  `ModuleNotFoundError` when run as `python validation/<tool>.py`. They now put the
+  checkout on the import path when run as a script. The commands are the lineage
+  manifest, the lineage-bound dataset builder, the campaign reconciliation, the
+  regeneration verifier, the pilot replay and the real-object smoke and alignment
+  gates.
+- **Changed:** the pilot replay writes its arrays through a typed NPZ call without
+  pickle, instead of a cast around the writer. Its temporary directory no longer
+  carries an internal planning code.
+
 ### MAST disruption tools — real-data binding, CPF selection, script runs
 
 - **Fixed:** `validation/evaluate_mast_disruption.py` promised that a synthetic fixture

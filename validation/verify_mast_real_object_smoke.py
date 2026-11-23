@@ -24,10 +24,17 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.extract_mast_disruption_channels import assess_artifact_binding_readiness
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE
@@ -72,6 +79,7 @@ class PinnedRealObject:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -81,6 +89,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _load_legacy_manifest(path: Path) -> tuple[Mapping[str, Any], str]:
+    """Read the legacy material manifest without duplicate keys; return it with its byte SHA-256."""
     try:
         manifest_bytes = path.read_bytes()
     except OSError as exc:
@@ -229,6 +238,7 @@ def verify_real_object_smoke(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the manifest, artefact root, shot, both pinned digests and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True, help="Legacy material manifest path.")
     parser.add_argument("--artifact-root", type=Path, required=True, help="External NPZ artifact root.")

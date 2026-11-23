@@ -22,12 +22,20 @@ import argparse
 import hashlib
 import json
 import re
+import sys
 from collections.abc import Mapping
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, cast
 
-import validation.build_disruption_replay_channels as replay_channels
 from scpn_control.core.real_data_manifest import RealDataManifestError, validate_real_data_manifest
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+import validation.build_disruption_replay_channels as replay_channels
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS
 from validation.evaluate_mast_disruption import REPORT_SCHEMA as EVALUATION_SCHEMA
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE, fair_mast_provenance
@@ -70,6 +78,7 @@ class CampaignReconciliationError(ValueError):
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -79,6 +88,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _read_bytes(path: Path) -> tuple[bytes, str]:
+    """Read a pinned input's bytes and return them with their SHA-256."""
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -87,6 +97,7 @@ def _read_bytes(path: Path) -> tuple[bytes, str]:
 
 
 def _parse_json(raw: bytes, *, label: str) -> dict[str, Any]:
+    """Parse one JSON object without duplicate keys from captured bytes."""
     try:
         payload = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
     except (UnicodeError, json.JSONDecodeError, CampaignReconciliationError) as exc:
@@ -97,41 +108,48 @@ def _parse_json(raw: bytes, *, label: str) -> dict[str, Any]:
 
 
 def _read_json(path: Path, *, label: str) -> tuple[dict[str, Any], str]:
+    """Read one JSON object and return it with its file SHA-256."""
     raw, digest = _read_bytes(path)
     return _parse_json(raw, label=label), digest
 
 
 def _sha256(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a lowercase 64-digit hexadecimal SHA-256 digest."""
     if not isinstance(value, str) or _SHA256_RE.fullmatch(value) is None:
         raise CampaignReconciliationError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
 
 def _non_empty_string(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a string with non-blank content."""
     if not isinstance(value, str) or not value.strip():
         raise CampaignReconciliationError(f"{field} must be a non-empty string")
     return value
 
 
 def _integer(value: Any, *, field: str, minimum: int = 0) -> int:
+    """Return ``value`` if it is an integer of at least ``minimum``; booleans are refused."""
     if isinstance(value, bool) or not isinstance(value, int) or value < minimum:
         raise CampaignReconciliationError(f"{field} must be an integer >= {minimum}")
     return value
 
 
 def _mapping(value: Any, *, field: str) -> Mapping[str, Any]:
+    """Return ``value`` if it is a JSON object."""
     if not isinstance(value, Mapping):
         raise CampaignReconciliationError(f"{field} must be an object")
     return cast(Mapping[str, Any], value)
 
 
 def _list(value: Any, *, field: str) -> list[Any]:
+    """Return ``value`` if it is a JSON array."""
     if not isinstance(value, list):
         raise CampaignReconciliationError(f"{field} must be an array")
     return value
 
 
 def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
+    """Return the payload's self-digest after checking it against the payload with that field set to null."""
     claimed = _sha256(payload.get("payload_sha256"), field=f"{field}.payload_sha256")
     unsigned = dict(payload)
     unsigned["payload_sha256"] = None
@@ -141,6 +159,7 @@ def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
 
 
 def _self_digest_valid(payload: Mapping[str, Any]) -> bool:
+    """Return whether the payload carries a well-formed self-digest that matches it, without raising."""
     claimed = payload.get("payload_sha256")
     if not isinstance(claimed, str) or _SHA256_RE.fullmatch(claimed) is None:
         return False
@@ -150,6 +169,7 @@ def _self_digest_valid(payload: Mapping[str, Any]) -> bool:
 
 
 def _resolve_beneath(root: Path, relative: str, *, field: str) -> Path:
+    """Resolve a confined POSIX relative path to an existing file beneath ``root``."""
     candidate = Path(relative)
     posix = PurePosixPath(relative)
     windows = PureWindowsPath(relative)
@@ -186,6 +206,7 @@ def _require_output_outside_campaign(campaign_root: Path, output_path: Path) -> 
 
 
 def _load_spec(path: Path) -> tuple[str, dict[str, tuple[str, str]], str, str]:
+    """Load the reconciliation spec; return its dataset id, the six pinned input paths and digests, and its own digests."""
     payload, file_digest = _read_json(path, label="reconciliation spec")
     if set(payload) != {"schema_version", "dataset_id", "inputs", "payload_sha256"}:
         raise CampaignReconciliationError("reconciliation spec fields do not match the schema")
@@ -214,6 +235,7 @@ def _load_pinned_inputs(
     root: Path,
     bindings: Mapping[str, tuple[str, str]],
 ) -> tuple[dict[str, Path], dict[str, bytes], dict[str, str]]:
+    """Resolve and read every pinned input once, checking each file against its pinned SHA-256."""
     paths: dict[str, Path] = {}
     snapshots: dict[str, bytes] = {}
     digests: dict[str, str] = {}
@@ -230,6 +252,7 @@ def _load_pinned_inputs(
 
 
 def _material_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], dict[int, str], int]:
+    """Return the legacy material's acquired and failed shots, failure reasons and total bytes, checking its counts."""
     if payload.get("schema_version") != LEGACY_MATERIAL_MANIFEST_SCHEMA:
         raise CampaignReconciliationError("unsupported legacy material schema")
     _verify_self_digest(payload, field="material manifest")
@@ -266,6 +289,7 @@ def _material_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int],
 
 
 def _replay_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], dict[int, str], str, str]:
+    """Return the replay report's derived and failed shots, failure reasons, payload digest and schema."""
     schema = payload.get("schema_version")
     if schema not in {REPLAY_SCHEMA, REPLAY_V2_SCHEMA}:
         raise CampaignReconciliationError("unsupported replay report schema")
@@ -297,6 +321,7 @@ def _replay_inventory(payload: Mapping[str, Any]) -> tuple[set[int], set[int], d
 
 
 def _channels_inventory(raw: bytes, *, path_name: str) -> tuple[set[int], int, int, dict[str, Any]]:
+    """Inspect the pinned channels archive; return its shot ids, member count, total samples and binding."""
     try:
         binding = replay_channels.inspect_replay_archive_bytes(raw, path_name=path_name)
     except ValueError as exc:
@@ -310,6 +335,7 @@ def _channels_inventory(raw: bytes, *, path_name: str) -> tuple[set[int], int, i
 
 
 def _dataset_records(payload: Mapping[str, Any]) -> tuple[dict[int, tuple[str, str]], str, str, int]:
+    """Return the legacy dataset report's shot files and checksums, digests and disruptive count, checking its counts."""
     if payload.get("schema_version") != LEGACY_DATASET_SCHEMA:
         raise CampaignReconciliationError("unsupported legacy dataset report schema")
     digest = _verify_self_digest(payload, field="dataset report")
@@ -346,6 +372,7 @@ def _dataset_records(payload: Mapping[str, Any]) -> tuple[dict[int, tuple[str, s
 
 
 def _manifest_records(payload: dict[str, Any], *, dataset_id: str) -> tuple[dict[int, tuple[str, str]], str | None]:
+    """Return the dataset manifest's shot files and checksums and its declared licence."""
     try:
         manifest = validate_real_data_manifest(payload)
     except RealDataManifestError as exc:
@@ -367,6 +394,7 @@ def _manifest_records(payload: dict[str, Any], *, dataset_id: str) -> tuple[dict
 
 
 def _verify_dataset_files(manifest_path: Path, records: Mapping[int, tuple[str, str]]) -> int:
+    """Check every dataset file against its manifest checksum and return their total bytes."""
     total_bytes = 0
     for shot_id in sorted(records):
         relative, expected = records[shot_id]
@@ -383,6 +411,7 @@ def _evaluation_inventory(
     *,
     dataset_id: str,
 ) -> tuple[set[int], bool, str | None]:
+    """Return the historical evaluation's shot ids, whether its self-digest is valid, and its declared licence."""
     if payload.get("schema_version") != EVALUATION_SCHEMA:
         raise CampaignReconciliationError("unsupported evaluation report schema")
     if payload.get("dataset_id") != dataset_id or payload.get("status") != "blocked":
@@ -595,6 +624,7 @@ def reconcile_campaign(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the campaign root, spec, timestamp and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--campaign-root", type=Path, required=True)
     parser.add_argument("--spec", type=Path, required=True)

@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 import tempfile
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
@@ -31,6 +32,12 @@ from typing import Any, cast
 
 import numpy as np
 from numpy.typing import NDArray
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation import acquire_mast_disruption_shots as _acquisition_module
 from validation import fair_mast_source_policy as _source_policy_module
@@ -84,6 +91,7 @@ GroupOpener = Callable[[Path], Any]
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -93,6 +101,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _load_pinned_provenance(path: Path, *, expected_sha256: str) -> tuple[Mapping[str, Any], str]:
+    """Read the pilot provenance, checking its bytes against the pinned SHA-256 before parsing."""
     try:
         raw = path.read_bytes()
     except OSError as exc:
@@ -112,6 +121,7 @@ def _load_pinned_provenance(path: Path, *, expected_sha256: str) -> tuple[Mappin
 
 
 def _object_path(object_root: Path, relative_path: str) -> Path:
+    """Resolve a declared relative object path to an existing file beneath the object root."""
     pure = PurePosixPath(relative_path)
     if pure.is_absolute() or not pure.parts or any(part in {"", ".", ".."} for part in pure.parts):
         raise MastPilotReplayError(f"unsafe pilot object path {relative_path!r}")
@@ -126,6 +136,7 @@ def _object_path(object_root: Path, relative_path: str) -> Path:
 
 
 def _hash_file_once(path: Path) -> tuple[str, int]:
+    """Stream one object once and return its SHA-256 and size."""
     digest = hashlib.sha256()
     size = 0
     try:
@@ -139,6 +150,7 @@ def _hash_file_once(path: Path) -> tuple[str, int]:
 
 
 def _native_object_inventory(object_root: Path, *, shot_id: int) -> set[str]:
+    """List every file under the shot's Zarr root, refusing symbolic links."""
     shot_root = object_root / "raw" / f"{shot_id}.zarr"
     if not shot_root.is_dir():
         raise MastPilotReplayError("pilot shot root does not resolve to a directory")
@@ -155,6 +167,7 @@ def _native_object_inventory(object_root: Path, *, shot_id: int) -> set[str]:
 
 
 def _runtime_source_sha256() -> dict[str, str]:
+    """Return the SHA-256 of this gate's source and of each runtime module it relies on."""
     sources = {"verify_mast_pilot_replay": Path(__file__)}
     for name, module in _RUNTIME_SOURCE_MODULES.items():
         source = getattr(module, "__file__", None)
@@ -172,6 +185,7 @@ def _verify_native_objects(
     shot_id: int,
     expected_aggregate_sha256: str,
 ) -> PilotObjectPin:
+    """Check every declared native object, the aggregate digest and the full inventory; return the pinned identity."""
     if provenance.get("schema") != PILOT_PROVENANCE_SCHEMA:
         raise MastPilotReplayError(f"pilot provenance schema must equal {PILOT_PROVENANCE_SCHEMA!r}")
     dataset = provenance.get("dataset")
@@ -256,6 +270,7 @@ def _verify_native_objects(
 
 
 def _open_local_group(path: Path) -> Any:
+    """Open one preserved Zarr group with xarray, without consolidated metadata."""
     import xarray as xr
 
     return xr.open_zarr(path, consolidated=False)
@@ -267,6 +282,7 @@ def _read_selected_arrays(
     downloaded_groups: Sequence[str],
     open_group: GroupOpener,
 ) -> tuple[dict[str, NDArray[Any]], dict[str, dict[str, Any]], tuple[str, ...]]:
+    """Read the selected variables of every downloaded group; return arrays, their metadata and the absent groups."""
     arrays: dict[str, NDArray[Any]] = {}
     metadata: dict[str, dict[str, Any]] = {}
     missing_groups = tuple(group for group in GROUP_VARIABLES if group not in downloaded_groups)
@@ -296,8 +312,8 @@ def _read_selected_arrays(
 
 
 def _save_named_arrays(path: Path, arrays: Mapping[str, NDArray[Any]]) -> None:
-    writer = cast(Callable[..., None], np.savez_compressed)
-    writer(path, **arrays)
+    """Write the selected arrays to a compressed NPZ under their archive keys, without pickle."""
+    np.savez_compressed(path, allow_pickle=False, **arrays)
 
 
 def _build_ephemeral_manifest(
@@ -308,6 +324,7 @@ def _build_ephemeral_manifest(
     metadata: Mapping[str, Mapping[str, Any]],
     missing_groups: tuple[str, ...],
 ) -> tuple[dict[str, Any], Path, Path]:
+    """Write the selected arrays and a validated v2 source-object manifest into ``directory``; return both paths."""
     artifact_path = directory / f"shot_{pin.shot_id}.npz"
     _save_named_arrays(artifact_path, arrays)
     source_uri = f"s3://mast/level2/shots/{pin.shot_id}.zarr"
@@ -382,6 +399,7 @@ def _build_ephemeral_manifest(
 def _missing_group_outcomes(
     missing_groups: tuple[str, ...], alignment_channels: Sequence[Mapping[str, Any]]
 ) -> list[dict[str, Any]]:
+    """Record each absent group's consuming channels, refusing any that aligned despite the missing source."""
     by_channel = {str(channel.get("channel")): channel for channel in alignment_channels}
     bindings = mast_level2_signal_binding_spec().bindings
     outcomes: list[dict[str, Any]] = []
@@ -446,7 +464,7 @@ def verify_mast_pilot_replay(
             f"missing groups {missing_groups!r} do not match expected {expected_missing_groups!r}"
         )
 
-    with tempfile.TemporaryDirectory(prefix="scpn-control-l2f13-") as temporary_directory:
+    with tempfile.TemporaryDirectory(prefix="scpn-control-pilot-replay-") as temporary_directory:
         temporary_root = Path(temporary_directory)
         manifest, manifest_path, artifact_path = _build_ephemeral_manifest(
             temporary_root,
@@ -527,6 +545,7 @@ def verify_mast_pilot_replay(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the provenance, object root, shot, both pinned digests and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provenance", type=Path, required=True, help="Tracked FUSION pilot provenance JSON.")
     parser.add_argument("--object-root", type=Path, required=True, help="Root beneath which files[].path resolves.")

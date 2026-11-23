@@ -14,7 +14,7 @@ add no duplicate when the entries are already present. Every check strips the
 checkout and its ``src`` first: with them present, an unguarded "insert if
 absent" would also leave the path unchanged. Each module is imported normally
 beforehand so that its dependencies resolve from the module cache. Run as
-``__main__``, each MAST disruption command hands its arguments to ``main``.
+``__main__``, each MAST command hands its arguments to ``main``.
 """
 
 from __future__ import annotations
@@ -37,8 +37,10 @@ ENTRIES: dict[str, tuple[Path, ...]] = {
     "validation/audit_mast_label_proxy_sensitivity.py": (ROOT,),
     "validation/build_disruption_replay_channels.py": (ROOT,),
     "validation/build_fairmast_disruption_manifest.py": (ROOT,),
+    "validation/build_mast_dataset_lineage_manifest.py": (ROOT,),
     "validation/build_mast_disruption_dataset.py": (ROOT,),
     "validation/build_mast_efm_neural_equilibrium_dataset.py": (ROOT,),
+    "validation/build_mast_lineage_bound_dataset.py": (ROOT,),
     "validation/code_to_code_benchmark.py": (SRC, ROOT),
     "validation/control_resilience_campaign.py": (ROOT,),
     "validation/controller_comparison.py": (SRC, ROOT),
@@ -47,23 +49,35 @@ ENTRIES: dict[str, tuple[Path, ...]] = {
     "validation/free_boundary_tracking_acceptance.py": (SRC, ROOT),
     "validation/generate_physics_traceability_report.py": (ROOT,),
     "validation/plan_neural_equilibrium_training_campaign.py": (ROOT,),
+    "validation/reconcile_mast_campaign_lineage.py": (ROOT,),
     "validation/stress_test_campaign.py": (SRC,),
     "validation/train_mast_efm_neural_equilibrium.py": (ROOT,),
+    "validation/verify_mast_lineage_bound_regeneration.py": (ROOT,),
+    "validation/verify_mast_pilot_replay.py": (ROOT,),
+    "validation/verify_mast_real_object_alignment.py": (ROOT,),
+    "validation/verify_mast_real_object_smoke.py": (ROOT,),
     "tools/check_generated_traceability.py": (ROOT,),
     "tools/publish.py": (ROOT,),
     "tools/run_benchmark_suite.py": (SRC, ROOT),
 }
 
-DISRUPTION_COMMANDS = (
+MAST_COMMANDS = (
     "validation/acquire_mast_disruption_shots.py",
     "validation/audit_mast_disruption_feature_sources.py",
     "validation/audit_mast_label_proxy_sensitivity.py",
     "validation/build_disruption_replay_channels.py",
     "validation/build_fairmast_disruption_manifest.py",
+    "validation/build_mast_dataset_lineage_manifest.py",
     "validation/build_mast_disruption_dataset.py",
+    "validation/build_mast_lineage_bound_dataset.py",
     "validation/design_mast_matched_cohort.py",
     "validation/evaluate_mast_disruption.py",
     "validation/extract_mast_disruption_channels.py",
+    "validation/reconcile_mast_campaign_lineage.py",
+    "validation/verify_mast_lineage_bound_regeneration.py",
+    "validation/verify_mast_pilot_replay.py",
+    "validation/verify_mast_real_object_alignment.py",
+    "validation/verify_mast_real_object_smoke.py",
 )
 
 
@@ -113,8 +127,8 @@ def test_script_load_with_the_entries_present_adds_no_duplicate(relative: str, m
     assert sys.path == present
 
 
-@pytest.mark.parametrize("relative", DISRUPTION_COMMANDS)
-def test_disruption_command_run_as_main_reaches_its_parser(
+@pytest.mark.parametrize("relative", MAST_COMMANDS)
+def test_mast_command_run_as_main_reaches_its_parser(
     relative: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """Run as ``__main__`` from a path without the checkout, the command imports and answers ``--help``."""

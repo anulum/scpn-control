@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from collections.abc import Callable
 from hashlib import sha256
@@ -20,6 +21,7 @@ import pytest
 
 import validation.build_disruption_replay_channels as replay_channels
 import validation.reconcile_mast_campaign_lineage as reconciliation
+from scpn_control.core.real_data_manifest import validate_real_data_manifest
 from validation.build_mast_disruption_dataset import MEASURED_CHANNELS
 from validation.evaluate_mast_disruption import REPORT_SCHEMA as EVALUATION_SCHEMA
 from validation.mast_source_object_manifest import SourceObjectManifestError, canonical_json_sha256
@@ -39,29 +41,34 @@ _REPLAY_V2_SCHEMA = replay_channels.REPORT_SCHEMA
 
 
 def _seal(payload: dict[str, Any]) -> dict[str, Any]:
+    """Set the payload's self-digest over its contents with that field null, in place."""
     payload["payload_sha256"] = None
     payload["payload_sha256"] = canonical_json_sha256(payload)
     return payload
 
 
 def _write(path: Path, payload: dict[str, Any]) -> Path:
+    """Write an indented, key-sorted JSON fixture and return its path."""
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path
 
 
 def _digest(path: Path) -> str:
+    """Return a file's SHA-256."""
     return sha256(path.read_bytes()).hexdigest()
 
 
 def _material(root: Path) -> dict[str, Any]:
+    """Write two acquired legacy shot files and return their sealed legacy material manifest."""
     records: list[dict[str, Any]] = []
     total = 0
     for shot_id in (101, 102):
         path = root / f"shot_{shot_id}.npz"
         np.savez_compressed(
             path,
-            **{  # type: ignore[arg-type]
+            allow_pickle=False,
+            **{
                 "summary.time": np.arange(3),
                 "summary.ip": np.arange(3) + shot_id,
             },
@@ -99,6 +106,7 @@ def _material(root: Path) -> dict[str, Any]:
 
 
 def _replay(*, archive_binding: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Return a sealed replay report, v2 with the archive binding when one is given and legacy otherwise."""
     payload: dict[str, Any] = {
         "schema_version": _REPLAY_V2_SCHEMA if archive_binding is not None else REPLAY_SCHEMA,
         "synthetic": False,
@@ -132,6 +140,7 @@ def _replay(*, archive_binding: dict[str, Any] | None = None) -> dict[str, Any]:
 
 
 def _dataset_manifest(checksum: str) -> dict[str, Any]:
+    """Return a real-data dataset manifest listing shot 101 with the given checksum and a legacy licence."""
     return {
         "schema_version": "1.0",
         "dataset_id": "mast-disruption-campaign01",
@@ -150,6 +159,7 @@ def _dataset_manifest(checksum: str) -> dict[str, Any]:
 
 
 def _dataset_report(checksum: str) -> dict[str, Any]:
+    """Return a sealed legacy dataset report with shot 101 and the given checksum."""
     fingerprint = sha256(checksum.encode()).hexdigest()
     return _seal(
         {
@@ -183,6 +193,7 @@ def _dataset_report(checksum: str) -> dict[str, Any]:
 
 
 def _evaluation(*, valid_digest: bool = False) -> dict[str, Any]:
+    """Return a historical evaluation report for shot 101, with a stale or valid self-digest."""
     payload = _seal(
         {
             "schema_version": EVALUATION_SCHEMA,
@@ -211,43 +222,52 @@ def _write_channels(
     shot_ids: tuple[int, ...] = (101,),
     mutate: Callable[[dict[str, np.ndarray[Any, Any]]], None] | None = None,
 ) -> None:
+    """Write a replay channels archive for the given shots, optionally changed by ``mutate``."""
     arrays: dict[str, np.ndarray[Any, Any]] = {"shot_ids": np.asarray(shot_ids, dtype=np.int64)}
     for shot_id in shot_ids:
         arrays.update({f"{shot_id}:{channel}": np.arange(3, dtype=np.float64) for channel in MEASURED_CHANNELS})
     if mutate is not None:
         mutate(arrays)
-    np.savez(path, **arrays)  # type: ignore[arg-type]
+    np.savez(path, allow_pickle=False, **arrays)
 
 
 def _drop_channel(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Remove one measured channel of shot 101."""
     del arrays["101:BT_T"]
 
 
 def _drop_identifiers(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Remove the archive's shot identifier vector."""
     del arrays["shot_ids"]
 
 
 def _add_channel(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Add a channel outside the measured schema."""
     arrays["101:extra"] = np.arange(3, dtype=np.float64)
 
 
 def _non_finite_channel(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Put a NaN into one channel of shot 101."""
     arrays["101:BT_T"] = np.asarray([0.0, np.nan, 1.0])
 
 
 def _short_channel(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Shorten one channel of shot 101 below the clock length."""
     arrays["101:BT_T"] = np.arange(2, dtype=np.float64)
 
 
 def _integer_channel(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Store one channel of shot 101 as integers."""
     arrays["101:BT_T"] = np.arange(3, dtype=np.int64)
 
 
 def _float_identifiers(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+    """Store the shot identifiers as floats."""
     arrays["shot_ids"] = np.asarray([101.0])
 
 
 def _tree(root: Path, *, valid_evaluation_digest: bool = False, replay_v2: bool = False) -> Path:
+    """Build a complete pinned campaign tree under ``root`` and return its sealed reconciliation spec."""
     root.mkdir()
     _write(root / "material.json", _material(root))
     (root / "derived").mkdir()
@@ -288,10 +308,12 @@ def _tree(root: Path, *, valid_evaluation_digest: bool = False, replay_v2: bool 
 
 
 def _run(root: Path, spec: Path) -> dict[str, Any]:
+    """Reconcile the campaign tree with the fixed timestamp."""
     return reconcile_campaign(campaign_root=root, spec_path=spec, generated_at=_FIXED_TS)
 
 
 def _rewrite(path: Path, mutate: Callable[[dict[str, Any]], None], *, reseal: bool = True) -> None:
+    """Change a JSON fixture in place, resealing its self-digest unless asked not to."""
     payload = cast(dict[str, Any], json.loads(path.read_text(encoding="utf-8")))
     mutate(payload)
     if reseal and "payload_sha256" in payload:
@@ -300,6 +322,7 @@ def _rewrite(path: Path, mutate: Callable[[dict[str, Any]], None], *, reseal: bo
 
 
 def _repin(spec_path: Path, root: Path, name: str) -> None:
+    """Repin one spec input to its current file digest and reseal the spec."""
     payload = cast(dict[str, Any], json.loads(spec_path.read_text(encoding="utf-8")))
     relative = payload["inputs"][name]["path"]
     payload["inputs"][name]["file_sha256"] = _digest(root / relative)
@@ -376,6 +399,7 @@ def test_replay_v2_declared_binding_must_exactly_match_pinned_archive(
     spec = _tree(root, replay_v2=True)
 
     def _mutate_report(payload: dict[str, Any]) -> None:
+        """Apply the parametrised change to the report's archive binding."""
         mutate(cast(dict[str, Any], payload["channels_archive"]))
 
     _rewrite(root / "derived/replay.json", _mutate_report)
@@ -397,6 +421,7 @@ def test_replay_v2_missing_binding_and_post_report_archive_drift_fail_closed(tmp
     spec = _tree(root, replay_v2=True)
 
     def _change_value(arrays: dict[str, np.ndarray[Any, Any]]) -> None:
+        """Replace one channel's values while keeping its shape and dtype."""
         arrays["101:BT_T"] = np.asarray([7.0, 8.0, 9.0])
 
     _write_channels(root / "derived/channels.npz", mutate=_change_value)
@@ -878,6 +903,7 @@ def test_replay_dataset_identity_and_migration_failures_are_normalised(
     spec = _tree(root)
 
     def _fail_migration(payload: dict[str, Any], *, artifact_root: Path) -> dict[str, Any]:
+        """Stand in for a migration that refuses the legacy material."""
         raise SourceObjectManifestError("fixture failure")
 
     monkeypatch.setattr(reconciliation, "migrate_material_manifest_v1", _fail_migration)
@@ -888,6 +914,7 @@ def test_replay_dataset_identity_and_migration_failures_are_normalised(
     spec = _tree(root)
 
     def _wrong_migration(payload: dict[str, Any], *, artifact_root: Path) -> dict[str, Any]:
+        """Stand in for a migration that returns another schema."""
         return {"schema_version": "wrong"}
 
     monkeypatch.setattr(reconciliation, "migrate_material_manifest_v1", _wrong_migration)
@@ -981,3 +1008,16 @@ def test_malformed_optional_evaluation_digest_stays_historical(tmp_path: Path) -
     _repin(spec, root, "evaluation_report")
     report = _run(root, spec)
     assert "evaluation_report_self_digest_invalid" in report["blockers"]
+
+
+def test_repeated_dataset_manifest_shot_is_refused_even_if_the_validator_admits_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Reconciliation refuses a repeated artifact itself, not only through the manifest validator."""
+    manifest = dataclasses.replace(
+        validate_real_data_manifest(_dataset_manifest("a" * 64)),
+        artifacts=validate_real_data_manifest(_dataset_manifest("a" * 64)).artifacts * 2,
+    )
+    monkeypatch.setattr(reconciliation, "validate_real_data_manifest", lambda payload: manifest)
+    with pytest.raises(CampaignReconciliationError, match="duplicate dataset-manifest shot_id 101"):
+        reconciliation._manifest_records(_dataset_manifest("a" * 64), dataset_id="mast-disruption-campaign01")

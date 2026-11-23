@@ -23,10 +23,17 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.extract_mast_disruption_channels import assess_artifact_binding_readiness
 from validation.mast_source_artifact_reader import (
@@ -48,6 +55,8 @@ class RealObjectAlignmentError(ValueError):
 
 @dataclass(frozen=True)
 class _AlignmentInput:
+    """The verified artefact with the input and source manifest digests it was read through."""
+
     artifact: VerifiedSourceArtifact
     input_manifest_sha256: str
     source_manifest_sha256: str
@@ -62,6 +71,7 @@ def _read_alignment_input(
     expected_manifest_sha256: str,
     expected_artifact_sha256: str,
 ) -> _AlignmentInput:
+    """Open the pinned artefact through the legacy or v2 reader named by ``manifest_format``."""
     if manifest_format == "legacy-material-v1":
         try:
             pinned = read_pinned_real_object(
@@ -210,6 +220,7 @@ def verify_real_object_alignment(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the manifest and its format, artefact root, shot, both pinned digests and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True, help="Input manifest path.")
     parser.add_argument(

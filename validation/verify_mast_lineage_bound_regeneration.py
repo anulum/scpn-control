@@ -13,9 +13,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, cast
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.build_disruption_replay_channels import REPORT_SCHEMA, inspect_replay_archive_bytes
 from validation.build_mast_lineage_bound_dataset import CLAIM_FIELDS, validate_producer_lineage_manifest
@@ -47,6 +54,7 @@ class RegenerationVerificationError(ValueError):
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, Any] = {}
     for key, value in pairs:
         if key in payload:
@@ -56,6 +64,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _read_json(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
+    """Read one JSON object without duplicate keys; return it with its exact bytes."""
     try:
         raw = path.read_bytes()
         payload = json.loads(raw, object_pairs_hook=_reject_duplicate_keys)
@@ -67,36 +76,42 @@ def _read_json(path: Path, *, label: str) -> tuple[dict[str, Any], bytes]:
 
 
 def _mapping(value: Any, *, field: str) -> Mapping[str, Any]:
+    """Return ``value`` if it is a JSON object."""
     if not isinstance(value, Mapping):
         raise RegenerationVerificationError(f"{field} must be an object")
     return cast(Mapping[str, Any], value)
 
 
 def _list(value: Any, *, field: str) -> list[Any]:
+    """Return ``value`` if it is a JSON array."""
     if not isinstance(value, list):
         raise RegenerationVerificationError(f"{field} must be an array")
     return value
 
 
 def _non_empty(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a string with non-blank content."""
     if not isinstance(value, str) or not value.strip():
         raise RegenerationVerificationError(f"{field} must be a non-empty string")
     return value
 
 
 def _sha256(value: Any, *, field: str) -> str:
+    """Return ``value`` if it is a lowercase 64-digit hexadecimal SHA-256 digest."""
     if not isinstance(value, str) or len(value) != 64 or any(char not in "0123456789abcdef" for char in value):
         raise RegenerationVerificationError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
 
 def _positive_int(value: Any, *, field: str) -> int:
+    """Return ``value`` if it is a positive integer; booleans are refused."""
     if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
         raise RegenerationVerificationError(f"{field} must be a positive integer")
     return value
 
 
 def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
+    """Return the payload's self-digest after checking it against the payload with that field set to null."""
     claimed = _sha256(payload.get("payload_sha256"), field=f"{field}.payload_sha256")
     unsigned = dict(payload)
     unsigned["payload_sha256"] = None
@@ -106,6 +121,7 @@ def _verify_self_digest(payload: Mapping[str, Any], *, field: str) -> str:
 
 
 def _file_binding(raw: bytes, payload: Mapping[str, Any]) -> dict[str, str]:
+    """Bind a JSON document by its file SHA-256 and its verified payload digest."""
     return {
         "file_sha256": hashlib.sha256(raw).hexdigest(),
         "payload_sha256": _verify_self_digest(payload, field="bound JSON"),
@@ -113,6 +129,7 @@ def _file_binding(raw: bytes, payload: Mapping[str, Any]) -> dict[str, str]:
 
 
 def _tree_inventory(root: Path) -> list[dict[str, Any]]:
+    """List every regular file below a run root with its size and SHA-256; symlinks and special entries are refused."""
     if not root.is_dir():
         raise RegenerationVerificationError(f"run root is not a directory: {root}")
     inventory: list[dict[str, Any]] = []
@@ -137,6 +154,7 @@ def _tree_inventory(root: Path) -> list[dict[str, Any]]:
 
 
 def _source_shots(payload: Mapping[str, Any]) -> tuple[list[int], bool]:
+    """Return the sorted unique acquired shot ids and whether every one pins its source generation."""
     shot_ids: list[int] = []
     generation_flags: list[bool] = []
     for index, value in enumerate(_list(payload.get("shots"), field="source manifest.shots")):
@@ -156,6 +174,7 @@ def _source_shots(payload: Mapping[str, Any]) -> tuple[list[int], bool]:
 
 
 def _replay_shots(payload: Mapping[str, Any]) -> tuple[list[int], list[int]]:
+    """Split the replay report's shots into derived and failed ids, refusing unknown statuses and duplicates."""
     derived: list[int] = []
     failed: list[int] = []
     for index, value in enumerate(_list(payload.get("shots"), field="replay report.shots")):
@@ -181,6 +200,7 @@ def _run_binding(
     replay_binding: Mapping[str, str],
     archive_binding: Mapping[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Validate one run's producer lineage against the shared bindings; the run tree must not change meanwhile."""
     before = _tree_inventory(root)
     lineage_path = root / "producer-lineage.json"
     lineage, raw = _read_json(lineage_path, label=f"{label} producer lineage")
@@ -409,6 +429,7 @@ def build_regeneration_verification(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the source manifest, replay report and archive, both run roots, timestamp and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source-manifest", type=Path, required=True)
     parser.add_argument("--replay-report", type=Path, required=True)
