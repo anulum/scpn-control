@@ -16,9 +16,11 @@ and it re-emits the frozen :func:`disruption_risk_claim_boundary` so the interna
 number can never be mistaken for a promoted public claim.
 
 Data provenance (real vs. synthetic) is taken from the supplied
-:class:`RealDataManifest`, which is provenance-truthful by construction, so this
-harness cannot mislabel a synthetic fixture campaign as real. It runs end-to-end
-on the committed synthetic disruption fixtures to prove the path; the real-MAST
+:class:`RealDataManifest`. A real-data manifest must list every evaluated shot
+file as a checksummed artifact: its artifact bytes are verified and the loaded
+shots must be exactly those files, matched by name and SHA-256. A synthetic
+fixture campaign therefore cannot be reported as real. It runs end-to-end on
+the committed synthetic disruption fixtures to prove the path; the real-MAST
 number is produced out-of-band once shots are acquired.
 """
 
@@ -41,7 +43,11 @@ from scpn_control.control.disruption_roc import (
     disruption_metrics,
     score_risk_series,
 )
-from scpn_control.core.real_data_manifest import load_real_data_manifest
+from scpn_control.core.real_data_manifest import (
+    RealDataManifest,
+    load_real_data_manifest,
+    verify_manifest_artifact,
+)
 
 REPORT_SCHEMA = "scpn-control.mast-disruption-evaluation.v1"
 DEFAULT_WINDOW_SIZE = 128
@@ -90,10 +96,12 @@ class ShotRecord:
     label: int
     disruption_time_idx: int
     disruption_type: str
+    file_sha256: str | None = None
 
 
 def load_shot(path: Path) -> ShotRecord:
-    """Load and validate one ``.npz`` shot in the replay channel schema."""
+    """Load and validate one ``.npz`` shot in the replay channel schema, recording its file SHA-256."""
+    file_sha256 = hashlib.sha256(path.read_bytes()).hexdigest()
     with np.load(path, allow_pickle=False) as data:
         present = set(data.files)
         missing = [c for c in (*REQUIRED_ARRAY_CHANNELS, *REQUIRED_SCALAR_CHANNELS) if c not in present]
@@ -118,7 +126,25 @@ def load_shot(path: Path) -> ShotRecord:
         label=label,
         disruption_time_idx=disruption_time_idx,
         disruption_type=disruption_type,
+        file_sha256=file_sha256,
     )
+
+
+def _require_declared_shots(shots: list[ShotRecord], manifest: RealDataManifest, manifest_path: Path) -> None:
+    """Refuse real-data provenance unless the shots are exactly the manifest's verified artifacts.
+
+    The manifest must list checksummed artifacts, whose bytes are verified where
+    the manifest resolves them. The loaded shots must then match that list
+    exactly by file stem and SHA-256, so no undeclared, missing or altered shot
+    file can be reported under the manifest's real-data provenance.
+    """
+    if not manifest.artifacts:
+        raise ValueError("a real-data manifest must declare its shot files as checksummed artifacts")
+    verify_manifest_artifact(manifest, manifest_path=manifest_path)
+    declared = sorted((Path(artifact.uri).stem, artifact.checksum_sha256) for artifact in manifest.artifacts)
+    loaded = sorted((shot.shot_id, shot.file_sha256) for shot in shots)
+    if loaded != declared:
+        raise ValueError("the evaluated shot files are not exactly the manifest's checksummed artifacts")
 
 
 def build_evaluation(shot: ShotRecord, *, window_size: int) -> ShotEvaluation:
@@ -150,8 +176,18 @@ def build_report(
     warning_ms: tuple[int, ...],
     generated_at: str,
 ) -> dict[str, Any]:
-    """Assemble the fail-closed evaluation report from loaded shots."""
+    """Assemble the fail-closed evaluation report from loaded shots.
+
+    Raises
+    ------
+    ValueError
+        The manifest is real-data but does not declare exactly the loaded shot
+        files, with matching SHA-256, as verified artifacts; or the metrics
+        cannot be formed, for example from a single labelled class.
+    """
     manifest = load_real_data_manifest(manifest_path)
+    if not manifest.synthetic:
+        _require_declared_shots(shots, manifest, manifest_path)
     evaluations = [build_evaluation(shot, window_size=window_size) for shot in shots]
     thresholds = np.linspace(0.0, 1.0, _N_THRESHOLDS)
     metrics = disruption_metrics(
@@ -241,6 +277,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the shots directory, manifest, both outputs, detector settings and timestamp."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--shots-dir", type=Path, required=True, help="Directory of .npz shots.")
     parser.add_argument("--manifest", type=Path, required=True, help="RealDataManifest for the shots.")

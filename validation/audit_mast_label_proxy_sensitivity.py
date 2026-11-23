@@ -21,12 +21,19 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import sys
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, cast
 
 import numpy as np
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.mast_disruption_shot_label import ProgrammeClass, derive_ip_quench_proxy
 from validation.mast_source_object_manifest import canonical_json_sha256, file_sha256
@@ -91,6 +98,7 @@ class WeakProgrammeLabel:
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, object] = {}
     for key, value in pairs:
         if key in payload:
@@ -100,6 +108,7 @@ def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]
 
 
 def _load_json(path: Path) -> Mapping[str, object]:
+    """Read one UTF-8 JSON object without duplicate keys; any read or shape failure is an audit error."""
     try:
         payload = json.loads(path.read_text(encoding="utf-8"), object_pairs_hook=_reject_duplicate_keys)
     except (OSError, UnicodeError, json.JSONDecodeError, LabelProxyAuditError) as exc:
@@ -110,6 +119,7 @@ def _load_json(path: Path) -> Mapping[str, object]:
 
 
 def _required_string(payload: Mapping[str, object], field: str) -> str:
+    """Return a required non-empty string field."""
     value = payload.get(field)
     if not isinstance(value, str) or not value:
         raise LabelProxyAuditError(f"{field} must be a non-empty string")
@@ -117,6 +127,7 @@ def _required_string(payload: Mapping[str, object], field: str) -> str:
 
 
 def _required_int(payload: Mapping[str, object], field: str) -> int:
+    """Return a required integer field; booleans are refused."""
     value = payload.get(field)
     if isinstance(value, bool) or not isinstance(value, int):
         raise LabelProxyAuditError(f"{field} must be an integer")
@@ -124,6 +135,7 @@ def _required_int(payload: Mapping[str, object], field: str) -> int:
 
 
 def _required_float(payload: Mapping[str, object], field: str) -> float:
+    """Return a required numeric field as a float; booleans are refused."""
     value = payload.get(field)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise LabelProxyAuditError(f"{field} must be numeric")
@@ -131,12 +143,14 @@ def _required_float(payload: Mapping[str, object], field: str) -> float:
 
 
 def _validate_sha256(value: str, *, field: str) -> str:
+    """Return ``value`` if it is a lowercase 64-digit hexadecimal SHA-256 digest."""
     if len(value) != _SHA256_LENGTH or any(char not in "0123456789abcdef" for char in value):
         raise LabelProxyAuditError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
 
 def _verify_self_digest(payload: Mapping[str, object], *, field: str = "payload_sha256") -> str:
+    """Return the payload's self-digest after checking it against the payload with that field set to null."""
     digest = _validate_sha256(_required_string(payload, field), field=field)
     digest_input = dict(payload)
     digest_input[field] = None
@@ -146,6 +160,7 @@ def _verify_self_digest(payload: Mapping[str, object], *, field: str = "payload_
 
 
 def _normalise_grid(points: Sequence[tuple[float, float]]) -> tuple[DetectorPoint, ...]:
+    """Validate and sort a non-empty detector grid without duplicate points."""
     if not points:
         raise LabelProxyAuditError("parameter grid must not be empty")
     normalised = tuple(sorted(DetectorPoint(*point) for point in points))
@@ -155,6 +170,7 @@ def _normalise_grid(points: Sequence[tuple[float, float]]) -> tuple[DetectorPoin
 
 
 def _safe_artifact_path(dataset_dir: Path, relative: str) -> Path:
+    """Resolve one shot file name to an existing regular file directly inside the dataset directory."""
     pure = PurePosixPath(relative)
     if pure.is_absolute() or len(pure.parts) != 1 or pure.parts[0] in {"", ".", ".."}:
         raise LabelProxyAuditError(f"unsafe shot artifact path {relative!r}")
@@ -169,6 +185,7 @@ def _safe_artifact_path(dataset_dir: Path, relative: str) -> Path:
 
 
 def _programme_labels(path: Path | None) -> tuple[dict[int, WeakProgrammeLabel], dict[str, object]]:
+    """Load the optional weak programme-label manifest and describe its source, or record that it was not supplied."""
     if path is None:
         return {}, {
             "status": "not_computable",
@@ -224,6 +241,7 @@ def _dataset_records(
     dataset_dir: Path,
     reference: DetectorPoint,
 ) -> tuple[str, str, str, str, str, list[tuple[int, Path]]]:
+    """Verify the dataset report and every shot file's checksum; return its identity digests and sorted shot files."""
     payload = _load_json(report_path)
     report_digest = _verify_self_digest(payload)
     schema_version = _required_string(payload, "schema_version")
@@ -280,6 +298,7 @@ def _dataset_records(
 def _load_proxy_inputs(
     shot_id: int, artifact: Path
 ) -> tuple[np.ndarray[Any, np.dtype[np.float64]], np.ndarray[Any, np.dtype[np.float64]]]:
+    """Load the Ip and time arrays of one verified shot file without pickle."""
     try:
         with np.load(artifact, allow_pickle=False) as archive:
             if "Ip_MA" not in archive.files or "time_s" not in archive.files:
@@ -296,6 +315,7 @@ def _programme_comparison(
     label_source: dict[str, object],
     reference_outcomes: Mapping[int, str],
 ) -> dict[str, object]:
+    """Compare reference-point outcomes with declared weak expectations; descriptive only, never validation."""
     dataset_ids = set(reference_outcomes)
     manifest_ids = set(labels)
     comparison_ids = sorted(
@@ -443,6 +463,7 @@ def audit_label_proxy_sensitivity(
 
 
 def _parse_point(value: str) -> tuple[float, float]:
+    """Parse ``DROP_FRACTION,QUENCH_WINDOW_MS`` into a detector parameter pair."""
     parts = value.split(",")
     if len(parts) != 2:
         raise argparse.ArgumentTypeError("point must be DROP_FRACTION,QUENCH_WINDOW_MS")
@@ -453,6 +474,7 @@ def _parse_point(value: str) -> tuple[float, float]:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the dataset report and directory, optional labels, grid points, timestamp and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset-report", type=Path, required=True)
     parser.add_argument("--dataset-dir", type=Path, required=True)

@@ -35,6 +35,13 @@ from pathlib import Path
 from typing import Any, Callable
 
 from scpn_control._npz import save_npz_arrays
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from validation.fair_mast_source_policy import FAIR_MAST_LICENCE as FAIR_MAST_LICENCE
 from validation.fair_mast_source_policy import fair_mast_provenance as fair_mast_provenance
 from validation.mast_replay_contracts import (

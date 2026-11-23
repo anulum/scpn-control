@@ -47,6 +47,13 @@ import numpy as np
 from numpy.typing import NDArray
 
 from scpn_control._npz import save_npz_arrays
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from validation.disruption_channel_recipes import (
     amperes_to_megamperes,
     dbdt_gauss_per_s,

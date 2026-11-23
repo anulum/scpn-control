@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,7 @@ _FIXED_TS = "2026-07-10T00:00:00+00:00"
 
 
 def _write_shot(path: Path, *, disruptive: bool, n: int = 200, seed: int = 0) -> None:
+    """Write one replay-schema shot; a disruptive one has a rising precursor before its labelled onset."""
     rng = np.random.default_rng(seed)
     ramp = np.linspace(0.0, 1.0, n)
     channels: dict[str, Any] = {name: rng.normal(0.0, 0.1, n) for name in REQUIRED_ARRAY_CHANNELS}
@@ -51,6 +53,7 @@ def _write_shot(path: Path, *, disruptive: bool, n: int = 200, seed: int = 0) ->
 
 
 def _write_manifest(path: Path, *, synthetic: bool = True) -> None:
+    """Write a synthetic fixture manifest, or a real-data one without any shot artifacts."""
     payload = {
         "schema_version": "1.0",
         "dataset_id": "mast-disruption-test",
@@ -77,6 +80,7 @@ def _write_manifest(path: Path, *, synthetic: bool = True) -> None:
 
 @pytest.fixture
 def campaign(tmp_path: Path) -> tuple[Path, Path]:
+    """Return a directory with one disruptive and one safe synthetic shot, and their synthetic manifest."""
     shots_dir = tmp_path / "shots"
     shots_dir.mkdir()
     _write_shot(shots_dir / "shot_0001_locked.npz", disruptive=True, seed=1)
@@ -90,6 +94,7 @@ def campaign(tmp_path: Path) -> tuple[Path, Path]:
 # load_shot
 # --------------------------------------------------------------------------- #
 def test_load_shot_reads_valid_shot(tmp_path: Path) -> None:
+    """A complete shot loads with its label, type and channel length."""
     path = tmp_path / "shot.npz"
     _write_shot(path, disruptive=True)
     record = load_shot(path)
@@ -99,6 +104,7 @@ def test_load_shot_reads_valid_shot(tmp_path: Path) -> None:
 
 
 def test_load_shot_rejects_missing_channel(tmp_path: Path) -> None:
+    """A shot without every replay channel is refused."""
     path = tmp_path / "bad.npz"
     np.savez(path, time_s=np.arange(10, dtype=np.float64))
     with pytest.raises(ValueError, match="missing shot channels"):
@@ -106,6 +112,7 @@ def test_load_shot_rejects_missing_channel(tmp_path: Path) -> None:
 
 
 def test_load_shot_rejects_wrong_length(tmp_path: Path) -> None:
+    """A channel whose length differs from the clock is refused."""
     path = tmp_path / "shape.npz"
     _write_shot(path, disruptive=False)
     good = dict(np.load(path, allow_pickle=False))
@@ -116,6 +123,7 @@ def test_load_shot_rejects_wrong_length(tmp_path: Path) -> None:
 
 
 def test_load_shot_rejects_non_finite(tmp_path: Path) -> None:
+    """A channel with a nonfinite sample is refused."""
     path = tmp_path / "nan.npz"
     _write_shot(path, disruptive=False)
     good = dict(np.load(path, allow_pickle=False))
@@ -127,6 +135,7 @@ def test_load_shot_rejects_non_finite(tmp_path: Path) -> None:
 
 
 def test_load_shots_rejects_empty_dir(tmp_path: Path) -> None:
+    """A directory without shot files is refused."""
     empty = tmp_path / "empty"
     empty.mkdir()
     with pytest.raises(ValueError, match="no .npz shots"):
@@ -137,6 +146,7 @@ def test_load_shots_rejects_empty_dir(tmp_path: Path) -> None:
 # build_report + render_markdown
 # --------------------------------------------------------------------------- #
 def test_build_report_is_fail_closed_and_self_digested(campaign: tuple[Path, Path]) -> None:
+    """The synthetic report stays blocked, keeps the claim boundary closed and carries a matching self-digest."""
     shots_dir, manifest = campaign
     shots = load_shots(shots_dir)
     report = build_report(
@@ -160,6 +170,7 @@ def test_build_report_is_fail_closed_and_self_digested(campaign: tuple[Path, Pat
 
 
 def test_build_report_is_deterministic(campaign: tuple[Path, Path]) -> None:
+    """The same shots and settings give the same payload digest."""
     shots_dir, manifest = campaign
     shots = load_shots(shots_dir)
     first = build_report(
@@ -181,16 +192,47 @@ def test_build_report_is_deterministic(campaign: tuple[Path, Path]) -> None:
     assert first["payload_sha256"] == second["payload_sha256"]
 
 
-def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> None:
-    """A two-class report retains the supplied FAIR-MAST archive metadata."""
+def _write_bound_manifest(path: Path, shot_paths: list[Path]) -> None:
+    """Write a real-data FAIR-MAST manifest that lists the shot files as checksummed artifacts."""
+    payload = {
+        "schema_version": "1.0",
+        "dataset_id": "mast-disruption-test",
+        "machine": "MAST",
+        "shot": "campaign:mast-disruption-test",
+        "synthetic": False,
+        "source": {"kind": "local_archive", "uri": "s3://mast/level2/shots", "access": "s3_no_sign_request"},
+        "signals": [{"name": "dBdt_gauss_per_s", "path": "dBdt", "units": "G/s", "timebase": "time_s"}],
+        "retrieved_at": "2026-07-10T00:00:00+00:00",
+        "checksum_sha256": None,
+        **fair_mast_provenance(),
+        "synthetic_generator": None,
+        "synthetic_seed": None,
+        "artifacts": [
+            {
+                "uri": shot.relative_to(path.parent).as_posix(),
+                "checksum_sha256": hashlib.sha256(shot.read_bytes()).hexdigest(),
+            }
+            for shot in shot_paths
+        ],
+    }
+    path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def _real_campaign(tmp_path: Path) -> tuple[Path, Path, list[Path]]:
+    """Write two shots and a real-data manifest bound to them; return the directory, manifest and shots."""
     shots_dir = tmp_path / "shots"
     shots_dir.mkdir()
-    _write_shot(shots_dir / "shot_0001_locked.npz", disruptive=True, seed=1)
-    _write_shot(shots_dir / "shot_0002_safe.npz", disruptive=False, seed=2)
+    shots = [shots_dir / "shot_0001_locked.npz", shots_dir / "shot_0002_safe.npz"]
+    _write_shot(shots[0], disruptive=True, seed=1)
+    _write_shot(shots[1], disruptive=False, seed=2)
     manifest = tmp_path / "campaign.manifest.json"
-    _write_manifest(manifest, synthetic=False)
+    _write_bound_manifest(manifest, shots)
+    return shots_dir, manifest, shots
 
-    report = build_report(
+
+def _report(shots_dir: Path, manifest: Path) -> dict[str, Any]:
+    """Build a report from every shot in the directory under the given manifest."""
+    return build_report(
         load_shots(shots_dir),
         manifest_path=manifest,
         window_size=64,
@@ -199,6 +241,13 @@ def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> Non
         generated_at=_FIXED_TS,
     )
 
+
+def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> None:
+    """Shots bound to a real-data manifest keep its FAIR-MAST archive metadata."""
+    shots_dir, manifest, _ = _real_campaign(tmp_path)
+
+    report = _report(shots_dir, manifest)
+
     provenance = report["data_provenance"]
     assert provenance["synthetic"] is False
     assert provenance["licence"] == "CC-BY-SA-4.0"
@@ -206,6 +255,47 @@ def test_build_report_preserves_real_fair_mast_provenance(tmp_path: Path) -> Non
     assert len(provenance["citations"]) == 2
     assert "10.1016/j.softx.2024.101869" in provenance["citation"]
     assert provenance["source_policy_url"] == "https://mastapp.site/"
+
+
+def test_real_manifest_without_shot_artifacts_is_refused(tmp_path: Path) -> None:
+    """A real-data manifest that does not list its shot files cannot label shots as real."""
+    shots_dir, _, _ = _real_campaign(tmp_path)
+    unbound = tmp_path / "unbound.manifest.json"
+    _write_manifest(unbound, synthetic=False)
+    with pytest.raises(ValueError, match="must declare its shot files as checksummed artifacts"):
+        _report(shots_dir, unbound)
+
+
+def test_shot_outside_the_real_manifest_is_refused(tmp_path: Path) -> None:
+    """An extra shot file beside the declared ones is not covered by the real-data provenance."""
+    shots_dir, manifest, _ = _real_campaign(tmp_path)
+    _write_shot(shots_dir / "shot_0003_extra.npz", disruptive=False, seed=3)
+    with pytest.raises(ValueError, match="not exactly the manifest's checksummed artifacts"):
+        _report(shots_dir, manifest)
+
+
+def test_declared_shot_that_is_not_evaluated_is_refused(tmp_path: Path) -> None:
+    """A declared artifact missing from the evaluated shots breaks the exact binding."""
+    shots_dir, manifest, shots = _real_campaign(tmp_path)
+    _write_shot(shots_dir / "shot_0003_extra.npz", disruptive=False, seed=3)
+    _write_bound_manifest(manifest, [*shots, shots_dir / "shot_0003_extra.npz"])
+    with pytest.raises(ValueError, match="not exactly the manifest's checksummed artifacts"):
+        build_report(
+            [load_shot(path) for path in shots],
+            manifest_path=manifest,
+            window_size=64,
+            alarm_threshold=0.65,
+            warning_ms=(10, 50),
+            generated_at=_FIXED_TS,
+        )
+
+
+def test_shot_changed_after_declaration_is_refused(tmp_path: Path) -> None:
+    """A shot file whose bytes no longer match its declared SHA-256 is refused."""
+    shots_dir, manifest, shots = _real_campaign(tmp_path)
+    _write_shot(shots[1], disruptive=False, seed=9)
+    with pytest.raises(ValueError, match="checksum mismatch"):
+        _report(shots_dir, manifest)
 
 
 def test_build_report_rejects_one_class_roc(tmp_path: Path) -> None:
@@ -227,6 +317,7 @@ def test_build_report_rejects_one_class_roc(tmp_path: Path) -> None:
 
 
 def test_render_markdown_summarises_report(campaign: tuple[Path, Path]) -> None:
+    """The Markdown summary names the evaluation, its warning-time recall and the AUC."""
     shots_dir, manifest = campaign
     report = build_report(
         load_shots(shots_dir),
@@ -246,6 +337,7 @@ def test_render_markdown_summarises_report(campaign: tuple[Path, Path]) -> None:
 # main (end to end)
 # --------------------------------------------------------------------------- #
 def test_main_writes_reports(campaign: tuple[Path, Path], tmp_path: Path) -> None:
+    """The command writes both blocked reports and returns 0."""
     shots_dir, manifest = campaign
     json_out = tmp_path / "out" / "eval.json"
     md_out = tmp_path / "out" / "eval.md"
@@ -273,6 +365,7 @@ def test_main_writes_reports(campaign: tuple[Path, Path], tmp_path: Path) -> Non
 
 
 def test_main_defaults_timestamp(campaign: tuple[Path, Path], tmp_path: Path) -> None:
+    """Without --generated-at the command stamps the current UTC time."""
     shots_dir, manifest = campaign
     exit_code = main(
         [

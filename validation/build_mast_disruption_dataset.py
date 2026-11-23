@@ -37,6 +37,13 @@ from numpy.typing import NDArray
 
 from scpn_control._npz import save_npz_arrays
 from scpn_control.core.real_data_manifest import validate_real_data_manifest
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 from validation.fair_mast_source_policy import fair_mast_provenance
 from validation.mast_disruption_shot_label import SHOT_LABEL_RECORD_SCHEMA as SHOT_LABEL_RECORD_SCHEMA
 from validation.mast_disruption_shot_label import (

@@ -28,6 +28,7 @@ _FIXED_TS = "2026-07-10T00:00:00+00:00"
 
 
 def _cpf_rows() -> list[dict[str, Any]]:
+    """Return one selectable shot and one row for each exclusion reason, including a combined one."""
     return [
         {"shot_id": 11766, "useful": 1, "abort": 0, "ip_max_ka": 578.0},  # selected
         {"shot_id": 20002, "useful": 0, "abort": 0, "ip_max_ka": 500.0},  # not_useful
@@ -38,6 +39,7 @@ def _cpf_rows() -> list[dict[str, Any]]:
 
 
 def test_select_shots_applies_quality_filter() -> None:
+    """Only the useful, unaborted shot above the floor is selected; each other row carries its reasons."""
     split = select_shots(_cpf_rows(), ip_max_floor_ka=100.0)
     assert [s["shot_id"] for s in split["selected"]] == [11766]
     assert split["selected"][0]["s3_key"] == "level2/shots/11766"
@@ -49,11 +51,29 @@ def test_select_shots_applies_quality_filter() -> None:
 
 
 def test_select_shots_rejects_incomplete_row() -> None:
+    """A row without every required CPF key is refused."""
     with pytest.raises(ValueError, match="missing keys"):
         select_shots([{"shot_id": 1, "useful": 1}], ip_max_floor_ka=100.0)
 
 
+@pytest.mark.parametrize("ip_max_ka", [float("nan"), float("inf")])
+def test_select_shots_excludes_an_ip_max_that_is_not_finite(ip_max_ka: float) -> None:
+    """A missing (NaN) or infinite ip_max does not clear the floor; the shot is excluded with that reason."""
+    rows = [{"shot_id": 30001, "useful": 1, "abort": 0, "ip_max_ka": ip_max_ka}, *_cpf_rows()]
+    split = select_shots(rows, ip_max_floor_ka=100.0)
+    assert [shot["shot_id"] for shot in split["selected"]] == [11766]
+    assert split["excluded"][0] == {"shot_id": 30001, "reasons": ["ip_max_not_finite"]}
+
+
+def test_select_shots_refuses_a_shot_listed_twice() -> None:
+    """A shot id in two rows would be counted twice, so the rows are refused."""
+    rows = [*_cpf_rows(), {"shot_id": 11766, "useful": 1, "abort": 0, "ip_max_ka": 578.0}]
+    with pytest.raises(ValueError, match="CPF rows list shot 11766 more than once"):
+        select_shots(rows, ip_max_floor_ka=100.0)
+
+
 def test_build_campaign_is_planned_and_self_digested() -> None:
+    """The campaign stays planned and non-synthetic, carries the source policy and a matching self-digest."""
     report = build_campaign(
         _cpf_rows(), dataset_id="mast-disruption-pilot", ip_max_floor_ka=100.0, generated_at=_FIXED_TS
     )
@@ -73,13 +93,14 @@ def test_build_campaign_is_planned_and_self_digested() -> None:
 
 
 def test_build_campaign_is_deterministic() -> None:
-    kwargs = {"dataset_id": "d", "ip_max_floor_ka": 100.0, "generated_at": _FIXED_TS}
-    first = build_campaign(_cpf_rows(), **kwargs)
-    second = build_campaign(_cpf_rows(), **kwargs)
+    """The same rows and arguments give the same payload digest."""
+    first = build_campaign(_cpf_rows(), dataset_id="d", ip_max_floor_ka=100.0, generated_at=_FIXED_TS)
+    second = build_campaign(_cpf_rows(), dataset_id="d", ip_max_floor_ka=100.0, generated_at=_FIXED_TS)
     assert first["payload_sha256"] == second["payload_sha256"]
 
 
 def test_render_markdown_summarises_campaign() -> None:
+    """The Markdown summary names the campaign and its selection."""
     report = build_campaign(_cpf_rows(), dataset_id="d", ip_max_floor_ka=100.0, generated_at=_FIXED_TS)
     markdown = render_markdown(report)
     assert "# FAIR-MAST Disruption Acquisition Campaign" in markdown
@@ -87,6 +108,7 @@ def test_render_markdown_summarises_campaign() -> None:
 
 
 def test_load_cpf_rows_rejects_non_list(tmp_path: Path) -> None:
+    """A CPF export whose JSON root is not a list is refused."""
     path = tmp_path / "bad.json"
     path.write_text(json.dumps({"not": "a list"}), encoding="utf-8")
     with pytest.raises(ValueError, match="must be a list"):
@@ -94,6 +116,7 @@ def test_load_cpf_rows_rejects_non_list(tmp_path: Path) -> None:
 
 
 def test_main_writes_campaign(tmp_path: Path) -> None:
+    """The command writes a planned campaign from a CPF export and returns 0."""
     cpf = tmp_path / "cpf.json"
     cpf.write_text(json.dumps(_cpf_rows()), encoding="utf-8")
     json_out = tmp_path / "out" / "campaign.json"

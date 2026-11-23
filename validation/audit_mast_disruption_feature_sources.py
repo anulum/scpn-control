@@ -27,8 +27,15 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.fair_mast_source_policy import fair_mast_provenance
 from validation.mast_disruption_shot_label import (
@@ -281,6 +288,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse both outputs and the recorded ip_max floor."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--json-out", type=Path, required=True, help="Report JSON output path.")
     parser.add_argument("--report-out", type=Path, required=True, help="Report Markdown output path.")

@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### MAST disruption tools — real-data binding, CPF selection, script runs
+
+- **Fixed:** `validation/evaluate_mast_disruption.py` promised that a synthetic fixture
+  campaign could not be reported as real. However, it evaluated every shot file in the
+  directory under whatever manifest was supplied. A real-data manifest must now list the
+  evaluated shot files as checksummed artifacts. Their bytes are verified, and the loaded
+  shots must be exactly those files, matched by name and SHA-256; otherwise the report
+  is refused.
+- **Fixed:** the FAIR-MAST acquisition-campaign builder selected shots whose `ip_max_ka`
+  was missing (NaN), because a NaN never compares below the floor. Such shots are now
+  excluded as `ip_max_not_finite`, and a CPF export that lists a shot twice is refused.
+- **Fixed:** eight MAST disruption commands failed with `ModuleNotFoundError` when run as
+  documented, `python validation/<tool>.py`, because they imported `validation.*`
+  without putting the checkout on the import path. They now do so when run as a script,
+  as the other validation commands do.
+- **Changed:** the matched-cohort design report's `split_status` is `not_started`; the
+  previous value carried an internal planning code.
+
 ### MAST EFM campaign publisher — verified inputs only
 
 - **Fixed:** `validation/publish_mast_efm_neural_equilibrium_campaign.py` published the

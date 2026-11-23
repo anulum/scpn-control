@@ -26,8 +26,16 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
+import sys
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.audit_mast_disruption_feature_sources import LABEL_ALGORITHM
 from validation.fair_mast_source_policy import fair_mast_provenance
@@ -50,18 +58,29 @@ def _sha256_json(payload: dict[str, Any]) -> str:
 def select_shots(cpf_rows: list[dict[str, Any]], *, ip_max_floor_ka: float) -> dict[str, list[dict[str, Any]]]:
     """Apply the CPF quality filter to CPF summary rows.
 
-    A shot is selected when ``useful == 1``, ``abort != 1`` and ``ip_max_ka`` is at
-    least ``ip_max_floor_ka``; otherwise it is excluded with its failing reasons.
-    The disruptive/safe split is deferred to the dataset builder's Ip current-quench
-    detector, so every selected shot is an acquisition candidate.
+    A shot is selected when ``useful == 1``, ``abort != 1`` and ``ip_max_ka`` is a
+    finite value of at least ``ip_max_floor_ka``; otherwise it is excluded with its
+    failing reasons. A missing (NaN) ``ip_max_ka``, common in CPF exports, does not
+    clear the floor and is excluded as ``ip_max_not_finite``. The disruptive/safe
+    split is deferred to the dataset builder's Ip current-quench detector, so every
+    selected shot is an acquisition candidate.
+
+    Raises
+    ------
+    ValueError
+        A row lacks a required key, or a shot id occurs in more than one row.
     """
     selected: list[dict[str, Any]] = []
     excluded: list[dict[str, Any]] = []
+    seen: set[int] = set()
     for row in cpf_rows:
         missing = [key for key in _REQUIRED_CPF_KEYS if key not in row]
         if missing:
             raise ValueError(f"CPF row is missing keys {missing}: {row}")
         shot_id = int(row["shot_id"])
+        if shot_id in seen:
+            raise ValueError(f"CPF rows list shot {shot_id} more than once")
+        seen.add(shot_id)
         useful = int(row["useful"])
         abort = int(row["abort"])
         ip_max_ka = float(row["ip_max_ka"])
@@ -70,7 +89,9 @@ def select_shots(cpf_rows: list[dict[str, Any]], *, ip_max_floor_ka: float) -> d
             reasons.append("not_useful")
         if abort == 1:
             reasons.append("aborted")
-        if ip_max_ka < ip_max_floor_ka:
+        if not math.isfinite(ip_max_ka):
+            reasons.append("ip_max_not_finite")
+        elif ip_max_ka < ip_max_floor_ka:
             reasons.append("ip_max_below_floor")
         if reasons:
             excluded.append({"shot_id": shot_id, "reasons": reasons})
@@ -151,6 +172,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def _load_cpf_rows(path: Path) -> list[dict[str, Any]]:
+    """Read the exported CPF summary rows; the JSON root must be a list."""
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, list):
         raise ValueError("CPF JSON must be a list of row objects.")
@@ -158,6 +180,7 @@ def _load_cpf_rows(path: Path) -> list[dict[str, Any]]:
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the CPF rows, dataset id, both outputs, the ip_max floor and the timestamp label."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cpf-json", type=Path, required=True, help="JSON list of CPF summary rows.")
     parser.add_argument("--dataset-id", type=str, required=True, help="Campaign dataset identifier.")

@@ -19,8 +19,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.mast_disruption_signal_binding import assess_artifact_signal_bindings
 from validation.mast_disruption_time_alignment import (
@@ -230,6 +237,7 @@ def inspect_manifest_binding_readiness(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the source-object manifest, artefact root and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--manifest", type=Path, required=True, help="SourceObjectManifest v2 JSON path.")
     parser.add_argument("--artifact-root", type=Path, required=True, help="Root holding declared NPZ artefacts.")

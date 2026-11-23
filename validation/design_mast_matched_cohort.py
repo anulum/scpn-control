@@ -25,11 +25,18 @@ import argparse
 import hashlib
 import json
 import math
+import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import NormalDist
 from typing import cast
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 from validation.audit_mast_label_proxy_sensitivity import AUDIT_SCHEMA
 from validation.mast_source_object_manifest import canonical_json_sha256
@@ -131,6 +138,7 @@ def _unit_interval(
     lower_open: bool = False,
     upper_open: bool = False,
 ) -> None:
+    """Refuse a nonfinite value or one outside [0, 1], with either end optionally open."""
     if not math.isfinite(value):
         raise CohortDesignError(f"{field} must be finite")
     lower_ok = value > 0.0 if lower_open else value >= 0.0
@@ -141,21 +149,25 @@ def _unit_interval(
 
 
 def _half_width(value: float, field: str) -> None:
+    """Refuse a confidence-interval half-width that is not finite and within (0, 0.5)."""
     if not math.isfinite(value) or not 0.0 < value < 0.5:
         raise CohortDesignError(f"{field} must be finite and within (0, 0.5)")
 
 
 def _require_no_discrimination_null_auc(null_auc: float) -> None:
+    """Refuse a null AUC other than 0.5, the only value the power model supports."""
     if null_auc != 0.5:
         raise CohortDesignError("null_auc must equal 0.5 for the no-discrimination power model")
 
 
 def _sorted_unique(values: tuple[str, ...], field: str) -> None:
+    """Refuse blank, repeated or unsorted string entries."""
     if any(not value.strip() for value in values) or tuple(sorted(set(values))) != values:
         raise CohortDesignError(f"{field} must be non-empty strings, unique, and sorted")
 
 
 def _reject_duplicate_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
+    """Build a JSON object, refusing any key that occurs twice."""
     payload: dict[str, object] = {}
     for key, value in pairs:
         if key in payload:
@@ -177,11 +189,13 @@ def _load_json_with_sha(path: Path) -> tuple[Mapping[str, object], str]:
 
 
 def _load_json(path: Path) -> Mapping[str, object]:
+    """Read one verified JSON object, discarding its file digest."""
     payload, _ = _load_json_with_sha(path)
     return payload
 
 
 def _required_string(payload: Mapping[str, object], field: str) -> str:
+    """Return a required non-empty string field."""
     value = payload.get(field)
     if not isinstance(value, str) or not value:
         raise CohortDesignError(f"{field} must be a non-empty string")
@@ -189,6 +203,7 @@ def _required_string(payload: Mapping[str, object], field: str) -> str:
 
 
 def _required_float(payload: Mapping[str, object], field: str) -> float:
+    """Return a required numeric field as a float; booleans are refused."""
     value = payload.get(field)
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise CohortDesignError(f"{field} must be numeric")
@@ -196,6 +211,7 @@ def _required_float(payload: Mapping[str, object], field: str) -> float:
 
 
 def _required_int(payload: Mapping[str, object], field: str) -> int:
+    """Return a required integer field; booleans are refused."""
     value = payload.get(field)
     if isinstance(value, bool) or not isinstance(value, int):
         raise CohortDesignError(f"{field} must be an integer")
@@ -203,6 +219,7 @@ def _required_int(payload: Mapping[str, object], field: str) -> int:
 
 
 def _string_tuple(payload: Mapping[str, object], field: str) -> tuple[str, ...]:
+    """Return a required array of strings as a tuple."""
     value = payload.get(field)
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise CohortDesignError(f"{field} must be an array of strings")
@@ -210,12 +227,14 @@ def _string_tuple(payload: Mapping[str, object], field: str) -> tuple[str, ...]:
 
 
 def _validate_sha256(value: str, *, field: str) -> str:
+    """Return ``value`` if it is a lowercase 64-digit hexadecimal SHA-256 digest."""
     if len(value) != _SHA256_LENGTH or any(char not in "0123456789abcdef" for char in value):
         raise CohortDesignError(f"{field} must be a lowercase SHA-256 digest")
     return value
 
 
 def _verify_self_digest(payload: Mapping[str, object]) -> str:
+    """Return the payload's self-digest after checking it against the payload with that field set to null."""
     digest = _validate_sha256(_required_string(payload, "payload_sha256"), field="payload_sha256")
     digest_input = dict(payload)
     digest_input["payload_sha256"] = None
@@ -225,6 +244,7 @@ def _verify_self_digest(payload: Mapping[str, object]) -> str:
 
 
 def _load_design_spec(path: Path) -> tuple[CohortDesignSpec, str, str]:
+    """Load the draft design specification with its exact fields; return the spec and its payload and file digests."""
     payload, file_digest = _load_json_with_sha(path)
     expected = {
         "schema_version",
@@ -306,6 +326,7 @@ def minimum_binomial_sample_size(
         raise CohortDesignError("max_n must be positive")
 
     def meets(n: int) -> bool:
+        """Return whether ``n`` samples meet the Wilson half-width target."""
         return (
             wilson_half_width(
                 expected_rate=expected_rate,
@@ -331,6 +352,7 @@ def minimum_binomial_sample_size(
 
 
 def _auc_standard_error(*, auc: float, positive_count: int, negative_count: int) -> float:
+    """Return the Hanley-McNeil large-sample standard error of an AUC for the given class counts."""
     if positive_count < 2 or negative_count < 2:
         raise CohortDesignError("AUC planning requires at least two samples per class")
     _unit_interval(auc, "auc", lower_open=True, upper_open=True)
@@ -395,6 +417,7 @@ def minimum_auc_group_sizes(
         raise CohortDesignError("max_positive_count must be at least two")
 
     def metrics(positive_count: int) -> tuple[int, float, float, float]:
+        """Return the negative count, AUC SE, CI half-width and power for ``positive_count`` cases."""
         negative_count = positive_count * control_to_case_ratio
         se, half_width, power = _auc_design_metrics(
             target_auc=target_auc,
@@ -406,6 +429,7 @@ def minimum_auc_group_sizes(
         return negative_count, se, half_width, power
 
     def meets(positive_count: int) -> bool:
+        """Return whether ``positive_count`` cases meet both the half-width and the power target."""
         _, _, half_width, power = metrics(positive_count)
         return half_width <= max_ci_half_width and power >= target_power
 
@@ -426,6 +450,7 @@ def minimum_auc_group_sizes(
 
 
 def _proxy_audit(path: Path) -> tuple[Mapping[str, object], str, str]:
+    """Load a blocked proxy-sensitivity report and check its digests, counts and false claim boundary."""
     payload, file_digest = _load_json_with_sha(path)
     if _required_string(payload, "schema_version") != AUDIT_SCHEMA:
         raise CohortDesignError("unsupported proxy-sensitivity report schema")
@@ -577,7 +602,7 @@ def design_matched_cohort(
             "interpretation": "capacity comparison only; proxy outcomes do not populate either cohort class",
         },
         "admitted_shot_ids": [],
-        "split_status": "not_started_l2f24",
+        "split_status": "not_started",
         "claim_boundary": {
             "scientific_validation": False,
             "independent_label_validation": False,
@@ -594,6 +619,7 @@ def design_matched_cohort(
 
 
 def _parse_args(argv: list[str] | None) -> argparse.Namespace:
+    """Parse the design specification, proxy-sensitivity report, timestamp and output."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--design-spec", type=Path, required=True)
     parser.add_argument("--proxy-sensitivity", type=Path, required=True)
