@@ -19,6 +19,7 @@ import pytest
 from scpn_control.control.h_infinity_controller import get_radial_robust_controller
 from scpn_control.control.neuro_cybernetic_controller import SC_NEUROCORE_AVAILABLE
 from validation import benchmark_disturbance_rejection as owner
+from validation import disturbance_controllers
 from validation.disturbance_controllers import HInfinityErrorController
 
 
@@ -149,3 +150,36 @@ def test_original_MPC_keywords_and_mutable_cost_attributes_drive_actual_control(
     controller.iterations, controller.r_weight = 2, 10.0
     controller.reset()
     assert controller.step(1.0, 0.01) == pytest.approx(-0.02)
+
+
+def test_failed_h_infinity_construction_is_omitted_with_a_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A provider whose synthesis fails is left out with the fixed warning; the other controllers stay."""
+
+    class _SingularSynthesis:
+        """Stand in for an H-infinity synthesis whose Riccati solve is singular."""
+
+        def __init__(self) -> None:
+            """Fail the way a singular controller synthesis does."""
+            raise np.linalg.LinAlgError("singular Riccati solution")
+
+    monkeypatch.setattr(disturbance_controllers, "HInfinityErrorController", _SingularSynthesis)
+    with pytest.warns(UserWarning, match="^H-infinity provider construction failed; controller omitted.$"):
+        controllers = disturbance_controllers.build_controllers()
+    assert "H-infinity" not in controllers
+    assert list(controllers)[:2] == ["PID", "MPC"]
+
+
+def test_unavailable_neural_provider_is_omitted_with_a_warning(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When the SC-NeuroCore pool cannot be built, the SNN entry is left out with the fixed warning."""
+
+    class _UnavailableProvider:
+        """Stand in for the neural wrapper when its provider refuses construction."""
+
+        def __init__(self) -> None:
+            """Fail the way the provider does when SC-NeuroCore is absent."""
+            raise RuntimeError("SC-NeuroCore is not installed")
+
+    monkeypatch.setattr(disturbance_controllers, "SNNControllerWrapper", _UnavailableProvider)
+    with pytest.warns(UserWarning, match="^SC-NeuroCore provider unavailable; SNN controller omitted.$"):
+        controllers = disturbance_controllers.build_controllers()
+    assert list(controllers) == ["PID", "H-infinity", "MPC"]

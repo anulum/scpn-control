@@ -10,6 +10,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import matplotlib
@@ -71,3 +72,11 @@ def test_real_overlay_images_are_readable_and_release_figures(tmp_path: Path) ->
             assert np.isfinite(image).all() and np.ptp(image[:, :, :3]) > 0.0
     finally:
         plt.close(retained)
+
+
+def test_plots_are_skipped_without_matplotlib(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without matplotlib the renderer returns no paths and writes nothing."""
+    metrics, traces = _observations()
+    monkeypatch.setitem(sys.modules, "matplotlib", None)
+    assert save_overlay_plots(traces, metrics, tmp_path) == []
+    assert list(tmp_path.iterdir()) == []
