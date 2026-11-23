@@ -83,10 +83,20 @@ class TestTransportState:
             ts.set_neoclassical(R0=6.2, a=2.0, B0=5.3)
             ts.update_transport_model(50.0)
 
+        # With the compiled extension installed, the kernel wrapper holds the
+        # native kernel and the finalizer that deletes its normalised
+        # configuration copy. Neither can be copied meaningfully, so both are
+        # compared by identity: a step must keep the same objects.
+        by_identity = {"_rust", "_normalised_config_finalizer"}
+
         def frozen(instance: object) -> dict[str, object]:
-            return {name: copy.deepcopy(value) for name, value in vars(instance).items()}
+            """Copy every attribute, keeping the native objects themselves."""
+            return {
+                name: value if name in by_identity else copy.deepcopy(value) for name, value in vars(instance).items()
+            }
 
         def same(old: object, new: object) -> bool:
+            """Compare arrays exactly, containers and plain objects by their contents, the rest by equality."""
             if isinstance(old, np.ndarray) or isinstance(new, np.ndarray):
                 return (
                     isinstance(old, np.ndarray)
@@ -103,6 +113,7 @@ class TestTransportState:
             return bool(old == new)
 
         def changed(before: dict[str, object], after: dict[str, object]) -> set[str]:
+            """Return the attribute names that differ, the momentum sub-solver excluded."""
             return {
                 name
                 for name in set(before) | set(after)

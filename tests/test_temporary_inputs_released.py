@@ -12,7 +12,9 @@ Each test points :mod:`tempfile` at an empty directory of its own and checks
 that it is empty again afterwards: gyrokinetic input decks after every run,
 successful or not, and the scenario's transport configuration once its
 solver is gone or failed to build. Configured working directories and paths
-the solver did not create are never removed.
+the solver did not create are never removed. With the compiled extension
+installed, the Rust kernel also writes its normalised copy of the
+configuration; that copy goes with the solver too.
 """
 
 from __future__ import annotations
@@ -159,7 +161,10 @@ def _scenario() -> IntegratedScenarioSimulator:
 def test_scenario_configuration_lives_as_long_as_its_solver(temporary_root: Path) -> None:
     """The configuration stays readable while the solver exists and goes with it."""
     solver = _scenario()._setup_transport_solver()
-    (config,) = temporary_root.iterdir()
+    files = list(temporary_root.iterdir())
+    rust_copies = [path for path in files if path.name.startswith("scpn_control_rust_cfg_")]
+    assert len(rust_copies) <= int(hasattr(solver, "_rust"))
+    (config,) = [path for path in files if path not in rust_copies]
     assert config.suffix == ".json"
     assert config.read_text(encoding="utf-8").startswith("{")
 
