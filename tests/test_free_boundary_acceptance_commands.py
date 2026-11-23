@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import os
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -80,6 +81,18 @@ def test_public_markdown_matches_actual_output_and_limits(observed_report: tuple
         assert name in text
     for name in report["free_boundary_tracking_acceptance"]["sweeps"]:
         assert name in text
+
+
+def test_script_entry_answers_help_in_process(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run in this process as a script, the command hands its arguments to main and exits zero for --help."""
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    monkeypatch.setattr(sys, "argv", [str(SCRIPT), "--help"])
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(SCRIPT), run_name="__main__")
+    assert stopped.value.code == 0
+    assert "usage:" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("arguments,expected", [(("--help",), 0), (("--unknown-option",), 2), (("--json-out",), 2)])
