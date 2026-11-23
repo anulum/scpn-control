@@ -28,7 +28,7 @@ def test_live_coverage_exception_inventory_is_complete() -> None:
 
     assert ledger["counts"]["pragma-no-cover"] == 171
     assert ledger["counts"]["pytest-skipif"] == 148
-    assert ledger["counts"]["pytest-runtime-skip"] == 58
+    assert ledger["counts"]["pytest-runtime-skip"] == 59
     assert ledger["counts"]["pytest-xfail"] == 2
     assert ledger["counts"]["coverage-exclude-pattern"] == 11
     assert all(entry["reason"] and entry["removal_condition"] for entry in ledger["entries"])
@@ -57,6 +57,10 @@ def test_real_provider_and_wider_float_skips_name_their_environment() -> None:
     assert all(entry["status"] == "explicit-environment-blocker" for entry in provider + wider_float)
     assert all(entry["external_dependency"] and entry["removal_condition"] for entry in provider + wider_float)
     assert all(entry["last_review"] == "2026-09-23" for entry in provider + wider_float)
+    torax = [entry for entry in entries if entry["reason"] == "TORAX 1.4 must be installed to run the provider path"]
+    assert [entry["path"] for entry in torax] == ["tests/test_code_to_code_torax_provider.py"]
+    assert torax[0]["classification"] == "torax-external-runtime"
+    assert torax[0]["status"] == "explicit-environment-blocker" and torax[0]["last_review"] == "2026-11-23"
 
 
 def test_device_review_exceptions_keep_their_evidence_boundaries() -> None:

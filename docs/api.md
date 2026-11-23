@@ -5735,6 +5735,10 @@ The actual local config uses a unique caller-cwd directory and is cleaned up.
 Standalone TORAX configuration export uses exclusive file creation and refuses
 an existing destination. The legacy optional runtime path remains dependent
 on the actual installed provider API; missing TORAX returns an explicit block.
+The configuration builds and runs with TORAX 1.4.3; TORAX 1.0.3 rejects
+`profile_conditions.initial_psi_mode` and TORAX 2.0.0 rejects the
+configuration schema. Even a completed run keeps physical admission blocked
+by the unmatched transport closures, current/geometry and source channels.
 
 ### Synthetic disturbance rejection API
 

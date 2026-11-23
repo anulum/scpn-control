@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Code-to-code command — verified TORAX provider
+
+- **Fixed:** without TORAX the code-to-code command suggested `pip install torax`, which
+  now installs TORAX 2.0.0. Its configuration schema rejects the command's TORAX
+  configuration, as does TORAX 1.0.3. The hint now names TORAX 1.4.3, the version with
+  which the configuration builds and the simulation runs, and the adapter documents the
+  verified and rejected versions. A completed comparison keeps physical admission
+  blocked by the unmatched transport closures, current/geometry and source channels.
+
 ### Command-line interface — import path
 
 - **Fixed:** importing `scpn_control.cli` put the directory two levels above the module

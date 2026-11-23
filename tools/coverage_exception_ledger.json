@@ -2,7 +2,7 @@
   "counts": {
     "coverage-exclude-pattern": 11,
     "pragma-no-cover": 171,
-    "pytest-runtime-skip": 58,
+    "pytest-runtime-skip": 59,
     "pytest-skipif": 148,
     "pytest-xfail": 2
   },
@@ -2766,6 +2766,21 @@
       "reason": "needs the locally built debug Rust extension; there is no mock or automatic install",
       "removal_condition": "Remove when the Rust extension becomes mandatory in the baseline wheel or the guarded compatibility path is retired.",
       "status": "variant-ci-lane"
+    },
+    {
+      "classification": "torax-external-runtime",
+      "condition": "runtime call",
+      "execution_lane": "manual focused tests with an installed TORAX 1.4 provider",
+      "external_dependency": "installed TORAX 1.4 provider and its JAX runtime",
+      "id": "covexc-699593e59dc14be2",
+      "kind": "pytest-runtime-skip",
+      "last_review": "2026-11-23",
+      "line": 40,
+      "owner": "tests/code_to_code_torax_provider",
+      "path": "tests/test_code_to_code_torax_provider.py",
+      "reason": "TORAX 1.4 must be installed to run the provider path",
+      "removal_condition": "Remove when a maintained named CI lane runs these exact provider tests with a recorded TORAX version, or the provider tests are retired.",
+      "status": "explicit-environment-blocker"
     },
     {
       "classification": "optional-package",
@@ -5858,8 +5873,8 @@
       "status": "variant-ci-lane"
     }
   ],
-  "entry_count": 390,
-  "entry_sha256": "0d1c8ef42c74c268011e3aa3eff1cebd3bb46e1a4bdfa68b6991ba513366e1cf",
+  "entry_count": 391,
+  "entry_sha256": "d35bc9c9358e4aaeac72d655b0e158a47bb070e13192bdf95cd9d24ce89b0115",
   "generated_from": [
     "src/scpn_control/**/*.py",
     "tests/**/*.py",

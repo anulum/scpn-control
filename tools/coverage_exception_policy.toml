@@ -8,8 +8,8 @@
 
 schema = "scpn-control.coverage-exception-policy.v1"
 last_review = "2026-11-18"
-expected_total = 390
-expected_sha256 = "0d1c8ef42c74c268011e3aa3eff1cebd3bb46e1a4bdfa68b6991ba513366e1cf"
+expected_total = 391
+expected_sha256 = "d35bc9c9358e4aaeac72d655b0e158a47bb070e13192bdf95cd9d24ce89b0115"
 
 [[rules]]
 id = "spo-installation-boundary"
@@ -226,6 +226,16 @@ external_dependency = "configured GACODE launcher and its runtime environment"
 execution_lane = "manual focused tests with an actual configured GACODE launcher"
 status = "explicit-environment-blocker"
 removal_condition = "Remove when a maintained named CI lane runs these exact provider tests with recorded GACODE provenance, or the provider tests are retired."
+workflow_evidence = ""
+
+[[rules]]
+id = "torax-external-runtime"
+pattern = "TORAX 1.4 must be installed to run the provider path"
+last_review = "2026-11-23"
+external_dependency = "installed TORAX 1.4 provider and its JAX runtime"
+execution_lane = "manual focused tests with an installed TORAX 1.4 provider"
+status = "explicit-environment-blocker"
+removal_condition = "Remove when a maintained named CI lane runs these exact provider tests with a recorded TORAX version, or the provider tests are retired."
 workflow_evidence = ""
 
 [[rules]]

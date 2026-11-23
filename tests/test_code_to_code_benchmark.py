@@ -137,6 +137,24 @@ def test_extract_torax_result_reads_profiles_and_scalars() -> None:
     assert result["W_thermal_total_J"] == 2.5e8
 
 
+def test_extract_torax_result_omits_absent_scalars() -> None:
+    """Without stored energy and confinement time the result carries the profiles only."""
+    profiles = _FakeDataset(
+        {
+            "T_e": np.array([[8.0, 5.0, 1.0]]),
+            "T_i": np.array([[7.0, 4.0, 0.8]]),
+            "n_e": np.array([[9e19, 7e19, 2e19]]),
+        },
+        rho=np.array([0.0, 0.5, 1.0]),
+    )
+    tree = _FakeDataTree(profiles, _FakeDataset({}))
+
+    result = c2c._extract_torax_result(tree, c2c.ITER_SCENARIO, wall_time=0.5)
+
+    assert "W_thermal_total_J" not in result and "tau_E_s" not in result
+    assert result["Te_final"] == [8.0, 5.0, 1.0] and result["wall_time_s"] == 0.5
+
+
 def test_compare_results_includes_ion_temperature_metrics() -> None:
     """Compare results includes ion temperature metrics."""
     scpn = {

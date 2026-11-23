@@ -10,6 +10,9 @@
 
 Provider configuration/output compatibility depends on the installed TORAX.
 This optional adapter is not exercised by a fake backend when TORAX is absent.
+Its configuration builds and its simulation runs with TORAX 1.4.3 (with JAX
+0.11.2). TORAX 1.0.3 rejects ``profile_conditions.initial_psi_mode``, and
+TORAX 2.0.0 rejects the configuration schema, so neither is supported.
 """
 
 from __future__ import annotations
@@ -114,7 +117,7 @@ def _run_torax(scenario: dict[str, Any]) -> dict[str, Any] | None:
         import torax
     except ImportError:
         print("TORAX not installed — skipping TORAX comparison.")
-        print("Install with: pip install torax")
+        print("Install with: pip install 'torax==1.4.3' (TORAX 2.0 changed the configuration schema)")
         return None
 
     _write_torax_config(TORAX_TMP_CONFIG, scenario)
