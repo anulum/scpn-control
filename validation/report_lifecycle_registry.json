@@ -5235,7 +5235,7 @@
         "locally_rerunnable": false,
         "status": "external_artifact_blocked"
       },
-      "report_commit": "a8ec99687aebff6258540fca5ee0c2df66f428b8",
+      "report_commit": "de2a41a8642181699437cfe0f67a012ae3de8dff",
       "report_sha256": "e3e95c2f080d7ceebcfe34bc179fad9454768f74ec61d1bac94fddfa2e9cf775",
       "source_claim_boundary_present": true,
       "storage_class": "git_tracked"
