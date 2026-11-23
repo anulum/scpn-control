@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### MAST EFM campaign publisher — verified inputs only
+
+- **Fixed:** `validation/publish_mast_efm_neural_equilibrium_campaign.py` published the
+  metrics of any JSON object given as an evaluation report. It checked neither schema
+  nor payload digest. When an evaluated reference was missing from the candidate, it
+  fell back silently, and it never compared the evaluated bundle's SHA-256 with the
+  candidate's. It now:
+  - requires the converter's candidate report and the evaluator's reports, each with a
+    digest that matches its contents;
+  - requires every evaluated reference to be a candidate shot with the same SHA-256;
+  - publishes each shot once;
+  - refuses boolean, string and nonfinite metrics.
+- **Changed:** the command returns 0 or 1 and prints the reason for a refusal instead of
+  a traceback. It also refuses output paths that would replace an input or each other.
+  The committed campaign report is unchanged; its evaluation inputs live in external
+  storage.
+
 ### Symbolic-lane evidence — stated deviation follows the measurement
 
 - **Fixed:** the symbolic-lane evidence claim stated an observed maximum deviation of

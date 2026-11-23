@@ -10,9 +10,12 @@
 
 from __future__ import annotations
 
+import runpy
+import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 
 from scpn_control.core.neural_equilibrium import NeuralEqConfig, NeuralEquilibriumAccelerator
 from validation.evaluate_mast_efm_neural_equilibrium import (
@@ -263,3 +266,16 @@ def test_cli_success_and_authored_refusal_use_real_inputs(tmp_path: Path) -> Non
     with pytest.raises(SystemExit) as usage_exit:
         parse_args([])
     assert usage_exit.value.code == 2
+
+
+def test_script_entry_point_reaches_the_evaluation_parser(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run as a script, the evaluator puts its checkout on the path and hands ``--help`` to ``main``."""
+    script = Path(__file__).resolve().parents[1] / "validation" / "evaluate_mast_efm_neural_equilibrium.py"
+    monkeypatch.setattr(sys, "argv", [str(script), "--help"])
+    monkeypatch.setattr(sys, "path", list(sys.path))
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_path(str(script), run_name="__main__")
+    assert stopped.value.code == 0
+    assert "--weights-path" in capsys.readouterr().out

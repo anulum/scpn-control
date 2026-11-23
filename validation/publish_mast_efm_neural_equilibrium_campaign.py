@@ -6,16 +6,38 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — MAST EFM neural-equilibrium campaign publisher
-"""Publish compact MAST EFM neural-equilibrium campaign evidence into the repo."""
+"""Publish compact MAST EFM neural-equilibrium campaign evidence into the repo.
+
+The candidate report must be the converter's report and every evaluation report
+the evaluator's, each with a payload digest that matches its contents. Every
+evaluated reference must be a shot of that candidate with the same SHA-256, and
+each shot is published once. The campaign report stays blocked: it aggregates
+flux and geometry diagnostics and admits no predictive EFIT/P-EFIT claim.
+"""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
+import sys
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+ROOT = Path(__file__).resolve().parents[1]
+# Run as a script, put the checkout on the import path; an import as
+# ``validation.<module>`` leaves the caller's import path unchanged.
+if __package__ in {None, ""} and str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from validation.evaluate_mast_efm_neural_equilibrium import EVALUATION_SCHEMA
+from validation.evaluate_mast_efm_neural_equilibrium import sha256_json as evaluation_payload_digest
+from validation.mast_efm_reference_contracts import CANDIDATE_SCHEMA
+from validation.mast_efm_reference_contracts import json_sha256 as candidate_payload_digest
+from validation.neural_equilibrium_dataset_contracts import ensure_distinct_outputs
 
 CAMPAIGN_SCHEMA = "scpn-control.mast-efm-neural-equilibrium-campaign.v1"
 
@@ -53,14 +75,17 @@ def safe_repo_reference(path_text: str, storage_root: Path) -> str:
 
 
 def finite_metric(report: dict[str, Any], key: str) -> float | None:
-    """Read one optional finite metric from an evaluator report."""
+    """Read one optional finite metric from an evaluator report.
+
+    A missing or null metric is ``None``. Anything else must be a finite real
+    number; booleans, strings and nonfinite values are refused.
+    """
     value = report.get("metrics", {}).get(key)
     if value is None:
         return None
-    result = float(value)
-    if not result == result or result in {float("inf"), float("-inf")}:
-        raise ValueError(f"metric {key} is not finite")
-    return result
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        raise ValueError(f"metric {key} is not a finite number")
+    return float(value)
 
 
 def mean(values: list[float]) -> float | None:
@@ -78,6 +103,7 @@ def maximum(values: list[float]) -> float | None:
 
 
 def _shot_id_from_report(report: dict[str, Any]) -> int:
+    """Return the first all-digit token of the evaluated reference file name as the shot id."""
     reference_path = str(report.get("reference_path", ""))
     for token in Path(reference_path).name.split("_"):
         if token.isdigit():
@@ -85,13 +111,53 @@ def _shot_id_from_report(report: dict[str, Any]) -> int:
     raise ValueError(f"cannot infer shot id from reference_path={reference_path!r}")
 
 
+def _verified_candidate(path: Path) -> dict[str, Any]:
+    """Load the converter's candidate report, refusing a foreign schema or a stale payload digest."""
+    candidate = load_json(path)
+    if candidate.get("schema_version") != CANDIDATE_SCHEMA:
+        raise ValueError(f"{path} is not a {CANDIDATE_SCHEMA} report")
+    if candidate.get("payload_sha256") != candidate_payload_digest({**candidate, "payload_sha256": None}):
+        raise ValueError(f"{path} payload_sha256 does not match its contents")
+    return candidate
+
+
+def _verified_evaluation(path: Path) -> dict[str, Any]:
+    """Load one evaluator report, refusing a foreign schema or a stale payload digest.
+
+    The evaluator signs its report before it adds ``payload_sha256``, so the
+    digest is recomputed over every other field.
+    """
+    evaluation = load_json(path)
+    if evaluation.get("schema_version") != EVALUATION_SCHEMA:
+        raise ValueError(f"{path} is not a {EVALUATION_SCHEMA} report")
+    unsigned = {key: value for key, value in evaluation.items() if key != "payload_sha256"}
+    if evaluation.get("payload_sha256") != evaluation_payload_digest(unsigned):
+        raise ValueError(f"{path} payload_sha256 does not match its contents")
+    return evaluation
+
+
 def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
-    """Build a compact repository-publishable campaign evidence report."""
-    candidate = load_json(inputs.candidate_report)
-    evaluations = [load_json(path) for path in inputs.evaluation_reports]
+    """Build a compact repository-publishable campaign evidence report from verified inputs.
+
+    Raises
+    ------
+    ValueError
+        No evaluation report is given; a report is foreign, malformed or stale;
+        an evaluated reference is not a candidate shot or has a different
+        SHA-256; a shot is evaluated twice; or a metric is not a finite number.
+    OSError
+        An input cannot be read.
+    """
+    candidate = _verified_candidate(inputs.candidate_report)
+    evaluations = [_verified_evaluation(path) for path in inputs.evaluation_reports]
     if not evaluations:
         raise ValueError("at least one evaluation report is required")
-    reference_by_path = {item.get("output_path"): item for item in candidate.get("shots", []) if isinstance(item, dict)}
+    reference_by_path = {
+        Path(str(item.get("output_path"))).resolve(): item
+        for item in candidate.get("shots", [])
+        if isinstance(item, dict)
+    }
+    published_shots: set[int] = set()
     shot_reports: list[dict[str, Any]] = []
     psi_rmse: list[float] = []
     axis_rmse: list[float] = []
@@ -101,12 +167,20 @@ def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
     fallback_features: set[str] = set()
     for evaluation in sorted(evaluations, key=_shot_id_from_report):
         shot_id = _shot_id_from_report(evaluation)
+        if shot_id in published_shots:
+            raise ValueError(f"shot {shot_id} is evaluated more than once")
+        published_shots.add(shot_id)
         metrics = evaluation.get("metrics", {})
         for feature, note in evaluation.get("feature_mapping_notes", {}).items():
             if isinstance(note, str) and note.startswith("fallback"):
                 fallback_features.add(str(feature))
         reference_path = str(evaluation.get("reference_path", ""))
-        candidate_shot = reference_by_path.get(reference_path, {})
+        candidate_shot = reference_by_path.get(Path(reference_path).resolve())
+        if candidate_shot is None:
+            raise ValueError(f"evaluated reference {reference_path} is not a shot of the candidate report")
+        reference_sha256 = candidate_shot.get("sha256")
+        if not isinstance(reference_sha256, str) or evaluation.get("reference_artifact_sha256") != reference_sha256:
+            raise ValueError(f"evaluated reference {reference_path} does not have the candidate's SHA-256")
         total_equilibria += int(evaluation.get("reference_equilibria_count", 0))
         psi_value = finite_metric(evaluation, "psi_rmse_Wb_per_rad")
         axis_value = finite_metric(evaluation, "magnetic_axis_rmse_m")
@@ -127,7 +201,7 @@ def build_campaign_report(inputs: CampaignInput) -> dict[str, Any]:
                 "grid_shape": evaluation.get("grid_shape"),
                 "reference_path": safe_repo_reference(reference_path, inputs.storage_root),
                 "prediction_path": safe_repo_reference(str(evaluation.get("prediction_path", "")), inputs.storage_root),
-                "reference_sha256": evaluation.get("reference_artifact_sha256") or candidate_shot.get("sha256"),
+                "reference_sha256": reference_sha256,
                 "prediction_sha256": evaluation.get("prediction_artifact_sha256"),
                 "weights_sha256": evaluation.get("weights_sha256"),
                 "metrics": {
@@ -251,29 +325,46 @@ def write_campaign_report(report: dict[str, Any], json_out: Path, markdown_out: 
     markdown_out.write_text("\n".join(lines), encoding="utf-8")
 
 
-def parse_args() -> argparse.Namespace:
-    """Parse command-line arguments."""
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    """Parse the candidate, evaluation reports, storage root and both outputs; ``None`` reads ``sys.argv``."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--candidate-report", required=True, type=Path)
     parser.add_argument("--evaluation-report", required=True, action="append", type=Path)
     parser.add_argument("--storage-root", default=Path("/data/SCPN-CONTROL"), type=Path)
     parser.add_argument("--json-out", required=True, type=Path)
     parser.add_argument("--report-out", required=True, type=Path)
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
-def main() -> None:
-    """Publish one campaign report from candidate and per-shot evidence."""
-    args = parse_args()
-    report = build_campaign_report(
-        CampaignInput(
-            candidate_report=args.candidate_report,
-            evaluation_reports=tuple(args.evaluation_report),
-            storage_root=args.storage_root,
+def main(argv: Sequence[str] | None = None) -> int:
+    """Publish one campaign report from verified candidate and per-shot evidence.
+
+    Returns
+    -------
+    int
+        0 after writing both outputs; 1 after printing the refusal when an
+        output would replace an input or the other output, or an input is
+        refused. Argparse keeps its own exits for help and usage errors.
+    """
+    args = parse_args(argv)
+    try:
+        ensure_distinct_outputs(
+            [args.json_out, args.report_out], protected=[args.candidate_report, *args.evaluation_report]
         )
-    )
-    write_campaign_report(report, args.json_out, args.report_out)
+        report = build_campaign_report(
+            CampaignInput(
+                candidate_report=args.candidate_report,
+                evaluation_reports=tuple(args.evaluation_report),
+                storage_root=args.storage_root,
+            )
+        )
+        write_campaign_report(report, args.json_out, args.report_out)
+    except (OSError, ValueError) as exc:
+        print(f"MAST EFM campaign publication refused: {exc}", file=sys.stderr)
+        return 1
+    print(f"MAST EFM campaign evidence: status={report['status']} shots={report['shot_count']}")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
