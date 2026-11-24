@@ -173,9 +173,12 @@ def test_project_version_loader_fails_closed(tmp_path: Path, text: str, message:
 
 def test_audit_rejects_manifest_project_version_drift(tmp_path: Path) -> None:
     """A version bump requires refreshing the assessed SCPN evidence snapshot."""
-    project = _write_project(tmp_path, '[project]\nname = "scpn-control"\nversion = "0.24.0"\n')
+    recorded = json.loads(MANIFEST.read_text(encoding="utf-8"))["project_version"]
+    major, minor, _patch = (int(part) for part in recorded.split("."))
+    bumped = f"{major}.{minor + 1}.0"
+    project = _write_project(tmp_path, f'[project]\nname = "scpn-control"\nversion = "{bumped}"\n')
     result = check_competitive_evidence.audit(MANIFEST, PAGE, project)
-    assert result["project_version"] == "0.24.0"
+    assert result["project_version"] == bumped
     assert "manifest project_version must match pyproject.toml" in result["errors"]
 
 
