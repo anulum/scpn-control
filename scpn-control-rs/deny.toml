@@ -13,9 +13,9 @@ yanked = "warn"
 # .github/rust-advisory-exceptions.json; tools/rust_advisory_exceptions.py fails
 # CI from the expiry date and when the crate is reachable outside build scripts.
 ignore = [
-    { id = "RUSTSEC-2026-0449", reason = "ocipkg unmaintained; build-dependency of intel-mkl-src only; owner grant 2026-11-17, expires 2026-11-24" },
-    { id = "RUSTSEC-2026-0450", reason = "ocipkg path traversal; build-dependency of intel-mkl-src only; owner grant 2026-11-17, expires 2026-11-24" },
-    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained; reached only through ocipkg in the intel-mkl-src build; owner grant 2026-11-17, expires 2026-11-24" },
+    { id = "RUSTSEC-2026-0449", reason = "ocipkg unmaintained; build-dependency of intel-mkl-src only; owner grant 2026-11-24 (renews 2026-11-17), expires 2026-12-01" },
+    { id = "RUSTSEC-2026-0450", reason = "ocipkg path traversal; build-dependency of intel-mkl-src only; owner grant 2026-11-24 (renews 2026-11-17), expires 2026-12-01" },
+    { id = "RUSTSEC-2026-0543", reason = "chrono unmaintained; reached only through ocipkg in the intel-mkl-src build; owner grant 2026-11-24 (renews 2026-11-17), expires 2026-12-01" },
 ]
 
 [licenses]

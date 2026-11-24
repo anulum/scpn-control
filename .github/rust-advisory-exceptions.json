@@ -5,25 +5,25 @@
       "advisory": "RUSTSEC-2026-0450",
       "package": "ocipkg",
       "scope": "build",
-      "granted": "2026-11-17",
-      "expires": "2026-11-24",
-      "reason": "Path traversal when unpacking an OCI archive (fixed in 0.4.1). intel-mkl-src 0.8.1, the MKL backend of ndarray-linalg (feature intel-mkl-static), uses ocipkg 0.2.x only as a build-dependency: its build script downloads the MKL static libraries from the project's OCI registry. intel-mkl-src cannot move to ocipkg 0.4.1. No shipped library contains ocipkg. Granted by the repository owner on 2026-11-17 for seven days; remove it once the MKL backend no longer needs ocipkg 0.2.x."
+      "granted": "2026-11-24",
+      "expires": "2026-12-01",
+      "reason": "Path traversal when unpacking an OCI archive (fixed in 0.4.1). intel-mkl-src 0.8.1, the MKL backend of ndarray-linalg (feature intel-mkl-static), uses ocipkg 0.2.x only as a build-dependency: its build script downloads the MKL static libraries from the project's OCI registry. intel-mkl-src cannot move to ocipkg 0.4.1. No shipped library contains ocipkg. Granted by the repository owner on 2026-11-17 for seven days and renewed by a new grant on 2026-11-24 for seven days; remove it once the MKL backend no longer needs ocipkg 0.2.x."
     },
     {
       "advisory": "RUSTSEC-2026-0449",
       "package": "ocipkg",
       "scope": "build",
-      "granted": "2026-11-17",
-      "expires": "2026-11-24",
-      "reason": "ocipkg is unmaintained (no safe upgrade). intel-mkl-src 0.8.1, the MKL backend of ndarray-linalg (feature intel-mkl-static), uses ocipkg 0.2.x only as a build-dependency: its build script downloads the MKL static libraries from the project's OCI registry. intel-mkl-src cannot move to ocipkg 0.4.1. No shipped library contains ocipkg. Granted by the repository owner on 2026-11-17 for seven days; remove it once the MKL backend no longer needs ocipkg 0.2.x."
+      "granted": "2026-11-24",
+      "expires": "2026-12-01",
+      "reason": "ocipkg is unmaintained (no safe upgrade). intel-mkl-src 0.8.1, the MKL backend of ndarray-linalg (feature intel-mkl-static), uses ocipkg 0.2.x only as a build-dependency: its build script downloads the MKL static libraries from the project's OCI registry. intel-mkl-src cannot move to ocipkg 0.4.1. No shipped library contains ocipkg. Granted by the repository owner on 2026-11-17 for seven days and renewed by a new grant on 2026-11-24 for seven days; remove it once the MKL backend no longer needs ocipkg 0.2.x."
     },
     {
       "advisory": "RUSTSEC-2026-0543",
       "package": "chrono",
       "scope": "build",
-      "granted": "2026-11-17",
-      "expires": "2026-11-24",
-      "reason": "chrono is unmaintained (all versions; no patched release). It reaches the workspace only through ocipkg, the build-dependency of intel-mkl-src (the MKL backend of ndarray-linalg), so it runs only in that build script. Covered by the repository owner's seven-day, build-only grant of 2026-11-17 for the MKL build path; remove it with the ocipkg exceptions."
+      "granted": "2026-11-24",
+      "expires": "2026-12-01",
+      "reason": "chrono is unmaintained (all versions; no patched release). It reaches the workspace only through ocipkg, the build-dependency of intel-mkl-src (the MKL backend of ndarray-linalg), so it runs only in that build script. Covered by the repository owner's seven-day, build-only grant of 2026-11-17 for the MKL build path, renewed by a new grant on 2026-11-24 for seven days; remove it with the ocipkg exceptions."
     }
   ]
 }

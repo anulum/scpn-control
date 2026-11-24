@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Rust advisory exceptions — renewed for seven days
+
+- **Changed:** the build-only exceptions for RUSTSEC-2026-0449 and
+  RUSTSEC-2026-0450 (`ocipkg`) and RUSTSEC-2026-0543 (`chrono`) expired on
+  2026-11-24, and the Rust audit job failed from that day. Nothing has
+  changed upstream: `intel-mkl-src` 0.8.1, the MKL backend of
+  `ndarray-linalg`, is still its latest release and requires `ocipkg`
+  0.2.x, so no lock update reaches the 0.4.1 fix. The repository owner
+  granted a new seven-day exception on 2026-11-24 (expires 2026-12-01),
+  still for build dependencies only. Removing the exceptions needs a
+  backend without `intel-mkl-src`.
+
 ### Advisory exception gates — every message names its package
 
 - **Fixed:** an exception covers one advisory in one package, but the Studio
