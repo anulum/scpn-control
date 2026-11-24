@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+### Studio lock audit — the expired picomatch exception is removed
+
+- **Fixed:** the Studio lock audit failed from 2026-11-24. Its one exception,
+  picomatch GHSA-fc5q-39xc-vjpf (granted 2026-11-17), expired that day, and the
+  gate fails on an expired exception even when the lock is clean. The advisory
+  was withdrawn on 2026-11-18, and `pnpm audit` (pnpm 11.25.0) reports no
+  advisory for `studio-web/pnpm-lock.yaml`. The exceptions file is now empty, so
+  any new advisory fails the audit until the owner grants a new exception.
+
 ### MAST lineage and verification gates — runnable as documented
 
 - **Fixed:** seven MAST lineage and verification commands failed with
