@@ -256,6 +256,9 @@ def test_a_linked_worktree_resolves_its_gitdir_file(tmp_path: Path) -> None:
     assert (linked / ".git").is_file()
     assert capture_source_snapshot(linked).worktree_vs_index == "clean"
 
+    # Git for Windows marks the .git file hidden, and Windows refuses to open a
+    # hidden file for truncating writes; replace the file instead.
+    (linked / ".git").unlink()
     (linked / ".git").write_text("not a gitdir pointer\n", encoding="utf-8")
     assert capture_source_snapshot(linked).worktree_vs_index == "unknown"
 
