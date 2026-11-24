@@ -5,7 +5,7 @@
 # ORCID: 0009-0009-3560-0851
 # Contact: www.anulum.li | protoscience@anulum.li
 # SCPN Control — Import-path contract of validation and tool commands.
-"""Validation and tool commands edit the import path only when they run as scripts.
+"""Validation and tool commands edit the import path only when they run as commands.
 
 Imported as ``validation.<module>`` or ``tools.<module>`` they must leave the
 caller's import path alone. Loaded from their file outside a package, as a
@@ -14,18 +14,24 @@ add no duplicate when the entries are already present. Every check strips the
 checkout and its ``src`` first: with them present, an unguarded "insert if
 absent" would also leave the path unchanged. Each module is imported normally
 beforehand so that its dependencies resolve from the module cache. Run as
-``__main__``, each MAST command hands its arguments to ``main``.
+``__main__``, each MAST command hands its arguments to ``main``. Run with
+``python -m`` from a checkout whose package is not installed, as CI's test
+jobs do, a command that needs the checkout's sources puts ``src`` on the path
+before it starts.
 """
 
 from __future__ import annotations
 
 import importlib
 import importlib.util
+import json
 import runpy
 import sys
 from pathlib import Path
 
 import pytest
+
+from scpn_control.benchmark_records import CAMPAIGN_ENV
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
@@ -78,6 +84,39 @@ MAST_COMMANDS = (
     "validation/verify_mast_pilot_replay.py",
     "validation/verify_mast_real_object_alignment.py",
     "validation/verify_mast_real_object_smoke.py",
+)
+
+# Commands that need the checkout's src and answer --help through argparse.
+MODULE_RUN_PARSERS = (
+    "tools/generate_phase_video.py",
+    "tools/jarvislabs_train.py",
+    "tools/rl_training_results.py",
+    "tools/train_neural_equilibrium_iter.py",
+    "tools/train_rl_tokamak.py",
+    "validation/benchmark_differentiable_scenario.py",
+    "validation/benchmark_disturbance_rejection.py",
+    "validation/benchmark_jax_gk_parity.py",
+    "validation/controller_comparison.py",
+    "validation/free_boundary_tracking_acceptance.py",
+    "validation/stress_test_campaign.py",
+    "validation/validate_disruption_sequence.py",
+    "validation/validate_gk_collision_independent.py",
+    "validation/validate_gk_geometry_independent.py",
+    "validation/validate_gk_geometry_reference.py",
+    "validation/validate_marfe_onset.py",
+    "validation/validate_real_shots.py",
+    "validation/validate_scpn_lean_formal.py",
+    "validation/validate_scpn_z3_formal.py",
+    "validation/validate_stability_mhd_ballooning.py",
+    "validation/validate_vmec_lite_geometry.py",
+)
+
+# Benchmark producers that need src and refuse persistent output outside a recorded campaign.
+MODULE_RUN_CAMPAIGNS = (
+    "validation/benchmark_differentiable_transport_latency.py",
+    "validation/benchmark_digital_twin_online_update.py",
+    "validation/benchmark_marfe_onset_claims.py",
+    "validation/benchmark_vmec_lite_claims.py",
 )
 
 
@@ -139,3 +178,53 @@ def test_mast_command_run_as_main_reaches_its_parser(
         runpy.run_path(str(ROOT / relative), run_name="__main__")
     assert stopped.value.code == 0
     assert capsys.readouterr().out.startswith("usage: ")
+
+
+def _module_run_without_src(relative: str, monkeypatch: pytest.MonkeyPatch) -> str:
+    """Prepare a ``python -m`` run from the checkout root with ``src`` off the path; return the module name."""
+    name = _module_name(relative)
+    importlib.import_module(name)
+    monkeypatch.delitem(sys.modules, name)
+    monkeypatch.setattr(sys, "path", [str(ROOT), *_without_checkout()])
+    monkeypatch.setattr(sys, "argv", [name, "--help"])
+    monkeypatch.delenv(CAMPAIGN_ENV, raising=False)
+    assert str(SRC) not in sys.path
+    return name
+
+
+@pytest.mark.parametrize("relative", MODULE_RUN_PARSERS)
+def test_module_run_puts_the_checkout_sources_on_the_path(
+    relative: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run with ``python -m`` and ``--help``, the command adds ``src`` and reaches its parser."""
+    name = _module_run_without_src(relative, monkeypatch)
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_module(name, run_name="__main__", alter_sys=True)
+    assert stopped.value.code == 0
+    assert capsys.readouterr().out.startswith("usage: ")
+    assert str(SRC) in sys.path
+
+
+def test_module_run_of_the_sol_validator_adds_src_and_writes_its_report(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """Run with ``python -m`` and an explicit report path, the SOL validator adds ``src`` and emits its evidence."""
+    name = _module_run_without_src("validation/validate_sol_two_point.py", monkeypatch)
+    report = tmp_path / "sol.json"
+    monkeypatch.setattr(sys, "argv", [name, "--json-out", "--report", str(report)])
+    with pytest.raises(SystemExit) as stopped:
+        runpy.run_module(name, run_name="__main__", alter_sys=True)
+    assert stopped.value.code == 0
+    assert json.loads(capsys.readouterr().out) == json.loads(report.read_text(encoding="utf-8"))
+    assert str(SRC) in sys.path
+
+
+@pytest.mark.parametrize("relative", MODULE_RUN_CAMPAIGNS)
+def test_module_run_of_a_benchmark_adds_src_before_its_campaign_refusal(
+    relative: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Run with ``python -m`` outside a recorded campaign, the producer adds ``src`` and then refuses to write."""
+    name = _module_run_without_src(relative, monkeypatch)
+    with pytest.raises(RuntimeError, match="run_recorded_benchmark"):
+        runpy.run_module(name, run_name="__main__", alter_sys=True)
+    assert str(SRC) in sys.path

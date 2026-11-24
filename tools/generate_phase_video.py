@@ -23,7 +23,7 @@ from collections.abc import Sequence
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-if __package__ in (None, ""):
+if __name__ == "__main__" or __package__ in (None, ""):
     sys.path[:0] = [str(ROOT), str(ROOT / "src")]
 
 from tools.phase_video_model import capture_trajectory

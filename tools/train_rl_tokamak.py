@@ -23,7 +23,7 @@ import time
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-if __package__ in (None, ""):
+if __name__ == "__main__" or __package__ in (None, ""):
     sys.path[:0] = [str(REPO_ROOT), str(REPO_ROOT / "src")]
 try:
     from tools.rl_tokamak_evaluation import GymTokamakEnv, PIDController, evaluate_agent

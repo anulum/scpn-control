@@ -24,9 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-# Run as a script, put the checkout and its sources first; an import as
+# Run as a command (a script or ``python -m``), put the checkout and its sources first; an import as
 # ``validation.<module>`` leaves the caller's import path unchanged.
-if __package__ in {None, ""}:
+if __name__ == "__main__" or __package__ in {None, ""}:
     for _entry in (ROOT, SRC):
         if str(_entry) not in sys.path:
             sys.path.insert(0, str(_entry))

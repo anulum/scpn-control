@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Commands run with `python -m` from a checkout — sources on the path again
+
+- **Fixed:** 26 validation and tool commands that need the checkout's `src`
+  put it on the import path only when run as a file, so `python -m
+  validation.<command>` from a checkout without an installed package failed
+  with `ModuleNotFoundError: No module named 'scpn_control'`. CI's test jobs
+  run that way, and `test_real_checkout_entry_points_bootstrap_without_pythonpath`
+  failed for the SOL two-point validator. The guard now also covers a run as
+  `__main__`; an import as `validation.<module>` still leaves the caller's
+  import path unchanged. The new tests run each of the 26 as `python -m` with
+  `src` removed from the path, and they fail without the fix even where the
+  package is installed.
+- **Fixed:** the RMSE gate's burn-diagnostic coverage contract measures only
+  `tests/test_burn_model_checks.py` and `tests/test_ci_rmse_gate.py`, so the
+  oversized-number refusal added to `validation/burn_model_provider.py` was
+  uncovered there (99.46% against the required 100%). That test file now
+  includes the case.
+
 ### Rust advisory exceptions — renewed for seven days
 
 - **Changed:** the build-only exceptions for RUSTSEC-2026-0449 and

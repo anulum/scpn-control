@@ -125,7 +125,9 @@ def test_invalid_history_horizon_never_admits_empty_evidence(duration: float, dt
         check_history({}, point(), duration, dt)
 
 
-@pytest.mark.parametrize("field,value", [("B_t_T", True), ("B_t_T", "5.3"), ("n_e_1e19", float("nan"))])
+@pytest.mark.parametrize(
+    "field,value", [("B_t_T", True), ("B_t_T", "5.3"), ("n_e_1e19", float("nan")), ("R_m", 10**400)]
+)
 def test_reference_units_require_actual_positive_numbers(field: str, value: object) -> None:
     """A malformed design input cannot be coerced or replaced by a target."""
     reference = json.loads((ROOT / "validation/reference_data/iter_reference.json").read_text())

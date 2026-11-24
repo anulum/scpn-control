@@ -31,9 +31,9 @@ from collections.abc import Sequence
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-# Run as a script, put the checkout and its sources on the import path; an
+# Run as a command (a script or ``python -m``), put the checkout and its sources on the import path; an
 # import as ``validation.<module>`` leaves the caller's import path unchanged.
-if __package__ in {None, ""}:
+if __name__ == "__main__" or __package__ in {None, ""}:
     for _directory in [REPO_ROOT, REPO_ROOT / "src"]:
         if str(_directory) not in sys.path:
             sys.path.insert(0, str(_directory))

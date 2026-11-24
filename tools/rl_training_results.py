@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import TypedDict
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-if __package__ in (None, ""):
+if __name__ == "__main__" or __package__ in (None, ""):
     sys.path[:0] = [str(REPO_ROOT), str(REPO_ROOT / "src")]
 from scpn_control.benchmark_records import require_recorded_campaign
 

@@ -19,9 +19,9 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
-# Run as a script, put the checkout's sources on the import path; an import as
+# Run as a command (a script or ``python -m``), put the checkout's sources on the import path; an import as
 # ``validation.<module>`` leaves the caller's import path unchanged.
-if __package__ in {None, ""} and str(SRC) not in sys.path:
+if (__name__ == "__main__" or __package__ in {None, ""}) and str(SRC) not in sys.path:
     sys.path.insert(0, str(SRC))
 
 from scpn_control.scpn.formal_verification import EventuallyFires, FireLeadsToMarking, NeverCoMarked

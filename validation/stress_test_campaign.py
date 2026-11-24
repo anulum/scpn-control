@@ -48,10 +48,10 @@ from typing import Any
 
 import numpy as np
 
-# Run as a script, put the checkout's src on the import path once; an import
+# Run as a command (a script or ``python -m``), put the checkout's src on the import path once; an import
 # as ``validation.<module>`` leaves the caller's import path unchanged.
 repo_root = Path(__file__).resolve().parents[1]
-if __package__ in {None, ""} and str(repo_root / "src") not in sys.path:
+if (__name__ == "__main__" or __package__ in {None, ""}) and str(repo_root / "src") not in sys.path:
     sys.path.insert(0, str(repo_root / "src"))
 
 from scpn_control.control.h_infinity_controller import get_flight_sim_controller
