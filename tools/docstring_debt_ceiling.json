@@ -1476,6 +1476,6 @@
     "tests/test_z3_model_checking_paths.py": "b75df61b4e373410c6cbae62f835fd26329ac00d8d7e3213c935b971131f5c77"
   },
   "source_fingerprint_protocol": "sha256-utf8-universal-newlines-v1",
-  "origin_revision": "ccfb4dcd38c4b56f7b5b8e442b9c612d45c55121",
+  "origin_revision": "fdbb9dc36f6ac9685f616caf4dc13195bb70bc97",
   "note": "Measured ceiling. Lower it by documenting code; never raise it."
 }
