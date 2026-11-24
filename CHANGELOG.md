@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Rust lock — `url` 2.5.9 for RUSTSEC-2026-0592
+
+- **Security:** `url` 2.5.8 and earlier overflow the stack in `Url::origin()`
+  on nested `blob:` URLs (RUSTSEC-2026-0592, published 2026-11-20), and the
+  Rust audit jobs failed on it. Both locks (`scpn-control-rs/Cargo.lock` and
+  `scpn-control-rs/fuzz/Cargo.lock`) move to `url` 2.5.9 and
+  `form_urlencoded` 1.2.3 with `cargo update -p url --precise 2.5.9`. `url`
+  is reached only through `ocipkg` and `ureq`, build dependencies of the MKL
+  backend. `cargo audit` on both locks and `cargo deny check advisories`
+  (cargo-deny 0.21.0) pass.
+
 ### Commands run with `python -m` from a checkout — sources on the path again
 
 - **Fixed:** 26 validation and tool commands that need the checkout's `src`
