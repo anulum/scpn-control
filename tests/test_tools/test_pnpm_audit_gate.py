@@ -292,13 +292,13 @@ def test_judge_accepts_the_excepted_development_advisory() -> None:
     """Judge accepts the excepted development advisory."""
     failures, used = gate.judge(REPORT, MANIFEST, _active(), date(2026, 11, 23))
     assert failures == []
-    assert used == {GHSA}
+    assert used == {(GHSA, "picomatch")}
 
 
 def test_judge_fails_on_the_day_of_expiry() -> None:
     """Judge fails on the day of expiry."""
     failures, used = gate.judge(REPORT, MANIFEST, _active(), EXPIRES)
-    assert f"{GHSA}: the exception expired on 2026-11-24" in failures
+    assert f"picomatch {GHSA}: the exception expired on 2026-11-24" in failures
     assert any("has no active exception" in failure for failure in failures)
     assert used == set()
 
@@ -306,8 +306,19 @@ def test_judge_fails_on_the_day_of_expiry() -> None:
 def test_judge_fails_a_stale_exception_after_expiry_even_on_a_clean_lock() -> None:
     """Judge fails a stale exception after expiry even on a clean lock."""
     failures, used = gate.judge(CLEAN_REPORT, MANIFEST, _active(), date(2026, 12, 1))
-    assert failures == [f"{GHSA}: the exception expired on 2026-11-24"]
+    assert failures == [f"picomatch {GHSA}: the exception expired on 2026-11-24"]
     assert used == set()
+
+
+def test_judge_names_the_package_of_each_expired_exception() -> None:
+    """One advisory granted for two packages reports the package whose grant expired."""
+    exceptions = (
+        gate.parse_exception(_exception()),
+        gate.parse_exception(_exception(package="micromatch", expires="2026-11-20")),
+    )
+    failures, used = gate.judge(REPORT, MANIFEST, exceptions, date(2026, 11, 21))
+    assert failures == [f"micromatch {GHSA}: the exception expired on 2026-11-20"]
+    assert used == {(GHSA, "picomatch")}
 
 
 def test_judge_accepts_a_clean_lock_while_an_exception_is_still_active() -> None:
@@ -346,7 +357,7 @@ def test_judge_fails_an_install_pnpm_does_not_report_as_development_only() -> No
     report["advisories"]["1247710"]["findings"][0]["dev"] = False
     failures, used = gate.judge(report, MANIFEST, _active(), GRANTED)
     assert failures == [f"picomatch {GHSA}@4.0.7: pnpm does not report a development-only install"]
-    assert used == {GHSA}
+    assert used == {(GHSA, "picomatch")}
 
 
 @pytest.mark.parametrize(
@@ -432,9 +443,49 @@ def test_main_accepts_the_excepted_advisory(tmp_path: Path, capsys: pytest.Captu
     out = capsys.readouterr()
     assert status == 0
     assert out.out == (
-        f"{lock_dir}: {GHSA} accepted in development dependencies only; the exception expires on 2026-11-24\n"
+        f"{lock_dir}: picomatch {GHSA} accepted in development dependencies only; the exception expires on 2026-11-24\n"
     )
     assert out.err == ""
+
+
+def test_main_reports_each_package_with_its_own_earliest_active_expiry(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """One advisory in two packages prints each package with the day its acceptance ends.
+
+    picomatch holds two active grants (11-22 and 11-24) and one expired one
+    (11-20); its acceptance ends on the earliest active expiry, 11-22.
+    micromatch holds one grant to 11-23. The expired grant still fails the lock.
+    """
+    lock_dir = _lock_dir(tmp_path)
+    report = copy.deepcopy(REPORT)
+    second = copy.deepcopy(report["advisories"]["1247710"])
+    second["module_name"] = "micromatch"
+    second["findings"][0]["paths"] = [".>vite>micromatch"]
+    report["advisories"]["1247711"] = second
+    exceptions = _exceptions_file(
+        tmp_path,
+        [
+            _exception(),
+            _exception(expires="2026-11-22"),
+            _exception(expires="2026-11-20"),
+            _exception(package="micromatch", expires="2026-11-23"),
+        ],
+    )
+    status = gate.main(
+        ["--exceptions", str(exceptions), str(lock_dir)],
+        runner=_runner(json.dumps(report), 1),
+        today=date(2026, 11, 21),
+    )
+    out = capsys.readouterr()
+    assert status == 1
+    assert out.out == (
+        f"{lock_dir}: micromatch {GHSA} accepted in development dependencies only;"
+        " the exception expires on 2026-11-23\n"
+        f"{lock_dir}: picomatch {GHSA} accepted in development dependencies only;"
+        " the exception expires on 2026-11-22\n"
+    )
+    assert out.err == f"{lock_dir}: picomatch {GHSA}: the exception expired on 2026-11-20\n"
 
 
 def test_main_reports_a_clean_lock(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

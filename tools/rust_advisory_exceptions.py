@@ -152,7 +152,9 @@ def check(
 ) -> list[str]:
     """Return every failure of the exceptions against the configuration and graphs."""
     failures = [
-        f"{item.advisory}: the exception expired on {item.expires}" for item in exceptions if today >= item.expires
+        f"{item.advisory} ({item.package}): the exception expired on {item.expires}"
+        for item in exceptions
+        if today >= item.expires
     ]
     active = sorted({item.advisory for item in exceptions if today < item.expires})
     for label, ids in (("deny.toml", list(deny_ids)), (".cargo/audit.toml", list(audit_ids))):

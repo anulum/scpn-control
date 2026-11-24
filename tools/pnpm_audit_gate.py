@@ -144,14 +144,16 @@ def judge(
     manifest: Mapping[str, Any],
     exceptions: Sequence[AdvisoryException],
     today: date,
-) -> tuple[list[str], set[str]]:
-    """Return the failures and the advisories accepted for one lock's report."""
+) -> tuple[list[str], set[tuple[str, str]]]:
+    """Return the failures and the accepted ``(advisory, package)`` pairs for one lock's report."""
     dev_roots = development_roots(manifest)
     failures = [
-        f"{item.advisory}: the exception expired on {item.expires}" for item in exceptions if today >= item.expires
+        f"{item.package} {item.advisory}: the exception expired on {item.expires}"
+        for item in exceptions
+        if today >= item.expires
     ]
     active = {(item.advisory, item.package) for item in exceptions if today < item.expires}
-    used: set[str] = set()
+    used: set[tuple[str, str]] = set()
     for key, advisory in sorted(report["advisories"].items()):
         if not isinstance(advisory, dict):
             failures.append(f"advisory {key}: unreadable entry")
@@ -167,7 +169,7 @@ def judge(
             failures.append(f"{label}: the report names no installed version")
         for finding in findings:
             failures.extend(_finding_failures(label, finding, dev_roots))
-        used.add(ghsa)
+        used.add((ghsa, package))
     return failures, used
 
 
@@ -176,7 +178,7 @@ def _check_lock(
     exceptions: Sequence[AdvisoryException],
     today: date,
     runner: Runner,
-) -> tuple[list[str], set[str]]:
+) -> tuple[list[str], set[tuple[str, str]]]:
     """Judge one lock directory; report unusable inputs as failures."""
     try:
         if not (lock_dir / "pnpm-lock.yaml").is_file():
@@ -197,7 +199,9 @@ def main(
 ) -> int:
     """Audit each named lock directory.
 
-    Exit 1 on any failure and 2 on an unusable exceptions file.
+    Exit 1 on any failure and 2 on an unusable exceptions file. Each accepted
+    advisory is printed with its package and the earliest expiry among that
+    pair's active exceptions, the day from which the gate fails again.
     """
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0] if __doc__ else None)
     parser.add_argument("--exceptions", type=Path, required=True)
@@ -209,14 +213,18 @@ def main(
     except (OSError, ValueError) as exc:
         print(f"pnpm audit gate: {exc}", file=sys.stderr)
         return 2
-    expiry = {item.advisory: item.expires for item in exceptions}
+    expiry: dict[tuple[str, str], date] = {}
+    for item in exceptions:
+        key = (item.advisory, item.package)
+        if day < item.expires:
+            expiry[key] = min(item.expires, expiry.get(key, item.expires))
     status = 0
     for lock_dir in args.lock_dirs:
         failures, used = _check_lock(lock_dir, exceptions, day, runner)
-        for advisory in sorted(used):
+        for advisory, package in sorted(used):
             print(
-                f"{lock_dir}: {advisory} accepted in development dependencies only;"
-                f" the exception expires on {expiry[advisory]}"
+                f"{lock_dir}: {package} {advisory} accepted in development dependencies only;"
+                f" the exception expires on {expiry[(advisory, package)]}"
             )
         for failure in failures:
             print(f"{lock_dir}: {failure}", file=sys.stderr)

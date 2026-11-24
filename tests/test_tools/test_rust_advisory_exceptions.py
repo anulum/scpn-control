@@ -271,9 +271,19 @@ def test_check_accepts_active_build_only_exceptions() -> None:
 def test_check_fails_from_the_day_of_expiry() -> None:
     """On the expiry date each exception fails and the lists no longer match."""
     failures = rae.check(_exceptions(), IDS, IDS, [GRAPH], EXPIRES)
-    assert "RUSTSEC-2026-0449: the exception expired on 2026-11-24" in failures
-    assert "RUSTSEC-2026-0450: the exception expired on 2026-11-24" in failures
+    assert "RUSTSEC-2026-0449 (ocipkg): the exception expired on 2026-11-24" in failures
+    assert "RUSTSEC-2026-0450 (ocipkg): the exception expired on 2026-11-24" in failures
     assert "deny.toml ignores ['RUSTSEC-2026-0449', 'RUSTSEC-2026-0450'], the active exceptions are []" in failures
+
+
+def test_check_names_the_crate_of_each_expired_exception() -> None:
+    """One advisory granted for two crates reports the crate whose grant expired."""
+    exceptions = (
+        rae.parse_exception(_exception()),
+        rae.parse_exception(_exception(package="tar", expires="2026-11-20")),
+    )
+    failures = rae.check(exceptions, IDS[1:], IDS[1:], [], date(2026, 11, 21))
+    assert failures == ["RUSTSEC-2026-0450 (tar): the exception expired on 2026-11-20"]
 
 
 @pytest.mark.parametrize(

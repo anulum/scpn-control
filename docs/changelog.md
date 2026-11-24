@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+### Advisory exception gates — every message names its package
+
+- **Fixed:** an exception covers one advisory in one package, but the Studio
+  lock gate printed an accepted advisory with the expiry of whichever exception
+  for that advisory it read last, so one advisory granted for two packages
+  showed one date for both. Each accepted advisory is now printed with its
+  package and the earliest expiry among that pair's active exceptions, the day
+  the gate fails again. The expired-exception failure of the Studio lock gate
+  and of the Rust advisory gate now names the package or crate as well.
+  Which advisories pass or fail is unchanged.
+
 ### Studio lock audit — the expired picomatch exception is removed
 
 - **Fixed:** the Studio lock audit failed from 2026-11-24. Its one exception,
