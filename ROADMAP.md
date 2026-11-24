@@ -56,7 +56,7 @@ Live capability counts come from
 - Added digest-bound claim reports for mu-synthesis, EFIT-lite, native runtime,
   HIL replay, controller safety cases, and generated capability/traceability
   inventories.
-- The current Python package declares version `0.23.0`. No `v1.0.0` tag exists;
+- The current Python package declares version `0.24.0`. No `v1.0.0` tag exists;
   this file does not imply a future release date or production-readiness state.
 
 ## Current evidence boundaries

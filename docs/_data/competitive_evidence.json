@@ -1,7 +1,7 @@
 {
   "schema": "scpn-control.competitive-evidence.v1",
   "as_of": "2026-08-28",
-  "project_version": "0.23.0",
+  "project_version": "0.24.0",
   "comparison_policy": {
     "absence_state": "not assessed",
     "numeric_admission": "Identical problem, inputs, precision, tolerances, convergence criteria, warm-up and compilation treatment, samples, isolated hardware, and failure accounting are required.",

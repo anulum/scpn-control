@@ -1,6 +1,6 @@
 # Competitive Evidence — SCPN Control and Adjacent Fusion Systems
 
-> **Evidence date:** 2026-08-28. **SCPN Control version:** v0.23.0.
+> **Evidence date:** 2026-08-28. **SCPN Control version:** v0.24.0 (assessed snapshot v0.23.0 f1f6e36d).
 > The machine-readable source registry is
 > [`docs/_data/competitive_evidence.json`](_data/competitive_evidence.json).
 

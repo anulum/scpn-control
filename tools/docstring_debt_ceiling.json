@@ -1172,7 +1172,7 @@
   },
   "profile": {
     "ruff_version": "0.16.10",
-    "configuration_sha256": "3a913f49388e6f7e4ca325de039550dc6f5295c990a2a8f6c22c9b831ade1180"
+    "configuration_sha256": "5e2b79b2b191f27017e9d155e9ecdf5013205121feeb47ce866809cc86805841"
   },
   "source_fingerprints": {
     "tests/test_adaptive_knm.py": "05244a5872a455cc4f16ae3ea9e86eae7f8a5d346eb512534935f61c4bb59f55",
@@ -1476,6 +1476,6 @@
     "tests/test_z3_model_checking_paths.py": "b75df61b4e373410c6cbae62f835fd26329ac00d8d7e3213c935b971131f5c77"
   },
   "source_fingerprint_protocol": "sha256-utf8-universal-newlines-v1",
-  "origin_revision": "a1c2c1aaa806996a171af8d7fab0b8cb3e0889de",
+  "origin_revision": "ccfb4dcd38c4b56f7b5b8e442b9c612d45c55121",
   "note": "Measured ceiling. Lower it by documenting code; never raise it."
 }

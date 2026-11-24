@@ -221,7 +221,7 @@ blocked until the required external artefacts exist.
 
 | Surface | Count |
 | --- | ---: |
-| Package version | 0.23.0 |
+| Package version | 0.24.0 |
 | Python requirement | >=3.11,<3.14 |
 | Project scripts | 1 |
 | Public API exports | 51 |
@@ -232,7 +232,7 @@ blocked until the required external artefacts exist.
 | Validation scripts | 275 |
 | Optional extras | 25 |
 | Python test files | 871 |
-| Public documentation pages | 78 |
+| Public documentation pages | 79 |
 | GitHub Actions workflows | 22 |
 
 **Evidence roots:** `src/scpn_control/core`, `src/scpn_control/control`, `src/scpn_control/phase`, `src/scpn_control/scpn`, `src/scpn_control/reactor_semantic_admission`, `scpn-control-rs/crates`, `validation`, `tests`, `docs`, and `.github/workflows`.
@@ -641,7 +641,7 @@ artifact inspection or process launch.
 **CI workflow** (tag-triggered trusted publishing):
 
 ```bash
-git tag v0.23.0
+git tag v0.24.0
 git push --tags
 # → .github/workflows/publish-pypi.yml runs automatically
 ```

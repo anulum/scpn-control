@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## [0.24.0] - 2026-11-24
+
 ### Rust lock — `url` 2.5.9 for RUSTSEC-2026-0592
 
 - **Security:** `url` 2.5.8 and earlier overflow the stack in `Url::origin()`
